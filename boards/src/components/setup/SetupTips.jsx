@@ -8,6 +8,8 @@
 // the drawer for the other two; however the tips end, the drawer closes again.
 // Opening the drawer by the button itself counts as Next, and shutting it on
 // the second or third tip ends them ('dismiss'): what they pointed at is gone.
+// What a tip points at in the drawer is scrolled into sight once, clear of the
+// meter pinned at its bottom.
 // The host (SetupInWorkspace) decides when they start and keeps the record.
 
 import './setupInWorkspace.css';
@@ -23,6 +25,34 @@ const EDGE = 18;      // the arrow never sits closer than this to a corner
 const shown = (r) => r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0
   && r.top < window.innerHeight && r.left < window.innerWidth;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// In the phone drawer the meter with Upload stays pinned at the bottom while
+// the rest scrolls under it (clusterSidebar.css), so a part low in the drawer
+// can sit behind it. Where an anchor can be seen ends at the pinned block.
+function seenTo(el) {
+  const meter = document.querySelector('.sidebar.is-mobile-open .sbf-meter');
+  if (!meter || meter.contains(el) || getComputedStyle(meter).position !== 'sticky') return window.innerHeight;
+  return Math.min(window.innerHeight, meter.getBoundingClientRect().top);
+}
+
+function scroller(el) {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p;
+  }
+  return null;
+}
+
+// Scrolls a drawer part that is out of sight (or behind the pinned meter) a
+// third of the way down what can be seen, so the pill has room beside it.
+function reveal(el, ar, to) {
+  if (ar.top >= 0 && ar.bottom <= to) return;
+  const box = scroller(el);
+  if (!box) return;
+  const top = Math.max(0, box.getBoundingClientRect().top);
+  const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  box.scrollTo({ top: box.scrollTop + ar.top - (top + (to - top) / 3), behavior: smooth ? 'smooth' : 'auto' });
+}
 
 // Where on the anchor the arrow points: near the top of a tall card (the
 // clusters card runs the height of the window), the middle of anything small,
@@ -82,6 +112,7 @@ export default function SetupTips({ phone, canImport, onStep, onEnd, onHow, open
   const [pos, setPos] = useState(null);
   const endedRef = useRef(false);
   const viewedRef = useRef(new Set());
+  const revealedRef = useRef(new Set());
   // What the anchor loop may do on a phone, read fresh each frame.
   const drawerRef = useRef({ advance: null, dismiss: null });
 
@@ -120,8 +151,17 @@ export default function SetupTips({ phone, canImport, onStep, onEnd, onHow, open
         const pr = pill.getBoundingClientRect();
         const el = document.querySelector(tip.anchor);
         const ar = el ? el.getBoundingClientRect() : null;
+        const to = el && phone ? seenTo(el) : window.innerHeight;
+        // Once per tip the drawer is scrolled to what it points at; after
+        // that it's theirs to scroll, and a part behind the meter isn't
+        // pointed at.
+        if (phone && ar && ar.width > 0 && ar.height > 0 && !revealedRef.current.has(tip.id)) {
+          revealedRef.current.add(tip.id);
+          reveal(el, ar, to);
+        }
         const frame = phone ? null : document.querySelector('.sbf-frame')?.getBoundingClientRect();
-        const at = shown(ar) ? place(ar, pr, tip.placement, frame && frame.width > 0 ? frame : null) : centered(pr);
+        const at = shown(ar) && ar.top + ar.height / 2 < to
+          ? place(ar, pr, tip.placement, frame && frame.width > 0 ? frame : null) : centered(pr);
         ring(at.side === 'none' ? null : el);
         setPos((p) => (p && Math.abs(p.top - at.top) < 0.5 && Math.abs(p.left - at.left) < 0.5
           && p.side === at.side && !p.detached === !at.detached && Math.abs(p.arrow - at.arrow) < 0.5 ? p : at));

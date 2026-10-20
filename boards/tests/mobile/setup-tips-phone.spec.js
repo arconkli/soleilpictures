@@ -1,7 +1,9 @@
 // The setup's tips and re-ask in the phone shell (?setupqa=1&inws=…): the
 // first tip points at the menu button, Next opens the drawer for the other
 // two, and however they end the drawer closes again. Opening the drawer by the
-// button itself moves them on, and shutting it ends them. The re-ask is a
+// button itself moves them on, and shutting it ends them. What they point at
+// in the drawer is scrolled into sight, above the meter where it's pinned at
+// the drawer's bottom. The re-ask is a
 // bottom sheet whose field doesn't zoom iOS on focus. Runs on the phone
 // projects and the portrait tablet, which App gives the same drawer.
 import { test, expect } from '@playwright/test';
@@ -22,6 +24,17 @@ const pick = (list, name, match = {}) => list.filter((e) => e.event === name
   && Object.entries(match).every(([k, v]) => e.props?.[k] === v));
 const settings = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__setupQa.db.profiles[0].settings)));
 const hostLog = (page) => page.evaluate(() => [...window.__setupQa.inws.log]);
+// A part of the drawer in sight: on screen, and above the meter where the
+// meter is pinned at the drawer's bottom.
+const inSight = (page, sel) => page.evaluate((s) => {
+  const el = document.querySelector(s);
+  const r = el?.getBoundingClientRect();
+  if (!r) return false;
+  const meter = document.querySelector('.sidebar.is-mobile-open .sbf-meter');
+  const to = meter && !meter.contains(el) && getComputedStyle(meter).position === 'sticky'
+    ? meter.getBoundingClientRect().top : window.innerHeight;
+  return r.top >= 0 && r.bottom <= to + 0.5;
+}, sel);
 const box = (loc) => loc.evaluate((el) => { const r = el.getBoundingClientRect(); return { top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width }; });
 
 test('the tips start at the menu button, go on inside the drawer, and close it when done', async ({ page }) => {
@@ -46,6 +59,7 @@ test('the tips start at the menu button, go on inside the drawer, and close it w
   await expect(tip).toHaveAttribute('data-tip', 'files');
   await expect(tip).toContainText('Every file lands in Files');
   await expect(page.locator('.sidebar.is-mobile-open .sbf-files-head')).toHaveClass(/su-tip-target/, { timeout: 5000 });
+  await expect.poll(() => inSight(page, '.sidebar.is-mobile-open .sbf-files-head')).toBe(true);
   await expect(menu).not.toHaveClass(/su-tip-target/);
   const t2 = await box(tip);
   expect(t2.top).toBeGreaterThanOrEqual(0);
@@ -55,6 +69,10 @@ test('the tips start at the menu button, go on inside the drawer, and close it w
   await tip.getByRole('button', { name: 'Next' }).click();
   await expect(tip).toHaveAttribute('data-tip', 'import');
   await expect(tip).toContainText('Bring a whole folder in from a computer');
+  // Upload, low in a long drawer, is brought into sight to be pointed at.
+  await expect(page.locator('.sidebar.is-mobile-open .sbf-upload')).toHaveClass(/su-tip-target/, { timeout: 5000 });
+  await expect.poll(() => inSight(page, '.sidebar.is-mobile-open .sbf-upload')).toBe(true);
+  await expect(tip.locator('.su-tip-arrow')).toHaveCount(1);
   await tip.getByRole('button', { name: 'Done' }).click();
   await expect(tip).toHaveCount(0);
   await expect(page.locator('.sidebar.is-mobile-open')).toHaveCount(0);
