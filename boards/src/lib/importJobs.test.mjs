@@ -5,7 +5,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   putImportJob, dropImportJob, importJobsSnapshot, subscribeImportJobs, trayEntries,
-  hasActiveImport, importJobEntry, __resetImportJobsForTests,
+  hasActiveImport, importJobEntry, importForBoard, __resetImportJobsForTests,
 } from './importJobs.js';
 
 beforeEach(() => __resetImportJobsForTests());
@@ -50,4 +50,21 @@ test('active: reading, asking and unfinished jobs hold the tab; finished ones do
   assert.equal(hasActiveImport(), false);
   putImportJob('b', { phase: 'asking' });
   assert.equal(hasActiveImport(), true);
+});
+
+test('importForBoard: what the latest import that made a cluster knows about it, the same object while it holds', () => {
+  const first = { b1: { path: 'Night Shift › Lookbook', waiting: 0 } };
+  putImportJob('k1', { phase: 'job', snap: { status: 'done', byBoard: first } });
+  putImportJob('k2', { phase: 'reading' });
+  assert.equal(importForBoard('b1'), first.b1);
+  assert.equal(importForBoard('nope'), null);
+  assert.equal(importForBoard(null), null);
+  const again = { b1: { path: 'Night Shift › Lookbook', waiting: 52 } };
+  putImportJob('k2', { phase: 'job', snap: { status: 'waiting', byBoard: again } });
+  assert.equal(importForBoard('b1').waiting, 52, 'the later import speaks');
+  putImportJob('k2', { snap: { status: 'waiting', byBoard: again, landed: { files: 1 } } });
+  assert.equal(importForBoard('b1'), again.b1, 'a progress tick changes nothing a view selected');
+  dropImportJob('k2');
+  dropImportJob('k1');
+  assert.equal(importForBoard('b1'), null, 'closed in the tray, forgotten');
 });

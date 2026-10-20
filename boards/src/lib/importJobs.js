@@ -66,6 +66,19 @@ export function hasActiveImport() {
   return list.some(isActiveEntry);
 }
 
+// What an import in this tab knows about a cluster it made — { path, waiting }
+// (importJob's byBoard) — or null. The latest import that made it speaks. The
+// job keeps the same object until its waiting list changes, so a view can
+// select it through useSyncExternalStore without re-rendering on every tick.
+export function importForBoard(boardId, entries = list) {
+  if (!boardId) return null;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const b = entries[i].snap?.byBoard?.[boardId];
+    if (b) return b;
+  }
+  return null;
+}
+
 // What the tray shows: the first entry still going (the dialog speaks for one
 // being asked about), else the latest finished one; and how many others are
 // still to come after it.

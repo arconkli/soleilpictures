@@ -1,0 +1,56 @@
+/* An empty board whose cluster has files in Files (UnplacedOffer.jsx), drawn
+   from the mockup's landing row (r5-Land-Select / r5-Land-Wait). Neutral ink
+   only; gold stays selection's and focus's. */
+.cnv-offer {
+  --cnv-offer-lift: 0 1px 2px rgba(0, 0, 0, .35), 0 10px 28px rgba(0, 0, 0, .22);
+  position: absolute; left: 50%; top: 50%; z-index: 3;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100% - 32px));
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  text-align: center;
+  animation: cnv-offer-in 220ms var(--ease) 120ms both;
+}
+[data-theme='light'] .cnv-offer {
+  --cnv-offer-lift: 0 1px 2px rgba(10, 10, 12, .1), 0 10px 24px rgba(10, 10, 12, .08);
+}
+@keyframes cnv-offer-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+/* Three of its pictures, fanned: the first on top. */
+.cnv-offer-stack { position: relative; width: 176px; height: 112px; margin-bottom: 14px; }
+.cnv-offer-pic {
+  position: absolute; width: 100px; height: 76px; box-sizing: border-box;
+  overflow: hidden; border-radius: 4px; border: 2px solid var(--bg-3);
+  background: var(--bg-3); box-shadow: var(--cnv-offer-lift);
+}
+.cnv-offer-pic .cbp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cnv-offer-pic.is-left { left: 6px; top: 22px; transform: rotate(-7deg); }
+.cnv-offer-pic.is-right { left: 70px; top: 24px; transform: rotate(6deg); }
+.cnv-offer-pic.is-mid { left: 38px; top: 8px; z-index: 1; }
+.cnv-offer-pic.is-front { z-index: 1; }
+
+.cnv-offer-title { margin: 0; color: var(--ink-0); font: 600 16px/1.3 var(--font-sans); }
+.cnv-offer-sub { margin: 0; max-width: 360px; color: var(--ink-2); font: 400 13px/1.5 var(--font-sans); }
+
+.cnv-offer-acts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-top: 12px; }
+.cnv-offer-btn {
+  flex: none; display: inline-flex; align-items: center; height: 32px; padding: 0 12px;
+  border: 0; border-radius: 8px;
+  background: var(--sbf-chip, var(--bg-4));
+  box-shadow: var(--sbf-chip-shadow, inset 0 0 0 1px var(--line-2));
+  color: var(--ink-0); font: 600 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background 120ms var(--ease), color 120ms var(--ease);
+}
+.cnv-offer-btn:hover { background: color-mix(in srgb, var(--ink-0) 7%, var(--sbf-chip, var(--bg-4))); }
+.cnv-offer-btn.is-plain { background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-1); font-weight: 500; }
+.cnv-offer-btn.is-plain:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+@media (pointer: coarse) {
+  .cnv-offer-btn { height: 40px; padding: 0 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cnv-offer { animation: none; }
+  .cnv-offer-btn { transition: none; }
+}

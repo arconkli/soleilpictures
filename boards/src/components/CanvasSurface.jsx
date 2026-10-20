@@ -191,7 +191,8 @@ import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading, stashLateUpload, takeLateUploads } from '../lib/abandonedUploads.js';
-import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent } from '../lib/placement.js';
+import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent, planPutOnBoard } from '../lib/placement.js';
+import { UnplacedOffer } from './UnplacedOffer.jsx';
 import { withGeometry } from '../lib/moodboard.js';
 import { holdDrop, claimReady, restoreHeld, setHeldBaseline, subscribeHeld } from '../lib/heldUploads.js';
 import { storageRoom } from '../lib/storageRoom.js';
@@ -692,6 +693,11 @@ export function CanvasSurface({
   const onMoveFilesHereRef = useRef(onMoveFilesHere);
   onMoveFilesHereRef.current = onMoveFilesHere;
   const unplacedCount = useMemo(() => countUnplaced(everyCard), [everyCard]);
+  // What the empty board's offer speaks for (UnplacedOffer): only worked out
+  // while nothing is on the board.
+  const offerCards = useMemo(() => (
+    unplacedCount > 0 && !(cards?.length) ? everyCard.filter(isUnplaced) : null
+  ), [everyCard, cards?.length, unplacedCount]);
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
 
@@ -8001,6 +8007,37 @@ export function CanvasSurface({
     });
   };
 
+  // The empty board's "Put them on the board" (UnplacedOffer): the files that
+  // are in go on as one block in the middle of the view — rows when they're
+  // all photos — in one undo step, and the view frames them the way an opening
+  // fit does (never past 1:1). Files still coming in stay in Files: their
+  // finished size would undo the layout.
+  const putUnplacedOnBoard = (ids, layout) => {
+    if (!canEdit || mutators.captureGuarded) return;
+    const all = allCardsRef.current || [];
+    const plan = planPutOnBoard(all, ids, readViewCenter(), { layout });
+    if (!plan.length) return;
+    const um = mutators.undoManager;
+    mutators.breakUndo?.();
+    mutators.updateCards?.(plan);
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    undoToast(feedback, {
+      type: 'success',
+      message: plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`,
+      undoManager: um, stackItem: item,
+      onUndo: () => mutators.undo?.(),
+    });
+    // Framed from the plan: the cards reach `cards` a render later.
+    const byId = new Map(all.map((c) => [c.id, c]));
+    const b = boundsOfCards(plan.map(({ id, patch }) => ({ ...byId.get(id), ...patch })));
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (!b || !r || r.width < 50 || r.height < 50) return;
+    enableSmoothTransform();
+    applyCamera(solveFit(b, { w: r.width, h: r.height },
+      { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: OPEN_FIT_MAX_ZOOM }));
+  };
+
   const buildMenu = (c) => {
     // Buckets → composeMenuSections keeps every card's menu grouped + ordered
     // the same: primary (open) · EDIT · ANNOTATE · ARRANGE · CLIPBOARD · meta
@@ -13465,13 +13502,17 @@ export function CanvasSurface({
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
       {/* An empty board whose cluster has files waiting in Files: say so,
           rather than "Start your cluster" over a cluster that isn't empty. */}
-      {/* Only where there's a Files to open: a public link's canvas has none. */}
-      {boardIsEmpty && !firstCardPrompt && unplacedCount > 0 && onRevealUnplaced && (
+      {/* Only where there's a Files to open: a public link's canvas has none.
+          With bulk import (preview), the offer that puts them on the board. */}
+      {boardIsEmpty && !firstCardPrompt && unplacedCount > 0 && onRevealUnplaced && (bulkImportAllowed() && offerCards ? (
+        <UnplacedOffer boardId={board?.id} cards={offerCards} canPut={canEdit && !mutators.captureGuarded}
+                       onPut={putUnplacedOnBoard} onChoose={() => onRevealUnplaced([])} />
+      ) : (
         <div className="cnv-waiting" role="status">
           <span>{unplacedCount === 1 ? '1 file is' : `${unplacedCount} files are`} in Files, not on the board yet.</span>
           <button type="button" className="tb-btn" onClick={() => onRevealUnplaced([])}>Open Files</button>
         </div>
-      )}
+      ))}
       {canEdit && selectedTool === 'select' && ((boardIsEmpty && unplacedCount === 0) || firstCardPrompt) && (() => {
         // IMAGE-FIRST, but show the RANGE: adding an image drives activation, so
         // Image stays the hero — while the rotating headline + the tile row signal

@@ -6,6 +6,7 @@ import { putImportJob, dropImportJob } from '../lib/importJobs.js';
 import { ImportZipDialog } from '../components/ImportZipDialog.jsx';
 import { SidebarMeter } from '../components/sidebar/SidebarMeter.jsx';
 import { askCopy, zipAskCopy } from '../lib/importCopy.js';
+import { UnplacedOffer } from '../components/UnplacedOffer.jsx';
 
 // Dev-only bulk-import QA page (?importqa=1), no backend. Renders the tray, its
 // chip and the ask dialog from fixtures shaped like lib/importCopy.test.mjs.
@@ -14,6 +15,7 @@ import { askCopy, zipAskCopy } from '../lib/importCopy.js';
 //   ?min=1 starts folded to the chip   ?phone=1 lifts it over the phone nav
 //   ?theme=light|dark   ?dialog=free|creator|trial|guest|zip-takeout|zip-one|zip-many
 //   ?menu=1 opens the sidebar's Upload menu
+//   ?land=night|wait|coming|plain   an imported cluster's empty canvas
 // Imported only behind main.jsx's `import.meta.env.DEV &&` guard.
 
 const GB = 1024 ** 3;
@@ -76,6 +78,43 @@ const ZIPS = {
     .map((name, i) => ({ name, size: (180 + i * 95) * MB })), groups: [[0], [1], [2], [3], [4], [5]] },
 };
 
+// The empty canvas of a cluster the import made (r5-Land-*): its cards in Files,
+// and what the import knows about it, as importJob's byBoard would say.
+const LAND_PICS = ['/signin-losttime-still1.webp', '/landing/neon-noir-look-book.webp', '/signin-losttime-still2.webp'];
+const landCards = (n, { kind = 'image', pending = 0 } = {}) => Array.from({ length: n }, (_, i) => {
+  const pic = LAND_PICS[i % LAND_PICS.length];
+  const card = { id: `qa-${i}`, kind, unplaced: true, w: 400, h: 300 };
+  if (i >= n - pending) return { ...card, pending: true };
+  if (kind === 'image') return { ...card, src: pic };
+  if (kind === 'video') return { ...card, poster: pic };
+  return { ...card, kind: 'file', fileName: `notes-${i}.txt` };
+});
+const LANDS = {
+  night: { cards: landCards(86), from: { path: 'Night Shift › Lookbook', waiting: 0 } },
+  wait: { cards: landCards(9, { kind: 'video' }), from: { path: 'Night Shift › Camera tests', waiting: 52 } },
+  coming: { cards: landCards(86, { pending: 46 }), from: { path: 'Night Shift › Lookbook', waiting: 0 } },
+  plain: { cards: landCards(14, { kind: 'file' }), from: null },
+};
+
+function LandQa({ which }) {
+  const land = LANDS[which] || LANDS.night;
+  useEffect(() => {
+    if (!land.from) return undefined;
+    putImportJob('qa-land', { phase: 'job', title: 'Night Shift', snap: { status: 'done', byBoard: { 'qa-board': land.from } } });
+    return () => dropImportJob('qa-land');
+  }, [land]);
+  return (
+    <div style={{
+      position: 'fixed', left: 332, top: 0, right: 0, bottom: 0,
+      backgroundImage: 'radial-gradient(rgba(245,245,247,.085) 1px, transparent 1px)', backgroundSize: '24px 24px',
+    }}>
+      <UnplacedOffer boardId="qa-board" cards={land.cards} canPut
+                     onPut={(ids, layout) => console.log('[importqa] put', ids.length, layout)}
+                     onChoose={() => console.log('[importqa] choose')} />
+    </div>
+  );
+}
+
 function MenuQa() {
   const ref = useRef(null);
   useEffect(() => {
@@ -105,7 +144,7 @@ export function ImportQaHarness() {
   }, [theme]);
 
   useEffect(() => {
-    if (dialog || params.get('menu') === '1') return undefined;
+    if (dialog || params.get('menu') === '1' || params.get('land')) return undefined;
     putImportJob('qa', { ...fixture(state), act: (id) => console.log('[importqa] act', id) });
     return () => dropImportJob('qa');
   }, [state, dialog]);
@@ -127,6 +166,8 @@ export function ImportQaHarness() {
         ? <ImportAskDialog model={askCopy(DIALOGS[dialog])} onChoose={(id) => console.log('[importqa] choose', id)} />
         : params.get('menu') === '1'
         ? <MenuQa />
+        : params.get('land')
+        ? <LandQa which={params.get('land')} />
         : <ImportTray aboveNav={params.get('phone') === '1'} initialMinimized={params.get('min') === '1'} />}
     </div>
   );

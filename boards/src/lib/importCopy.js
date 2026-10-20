@@ -379,3 +379,32 @@ function waitBox({ reason, offer, plan, own, ownerName, thing }) {
   }
   return { text: ['Your drive is full. It picks up by itself once deleting files or emptying the trash makes room.'], action: null, aside: null };
 }
+
+// ── Where the files land (r5-Land-*) ────────────────────────────────────────
+// The empty canvas of a cluster whose files are in Files. `total` files are in
+// Files, `ready` of them finished (the rest still coming in: they can't go on
+// the board yet, because their finished size would undo the layout); `kind`
+// 'image' or 'video' when they all are one; `waiting` and `path` from the
+// import that made the cluster (importJobs.importForBoard), when this tab ran
+// it; `cap` the most one Put places. → { title, sub, put (null: nothing
+// ready), choose }.
+const LAND_NOUN = { image: ['photo', 'photos'], video: ['video', 'videos'] };
+export function landingCopy({ total = 0, ready = 0, kind = null, waiting = 0, path = null, cap = Infinity } = {}) {
+  const [one, many] = LAND_NOUN[kind] || ['file', 'files'];
+  const coming = Math.max(0, total - ready);
+  const is = (n) => (n === 1 ? 'is' : 'are');
+  const title = `${countLabel(total)} ${total === 1 ? one : many} ${is(total)} ${ready > 0 ? 'in Files' : 'coming in'}`;
+  const sub = [];
+  if (path) sub.push(`From ${path}.`);
+  if (ready > 0 && coming > 0 && waiting > 0) sub.push(`${countLabel(coming)} ${is(coming)} still coming in, and ${countLabel(waiting)} more ${is(waiting)} waiting for room.`);
+  else if (ready > 0 && coming > 0) sub.push(`${countLabel(coming)} of them ${is(coming)} still coming in.`);
+  else if (waiting > 0) sub.push(`${countLabel(waiting)} more ${is(waiting)} waiting for room.`);
+  if (coming > 0 || waiting > 0) sub.push('Nothing goes on the board until you put it there.');
+  else sub.push(total === 1 ? 'It stays off the board until you put it there.' : 'They stay off the board until you put them on it — all of them, or the ones you choose.');
+  const n = Math.min(ready, cap);
+  const put = ready <= 0 ? null
+    : n < ready ? `Put the first ${countLabel(n)} on the board`
+    : ready < total ? `Put ${countLabel(ready)} on the board`
+    : total === 1 ? 'Put it on the board' : 'Put them on the board';
+  return { title, sub: sub.join(' '), put, choose: 'Choose in Files' };
+}

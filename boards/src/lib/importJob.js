@@ -206,6 +206,32 @@ export function createImportJob({
     if (clusterCost > 0) for (let k = it.clusterKey; k != null && !created.has(k); k = parentOf.get(k)) cards += clusterCost;
     return { cards, bytes: it.bytes + (it.kind === 'video' || it.kind === 'audio' ? MEDIA_SLACK_BYTES : 0) };
   };
+  // Per cluster made so far, by board id: the folder it came from, as names
+  // ("Night Shift › Lookbook"), and how many of its own files wait for room —
+  // what an imported cluster's empty canvas says. Rebuilt only when the
+  // waiting list or the made clusters change, never on a progress tick, so a
+  // view that selects one cluster's entry doesn't re-render while files upload.
+  const pathOf = new Map();
+  const namePath = (key) => {
+    if (!pathOf.has(key)) {
+      const up = parentOf.get(key);
+      const own = byKey.get(key)?.name || '';
+      pathOf.set(key, up != null ? `${namePath(up)} › ${own}` : own);
+    }
+    return pathOf.get(key);
+  };
+  let byBoardMemo = null;
+  const byBoard = () => {
+    if (byBoardMemo && byBoardMemo.rest === rest && byBoardMemo.made === created.size) return byBoardMemo.out;
+    const waitingIn = new Map();
+    for (const it of rest) waitingIn.set(it.clusterKey, (waitingIn.get(it.clusterKey) || 0) + 1);
+    const out = {};
+    for (const [key, boardId] of created) {
+      if (byKey.has(key)) out[boardId] = { path: namePath(key), waiting: waitingIn.get(key) || 0 };
+    }
+    byBoardMemo = { rest, made: created.size, out };
+    return out;
+  };
 
   const snapshot = () => {
     const open = [...batchOpen];
@@ -221,6 +247,7 @@ export function createImportJob({
       failed: failed.slice(),
       tops: [...tops.values()].map((t) => ({ ...t, boardId: created.get(t.key) || null })),
       rows: [...rows.values()].filter((r) => r.files > 0).map((r) => ({ ...r })),
+      byBoard: byBoard(),
       currentRow: current ? groupOf(current) : null,
       next: nextNeed(),
       current: current ? byKey.get(current)?.name || null : null,

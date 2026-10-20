@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askCopy, trayCopy, offerFor, sizeLabel, etaLabel, labelBytes, failReason, countLabel } from './importCopy.js';
+import { askCopy, trayCopy, offerFor, sizeLabel, etaLabel, labelBytes, failReason, countLabel, landingCopy } from './importCopy.js';
 import { CREATOR_STORAGE_LABEL, TRIAL_STORAGE_LABEL, STORAGE_ADDON_BLOCK_LABEL, PRICING, CREATOR_TRIAL_DAYS } from './billingCopy.js';
 
 const GB = 1024 ** 3;
@@ -227,4 +227,43 @@ test('a zip entry that fails says why, never "too large for this plan"', async (
   assert.equal(failReason('Too large to unpack here (4 GB in the zip)'), 'Too large to unpack here — unzip it on your computer');
   assert.equal(failReason('This browser cannot decompress zip entries.'), 'This browser can’t unpack it');
   assert.equal(failReason('File too large'), 'Too large for this plan');
+});
+
+test('landing: the two mockup states, word for word', () => {
+  assert.deepEqual(landingCopy({ total: 86, ready: 86, kind: 'image', path: 'Night Shift › Lookbook' }), {
+    title: '86 photos are in Files',
+    sub: 'From Night Shift › Lookbook. They stay off the board until you put them on it — all of them, or the ones you choose.',
+    put: 'Put them on the board',
+    choose: 'Choose in Files',
+  });
+  const wait = landingCopy({ total: 9, ready: 9, kind: 'video', waiting: 52, path: 'Night Shift › Camera tests' });
+  assert.equal(wait.title, '9 videos are in Files');
+  assert.equal(wait.sub, 'From Night Shift › Camera tests. 52 more are waiting for room. Nothing goes on the board until you put it there.');
+  assert.equal(wait.put, 'Put them on the board');
+});
+
+test('landing: files still coming in stay in Files, and Put says how many it places', () => {
+  const some = landingCopy({ total: 86, ready: 40, kind: 'image', path: 'Lookbook' });
+  assert.equal(some.title, '86 photos are in Files');
+  assert.equal(some.sub, 'From Lookbook. 46 of them are still coming in. Nothing goes on the board until you put it there.');
+  assert.equal(some.put, 'Put 40 on the board');
+  const both = landingCopy({ total: 10, ready: 4, kind: 'image', waiting: 1 });
+  assert.equal(both.sub, '6 are still coming in, and 1 more is waiting for room. Nothing goes on the board until you put it there.');
+  const none = landingCopy({ total: 86, ready: 0, kind: 'image', path: 'Lookbook' });
+  assert.equal(none.title, '86 photos are coming in');
+  assert.equal(none.sub, 'From Lookbook. Nothing goes on the board until you put it there.');
+  assert.equal(none.put, null, 'nothing to put yet');
+});
+
+test('landing: a mixed set is files, one is singular, no import says no "From", and the cap names the first N', () => {
+  const mixed = landingCopy({ total: 14, ready: 14 });
+  assert.equal(mixed.title, '14 files are in Files');
+  assert.equal(mixed.sub, 'They stay off the board until you put them on it — all of them, or the ones you choose.');
+  const one = landingCopy({ total: 1, ready: 1, kind: 'image' });
+  assert.equal(one.title, '1 photo is in Files');
+  assert.equal(one.sub, 'It stays off the board until you put it there.');
+  assert.equal(one.put, 'Put it on the board');
+  const big = landingCopy({ total: 2400, ready: 2400, kind: 'image', cap: 500 });
+  assert.equal(big.title, '2,400 photos are in Files');
+  assert.equal(big.put, 'Put the first 500 on the board');
 });
