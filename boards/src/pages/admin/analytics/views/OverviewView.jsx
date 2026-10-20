@@ -1,4 +1,7 @@
-// TodayView — the daily check-in, and the view that did not exist.
+// OverviewView — Analytics › Overview, the daily check-in. Until 2026-10-20 this
+// was "Today", under a top tab called Overview; the owner renamed the tab
+// Analytics and this view Overview, because it is where the long-term graphs
+// go too, not only the last seven days.
 //
 // Before this there were two Overviews. The top-level tab showed total users,
 // MRR, a signups bar chart, a tier donut and a list of recent emails; the
@@ -9,21 +12,14 @@
 // So that question leads here, and it is the only block on the page that is
 // about acting rather than knowing.
 //
-// Two deliberate omissions:
-//
-//   * No MRR tile. No subscription has ever existed, so it is structurally
-//     zero — and this codebase already learned (see the header of the old
-//     AdminOverviewTab, and AdminCommandCenter) that a permanent flat zero
-//     reads as a measurement rather than an absence. A number that cannot move
-//     does not earn the top of the screen.
-//
 // MRR is on this screen from before the first subscription exists, by explicit
 // decision. The argument against it was that a structurally-zero number reads
 // as a measurement rather than an absence — which is true, and the reason the
 // tile does NOT draw a sparkline or a delta while it is zero. What it draws
 // instead is the reason it is zero, in words. The moment a subscription lands
 // it becomes a normal metric with a trend, and nobody has to remember to add
-// it back on the day it would first have mattered.
+// it back on the day it would first have mattered. A trial is not a paying
+// subscription, and the sub-line says which one exists.
 //
 // The four tiles that count people and cards answer a second question as well:
 // has this held its direction for WEEKS, or did one week move? One seven-day
@@ -93,24 +89,40 @@ const byWeekStart = (a, b) => (a.week_start < b.week_start ? -1 : a.week_start >
 // measured the same stream the live console does, so it moved inside it — the
 // numeral is now a readout in the console header.
 
+/**
+ * What someone who just arrived has made. admin_recent_signups (0460) counts
+ * their own cards on live clusters, the cards they placed in someone else's
+ * cluster, and the clusters they made, so an invitee who only ever worked in
+ * the inviter's cluster no longer reads "nothing yet". first_card_at outlives
+ * the cards, so "placed a card, none left" is someone who made one and then
+ * deleted it, not someone who never started.
+ */
+function arrivedWhat(u) {
+  const own = num(u.card_count) || 0;
+  const guest = num(u.guest_cards) || 0;
+  const made = num(u.clusters_made) || 0;
+  const plural = (n, one, many = `${one}s`) => `${formatCount(n)} ${n === 1 ? one : many}`;
+  const parts = [];
+  if (own > 0) parts.push(plural(own, 'card'));
+  if (made > 0) parts.push(`${plural(made, 'cluster')} made`);
+  if (guest > 0) parts.push(own > 0 ? `${formatCount(guest)} as a guest` : `${plural(guest, 'card')} in someone else's cluster`);
+  if (parts.length) return { did: true, text: parts.join(' · ') };
+  if (u.first_card_at) return { did: true, text: 'placed a card, none left' };
+  return { did: false, text: 'nothing yet' };
+}
+
 /** Who arrived, and whether they did anything once they got here. */
 function WhoArrived({ users }) {
   if (!users.length) return <div className="admin-empty">No signups yet.</div>;
   return (
     <div className="admin-people-list">
       {users.map((u) => {
-        const cards = num(u.card_count) || 0;
-        const boards = num(u.board_count) || 0;
-        const did = cards > 0;
+        const { did, text } = arrivedWhat(u);
         return (
           <div className="admin-people-row" key={u.user_id}>
             <span className={`admin-people-dot ${did ? 'is-did' : ''}`} aria-hidden="true" />
             <span className="admin-people-email" title={u.email}>{u.email}</span>
-            <span className="admin-people-what">
-              {did
-                ? `${formatCount(cards)} card${cards === 1 ? '' : 's'} · ${formatCount(boards)} cluster${boards === 1 ? '' : 's'}`
-                : 'nothing yet'}
-            </span>
+            <span className="admin-people-what">{text}</span>
             <span className="admin-people-when" title={fmtDateTime(u.created_at)}>{relativeTime(u.created_at)}</span>
           </div>
         );
@@ -149,7 +161,7 @@ function WhoStalled({ rows }) {
   );
 }
 
-export function TodayView() {
+export function OverviewView() {
   const f = useAnalyticsFilters();
   const feedback = useFeedback();
 
@@ -172,14 +184,21 @@ export function TodayView() {
       // The owner's notes and the pipeline alerts. Releases and definition
       // breaks are repo facts, merged in below rather than fetched.
       supabase.rpc('admin_markers'),
-      supabase.rpc('admin_active_now', { p_window_minutes: 5 }),
+      // Follows the Internal toggle (0460). It used to count the team always,
+      // the admin reading it included.
+      supabase.rpc('admin_active_now', { p_window_minutes: 5, p_exclude_internal: f.excludeInternal }),
       supabase.rpc('admin_user_dormancy', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_list_users', { p_limit: 8, p_offset: 0 }),
-      // Lifetime scale, straight off platform_counters. Every window figure on
-      // this screen is paired with one of these: a total on its own only ever
-      // goes up, so it cannot tell you anything is wrong, but beside "this
-      // week" it gives the week a size.
-      supabase.rpc('admin_universe_stats'),
+      // The newest signups under both toggles, with the work they did anywhere
+      // (0460). admin_list_users ignored the toggles and counted only cards on
+      // the person's own clusters.
+      supabase.rpc('admin_recent_signups', { p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      // Lifetime scale. Every window figure on this screen is paired with one of
+      // these: a total on its own only ever goes up, so it cannot tell you
+      // anything is wrong, but beside "this week" it gives the week a size.
+      // It follows both toggles (0460); admin_universe_stats, which this read
+      // before, counts the team, so under "Internal: excluded" the totals here
+      // disagreed with every window figure beside them.
+      supabase.rpc('admin_lifetime_totals', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // The chart worth looking at rather than reading.
       supabase.rpc('admin_activity_heatmap', { p_days: 30, p_tz: TZ, p_exclude_internal: f.excludeInternal }),
     ]);
@@ -189,7 +208,7 @@ export function TodayView() {
 
     // Only the headline numbers gate the view; everything else degrades in
     // place rather than blanking the morning check-in.
-    if (kpi.status !== 'fulfilled' || kpi.value.error) throw errOf(kpi) || new Error('Failed to load today');
+    if (kpi.status !== 'fulfilled' || kpi.value.error) throw errOf(kpi) || new Error('Failed to load the overview');
 
     return {
       startedAt,
@@ -208,7 +227,7 @@ export function TodayView() {
       stalled: stalledSignups(val(dorm) || []),
     };
   }, [f.excludeInternal, f.verifiedOnly],
-     { pollIntervalMs: POLL_MS.today, refetchOnFocus: true });
+     { pollIntervalMs: POLL_MS.overview, refetchOnFocus: true });
 
   const d = q.data;
   const cur = d?.kpi?.current || {};
@@ -475,20 +494,34 @@ export function TodayView() {
         <Well
           span={12}
           className="adm-rail"
-          foot={lifeN('total_users') != null ? (
-            /* Everything the platform has ever accumulated, on one line. Kept
-               out of the tiles because a total that only ever rises cannot tell
-               you anything is wrong — it is scale, not a signal, and now it
-               reads as the rail's footer rather than as five more metrics. */
+          foot={lifeN('users') != null ? (
+            /* Everything the platform has accumulated, on one line. Kept out of
+               the tiles because a total that only ever rises cannot tell you
+               anything is wrong — it is scale, not a signal, and now it reads
+               as the rail's footer rather than as five more metrics.
+
+               These are what exists NOW: an account or a card that was deleted
+               is gone from them, which is why Accounts is not "signups ever".
+               Clusters are the ones people made; the Studio every workspace is
+               born with sits beside them, not inside. */
             <dl className="admin-lifetime">
-              <div><dt>Signups</dt><dd>{formatCount(lifeN('total_users'))}</dd></div>
-              <div><dt>Clusters</dt><dd>{formatCount(lifeN('total_boards'))}</dd></div>
-              <div><dt>Cards</dt><dd>{formatCount(lifeN('total_cards'))}</dd></div>
-              <div><dt>Workspaces</dt><dd>{formatCount(lifeN('total_workspaces'))}</dd></div>
+              <div><dt>Accounts</dt><dd>{formatCount(lifeN('users'))}</dd></div>
+              <div>
+                <dt>Clusters made</dt>
+                <dd>
+                  {formatCount(lifeN('clusters_made'))}
+                  {lifeN('studios') > 0 && <small>+{formatCount(lifeN('studios'))} Studios</small>}
+                </dd>
+              </div>
+              <div><dt>Cards</dt><dd>{formatCount(lifeN('cards'))}</dd></div>
+              <div><dt>Workspaces</dt><dd>{formatCount(lifeN('workspaces'))}</dd></div>
               <div>
                 <dt>Time in app</dt>
-                <dd>{lifeN('total_seconds_in_app') != null
-                  ? `${formatCount(Math.round(lifeN('total_seconds_in_app') / 3600))}h` : '—'}</dd>
+                <dd>{lifeN('seconds_in_app') != null
+                  ? `${formatCount(Math.round(lifeN('seconds_in_app') / 3600))}h` : '—'}</dd>
+              </div>
+              <div className="admin-lifetime-scope">
+                totals now · {f.excludeInternal ? 'team excluded' : 'incl. team'} · {f.verifiedOnly ? 'verified only' : 'all signups'}
               </div>
             </dl>
           ) : null}
@@ -499,8 +532,8 @@ export function TodayView() {
             label="Signups"
             value={cur.signups != null ? formatCount(cur.signups) : null}
             sub="new accounts"
-            total={lifeN('total_users') != null
-              ? { value: formatCount(lifeN('total_users')), label: 'all time' } : null}
+            total={lifeN('users') != null
+              ? { value: formatCount(lifeN('users')), label: 'accounts' } : null}
             delta={weekDelta(num(cur.signups), num(prev.signups))}
             trend={trends?.signups ?? null}
             spark={sparks.signups}
@@ -512,8 +545,8 @@ export function TodayView() {
             label="Weekly active"
             value={wau != null ? formatCount(wau) : null}
             sub="opened the app"
-            total={lifeN('total_users') != null && wau != null
-              ? { value: formatCount(lifeN('total_users')), label: 'signed up' } : null}
+            total={lifeN('users') != null && wau != null
+              ? { value: formatCount(lifeN('users')), label: 'accounts' } : null}
             delta={weekDelta(wau, num(prev.wau))}
             trend={trends?.active ?? null}
             spark={sparks.active}
@@ -558,7 +591,7 @@ export function TodayView() {
             value={mrrCents == null ? null : formatMoney(mrrCents)}
             sub={payingUsers > 0
               ? `${formatCount(payingUsers)} paying ${payingUsers === 1 ? 'account' : 'accounts'}`
-              : 'no subscription yet'}
+              : `No paying subscription yet${trialingNow > 0 ? ` · ${formatCount(trialingNow)} in trial` : ''}`}
             muted={!(mrrCents > 0)}
             total={payingUsers > 0 && arpu != null
               ? { value: formatMoney(arpu), label: 'per account' } : null}
@@ -567,15 +600,15 @@ export function TodayView() {
             sparkColor={VAR.cat[1]}
             title={mrrCents > 0
               ? 'Live monthly recurring revenue from ACTIVE subscriptions only. A trial carries the full list price and has collected nothing, so it is counted in Trials and never here.'
-              : 'No subscription has ever charged, so this is zero by absence rather than by measurement. It gets a trend line and a change badge as soon as there is something to trend.'}
+              : `No subscription has ever charged, so this is zero by absence rather than by measurement. It gets a trend line and a change badge as soon as there is something to trend.${trialingNow > 0 ? ' A trial in flight carries the list price and has collected nothing, so it is counted under Trials, not here.' : ''}`}
           />
           <Metric
             hero
             label="Cards created"
             value={cur.cards_created != null ? formatCompact(cur.cards_created) : null}
             sub="across every cluster"
-            total={lifeN('total_cards') != null
-              ? { value: formatCompact(lifeN('total_cards')), label: 'all time' } : null}
+            total={lifeN('cards') != null
+              ? { value: formatCompact(lifeN('cards')), label: 'exist now' } : null}
             delta={weekDelta(num(cur.cards_created), num(prev.cards_created))}
             trend={trends?.cards ?? null}
             spark={sparks.cards}

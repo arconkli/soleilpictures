@@ -216,7 +216,7 @@ function DiscoverQaTab() {
 
 const TABS = [
   // One dashboard tab now — its four views live behind ?view= inside it.
-  { id: 'overview',  label: 'Overview',  Component: AdminAnalyticsTab },
+  { id: 'overview',  label: 'Analytics', Component: AdminAnalyticsTab },
   { id: 'users',     label: 'Users',     Component: AdminUsersTab },
   { id: 'grants',    label: 'Grants',    Component: AdminGrantsTab },
   { id: 'waitlist',  label: 'Waitlist',  Component: AdminWaitlistTab },

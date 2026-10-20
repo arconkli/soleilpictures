@@ -18,8 +18,13 @@ async function openAdmin(page, { tab = 'overview', view, theme = 'dark', query =
   await page.goto(`/?adminpreview=1&tab=${tab}${view ? `&view=${view}` : ''}${query}`);
 }
 
+// Both universe surfaces boot a WebGL graph of thousands of nodes, which takes
+// ~20s on its own and longer beside other workers.
+const UNIVERSE_TIMEOUT = 60_000;
+
 test.describe('Universe HUD', () => {
   test('clusters are the ones people made, chips are the last 24 hours, and the team is named once', async ({ page }) => {
+    test.setTimeout(UNIVERSE_TIMEOUT);
     await openAdmin(page, { tab: 'universe' });
     const cell = (label) => page.locator('.universe-ticker-cell', {
       has: page.locator('.universe-ticker-label', { hasText: new RegExp(`^${label}`, 'i') }),
@@ -47,6 +52,7 @@ test.describe('Command Center', () => {
   });
 
   test('cards are the last 24 hours, MRR splits trials from payers, and the funnel says it leaves the team out', async ({ page }) => {
+    test.setTimeout(UNIVERSE_TIMEOUT);
     await openAdmin(page, { tab: 'command' });
     await expect(kpi(page, 'Cards · 24h')).toBeVisible({ timeout: 20000 });
     await expect(kpi(page, 'Cards · 24h').locator('.cc-kpi-value')).toHaveText('72');
@@ -68,6 +74,7 @@ test.describe('Command Center', () => {
   test('before revenue: one trial is a trial, not a subscriber', async ({ page }) => {
     // ?mrr=0 is production's state: one trialing subscription and $0 MRR. The
     // old sub-line read "1 subscribed" under $0, which looked like a broken sum.
+    test.setTimeout(UNIVERSE_TIMEOUT);
     await openAdmin(page, { tab: 'command', query: '&mrr=0' });
     const mrr = kpi(page, /^MRR$/);
     await expect(mrr).toBeVisible({ timeout: 20000 });
@@ -117,5 +124,55 @@ test.describe('Users', () => {
     const stats = page.locator('.admin-share-stat');
     await expect(stats.first()).toHaveText('14 signups · 9 made something', { timeout: 20000 });
     await expect(stats.last()).toHaveText('2 signups');
+  });
+});
+
+test.describe('Analytics › Overview', () => {
+  async function recordRpc(page, names) {
+    await page.evaluate(async (watch) => {
+      const { supabase } = await import('/src/lib/supabase.js');
+      const orig = supabase.rpc;
+      window.__rpcSeen = [];
+      supabase.rpc = (name, params) => {
+        if (watch.includes(name)) window.__rpcSeen.push([name, params]);
+        return orig(name, params);
+      };
+    }, names);
+  }
+
+  test('the rail is what exists now, under the toggles, with clusters made apart from the Studios', async ({ page }) => {
+    await openAdmin(page, { view: 'overview' });
+    const rail = page.locator('.adm-rail .admin-lifetime');
+    await expect(rail).toContainText('Accounts', { timeout: 20000 });
+    await expect(rail).toContainText('Clusters made');
+    await expect(rail).toContainText('+628 Studios');
+    await expect(rail.locator('.admin-lifetime-scope')).toHaveText('totals now · team excluded · verified only');
+
+    await recordRpc(page, ['admin_lifetime_totals', 'admin_recent_signups', 'admin_active_now']);
+    await page.getByRole('switch', { name: /Internal/ }).click();
+    await expect(rail.locator('.admin-lifetime-scope')).toHaveText('totals now · incl. team · verified only');
+    await expect.poll(() => page.evaluate(() => window.__rpcSeen.map(([n, p]) => `${n}:${p?.p_exclude_internal}`)))
+      .toEqual(expect.arrayContaining([
+        'admin_lifetime_totals:false', 'admin_recent_signups:false', 'admin_active_now:false',
+      ]));
+  });
+
+  test('the hero totals say what they are', async ({ page }) => {
+    await openAdmin(page, { view: 'overview' });
+    const tile = (label) => page.locator('.admin-stat-card', { has: page.locator('.admin-stat-label', { hasText: new RegExp(`^${label}$`) }) });
+    // The figure and its label are sibling elements, so the text runs together.
+    await expect(tile('Signups')).toContainText(/1,276\s*accounts/, { timeout: 20000 });
+    await expect(tile('Cards created')).toContainText(/17\.3K\s*exist now/);
+    await expect(page.locator('.admin-stat-card', { hasText: 'all time' })).toHaveCount(0);
+  });
+
+  test('Just arrived counts work done in someone else\'s cluster, and a card since deleted', async ({ page }) => {
+    await openAdmin(page, { view: 'overview' });
+    const list = page.locator('.admin-people-list').first();
+    await expect(list).toContainText('3 cards · 1 cluster made · 2 as a guest', { timeout: 20000 });
+    await expect(list).toContainText("7 cards in someone else's cluster");
+    await expect(list).toContainText('placed a card, none left');
+    await expect(list).toContainText('nothing yet');
+    await expect(list.locator('.admin-people-row')).toHaveCount(20);
   });
 });

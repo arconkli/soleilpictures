@@ -912,6 +912,33 @@ RPCS.admin_api_overview = {
   first_call_at: tsISO(60 * 24 * 22),
   last_call_at: tsISO(6),
 };
+// admin_lifetime_totals(p_exclude_internal, p_verified_only): what exists now,
+// under the toolbar's toggles (0460). The harness has one population, as with
+// admin_weekly_series, so a toggle re-issues the call over the same numbers.
+// They sit a little under admin_universe_stats above, which counts the team.
+RPCS.admin_lifetime_totals = {
+  users: 1276, workspaces: 628, clusters_made: 1094, studios: 628, cards: 17260, seconds_in_app: 3_960_000,
+};
+
+// admin_recent_signups(p_limit, …): newest first, with what each person made
+// anywhere (0460). A rotation of the four cases the Overview words differently:
+// own cards and clusters, cards only in someone else's cluster (an invitee),
+// a card placed and since deleted (first_card_at outlives it), and nothing yet.
+RPCS.admin_recent_signups = Array.from({ length: 20 }, (_, i) => {
+  const kind = i % 4;
+  const own = kind === 0 ? 3 + ((i * 7) % 40) : 0;
+  return {
+    user_id: `rs-${i}`,
+    email: `${NAMES[i % NAMES.length]}.${i}@${['studio.co', 'gmail.com', 'acme.io', 'proton.me'][i % 4]}`,
+    created_at: tsISO(25 + i * 190),
+    acquisition_source: CHANNELS[i % CHANNELS.length],
+    first_card_at: kind === 3 ? null : tsISO(20 + i * 190),
+    card_count: own,
+    guest_cards: kind === 1 ? 6 + i : (kind === 0 && i % 8 === 0 ? 2 : 0),
+    clusters_made: kind === 0 ? 1 + (i % 3) : 0,
+  };
+});
+
 // admin_share_signups(p_limit): shares that brought people to the PRODUCT.
 // `activated` is 0460's rule, the Users list's "made something". One public
 // cluster, one invite link, and one share whose cluster has since been deleted
@@ -1187,6 +1214,10 @@ function rpcResult(name, params) {
     return rows.slice(Math.max(0, rows.length - want)).map((r) => ({ ...r, mrr_cents: 0, paid_users: 0 }));
   }
   if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
+  if (name === 'admin_recent_signups') {
+    const want = Math.max(1, Math.trunc(Number(params?.p_limit) || 20));
+    return RPCS.admin_recent_signups.slice(0, want).map((r) => ({ ...r }));
+  }
   // admin_top_users is called with { p_tier } — route to the right list.
   if (name === 'admin_top_users') {
     const v = params?.p_tier === 'paid' ? RPCS.admin_top_users_paid

@@ -17,7 +17,7 @@
 import { test, expect } from '@playwright/test';
 
 const VIEWS = [
-  { id: 'today',     heading: 'The last seven days' },
+  { id: 'overview',     heading: 'The last seven days' },
   { id: 'funnel',    heading: 'Landing to paid' },
   { id: 'retention', heading: 'Did they make anything' },
   { id: 'system',    heading: 'What the data cannot tell you' },
@@ -92,20 +92,20 @@ test.describe('admin Discover tab', () => {
 });
 
 test.describe('admin dashboard structure', () => {
-  test('MRR is on Today before there is any, and says why it is zero', async ({ page }) => {
+  test('MRR is on Overview before there is any, and says why it is zero', async ({ page }) => {
     // Deliberate reversal of an earlier call. The argument against showing a
     // structurally-zero number is that it reads as a measurement rather than
     // an absence — so the tile is present from before the first subscription,
     // but while it is zero it draws no trend line and no change badge, and its
     // sub-label says the reason in words. These assertions are what keep that
     // bargain honest.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     const mrr = page.locator('.admin-stat-card', { has: page.locator('.admin-stat-label', { hasText: /^MRR$/ }) });
     await expect(mrr).toBeVisible({ timeout: 15000 });
 
     const zero = /^\$?0(\.00)?$/.test((await mrr.locator('.admin-stat-value').innerText()).trim());
     if (zero) {
-      await expect(mrr.locator('.admin-stat-sub')).toHaveText(/no subscription yet/i);
+      await expect(mrr.locator('.admin-stat-sub')).toHaveText(/no paying subscription yet/i);
       await expect(mrr.locator('.admin-stat-spark')).toHaveCount(0);
       await expect(mrr.locator('.admin-stat-delta')).toHaveCount(0);
     } else {
@@ -115,7 +115,7 @@ test.describe('admin dashboard structure', () => {
   });
 
   test('the time range is hidden on Today, shown elsewhere', async ({ page }) => {
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.admin-stat-grid').first()).toBeVisible({ timeout: 15000 });
     // Today is a fixed seven-day window; a selector that silently does nothing
     // is worse than no selector.
@@ -141,6 +141,25 @@ test.describe('admin dashboard structure', () => {
     await expect(page.getByRole('tab', { name: /^retention$/i }))
       .toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
   });
+
+  test('the view that was Today is Overview, under a tab called Analytics, and old links still land on it', async ({ page }) => {
+    // Renamed 2026-10-20. The top tab keeps its id ('overview') and changes only
+    // its label, so saved tabs and ?tab= links never moved; ?view=today is a
+    // bookmark from before the rename.
+    await page.goto('/?adminpreview=1&tab=overview&view=today');
+    await expect(page.getByRole('tab', { name: /^analytics$/i })).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
+    await expect(page.getByRole('tab', { name: /^overview$/i })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: /^today$/i })).toHaveCount(0);
+    await expect(page.locator('.adm-status')).toContainText('OVERVIEW');
+  });
+
+  test('before revenue, the MRR tile names the trial instead of "no subscription"', async ({ page }) => {
+    // ?mrr=0 is production's state: one trialing subscription, nothing paying.
+    await openAdmin(page, { view: 'overview', theme: 'dark', query: '&mrr=0' });
+    const mrr = page.locator('.admin-stat-card', { has: page.locator('.admin-stat-label', { hasText: /^MRR$/ }) });
+    await expect(mrr.locator('.admin-stat-sub')).toHaveText('No paying subscription yet · 1 in trial', { timeout: 15000 });
+    await expect(mrr.locator('.admin-stat-spark')).toHaveCount(0);
+  });
 });
 
 test.describe('admin dashboard charts', () => {
@@ -152,7 +171,7 @@ test.describe('admin dashboard charts', () => {
     // Checked on every view, because the marks are no longer all in one place —
     // and the panels are wells now, so waiting on `.admin-chart-panel` waits
     // for something Retention no longer contains.
-    for (const view of ['today', 'retention', 'funnel', 'system']) {
+    for (const view of ['overview', 'retention', 'funnel', 'system']) {
       await openAdmin(page, { view, theme: 'dark' });
       await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
@@ -196,7 +215,7 @@ test.describe('admin dashboard charts', () => {
     // A heatmap that omits its empty cells misrepresents the shape of the
     // week, and the empty cells are half of what you read. The RPC zero-fills
     // for this reason; this asserts the client does not filter them back out.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.adm-heat-grid')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.adm-heat-cell')).toHaveCount(168);
     // Exactly one busiest hour, ringed.
@@ -206,7 +225,7 @@ test.describe('admin dashboard charts', () => {
   test('the area chart is drawn at its stated height, not its viewBox ratio', async ({ page }) => {
     // Regression: the SVG's 1:1 viewBox drove the grid row's intrinsic height,
     // so a 230px chart laid out 1,566px tall with its content off-screen.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     const frame = page.locator('.adm-area-frame').first();
     await expect(frame).toBeVisible({ timeout: 15000 });
     const sizes = await page.evaluate(() => {
@@ -227,7 +246,7 @@ test.describe('admin dashboard charts', () => {
     // and the chart drops to roughly 1.7:1 — which is the exact failure the
     // palette work was done to end. Light is the only theme where this can
     // regress silently, so light is where it is asserted.
-    await openAdmin(page, { view: 'today', theme: 'light' });
+    await openAdmin(page, { view: 'overview', theme: 'light' });
     await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
     const result = await page.evaluate(() => {
@@ -296,7 +315,7 @@ test.describe('admin dashboard charts', () => {
     // pushed, so without admin_recent_events the console is blank for its first
     // few minutes and reads as broken. And it must NOT be a live region: two
     // thousand events a day announced to a screen reader is unusable.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     const stream = page.locator('.adm-console-stream');
     await expect(stream).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.adm-console-row').first()).toBeVisible();
@@ -320,7 +339,7 @@ test.describe('admin dashboard charts', () => {
     // is as much a first-screen instrument as a well. At 1440x900 that is the
     // rail, its six tiles, the weekly well and the plate.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.adm-stack')).toBeVisible();
 
@@ -338,7 +357,7 @@ test.describe('admin dashboard charts', () => {
     // `actors` was returned by admin_activity_heatmap all along and appeared
     // only in a hover tooltip. The margins spend it — but they are furniture,
     // so they must not inflate the 168-cell count the test above asserts.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.adm-heat-grid')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('.adm-heat-marg.is-hour')).toHaveCount(24);
     await expect(page.locator('.adm-heat-marg.is-day')).toHaveCount(7);
@@ -551,7 +570,7 @@ test.describe('admin dashboard charts', () => {
   test('the page refreshes itself, without fading or freezing', async ({ page }) => {
     // Two halves of one feature.
     //
-    // It refreshes: Today polls, so the RPC tally has to keep climbing with no
+    // It refreshes: Overview polls, so the RPC tally has to keep climbing with no
     // interaction at all. Asserting the interval was passed somewhere would
     // pass just as happily if the hook ignored it.
     //
@@ -559,21 +578,28 @@ test.describe('admin dashboard charts', () => {
     // pointer-events: none }` on the view root, so a 30-second poll faded the
     // page and killed the cursor twice a minute. A background refresh that you
     // have to wait out is a foreground refresh on a timer.
+    //
+    // The Overview polls every five minutes (POLL_MS.overview, since 2026-09-04),
+    // which this test used to wait out with a 60s poll and so could never see.
+    // The clock is fast-forwarded past one interval instead; time still flows
+    // normally around it.
     test.setTimeout(90_000);
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await page.clock.install();
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
     // Counted on an RPC only THIS view issues. The first version of this test
-    // watched the grand total and passed even with Today's poll deleted,
+    // watched the grand total and passed even with this view's poll deleted,
     // because the shell polls too — it was measuring that something on the page
     // refreshes, not that this view does.
     const calls = () => page.evaluate(() => window.__admRpcCalls?.admin_activity_heatmap || 0);
     const first = await calls();
     expect(first, 'the harness call tally never armed').toBeGreaterThan(0);
 
+    await page.clock.fastForward('05:05');
     await expect.poll(calls, {
-      message: 'Today re-issued none of its own RPCs while sitting idle — it is not refreshing itself',
-      timeout: 60_000,
+      message: 'Overview re-issued none of its own RPCs while sitting idle — it is not refreshing itself',
+      timeout: 30_000,
       intervals: [1000],
     }).toBeGreaterThan(first);
 
@@ -616,7 +642,7 @@ test.describe('admin dashboard charts', () => {
     //
     // So the rule is not "no paper", it is "no SECOND grid": a well that
     // contains something which rules itself must not also rule itself.
-    for (const view of ['today', 'retention', 'funnel', 'system']) {
+    for (const view of ['overview', 'retention', 'funnel', 'system']) {
       await openAdmin(page, { view, theme: 'dark' });
       await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
@@ -647,7 +673,7 @@ test.describe('admin dashboard charts', () => {
     //
     // Asserting the ratio is a whole number is the whole invariant: fractional
     // and the two drift apart again, which is exactly how this looked wrong.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.adm-area-frame').first()).toBeVisible({ timeout: 15000 });
 
     const ratios = await page.evaluate(() => {
@@ -699,7 +725,7 @@ test.describe('admin dashboard charts', () => {
     // full of ornament (corner ticks, edge marks, section numbers, LEDs), and
     // any of it done with `content` becomes something a screen reader reads
     // out. Cheaper to assert the names are clean than to remember.
-    for (const view of ['today', 'retention']) {
+    for (const view of ['overview', 'retention']) {
       await openAdmin(page, { view, theme: 'dark' });
       await expect(page.locator('[role="tab"]').first()).toBeVisible({ timeout: 15000 });
 
@@ -707,7 +733,7 @@ test.describe('admin dashboard charts', () => {
       // generated content pollutes. An earlier version of this test read
       // textContent instead and could not see pseudo-element content at all —
       // it passed happily with the brackets put back.
-      for (const id of ['today', 'funnel', 'retention', 'system']) {
+      for (const id of ['overview', 'funnel', 'retention', 'system']) {
         await expect(
           page.getByRole('tab', { name: new RegExp(`^${id}$`, 'i') }),
           `the ${id} tab is not reachable by its own name`,
@@ -734,7 +760,7 @@ test.describe('admin dashboard charts', () => {
   test('a sparse series is drawn with gaps, not bridged', async ({ page }) => {
     // metrics_daily has no backfill, so the series genuinely has holes. A line
     // drawn straight across a hole invents the days it is missing.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.admin-stat-grid').first()).toBeVisible({ timeout: 15000 });
     const segments = await page.evaluate(() => {
       const plot = document.querySelector('.adm-trend-plot svg');
@@ -788,7 +814,7 @@ for (const theme of ['dark', 'light']) {
       // the four the read needs, for every series at once. A strip that still
       // drew arrows there would be drawing a claim its own sentence refuses.
       const errors = watchConsole(page);
-      await openAdmin(page, { view: 'today', theme, query: '&weeks=3' });
+      await openAdmin(page, { view: 'overview', theme, query: '&weeks=3' });
 
       const trended = page.locator('.admin-stat-card', { has: page.locator('.adm-streak') });
       await expect(trended).toHaveCount(4, { timeout: 15000 });
@@ -812,7 +838,7 @@ for (const theme of ['dark', 'light']) {
       // Seven steps between the eight weeks the read scores, newest last, and
       // the sentence they add up to. The sentence is also the strip's
       // accessible name, so the two cannot say different things.
-      await openAdmin(page, { view: 'today', theme });
+      await openAdmin(page, { view: 'overview', theme });
       const signups = tile(page, 'Signups');
       await expect(signups.locator('.adm-streak-g')).toHaveCount(7, { timeout: 15000 });
       await expect(signups.locator('.admin-stat-verdict')).toHaveCount(1);
@@ -835,7 +861,7 @@ for (const theme of ['dark', 'light']) {
       // weeks before the counter existed, which must stay hatched and empty.
       const errors = watchConsole(page);
       for (const query of ['', '&breaks=0']) {
-        await openAdmin(page, { view: 'today', theme, query });
+        await openAdmin(page, { view: 'overview', theme, query });
         const work = tile(page, 'Did real work');
         await expect(work.locator('.adm-streak-g')).toHaveCount(7, { timeout: 15000 });
         if (query === '') await weeklyReadSettled(page);
@@ -871,7 +897,7 @@ for (const theme of ['dark', 'light']) {
       // fourth of fourteen weeks, so it sits at index 3 of 0..13 on the axis
       // whatever today is. A marker drawn a column off is worse than none: it
       // puts the explanation beside the wrong step.
-      await openAdmin(page, { view: 'today', theme });
+      await openAdmin(page, { view: 'overview', theme });
       const plots = page.locator('.adm-stack .adm-area-plot');
       await expect(plots).toHaveCount(4, { timeout: 15000 });
       await expect(page.locator('.adm-stack .adm-area-marker.is-ship')).toHaveCount(4);
@@ -907,7 +933,7 @@ for (const theme of ['dark', 'light']) {
       // The week so far is a few days of counting. Joined to the line, it reads
       // as a collapse every Monday; so it is a hollow point at the right rule
       // that no line or fill reaches.
-      await openAdmin(page, { view: 'today', theme });
+      await openAdmin(page, { view: 'overview', theme });
       const plots = page.locator('.adm-stack .adm-area-plot');
       await expect(plots).toHaveCount(4, { timeout: 15000 });
 
@@ -959,7 +985,7 @@ test.describe('admin Today, the weekly read', () => {
     // convention, and the undo brings back the same note (a soft delete), so
     // it lands back on the list and on all four charts.
     const errors = watchConsole(page);
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
 
     const panel = page.locator('.adm-plate.adm-markers');
     const form = page.getByRole('form', { name: 'Add a dated note' });
@@ -1011,7 +1037,7 @@ test.describe('admin Today, the weekly read', () => {
     // evidence. If the evidence slides below the fold, the claim gets read
     // without it.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await weeklyReadSettled(page);
     const stack = page.locator('.adm-stack');
     await expect(stack).toBeVisible();
@@ -1024,7 +1050,7 @@ test.describe('admin Today, the weekly read', () => {
     // people. So flipping the population re-reads the weekly series too, not
     // only the headline figures. (The harness answers both populations with
     // the same rows, so it is the call that is asserted, not the numbers.)
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.adm-stack')).toBeVisible({ timeout: 15000 });
 
     // StrictMode mounts twice in dev, so wait for the tally to stop moving.
@@ -1051,7 +1077,7 @@ test.describe('admin Today, the weekly read', () => {
     // tile runs under the neighbour or is clipped mid-word.
     for (const [width, height] of [[1280, 800], [1440, 900]]) {
       await page.setViewportSize({ width, height });
-      await openAdmin(page, { view: 'today', theme: 'dark' });
+      await openAdmin(page, { view: 'overview', theme: 'dark' });
       await weeklyReadSettled(page);
       await expect(page.locator('.admin-stat-card.is-hero .adm-streak')).toHaveCount(4);
 
@@ -1066,7 +1092,7 @@ test.describe('admin Today, the weekly read', () => {
     // Small multiples share the x axis and never the y. The date row is drawn
     // once, under the stack, and it has to sit under the plots it labels, or
     // the shared axis is a caption floating near four charts.
-    await openAdmin(page, { view: 'today', theme: 'dark' });
+    await openAdmin(page, { view: 'overview', theme: 'dark' });
     const stack = page.locator('.adm-stack');
     await expect(stack.locator('.adm-stack-row')).toHaveCount(4, { timeout: 15000 });
     await expect(stack.locator('.adm-area-plot')).toHaveCount(4);

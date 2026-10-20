@@ -171,7 +171,11 @@ export function EventConsole({ activeNow, minutes = 60, excludeInternal = true }
     <div className="adm-console">
       <div className="adm-console-head">
         <span className={`adm-live-led ${live ? 'is-live' : ''}`} aria-hidden="true" />
-        <span className="adm-console-stat">
+        {/* admin_active_now follows the Internal toggle (0460), so this one is
+            filtered like the rest of the screen; the events count beside it is
+            the exception, and labelled as one. */}
+        <span className="adm-console-stat"
+              title={`Signed in within the last five minutes, ${excludeInternal ? 'the team left out' : 'the team included'}.`}>
           <b>{formatCount(activeNow ?? 0)}</b> here now
         </span>
         {/* The per-minute count comes from admin_activity_pulse and the raw

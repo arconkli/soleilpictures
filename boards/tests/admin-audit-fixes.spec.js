@@ -132,7 +132,7 @@ test.describe('admin Discover in light theme (ADMIN-12)', () => {
 
 test.describe('admin background refresh (ADMIN-5)', () => {
   test('a failed refresh keeps the view and a half-typed note, under a notice', async ({ page }) => {
-    await openAdmin(page, { view: 'today' });
+    await openAdmin(page, { view: 'overview' });
     const form = page.getByRole('form', { name: 'Add a dated note' });
     await expect(form).toBeVisible({ timeout: 15000 });
     const field = form.getByRole('textbox', { name: 'Label', exact: true });
@@ -149,10 +149,10 @@ test.describe('admin background refresh (ADMIN-5)', () => {
   });
 });
 
-test.describe('admin Today people (ADMIN-6)', () => {
+test.describe('admin Overview people (ADMIN-6)', () => {
   test('Arrived and stalled lists recent signups by signup age, never-opened ones included', async ({ page }) => {
     const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
-    await openAdmin(page, { view: 'today' });
+    await openAdmin(page, { view: 'overview' });
     await expect(page.getByText('The last seven days')).toBeVisible({ timeout: 15000 });
     await patchRpc(page, {
       admin_user_dormancy: { error: null, data: [
@@ -263,7 +263,7 @@ test.describe('admin live console (ADMIN-13)', () => {
       { id: '00000000-0000-4000-8000-0000000000e1', event: 'qa_external_evt', occurred_at: new Date().toISOString(),
         user_id: '00000000-0000-4000-8000-0000000000a1', email: 'outside@example.com', path: '/' },
     ] } });
-    await page.getByRole('tab', { name: /^today$/i }).click();
+    await page.getByRole('tab', { name: /^overview$/i }).click();
     await expect.poll(() => page.evaluate(() => typeof window.__pushActivity)).toBe('function');
 
     await page.evaluate(() => {

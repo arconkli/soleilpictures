@@ -29,19 +29,19 @@ const LS_VERIFIED = 'admin.analytics.verifiedOnly';
  * dashboard left open on a second monitor overnight costs nothing until it is
  * looked at again.
  *
- * The intervals are not uniform because the views are not: Today is nine
+ * The intervals are not uniform because the views are not: Overview is nine
  * windowed RPCs and is the one people leave open, while System reads storage
  * and coverage figures that move on the order of hours. Polling those as often
- * as Today would be work nobody asked for and nobody would see.
+ * as Overview would be work nobody asked for and nobody would see.
  *
- * `today` was 30s, which is a live-ops cadence applied to a view whose inputs
+ * `overview` (then `today`) was 30s, which is a live-ops cadence applied to a view whose inputs
  * are daily rollups. Eleven concurrent RPCs twice a minute was the largest
  * single driver of call volume on the instance; the one genuinely live number
  * (admin_active_now, ~30ms) is cheap enough to poll on its own if it ever
  * needs to be finer than this.
  */
 export const POLL_MS = {
-  today: 300_000,
+  overview: 300_000,
   funnel: 120_000,
   retention: 120_000,
   system: 180_000,

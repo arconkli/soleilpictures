@@ -1,10 +1,13 @@
 // AdminPage — /admin. Visible only to tier='admin'. Tabs:
 //   • Universe  — anonymous, real-time graph of every node every user
 //                 has created across the platform, with a stats ticker
-//   • Overview  — the dashboard: Today / Funnel / Retention / System
+//   • Analytics — the dashboard: Overview / Funnel / Retention / System
 //                 (AdminAnalyticsTab). This used to be two tabs, Overview and
 //                 Analytics, which both led with total users, signups and MRR
-//                 and disagreed about which was authoritative.
+//                 and disagreed about which was authoritative. Its id is still
+//                 'overview', so saved tabs and ?tab= links keep working; only
+//                 the label changed (2026-10-20), when its first view took the
+//                 name Overview.
 //   • Users     — paginated list with tier mutation buttons
 //   • Grants    — issue / revoke time-bound paid access
 //   • Discounts — create / deactivate Stripe discount codes (monthly only)
@@ -14,7 +17,7 @@
 //   • API       — /api/v1 + MCP traffic: tools, routes, callers, failures
 //   • Tagging   — embeddings tagger quality audit
 //
-// Opens on Overview (fast) and remembers the active tab in the URL
+// Opens on Analytics (fast) and remembers the active tab in the URL
 // (?tab=) + localStorage, so a reload / back / shared link returns to the
 // operator's tab instead of remounting the heavy WebGL Universe graph.
 
@@ -52,10 +55,12 @@ import { adminPublicBoardSubmissionCounts } from '../lib/boardsApi.js';
 
 // Overview and Analytics were two tabs showing the same numbers: both led with
 // total users, signups and MRR, and neither was authoritative. They are one tab
-// now, with four question-shaped views inside it (Today / Funnel / Retention /
-// System) — see AdminAnalyticsTab.
+// now, with four question-shaped views inside it (Overview / Funnel / Retention /
+// System) — see AdminAnalyticsTab. The label is Analytics because the first of
+// those views is the Overview, and two "Overview"s, one inside the other, read
+// as one tab named twice.
 const TABS = [
-  { id: 'overview',  label: 'Overview' },
+  { id: 'overview',  label: 'Analytics' },
   { id: 'users',     label: 'Users' },
   { id: 'grants',    label: 'Grants' },
   { id: 'discounts', label: 'Discounts' },

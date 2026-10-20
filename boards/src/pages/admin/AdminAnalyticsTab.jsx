@@ -1,5 +1,5 @@
-// AdminAnalyticsTab — the merged Analytics tab. Hosts five thematic sub-tabs
-// (Overview / Acquisition / Engagement / Revenue / System) using the same
+// AdminAnalyticsTab — the merged Analytics tab. Hosts four question-shaped
+// sub-tabs (Overview / Funnel / Retention / System) using the same
 // pattern as AdminUniverseTab (localStorage + ?view= + key-prop remount),
 // generalized to five views with arrow-key nav. The shell owns the shared,
 // persistent toolbar (time range + funnel segment filters + internal-traffic
@@ -15,7 +15,7 @@ import { AdminToolbar } from './AdminStates.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
 import { AnalyticsFiltersProvider, useAnalyticsFilters, POLL_MS } from './analytics/AnalyticsFiltersContext.jsx';
 import { SegmentSelect } from './analytics/widgets/SegmentSelect.jsx';
-import { TodayView } from './analytics/views/TodayView.jsx';
+import { OverviewView } from './analytics/views/OverviewView.jsx';
 import { FunnelView } from './analytics/views/FunnelView.jsx';
 import { RetentionView } from './analytics/views/RetentionView.jsx';
 import { SystemView } from './analytics/views/SystemView.jsx';
@@ -27,7 +27,7 @@ import { SystemView } from './analytics/views/SystemView.jsx';
 // absence. The pricing path lives inside Funnel, where it is one branch of a
 // real flow. Bring the view back when admin_stats.sub_counts is non-empty.
 const VIEWS = [
-  { id: 'today',     label: 'Today' },
+  { id: 'overview',  label: 'Overview' },
   { id: 'funnel',    label: 'Funnel' },
   { id: 'retention', label: 'Retention' },
   { id: 'system',    label: 'System' },
@@ -35,11 +35,13 @@ const VIEWS = [
 const VIEW_IDS = VIEWS.map((v) => v.id);
 const SUBTAB_KEY = 'admin.analytics.view';
 
-// Old sub-tab ids, from when this was Overview / Acquisition / Engagement /
-// Revenue / System. Bookmarks and persisted prefs land somewhere sensible
-// rather than silently resetting to the default.
+// Old sub-tab ids. Bookmarks and persisted prefs land somewhere sensible rather
+// than silently resetting to the default: 'today' is what Overview was called
+// until 2026-10-20, and the rest are from when the views were Overview /
+// Acquisition / Engagement / Revenue / System. 'overview' itself went
+// overview → today → overview, and is a real id again.
 const VIEW_ALIASES = {
-  overview: 'today',
+  today: 'overview',
   acquisition: 'funnel',
   engagement: 'retention',
   revenue: 'funnel',
@@ -58,7 +60,7 @@ function readInitialView() {
     const stored = resolveView(window.localStorage.getItem(SUBTAB_KEY));
     if (stored) return stored;
   } catch { /* ignore */ }
-  return 'today';
+  return 'overview';
 }
 
 function InternalToggle() {
@@ -111,10 +113,10 @@ function VerifiedToggle() {
 function DeckStatus({ view }) {
   const f = useAnalyticsFilters();
   const cadence = POLL_MS[view] ?? POLL_MS.shell;
-  const today = view === 'today';
-  // What Today registered about its own calendar. Read on Today only: for the
+  const overview = view === 'overview';
+  // What Overview registered about its own calendar. Read on Overview only: for the
   // render after a switch the previous view's runtime is still the registered one.
-  const st = today ? f.runtime.status : null;
+  const st = overview ? f.runtime.status : null;
   // The weeks are claimed only once the weekly read has come back. While it loads,
   // and when it failed, WINDOW is the seven days alone and there is no WEEKS item.
   const weekly = st?.weeks != null;
@@ -124,10 +126,10 @@ function DeckStatus({ view }) {
 
   const items = [
     ['MODE', view.toUpperCase()],
-    // Today is a fixed seven-day window by definition, plus the complete UTC
+    // Overview is a fixed seven-day window by definition, plus the complete UTC
     // weeks its trends read and how far into this one we are; the others
-    // follow the range control, which is why the range control is hidden on Today.
-    ['WINDOW', today ? `7d${weeksRead}` : `${f.days}d`],
+    // follow the range control, which is why the range control is hidden on Overview.
+    ['WINDOW', overview ? `7d${weeksRead}` : `${f.days}d`],
     ['POP', f.verifiedOnly ? 'verified' : 'all signups'],
     ['INTERNAL', f.excludeInternal ? 'excluded' : 'counted'],
     ['SYNC', `${Math.round(cadence / 1000)}s`],
@@ -150,9 +152,9 @@ function AnalyticsToolbar({ view }) {
   const f = useAnalyticsFilters();
   // Segment dropdowns only mean something where a funnel is on screen.
   const showSegments = view === 'funnel';
-  // Today is a fixed seven-day window by definition — its own heading says so.
+  // Overview is a fixed seven-day window by definition — its own heading says so.
   // A range selector that silently does nothing is worse than no selector.
-  const showRange = view !== 'today';
+  const showRange = view !== 'overview';
   const opts = (dim) => f.segments.filter((s) => s.dim === dim);
   const onRefresh = () => { f.runtime.refresh?.(); f.refreshShell?.(); };
   return (
@@ -230,7 +232,7 @@ export function AdminAnalyticsTab() {
 
         {/* Remount by key so each view owns a clean useAdminData lifecycle and
             only the mounted view runs its RPCs. */}
-        {view === 'today'     && <TodayView     key="today" />}
+        {view === 'overview'  && <OverviewView  key="overview" />}
         {view === 'funnel'    && <FunnelView    key="funnel" />}
         {view === 'retention' && <RetentionView key="retention" />}
         {view === 'system'    && <SystemView    key="system" />}

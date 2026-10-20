@@ -4862,6 +4862,17 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 .adm-rail .admin-lifetime dt { color: var(--ink-3); }
 
+/* "+675 Studios" beside Clusters made: a qualifier, not a second figure. */
+.admin-lifetime dd small {
+  margin-left: 6px; font: 500 11px/1 var(--font-sans); color: var(--ink-3);
+}
+
+/* Which totals these are, said once, flush right: what exists now, and the
+   population the toolbar toggles chose. */
+.admin-lifetime .admin-lifetime-scope {
+  margin-left: auto; font: 500 10.5px/1 var(--font-mono); color: var(--ink-3);
+}
+
 /* The foot is separated from the figures by the rule, so give it one. */
 .adm-rail > .adm-well-foot {
   margin-top: 2px; padding-top: 11px;
