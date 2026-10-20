@@ -76,7 +76,7 @@
 //     related:         ['/vs/…', '/tools/…'],   // internal-linking spokes
 //     cta:             { label, sub },
 //   }
-import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL } from './billingCopy.js';
+import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, freeLimitSentence } from './billingCopy.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
 
@@ -864,7 +864,7 @@ const PAGES = [
     "answer": `Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, where Milanote stops at 10 file uploads ever, plus a flat $25/mo where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.`,
     "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to shot list — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
     "published": "2026-08-04",
-    "updated": "2026-10-02",
+    "updated": "2026-10-20",
     "thesis": {
       "heading": "From mood board to shot list",
       "paras": [
@@ -1601,6 +1601,28 @@ const PAGES = [
       {
         "q": "What happened to Kosmik?",
         "a": "Kosmik shut down. The founder announced the wind-down on April 24, 2026, and the service sunset on May 31, 2026 — sign-ups were disabled and subscribers were promised refunds. The homepage still hosts the farewell letter. Roundups that continue to recommend it were published without checking, which is worth remembering when reading tool listicles."
+      }
+    ],
+    // A named section for the free-plan question this page and /vs/milanote are
+    // searched for ("milanote free alternative", "which one is free"). Every
+    // competitor figure was read on that tool's own pricing or support page on
+    // 2026-10-20. Miro's and Canva's pages could not be read that day, so they
+    // are left out rather than quoted from memory: re-read them before adding.
+    "spotlights": [
+      {
+        "id": "free-plan-files",
+        "heading": "Which Milanote alternative holds the most files on a free plan?",
+        "intro": `For a board you share in the browser, Soleil Clusters: its free plan takes any file at any size and stops at ${freeLimitSentence()}, while Milanote's free plan allows 100 notes, images or links and 10 file uploads. If the files only need to live on your own computer, a desktop app is limited by your disk instead of a plan.`,
+        "paras": [
+          `On a Clusters board, video, audio and PDFs play or open on the card, and anything else — a PSD, a zip, a font — lands as a card with its name and size, ready to download. Nobody you invite needs a plan of their own to add to it. Creator removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive.`,
+          "Notion's free plan takes images, video and other files up to 5MB each — a few seconds of phone video — and its paid plans raise that to about 5GB per file.",
+          "Of the two desktop picks, PureRef's format list is images and animated GIFs — AVIF and HEIC through PSD, RAW and EXR — with no video formats on it, while Eagle imports any file format and previews images, GIFs, video and audio, for US$34.95 once, on two devices.",
+          "Checked on each tool's own pricing and support pages in October 2026. Miro's and Canva's current upload limits could not be confirmed on their own pages when we checked, so they are not listed here."
+        ],
+        "links": [
+          { "path": "/vs/milanote", "label": "Milanote vs Soleil Clusters, compared honestly" },
+          { "path": "/tools/free-mood-board-maker", "label": "Make a mood board free" }
+        ]
       }
     ],
     "related": [
