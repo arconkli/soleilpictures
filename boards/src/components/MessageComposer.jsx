@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { Paperclip, Smile, Link as LinkIcon, Reply, X } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
@@ -73,14 +73,17 @@ function chipLabel(item) {
 // (entity attachments rendered as soleil pills).
 //   replyTo / replyToName / onCancelReply — the message the next send answers:
 //   shown above the field as "Replying to …"; Escape or × lets it go.
+//   onEditLast — ↑ in an empty box: edit your last message; true if it did.
+//   ref — { focus() }: where the thread puts you on open and when something
+//   that had focus (an edit box, a palette, a menu) goes away.
 //
 // Everything typed or staged here is the conversation's draft (useDraft): it's
 // there when you come back, files still uploading included. The field grows
 // with what you write and is never disabled; Send waits for the uploads.
-export function MessageComposer({
+export const MessageComposer = forwardRef(function MessageComposer({
   onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…',
-  replyTo = null, replyToName = '', onCancelReply,
-}) {
+  replyTo = null, replyToName = '', onCancelReply, onEditLast,
+}, ref) {
   const key = draftKey || `tmp:${workspaceId || 'unknown'}`;
   const [draft, update] = useDraft(key);
   const { body, items, refs: pendingEntityRefs, mentions: pendingMentions } = draft;
@@ -100,6 +103,9 @@ export function MessageComposer({
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const emojiBtnRef = useRef(null);
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus({ preventScroll: true }),
+  }), []);
   // Starting a reply puts you in the field to write it (not a reply that was
   // already in the draft when the conversation opened).
   const replyId = replyTo?.id || null;
@@ -340,6 +346,11 @@ export function MessageComposer({
           // Escape lets a reply go first; the panel stays open.
           if (e.key === 'Escape' && replyTo && !mention) { e.preventDefault(); onCancelReply?.(); return; }
           if (mention) return; // the picker takes Enter
+          // ↑ in an empty box edits your last message, as in Slack.
+          if (e.key === 'ArrowUp' && !body && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && onEditLast?.()) {
+            e.preventDefault();
+            return;
+          }
           // Enter sends on a desktop keyboard; on a touch one it makes a line.
           if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); send(); }
         }}
@@ -402,6 +413,14 @@ export function MessageComposer({
             if (t.kind === 'user') setPendingMentions(p => [...p, t.id]);
             else                   setPendingEntityRefs(p => [...p, t]);
             setMention(null);
+            // Back in the box, the caret after the name, to carry on writing.
+            const caret = before.length + name.length + 2;
+            requestAnimationFrame(() => {
+              const el = inputRef.current;
+              if (!el) return;
+              el.focus({ preventScroll: true });
+              try { el.setSelectionRange(caret, caret); } catch (_) {}
+            });
           }}
           onCancel={() => setMention(null)}
         />
@@ -417,7 +436,7 @@ export function MessageComposer({
       )}
     </form>
   );
-}
+});
 
 // Only show the drop overlay for drags that look like files or URLs —
 // not, e.g., a plain text selection.

@@ -25,3 +25,9 @@ export function messageKeyAction(e, { touch = false } = {}) {
 export function touchKeyboard() {
   try { return !!globalThis.matchMedia?.('(pointer: coarse)').matches; } catch (_) { return false; }
 }
+
+// A mouse (or trackpad) and a keyboard: the conversation can open with the
+// box you type in focused. Under a finger it can't — that raises the keyboard.
+export function finePointer() {
+  try { return !!globalThis.matchMedia?.('(hover: hover) and (pointer: fine)').matches; } catch (_) { return false; }
+}

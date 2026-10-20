@@ -2364,6 +2364,10 @@ export const DOCS_PAGES = [
         "text": "Writing"
       },
       {
+        "id": "keyboard",
+        "text": "Keyboard"
+      },
+      {
         "id": "unread",
         "text": "Unread"
       },

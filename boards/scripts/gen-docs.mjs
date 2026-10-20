@@ -69,6 +69,7 @@ import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
+import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
   INVITE_BONUS_STORAGE_BYTES, INVITE_BONUS_STORAGE_LABEL, formatBonusBytes,
@@ -292,6 +293,8 @@ if (!freeQuota || bytesLabel(Number(freeQuota[1])) !== FREE_STORAGE_LABEL) {
 
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
+  // How long a message stays editable by its author (the app enforces it).
+  messageEditWindowMin: String(MESSAGE_EDIT_WINDOW_MIN),
   // The cap accounts created before migration 0229 keep, permanently. The plans
   // page states the grandfather rule; both cohorts are real, so both numbers
   // have to come from code rather than being typed into the markdown.

@@ -4,6 +4,7 @@ import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download } f
 import { EmojiPalette } from './EmojiPalette.jsx';
 import { GrowingTextarea } from './GrowingTextarea.jsx';
 import { isComposingKey, messageKeyAction, touchKeyboard } from '../lib/composerKeys.js';
+import { withinEditWindow } from '../lib/messageEdit.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { renderMessageBody } from '../lib/renderMessageBody.jsx';
@@ -38,7 +39,7 @@ export function MessageBubble({
   // 'sending' | 'failed' | null — optimistic messages that haven't been
   // confirmed by the server yet. They render dimmed with no actions.
   const sendState = msg.sendState || null;
-  const within15min = msg.created_at && (Date.now() - new Date(msg.created_at).getTime()) < 15 * 60 * 1000;
+  const inEditWindow = withinEditWindow(msg.created_at);
   const [hover, setHover] = useState(false);
   const [emojiAnchor, setEmojiAnchor] = useState(null);
   const reactBtnRef = useRef(null);
@@ -74,8 +75,9 @@ export function MessageBubble({
 
   // The thread's `e` shortcut asks the focused message to edit itself; nothing
   // listened, so the advertised key did nothing (COMMS-24). Only your own
-  // message, inside the 15-minute edit window, the same rule as the button.
-  const canEdit = isMine && within15min && !sendState;
+  // message, inside the edit window, the same rule as the button. ↑ in an
+  // empty composer asks the same way (lib/messageEdit.js picks the message).
+  const canEdit = isMine && inEditWindow && !sendState;
   useEffect(() => {
     if (!canEdit) return;
     const onEditRequest = (e) => {
@@ -180,7 +182,7 @@ export function MessageBubble({
           <button title="React" ref={reactBtnRef} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor((a) => (a ? null : r)); }}><Icon as={Smile} size={12} /></button>
           {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
           {onCopyLink && <button title="Copy link" onClick={() => onCopyLink(msg)}><Icon as={LinkIcon} size={12} /></button>}
-          {isMine && within15min && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
+          {isMine && inEditWindow && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
           {isMine               && <button title="Delete" onClick={() => onDelete?.(msg)}><Icon as={Trash2} size={12} /></button>}
         </span>
       </div>
@@ -316,7 +318,7 @@ function shortClock(iso) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-function formatRelTime(iso) {
+export function formatRelTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
   const ms = Date.now() - d.getTime();

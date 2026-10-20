@@ -15,8 +15,11 @@ import {
 import {
   broadcastConversationMessage, broadcastConversationTyping, broadcastConversationChange,
 } from '../lib/messageRealtime.js';
-import { MessageBubble } from './MessageBubble.jsx';
+import { MessageBubble, formatRelTime } from './MessageBubble.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
+import { finePointer } from '../lib/composerKeys.js';
+import { lastEditableMessage } from '../lib/messageEdit.js';
+import { snippetParts } from '../lib/messageSearchSnippet.js';
 import { useDraftValue } from '../hooks/useDraft.js';
 import { replyTarget, updateDraft } from '../lib/draftStore.js';
 import { INBOX_MIME } from '../lib/dragMimes.js';
@@ -135,6 +138,51 @@ export function MessageThread({
     const u = userProfiles.get(uid);
     return (u?.name || u?.email || 'Member').split(/[\s@]/)[0];
   };
+  // Who wrote a search result.
+  const senderName = (m) => {
+    if (m.sender_id === userId) return 'You';
+    const u = userProfiles.get(m.sender_id);
+    return u?.name || u?.email || m.sender_name || 'Member';
+  };
+
+  // ── Focus ────────────────────────────────────────────────────────────
+  // Focus has a home in the conversation: the box you type in where there's a
+  // mouse and a keyboard, the panel itself under a finger (a focused field
+  // would raise the keyboard). The conversation opens with focus there, so
+  // Escape and the shortcuts reach it (the list row that opened it is gone),
+  // and focus goes back there whenever what held it goes away: an edit box
+  // that saved, a search that closed, a menu or a palette that shut.
+  const rootRef = useRef(null);
+  const composerRef = useRef(null);
+  const lastFocusRef = useRef(null);
+  const focusHome = useCallback(() => {
+    if (composerRef.current && finePointer()) composerRef.current.focus();
+    else rootRef.current?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      if (!rootRef.current?.contains(document.activeElement)) focusHome();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [focusHome]);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof MutationObserver === 'undefined') return undefined;
+    const rescue = () => {
+      const had = lastFocusRef.current;
+      if (!had || had.isConnected) return;
+      const active = document.activeElement;
+      if (active && active !== document.body && active !== document.documentElement) return;
+      lastFocusRef.current = null;
+      focusHome();
+    };
+    const inside = new MutationObserver(rescue);
+    inside.observe(root, { childList: true, subtree: true });
+    // Menus, pickers and palettes are portals on <body>; their focus counts.
+    const portals = new MutationObserver(rescue);
+    portals.observe(document.body, { childList: true });
+    return () => { inside.disconnect(); portals.disconnect(); };
+  }, [focusHome]);
 
   // ── Staying where the reader is ─────────────────────────────────────
   // useStickToBottom keeps the newest message in view while you're at the
@@ -587,6 +635,18 @@ export function MessageThread({
     setFocusedId(null);
   }, []);
 
+  // ↑ in an empty composer: edit your last message (the `e` key's event),
+  // brought into view. False when there's none to edit, so ↑ stays a caret key.
+  const editLast = useCallback(() => {
+    const m = lastEditableMessage(messages, userId);
+    if (!m) return false;
+    document.dispatchEvent(new CustomEvent('soleil-msg-edit', { detail: { id: m.id } }));
+    requestAnimationFrame(() => {
+      scrollRef.current?.querySelector(`[data-msg-id="${m.id}"]`)?.scrollIntoView({ block: 'nearest' });
+    });
+    return true;
+  }, [messages, userId]);
+
   const handlePin = useCallback(async (msg) => {
     const opId = patchLocal(msg.id, { is_pinned: !msg.is_pinned });
     try {
@@ -688,7 +748,7 @@ export function MessageThread({
   const draftKey = conversationId || '';
 
   return (
-    <div className="msg-panel">
+    <div className="msg-panel" ref={rootRef} tabIndex={-1} onFocus={(e) => { lastFocusRef.current = e.target; }}>
       <div className="msg-panel-head">
         <button
           className="msg-panel-icon"
@@ -852,20 +912,27 @@ export function MessageThread({
             {searchResults.length === 0 && !searching && (
               <div className="msg-empty">No matches for "{searchQuery}".</div>
             )}
-            {searchResults.map(m => (
-              <button
-                key={m.id}
-                className="msg-search-result"
-                onClick={() => jumpTo(m.id)}
-              >
-                <MessageBubble msg={m} selfId={userId} highlight={searchQuery}
-                  onDelete={handleDelete}
-                  onAttachmentDragStart={handleAttachmentDragStart}
-                  onReact={handleReact}
-                  onEdit={handleEdit}
-                />
-              </button>
-            ))}
+            {/* A result is one button: who, when, and the words around the
+                match. A whole message inside it put its own buttons inside
+                a button, and pressing React there jumped as well. */}
+            {searchResults.map(m => {
+              const parts = snippetParts(m.body, searchQuery);
+              return (
+                <button key={m.id} type="button" className="msg-search-result" onClick={() => jumpTo(m.id)}>
+                  <span className="msg-search-result-head">
+                    <span className="msg-search-result-who">{senderName(m)}</span>
+                    <time className="msg-search-result-time" dateTime={m.created_at}>{formatRelTime(m.created_at)}</time>
+                  </span>
+                  <span className="msg-search-result-body">
+                    {parts.length
+                      ? parts.map((p, i) => (p.match
+                        ? <mark key={i} className="msg-bubble-mark">{p.text}</mark>
+                        : <span key={i}>{p.text}</span>))
+                      : (m.attachments?.[0]?.name || 'Attachment')}
+                  </span>
+                </button>
+              );
+            })}
           </>
         ) : isEmpty && loadFailed ? (
           // A failed read is not an empty conversation (COMMS-15).
@@ -932,6 +999,7 @@ export function MessageThread({
 
       {canSend ? (
         <MessageComposer
+          ref={composerRef}
           onSend={handleSend}
           onTyping={handleTyping}
           workspaceId={workspaceId}
@@ -941,6 +1009,7 @@ export function MessageThread({
           replyTo={replyTo}
           replyToName={replyTo ? replyName(replyTo.sender_id) : ''}
           onCancelReply={() => setReplyTo(null)}
+          onEditLast={editLast}
         />
       ) : (
         <ReadOnlyComposerNotice reason={readOnlyReason} />

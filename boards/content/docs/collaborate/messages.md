@@ -54,6 +54,25 @@ Direct and group conversations in one list, ordered by recency.
 - Attach files with the paperclip, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; **Send** waits until they're all in, and one that fails says so, with **Retry**
 - Editing one of your messages works the same way: **Enter** saves, **Esc** cancels
 
+## Keyboard
+
+With a keyboard, a conversation opens with the box you type in ready.
+
+| Key | What it does |
+|---|---|
+| `Enter` · `Shift+Enter` | Send · start a new line |
+| `↑` in an empty box | Edit your last message, up to {{fact:messageEditWindowMin}} minutes after you sent it |
+| `⌘F` / `Ctrl+F` | Search the conversation |
+| `Esc` | Close what's on top — a menu, the edit box, the reply, the search — then the panel, unless there's something typed in the box |
+
+Click anywhere in the conversation outside the box, and these move through it:
+
+| Key | What it does |
+|---|---|
+| `J` · `K` | Next · previous message |
+| `R` | Reply to that message |
+| `E` | Edit it, if it's yours |
+
 ## Unread
 
 Unread counts appear on the sidebar and in the **browser tab title** — `(3)` for

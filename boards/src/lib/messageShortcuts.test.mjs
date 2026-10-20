@@ -21,6 +21,7 @@ test('the `e` shortcut has a listener: your own message, inside the edit window'
   assert.match(thread, /new CustomEvent\('soleil-msg-edit', \{ detail: \{ id: m\.id \}\}\)/);
   const bubble = read('../components/MessageBubble.jsx');
   assert.match(bubble, /document\.addEventListener\('soleil-msg-edit', onEditRequest\)/);
-  assert.match(bubble, /const canEdit = isMine && within15min && !sendState;/);
+  assert.match(bubble, /const canEdit = isMine && inEditWindow && !sendState;/);
+  assert.match(bubble, /const inEditWindow = withinEditWindow\(msg\.created_at\);/);
   assert.match(bubble, /if \(e\.detail\?\.id !== msg\.id\) return;/);
 });

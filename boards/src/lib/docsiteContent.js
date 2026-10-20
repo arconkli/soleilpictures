@@ -31924,6 +31924,200 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Keyboard",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keyboard"
+    }
+   ],
+   "id": "keyboard"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a keyboard, a conversation opens with the box you type in ready."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " · "
+      },
+      {
+       "t": "code",
+       "v": "Shift+Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Send · start a new line"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " in an empty box"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Edit your last message, up to 15 minutes after you sent it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘F"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "Ctrl+F"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Search the conversation"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Close what's on top — a menu, the edit box, the reply, the search — then the panel, unless there's something typed in the box"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click anywhere in the conversation outside the box, and these move through it:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "J"
+      },
+      {
+       "t": "text",
+       "v": " · "
+      },
+      {
+       "t": "code",
+       "v": "K"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Next · previous message"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "R"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Reply to that message"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "E"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Edit it, if it's yours"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Unread",
    "inline": [
     {

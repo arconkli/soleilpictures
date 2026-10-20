@@ -44,3 +44,9 @@ test('editing a message: return makes a new line, Save saves', async ({ page }) 
   await mine.getByRole('button', { name: 'Save' }).tap();
   await expect(mine.locator('.msg-bubble-body')).toContainText('and more');
 });
+
+test('a conversation opens without raising the keyboard: the panel has focus, not the box', async ({ page }) => {
+  await open(page);
+  await expect.poll(() => page.evaluate(() => document.activeElement?.classList.contains('msg-panel'))).toBe(true);
+  await expect(page.locator('.msg-composer-input')).not.toBeFocused();
+});

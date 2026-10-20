@@ -579,3 +579,92 @@ test('the emoji palette opens clear of its button and inside the window, and the
   await expect(pal).toHaveCount(0);
   await expect(page.locator('.msg-composer-input')).toHaveValue('👍');
 });
+
+// ── Focus and keys (C2.9) ──────────────────────────────────────────────
+const composerInput = (page) => page.locator('.msg-composer-input').last();
+
+test('a conversation opens with the box you type in focused, from a link and from the list', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await expect(composerInput(page)).toBeFocused();
+  await page.locator('.msg-panel-icon[aria-label="Back"]').click();
+  await page.locator('.msg-row', { hasText: 'Casting' }).first().click();
+  await expect(page.locator('.msg-panel-title')).toContainText('Casting');
+  await expect(composerInput(page)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.msg-thread-body')).toHaveCount(0);
+});
+
+test('↑ in an empty box edits your last message; saving puts you back in the box', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const mine = await send(page, 'a message to fix');
+  await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+  const id = await mine.getAttribute('data-msg-id');
+  const input = composerInput(page);
+  await input.fill('typing something');
+  await input.press('ArrowUp');
+  await expect(page.locator(`.msg-bubble[data-msg-id="${id}"] textarea`)).toHaveCount(0);
+  await input.fill('');
+  await input.press('ArrowUp');
+  const box = page.locator(`.msg-bubble[data-msg-id="${id}"] textarea`);
+  await expect(box).toBeFocused();
+  await expect(box).toHaveValue('a message to fix');
+  await page.keyboard.type(', fixed');
+  await page.keyboard.press('Enter');
+  await expect(page.locator(`.msg-bubble[data-msg-id="${id}"] .msg-bubble-body`)).toContainText('a message to fix, fixed');
+  await expect(input).toBeFocused();
+  await input.press('ArrowUp');
+  await expect(box).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(box).toHaveCount(0);
+  await expect(input).toBeFocused();
+  await expect(page.locator('.msg-panel')).toBeVisible();
+});
+
+test('search results are plain rows; one jumps to its message, and closing search puts you back in the box', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await composerInput(page).press('ControlOrMeta+f');
+  const search = page.locator('.msg-search-input');
+  await expect(search).toBeFocused();
+  await search.fill('talk');
+  const row = page.locator('.msg-search-result').first();
+  await expect(row).toBeVisible();
+  await expect(row.locator('mark')).toHaveText(/talk/i);
+  expect(await page.locator('.msg-search-result button, .msg-search-result a, .msg-search-result .msg-bubble').count()).toBe(0);
+  await row.click();
+  await expect(page.locator('.msg-search')).toHaveCount(0);
+  await expect(page.locator('.msg-bubble.is-flashed')).toHaveCount(1);
+  await expect(composerInput(page)).toBeFocused();
+  await composerInput(page).press('ControlOrMeta+f');
+  await expect(search).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.msg-search')).toHaveCount(0);
+  await expect(composerInput(page)).toBeFocused();
+});
+
+test('reacting from a message’s palette puts you back in the box', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const theirs = bubble(page, 'Thanks! Talk tomorrow.');
+  await theirs.hover();
+  await theirs.locator('button[title="React"]').click();
+  await page.locator('.emoji-palette button', { hasText: '🎉' }).click();
+  await expect(theirs.locator('.msg-reaction', { hasText: '🎉' })).toBeVisible();
+  await expect(composerInput(page)).toBeFocused();
+});
+
+test('click the conversation and J/K move through it; R replies to the message you’re on', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await expect(composerInput(page)).toBeFocused();
+  await bubble(page, 'Thanks! Talk tomorrow.').locator('.msg-bubble-body').click();
+  await expect(composerInput(page)).not.toBeFocused();
+  const newest = page.locator('.msg-thread-body .msg-bubble').last();
+  const words = (await newest.locator('.msg-bubble-body').innerText()).slice(0, 20);
+  await page.keyboard.press('k');
+  await expect(newest).toHaveClass(/msg-bubble--focused/);
+  await page.keyboard.press('k');
+  await expect(newest).not.toHaveClass(/msg-bubble--focused/);
+  await page.keyboard.press('j');
+  await expect(newest).toHaveClass(/msg-bubble--focused/);
+  await page.keyboard.press('r');
+  await expect(page.locator('.msg-reply-bar-body')).toContainText(words);
+  await expect(composerInput(page)).toBeFocused();
+});
