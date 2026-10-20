@@ -25,16 +25,18 @@
 // has this held its direction for WEEKS, or did one week move? One seven-day
 // delta cannot say. Each of them carries a strip of complete UTC weeks and the
 // sentence weeklyTrend() (lib/trendStats.js) reads off it; the week-over-week
-// badge stays, demoted to the sub line. The thirteen weeks behind those strips
-// are drawn in the band below, beside what changed along the way.
+// badge stays, demoted to the sub line. Below the tiles, the long-run band
+// (widgets/GrowthBand.jsx) draws every week since the first account, one small
+// chart per measure, beside what changed along the way.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
 import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
 import { ALPHA_SOLID, DEFAULT_WINDOW, WEEKS_FETCHED, weekDelta, weeklyTrend } from '../../../../lib/trendStats.js';
 import {
-  WEEKLY_METRICS, addDays, breaksFor, mergeMarkers, mondayOf, toWeekPoints,
+  WEEKLY_METRICS, breaksFor, mergeMarkers, toWeekPoints,
 } from '../../../../lib/weeklySeries.js';
+import { BEFORE_LAUNCH, RETURN_HORIZON_DAYS, RETURN_WEEKS } from '../../../../lib/growthSeries.js';
 import { DEFINITION_BREAKS } from '../../../../lib/adminDefinitionBreaks.js';
 import { CHANGELOG_ENTRIES } from '../../../../lib/changelogIndex.js';
 import { undoToast } from '../../../../lib/undoToast.js';
@@ -48,8 +50,7 @@ import { Heatmap } from '../../viz/Heatmap.jsx';
 import { EventConsole } from '../../viz/EventConsole.jsx';
 import { Deck, Well, Plate } from '../../viz/Well.jsx';
 import { VAR } from '../../viz/palette.js';
-import { WeeklyMultiples } from '../widgets/WeeklyMultiples.jsx';
-import { MarkersPanel } from '../widgets/MarkersPanel.jsx';
+import { GrowthBand } from '../widgets/GrowthBand.jsx';
 import { stalledSignups } from '../stalledSignups.js';
 
 // The browser's zone, so the heatmap buckets by the hours the owner keeps
@@ -60,10 +61,6 @@ const TZ = (() => {
 })();
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? null : Number(x));
-
-// The complete weeks the stack draws: every week fetched but this one. The metas
-// below say this number, so it comes from the fetch rather than being typed.
-const COMPLETE_WEEKS = WEEKS_FETCHED - 1;
 
 // How a trended tile reads, on hover. The window and the threshold come from the
 // module that applies them, so the sentence cannot drift from the test.
@@ -177,13 +174,15 @@ export function OverviewView() {
       supabase.rpc('admin_kpi_summary', { p_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_metrics_history', { p_days: 60 }),
       // Thirteen complete UTC weeks and this one so far, oldest first: every
-      // strip, verdict and tile spark, and the stack in band 02. The same
-      // population flags as the headline figures, so a tile's number and its
-      // strip count the same people.
+      // strip, verdict and tile spark. The same population flags as the
+      // headline figures, so a tile's number and its strip count the same
+      // people. The long-run band reads its own series, below.
       supabase.rpc('admin_weekly_series', { p_weeks: WEEKS_FETCHED, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      // The owner's notes and the pipeline alerts. Releases and definition
-      // breaks are repo facts, merged in below rather than fetched.
-      supabase.rpc('admin_markers'),
+      // The owner's notes and the pipeline alerts, back to the first week: the
+      // band can show every week since launch, and the read's own default stops
+      // at 120 days. Releases and definition breaks are repo facts, merged in
+      // below rather than fetched.
+      supabase.rpc('admin_markers', { p_since: BEFORE_LAUNCH }),
       // Follows the Internal toggle (0460). It used to count the team always,
       // the admin reading it included.
       supabase.rpc('admin_active_now', { p_window_minutes: 5, p_exclude_internal: f.excludeInternal }),
@@ -229,6 +228,32 @@ export function OverviewView() {
   }, [f.excludeInternal, f.verifiedOnly],
      { pollIntervalMs: POLL_MS.overview, refetchOnFocus: true });
 
+  // The long-run band: one row per UTC week since the first account (0460), and
+  // week-one return by week of first visit (0322's week rows, as far back as the
+  // read reaches). A read of its own so it never holds up the tiles above it,
+  // and so a failure blanks the band and nothing else. The same population
+  // flags as everything on the page.
+  const g = useAdminData(async () => {
+    const [growth, returns] = await Promise.allSettled([
+      supabase.rpc('admin_growth_series', { p_weeks: 104, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      supabase.rpc('admin_return_fixed_horizon', {
+        p_since: BEFORE_LAUNCH,
+        p_horizon_days: RETURN_HORIZON_DAYS,
+        p_exclude_internal: f.excludeInternal,
+        p_verified_only: f.verifiedOnly,
+        p_weeks: RETURN_WEEKS,
+      }),
+    ]);
+    const ok = (r) => r.status === 'fulfilled' && !r.value.error;
+    if (!ok(growth)) {
+      throw (growth.status === 'rejected' ? growth.reason : growth.value.error) || new Error('Failed to load the weekly series');
+    }
+    // null, not [], when the return read failed: the band then says it did not
+    // load instead of drawing every week as nobody.
+    return { growth: growth.value.data, returns: ok(returns) ? returns.value.data : null };
+  }, [f.excludeInternal, f.verifiedOnly],
+     { pollIntervalMs: POLL_MS.overview, refetchOnFocus: true });
+
   const d = q.data;
   const cur = d?.kpi?.current || {};
   const prev = d?.kpi?.previous || {};
@@ -242,16 +267,15 @@ export function OverviewView() {
 
   // ── The weekly read ─────────────────────────────────────────────────────
   // false while loading and when admin_weekly_series failed. The tiles then make
-  // no weekly claim at all: no strip, no verdict, no spark, no WEEKS in the
-  // status strip, and the stack shows its empty state.
+  // no weekly claim at all: no strip, no verdict, no spark and no WEEKS in the
+  // status strip. (The band below reads its own series.)
   const weeklyRead = Array.isArray(d?.weekly);
-  // Oldest first, as the RPC sends them, and sorted anyway: the strips, the
-  // sparks and the stack are all positional, so a row out of order would draw
-  // one week in another's place.
+  // Oldest first, as the RPC sends them, and sorted anyway: the strips and the
+  // sparks are positional, so a row out of order would draw one week in
+  // another's place.
   const rows = useMemo(() => (Array.isArray(d?.weekly) ? d.weekly : [])
     .filter((r) => r && typeof r.week_start === 'string')
     .sort(byWeekStart), [d?.weekly]);
-  const weeks = useMemo(() => rows.map((r) => r.week_start), [rows]);
   const completeWeeks = weeklyRead ? rows.filter((r) => r.complete).length : null;
 
   const now = new Date();
@@ -298,18 +322,12 @@ export function OverviewView() {
     return [m.key, values.length ? values : null];
   })), [trends, rows, breakList]);
 
-  // One row per WEEKLY_METRICS entry, keyed by its key: that is how the stack
-  // knows which column a definition break is about.
-  const stackSeries = useMemo(() => WEEKLY_METRICS.map((m) => ({
-    key: m.key,
-    name: m.label,
-    color: VAR.cat[m.family],
-    values: rows.map((r) => r[m.col]),
-    measurable: rows.map((r) => (m.measurableCol ? !!r[m.measurableCol] : true)),
-  })), [rows]);
-
   const status = useMemo(() => ({ weeks: completeWeeks, partialDays }), [completeWeeks, partialDays]);
-  useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing, status });
+  // The toolbar's one refresh re-reads both: the band is on this page too.
+  const refreshQ = q.refresh;
+  const refreshG = g.refresh;
+  const refresh = useCallback(() => { refreshQ(); refreshG(); }, [refreshQ, refreshG]);
+  useRegisterViewRuntime({ refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing || g.refreshing, status });
 
   // ── Markers, and the owner's notes ──────────────────────────────────────
   // Notes are local state so an add or a remove shows at once. They are seeded
@@ -336,18 +354,15 @@ export function OverviewView() {
     () => (Array.isArray(fetchedMarkers) ? fetchedMarkers.filter((m) => m?.source !== 'note') : []),
     [fetchedMarkers],
   );
-  // The window the stack draws. Without a weekly series, the same complete weeks
-  // counted back from this Monday, so the list never runs back to the first release.
-  const windowFrom = weeks[0] ?? addDays(mondayOf(todayUtc), -7 * COMPLETE_WEEKS);
-  // Everything in the window. The list shows all of it; the stack draws each
-  // marker only on the charts it is about (WeeklyMultiples).
+  // Every marker since the first week. The band keeps the ones in the weeks it
+  // shows, and draws each only on the charts it is about (lib/growthSeries.js).
   const mergedMarkers = useMemo(() => mergeMarkers({
     rpc: [...alerts, ...notes],
     changelog: CHANGELOG_ENTRIES,
     breaks: DEFINITION_BREAKS,
-    from: windowFrom,
+    from: BEFORE_LAUNCH,
     to: todayUtc,
-  }), [alerts, notes, windowFrom, todayUtc]);
+  }), [alerts, notes, todayUtc]);
 
   // A change to the notes: shown now, and kept for replay (above).
   const change = (apply, at = Infinity) => {
@@ -619,46 +634,21 @@ export function OverviewView() {
         </Well>
         </Deck>
 
-        {/* The weeks the strips above read, and what changed along the way.
-            Small multiples on one calendar: the four series sit an order of
-            magnitude apart, so they share the x axis and never the y. The
-            markers list sits beside them because a step in a line needs its
-            explanation within reach, and it is where the owner pins a note. */}
-        {/* Deliberately prose, like every section title here. The metas below and
-            the status strip derive their 13 from WEEKS_FETCHED. */}
-        <h2 className="admin-section-title">Thirteen weeks, and what changed</h2>
-        <Deck>
-          <Well
-            span={8}
-            title="Weekly, by metric"
-            meta={`${COMPLETE_WEEKS} complete weeks + this week so far · UTC Monday`}
-            // Both ways: _admin_people asks _admin_entered_code() as things are
-            // now, so a code entered late joins a week already drawn.
-            foot="History can shrink: deleted accounts and cards leave it. It can also grow: a code entered late counts in the week the account was made."
-          >
-            <WeeklyMultiples
-              weeks={weeks}
-              series={stackSeries}
-              markers={mergedMarkers}
-              partialWeeks={rows.length > 0 && !rows[rows.length - 1].complete ? 1 : 0}
-            />
-          </Well>
-          <Plate
-            span={4}
-            className="adm-markers"
-            title="What changed"
-            meta={`${mergedMarkers.length} marker${mergedMarkers.length === 1 ? '' : 's'} in ${COMPLETE_WEEKS} wk`}
-          >
-            <MarkersPanel
-              markers={mergedMarkers}
-              onAdd={addNote}
-              onRemove={removeNote}
-              busy={inFlight > 0}
-              todayUtc={todayUtc}
-              windowFrom={windowFrom}
-            />
-          </Plate>
-        </Deck>
+        {/* The long run, and what changed along the way: every week since the
+            first account, or the last thirteen, one small chart per measure on
+            one calendar, with the markers list beside them because a step in a
+            line needs its explanation within reach. It is also where the owner
+            pins a note. */}
+        <GrowthBand
+          query={g}
+          markers={mergedMarkers}
+          breaks={DEFINITION_BREAKS}
+          cutBreaks={breakList}
+          onAdd={addNote}
+          onRemove={removeNote}
+          busy={inFlight > 0}
+          todayUtc={todayUtc}
+        />
 
         <h2 className="admin-section-title">When people are here, and what is happening now</h2>
         <Deck>

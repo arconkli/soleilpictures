@@ -16,8 +16,9 @@
 //     series genuinely has holes, and a line drawn across a hole invents the
 //     days it is missing.
 //
-// The weekly stack (widgets/WeeklyMultiples.jsx) adds four things, each off by
-// default so every other chart draws exactly as before:
+// Four more things, each off by default so every chart that does not ask draws
+// exactly as before (they were made for the weekly stack the Overview's long-run
+// band replaced on 2026-10-20, and stay as options):
 //
 //   * `markers`: dated events as dashed verticals at a fractional index, named
 //     in the hover tip, with the kind's glyph on top when `markerGlyphs` is set

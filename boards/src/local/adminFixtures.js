@@ -1130,6 +1130,103 @@ export const HARNESS_BREAKS = DEFINITION_BREAKS.map((b) => (
   b.cut === true ? { ...b, date: isoPlus(WK[WORK_FROM], 1) } : b
 ));
 
+// ── The long run: admin_growth_series (0460) ──────────────────────────────
+//
+// Twenty-six weeks on the same calendar as WK, so its last fourteen rows ARE
+// admin_weekly_series' rows (spread in below, never retyped) and the band can
+// never disagree with the tiles above it. The first twelve are an earlier,
+// smaller product, shaped so every state the band draws is on screen:
+//
+//   presence  not measured for the first three weeks (active_floor GW[3]), so
+//             Weekly active opens hatched, as production's does;
+//   work      measured from WK[WORK_FROM] only, and cut by HARNESS_BREAKS the
+//             week after, so the line is thin for one week, then full;
+//   day one   cohorts under SMALL_N early on (small unjoined dots), and the
+//             newest complete week still filling until it is eight days old;
+//   time      not recorded before today, the state production is in until its
+//             first full week: the chart is hatched with its message. ?time=1
+//             starts it at WK[WORK_FROM] instead, to look at the measured bars.
+//
+// Synthetic numbers; this repo is public. seconds_in_app is a bigint column, so
+// it arrives as a string of digits, as PostgREST sends one.
+const GW = weekStarts(26);
+const GROWTH_EARLY = GW.length - WK.length; // 12 rows before WK[0]
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const EARLY_SIGNUPS  = [3, 1, 2, 4, 3, 6, 8, 7, 11, 14, 18, 23];
+const EARLY_ACTIVE   = [null, null, null, 6, 7, 9, 12, 14, 18, 22, 27, 34];
+const EARLY_CARDS    = [0, 4, 12, 20, 35, 60, 90, 118, 160, 214, 262, 331];
+const DAY_ONE_RATE   = [0.33, 1, 0.5, 0.5, 0.33, 0.5, 0.38, 0.43, 0.45, 0.43, 0.39, 0.43,
+  0.46, 0.42, 0.4, 0.45, 0.44, 0.42, 0.47, 0.44, 0.48, 0.41, 0.46, 0.43, 0.47, 0.42];
+const GROWTH_ACTIVE_FLOOR = GW[3];
+function timeFloor() {
+  try { if (new URLSearchParams(window.location.search).get('time') === '1') return WK[WORK_FROM]; } catch { /* no window */ }
+  return TODAY_ISO;
+}
+const TIME_HOURS = [31, 38, 35, 42, 11]; // WK[WORK_FROM..13], when ?time=1
+
+function growthRows() {
+  const secondsFloor = timeFloor();
+  let users = 0;
+  let cardsTotal = 0;
+  return GW.map((week_start, i) => {
+    const late = i >= GROWTH_EARLY ? RPCS.admin_weekly_series[i - GROWTH_EARLY] : null;
+    const signups = late ? late.signups : EARLY_SIGNUPS[i];
+    const active = late ? late.active_users : EARLY_ACTIVE[i];
+    const activeMeasurable = week_start >= GROWTH_ACTIVE_FLOOR;
+    const cards = late ? late.cards : EARLY_CARDS[i];
+    // Running totals of what still exists: a few accounts and cards deleted along the way.
+    users += signups;
+    cardsTotal += cards;
+    const fresh = activeMeasurable ? Math.min(active, Math.round(signups * 0.7)) : null;
+    const dayOne = Math.round(signups * DAY_ONE_RATE[i]);
+    const secondsMeasurable = week_start >= secondsFloor;
+    const hoursAt = i - GROWTH_EARLY - WORK_FROM;
+    return {
+      week_start,
+      complete: late ? late.complete : true,
+      settling: late ? late.settling : false,
+      signups,
+      active_users: activeMeasurable ? active : null,
+      active_measurable: activeMeasurable,
+      work_users: late ? late.work_users : null,
+      work_measurable: late ? late.work_measurable : false,
+      cards,
+      active_floor: GROWTH_ACTIVE_FLOOR,
+      work_floor: WK[WORK_FROM],
+      users_total: users - Math.floor(users / 40),
+      new_active: fresh,
+      returning_active: activeMeasurable ? active - fresh : null,
+      clusters_made: Math.round(signups * 0.55) + (i % 3),
+      cards_total: cardsTotal - Math.floor(cardsTotal / 14),
+      day_one_n: signups,
+      day_one_activated: dayOne,
+      day_one_complete: isoPlus(week_start, 8) <= TODAY_ISO,
+      seconds_in_app: secondsMeasurable && hoursAt >= 0 && hoursAt < TIME_HOURS.length
+        ? String(TIME_HOURS[hoursAt] * 3600 + 1234)
+        : null,
+      seconds_measurable: secondsMeasurable,
+      seconds_floor: secondsFloor,
+    };
+  });
+}
+
+// admin_return_fixed_horizon's week rows across the same calendar, for the band's
+// "Back within 7 days" (it asks for 52 weeks; the Retention view asks for 12 and
+// keeps getting the rows above). The read counts a first visit once it is a week
+// old, so this week has no row, and the newest complete week only the days of it
+// that are: here two of its seven.
+function growthReturnRows() {
+  const rows = [];
+  GW.forEach((w, i) => {
+    if (i === GW.length - 1) return;
+    const full = Math.max(1, Math.round((i >= GROWTH_EARLY ? WEEKLY_SIGNUPS[i - GROWTH_EARLY] : EARLY_SIGNUPS[i]) * 0.9));
+    const n = i === GW.length - 2 ? Math.max(1, Math.round((full * 2) / 7)) : full;
+    const returned = Math.round(n * (0.24 + (i % 4) * 0.03));
+    rows.push([`week:${w}`, n, returned]);
+  });
+  return fhRows(rows);
+}
+
 // The notes table is reached only through admin_note_add / _delete / _restore and
 // read only through admin_markers: it has no client grants, so TABLES below has
 // no entry for it and must not get one. The state is mutable on purpose. The
@@ -1276,6 +1373,31 @@ function rpcResult(name, params) {
       kept = rows.slice(Math.max(0, rows.length - want));
     }
     return kept.map((r) => ({ ...r }));
+  }
+  // admin_growth_series(p_weeks): the last p_weeks rows, the partial week last, as
+  // admin_weekly_series above, and the same ?weeks=N switch, so a young database
+  // can be looked at on the band too. The RPC clamps p_weeks to 2..260.
+  if (name === 'admin_growth_series') {
+    const rows = growthRows();
+    const keep = weeksParam();
+    let kept;
+    if (keep !== null) {
+      const complete = rows.filter((r) => r.complete);
+      kept = [...complete.slice(Math.max(0, complete.length - keep)), ...rows.filter((r) => !r.complete)];
+    } else {
+      const asked = params?.p_weeks == null ? 104 : Math.trunc(Number(params.p_weeks));
+      const want = Math.min(260, Math.max(2, Number.isFinite(asked) ? asked : 104));
+      kept = rows.slice(Math.max(0, rows.length - want));
+    }
+    return kept;
+  }
+  // admin_return_fixed_horizon(p_weeks): past the twelve weeks the Retention view
+  // reads, the week rows run back across the band's whole calendar.
+  if (name === 'admin_return_fixed_horizon' && Number(params?.p_weeks) > 12) {
+    return [
+      ...RPCS.admin_return_fixed_horizon.filter((r) => !r.dim.startsWith('week:')).map((r) => ({ ...r })),
+      ...growthReturnRows(),
+    ];
   }
   // admin_markers(p_since): live notes plus the collapsed alerts, oldest first and
   // ordered by day, source, label as the SQL is, so equal days do not shuffle

@@ -2,13 +2,13 @@
 // the owner uses to pin a dated note of their own.
 //
 // A step in a line needs its explanation within reach. The charts draw a dated
-// marker as a dashed rule with a hover tip; this is the same set as words, newest
+// marker as a dashed rule with a glyph; this is the same set as words, newest
 // first, so "what happened last week" is a read rather than a hunt along the
-// shared x axis. It is also the only place a definition break about a counter
-// none of the four charts plot is shown at all (markersForColumn in
-// lib/weeklySeries.js). Every marker is listed, in a list that scrolls rather
-// than stops: a note's remove button lives on its row, so an old note has to
-// stay reachable.
+// shared x axis. Every marker it is handed is listed, in a list that scrolls
+// rather than stops: a note's remove button lives on its row, so an old note has
+// to stay reachable. (The long-run band hands it every marker it draws, and
+// counts the definition breaks about tables no chart reads in its plate's foot
+// instead: lib/growthSeries.js bandMarkers.)
 //
 // It renders the CONTENT of a plate and nothing else: the caller wraps it in a
 // Plate (and gives that plate the `adm-markers` class, which the layout rule in
@@ -27,9 +27,16 @@
 // (viz/markerGlyphs.js), so the list and the lines can never draw one kind in
 // two shapes. The glyph is aria-hidden, as that module requires of its callers,
 // which is why each row also says its kind in words for a screen reader.
+//
+// Beside the long-run band (GrowthBand.jsx) the list and the charts point at
+// each other: a row pointed at, or focused, lights its marker on every chart
+// (onActive), and a marker pointed at on a chart lights its row here
+// (activeId) and scrolls the list to it. The scroll moves the list and only the
+// list: scrollIntoView would move the page under the pointer as well.
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { MARKER_KINDS, glyphFor } from '../../viz/markerGlyphs.js';
+import { markerId } from '../../../../lib/growthSeries.js';
 
 const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
 
@@ -66,12 +73,32 @@ function rowKeys(rows) {
  *                             its `max` and the `today` button follow the prop after that.
  * @param {string}   windowFrom the first day the list and the charts show ('YYYY-MM-DD'): the date field's `min`,
  *                             so a note cannot be dated where nothing would draw it.
+ * @param {string}   activeId  the marker (lib/growthSeries.js markerId) pointed at, here or on a chart
+ * @param {boolean}  activeFromChart  it was pointed at on a chart, so the list scrolls to its row
+ * @param {function} onActive  (id | null) => void, as a row is pointed at or focused, and left
  */
-export function MarkersPanel({ markers, onAdd, onRemove, busy = false, todayUtc, windowFrom }) {
+export function MarkersPanel({
+  markers, onAdd, onRemove, busy = false, todayUtc, windowFrom,
+  activeId = null, activeFromChart = false, onActive,
+}) {
   const [day, setDay] = useState(todayUtc ?? '');
   const [kind, setKind] = useState('note');
   const [label, setLabel] = useState('');
   const labelRef = useRef(null);
+  const listRef = useRef(null);
+  const rowEls = useRef(new Map());
+
+  // Bring the row of a marker pointed at on a chart into the list's view.
+  useEffect(() => {
+    if (!activeFromChart || activeId == null) return;
+    const list = listRef.current;
+    const row = rowEls.current.get(activeId);
+    if (!list || !row || list.scrollHeight <= list.clientHeight) return;
+    const lb = list.getBoundingClientRect();
+    const rb = row.getBoundingClientRect();
+    if (rb.top < lb.top) list.scrollTop -= lb.top - rb.top + 4;
+    else if (rb.bottom > lb.bottom) list.scrollTop += rb.bottom - lb.bottom + 4;
+  }, [activeId, activeFromChart]);
   // The hint describes the date field; an id of its own, so two panels on a page
   // never point at each other's.
   const hintId = useId();
@@ -108,16 +135,22 @@ export function MarkersPanel({ markers, onAdd, onRemove, busy = false, todayUtc,
       {rows.length === 0 ? (
         <div className="admin-empty">No markers in this window yet.</div>
       ) : (
-        <ul className="adm-markers-list">
+        <ul className="adm-markers-list" ref={listRef}>
           {rows.map((m, i) => {
             const text = typeof m.label === 'string' ? m.label : '';
+            const id = markerId(m);
             return (
               // A kind this module has never heard of gets `is-other`, never its raw
               // string in a class name (AreaChart does the same for the lines).
               <li
                 key={keys[i]}
-                className={`adm-marker-row is-${MARKER_KINDS.includes(m.kind) ? m.kind : 'other'}`}
+                ref={(el) => { if (el) rowEls.current.set(id, el); else rowEls.current.delete(id); }}
+                className={`adm-marker-row is-${MARKER_KINDS.includes(m.kind) ? m.kind : 'other'}${activeId === id ? ' is-on' : ''}`}
                 data-source={m.source}
+                onPointerEnter={onActive ? () => onActive(id) : undefined}
+                onPointerLeave={onActive ? () => onActive(null) : undefined}
+                onFocus={onActive ? () => onActive(id) : undefined}
+                onBlur={onActive ? (e) => { if (!e.currentTarget.contains(e.relatedTarget)) onActive(null); } : undefined}
               >
                 <span className="sr-only">{m.kind}</span>
                 <span className="adm-marker-g" aria-hidden="true">{glyphFor(m.kind)}</span>
