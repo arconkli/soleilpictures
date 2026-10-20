@@ -395,7 +395,7 @@ export function RetentionView() {
         </Deck>
 
         {/* On the plot ground with the matrix under it, for the same reason
-            Today's hero rail is: a headline readout floating on the bare page
+            Overview's hero rail is: a headline readout floating on the bare page
             between two instrumented sections reads as a caption, not a gauge. */}
         <Deck>
           <Well span={12} className="adm-rail" title="Return rate" meta="work-days, within the window">

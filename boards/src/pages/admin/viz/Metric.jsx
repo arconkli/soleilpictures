@@ -7,7 +7,7 @@
 //
 // The `hero` flag is the hierarchy. Every stat used to render at 32px display
 // type, which meant nothing on the page was bigger than anything else. Large is
-// now something you spend — on the four metrics at the top of Today, and
+// now something you spend — on the four metrics at the top of Overview, and
 // nowhere else.
 
 import { formatCount } from '../../../lib/adminFormat.js';

@@ -246,7 +246,7 @@ test.describe('admin live console (ADMIN-13)', () => {
   test('pushed rows are named, and internal ones stay out under Internal: excluded', async ({ page }) => {
     await openAdmin(page, { view: 'funnel' });
     await expect(page.locator('.admin-hero-funnel').first()).toBeVisible({ timeout: 15000 });
-    // Capture the console's realtime handler before Today mounts it: the
+    // Capture the console's realtime handler before Overview mounts it: the
     // harness stub never pushes, so the test does.
     await page.evaluate(async () => {
       const { supabase } = await import('/src/lib/supabase.js');

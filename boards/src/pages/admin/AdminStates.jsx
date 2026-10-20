@@ -147,7 +147,7 @@ export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false,
 //
 // `hasData` is for views that refresh themselves. useAdminData keeps the prior
 // data when a refetch fails, but this boundary used to swap the whole view for
-// the error anyway: one timed-out poll on Today blanked every tile and chart
+// the error anyway: one timed-out poll on Overview blanked every tile and chart
 // and unmounted a half-typed marker note. With data in hand, a failed refresh
 // is a strip above the content, not a replacement for it.
 export function AdminAsync({

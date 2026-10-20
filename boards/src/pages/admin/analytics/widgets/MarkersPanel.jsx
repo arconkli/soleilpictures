@@ -14,7 +14,7 @@
 // Plate (and gives that plate the `adm-markers` class, which the layout rule in
 // admin.css hangs off), and the form is the last thing in it.
 //
-// Presentational on purpose. The Today view owns the RPC calls and the undo
+// Presentational on purpose. The Overview view owns the RPC calls and the undo
 // toast, so this module has no Supabase or toast import: onAdd and onRemove are
 // the whole interface to the outside, and a test or a harness can drive it with
 // two plain functions.

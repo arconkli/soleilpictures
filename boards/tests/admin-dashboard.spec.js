@@ -114,10 +114,10 @@ test.describe('admin dashboard structure', () => {
     }
   });
 
-  test('the time range is hidden on Today, shown elsewhere', async ({ page }) => {
+  test('the time range is hidden on Overview, shown elsewhere', async ({ page }) => {
     await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.admin-stat-grid').first()).toBeVisible({ timeout: 15000 });
-    // Today is a fixed seven-day window; a selector that silently does nothing
+    // Overview is a fixed seven-day window; a selector that silently does nothing
     // is worse than no selector.
     await expect(page.locator('.tob-segmented')).toHaveCount(0);
 
@@ -182,7 +182,7 @@ test.describe('admin dashboard charts', () => {
           '.adm-trend-plot path[stroke]', '.adm-area-plot path[stroke]',
           '.adm-cohort-cell', '.adm-heat-cell', '.adm-heat-marg > span',
           '.adm-console-dot', '.adm-console-tick', '.admin-stat-ratio > span',
-          // The weekly read on Today: the streak strip's glyphs, the dated
+          // The weekly read on Overview: the streak strip's glyphs, the dated
           // marker rules and the glyph on top of each, a dot per reading
           // (hollow for the week so far), and the unmeasured hatch.
           '.adm-streak-g', '.adm-area-marker', '.adm-area-marker-glyph',
@@ -327,8 +327,8 @@ test.describe('admin dashboard charts', () => {
     await expect(page.locator('.adm-console').locator('.sr-only')).toHaveCount(1);
   });
 
-  test('Today packs the first screen', async ({ page }) => {
-    // Guards the decision, not the pixels. Before this pass Today showed about
+  test('Overview packs the first screen', async ({ page }) => {
+    // Guards the decision, not the pixels. Before this pass Overview showed about
     // six things across four screens of scroll; the deck exists to make the
     // first screen worth opening. If someone re-introduces generous vertical
     // rhythm here, this is what says so.
@@ -771,7 +771,7 @@ test.describe('admin dashboard charts', () => {
   });
 });
 
-// ── Today: the weekly read ─────────────────────────────────────────────────
+// ── Overview: the weekly read ──────────────────────────────────────────────
 //
 // No admin-dashboard test may depend on the real date; fixtures are relative
 // to this week's Monday.
@@ -808,7 +808,7 @@ async function weeklyReadSettled(page) {
 }
 
 for (const theme of ['dark', 'light']) {
-  test.describe(`admin Today, the weekly read (${theme})`, () => {
+  test.describe(`admin Overview, the weekly read (${theme})`, () => {
     test('under four complete weeks every tile says too few, not a verdict', async ({ page }) => {
       // ?weeks=3 keeps three complete weeks and the week so far, one short of
       // the four the read needs, for every series at once. A strip that still
@@ -978,7 +978,7 @@ for (const theme of ['dark', 'light']) {
   });
 }
 
-test.describe('admin Today, the weekly read', () => {
+test.describe('admin Overview, the weekly read', () => {
   test('the note form adds a marker, and removing it offers undo', async ({ page }) => {
     // The owner's one write on this dashboard, end to end through the harness's
     // notes table: add, remove, undo. Deleting shows an undo toast, the house

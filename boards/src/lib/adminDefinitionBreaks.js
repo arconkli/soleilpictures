@@ -14,7 +14,7 @@
 //      it are still drawn, but never compared with the weeks after it
 //      (breaksFor() in weeklySeries.js turns the date into a Monday cut point).
 //   2. Every entry, cut or not, is a dated marker inside the thirteen-week
-//      window Today shows: the What-changed list lists it, and a weekly chart
+//      window Overview shows: the What-changed list lists it, and a weekly chart
 //      draws it only if its `series` names that chart's column, so a step in a
 //      line has its explanation printed beside it.
 //
@@ -30,6 +30,9 @@
 //   - work_users: did_work before 0347 was also stamped on no-op re-syncs and
 //     credited the board creator, so the weeks before 2026-10-01 over-count and
 //     must not be scored against the weeks after it. This is the cut.
+//   - seconds_in_app: 0460 starts recording time in app on the day it happened.
+//     Before it there is only each person's running total, so there is no
+//     earlier week to compare against: a floor, like 0248, not a cut.
 //
 // `date` is the day the migration file was first committed, so every entry can
 // be re-derived rather than remembered:
@@ -57,6 +60,8 @@ export const DEFINITION_BREAKS = [
     label: 'MRR counts active subscriptions only' },
   { date: '2026-10-01', migration: '0347', series: ['work_users'], cut: true,
     label: 'did_work no longer stamped on no-op re-syncs' },
+  { date: '2026-10-20', migration: '0460', series: ['seconds_in_app'], cut: false,
+    label: 'Time in app per day starts' },                // the floor of per-day time
 ];
 
 /** The columns admin_weekly_series trends, in the order the dashboard stacks them. */

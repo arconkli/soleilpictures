@@ -275,7 +275,7 @@ function LazyMoney({ days, f }) {
     };
   }, [days, f.excludeInternal, f.verifiedOnly]);
 
-  // ACTIVE SUBSCRIPTIONS, as Today's MRR tile counts them. tier_counts.paid also
+  // ACTIVE SUBSCRIPTIONS, as Overview's MRR tile counts them. tier_counts.paid also
   // holds comped accounts, so reading it counted comps as payers. Comped
   // accounts are named as what they are.
   const paying = num(f.stats?.sub_counts?.active);

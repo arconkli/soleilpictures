@@ -567,7 +567,7 @@
 /* Default is deliberately not big. When every stat on the page was 32px
    display type, nothing was bigger than anything else and the page had no
    hierarchy at all. The large size is a modifier, spent on the four hero
-   metrics on Today and nowhere else. */
+   metrics on Overview and nowhere else. */
 .admin-stat-value {
   font: 600 21px/1.15 var(--font-sans);
   color: var(--ink-0);
@@ -3668,7 +3668,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   .adm-bar-fill, .adm-dist-bar { transition: none; }
 }
 
-/* ── Today: right now ── */
+/* ── Overview: right now ── */
 .admin-right-now { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
 
 .admin-right-now-figure { display: flex; flex-direction: column; gap: 2px; min-width: 116px; }
@@ -3686,7 +3686,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   .admin-right-now { grid-template-columns: 1fr; }
 }
 
-/* ── Today: people lists ── */
+/* ── Overview: people lists ── */
 .admin-people-list { display: flex; flex-direction: column; }
 
 .admin-people-row {
@@ -4017,7 +4017,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 
 /* The first tile of EVERY row starts flush with no rule. That used to be
    :first-child, which only knows the first row: a strip that wrapped (the API
-   tab's fixed three columns, the Today rail at tablet width) indented the
+   tab's fixed three columns, the Overview rail at tablet width) indented the
    first tile of row two behind a stray rule. The column count is auto-fit, so
    no selector can name "first in its row"; instead each tile's rule sits one
    pixel left of its track, the grid reaches one tile-padding past the column
@@ -4361,10 +4361,10 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 /* ══════════════════════════════════════════════════════════════════════════
  * INSTRUMENT DECK
  *
- * The editorial layer above made the page calm. It also made it thin: Today
- * showed about six things across four screens, LeaksSummary was a titled panel
- * containing one sentence, and RightNow was a full-width panel holding a single
- * numeral. This layer packs it.
+ * The editorial layer above made the page calm. It also made it thin: Overview
+ * (then called Today) showed about six things across four screens, LeaksSummary
+ * was a titled panel containing one sentence, and RightNow was a full-width
+ * panel holding a single numeral. This layer packs it.
  *
  * Two ideas, and everything here is one of them.
  *

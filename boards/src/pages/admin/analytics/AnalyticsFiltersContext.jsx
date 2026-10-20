@@ -143,7 +143,7 @@ export function AnalyticsFiltersProvider({ children }) {
   // on the order of days. The comment above used to call it "cheap".
   //
   // So the two are split by how fast their data actually moves:
-  //   stats    — MRR/ARPU/tier counts. Today renders these in a hero tile, so
+  //   stats    — MRR/ARPU/tier counts. Overview renders these in a hero tile, so
   //              they keep the shell's poll and the focus refetch.
   //   segments — dropdown options only. Fetched once per filter change, never
   //              polled, never refetched on focus.
