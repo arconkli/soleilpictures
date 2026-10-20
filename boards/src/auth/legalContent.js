@@ -12,6 +12,7 @@
 // They are not legal advice; have counsel review before relying on them.
 
 export const CONTACT_EMAIL = 'clusters@soleilpictures.com';
+// The date a document shows unless it carries its own `updated`.
 export const LAST_UPDATED = 'June 29, 2026';
 export const COMPANY = 'Soleil Pictures';
 
@@ -25,6 +26,7 @@ export const DOC_LABELS = {
 const privacy = {
   slug: 'privacy',
   title: 'Privacy Policy',
+  updated: 'October 20, 2026',
   intro:
     "This Privacy Policy explains how Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") collects, uses, and shares information when you use Soleil Clusters (the \"Service\"), available at clusters.soleilpictures.com. By using the Service, you agree to this Policy.",
   sections: [
@@ -38,7 +40,7 @@ const privacy = {
             'Content you create. The clusters, canvases, notes, documents, comments, tags, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas.',
             'Collaboration data. When you share a cluster, invite collaborators, or create public links, we process the information needed to provide those features, including collaborators’ email addresses and presence or activity within a shared workspace. If you take part in our referral program, we also process the email address you use to invite someone and the information needed to determine reward eligibility.',
             'Payment information. If you subscribe to a paid plan, our payment processor (Stripe) collects and processes your payment details. We do not receive or store full card numbers; we keep limited billing metadata such as your subscription status, plan, and customer and subscription identifiers.',
-            'Usage and device information. Pages and features used, actions taken, approximate time spent, referring and exit pages, browser and device type, operating system, language, IP address, and the approximate location (country only) derived from it. We collect this through our own logging and through the analytics and advertising tools described below.',
+            'Usage and device information. Pages and features used, actions taken, approximate time spent, referring and exit pages, browser and device type and version, operating system, language and time zone, IP address, and the approximate location derived from it (country and region, such as a state or province — never a city). Once per visit we also record your device’s general setup: screen and window size, whether it has touch or a mouse, the display and accessibility preferences your browser shares (such as dark mode or reduced motion), its approximate memory, processor count and connection type, whether you are using the installed app, and the kind of network you connect from — a home or mobile provider, a university or research network, a VPN or relay service, or a data center — never the network’s name. We collect this through our own logging and through the analytics and advertising tools described below.',
             'Marketing and attribution information. When you arrive from a link or advertisement, we collect campaign parameters (such as UTM tags), referral codes, and ad-click identifiers from advertising networks — for example Google, Meta, Microsoft (Bing), TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat — so we can understand how you found us and measure the effectiveness of our marketing.',
             'Cookies and similar technologies. We and our partners use cookies, local storage, and similar identifiers. See our Cookie Policy for details.',
           ],

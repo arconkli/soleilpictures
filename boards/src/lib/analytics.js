@@ -26,6 +26,9 @@ import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, wort
 import { BUILD_SHA } from './buildInfo.js';
 import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
 import { createArmCache } from './armCache.js';
+import { readSessionContext, contextDue, CTX_SENT_KEY } from './sessionContext.js';
+import { featureFlags } from './appHost.js';
+import { getWebviewInfo } from './webview.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
 // otherwise and used a raw literal to avoid one that doesn't exist.)
@@ -607,6 +610,26 @@ function enqueue(row) {
   applyCap();
   saveQueue();
   if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
+  sendContextIfDue(row);
+}
+
+// The setup this session runs on, once per app session (sessionContext.js),
+// riding the session's first real row so every way a session starts is covered
+// — a load, an idle rotation, a sign-in — without claiming the single rotate
+// slot. The id is mirrored to storage so a reload inside the session does not
+// send it again.
+let ctxSentFor;
+function sendContextIfDue(row) {
+  if (ctxSentFor === undefined) {
+    try { ctxSentFor = localStorage.getItem(CTX_SENT_KEY); } catch (_) { ctxSentFor = null; }
+  }
+  if (!contextDue(row, ctxSentFor)) return;
+  ctxSentFor = row.app_session_id;
+  try { localStorage.setItem(CTX_SENT_KEY, ctxSentFor); } catch (_) {}
+  try {
+    const props = readSessionContext(window, { flags: featureFlags(), webview: getWebviewInfo() });
+    enqueue(buildRow(EV.SESSION_CONTEXT, props));
+  } catch (_) { /* context must never cost the row that called for it */ }
 }
 
 // Loss used to be invisible: the queue silently dropped its oldest rows and a

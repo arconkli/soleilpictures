@@ -39675,6 +39675,99 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "What the app records as you use it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the app records as you use it"
+    }
+   ],
+   "id": "what-the-app-records-as-you-use-it"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters records what you do, not what you make: that a card was placed, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Once per visit, one record describes the setup you are using, so we know which devices and conditions the app has to work well on:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "your time zone and the languages your browser asks for"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "your region, such as a state or province, and the kind of network you are on: a home or mobile provider, a university or research network, a VPN or relay service, or a data center. Clusters' own servers work both out from the connection itself. Your city and the network's name are never recorded."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "your screen and window size, rounded, and whether the screen shows wide colour"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "whether your device has touch, a mouse or a trackpad"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "dark mode, reduced motion, high contrast and the app's own theme"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "roughly how much memory and how many processor cores the device has, and the connection type your browser reports"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "your browser's version, and whether you are in the installed app or in a browser inside another app"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "which features that version of Clusters had switched on"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This record stays in Clusters' own database and is not sent to advertising partners. To build it, Clusters does not probe your graphics card, your fonts or your audio hardware."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "When Clusters asks you a question",
    "inline": [
     {

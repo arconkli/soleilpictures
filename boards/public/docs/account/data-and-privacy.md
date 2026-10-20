@@ -2,7 +2,7 @@
 
 > Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
-_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-20_
 
 ## Who can see a board
 
@@ -105,6 +105,36 @@ hashes, never as the address itself, along with the country.
 Errors are recorded first-party, in Clusters' own infrastructure, to fix
 crashes. There is no Google Analytics and no third-party error monitoring
 service in the app.
+
+## What the app records as you use it
+
+Clusters records what you do, not what you make: that a card was placed, a
+cluster opened, a message sent or a search run, with counts and timings. It
+never records the words, file names or search terms inside your clusters.
+Messages are measured the same way: roughly how long a message was, in one of
+four sizes, how many attachments and mentions it had, whether it was a reply,
+and whether it was delivered. Never what it said or who it mentioned.
+
+Once per visit, one record describes the setup you are using, so we know which
+devices and conditions the app has to work well on:
+
+- your time zone and the languages your browser asks for
+- your region, such as a state or province, and the kind of network you are
+  on: a home or mobile provider, a university or research network, a VPN or
+  relay service, or a data center. Clusters' own servers work both out from the
+  connection itself. Your city and the network's name are never recorded.
+- your screen and window size, rounded, and whether the screen shows wide colour
+- whether your device has touch, a mouse or a trackpad
+- dark mode, reduced motion, high contrast and the app's own theme
+- roughly how much memory and how many processor cores the device has, and the
+  connection type your browser reports
+- your browser's version, and whether you are in the installed app or in a
+  browser inside another app
+- which features that version of Clusters had switched on
+
+This record stays in Clusters' own database and is not sent to advertising
+partners. To build it, Clusters does not probe your graphics card, your fonts or
+your audio hardware.
 
 ## When Clusters asks you a question
 

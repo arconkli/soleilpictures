@@ -212,3 +212,33 @@ export function templateStoreAllowed() {
   return import.meta.env.DEV
     || (typeof window !== 'undefined' && templateStoreOpenOn(window.location.hostname));
 }
+
+// ---------------------------------------------------------------------------
+// Every hold at once
+//
+// Which of the holds above are open here, read once a session into the
+// session_context row (sessionContext.js), so a row says which features that
+// session was offered without anyone mapping builds to flags by hand. A new
+// hold goes in this list too: sessionContext.test.mjs fails naming any
+// exported *Allowed() that is missing from it.
+export function featureFlags() {
+  const holds = {
+    sidebarFiles: sidebarFilesAllowed,
+    bulkImport: bulkImportAllowed,
+    workspaceSetup: workspaceSetupAllowed,
+    boardGround: boardGroundAllowed,
+    clusterNudges: clusterNudgesAllowed,
+    touchPass: touchPassAllowed,
+    fileShares: fileSharesAllowed,
+    sharedFiles: sharedFilesAllowed,
+    docShares: docSharesAllowed,
+    templateStore: templateStoreAllowed,
+    scheduleCreation: scheduleCreationAllowed,
+    scoutConnect: scoutConnectAllowed,
+  };
+  const out = {};
+  for (const k of Object.keys(holds)) {
+    try { out[k] = !!holds[k](); } catch (_) { out[k] = false; }
+  }
+  return out;
+}

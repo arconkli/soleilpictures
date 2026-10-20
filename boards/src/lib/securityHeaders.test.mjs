@@ -115,6 +115,6 @@ test('the workers.dev alias is kept out of search indexes, on both halves', () =
     'the Worker must set x-robots-tag on the alias');
   // The path rides along too (2026-10-06 audit): nothing under /api/ is ever
   // nonce-stamped, so the wrapper must say which path it is answering.
-  assert.match(src, /const \{ hostname, pathname \} = new URL\(request\.url\);\s*return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce, hostname, pathname\)/,
+  assert.match(src, /const \{ hostname, pathname \} = new URL\(request\.url\);\s*return withSecurityHeaders\(await worker\.handleFetch\(request, env, ctx\), nonce, hostname, pathname\b/,
     'the wrapper must hand withSecurityHeaders the request host and path');
 });

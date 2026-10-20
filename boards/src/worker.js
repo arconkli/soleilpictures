@@ -96,6 +96,7 @@ const RELOAD_BY = '2026-10-21T00:00:00Z';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { OLD_PARTY_HOST, OLD_PARTY_GONE_AFTER } from './lib/partyDefaults.js';
 import { partyFetch } from './lib/partyFetch.js';
+import { edgeContextMeta } from './lib/edgeContext.js';
 
 // ── Per-route SEO metadata ──────────────────────────────────────────────
 // The SPA serves ONE index.html for every path (single-page-application
@@ -303,7 +304,12 @@ function isWorkersDevHost(host) {
   return typeof host === 'string' && host.toLowerCase().endsWith('.workers.dev');
 }
 
-function withSecurityHeaders(res, nonce, host = null, path = '') {
+// `ctxMeta` is the soleil-ctx tag (lib/edgeContext.js): the region and network
+// kind this request came from, as codes the app reads into its once-a-session
+// session_context row. It rides the same pass as the nonce because that pass
+// already rewrites every page this Worker serves, and pages are never a 304, so
+// it is fresh on every load.
+function withSecurityHeaders(res, nonce, host = null, path = '', ctxMeta = '') {
   // A 101 (WebSocket upgrade) has immutable headers and no body to rewrite.
   if (!res || res.status === 101) return res;
   // The nonce is a promise that a script is OURS. Nothing under /api/ is a page
@@ -330,10 +336,11 @@ function withSecurityHeaders(res, nonce, host = null, path = '') {
   }
   const rebuilt = new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   if (!isHtml) return rebuilt;
-  return new HTMLRewriter()
+  const rw = new HTMLRewriter()
     .on('script', new NonceStamp(nonce))
-    .on('link[rel="modulepreload"]', new NonceStamp(nonce))
-    .transform(rebuilt);
+    .on('link[rel="modulepreload"]', new NonceStamp(nonce));
+  if (ctxMeta) rw.on('head', new AppendHead(ctxMeta));
+  return rw.transform(rebuilt);
 }
 
 // Copy a response, forcing HTML documents to revalidate on every load so new
@@ -573,7 +580,7 @@ const worker = {
   async fetch(request, env, ctx) {
     const nonce = makeNonce();
     const { hostname, pathname } = new URL(request.url);
-    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, hostname, pathname);
+    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, hostname, pathname, edgeContextMeta(request.cf));
   },
 
   async handleFetch(request, env, ctx) {
