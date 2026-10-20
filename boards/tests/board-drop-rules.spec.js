@@ -159,6 +159,19 @@ test.describe('the card menu and full Files, by the rules', () => {
     expect(got[1]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
   });
 
+  test('in full Files, every folder shows its name (the player\'s styles once hid them)', async ({ page }) => {
+    await open(page);
+    await openFullFiles(page);
+    const name = page.locator('.ft[data-folder-id="b-sundown"] .ft-name');
+    await expect(name).toBeVisible();
+    const box = await name.boundingBox();
+    const tile = await page.locator('.ft[data-folder-id="b-sundown"]').boundingBox();
+    expect(box.width).toBeGreaterThan(40);
+    expect(box.x).toBeGreaterThanOrEqual(tile.x);
+    expect(box.y).toBeGreaterThanOrEqual(tile.y);
+    expect(await name.evaluate((el) => getComputedStyle(el.parentElement).opacity)).toBe('1');
+  });
+
   test('in full Files, a file\'s menu offers Copy to… beside Move to…', async ({ page }) => {
     await open(page);
     await openFullFiles(page);

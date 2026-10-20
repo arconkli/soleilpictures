@@ -480,7 +480,7 @@ export const FilmTimeline = forwardRef(function FilmTimeline({
             <span className="ft-handle is-out" style={{ transform: `translateX(${region.outX}px)` }}
                   onPointerDown={onHandleDown('out')} aria-hidden="true" />
           )}
-          <span className="ft-line" ref={lineRef} aria-hidden="true" />
+          <span className="ft-playline" ref={lineRef} aria-hidden="true" />
           <div className="ft-head" ref={headRef}>
             <span className="ft-head-cap" />
             <span className="ft-flag" ref={flagRef} />

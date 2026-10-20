@@ -63,6 +63,7 @@ import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
 import { DragLabel } from '../components/sidebar/DragLabel.jsx';
 import { decideDrop, copyKeyHeld } from '../lib/dropRules.js';
+import { dragSession } from '../lib/springLoad.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 import { probeFile } from '../lib/mediaProbe.js';
@@ -243,8 +244,10 @@ const filesRulesQaPick = FILES_RULES_QA
 const filesRulesQaResolve = FILES_RULES_QA
   ? (el, e, handed) => {
       const id = el.getAttribute('data-drop-board');
+      const sess = handed ? null : dragSession();
+      const drag = handed || (sess?.kind === 'files' ? sess : null);
       return decideDrop({
-        files: handed?.files || [], sourceName: handed?.sourceName || '', workspaceId: 'local-workspace',
+        files: drag?.files || [], sourceName: drag?.sourceName || '', workspaceId: 'local-workspace',
         copy: copyKeyHeld(e),
         target: { boardId: id, where: 'files', name: el.getAttribute('data-drop-name'), workspaceId: 'local-workspace', writable: !el.hasAttribute('data-qa-viewonly') },
       });

@@ -325,8 +325,10 @@
 }
 .ft-handle.is-in::after { left: 5px; }
 .ft-handle.is-out::after { left: 2px; }
-.ft-line { position: absolute; left: 0; top: 10px; width: 1px; height: 10px; background: rgba(255, 255, 255, 0.45); opacity: 0; pointer-events: none; }
-.ft-line.is-on { opacity: 1; }
+/* Not .ft-line: Files' folder tiles own that name (styles.css), and this
+   rule hid every folder's name in full Files once the player had loaded. */
+.ft-playline { position: absolute; left: 0; top: 10px; width: 1px; height: 10px; background: rgba(255, 255, 255, 0.45); opacity: 0; pointer-events: none; }
+.ft-playline.is-on { opacity: 1; }
 .ft-head { position: absolute; left: 0; top: 0; bottom: 0; width: 0; pointer-events: none; z-index: 3; }
 .ft-head::before { content: ''; position: absolute; left: -1px; top: 2px; bottom: 2px; width: 2px; background: #fff; border-radius: 1px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
 .ft-head-cap { position: absolute; left: -6px; top: 0; width: 12px; height: 9px; background: #fff; border-radius: 3px 3px 5px 5px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }

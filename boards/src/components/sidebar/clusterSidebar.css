@@ -885,7 +885,11 @@ body.sbf-sizing .app,
   font: 700 10.5px/1 var(--font-sans); font-variant-numeric: tabular-nums;
 }
 .sbf-draglabel-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.sbf-draglabel-top { display: flex; align-items: center; gap: 6px; color: var(--ink-0); font: 500 13px/1.2 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbf-draglabel-top { display: flex; align-items: flex-start; gap: 6px; color: var(--ink-0); font: 500 13px/1.2 var(--font-sans); }
+/* A long "Move <file> to <cluster>" wraps once, then ends in an ellipsis:
+   the file and where it goes both matter more than one tidy line. */
+.sbf-draglabel-words { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.sbf-draglabel-top svg { margin-top: 1px; }
 .sbf-draglabel-sub { color: var(--ink-2); font: 400 11.5px/1.2 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sbf-draglabel.is-no .sbf-draglabel-stack { opacity: .45; }
 .sbf-draglabel.is-no .sbf-draglabel-top { color: var(--ink-1); }

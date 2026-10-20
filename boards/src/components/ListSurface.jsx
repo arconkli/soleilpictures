@@ -1913,7 +1913,7 @@ export function ListSurface({
   });
   const folderProps = (b) => ({
     'data-folder-id': b.id,
-    ...(rulesOn ? { 'data-drop-board': b.id, 'data-drop-where': 'files' } : {}),
+    ...(rulesOn ? { 'data-drop-board': b.id, 'data-drop-where': 'files', 'data-drop-name': b.name || undefined } : {}),
     onClick: (e) => onTileClick(e, 'board', b.id),
     onDoubleClick: (e) => onTileDoubleClick(e, 'board', b.id),
     ...folderKeys('board', b.id),
@@ -2178,6 +2178,7 @@ export function ListSurface({
   return (
     <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`} ref={listWrapRef}
          data-drop-board={rulesOn ? board.id : undefined} data-drop-where={rulesOn ? 'files' : undefined}
+         data-drop-name={rulesOn ? (board.name || undefined) : undefined}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}

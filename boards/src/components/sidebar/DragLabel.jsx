@@ -127,7 +127,7 @@ export function DragLabel({ resolve, idle = 'Drop on a cluster or a board' }) {
       <span className="sbf-draglabel-text">
         <span className="sbf-draglabel-top">
           {label.no && <Icon as={Prohibit} size={14} weight="regular" />}
-          {label.top}
+          <span className="sbf-draglabel-words">{label.top}</span>
         </span>
         {label.sub && <span className="sbf-draglabel-sub">{label.sub}</span>}
         {label.hint && <span className="sbf-draglabel-sub">{label.hint}</span>}
