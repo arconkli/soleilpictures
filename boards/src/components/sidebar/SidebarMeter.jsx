@@ -22,6 +22,7 @@ import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { fmtBytes } from '../../lib/storageLabel.js';
 import { Icon } from '../Icon.jsx';
 import { Upload, FolderOpen, FileZip, CloudArrowDown } from '../../lib/icons.js';
+import { noteSessionCounter } from '../../lib/analytics.js';
 
 const NEAR = 0.9;
 
@@ -65,7 +66,18 @@ export function SidebarMeter({
     return () => { window.removeEventListener('resize', shut); window.removeEventListener('scroll', shut, true); };
   }, [open]);
   useEffect(() => { if (open) menuRef.current?.querySelector('[role="menuitem"]')?.focus(); }, [open]);
-  const pick = (ref) => { const el = ref.current; setOpen(false); if (el) { el.value = ''; el.click(); } };
+  // Each way in is counted on the session's summary (files.upload_*): the
+  // picker opening, and whether something was chosen in it. What happens to
+  // the files is the upload's and the import's own events.
+  const pick = (ref, what) => {
+    noteSessionCounter(`files.upload_${what}`);
+    const el = ref.current; setOpen(false); if (el) { el.value = ''; el.click(); }
+  };
+  const chosen = (what, files, send) => {
+    if (!files.length) return;
+    noteSessionCounter(`files.upload_${what}_chosen`);
+    send(files);
+  };
   const onMenuKey = (e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     const items = [...menuRef.current.querySelectorAll('[role="menuitem"]')];
@@ -93,7 +105,7 @@ export function SidebarMeter({
       </div>
       <div className="sbf-meter-line">
         {parts.length > 0 && (
-          <button type="button" className="sbf-meter-text" onClick={onOpenPlan}
+          <button type="button" className="sbf-meter-text" onClick={() => { noteSessionCounter('files.meter_plan'); onOpenPlan?.(); }}
                   title="Plan and storage" aria-label={`Plan and storage: ${parts.join(', ')}`}>
             {parts.join(' · ')}
           </button>
@@ -101,12 +113,12 @@ export function SidebarMeter({
         {onUpload && !hasMenu && (
           <>
             <button type="button" className="sbf-upload" title={uploadTitle}
-                    onClick={() => { const el = inputRef.current; if (el) { el.value = ''; el.click(); } }}>
+                    onClick={() => pick(inputRef, 'files')}>
               <Icon as={Upload} size={14} weight="regular" />
               Upload
             </button>
             <input ref={inputRef} type="file" multiple hidden
-                   onChange={(e) => { const files = [...(e.target.files || [])]; if (files.length) onUpload(files); }} />
+                   onChange={(e) => chosen('files', [...(e.target.files || [])], onUpload)} />
           </>
         )}
         {onUpload && hasMenu && (
@@ -118,25 +130,25 @@ export function SidebarMeter({
             </button>
             {open && pos && createPortal(
               <div className="sbf-upmenu" role="menu" aria-label="Upload" ref={menuRef} onKeyDown={onMenuKey} style={pos}>
-                <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(inputRef)}>
+                <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(inputRef, 'files')}>
                   <Icon as={Upload} size={16} weight="regular" />
                   <span className="sbf-upitem-l"><b>Files…</b></span>
                 </button>
                 {canFolder && (
-                  <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(folderRef)}>
+                  <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(folderRef, 'folder')}>
                     <Icon as={FolderOpen} size={16} weight="regular" />
                     <span className="sbf-upitem-l"><b>A folder…</b><small>Its folders become clusters</small></span>
                   </button>
                 )}
                 {onUploadZips && (
-                  <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(zipRef)}>
+                  <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(zipRef, 'zips')}>
                     <Icon as={FileZip} size={16} weight="regular" />
                     <span className="sbf-upitem-l"><b>A zip or Google Takeout…</b><small>Each folder inside becomes a cluster</small></span>
                   </button>
                 )}
                 <div className="sbf-upsep" role="separator" />
                 {onOpenGuide ? (
-                  <button type="button" className="sbf-upitem" role="menuitem" onClick={() => { setOpen(false); onOpenGuide(); }}>
+                  <button type="button" className="sbf-upitem" role="menuitem" onClick={() => { noteSessionCounter('files.upload_guide'); setOpen(false); onOpenGuide(); }}>
                     <Icon as={CloudArrowDown} size={16} weight="regular" />
                     <span className="sbf-upitem-l"><b>Bring files from another app…</b><small>Google Drive, Dropbox and more</small></span>
                   </button>
@@ -145,14 +157,14 @@ export function SidebarMeter({
                 )}
               </div>, document.body)}
             <input ref={inputRef} type="file" multiple hidden
-                   onChange={(e) => { const files = [...(e.target.files || [])]; if (files.length) onUpload(files); }} />
+                   onChange={(e) => chosen('files', [...(e.target.files || [])], onUpload)} />
             {canFolder && (
               <input ref={(el) => { folderRef.current = el; if (el) el.setAttribute('webkitdirectory', ''); }} type="file" multiple hidden
-                     onChange={(e) => { const files = [...(e.target.files || [])]; if (files.length) onUploadFolder(files); }} />
+                     onChange={(e) => chosen('folder', [...(e.target.files || [])], onUploadFolder)} />
             )}
             {onUploadZips && (
               <input ref={zipRef} type="file" multiple hidden accept=".zip,application/zip,application/x-zip-compressed"
-                     onChange={(e) => { const files = [...(e.target.files || [])]; if (files.length) onUploadZips(files); }} />
+                     onChange={(e) => chosen('zips', [...(e.target.files || [])], onUploadZips)} />
             )}
           </div>
         )}

@@ -121,6 +121,23 @@ test('App: a Home arrival is not a canvas landing, and HOME_VIEW waits for the p
   assert.match(app, /\.\.\.\(viaSwitch \? \{ via: 'switch' \} : \{\}\),/);
 });
 
+test('App: home_view says which Home it was and whether it drew the graph; the Home card logs what it was used for', () => {
+  const app = read('App.jsx');
+  const view = app.slice(app.indexOf('logEvent(EV.HOME_VIEW, {'), app.indexOf("...(viaSwitch ? { via: 'switch' } : {}),"));
+  assert.match(view, /home: filesSidebar \? 'clusters' : 'projects',/);
+  assert.match(view, /graph: !mobileShell,/);
+  // graph reads the same test both Homes use to leave the graph out.
+  assert.match(app, /Graph=\{mobileShell \? null : HomeGraph\}/);
+  assert.match(app, /graph=\{mobileShell \? null : \(/);
+  assert.match(app, /const logHomeClusterAction = \(action\) => \{ try \{ logEvent\(EV\.HOME_CLUSTER_ACTION, \{ action \}\); \} catch \(_\) \{\} \};/);
+  const home = app.slice(app.indexOf('<ClustersHome'), app.indexOf('<ProjectsHome'));
+  for (const [prop, action] of [['onRenameCluster', 'rename'], ['onCoverCluster', 'cover'], ['onDeleteCluster', 'delete']]) {
+    assert.match(home, new RegExp(`${prop}=\\{\\([^)]*\\) => \\{ logHomeClusterAction\\('${action}'\\);`), prop);
+  }
+  assert.match(home, /logHomeClusterAction\(target\?\.id \? 'move' : 'move_cancelled'\);\s*if \(!target\?\.id\) return;/);
+  assert.match(home, /logHomeClusterAction\(homeStars\.isStarred\(id\) \? 'unstar' : 'star'\);\s*return homeStars\.toggle\(id, \.\.\.rest\);/);
+});
+
 test('the menu: focus goes in and comes back, it follows its trigger, and the ⋯ shows on touch', () => {
   const home = read('components/ProjectsHome.jsx');
   assert.match(home, /\(pop\.querySelector\('\.ws-menu-row\.is-active'\) \|\| pop\.querySelector\('\.ws-menu-row'\)\)\?\.focus\(/);

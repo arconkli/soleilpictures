@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
+import { createSummary, noteCounter, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
 import { WORK_EVENTS } from './analyticsEvents.js';
 
 const S = { id: 'sess-1', seq: 3, startedAt: 1000 };
@@ -139,4 +139,26 @@ test('a backwards clock or a repeated state never banks a negative span', () => 
   const p = summaryProps(a, 'hide', 3000);
   assert.ok(p.visible_ms >= 0 && p.focused_ms >= 0);
   assert.equal(p.visible_ms, 0);
+});
+
+test('counters sum into the row, only when something was counted', () => {
+  const a = createSummary(S, 1000);
+  noteEvent(a, 'app_open', {}, 1100);
+  assert.equal('counters' in summaryProps(a, 'hide'), false, 'no counters, no key');
+  noteCounter(a, 'input.pen');
+  noteCounter(a, 'input.pen', 2);
+  noteCounter(a, 'files.tab_recent', 0.6);
+  assert.deepEqual(summaryProps(a, 'hide').counters, { 'input.pen': 3, 'files.tab_recent': 1 });
+});
+
+test('a counter cannot widen the row or take a bad amount', () => {
+  const a = createSummary(S, 1000);
+  for (const bad of ['', 'Bad', '1st', 'has space', 'x'.repeat(41), null, 42]) noteCounter(a, bad);
+  for (const n of [0, -1, NaN, Infinity, 'x']) noteCounter(a, 'ok', n);
+  assert.deepEqual(a.counters, {});
+  for (let i = 0; i < 60; i++) noteCounter(a, `k${i}`);
+  assert.equal(Object.keys(a.counters).length, 48, 'capped at 48 keys');
+  noteCounter(a, 'k0', 5);
+  assert.equal(a.counters.k0, 6, 'an existing key still counts past the cap');
+  assert.doesNotThrow(() => noteCounter(null, 'x'));
 });

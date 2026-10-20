@@ -60,7 +60,7 @@ import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { useSpring } from '../../hooks/useSpring.js';
-import { beginDragSession, dragSession } from '../../lib/springLoad.js';
+import { beginDragSession, dragSession, onDragSession } from '../../lib/springLoad.js';
 import { decideDrop, copyKeyHeld, whatOf } from '../../lib/dropRules.js';
 import { canStore } from '../../lib/placement.js';
 import { isStillUploading } from '../../lib/abandonedUploads.js';
@@ -81,6 +81,8 @@ import { captureDropEntries, captureDropHandles, hasDirectory } from '../../lib/
 import { isZipFile } from '../../lib/importZips.js';
 import { ImportWaitRow } from '../ImportWaitRow.jsx';
 import { ClusterSwitch } from './ClusterSwitch.jsx';
+import { logEvent, noteSessionCounter } from '../../lib/analytics.js';
+import { EV } from '../../lib/analyticsEvents.js';
 import './clusterSidebar.css';
 
 const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
@@ -296,6 +298,22 @@ export function ClusterSidebar({
   const clusterBoard = tabClusterId ? allBoards?.[tabClusterId] || null : null;
   const shownId = shown ? null : tabClusterId;
   const view = shown || (clusterBoard ? 'cluster' : 'recent');
+  // What the files show, for the events below without re-creating their
+  // handlers on every keystroke.
+  const shownRef = useRef({ view, searching: false });
+  shownRef.current = { view, searching: !!query.trim() };
+  // A search is logged once, when it ends, by its shape: how long the words
+  // were and how many files matched, never the words (EV.FILES_SEARCH).
+  const searchStat = useRef(null);   // { q_len, results_n, view } once it has settled
+  const endSearch = useCallback((ended) => {
+    const st = searchStat.current;
+    searchStat.current = null;
+    if (st) logEvent(EV.FILES_SEARCH, { ...st, ended });
+  }, []);
+  const noteOpen = (item, how) => {
+    if (shownRef.current.searching) endSearch('opened');
+    logEvent(EV.FILES_OPEN, { kind: item?.kind || null, how, ...shownRef.current });
+  };
   const away = view === 'cluster' && !!picked && picked !== clusterId;
   useEffect(() => { if (view === 'cluster' && shownId) files.ensure(shownId); }, [view, shownId, files.ensure]);
 
@@ -312,6 +330,7 @@ export function ClusterSidebar({
   switchOpenRef.current = switchOpen;
   useEffect(() => () => clearTimeout(switchTimer.current), []);
   const openSwitch = () => {
+    noteSessionCounter('files.switch_open');
     clearTimeout(switchTimer.current);
     switchTimer.current = 0;
     setSwitchClosing(false);
@@ -338,16 +357,22 @@ export function ClusterSidebar({
   }, []);
   useDismissOnOutside(clusterTabRef, switchOpen && !switchClosing, closeSwitch, { ignore: '.sbf-switch' });
   const pickCluster = (id) => {
+    noteSessionCounter('files.switch_pick');
     setBrowseId(id && id !== clusterId ? id : null);
     setShown(null);
     setQuery('');
     closeSwitch();
   };
 
+  // A tab switch is counted, not logged: it happens too often to be an event.
+  const showTab = (to) => {
+    if (to !== view) noteSessionCounter(`files.tab_${to}`);
+    setShown(to === 'cluster' ? null : to);
+  };
   const tabs = [
-    ...(clusterBoard ? [{ id: 'cluster', label: clusterBoard.name || 'Untitled', select: () => setShown(null) }] : []),
-    { id: 'recent', label: 'Recent', select: () => setShown('recent') },
-    { id: 'starred', label: 'Starred', select: () => setShown('starred') },
+    ...(clusterBoard ? [{ id: 'cluster', label: clusterBoard.name || 'Untitled', select: () => showTab('cluster') }] : []),
+    { id: 'recent', label: 'Recent', select: () => showTab('recent') },
+    { id: 'starred', label: 'Starred', select: () => showTab('starred') },
   ];
   const tabsId = useId();
   // ←/→ (and Home/End) move along the tabs and show what they move to; ↓ on
@@ -438,15 +463,17 @@ export function ClusterSidebar({
     const index = Math.max(0, list.findIndex((l) => l.id === item.cardId));
     if (!list.length) return;
     clearTimeout(quickTimer.current);
+    const show = () => { setQl({ items: list, index }); noteOpen(item, 'quick'); };
     // A keyboard Space/click (detail 0) has no double to wait for.
-    if (e && e.detail === 0) { setQl({ items: list, index }); return; }
-    quickTimer.current = setTimeout(() => setQl({ items: list, index }), 220);
-  }, [allBoards]);
+    if (e && e.detail === 0) { show(); return; }
+    quickTimer.current = setTimeout(show, 220);
+  }, [allBoards]);   // eslint-disable-line react-hooks/exhaustive-deps
   const openItem = useCallback((item) => {
     clearTimeout(quickTimer.current);
     setQl(null);
+    noteOpen(item, 'show');
     onShowFile?.(item.boardId, item.cardId, { unplaced: item.unplaced });
-  }, [onShowFile]);
+  }, [onShowFile]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Selection: ⌘/Ctrl-click adds one, ⇧-click a run along the shelf ──────
   // A finger has neither key: a hold's menu offers Select, which puts a check
@@ -487,10 +514,14 @@ export function ClusterSidebar({
   // land in the cluster's Files, off its board, so the toast also offers to put
   // them on it (App's onPutOnBoard, which brings the cluster up) — unless
   // `kinds` says none of them could wait in Files (a doc goes on the board).
-  const runMove = useCallback(async ({ from, to, cardIds, copy = false, what = null, kinds = null }) => {
+  const runMove = useCallback(async ({ from, to, cardIds, copy = false, what = null, kinds = null, via = 'drag' }) => {
     if (!from || !to || from === to || !cardIds?.length) return;
     const r = await api.moveFiles({ from, to, cardIds, mode: copy ? 'copy' : 'move' });
+    const moved = (props) => logEvent(EV.FILES_MOVE, {
+      via, copy, n: cardIds.length, to_open: to === activeBoardId, ...props,
+    });
     if (!r.ok) {
+      moved({ done: 0, outcome: r.error === 'partial' ? 'partial' : 'failed', error: String(r.error || 'unknown').slice(0, 40) });
       // They reached the other cluster but didn't all leave this one. The
       // same move again finishes it without a second copy (the route finds
       // them landed), so that is what the button does.
@@ -499,7 +530,7 @@ export function ClusterSidebar({
         toast({
           type: 'error',
           message: `Moved to ${nameOf(to)}, but they’re still in ${nameOf(from)} too.`,
-          action: { label: 'Finish', onClick: () => runMove({ from, to, cardIds }) },
+          action: { label: 'Finish', onClick: () => runMove({ from, to, cardIds, via: 'finish' }) },
         });
         return;
       }
@@ -511,6 +542,7 @@ export function ClusterSidebar({
     const n = copy ? (r.copied || 0) : (r.moved || 0);
     const kept = r.kept?.length || 0;
     const skipped = r.skipped?.length || 0;
+    moved({ done: n, late: kept + skipped, outcome: n ? 'ok' : 'nothing' });
     if (!n) {
       toast({
         type: 'info',
@@ -532,7 +564,11 @@ export function ClusterSidebar({
       label: 'Put on board',
       onClick: () => {
         Promise.resolve(onPutOnBoard(to, landed))
-          .catch((e) => toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' }))
+          .then(() => logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: true }))
+          .catch((e) => {
+            logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: false });
+            toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' });
+          })
           .finally(() => files.refresh());
       },
     } : null;
@@ -547,6 +583,10 @@ export function ClusterSidebar({
             cardIds: (r.pairs || []).map((p) => p.to),
             restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
           });
+        logEvent(EV.FILES_MOVE, {
+          via: 'undo', copy, n: landed.length, outcome: u.ok ? 'ok' : 'failed',
+          error: u.ok ? null : String(u.error || 'unknown').slice(0, 40),
+        });
         if (!u.ok) toast({ type: 'error', message: failureMessage(u, 'move') });
         files.refresh();
       },
@@ -653,18 +693,33 @@ export function ClusterSidebar({
     };
     for (const [copy, list] of [[false, d.move], [true, d.copy]]) {
       for (const [from, fs] of byCluster(list)) {
-        await runMove({ from, to, cardIds: fs.map((f) => f.id), copy, what: whatOf(fs), kinds: fs.map((f) => f.kind) });
+        await runMove({ from, to, cardIds: fs.map((f) => f.id), copy, what: whatOf(fs), kinds: fs.map((f) => f.kind), via: 'drag' });
       }
     }
     clearSelection();
   };
 
-  const dropEffect = useCallback((e, boardId) => {
+  // Over a cluster that says no, the browser never fires a drop: the drag just
+  // ends. So the no is kept on the drag with where the pointer was, and a drag
+  // that ends without a drop, the pointer still there, was let go on it.
+  const noteRefusal = (e, d, at) => {
+    const s = dragSession();
+    if (s) s.refusal = d.effect === 'none'
+      ? { reason: d.reason || null, at, copy: copyKeyHeld(e), x: e.clientX, y: e.clientY, t: Date.now() } : null;
+  };
+  useEffect(() => onDragSession((ev) => {
+    const s = ev.session;
+    const r = ev.type === 'end' && !ev.dropped && s?.kind === 'files' ? s.refusal : null;
+    if (!r || r.x !== s.x || r.y !== s.y || Date.now() - r.t > 2000) return;
+    logEvent(EV.FILES_MOVE, { via: 'drag', copy: r.copy, n: s.files?.length || 0, outcome: 'refused', reason: r.reason, at: r.at });
+  }), []);
+  const dropEffect = useCallback((e, boardId, at = 'tree') => {
     const t = e.dataTransfer?.types || [];
     if (t.includes(FILES_DRAG_MIME)) {
       const d = decide(e, clusterTarget(boardId));
       // No session to ask (it ended early): the drop decides.
       if (!d) return copyKeyHeld(e) ? 'copy' : 'move';
+      noteRefusal(e, d, at);
       return d.effect === 'none' ? null : d.effect;
     }
     if (t.includes('Files') && onDropFilesOnCluster) return canEdit(boardId) ? 'copy' : null;
@@ -675,6 +730,12 @@ export function ClusterSidebar({
     if (t.includes(FILES_DRAG_MIME)) {
       const d = decide(e, clusterTarget(boardId));
       if (d && (d.move.length || d.copy.length)) runDrop(d, boardId);
+      else if (d && d.action === 'none') {
+        logEvent(EV.FILES_MOVE, {
+          via: 'drag', copy: copyKeyHeld(e), n: filesInDrag(e)?.files?.length || 0,
+          outcome: 'refused', reason: d.reason ? String(d.reason).slice(0, 40) : null, to_open: boardId === activeBoardId,
+        });
+      }
       return;
     }
     if (!canEdit(boardId)) return;
@@ -711,44 +772,48 @@ export function ClusterSidebar({
   // do (Download is there too, for the whole selection). A file in a cluster
   // you can only view can be copied, not moved.
   const selItems = useMemo(() => [...selected.values()], [selected]);
-  const sendTo = async (group, copy) => {
+  const sendTo = async (group, copy, via = 'menu') => {
     const to = pickedId(await onPickCluster?.({ placeholder: copy ? 'Copy to…' : 'Move to…' }));
-    if (!to) return;
+    if (!to) { logEvent(EV.FILES_MOVE, { via, copy, n: group.length, outcome: 'cancelled' }); return; }
     for (const [from, items] of groupByCluster(group)) {
-      if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId), copy, what: whatOf(items), kinds: items.map((x) => x.kind) });
+      if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId), copy, what: whatOf(items), kinds: items.map((x) => x.kind), via });
     }
     clearSelection();
   };
   const movable = (group) => group.every((x) => canEdit(x.boardId));
-  const moveSelection = () => sendTo(selItems, false);
-  const copySelection = () => sendTo(selItems, true);
+  const moveSelection = () => sendTo(selItems, false, 'bar');
+  const copySelection = () => sendTo(selItems, true, 'bar');
   // Put on board: the selected files that are waiting in Files go on their
   // cluster's board — one cluster's at a time, as only one board comes up.
   const waitingSel = selItems.filter((x) => x.unplaced);
   const putting = useRef(false);
-  const putItems = async (list) => {
+  const putItems = async (list, via = 'menu') => {
     const from = new Set(list.map((x) => x.boardId));
     if (from.size > 1) { toast({ type: 'info', message: 'Put on board takes one cluster’s files at a time. Select files from one cluster.' }); return; }
     if (!from.size || putting.current) return;
     putting.current = true;
     try {
       await onPutOnBoard([...from][0], list.map((x) => x.cardId));
+      logEvent(EV.FILES_PUT, { from: via, n: list.length, ok: true });
       clearSelection();
     } catch (e) {
+      logEvent(EV.FILES_PUT, { from: via, n: list.length, ok: false });
       toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' });
     } finally {
       putting.current = false;
       files.refresh();
     }
   };
-  const putSelection = () => putItems(waitingSel);
-  const deleteSelection = () => deleteItems(selItems);
-  const deleteItems = async (list) => {
+  const putSelection = () => putItems(waitingSel, 'bar');
+  const deleteSelection = (from = 'bar') => deleteItems(selItems, from);
+  const deleteItems = async (list, from = 'menu') => {
+    const gone = (props) => logEvent(EV.FILES_DELETE, { from, ...props });
     for (const [boardId, items] of groupByCluster(list)) {
       const ids = items.map((x) => x.cardId);
       const what = ids.length === 1 ? '1 file' : `${ids.length} files`;
       if (boardId === liveBoardId && liveMutators?.deleteCards) {
         const deleted = await liveMutators.deleteCards(ids);
+        gone({ n: ids.length, done: deleted !== null ? ids.length : 0, outcome: deleted !== null ? 'ok' : 'failed', live: true });
         if (deleted !== null) undoToast(feedback, {
           message: `Deleted ${what}`,
           undoManager: liveMutators.undoManager, stackItem: deleted?.stackItem || null,
@@ -757,16 +822,22 @@ export function ClusterSidebar({
         continue;
       }
       const r = await api.removeCards({ boardId, cardIds: ids });
-      if (!r.ok) { toast({ type: 'error', message: failureMessage(r, 'remove') }); continue; }
+      if (!r.ok) {
+        gone({ n: ids.length, done: 0, outcome: 'failed', live: false, error: String(r.error || 'unknown').slice(0, 40) });
+        toast({ type: 'error', message: failureMessage(r, 'remove') });
+        continue;
+      }
       // Say what the cluster actually let go of: a selection can outlive its
       // files (someone else deleted them meanwhile).
-      const gone = r.removed?.length || 0;
-      if (!gone) { toast({ type: 'info', message: 'Those files aren’t there any more.' }); continue; }
-      const said = gone === 1 ? '1 file' : `${gone} files`;
+      const removed = r.removed?.length || 0;
+      gone({ n: ids.length, done: removed, outcome: removed ? 'ok' : 'gone', live: false });
+      if (!removed) { toast({ type: 'info', message: 'Those files aren’t there any more.' }); continue; }
+      const said = removed === 1 ? '1 file' : `${removed} files`;
       undoToast(feedback, {
         message: `Deleted ${said} from ${nameOf(boardId)}`,
         onUndo: async () => {
           const u = await api.appendCards({ boardId, cards: r.removed || [] });
+          logEvent(EV.FILES_DELETE, { undo: true, ok: !!u.ok });
           if (!u.ok) toast({ type: 'error', message: failureMessage(u, 'move') });
           files.refresh();
         },
@@ -796,19 +867,23 @@ export function ClusterSidebar({
     const select = m.viaTouch && touchPass && !selecting && { id: 'select', label: 'Select', run: () => {
       setSelected((cur) => (cur.has(m.item.key) ? cur : new Map([[m.item.key, m.item]])));
       setSelecting(true);
+      logEvent(EV.TOUCH_SELECT, { where: 'sidebar', via: 'menu', n: group.length });
     } };
     // Files waiting in Files go on their board from here too: a finger can't
     // drag them there.
     const put = onPutOnBoard && group.every((x) => x.unplaced) && movable(group)
       && new Set(group.map((x) => x.boardId)).size === 1
-      && { id: 'put', label: many ? `Put ${group.length} on board` : 'Put on board', run: () => putItems(group) };
+      && { id: 'put', label: many ? `Put ${group.length} on board` : 'Put on board', run: () => putItems(group, 'menu') };
     return composeMenuSections([
       { items: [select] },
       { items: [
         { id: 'quick', label: 'Quick look', run: () => openQuick(m.item, m.siblings, { detail: 0 }) },
         { id: 'show', label: m.item.unplaced ? 'Show in Files' : 'Show on board', run: () => openItem(m.item) },
         put,
-        { id: 'star', label: starredNow ? 'Unstar' : 'Star', run: () => files.toggleStar(m.item.boardId, m.item.cardId) },
+        { id: 'star', label: starredNow ? 'Unstar' : 'Star', run: () => {
+          files.toggleStar(m.item.boardId, m.item.cardId);
+          logEvent(EV.FILES_STAR, { on: !starredNow, what: 'file' });
+        } },
       ] },
       { header: SECTION.EDIT, items: [
         { id: 'download', label: many ? `Download ${group.length}` : 'Download', run: () => {
@@ -821,7 +896,7 @@ export function ClusterSidebar({
         }) }] : []),
         ...(onPickCluster && movable(group) ? [{ id: 'move', label: many ? `Move ${group.length} to…` : 'Move to…', run: () => sendTo(group, false) }] : []),
         ...(onPickCluster ? [{ id: 'copy', label: many ? `Copy ${group.length} to…` : 'Copy to…', run: () => sendTo(group, true) }] : []),
-        { id: 'delete', label: many ? `Delete ${group.length}` : 'Delete', danger: true, run: () => { deleteItems(group); clearSelection(); } },
+        { id: 'delete', label: many ? `Delete ${group.length}` : 'Delete', danger: true, run: () => { deleteItems(group, 'menu'); clearSelection(); } },
       ] },
     ]);
   };
@@ -843,7 +918,11 @@ export function ClusterSidebar({
     springOpen,
     springLeave,
     menuItems: (board, canEdit) => [
-      { id: 'star', label: files.isStarred(board.id) ? 'Unstar' : 'Star', run: () => files.toggleStar(board.id) },
+      { id: 'star', label: files.isStarred(board.id) ? 'Unstar' : 'Star', run: () => {
+        const on = !files.isStarred(board.id);
+        files.toggleStar(board.id);
+        logEvent(EV.FILES_STAR, { on, what: 'cluster' });
+      } },
       ...(canEdit && onSetOpensAs ? [{
         id: 'opens-as',
         label: board.view === 'list' ? 'Open on the board by default' : 'Always open in Files',
@@ -863,7 +942,7 @@ export function ClusterSidebar({
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     if ((selected.size || selecting) && e.key === 'Escape') { e.preventDefault(); clearSelection(); return; }
     if (selected.size && (e.key === 'Backspace' || e.key === 'Delete') && e.target.closest?.('[data-sb-item]')) {
-      e.preventDefault(); deleteSelection(); return;
+      e.preventDefault(); deleteSelection('key'); return;
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     const root = e.currentTarget;
@@ -924,6 +1003,14 @@ export function ClusterSidebar({
   // and the grouping too (it replaced a row of chips and a ⇅ button).
   const chipLabel = chip === 'all' ? 'All files' : (FILTER_CHIPS.find((c) => c.id === chip)?.label || 'All files');
   const nothing = !contents.loading && !(contents.shelves || []).some((sh) => sh.total > 0 || sh.items?.length);
+  // The search's last settled shape, kept until it ends (endSearch above).
+  const resultsN = (contents.shelves || []).reduce((sum, sh) => sum + (Number(sh.total) || sh.items?.length || 0), 0);
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) { endSearch('cleared'); return; }
+    if (!contents.loading) searchStat.current = { q_len: q.length, results_n: resultsN, view };
+  }, [query, contents.loading, resultsN, view, endSearch]);
+  useEffect(() => () => endSearch('left'), [endSearch]);
   const filesListRef = useRef(null);
   // Fade the list's edges only where there's more to scroll to, as the
   // clusters' list does.
@@ -943,15 +1030,16 @@ export function ClusterSidebar({
   const [dropping, setDropping] = useState(false);
   const sectionDrop = view === 'cluster' && shownId ? {
     onDragOver: (e) => {
-      if (!dropEffect(e, shownId)) return;
+      const effect = dropEffect(e, shownId, 'files');
+      if (!effect) return;
       e.preventDefault();
-      try { e.dataTransfer.dropEffect = dropEffect(e, shownId); } catch (_) { /* read-only in some browsers */ }
+      try { e.dataTransfer.dropEffect = effect; } catch (_) { /* read-only in some browsers */ }
       if (!dropping) setDropping(true);
     },
     onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDropping(false); },
     onDrop: (e) => {
       setDropping(false);
-      if (!dropEffect(e, shownId)) return;
+      if (!dropEffect(e, shownId, 'files')) return;
       e.preventDefault();
       onDropOnCluster(shownId, e);
     },
@@ -1070,7 +1158,7 @@ export function ClusterSidebar({
                    onKeyDown={(e) => {
                      if (e.key === 'Escape') { e.preventDefault(); setQuery(''); return; }
                      // Nothing here matches, or ⌘↵: search everywhere instead.
-                     if (e.key === 'Enter' && (nothing || e.metaKey || e.ctrlKey)) { e.preventDefault(); onOpenPalette?.(query); }
+                     if (e.key === 'Enter' && (nothing || e.metaKey || e.ctrlKey)) { e.preventDefault(); endSearch('palette'); onOpenPalette?.(query); }
                    }} />
             {query && (
               <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} weight="regular" /></button>
@@ -1192,7 +1280,7 @@ export function ClusterSidebar({
               {onPutOnBoard && waitingSel.length > 0 && movable(waitingSel) && <button type="button" className="sbf-bulk-btn is-lead" onClick={putSelection}>Put on board</button>}
               {onPickCluster && movable(selItems) && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
               {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={copySelection}>Copy…</button>}
-              <button type="button" className="sbf-bulk-btn is-danger" onClick={deleteSelection}>Delete</button>
+              <button type="button" className="sbf-bulk-btn is-danger" onClick={() => deleteSelection('bar')}>Delete</button>
             </div>}
           </div>
         )}

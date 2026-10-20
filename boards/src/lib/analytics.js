@@ -22,7 +22,7 @@ import { isCaptureActive } from './captureState.js';
 import { isGalleryActive } from './galleryState.js';
 import { touchAppSession, noteAuthChange, persistAppSession,
          getAppSession, setSessionRotateHandler } from './appSession.js';
-import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
+import { createSummary, noteCounter, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
 import { BUILD_SHA } from './buildInfo.js';
 import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
 import { createArmCache } from './armCache.js';
@@ -838,6 +838,15 @@ export function currentSessionShape() {
   }
 }
 
+/**
+ * Count something too frequent to log one by one — a tab switch, a wheel zoom —
+ * into this session's session_summary row, which carries the totals as
+ * `counters` (sessionSummary.js noteCounter). Never throws.
+ */
+export function noteSessionCounter(key, n = 1) {
+  try { noteCounter(ensureSummary(), key, n); } catch (_) {}
+}
+
 function emitSessionSummary(ended) {
   try {
     const acc = summaryAcc;
@@ -875,6 +884,14 @@ if (typeof document !== 'undefined') {
   window.addEventListener('focus', () => { try { noteFocus(ensureSummary(), true); } catch (_) {} });
   window.addEventListener('blur', () => { try { noteFocus(ensureSummary(), false); } catch (_) {} });
   window.addEventListener('pagehide', () => { emitSessionSummary('pagehide'); flushBeacon(); });
+  // What this session was used with: every press counted by pointer type
+  // (input.mouse / input.touch / input.pen), so an iPad with a Pencil, or a
+  // touchscreen laptop driven by a mouse, reads as it was used. session_context
+  // says what the device can do; this says what it did.
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.pointerType;
+    if (t === 'mouse' || t === 'touch' || t === 'pen') noteSessionCounter(`input.${t}`);
+  }, { capture: true, passive: true });
   window.addEventListener('beforeunload', flushBeacon);
 }
 

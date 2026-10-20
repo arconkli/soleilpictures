@@ -252,7 +252,7 @@ export function isReadOnlyQaMode() {
 const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
   'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
-  'presenceqa', 'shareqa', 'roqa', 'msgqa', 'setupqa',
+  'presenceqa', 'shareqa', 'roqa', 'msgqa', 'setupqa', 'sidebarqa', 'importqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;

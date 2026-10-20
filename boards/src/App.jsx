@@ -5034,6 +5034,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // still one row per arrival. A switch arrival is tagged via:'switch' — the
   // person was already on Home, and must not read as a fresh visit.
   const homeViewViaSwitchRef = useRef(arrivedOnHome);
+  // What the files sidebar's Home card is used for, beyond opening (which is
+  // HOME_OPEN_BOARD): its Rename, Cover, Move, Star and Delete.
+  const logHomeClusterAction = (action) => { try { logEvent(EV.HOME_CLUSTER_ACTION, { action }); } catch (_) {} };
   useEffect(() => {
     if (currentSurface !== 'home' || boardsLoading) return;
     const viaSwitch = homeViewViaSwitchRef.current;
@@ -5042,6 +5045,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       logEvent(EV.HOME_VIEW, {
         exploring: !!homeExploring,
         projects_n: projectList(boards, rootBoard.id, { workspaceId: workspace.id }).length,
+        // Which Home this was: the files sidebar's (ClustersHome) or the
+        // projects panel, and whether it drew the graph — neither does on the
+        // mobile shell (phones, and touch tablets in portrait).
+        home: filesSidebar ? 'clusters' : 'projects',
+        graph: !mobileShell,
         ...(viaSwitch ? { via: 'switch' } : {}),
       });
     } catch (_) {}
@@ -10846,19 +10854,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             }}
             onNewProject={(name) => { mainMutators.addNewProject?.({ via: 'home', name }); }}
             canEditCluster={(id) => canEditBoard(id)}
-            onRenameCluster={(id, name) => renameBoardById(id, name)}
-            onCoverCluster={(id, file) => setBoardCustomThumbById(id, file)}
+            onRenameCluster={(id, name) => { logHomeClusterAction('rename'); return renameBoardById(id, name); }}
+            onCoverCluster={(id, file) => { logHomeClusterAction('cover'); return setBoardCustomThumbById(id, file); }}
             onMoveCluster={async (id) => {
               // The tree's drag-to-nest, with its pre-validation, mirror
               // cleanup and Undo: the same event, from a picked cluster.
               const exclude = [id, ...collectDescendantIds(boards, id)];
               const target = await requestClusterPick({ placeholder: `Move “${boards[id]?.name || 'cluster'}” into…`, excludeIds: exclude });
+              logHomeClusterAction(target?.id ? 'move' : 'move_cancelled');
               if (!target?.id) return;
               document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', { detail: { childIds: [id], targetId: target.id } }));
             }}
             isStarred={homeStars.isStarred}
-            onToggleStar={homeStars.toggle}
-            onDeleteCluster={(id) => deleteBoardsById([id])}
+            onToggleStar={(id, ...rest) => {
+              logHomeClusterAction(homeStars.isStarred(id) ? 'unstar' : 'star');
+              return homeStars.toggle(id, ...rest);
+            }}
+            onDeleteCluster={(id) => { logHomeClusterAction('delete'); return deleteBoardsById([id]); }}
             loadPhotos={loadClusterPhotos}
             hereByBoard={homeRail.hereByBoard}
           />

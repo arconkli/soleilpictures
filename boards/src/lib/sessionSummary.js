@@ -68,6 +68,7 @@ export function createSummary(session, now = Date.now(), view = null) {
     visibleSince: visible ? now : null,
     focusedMs: 0,
     focusedSince: focused ? now : null,
+    counters: {},
   };
 }
 
@@ -131,6 +132,24 @@ export function noteEvent(acc, name, props, now = Date.now()) {
   return acc;
 }
 
+// Counters: things that happen too often to be an event each — a tab switch,
+// a wheel zoom, a pen touching the screen — summed into this session's row.
+// Keys are short lowercase words; past MAX_COUNTERS keys a new one is dropped
+// rather than widening the row.
+const COUNTER_KEY = /^[a-z][a-z0-9_.]{0,39}$/;
+const MAX_COUNTERS = 48;
+
+/** Add `n` (default 1) to a counter. Never throws; a bad key or amount is ignored. */
+export function noteCounter(acc, key, n = 1) {
+  if (!acc || typeof key !== 'string' || !COUNTER_KEY.test(key)) return acc;
+  const add = Number(n);
+  if (!Number.isFinite(add) || add <= 0) return acc;
+  const c = acc.counters || (acc.counters = {});
+  if (!(key in c) && Object.keys(c).length >= MAX_COUNTERS) return acc;
+  c[key] = Math.min((c[key] || 0) + add, 1e9);
+  return acc;
+}
+
 /**
  * The props for the terminal row.
  *
@@ -164,6 +183,10 @@ export function summaryProps(acc, ended, now = Date.now()) {
     visible_ms: spanTotal(acc.visibleMs, acc.visibleSince, now),
     focused_ms: spanTotal(acc.focusedMs, acc.focusedSince, now),
     ended: ended || 'unknown',
+    // Only when something was counted, so a row without them stays as it was.
+    ...(acc.counters && Object.keys(acc.counters).length
+      ? { counters: Object.fromEntries(Object.entries(acc.counters).map(([k, v]) => [k, Math.round(v)])) }
+      : {}),
   };
 }
 
