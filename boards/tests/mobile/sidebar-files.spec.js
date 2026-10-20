@@ -51,6 +51,24 @@ test.describe('sidebar files on a phone', () => {
     await expect(files.locator('[data-sb-item^="film:film-img-"]').first()).toBeVisible();
   });
 
+  test('the cluster tab, tapped again, lists every cluster to show the files of, inside the screen', async ({ page }) => {
+    await open(page);
+    const files = page.locator('.sbf-files');
+    await files.getByRole('tab', { name: 'Feature film', exact: true }).tap();
+    const list = page.getByRole('menu', { name: 'Show the files of' });
+    await expect(list).toBeVisible();
+    const vw = page.viewportSize().width;
+    const box = await list.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(vw);
+    await list.getByRole('menuitemradio', { name: 'Casting' }).tap();
+    await expect(list).toHaveCount(0);
+    await expect(files.getByRole('tab', { selected: true })).toHaveText('Casting');
+    await expect(files.locator('[data-sb-item^="cast:cast-img-"]').first()).toBeVisible();
+    await files.getByRole('button', { name: 'Back to Feature film' }).tap();
+    await expect(files.getByRole('tab', { selected: true })).toHaveText('Feature film');
+  });
+
   test('a tap opens Quick look', async ({ page }) => {
     await open(page);
     await page.locator('.sbf-files [data-sb-item^="film:film-img-"]').first().tap();
@@ -67,6 +85,9 @@ test.describe('sidebar files on a phone', () => {
     // raced the hold's own timer on a loaded WebKit.
     const menu = page.locator('.ctx-menu').last();
     await expect(menu.getByText('Quick look', { exact: true })).toBeVisible();
+    // The drop rules' two ways to send it on, as on a desktop.
+    await expect(menu.getByText('Move to…', { exact: true })).toBeVisible();
+    await expect(menu.getByText('Copy to…', { exact: true })).toBeVisible();
     await file.dispatchEvent('pointerup', at);
     await file.dispatchEvent('click', at);
     await page.waitForTimeout(400);
