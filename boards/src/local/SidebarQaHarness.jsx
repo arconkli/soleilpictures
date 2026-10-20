@@ -424,6 +424,11 @@ export function SidebarQaHarness() {
             feedback={feedback}
             moveApi={moveApi}
             onPickCluster={async () => BOARDS.mood}
+            onPutOnBoard={async (boardId, cardIds) => {
+              source.calls.push({ fn: 'putOnBoard', params: { boardId, cardIds } });
+              if (window.__sidebarQa.putFails) throw new Error(window.__sidebarQa.putFails);
+              return { placed: cardIds.length, left: 0 };
+            }}
             onSetOpensAs={(id, v) => say(`opens-as ${id} ${v}`)}
             onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
             uploadsByBoard={{ cast: 3 }}

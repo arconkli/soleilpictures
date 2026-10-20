@@ -112,7 +112,8 @@ import { ViewSwitch } from './components/ViewSwitch.jsx';
 import { NewClusterButton } from './components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
-import { placedOf, positionUnplaced } from './lib/placement.js';
+import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX } from './lib/placement.js';
+import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
@@ -5474,6 +5475,98 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setFilesReveal({ boardId, ids: [cardId], token: Date.now(), pane: 'main' });
   };
   showSidebarFileRef.current = showSidebarFile;
+  // Put on board from beyond the board — the sidebar's Files bar, and the toast
+  // after files move into a cluster's Files: files waiting in a cluster's Files
+  // go on as the board's own Put lays them (ListSurface putOnBoard, the
+  // canvas's UnplacedOffer): one block where its canvas last looked, rows when
+  // they're all photos, at most PUT_ON_BOARD_MAX, one undo step. The cluster
+  // comes up on its canvas first, the files go on once its doc has them, and
+  // the board then frames them. → Promise<{ placed, left }> (left: still in
+  // Files past the cap); it rejects, with words fit to show, when the cluster
+  // can't be changed or doesn't come up.
+  const PUT_OPEN_MS = 20000;
+  const pendingPutRef = useRef(null);   // { boardId, ids, resolve, reject, timer }
+  const framePutRef = useRef(null);     // { boardId, ids }: put on, framed once the board draws them
+  const [putTick, setPutTick] = useState(0);
+  const putFilesOnBoard = (boardId, cardIds) => new Promise((resolve, reject) => {
+    const ids = [...new Set((cardIds || []).filter(Boolean))];
+    if (!boardId || !boards[boardId]) { reject(new Error('That cluster isn’t here any more.')); return; }
+    const name = boards[boardId].name || 'That cluster';
+    if (!canEditBoard(boardId)) { reject(new Error(`${name} is view-only for you.`)); return; }
+    if (!ids.length) { resolve({ placed: 0, left: 0 }); return; }
+    const was = pendingPutRef.current;
+    if (was) { clearTimeout(was.timer); was.reject(new Error('Another Put on board took its place.')); }
+    const timer = setTimeout(() => {
+      if (pendingPutRef.current?.timer !== timer) return;
+      pendingPutRef.current = null;
+      reject(new Error(`${name} didn’t open, so nothing was put on its board.`));
+    }, PUT_OPEN_MS);
+    pendingPutRef.current = { boardId, ids, resolve, reject, timer };
+    if (mobileShell) setMobileNavOpen(false);
+    setCurrentSurface('board');
+    if (currentBoard.id !== boardId) showInCluster(boardId);
+    else setViewOverride((o) => (o[boardId] === 'canvas' ? o : { ...o, [boardId]: 'canvas' }));
+    setPutTick((n) => n + 1);
+  });
+  const putFilesOnBoardRef = useRef(putFilesOnBoard);
+  putFilesOnBoardRef.current = putFilesOnBoard;
+  // Stable, for a toast that outlives the render it was made in.
+  const onPutOnBoard = useCallback((boardId, cardIds) => putFilesOnBoardRef.current(boardId, cardIds), []);
+  useEffect(() => {
+    const live = currentYDoc ? yb.cards : null;
+    if (!live) return;
+    const f = framePutRef.current;
+    if (f && f.boardId !== currentBoard.id) framePutRef.current = null;
+    else if (f) {
+      const put = new Set(f.ids);
+      if (live.some((c) => put.has(c.id) && !isUnplaced(c))) {
+        framePutRef.current = null;
+        setFocusRequest({ boardId: f.boardId, ids: f.ids, token: Date.now() });
+      }
+    }
+    const p = pendingPutRef.current;
+    if (!p) return;
+    // The board went there with the request, so another one up now means
+    // someone opened it since.
+    if (p.boardId !== currentBoard.id) {
+      pendingPutRef.current = null;
+      clearTimeout(p.timer);
+      p.reject(new Error(`Another cluster opened before ${boards[p.boardId]?.name || 'that cluster'} did, so nothing was put on its board.`));
+      return;
+    }
+    // The first paint is the cache's, which can be behind: wait for the
+    // server unless every file is already here.
+    const have = new Set(live.map((c) => c.id));
+    if (!yb.synced && !p.ids.every((id) => have.has(id))) return;
+    pendingPutRef.current = null;
+    clearTimeout(p.timer);
+    const muts = mainMutatorsGuarded;
+    if (muts.captureGuarded) { p.reject(new Error('The board is showing a capture layout. Put them on once it’s closed.')); return; }
+    const asked = new Set(p.ids);
+    const waiting = live.filter((c) => asked.has(c.id) && isUnplaced(c));
+    const take = waiting.slice(0, PUT_ON_BOARD_MAX);
+    const plan = take.length ? planPutOnBoard(live, take.map((c) => c.id), getViewCenter(p.boardId), { layout: layoutForPut(take) }) : [];
+    if (!plan.length) {
+      feedback.toast({ type: 'info', message: live.some((c) => asked.has(c.id)) ? 'Those are already on the board.' : 'Those files aren’t there any more.' });
+      p.resolve({ placed: 0, left: 0 });
+      return;
+    }
+    const um = muts.undoManager;
+    muts.breakUndo?.();
+    muts.updateCards?.(plan);
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    muts.breakUndo?.();
+    const left = waiting.length - plan.length;
+    undoToast(feedback, {
+      type: 'success',
+      message: `${plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`}${left ? ` · ${left} still in Files` : ''}`,
+      undoManager: um, stackItem: item,
+      onUndo: () => muts.undo?.(),
+    });
+    framePutRef.current = { boardId: p.boardId, ids: plan.map((x) => x.id) };
+    p.resolve({ placed: plan.length, left });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentYDoc, yb.cards, yb.synced, putTick, mainMutatorsGuarded]);
   // Upload in the sidebar's foot: into the cluster on screen, or — off the
   // board — into one picked from a list that leads with the recent ones. Either
   // way it goes in as a drop on that cluster's row does: stored off the board,
@@ -10122,6 +10215,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               onUploadZips={bulkImportAllowed() ? uploadZipsFromSidebar : undefined}
               onOpenBoard={openSidebarCluster}
               onShowFile={showSidebarFile}
+              onPutOnBoard={onPutOnBoard}
               onOpenShelf={(boardId, shelfId) => {
                 if (mobileShell) setMobileNavOpen(false);
                 setCurrentSurface('board');

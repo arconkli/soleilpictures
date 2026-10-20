@@ -215,6 +215,7 @@ export function ClusterSidebar({
   onOpenPalette,          // (query) => void
   feedback = null,        // the app's toasts (useFeedback)
   onPickCluster = null,   // ({ placeholder, excludeIds }) => Promise<boardId|null>
+  onPutOnBoard = null,    // (boardId, cardIds) => Promise — files waiting in that cluster's Files go on its board (App brings it up first)
   onSetOpensAs = null,    // (boardId, 'list' | 'canvas') => void — the cluster's view, for everyone
   onDropFilesOnCluster = null,  // (boardId, File[]) => void — desktop files dropped on a row
   uploadsByBoard = null,  // { boardId: n } — files still going up into a cluster
@@ -734,6 +735,25 @@ export function ClusterSidebar({
   const movable = (group) => group.every((x) => canEdit(x.boardId));
   const moveSelection = () => sendTo(selItems, false);
   const copySelection = () => sendTo(selItems, true);
+  // Put on board: the selected files that are waiting in Files go on their
+  // cluster's board — one cluster's at a time, as only one board comes up.
+  const waitingSel = selItems.filter((x) => x.unplaced);
+  const putting = useRef(false);
+  const putSelection = async () => {
+    const from = new Set(waitingSel.map((x) => x.boardId));
+    if (from.size > 1) { toast({ type: 'info', message: 'Put on board takes one cluster’s files at a time. Select files from one cluster.' }); return; }
+    if (!from.size || putting.current) return;
+    putting.current = true;
+    try {
+      await onPutOnBoard([...from][0], waitingSel.map((x) => x.cardId));
+      clearSelection();
+    } catch (e) {
+      toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' });
+    } finally {
+      putting.current = false;
+      files.refresh();
+    }
+  };
   const deleteSelection = () => deleteItems(selItems);
   const deleteItems = async (list) => {
     for (const [boardId, items] of groupByCluster(list)) {
@@ -1160,10 +1180,13 @@ export function ClusterSidebar({
         {selected.size > 0 && (
           <div className="sbf-bulk" role="toolbar" aria-label="Selected files">
             <span className="sbf-bulk-count">{selected.size} selected</span>
-            {onPickCluster && movable(selItems) && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
-            {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={copySelection}>Copy…</button>}
-            <button type="button" className="sbf-bulk-btn is-danger" onClick={deleteSelection}>Delete</button>
-            <button type="button" className="sbf-bulk-btn" aria-label="Clear selection" onClick={clearSelection}>✕</button>
+            <button type="button" className="sbf-bulk-btn is-clear" aria-label="Clear selection" onClick={clearSelection}>✕</button>
+            <div className="sbf-bulk-acts">
+              {onPutOnBoard && waitingSel.length > 0 && movable(waitingSel) && <button type="button" className="sbf-bulk-btn is-lead" onClick={putSelection}>Put on board</button>}
+              {onPickCluster && movable(selItems) && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
+              {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={copySelection}>Copy…</button>}
+              <button type="button" className="sbf-bulk-btn is-danger" onClick={deleteSelection}>Delete</button>
+            </div>
           </div>
         )}
       </section>
