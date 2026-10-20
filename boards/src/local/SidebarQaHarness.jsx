@@ -217,6 +217,17 @@ const SHARED = QS.has('shared') ? [{
   board_id: 'grade', board_name: 'Grade', role: 'viewer',
   source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse',
 }] : [];
+// &many=1: a workspace that has been going a while, so the cluster tab's list
+// is longer than its room and scrolls (nothing is filed in the new ones).
+if (QS.has('many')) {
+  [['ward', 'Wardrobe', 'film'], ['props', 'Props', 'film'], ['story', 'Storyboards', 'film'], ['sound', 'Sound', 'film'],
+    ['refs', 'Grade refs', 'film'], ['short', 'Short film', 'root'], ['script', 'Script', 'short'], ['cast2', 'Casting', 'short'],
+    ['loc2', 'Locations', 'short'], ['treat', 'Treatment', 'mv'], ['shoot', 'Shoot day', 'mv'], ['edit', 'Edit', 'mv'],
+    ['pitch', 'Pitch deck', 'root'], ['archive', 'Archive', 'root']]
+    .forEach(([id, name, parent], i) => {
+      BOARDS[id] = { id, name, parent_board_id: parent, workspace_id: WS, cover: 'neutral', created_at: `2026-05-${String(i + 1).padStart(2, '0')}` };
+    });
+}
 userProfiles.populateFromPeers(PEERS);
 
 // Home: the harness's clusters with real covers and an order, who's on which,

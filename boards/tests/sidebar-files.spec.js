@@ -1113,6 +1113,38 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     expect(at.list.bottom).toBeLessThanOrEqual(at.meter.top);
   });
 
+  test('a long list scrolls inside, opens on the cluster checked, and the keys keep their highlight in view', async ({ page }) => {
+    await page.goto('/?sidebarqa=1&many=1');
+    await page.waitForSelector('[data-sidebarqa-ready]');
+    await expect(page.locator('.sbf-block').first()).toBeVisible();
+    await tab(page, 'Feature film').click();
+    const list = switchList(page);
+    await settled(list);
+    const box = list.locator('.sbf-switch-list');
+    await expect(list.getByRole('option')).toHaveCount(20);
+    const inView = (loc) => loc.evaluate((row) => {
+      const l = row.closest('.sbf-switch-list').getBoundingClientRect();
+      const r = row.getBoundingClientRect();
+      return r.top >= l.top - 1 && r.bottom <= l.bottom + 1;
+    });
+    expect(await box.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    await expect(box).toHaveClass(/fade-(top|bottom)/);
+    expect(await inView(list.getByRole('option', { name: 'Feature film' }))).toBe(true);
+    // Wherever it opened, it stays in the window and off the meter's line.
+    const at = await page.evaluate(() => ({
+      list: document.querySelector('.sbf-switch').getBoundingClientRect().toJSON(),
+      meter: document.querySelector('.sbf-card.is-files .sbf-meter').getBoundingClientRect().toJSON(),
+      tabs: document.querySelector('.sbf-files .sbf-tabs').getBoundingClientRect().toJSON(),
+    }));
+    expect(at.list.top).toBeGreaterThanOrEqual(0);
+    expect(at.list.bottom <= at.tabs.top || (at.list.top > at.tabs.bottom && at.list.bottom <= at.meter.top)).toBe(true);
+    // Twelve rows on, past the end and round to the top: still in view.
+    for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowDown');
+    const active = list.locator('.sbf-switch-row.is-active');
+    await expect(active).toHaveCount(1);
+    expect(await inView(active)).toBe(true);
+  });
+
   test('the find box keeps the keys: the arrows and the pointer move one highlight, typing carries on, Escape clears then closes', async ({ page }) => {
     await open(page);
     await tab(page, 'Feature film').focus();

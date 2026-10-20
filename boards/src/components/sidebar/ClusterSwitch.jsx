@@ -5,7 +5,8 @@
 //
 // - It hangs from the tabs, as wide as the Files card's contents, grows from
 //   the tab and stops above the storage meter. More clusters than fit, it
-//   scrolls, its edges fading where there's more.
+//   scrolls, its edges fading where there's more; with little room under the
+//   tabs and more over them, it opens over them instead.
 // - The names keep the tree's order (lib/clusterSwitchList.js) and its faint
 //   guide lines. The cluster shown is checked; the one on the board says
 //   "Open now" only while it isn't the one checked.
@@ -28,8 +29,11 @@ const STEP = 16;          // a level of nesting, as in the tree
 const SHEET_STEP = 18;
 
 // Where the list opens: under the tabs, as wide as the Files card's contents,
-// down to the meter; with too little room there and more above, over them.
-function placeSwitch(tabs, card) {
+// down to the meter. When it doesn't all fit there and the room under the
+// tabs is short (a tall tree above leaves the Files card low), it opens over
+// the tabs instead if there's more room above, as menus do.
+const ROOM = 260;
+function placeSwitch(tabs, card, want) {
   if (!tabs) return null;
   const t = tabs.getBoundingClientRect();
   const c = card?.getBoundingClientRect() || null;
@@ -43,7 +47,7 @@ function placeSwitch(tabs, card) {
   const top = t.bottom + 6;
   const below = floor - top;
   const above = t.top - 14;
-  if (below >= 200 || below >= above) return { left, width, top, maxHeight: Math.max(120, below) };
+  if (want <= below || below >= ROOM || below >= above) return { left, width, top, maxHeight: Math.max(120, below) };
   return { left, width, bottom: vh - t.top + 6, maxHeight: above };
 }
 
@@ -87,7 +91,9 @@ export function ClusterSwitch({
     const place = (e) => {
       const t = e?.target;
       if (t instanceof Node && popRef.current?.contains(t)) return;
-      setPos(placeSwitch(tabsRef?.current, cardRef?.current));
+      // All of it: the find line and every row, however much shows now.
+      const want = (popRef.current?.querySelector('.sbf-switch-find')?.offsetHeight || 40) + (listRef.current?.scrollHeight || 0);
+      setPos(placeSwitch(tabsRef?.current, cardRef?.current, want));
     };
     place();
     window.addEventListener('resize', place);
