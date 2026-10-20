@@ -4,14 +4,15 @@
 --
 -- Two gaps the 2026-10-20 SEO/AEO sweep found:
 --
--- 1. Google declined to index a third of the marketing pages and nothing said
---    so. Search Console's Page indexing report listed /pricing, /tools/ai-mood-
---    board-maker, /tools/cinematography-lookbook, /best/storyboard-software and
---    others as "Discovered - currently not indexed", most never crawled. The
---    "Google dropped" alert (0360) watches the five biggest pages' impressions,
---    so a page that never earned any could sit out of Google forever unseen —
---    and when it does fire, impressions cannot say whether Google de-indexed
---    the page or just stopped ranking it.
+-- 1. Marketing pages sat out of Google and nothing said so. Search Console's
+--    Page indexing report listed /pricing, /tools/ai-mood-board-maker,
+--    /tools/cinematography-lookbook, /best/storyboard-software and others as
+--    "Discovered - currently not indexed": never crawled, until a manual
+--    "Request indexing" on 2026-10-20 got each one crawled and indexed that
+--    evening. The "Google dropped" alert (0360) watches the five biggest pages'
+--    impressions, so a page that never earned any could sit out of Google
+--    forever unseen — and when it does fire, impressions cannot say whether
+--    Google de-indexed the page or just stopped ranking it.
 --    NEW seo_index_status: gsc-sync {mode:'inspect'} (cron gsc-inspect-daily,
 --    06:30 UTC) asks the URL Inspection API about every sitemap URL and stores
 --    Google's verdict and its reason per (path, day). verdict 'PASS' is "URL is

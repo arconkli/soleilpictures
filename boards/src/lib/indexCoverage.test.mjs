@@ -250,6 +250,20 @@ test('gsc-sync inspects every sitemap URL and writes one row per path and day', 
   assert.match(gsc, /\/sitemap\.xml`, \{\s*headers: \{ 'x-soleil-probe': '1' \}/, 'the sitemap read stays out of crawler_hits');
 });
 
+test('the inspection answers at once and runs in the background, saving as it goes', () => {
+  // A run takes minutes (~6s an inspection) and pg_net stops listening after
+  // 5s; waitUntil is what keeps the worker alive once the 202 has gone.
+  const at = gsc.indexOf("opts.mode === 'inspect'");
+  const mode = gsc.slice(at, at + 1400);
+  assert.match(mode, /keepAlive\(/);
+  assert.match(mode, /status: 202/);
+  assert.match(gsc, /er\.waitUntil\(p\)/);
+  // Batches as rows land, so a run the wall clock cuts short keeps what it
+  // inspected; one URL per path, so no batch carries a key twice.
+  assert.match(gsc, /unsaved\.length < INSPECT_FLUSH/);
+  assert.match(gsc, /new Map\(\(await sitemapUrls\(\)\)\.map\(\(u\) => \[normPath\(u\)!, u\]\)\)/);
+});
+
 test('every inspection row carries every column, so PostgREST accepts the bulk upsert', () => {
   const cols = mig.match(/create table if not exists public\.seo_index_status \(([\s\S]*?)primary key/)[1]
     .split('\n').map((l) => l.trim().split(/\s+/)[0]).filter(Boolean);

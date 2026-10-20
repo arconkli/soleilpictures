@@ -54,7 +54,9 @@
 // just stopped ranking it, and the "Google dropped" alert (0360) watches only the
 // five biggest pages, so a page that never earned an impression was invisible.
 // check_discovery_pipelines() reads it.
-// The performance sync above is untouched by this mode and vice versa.
+// The call answers 202 at once and inspects in the background, writing rows as
+// they land; the outcome is in the function's logs. The performance sync above
+// is untouched by this mode and vice versa.
 // Quota: 2,000 inspections a day and 600 a minute per property; the sitemap is
 // ~110 URLs, so a manual run on top of the cron is safe. The readonly scope
 // covers urlInspection.index.inspect, and a Restricted user may inspect.
@@ -207,8 +209,18 @@ async function upsert(table: string, conflict: string, rows: unknown[]): Promise
 
 // -- Index coverage (mode 'inspect', 0480) ------------------------------------
 const INSPECT_ENDPOINT = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
-const INSPECT_CONCURRENCY = 4;
+const INSPECT_CONCURRENCY = 8;      // ~6s an inspection; the property allows 600 a minute
 const INSPECT_TIMEOUT_MS = 20000;
+const INSPECT_FLUSH = 20;           // rows written as they land
+
+// Keep a detached promise alive past the response on Supabase Edge; no-op
+// locally (the _shared/meta-capi.ts idiom).
+function keepAlive(p: Promise<unknown>): void {
+  const er = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (er?.waitUntil) { try { er.waitUntil(p); } catch (_) { /* run detached */ } }
+}
 
 // The sitemap's <loc>s, as absolute URLs. The probe header keeps the fetch out
 // of crawler_hits, the same courtesy seo-health extends.
@@ -269,20 +281,31 @@ async function inspectOne(token: string, url: string): Promise<Record<string, un
 }
 
 async function runInspect(token: string): Promise<Record<string, unknown>> {
-  const urls = await sitemapUrls();
+  // One URL per stored path: two sitemap URLs that normalize to one path would
+  // put one key in a batch twice, and an upsert refuses that.
+  const urls = [...new Map((await sitemapUrls()).map((u) => [normPath(u)!, u])).values()];
   if (!urls.length) throw new Error('the sitemap listed no URLs on ' + APP_HOST);
   const day = ymd(new Date());
   const rows: Record<string, unknown>[] = [];
+  // Rows are written as they land, so a run the wall clock cuts short still
+  // leaves most of the day behind it.
+  let unsaved: Record<string, unknown>[] = [];
+  const save = async (all = false) => {
+    if (!unsaved.length || (!all && unsaved.length < INSPECT_FLUSH)) return;
+    const batch = unsaved;
+    unsaved = [];
+    await upsert('seo_index_status', 'path,day', batch);
+  };
   let next = 0;
   await Promise.all(Array.from({ length: INSPECT_CONCURRENCY }, async () => {
     while (next < urls.length) {
-      const url = urls[next++];
-      rows.push({ ...(await inspectOne(token, url)), day });
+      const row = { ...(await inspectOne(token, urls[next++])), day };
+      rows.push(row);
+      unsaved.push(row);
+      await save();
     }
   }));
-  // Two sitemap URLs can normalize to one path; keep one row per (path, day).
-  const byPath = new Map(rows.map((r) => [r.path as string, r]));
-  await upsert('seo_index_status', 'path,day', [...byPath.values()]);
+  await save(true);
 
   const cutoff = ymd(new Date(Date.now() - RETENTION_DAYS * 86400000));
   await fetch(`${SUPABASE_URL}/rest/v1/seo_index_status?day=lt.${cutoff}`, {
@@ -291,15 +314,15 @@ async function runInspect(token: string): Promise<Record<string, unknown>> {
   });
 
   const states: Record<string, number> = {};
-  for (const r of byPath.values()) {
+  for (const r of rows) {
     const k = (r.error ? 'error' : (r.coverage_state || r.verdict || 'unknown')) as string;
     states[k] = (states[k] || 0) + 1;
   }
   return {
     ok: true, mode: 'inspect', day,
-    inspected: byPath.size,
-    indexed: [...byPath.values()].filter((r) => r.verdict === 'PASS').length,
-    errors: [...byPath.values()].filter((r) => r.error).length,
+    inspected: rows.length,
+    indexed: rows.filter((r) => r.verdict === 'PASS').length,
+    errors: rows.filter((r) => r.error).length,
     states,
   };
 }
@@ -326,12 +349,24 @@ Deno.serve(async (req) => {
   try { opts = (await req.json()) || {}; } catch { /* no body — the cron path */ }
 
   if (opts.mode === 'inspect') {
-    try {
-      const token = await getAccessToken(JSON.parse(SA_JSON));
-      return new Response(JSON.stringify(await runInspect(token)), { headers: { 'content-type': 'application/json' } });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), { status: 500 });
-    }
+    // Answer at once and inspect in the background: a run takes minutes (the
+    // first took two and a half for 103 URLs, about 6s an inspection) and
+    // pg_net stops listening after 5s, so nobody waits on the answer.
+    // waitUntil is what keeps a worker alive once its response has gone. The
+    // outcome goes to the function's logs; check_discovery_pipelines() reads
+    // the rows.
+    keepAlive(
+      (async () => {
+        try {
+          console.log('[gsc-sync inspect]', JSON.stringify(await runInspect(await getAccessToken(JSON.parse(SA_JSON)))));
+        } catch (e) {
+          console.error('[gsc-sync inspect] failed:', String((e as Error)?.message || e));
+        }
+      })(),
+    );
+    return new Response(JSON.stringify({ ok: true, mode: 'inspect', accepted: true }), {
+      status: 202, headers: { 'content-type': 'application/json' },
+    });
   }
 
   try {
