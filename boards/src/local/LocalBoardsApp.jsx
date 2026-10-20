@@ -55,6 +55,7 @@ import { classifyDropFile, fileMetaFor } from '../lib/fileIngest.js';
 import { useFeedback } from '../components/AppFeedback.jsx';
 import { failMove } from '../lib/moveFailure.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from '../components/OnboardingTour.jsx';
@@ -459,8 +460,7 @@ export function LocalBoardsApp({ user, signOut }) {
   // portrait, ≤1024). Must match the global shell CSS query in styles.css —
   // otherwise the sidebar styles as a hidden drawer on a tablet with no
   // hamburger to open it.
-  const { isPhone, isTablet, isTouch } = useBreakpoint();
-  const mobileShell = isPhone || (isTablet && isTouch);
+  const { mobileShell } = shellOf(useBreakpoint());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
   const [selectedTool, setSelectedTool] = useState('select');

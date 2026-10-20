@@ -15,6 +15,8 @@ import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
 import { SidebarSharedBoards } from '../components/SidebarSharedBoards.jsx';
 import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout } from '../lib/sidebarLayout.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 import { shelfOf } from '../lib/sidebarShelves.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
@@ -207,7 +209,7 @@ const QS = typeof window !== 'undefined' ? new URLSearchParams(window.location.s
 const SURFACE = QS.get('surface') === 'home' ? 'home' : 'board';
 const MSG_QA = QS.has('messages');
 const WHO = QS.get('who') || 'here';
-// A phone shows the drawer open unless &drawer=0 asks for what's under it.
+// The mobile shell shows the drawer open unless &drawer=0 asks for what's under it.
 const DRAWER = QS.get('drawer') !== '0';
 // Moving files between clusters: &viewonly=<cluster> is one this person may
 // only look at; &shared=1 adds a cluster shared from another workspace under
@@ -269,10 +271,11 @@ export function SidebarQaHarness() {
   // does the same here (a new object, the same clusters).
   const [boardsVersion, setBoardsVersion] = useState(0);
   const allBoards = useMemo(() => ({ ...BOARDS }), [boardsVersion]);
-  // A phone shows the sidebar as the app's drawer, open — as the menu button
-  // would leave it — at the drawer's width.
-  const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
-  const drawerW = phone ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : 0;
+  // The shell App would give this screen (lib/deviceShell.js). In the mobile
+  // shell — a phone, a portrait tablet — the sidebar is the app's drawer, open
+  // as the menu button would leave it, at the drawer's width.
+  const { mobileShell, coarse } = shellOf(useBreakpoint());
+  const drawerW = mobileShell ? Math.round(Math.min(window.innerWidth * 0.86, 320)) : 0;
   // The cards' layout, kept and remembered as App keeps it.
   const [layout, setLayout] = useState(() => readSidebarLayout());
   const roomy = useMatchMedia(SIDE_FITS_QUERY);
@@ -309,9 +312,9 @@ export function SidebarQaHarness() {
   useEffect(() => {
     const b = document.body;
     b.setAttribute('data-sb-files', '1');
-    if (!phone) b.setAttribute('data-sb-float', '1');
+    if (!mobileShell) b.setAttribute('data-sb-float', '1');
     return () => { b.removeAttribute('data-sb-files'); b.removeAttribute('data-sb-float'); };
-  }, [phone]);
+  }, [mobileShell]);
   const source = useMemo(() => {
     const s = makeSource(new Set(['mood:', 'loc:loc-img-0']));
     window.__sidebarQa = {
@@ -391,9 +394,9 @@ export function SidebarQaHarness() {
   return (
     <>
     <style>{QA_STYLE}</style>
-    <div className={`app sb-files${phone ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${SURFACE === 'home' ? ' is-home' : ''}`}
-         style={{ '--sb-w': `${collapsed ? 0 : phone ? drawerW : sidebarFootprint(layout, { coarse: phone, roomy, snug })}px`, height: '100vh' }} data-sidebarqa-ready="1">
-      <aside className={`sidebar${phone && DRAWER ? ' is-mobile-open' : ''}`}>
+    <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${SURFACE === 'home' ? ' is-home' : ''}`}
+         style={{ '--sb-w': `${collapsed ? 0 : mobileShell ? drawerW : sidebarFootprint(layout, { coarse, roomy, snug })}px`, height: '100vh' }} data-sidebarqa-ready="1">
+      <aside className={`sidebar${mobileShell && DRAWER ? ' is-mobile-open' : ''}`}>
         <div className="sb-mid">
           <ClusterSidebar
             workspaceId={WS}
@@ -404,15 +407,15 @@ export function SidebarQaHarness() {
             activeBoardId={SURFACE === 'home' ? null : active}
             liveBoardId={live ? active : null}
             liveCards={live ? (CARDS[active] || []) : null}
-            coarse={phone}
+            coarse={coarse}
             top={top}
             foot={foot}
             layout={layout}
-            onLayout={phone ? null : onLayout}
-            floating={!phone}
+            onLayout={mobileShell ? null : onLayout}
+            floating={!mobileShell}
             roomy={roomy}
             snug={snug}
-            sizable={!phone && !collapsed}
+            sizable={!mobileShell && !collapsed}
             quickNav={{
               home: { active: SURFACE === 'home', onClick: () => say('home') },
               messages: { pressed: msgsOpen, unread: 2, onClick: () => { say('messages'); if (MSG_QA) setMsgsOpen((o) => !o); } },
@@ -456,7 +459,7 @@ export function SidebarQaHarness() {
         {/* The desktop bar as App draws it with the files sidebar, over a
             stand-in canvas whose top-edge controls carry the real classes, so
             the islands meet the very rules they would meet on a board. */}
-        {!phone && (
+        {!mobileShell && (
           <FloatingChrome
             left={(
               <>
@@ -511,7 +514,7 @@ export function SidebarQaHarness() {
             <GraphFixtureContext.Provider value={homeGraph}>
             <ClustersHome
               boards={homeBoards} rootId="root" workspaceId={WS} canCreate={!VIEWER}
-              Graph={phone ? null : HomeGraph}
+              Graph={mobileShell ? null : HomeGraph}
               graphProps={{ workspaceId: WS, onNavigate: (t) => say(`navigate ${t?.kind || ''}`) }}
               workspace={HOME_WORKSPACES[0]} workspaces={HOME_WORKSPACES} personalWorkspaceId="ws-personal"
               selfUserId={SELF.id} wsPeers={PEERS} memberCount={4} canManageWorkspace={!VIEWER}
@@ -557,7 +560,7 @@ export function SidebarQaHarness() {
                 </div>
               ))}
             </div>
-            {!phone && (
+            {!mobileShell && (
               <>
                 <button type="button" className="cnv-comments-eye" aria-label="Comments">◉</button>
                 <div className="board-tags-strip"><span className="sbqa-tag">#location</span></div>

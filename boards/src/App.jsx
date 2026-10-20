@@ -283,6 +283,7 @@ const SurfaceGallery = lazyWithReload(() => import('./components/gallery/Surface
 const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.jsx').then(m => ({ default: m.AspectMask })));
 const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.jsx').then(m => ({ default: m.Spotlight })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
+import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 
 // A cluster with nothing on its board but files in Files gets a cover of its
@@ -840,8 +841,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // isTouch still drives the focus button, tap-to-view, auto-hide and 44px
   // targets below, so every iPad gets the touch affordances regardless of
   // orientation. Plain desktop (mouse, !isTouch) is unaffected.
-  const { isPhone, isTablet, isTouch } = useBreakpoint();
-  const mobileShell = isPhone || (isTablet && isTouch);
+  const breakpoint = useBreakpoint();
+  const { isPhone, isTouch } = breakpoint;
+  const { mobileShell } = shellOf(breakpoint);
   // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx),
   // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
   // Read this early: with it, Files has no dock and no pill (see canDockMain).

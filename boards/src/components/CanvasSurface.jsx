@@ -97,6 +97,7 @@ import {
   publishGridLayout, unpublishGridLayout,
 } from '../lib/gridLayoutsApi.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween, spreadDropPoints } from '../lib/filesDrag.js';
@@ -1896,11 +1897,12 @@ export function CanvasSurface({
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
   const [mobileAdd, setMobileAdd] = useState(null);
-  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  const breakpoint = useBreakpoint();
+  const { isPhone, isTouch } = breakpoint;
   // The whole touch shell that shows the bottom-nav "+" puck (App/LocalBoardsApp
   // gate the nav on this) — phones plus touch tablets and landscape phones. The
   // add sheet must render for all of them or the puck dead-ends there.
-  const mobileShell = isPhone || (isTablet && isTouch);
+  const { mobileShell } = shellOf(breakpoint);
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   // The same pointer in SCREEN space. A wheel or trackpad pan moves the camera

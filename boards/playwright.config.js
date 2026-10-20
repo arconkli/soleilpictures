@@ -1,12 +1,19 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Four projects:
+// Six projects:
 //   - desktop-chrome  (regression guard; all existing /tests/*.spec.js tests
 //                     run here. Must stay green on every phase.)
 //   - mobile-chrome / mobile-safari / tablet  (added during the mobile/tablet
 //                     overhaul. Run only the new specs in /tests/mobile/ and
 //                     /tests/visual/ — existing desktop suites are excluded
 //                     so they don't fail on touch-only or narrow layouts.)
+//   - tablet-landscape / tablet-landscape-chrome  (an iPad and an Android
+//                     tablet held sideways: desktop-width, so the desktop
+//                     layout, with a finger for a pointer. Nothing else ever
+//                     drew that. Run /tests/tablet/, which is landscape only.)
+// /tests/touch/ runs on every touch project: what a finger must be able to do
+// on any phone or tablet. Holds there use CDP touch, so Chromium only — WebKit
+// drops pointerType from synthesized PointerEvents (see mobile/long-press).
 //
 // Mobile projects run a narrower test path; the existing chromium suite is
 // preserved verbatim under the new `desktop-chrome` name.
@@ -69,22 +76,34 @@ export default defineConfig({
       // ran here, on a 1280×800 desktop with no touch — asserting a Pages
       // drawer and a selection bubble that only exist on a phone, and failing
       // every run. They were never desktop tests.
-      testIgnore: ['mobile/**', 'visual/**'],
+      testIgnore: ['mobile/**', 'visual/**', 'touch/**', 'tablet/**'],
     },
     {
       name: 'mobile-chrome',
       use: { ...devices['Pixel 5'] },
-      testMatch: ['mobile/**/*.spec.js', 'visual/**/*.spec.js'],
+      testMatch: ['mobile/**/*.spec.js', 'visual/**/*.spec.js', 'touch/**/*.spec.js'],
     },
     {
       name: 'mobile-safari',
       use: { ...devices['iPhone 13'] },
-      testMatch: ['mobile/**/*.spec.js', 'visual/**/*.spec.js'],
+      testMatch: ['mobile/**/*.spec.js', 'visual/**/*.spec.js', 'touch/**/*.spec.js'],
     },
     {
       name: 'tablet',
       use: { ...devices['iPad Pro 11'] },
-      testMatch: ['mobile/**/*.spec.js', 'visual/**/*.spec.js'],
+      testMatch: ['mobile/**/*.spec.js', 'visual/**/*.spec.js', 'touch/**/*.spec.js'],
+    },
+    {
+      // 1194×834, WebKit: the desktop layout under a finger.
+      name: 'tablet-landscape',
+      use: { ...devices['iPad Pro 11 landscape'] },
+      testMatch: ['tablet/**/*.spec.js', 'touch/**/*.spec.js'],
+    },
+    {
+      // 1138×712, Chromium: the same, with real CDP touch for holds.
+      name: 'tablet-landscape-chrome',
+      use: { ...devices['Galaxy Tab S4 landscape'] },
+      testMatch: ['tablet/**/*.spec.js', 'touch/**/*.spec.js'],
     },
   ],
 });

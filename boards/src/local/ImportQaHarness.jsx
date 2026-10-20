@@ -9,13 +9,16 @@ import { askCopy, zipAskCopy } from '../lib/importCopy.js';
 import { UnplacedOffer } from '../components/UnplacedOffer.jsx';
 import { ImportWaitRow } from '../components/ImportWaitRow.jsx';
 import { openImportGuide } from '../lib/importGuide.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 
 // Dev-only bulk-import QA page (?importqa=1), no backend. Renders the tray, its
 // chip and the ask dialog from fixtures shaped like lib/importCopy.test.mjs.
 //   ?state=reading|creating|run|paused|wait-free|wait-storage-paid|wait-trial|
 //          wait-guest|done|done-fails|cancelled|failed|reload|redrop   (default run)
 //          (reload / redrop: stopped by a reload, with and without a kept folder)
-//   ?min=1 starts folded to the chip   ?phone=1 lifts it over the phone nav
+//   ?min=1 starts folded to the chip   ?phone=1 forces the phone shell on a desktop
+//          browser (otherwise the screen decides, as in App: lib/deviceShell.js)
 //   ?theme=light|dark   ?dialog=free|creator|trial|guest|zip-takeout|zip-one|zip-many
 //   ?menu=1 opens the sidebar's Upload menu (its last item opens the guide)
 //   ?guide=1 opens the tray's guide: &app=drive|photos|dropbox|onedrive|icloud|other
@@ -150,10 +153,10 @@ const ROOMS = {
   paid: { own: true, plan: 'paid', cardsLeft: null, bytesLeft: 412 * GB },
   guest: { own: false, plan: 'free', cardsLeft: 12, bytesLeft: 3.8 * GB },
 };
-const guideProps = () => ({
+const guideProps = ({ mobileShell }) => ({
   target: params.get('target') === '0' ? null : 'Studio',
   room: ROOMS[params.get('plan')] || ROOMS.free,
-  canFolder: params.get('phone') !== '1',
+  canFolder: !mobileShell,
   onImport: (input) => {
     const [kind, list] = input.zips ? ['zips', input.zips] : input.pickedFiles ? ['folder', input.pickedFiles]
       : input.entries ? ['entries', input.entries] : ['files', input.files || []];
@@ -179,7 +182,14 @@ function MenuQa() {
   );
 }
 
+// The shell App would give this screen; ?phone=1 forces a phone's on a desktop browser.
+function useQaShell() {
+  const shell = shellOf(useBreakpoint());
+  return params.get('phone') === '1' ? { mobileShell: true, coarse: true } : shell;
+}
+
 export function ImportQaHarness() {
+  const shell = useQaShell();
   const state = params.get('state') || 'run';
   const dialog = params.get('dialog');
   const theme = params.get('theme') === 'light' ? 'light' : 'dark';
@@ -208,7 +218,7 @@ export function ImportQaHarness() {
   }, [guide]);
 
   return (
-    <div className="app sb-files is-floating-chrome" style={{ position: 'fixed', inset: 0, background: 'var(--bg-0, #0b0b0d)' }}>
+    <div className={`app sb-files${shell.mobileShell ? '' : ' is-floating-chrome'}`} style={{ position: 'fixed', inset: 0, background: 'var(--bg-0, #0b0b0d)' }}>
       <div className="cnv-zoom" style={{ position: 'fixed' }}>
         <button type="button">{'−'}</button>
         <button type="button">100%</button>
@@ -219,12 +229,12 @@ export function ImportQaHarness() {
         : dialog && DIALOGS[dialog]
         ? <ImportAskDialog model={askCopy(DIALOGS[dialog])} onChoose={(id) => console.log('[importqa] choose', id)} />
         : params.get('menu') === '1'
-        ? <><MenuQa /><ImportTray guide={guideProps()} /></>
+        ? <><MenuQa /><ImportTray guide={guideProps(shell)} /></>
         : params.get('land')
         ? <LandQa which={params.get('land')} />
         : <>
             {params.get('row') === '1' && <RowQa />}
-            <ImportTray aboveNav={params.get('phone') === '1'} initialMinimized={params.get('min') === '1'} guide={guideProps()} />
+            <ImportTray aboveNav={shell.mobileShell} initialMinimized={params.get('min') === '1'} guide={guideProps(shell)} />
           </>}
     </div>
   );
