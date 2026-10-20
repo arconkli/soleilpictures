@@ -98,6 +98,20 @@ export function bulkImportAllowed() {
   try { return window.localStorage.getItem(BULK_IMPORT_DEV_FLAG) === '1'; } catch (_) { return false; }
 }
 
+// First-run setup (lib/workspaceSetup.js): a new signup names their workspace,
+// says who it's for and invites people before the canvas, then gets tips for
+// the sidebar. It launches with the sidebar's release (owner, 2026-10-20), so
+// it opens only where that does; on dev it is opt-in on top, localStorage
+// soleil.dev.workspaceSetup = '1' (its own specs set it), because other
+// sessions' specs sign up fresh users and would land on the setup steps.
+export const WORKSPACE_SETUP_DEV_FLAG = 'soleil.dev.workspaceSetup';
+export function workspaceSetupAllowed() {
+  if (!sidebarFilesAllowed()) return false;
+  if (onPreviewHost()) return true;
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(WORKSPACE_SETUP_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
 // The board's ground drawn on a canvas in step with the camera, and a mouse
 // wheel's zoom that glides (lib/canvasGround.js). Held like the files sidebar:
 // on for the preview deploy, and on dev only when opted in with localStorage
