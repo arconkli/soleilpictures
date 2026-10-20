@@ -1184,6 +1184,25 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     await letGo(page);
   });
 
+  test('the toast after a move offers Put on board, which asks for that cluster\'s board; a refusal says why', async ({ page }) => {
+    await open(page);
+    await holdDrag(page, '[data-sb-item="film:film-img-0"]', treeRowSel('loc'));
+    await letGo(page);
+    const t = page.getByTestId('sbqa-toast');
+    await expect(t).toContainText('Moved film-still-001.jpg to Locations');
+    await expect(t.getByRole('button')).toHaveText(['Put on board', 'Undo']);
+    await t.getByRole('button', { name: 'Put on board' }).click();
+    await expect.poll(async () => (await calls(page, 'putOnBoard')).length).toBe(1);
+    expect((await calls(page, 'putOnBoard'))[0].params).toEqual({ boardId: 'loc', cardIds: ['film-img-0'] });
+    // Refused, it says what App said.
+    await page.evaluate(() => { window.__sidebarQa.putFails = 'Locations is view-only for you.'; });
+    await holdDrag(page, '[data-sb-item="film:film-img-1"]', treeRowSel('loc'));
+    await letGo(page);
+    await expect(t).toContainText('Moved film-still-002.jpg to Locations');
+    await t.getByRole('button', { name: 'Put on board' }).click();
+    await expect(t).toContainText('Locations is view-only for you.');
+  });
+
   test('held over a folded cluster, a drag opens it', async ({ page }) => {
     await open(page);
     await row(page, 'Feature film').locator('.sb-tree-chev').click();

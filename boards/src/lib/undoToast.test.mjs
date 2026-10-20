@@ -51,3 +51,17 @@ test('no message or no feedback is a silent no-op', () => {
   assert.equal(fb.calls.length, 0);
   undoToast(null, { message: 'x', onUndo: () => {} });
 });
+
+test('another way on goes before Undo, and Undo still guards its step', () => {
+  const fb = fakeFeedback();
+  let put = 0, fired = 0;
+  undoToast(fb, { message: 'Moved', also: [{ label: 'Put on board', onClick: () => { put++; } }, null], onUndo: () => { fired++; } });
+  const [t] = fb.calls;
+  assert.equal(t.action, undefined);
+  assert.deepEqual(t.actions.map((a) => a.label), ['Put on board', 'Undo']);
+  t.actions[0].onClick();
+  t.actions[1].onClick();
+  assert.deepEqual([put, fired], [1, 1]);
+  undoToast(fb, { message: 'Moved', also: [], onUndo: () => {} });
+  assert.equal(fb.calls[1].action.label, 'Undo', 'nothing else: the one Undo, as before');
+});

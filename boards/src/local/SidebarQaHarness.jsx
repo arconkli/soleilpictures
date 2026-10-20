@@ -554,11 +554,11 @@ export function SidebarQaHarness() {
               {toast && (
                 <div data-testid="sbqa-toast" style={{ marginTop: 12 }}>
                   <span>{toast.message}</span>
-                  {toast.action && (
-                    <button type="button" style={{ marginLeft: 8 }} onClick={() => { toast.action.onClick(); setToast(null); }}>
-                      {toast.action.label}
+                  {(toast.actions || (toast.action ? [toast.action] : [])).map((a) => (
+                    <button key={a.label} type="button" style={{ marginLeft: 8 }} onClick={() => { a.onClick(); setToast(null); }}>
+                      {a.label}
                     </button>
-                  )}
+                  ))}
                 </div>
               )}
             </div>

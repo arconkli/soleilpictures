@@ -60,6 +60,7 @@ import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { useSpring } from '../../hooks/useSpring.js';
 import { beginDragSession, dragSession } from '../../lib/springLoad.js';
 import { decideDrop, copyKeyHeld, whatOf } from '../../lib/dropRules.js';
+import { canStore } from '../../lib/placement.js';
 import { isStillUploading } from '../../lib/abandonedUploads.js';
 import { FILTER_CHIPS, SHELF_IDS } from '../../lib/sidebarShelves.js';
 import { SORTS, filterItems } from '../../lib/sidebarSort.js';
@@ -527,8 +528,11 @@ export function ClusterSidebar({
   // ── Moving files between clusters ─────────────────────────────────────────
   // Plain drop moves, the copy key copies (a linked copy: same stored file, one
   // more card). Both go through /api/clusters, so neither cluster has to be
-  // open, and both offer Undo. `what` names them as the drag's label did.
-  const runMove = useCallback(async ({ from, to, cardIds, copy = false, what = null }) => {
+  // open, and both offer Undo. `what` names them as the drag's label did. They
+  // land in the cluster's Files, off its board, so the toast also offers to put
+  // them on it (App's onPutOnBoard, which brings the cluster up) — unless
+  // `kinds` says none of them could wait in Files (a doc goes on the board).
+  const runMove = useCallback(async ({ from, to, cardIds, copy = false, what = null, kinds = null }) => {
     if (!from || !to || from === to || !cardIds?.length) return;
     const r = await api.moveFiles({ from, to, cardIds, mode: copy ? 'copy' : 'move' });
     if (!r.ok) {
@@ -567,7 +571,18 @@ export function ClusterSidebar({
     // Into the files of the cluster on the board, nothing new shows there:
     // the words say where they went.
     const where = to === activeBoardId ? `into ${nameOf(to)}’s files` : `to ${nameOf(to)}`;
+    const landed = copy ? (r.cards || []).map((c) => c.id) : (r.pairs || []).map((p) => p.to);
+    const storable = !kinds || kinds.some((kind) => canStore({ kind }));
+    const putOn = onPutOnBoard && storable && landed.length ? {
+      label: 'Put on board',
+      onClick: () => {
+        Promise.resolve(onPutOnBoard(to, landed))
+          .catch((e) => toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' }))
+          .finally(() => files.refresh());
+      },
+    } : null;
     undoToast(feedback, {
+      also: [putOn],
       message: `${copy ? 'Copied' : 'Moved'} ${said} ${where}${extra}`,
       onUndo: async () => {
         const u = copy
@@ -581,7 +596,7 @@ export function ClusterSidebar({
         files.refresh();
       },
     });
-  }, [api, files, feedback, clearSelection, activeBoardId]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [api, files, feedback, clearSelection, activeBoardId, onPutOnBoard]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const groupByCluster = (items) => {
     const out = new Map();
@@ -679,7 +694,7 @@ export function ClusterSidebar({
     };
     for (const [copy, list] of [[false, d.move], [true, d.copy]]) {
       for (const [from, fs] of byCluster(list)) {
-        await runMove({ from, to, cardIds: fs.map((f) => f.id), copy, what: whatOf(fs) });
+        await runMove({ from, to, cardIds: fs.map((f) => f.id), copy, what: whatOf(fs), kinds: fs.map((f) => f.kind) });
       }
     }
     clearSelection();
@@ -728,7 +743,7 @@ export function ClusterSidebar({
     const to = pickedId(await onPickCluster?.({ placeholder: copy ? 'Copy to…' : 'Move to…' }));
     if (!to) return;
     for (const [from, items] of groupByCluster(group)) {
-      if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId), copy, what: whatOf(items) });
+      if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId), copy, what: whatOf(items), kinds: items.map((x) => x.kind) });
     }
     clearSelection();
   };
