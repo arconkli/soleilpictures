@@ -39766,6 +39766,15 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "From the email address you sign in with, Clusters works out only what kind of address it is: a personal email service, a school or university, or an organization's own domain, and for a school or university, which one. It reads this from the address it already has and stores nothing new."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 3,
    "text": "Global Privacy Control",

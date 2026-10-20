@@ -1,0 +1,106 @@
+// featureEvents.js — what each feature on its way to production records, so
+// none ships blind (2026-10-20).
+//
+// Messages shipped its engine without one event and nobody noticed until an
+// audit. This map is the check that catches the next one. For every hold in
+// lib/appHost.js featureFlags(), plus the features that already shipped
+// without one, it names the EV keys that say someone SAW it (exposure), USED
+// it (action), what came of it (outcome) and how it FAILED (failure).
+// featureEvents.test.mjs fails when:
+//   * a hold has no entry here;
+//   * a feature open in production (its hold returns true, or it has none)
+//     lacks an exposure or an outcome;
+//   * a listed key is not in EV, or nothing in src emits it.
+// A hold that is still closed may say `unmeasured`, with why, instead. The
+// test then fails the day it opens.
+//
+// session_context records every hold for every session (its ff map), so it is
+// every feature's denominator. It is listed as the exposure only where the
+// feature is the session itself, a change to how the canvas draws or feels,
+// and session_summary (frame stats, gesture counters) is then the outcome,
+// read split by ff. Server-side, check_instrumentation() (0472) watches the
+// same events arrive once they ship.
+import { EV } from './analyticsEvents.js';
+
+export const FEATURE_EVENTS = Object.freeze({
+  // The Files sidebar, home of every file. Home v2 is its Home.
+  sidebarFiles: {
+    exposure: [EV.HOME_VIEW],
+    action: [EV.FILES_OPEN, EV.FILES_SEARCH, EV.FILES_STAR, EV.FILES_MOVE, EV.FILES_PUT, EV.FILES_DELETE, EV.HOME_CLUSTER_ACTION],
+    outcome: [EV.FILES_MOVE, EV.FILES_PUT, EV.FILES_OPEN],
+    failure: [EV.FILES_MOVE, EV.FILES_DELETE],
+  },
+  // A whole folder tree or zip becomes clusters, waiting when it won't fit.
+  bulkImport: {
+    exposure: [EV.IMPORT_PREFLIGHT],
+    action: [EV.IMPORT_JOB],
+    outcome: [EV.FOLDER_IMPORT],
+    failure: [EV.FOLDER_IMPORT, EV.IMPORT_JOB],
+  },
+  // Setup screens before the canvas, the link-first invite, the tips and the re-ask.
+  workspaceSetup: {
+    exposure: [EV.SETUP_STEP, EV.SETUP_TIPS, EV.INVITE_REASK],
+    action: [EV.SETUP_STEP, EV.WORKSPACE_LINK_CREATED, EV.WORKSPACE_LINK_SHARED],
+    outcome: [EV.SETUP_DONE, EV.WORKSPACE_LINK_CLAIM_RESULT, EV.JOINER_LANDED],
+    failure: [EV.SETUP_ERROR],
+  },
+  // The painted canvas ground and the wheel glide: how the canvas draws and feels.
+  boardGround: {
+    exposure: [EV.SESSION_CONTEXT],
+    action: [],
+    outcome: [EV.SESSION_SUMMARY],
+    failure: [],
+  },
+  // Offers to make a cluster, and the rail's Cluster tool.
+  clusterNudges: {
+    exposure: [EV.CLUSTER_NUDGE, EV.CLUSTER_TOOL_HINT],
+    action: [EV.CLUSTER_NUDGE, EV.CARDS_MOVE],
+    outcome: [EV.CLUSTER_CREATE],
+    failure: [EV.CLUSTER_CREATE_FAIL, EV.CARDS_MOVE_FAIL],
+  },
+  // Hold to select, the lift, pinch and two-finger pan on phones and tablets.
+  touchPass: {
+    exposure: [EV.SESSION_CONTEXT, EV.MOBILE_LIFT_HINT_SHOWN],
+    action: [EV.TOUCH_SELECT],
+    outcome: [EV.TOUCH_SELECT, EV.SESSION_SUMMARY],
+    failure: [EV.MOBILE_LIFT_CANCELLED],
+  },
+  // Sharing one file (/f/): the dialog, and the person it reaches.
+  fileShares: {
+    exposure: [EV.FILE_SHARE_OPEN],
+    action: [EV.FILE_SHARE_ACCESS_SET, EV.FILE_SHARE_PEOPLE_ADD, EV.FILE_SHARE_PERSON_SET, EV.FILE_SHARE_LINK_COPY],
+    outcome: [EV.FILE_SHARE_VIEW, EV.FILE_SHARE_DOWNLOAD],
+    failure: [EV.FILE_SHARE_FAIL],
+  },
+  // The Shared page: what was shared with you, and by you.
+  sharedFiles: {
+    exposure: [EV.SHARED_PAGE_VIEW],
+    action: [EV.SHARED_FILE_OPEN, EV.SHARED_FILE_HIDE],
+    outcome: [EV.SHARED_FILE_SAVE, EV.SHARED_FILE_SHORTCUT],
+    failure: [EV.SHARED_FILE_SAVE, EV.SHARED_FILE_SHORTCUT],
+  },
+  // A document shared like a file: the same dialog and page, with kind 'doc'.
+  docShares: {
+    exposure: [EV.FILE_SHARE_OPEN],
+    action: [EV.FILE_SHARE_ACCESS_SET, EV.FILE_SHARE_PEOPLE_ADD, EV.FILE_SHARE_PERSON_SET, EV.FILE_SHARE_LINK_COPY],
+    outcome: [EV.FILE_SHARE_VIEW],
+    failure: [EV.FILE_SHARE_FAIL],
+  },
+  templateStore: {
+    unmeasured: 'The template shop (pages/TemplateSharePage.jsx) records nothing yet. Before it opens: its page seen, and a template taken.',
+  },
+  scheduleCreation: {
+    unmeasured: 'Schedule is deprecated (owner, 2026-10-18) and is not meant to open.',
+  },
+  scoutConnect: {
+    unmeasured: 'Connecting Scout (settings/ConnectionsTab.jsx) records nothing yet, and the bot has never run.',
+  },
+
+  // Shipped without a hold.
+  messages: {
+    exposure: [EV.MSG_PANEL, EV.MSG_CONV_OPEN],
+    action: [EV.MSG_SEND, EV.MSG_ACTION, EV.MSG_SEARCH],
+    outcome: [EV.MSG_SEND],
+    failure: [EV.MSG_SEND],
+  },
+});

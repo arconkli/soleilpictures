@@ -218,10 +218,14 @@ test("every reader that took 0149's rule asks the helper, and the proof names ea
   for (const name of CONFIRMED_ALONE) {
     assert.doesNotMatch(one(name).body, /email_confirmed_at\s+is\s+not\s+null/i, `${name} no longer counts confirmed addresses`);
   }
-  // 0462 moved one more column of admin_list_users onto the helper.
-  const LATER = { admin_list_users: FILE_0462 };
+  // 0462 moved one more column of admin_list_users onto the helper; 0472 gave
+  // admin_event_coverage four more rows. Each later body still asks the helper.
+  const LATER = { admin_list_users: FILE_0462, admin_event_coverage: '0472_instrumentation_check.sql' };
   for (const name of new Set(HERE.map((d) => d.name))) {
     assert.equal(latestDefinition(name).file, LATER[name] ?? FILE, `the live ${name} is ${LATER[name] ?? 'this one'}`);
+  }
+  for (const name of Object.keys(LATER)) {
+    assert.match(latestDefinition(name).body, /public\._admin_entered_code\(\)/, `${name} in ${LATER[name]} still asks the helper`);
   }
   assert.deepEqual(proofArray('v_closed'), [
     'public._admin_people(boolean,boolean)',

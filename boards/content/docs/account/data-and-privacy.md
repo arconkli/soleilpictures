@@ -156,6 +156,11 @@ This record stays in Clusters' own database and is not sent to advertising
 partners. To build it, Clusters does not probe your graphics card, your fonts or
 your audio hardware.
 
+From the email address you sign in with, Clusters works out only what kind of
+address it is: a personal email service, a school or university, or an
+organization's own domain, and for a school or university, which one. It reads
+this from the address it already has and stores nothing new.
+
 ### Global Privacy Control
 
 If your browser sends **Global Privacy Control**, Clusters treats it as a

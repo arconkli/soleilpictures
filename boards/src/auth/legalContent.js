@@ -36,7 +36,7 @@ const privacy = {
         'We collect the following categories of information:',
         {
           list: [
-            'Account information. When you sign in we collect your email address. We use a one-time passcode (OTP) sent to your email instead of a password, so we do not collect or store a password.',
+            'Account information. When you sign in we collect your email address. We use a one-time passcode (OTP) sent to your email instead of a password, so we do not collect or store a password. To understand who uses the Service, we also group addresses by the kind of provider they come from — a personal email service, a school or university, or an organization’s own domain — and, for a school or university, by the institution.',
             'Content you create. The clusters, canvases, notes, documents, comments, tags, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas.',
             'Collaboration data. When you share a cluster, invite collaborators, or create public links, we process the information needed to provide those features, including collaborators’ email addresses and presence or activity within a shared workspace. If you take part in our referral program, we also process the email address you use to invite someone and the information needed to determine reward eligibility.',
             'Payment information. If you subscribe to a paid plan, our payment processor (Stripe) collects and processes your payment details. We do not receive or store full card numbers; we keep limited billing metadata such as your subscription status, plan, and customer and subscription identifiers.',

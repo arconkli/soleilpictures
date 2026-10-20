@@ -499,6 +499,12 @@ RPCS.admin_event_coverage = [
   { milestone: 'first_populated_board', server_truth: 41, client_event: 39, coverage_pct: 0.9512 },
   { milestone: 'first_share',           server_truth: 31, client_event: 19, coverage_pct: 0.6129 },
   { milestone: 'first_paid',            server_truth: 17, client_event: 17, coverage_pct: 1 },
+  // 0472's rows. joined_by_link is the 0-of-0 case: a feature nobody has used
+  // yet, whose coverage_pct is null rather than 0.
+  { milestone: 'first_cluster',         server_truth: 44, client_event: 41, coverage_pct: 0.9318 },
+  { milestone: 'first_message',         server_truth: 12, client_event: 12, coverage_pct: 1 },
+  { milestone: 'first_import',          server_truth: 6,  client_event: 5,  coverage_pct: 0.8333 },
+  { milestone: 'joined_by_link',        server_truth: 0,  client_event: 0,  coverage_pct: null },
 ];
 
 // admin_email_stats(category, template, sent, delivered, opened, clicked,
