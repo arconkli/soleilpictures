@@ -683,9 +683,13 @@ export function CanvasSurface({
   // `cards` for callers that don't split them.
   allCards = null,
   onRevealUnplaced = null, // (ids) => void — show files that aren't on the board in Files
-  // (payload, { x, y }) => void — files dragged from the sidebar out of ANOTHER
-  // cluster move here, at the drop point (App runs the move; ⌥ still copies).
+  // (payload, { x, y }, { copy, what }) => void — with the sidebar's Files, files
+  // dragged from Files out of ANOTHER cluster move here, at the drop point, or
+  // are copied with the copy key (lib/dropRules.js; App runs it by the route).
   onMoveFilesHere = null,
+  // ({ from, to, cardIds, copy, what, kinds }) => Promise<bool> — with the
+  // sidebar's Files, Move to cluster… and Copy to cluster… go by the route too.
+  onMoveFiles = null,
 }) {
   const everyCard = allCards || cards;
   const allCardsRef = useRef(everyCard);
@@ -694,6 +698,8 @@ export function CanvasSurface({
   onRevealUnplacedRef.current = onRevealUnplaced;
   const onMoveFilesHereRef = useRef(onMoveFilesHere);
   onMoveFilesHereRef.current = onMoveFilesHere;
+  const onMoveFilesRef = useRef(onMoveFiles);
+  onMoveFilesRef.current = onMoveFiles;
   const unplacedCount = useMemo(() => countUnplaced(everyCard), [everyCard]);
   // What the empty board's offer speaks for (UnplacedOffer): only worked out
   // while nothing is on the board.
@@ -6427,6 +6433,24 @@ export function CanvasSurface({
     return n;
   };
 
+  // Move to cluster… and Copy to cluster… with the drop rules (the sidebar's
+  // Files): by the route, like every other move between clusters — the same
+  // cards, kept in that cluster's Files, with Undo and Put on board in App's
+  // toast. A move keeps a snapshot of this board first, as a drag does.
+  const sendCardsByRoute = (ids, targetId, list, copy) => {
+    if (!copy && ydoc && board?.id) {
+      saveBoardVersion(board.id, ydoc, {
+        triggerKind: 'pre-drop', sessionId, userId, label: 'pre-move-to-cluster',
+        opSummary: { action: 'move-to-cluster', via: 'menu', target_board: targetId, card_count: ids.length },
+      });
+    }
+    return onMoveFilesRef.current?.({
+      from: board.id, to: targetId, cardIds: ids, copy,
+      what: whatOf(list.map((c) => ({ kind: c.kind, name: c.title || c.label || c.fileName || '' }))),
+      kinds: list.map((c) => c.kind),
+    });
+  };
+
   // Move cards from THIS canvas into another cluster. Dropping cards on a
   // cluster card and "Move to cluster…" in the card menu both land here, so the
   // menu inherits everything the drag earned: the pre-move snapshot, the
@@ -6947,6 +6971,69 @@ export function CanvasSurface({
       const dc = cardById[id];
       if (dc) startPositions[id] = { x: dc.x, y: dc.y };
     });
+    // ── Onto a cluster outside the board (the drop rules) ──
+    // With the sidebar's Files, a card let go of over a cluster outside the
+    // board (a tree row, the sidebar's Files, a folder or the list in docked
+    // Files) goes there by the route, as a file dragged from Files would:
+    // kept in its Files, or copied with the copy key; clusters nest under a
+    // tree row. The card is under the sidebar by then, so the label at the
+    // pointer (DragLabel.jsx) says what letting go does, and the place lights
+    // up. Refused, the card goes back where it was.
+    const rulesDrag = !!onMoveFilesRef.current && canEdit && !isPublic;
+    const outsideDrop = { el: null, d: null };
+    let filesOfDrag = null;
+    const dragFiles = () => (filesOfDrag ||= dragIds.map((id) => cardById[id]).filter(Boolean)
+      .filter((dc) => dc.kind !== 'board' && dc.kind !== 'boardlink')
+      .map((dc) => ({
+        id: dc.id, kind: dc.kind, name: dc.title || dc.label || dc.fileName || '',
+        boardId: board.id, uploading: isStillUploading(dc), canMove: true,
+      })));
+    const clustersOfDrag = () => dragIds.map((id) => cardById[id]).filter(Boolean)
+      .map((dc) => (dc.kind === 'board' ? dc.id : dc.kind === 'boardlink' ? dc.target : null));
+    // The cluster outside the board under the pointer: the first thing there
+    // that isn't a dragged card, when that isn't this board (nor another
+    // pane's, which takes cards its own way).
+    const outsideTargetAt = (stack) => {
+      const top = (stack || []).find((el) => {
+        const ce = el?.closest?.('[data-card-id]');
+        return !ce || !dragIds.includes(ce.getAttribute('data-card-id'));
+      });
+      if (!top || wrapRef.current?.contains(top)) return null;
+      const t = top.closest?.('[data-drop-board]');
+      return t && !t.matches('.canvas-wrap') ? t : null;
+    };
+    // What letting go there does. Files ask the label (DragLabel.jsx), which
+    // answers with lib/dropRules.js; clusters nest under a tree row.
+    const decideOutside = (el, ev) => {
+      if (dragFiles().length) {
+        const detail = {
+          el, x: ev.clientX, y: ev.clientY,
+          mods: { altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey },
+          drag: { files: dragFiles(), sourceName: board.name || '', workspaceId: board.workspace_id || workspaceId || null },
+          decision: null,
+        };
+        document.dispatchEvent(new CustomEvent('soleil-card-drag-over', { detail }));
+        return detail.decision;
+      }
+      const to = el.getAttribute('data-drop-board');
+      const ids = clustersOfDrag();
+      const ok = el.matches('.sb-tree-row') && ids.length > 0 && ids.every(Boolean)
+        && !ids.some((id) => id === to || wouldCreateCycle(boards, id, to));
+      return { action: ok ? 'nest' : 'none', nest: ok ? ids : [] };
+    };
+    const setOutside = (el, d) => {
+      if (outsideDrop.el && outsideDrop.el !== el) outsideDrop.el.removeAttribute('data-card-drop');
+      outsideDrop.el = el;
+      outsideDrop.d = d;
+      if (!el) return;
+      if (d && d.action !== 'none') el.setAttribute('data-card-drop', '');
+      else el.removeAttribute('data-card-drop');
+    };
+    const clearOutside = () => {
+      if (!outsideDrop.el) return;
+      setOutside(null, null);
+      document.dispatchEvent(new CustomEvent('soleil-card-drag-end'));
+    };
     const startClient = { x: e.clientX, y: e.clientY };
     // The drag runs in WORLD space: the pointer's board point now minus its
     // board point at the origin, both through the live camera refs. Dividing a
@@ -7222,15 +7309,21 @@ export function CanvasSurface({
       // A card still uploading can't go into a cell (routeCardIntoCell), so it
       // never lights one up either.
       const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
-      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable)
+      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable || rulesDrag)
         && (Math.abs(dx) + Math.abs(dy) > 4);
       if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
         lastHitTestT = nowT;
         // The dragged cards sit under the cursor, so use elementsFromPoint and
         // walk the stack for the first id that ISN'T in the dragged set.
         const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
+        // Over a cluster outside the board, nothing on the board under it counts.
+        const outsideEl = rulesDrag ? outsideTargetAt(stack) : null;
+        if (outsideEl !== outsideDrop.el) {
+          if (outsideEl) setOutside(outsideEl, null);
+          else clearOutside();
+        }
         let nextDropTarget = null;
-        if (dropCandidateIds.length) {
+        if (dropCandidateIds.length && !outsideEl) {
           for (const el of stack) {
             const cardEl = el?.closest?.('[data-card-id]');
             const id = cardEl?.getAttribute?.('data-card-id');
@@ -7274,7 +7367,7 @@ export function CanvasSurface({
         // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
         // a multi-select drag never shows a misleading affordance.
         let nextCell = null;
-        if (!nextDropTarget && soloCellable) {
+        if (!nextDropTarget && soloCellable && !outsideEl) {
           for (const el of stack) {
             const cellEl = el?.closest?.('[data-cell-id]');
             if (!cellEl) continue;
@@ -7287,6 +7380,9 @@ export function CanvasSurface({
         }
         updateCellDropTarget(nextCell);
       }
+      // Over a cluster outside the board: the label follows the pointer and the
+      // keys, every frame (the place under it is found at the hit test's pace).
+      if (outsideDrop.el) setOutside(outsideDrop.el, decideOutside(outsideDrop.el, ev));
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -7369,6 +7465,32 @@ export function CanvasSurface({
       // committed position. (The Y.Doc updateCards call below propagates
       // the final position via Yjs sync.)
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      // ── Onto a cluster outside the board (the drop rules) ──
+      if (rulesDrag && (Math.abs(dx) + Math.abs(dy) > 4)) {
+        const outEl = outsideTargetAt(document.elementsFromPoint(ev.clientX, ev.clientY) || []);
+        const d = outEl ? decideOutside(outEl, ev) : null;
+        clearOutside();
+        if (outEl) {
+          // Not a move on this board: the cards go back where they were, and
+          // leave it only once the route has them.
+          updateCellDropTarget(null);
+          updateBoardDropTarget(null);
+          document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
+          setDrag(null);
+          const to = outEl.getAttribute('data-drop-board');
+          if (d?.action === 'nest') {
+            document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+              detail: { childIds: d.nest, targetId: to, sourceSurface: 'canvas' },
+            }));
+          } else if (d && d.action !== 'none') {
+            for (const [copy, list] of [[false, d.move || []], [true, d.copy || []]]) {
+              const ids = list.map((f) => f.id);
+              if (ids.length) sendCardsByRoute(ids, to, ids.map((id) => cardById[id]).filter(Boolean), copy);
+            }
+          }
+          return;
+        }
+      }
       // ── Drop a single card INTO a grid cell (auto-formats by kind) ──
       const cellTarget = cellDropTargetRef.current;
       updateCellDropTarget(null);
@@ -7471,6 +7593,7 @@ export function CanvasSurface({
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
       cleanupTouchHold();
+      clearOutside();
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
       if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
@@ -7501,6 +7624,7 @@ export function CanvasSurface({
       pendingLiveDrag = null;
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       cleanupTouchHold();
+      clearOutside();
       updateBoardDropTarget(null);
       updateCellDropTarget(null);
       clearSnapGuidesNow();
@@ -8138,6 +8262,8 @@ export function CanvasSurface({
           ? { id: 'mcb-new', label: 'New cluster…', run: () => createClusterFrom(ids, { via: 'move_to_new' }) }
           : null;
         if (targets.length) {
+          // With the drop rules, by the route, and Copy to… beside Move to….
+          const byRoute = !!onMoveFilesRef.current;
           arrangeItems.push({
             id: 'move-cards-to-board',
             label: ids.length > 1 ? `Move ${ids.length} cards to…` : 'Move to cluster…',
@@ -8146,10 +8272,17 @@ export function CanvasSurface({
               ...targets.map(t => ({
                 id: 'mcb-' + t.id,
                 label: t.label,
-                run: () => moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' }),
+                run: () => (byRoute ? sendCardsByRoute(ids, t.id, moving, false) : moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' })),
               })),
             ],
           });
+          if (byRoute) {
+            arrangeItems.push({
+              id: 'copy-cards-to-board',
+              label: ids.length > 1 ? `Copy ${ids.length} cards to…` : 'Copy to cluster…',
+              submenu: targets.map(t => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, moving, true) })),
+            });
+          }
         } else if (toNew && !multi) {
           arrangeItems.push({ id: 'move-cards-to-new', label: 'Move to a new cluster…', run: toNew.run });
         }

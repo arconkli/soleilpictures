@@ -48,6 +48,6 @@ export function failureMessage(r, verb = 'move') {
   if (r.error === 'limit_reached') return 'That would go past the card limit.';
   if (r.error === 'cross_workspace') return 'Files move between clusters in the same workspace.';
   if (r.error === 'forbidden') return 'You can’t edit that cluster.';
-  if (r.error === 'room_unavailable') return `Couldn’t reach that cluster, so nothing was ${verb === 'remove' ? 'removed' : 'moved'}. Try again.`;
+  if (r.error === 'room_unavailable') return `Couldn’t reach that cluster, so nothing was ${verb === 'remove' ? 'removed' : verb === 'copy' ? 'copied' : 'moved'}. Try again.`;
   return r.message || `Couldn’t ${verb} those files.`;
 }

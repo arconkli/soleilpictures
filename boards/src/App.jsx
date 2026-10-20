@@ -112,7 +112,7 @@ import { ViewSwitch } from './components/ViewSwitch.jsx';
 import { NewClusterButton } from './components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
-import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX } from './lib/placement.js';
+import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX, canStore } from './lib/placement.js';
 import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalGuard.js';
@@ -4227,39 +4227,76 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return out;
   }, [bgDrops]);
 
-  // Files dragged from the sidebar out of ANOTHER cluster onto this board move
-  // here, at the drop point (⌥ still makes the linked copy, in CanvasSurface).
-  // Files from another cluster dropped on a board (CanvasSurface's Files drop):
-  // moved there by the route, at the drop point, or copied with the copy key
-  // (lib/dropRules.js decides which, and names them `what` as the drag did).
-  const moveFilesHere = async (targetId, payload, at, { copy = false, what = null } = {}) => {
+  // Files moved or copied between clusters through the route (lib/dropRules.js
+  // decides which). Dropped on a board (CanvasSurface's Files drop) they land
+  // at the drop point, `at`; from full Files (a folder, its list, Move to… and
+  // Copy to…) and the board's Move to cluster…, `at` is null and they're kept
+  // in the cluster's Files, off its board, with Put on board in the toast.
+  // `what` names them as the drag's label did; `kinds` says what they are (if
+  // none could wait in Files, no Put on board). → whether any arrived.
+  const moveFilesHere = async (targetId, payload, at, { copy = false, what = null, kinds = null } = {}) => {
     const from = payload?.sourceBoardId;
     const cardIds = (payload?.cards || []).map((c) => c.id);
-    const r = await moveFiles({ from, to: targetId, cardIds, mode: copy ? 'copy' : 'move', at });
-    if (!r.ok) { feedback.toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') }); return; }
+    if (!from || !targetId || from === targetId || !cardIds.length) return false;
+    const nameOf = (id) => boards[id]?.name || 'another cluster';
+    const r = await moveFiles({ from, to: targetId, cardIds, mode: copy ? 'copy' : 'move', at: at || null });
+    if (!r.ok) {
+      // They reached the other cluster but didn't all leave this one: the same
+      // move again finishes it without a second copy (the route finds them).
+      if (r.error === 'partial') {
+        setSidebarRefresh((n) => n + 1);
+        feedback.toast({
+          type: 'error',
+          message: `Moved to ${nameOf(targetId)}, but they’re still in ${nameOf(from)} too.`,
+          action: { label: 'Finish', onClick: () => moveFilesHere(targetId, payload, at, { what, kinds }) },
+        });
+        return false;
+      }
+      feedback.toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') });
+      return false;
+    }
     setSidebarRefresh((n) => n + 1);
     const n = copy ? (r.copied || 0) : (r.moved || 0);
+    const late = (r.kept?.length || 0) + (r.skipped?.length || 0);
     if (!n) {
-      const late = (r.kept?.length || 0) + (r.skipped?.length || 0);
-      feedback.toast({ type: 'info', message: late ? 'Those files are still uploading. Try again when they finish.' : 'Nothing moved.' });
-      return;
+      feedback.toast({ type: 'info', message: late ? 'Those files are still uploading. Try again when they finish.' : 'Those files aren’t there any more.' });
+      return false;
     }
     const said = what && n === cardIds.length ? what : n === 1 ? '1 file' : `${n} files`;
+    const where = at ? `here from ${nameOf(from)}`
+      : targetId === currentBoard?.id ? `into ${nameOf(targetId)}’s files` : `to ${nameOf(targetId)}`;
+    const extra = late ? ` · ${late} still uploading stayed put` : '';
+    const landed = copy ? (r.cards || []).map((c) => c.id) : (r.pairs || []).map((p) => p.to);
+    const storable = !kinds || kinds.some((kind) => canStore({ kind }));
+    const putOn = !at && storable && landed.length ? {
+      label: 'Put on board',
+      onClick: () => {
+        onPutOnBoard(targetId, landed)
+          .catch((e) => feedback.toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' }))
+          .finally(() => setSidebarRefresh((k) => k + 1));
+      },
+    } : null;
     undoToast(feedback, {
-      message: `${copy ? 'Copied' : 'Moved'} ${said} here from ${boards[from]?.name || 'another cluster'}`,
+      also: [putOn],
+      message: `${copy ? 'Copied' : 'Moved'} ${said} ${where}${extra}`,
       onUndo: async () => {
         const u = copy
-          ? await removeCards({ boardId: targetId, cardIds: (r.cards || []).map((c) => c.id) })
+          ? await removeCards({ boardId: targetId, cardIds: landed })
           : await moveFiles({
             from: targetId, to: from, mode: 'move',
             cardIds: (r.pairs || []).map((p) => p.to),
             restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
           });
         if (!u.ok) feedback.toast({ type: 'error', message: failureMessage(u, 'move') });
-        setSidebarRefresh((n) => n + 1);
+        setSidebarRefresh((k) => k + 1);
       },
     });
+    return true;
   };
+  // The same, for a surface that names both ends: full Files, the board's menu.
+  const moveFilesBetween = ({ from, to, cardIds, copy = false, what = null, kinds = null }) => (
+    moveFilesHere(to, { sourceBoardId: from, cards: (cardIds || []).map((id) => ({ id })) }, null, { copy, what, kinds })
+  );
 
   // ── Postgres board rename ─────────────────────────────────────────────────
   const renameBoardById = async (boardId, name, opts = {}) => {
@@ -9655,6 +9692,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        // the same distinction the chip and the cap wall already make.
                        onStorageUpsell={() => pitchStorageGate({ force: true })}
                        onPickCluster={requestClusterPick}
+                       // The drop rules (lib/dropRules.js), with the sidebar's Files:
+                       // its folders, its list, Move to… and Copy to… go by the route.
+                       onMoveFiles={filesSidebar ? moveFilesBetween : null}
                        paneId={paneId}
                        hasSplit={listMode === 'panel' || !!splitId}
                        mode={listMode}
@@ -9674,6 +9714,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={canvasCards} allCards={cards} arrows={arrows} strokes={strokes} groups={groups}
                            onRevealUnplaced={(ids) => revealInFiles(board.id, ids, isMain)}
                            onMoveFilesHere={filesSidebar ? (payload, at, opts) => moveFilesHere(board.id, payload, at, opts) : null}
+                           onMoveFiles={filesSidebar ? moveFilesBetween : null}
                            /* The empty panel waits for the Y.Doc (boardReady) and takes its
                               first-board shape from the server card count: no cards anywhere
                               means this is the first board (lib/firstBoardCopy). */

@@ -53,7 +53,7 @@ import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
 import { ClusterShelves } from './ClusterShelves.jsx';
 import { SidebarMeter } from './SidebarMeter.jsx';
 import { SidebarHandles, sizeAtOnce } from './SidebarHandles.jsx';
-import { DragLabel } from './DragLabel.jsx';
+import { DragLabel, BLANK_DRAG_IMAGE } from './DragLabel.jsx';
 import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
@@ -175,11 +175,6 @@ function clustersInOrder(list, rootId) {
 // Accents and case don't matter when finding a cluster by name.
 const plainText = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-// The browser's own drag image, blank: the label at the pointer
-// (DragLabel.jsx) is the one thing under it.
-const BLANK_DRAG_IMAGE = typeof Image !== 'undefined'
-  ? Object.assign(new Image(), { src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' })
-  : null;
 
 export function ClusterSidebar({
   workspaceId,
@@ -641,8 +636,10 @@ export function ClusterSidebar({
   }, [selected, workspaceId, canEdit]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // What letting go over `target` would do (lib/dropRules.js). The files come
-  // from the drag session; at a drop the session missed, from the payload.
-  const filesInDrag = (e) => {
+  // from the drag session; at a drop the session missed, from the payload; for
+  // a card dragged off the board (a pointer drag), from the board (`drag`).
+  const filesInDrag = (e, drag = null) => {
+    if (drag?.files?.length) return { files: drag.files, sourceName: drag.sourceName || '' };
     const s = dragSession();
     if (s?.kind === 'files' && s.files?.length) return { files: s.files, sourceName: s.sourceName || '' };
     if (e?.type !== 'drop') return null;
@@ -656,8 +653,8 @@ export function ClusterSidebar({
       })),
     };
   };
-  const decide = (e, target) => {
-    const drag = filesInDrag(e);
+  const decide = (e, target, handed = null) => {
+    const drag = filesInDrag(e, handed);
     if (!drag) return null;
     return decideDrop({ ...drag, target, workspaceId, workspaceName, copy: copyKeyHeld(e) });
   };
@@ -668,7 +665,7 @@ export function ClusterSidebar({
 
   // The label at the pointer asks the same thing of whatever's under it: a
   // tree row, the files list, a board, a cluster shared from elsewhere.
-  const resolveDrop = useCallback((el, e) => {
+  const resolveDrop = useCallback((el, e, handed = null) => {
     const id = el.getAttribute('data-drop-board');
     if (!id) return null;
     const elsewhere = el.getAttribute('data-drop-ws');
@@ -682,7 +679,7 @@ export function ClusterSidebar({
       workspaceName: el.getAttribute('data-drop-ws-name') || null,
       writable: !elsewhere && canEdit(id),
     };
-    return decide(e, target);
+    return decide(e, target, handed);
   }, [allBoards, canEdit, workspaceId, workspaceName]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Each file goes from its own cluster: one move (and one Undo) per cluster.

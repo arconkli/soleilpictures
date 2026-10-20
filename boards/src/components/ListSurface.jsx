@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
-import { beginDragSession, onDragSession } from '../lib/springLoad.js';
+import { canDragFromFiles, canCopyCard, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
+import { beginDragSession, dragSession, onDragSession } from '../lib/springLoad.js';
+import { decideDrop, copyKeyHeld, whatOf } from '../lib/dropRules.js';
+import { BLANK_DRAG_IMAGE, dragLabelShown } from './sidebar/DragLabel.jsx';
 import { useSpring } from '../hooks/useSpring.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { PathBar } from './clusterBrowser/PathBar.jsx';
@@ -212,6 +214,11 @@ export function ListSurface({
   spring = null,
   // Full Files: the way back up (PathBar trail), above the title.
   fullPathBar = null,
+  // With the sidebar's Files, the drop rules (lib/dropRules.js): files dropped
+  // on a folder or on this list, Move to… and Copy to… go by the route (App
+  // moveFilesBetween) — kept in that cluster's Files, ids and all.
+  // ({ from, to, cardIds, copy, what, kinds }) => Promise<bool>.
+  onMoveFiles = null,
 }) {
   const feedback = useFeedback();
   const isPanel = mode === 'panel';
@@ -358,6 +365,9 @@ export function ListSurface({
     }).filter(Boolean),
     [otherCards, boards, board.id, gridTemplates, getGridModel]
   );
+  // A file's name as its tile shows it: what a move says it moved.
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
+  const itemNameOf = (c) => itemById.get(c?.id)?.name || '';
 
   // Grid or List: this session's pick for the cluster, else what this device
   // remembers for it, else Grid (List for a mostly-audio pack).
@@ -1013,6 +1023,20 @@ export function ListSurface({
       feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
     }
     if (!moving.length) return false;
+    // With the drop rules, by the route: the same cards, kept in the other
+    // cluster's Files, with Undo and Put on board in App's toast. A cluster
+    // made for this move (`extra`) is filled on its board, as before.
+    if (onMoveFiles && !extra) {
+      const ok = await onMoveFiles({
+        from: from.boardId, to: targetId, cardIds: moving.map((c) => c.id),
+        what: whatOf(moving.map((c) => ({ kind: c.kind, name: itemNameOf(c) }))), kinds: moving.map((c) => c.kind),
+      });
+      if (ok) {
+        setSelectedCards(new Set());
+        try { invalidateBoardPreview(targetId); invalidateBoardPreview(from.boardId); } catch (_) {}
+      }
+      return ok;
+    }
     try {
       await new Promise((resolve, reject) => {
         document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
@@ -1032,7 +1056,7 @@ export function ListSurface({
     // A browsed cluster shows its saved snapshot: fetch it again with them in.
     try { invalidateBoardPreview(targetId); } catch (_) {}
     return true;
-  }, [canEdit, board.id, cards, feedback, mutators]);
+  }, [canEdit, board.id, cards, feedback, mutators, onMoveFiles]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // New cluster from the selected cards: named at birth, made where they sit
   // on the board, filled through moveCardsTo, and undone by its toast — which
@@ -1144,6 +1168,27 @@ export function ListSurface({
     }
     if (cIds.length) await moveCardsTo(cIds, picked.id);
   }, [onPickCluster, selectedBoards, selectedCards, board.id, moveCardsTo]);
+
+  // "Copy to…" (the drop rules): the selected files, copied into the pick's
+  // Files — a new card on the same stored file. Out of a cluster you can only
+  // view, too. A cluster copies with its own Copy and Paste, not here.
+  const copySelection = useCallback(async () => {
+    if (!onPickCluster || !onMoveFiles) return;
+    const ids = new Set(selectedCards);
+    const list = (cards || []).filter((c) => ids.has(c.id) && c.kind !== 'boardlink');
+    const ready = list.filter(canCopyCard);
+    if (!ready.length) {
+      if (list.length) feedback.toast({ type: 'info', message: 'Those files are still uploading. Copy them when they finish.' });
+      return;
+    }
+    const picked = await onPickCluster({ placeholder: 'Copy to cluster…', excludeIds: [board.id] });
+    if (!picked?.id) return;
+    const ok = await onMoveFiles({
+      from: board.id, to: picked.id, cardIds: ready.map((c) => c.id), copy: true,
+      what: whatOf(ready.map((c) => ({ kind: c.kind, name: itemNameOf(c) }))), kinds: ready.map((c) => c.kind),
+    });
+    if (ok) { try { invalidateBoardPreview(picked.id); } catch (_) {} }
+  }, [onPickCluster, onMoveFiles, selectedCards, cards, board.id, feedback]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rename in place (F2, the right-click menu). Files rename the field their
   // name shows from (lib/fileRename.js) — downloads keep the original name;
@@ -1359,6 +1404,61 @@ export function ListSurface({
     const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
     return from === homeSrc.boardId && board?.id && board.id !== homeSrc.boardId;
   };
+  // ── The drop rules, with the sidebar's Files (lib/dropRules.js) ───────────
+  // What letting go of files over a folder, or over this list, does: the
+  // decision the sidebar, the board and the label at the pointer make. The
+  // files come from the drag session (a dragover can't read the payload) or,
+  // at a drop the session missed, from the payload.
+  const rulesOn = !!onMoveFiles;
+  const canEditId = (id) => (canEditBoard ? !!canEditBoard(id) : canEdit);
+  const filesDecision = (e, target, payload = null) => {
+    const sess = dragSession();
+    let list = null;
+    let sourceName = '';
+    let fromWs = workspaceId || null;
+    if (sess?.kind === 'files' && sess.files?.length) {
+      list = sess.files;
+      sourceName = sess.sourceName || '';
+      fromWs = sess.workspaceId || fromWs;
+    } else if (payload) {
+      list = payload.cards.map((c) => {
+        const from = c.sourceBoardId || payload.sourceBoardId;
+        return { id: c.id, kind: c.kind, name: c.title || '', boardId: from, canMove: canEditId(from) };
+      });
+      sourceName = payload.sourceName || '';
+    }
+    if (!list || !target?.boardId) return null;
+    return decideDrop({ files: list, sourceName, workspaceId: fromWs, copy: copyKeyHeld(e), target });
+  };
+  const filesTarget = (b) => ({
+    boardId: b.id, where: 'files', name: b.name,
+    workspaceId: b.workspace_id || workspaceId || null, writable: canEditId(b.id),
+  });
+  // Each lot from its own cluster: one request, and one Undo, per cluster.
+  const runFilesDrop = async (d, to) => {
+    const lots = new Map();
+    for (const [copy, list] of [[false, d.move], [true, d.copy]]) {
+      for (const f of list) {
+        const k = `${copy ? 'c' : 'm'}:${f.boardId}`;
+        if (!lots.has(k)) lots.set(k, { copy, from: f.boardId, files: [] });
+        lots.get(k).files.push(f);
+      }
+    }
+    let any = false;
+    for (const lot of lots.values()) {
+      const ok = await onMoveFiles({
+        from: lot.from, to, cardIds: lot.files.map((f) => f.id), copy: lot.copy,
+        what: whatOf(lot.files), kinds: lot.files.map((f) => f.kind),
+      });
+      if (ok) {
+        any = true;
+        try { invalidateBoardPreview(lot.from); } catch (_) {}
+      }
+    }
+    try { invalidateBoardPreview(to); } catch (_) {}
+    if (any) setSelectedCards(new Set());
+    return any;
+  };
   // Clusters dragged in after a spring: they can be nested here.
   const foldersHere = (types) => !!browsingFrom && !!homeSrc?.canEdit
     && (types?.includes?.(BOARD_REF_MIME) || types?.includes?.(BOARD_REF_LIST_MIME));
@@ -1405,6 +1505,18 @@ export function ListSurface({
   };
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
+    // Files from Files, by the rules: into this cluster's Files.
+    if (rulesOn && types.includes(FILES_DRAG_MIME)) {
+      e.preventDefault();
+      const d = filesDecision(e, filesTarget(board));
+      const effect = d ? d.effect : (copyKeyHeld(e) ? 'copy' : 'move');
+      try { e.dataTransfer.dropEffect = effect; } catch (_) {}
+      const ok = effect !== 'none';
+      if (ok !== dragOver) setDragOver(ok);
+      const note = ok ? (d?.action === 'copy' ? 'copy' : 'move') : null;
+      if (note !== dragNote) setDragNote(note);
+      return;
+    }
     if (homeFilesHere(types) || foldersHere(types)) {
       e.preventDefault();
       try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
@@ -1441,6 +1553,14 @@ export function ListSurface({
     const versionEl = versionTileRef.current;
     markVersionTile(null);
     const t = e.dataTransfer.types;
+    if (rulesOn && t.includes(FILES_DRAG_MIME)) {
+      e.preventDefault();
+      const d = filesDecision(e, filesTarget(board), parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME)));
+      if (!d || !(d.move.length || d.copy.length)) return;
+      const done = runFilesDrop(d, board.id);
+      spring?.drop?.(done);
+      return;
+    }
     if (homeFilesHere(t)) {
       e.preventDefault();
       const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
@@ -1572,17 +1692,30 @@ export function ListSurface({
     const ids = selectedCards.has(id) && selectedCards.size > 1 ? [...selectedCards] : [id];
     const byId = new Map((cards || []).map((c) => [c.id, c]));
     const list = ids.map((i) => byId.get(i)).filter(canDragFromFiles);
-    const raw = buildFilesPayload({ sourceBoardId: board.id, sourceName: board.name || '', cards: list });
+    const raw = buildFilesPayload({ sourceBoardId: board.id, sourceName: board.name || '', cards: list, intent: rulesOn ? 'move' : null });
     if (!raw) { e.preventDefault(); return; }
+    // With the rules, the label at the pointer (DragLabel.jsx) speaks for the
+    // drag, where one is up: the browser's own image is blank under it.
+    const labelled = rulesOn && dragLabelShown() && !!BLANK_DRAG_IMAGE;
     try {
       e.dataTransfer.setData(FILES_DRAG_MIME, raw);
       e.dataTransfer.effectAllowed = 'copyMove';
+      if (labelled) e.dataTransfer.setDragImage(BLANK_DRAG_IMAGE, 0, 0);
     } catch (_) {}
     // dragover can only see types, not data: the board reads where the drag
     // came from here, to show move vs copy before the drop.
     try { window.__soleilFilesDrag = { sourceBoardId: board.id, n: list.length }; } catch (_) {}
-    beginDragSession(el, { kind: 'files', sourceBoardId: board.id });
-    if (list.length > 1) {
+    // The session tells every target what's in the drag (the rules need each
+    // file's cluster, and whether it can leave it: not from one you only view).
+    const thumbs = rulesOn ? list.slice(0, 3).map((c) => {
+      try { return document.querySelector(`[data-item-id="${CSS.escape(c.id)}"] img`)?.currentSrc || null; } catch (_) { return null; }
+    }).filter(Boolean) : [];
+    beginDragSession(el, rulesOn ? {
+      kind: 'files', sourceBoardId: board.id, sourceName: board.name || '',
+      workspaceId: board.workspace_id || workspaceId || null, thumbs,
+      files: list.map((c) => ({ id: c.id, kind: c.kind, name: itemNameOf(c), boardId: board.id, uploading: false, canMove: canEditId(board.id) })),
+    } : { kind: 'files', sourceBoardId: board.id });
+    if (list.length > 1 && !labelled) {
       const ghost = document.createElement('div');
       ghost.className = 'files-drag-ghost';
       ghost.textContent = `${list.length} files`;
@@ -1780,6 +1913,7 @@ export function ListSurface({
   });
   const folderProps = (b) => ({
     'data-folder-id': b.id,
+    ...(rulesOn ? { 'data-drop-board': b.id, 'data-drop-where': 'files' } : {}),
     onClick: (e) => onTileClick(e, 'board', b.id),
     onDoubleClick: (e) => onTileDoubleClick(e, 'board', b.id),
     ...folderKeys('board', b.id),
@@ -1801,6 +1935,17 @@ export function ListSurface({
       armFolder(b.id);
       // This cluster's files dropped on one of its folders move into it — and
       // so do the home cluster's, after a drag has sprung in here.
+      if (t.includes(FILES_DRAG_MIME) && rulesOn) {
+        // Refused here is refused: not passed on to the list around it.
+        e.preventDefault();
+        e.stopPropagation();
+        const d = filesDecision(e, filesTarget(b));
+        const effect = d ? d.effect : (copyKeyHeld(e) ? 'copy' : 'move');
+        try { e.dataTransfer.dropEffect = effect; } catch (_) {}
+        const lit = effect === 'none' ? null : b.id;
+        if (dropTileId !== lit) setDropTileId(lit);
+        return;
+      }
       if (t.includes(FILES_DRAG_MIME)) {
         const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
         const own = canEdit && from === board.id;
@@ -1829,6 +1974,15 @@ export function ListSurface({
     onDrop: (e) => {
       setDropTileId(null);
       springTimer.cancel();
+      if (e.dataTransfer.types.includes(FILES_DRAG_MIME) && rulesOn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const d = filesDecision(e, filesTarget(b), parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME)));
+        if (!d || !(d.move.length || d.copy.length)) return;
+        const done = runFilesDrop(d, b.id);
+        spring?.drop?.(done);
+        return;
+      }
       if (e.dataTransfer.types.includes(FILES_DRAG_MIME)) {
         const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
         if (!payload) return;
@@ -1908,6 +2062,8 @@ export function ListSurface({
       readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
       dropBanner={dragNote === 'move'
         ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
+        : dragNote === 'copy'
+        ? { text: `Drop to copy to ${board?.name || 'this cluster'}` }
         : dragNote === 'version'
         ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
         : dragNote === 'files'
@@ -1943,6 +2099,10 @@ export function ListSurface({
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
     const canMove = canEdit && !!onPickCluster && movableSel > 0;
+    // Files copy (the rules); a cluster copies with its own Copy and Paste.
+    const canCopyTo = !!onMoveFiles && !!onPickCluster && cIds.length > 0 && !bIds.length
+      && cIds.some((id) => { const c = (cards || []).find((x) => x.id === id); return c && c.kind !== 'boardlink'; });
+    const copyTo = canCopyTo && { id: 'copy-to', label: 'Copy to…', run: copySelection };
     // The menu's header already says how many; Delete needn't repeat it.
     const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
     // Info on anything: in full Files it's the panel beside the list, which
@@ -1988,6 +2148,7 @@ export function ListSurface({
           // An app action: a signed-out visitor's link wouldn't resolve.
           onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
           canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          copyTo,
           info({ boardId: board.id, cardIds: [item.id] }),
         ] },
         // "Linked from N places" — placed, so Delete stays last and the menu's
@@ -2004,6 +2165,7 @@ export function ListSurface({
           id: 'dl', label: downloadableSelected.length === n ? 'Download' : `Download ${downloadableSelected.length} of ${n}`, run: downloadSelected,
         },
         canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+        copyTo,
         info({ boardId: board.id, cardIds: cIds, clusterIds: bIds }),
       ] },
       { items: [del] },
@@ -2015,6 +2177,7 @@ export function ListSurface({
 
   return (
     <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`} ref={listWrapRef}
+         data-drop-board={rulesOn ? board.id : undefined} data-drop-where={rulesOn ? 'files' : undefined}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
          onPointerDownCapture={() => setActivePane(paneId)}
          onPointerEnter={() => setActivePane(paneId)}

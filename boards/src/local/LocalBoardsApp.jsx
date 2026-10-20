@@ -61,6 +61,8 @@ import { OnboardingTour } from '../components/OnboardingTour.jsx';
 import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
 import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
+import { DragLabel } from '../components/sidebar/DragLabel.jsx';
+import { decideDrop, copyKeyHeld } from '../lib/dropRules.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 import { probeFile } from '../lib/mediaProbe.js';
@@ -220,6 +222,31 @@ const filesRulesQaMove = FILES_RULES_QA
       qa.calls.push({
         from: payload?.sourceBoardId, cardIds: (payload?.cards || []).map((c) => c.id),
         at, copy: !!opts.copy, what: opts.what || null,
+      });
+    }
+  : null;
+// …and full Files' and the card menu's (App.jsx moveFilesBetween), with a
+// picker that answers window.__filesRulesQa.pick for Move to… / Copy to….
+const filesRulesQaBetween = FILES_RULES_QA
+  ? async ({ from, to, cardIds, copy = false, what = null }) => {
+      const qa = (window.__filesRulesQa ||= { calls: [] });
+      qa.calls.push({ from, to, cardIds, copy: !!copy, what });
+      return true;
+    }
+  : null;
+const filesRulesQaPick = FILES_RULES_QA
+  ? async () => { const id = window.__filesRulesQa?.pick; return id ? { id } : null; }
+  : null;
+// A card dragged off the board needs a sidebar to go to: two stand-in cluster
+// rows, one of them view only, and the real drag label answering for them
+// with the rules, as ClusterSidebar's resolveDrop does.
+const filesRulesQaResolve = FILES_RULES_QA
+  ? (el, e, handed) => {
+      const id = el.getAttribute('data-drop-board');
+      return decideDrop({
+        files: handed?.files || [], sourceName: handed?.sourceName || '', workspaceId: 'local-workspace',
+        copy: copyKeyHeld(e),
+        target: { boardId: id, where: 'files', name: el.getAttribute('data-drop-name'), workspaceId: 'local-workspace', writable: !el.hasAttribute('data-qa-viewonly') },
       });
     }
   : null;
@@ -2057,6 +2084,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 allCards={framedState.cards}
                 onRevealUnplaced={(ids) => revealInFilesLocal(ids)}
                 onMoveFilesHere={filesRulesQaMove}
+                onMoveFiles={filesRulesQaBetween}
                 focusRequest={focusRequest?.boardId === currentBoard?.id ? focusRequest : null}
                 clearFocusRequest={() => setFocusRequest(null)}
                 arrows={currentState.arrows}
@@ -2141,6 +2169,8 @@ export function LocalBoardsApp({ user, signOut }) {
                     dockControls={localDockControls}
                     mutators={surfaceMutators}
                     homeSrc={currentBoard ? { boardId: currentBoard.id, cards: framedState.cards, mutators: surfaceMutators, canEdit: true } : null}
+                    onMoveFiles={filesRulesQaBetween}
+                    onPickCluster={filesRulesQaPick}
                     {...o}
                   />
                 )}
@@ -2149,6 +2179,13 @@ export function LocalBoardsApp({ user, signOut }) {
           />
         )}
       </main>
+      {FILES_RULES_QA && (
+        <div className="sbqa-rules-rows" style={{ position: 'fixed', right: 24, top: 140, width: 220, zIndex: 60, padding: 8, borderRadius: 12, background: 'var(--bg-2)' }}>
+          <div className="sb-row sb-tree-row is-files" data-drop-board="b-sundown" data-drop-where="files" data-drop-name="Sundown Highway" style={{ height: 32 }}>Sundown Highway</div>
+          <div className="sb-row sb-tree-row is-files" data-drop-board="b-stills" data-drop-where="files" data-drop-name="Stills" data-qa-viewonly="" style={{ height: 32 }}>Stills</div>
+        </div>
+      )}
+      {FILES_RULES_QA && <DragLabel resolve={filesRulesQaResolve} />}
 
       {/* Boards-only "link a board" picker — command palette in pick mode. */}
       <CommandPalette

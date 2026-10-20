@@ -6,6 +6,7 @@
 // local board with ?filesrules=1, which hands the board a recorder in place of
 // the route (window.__filesRulesQa.calls).
 import { expect, test } from '@playwright/test';
+import { openFullFiles } from './files-helpers.js';
 
 async function open(page) {
   await page.goto('/?local=1&reset=1&filesrules=1');
@@ -108,5 +109,118 @@ test.describe('dropping files from Files onto a board', () => {
     expect(got.map((c) => [c.from, c.cardIds.join()]).sort()).toEqual([['b-sundown', 's-img1'], ['sb-locs', 'l-img1']]);
     expect(got[0].at.y).toBe(got[1].at.y);
     expect(Math.abs(got[0].at.x - got[1].at.x)).toBeGreaterThan(200);
+  });
+});
+
+test.describe('the card menu and full Files, by the rules', () => {
+  test('Move to cluster… and Copy to cluster… on a card go by the route', async ({ page }) => {
+    await open(page);
+    const card = page.locator('.card[data-card-id="home-image"]');
+    await card.click({ button: 'right' });
+    await page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster…' }).click();
+    await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
+    await expect.poll(async () => (await calls(page)).length).toBe(1);
+    expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: false });
+
+    await card.click({ button: 'right' });
+    await page.locator('.ctx-menu .ctx-item', { hasText: 'Copy to cluster…' }).click();
+    await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
+    await expect.poll(async () => (await calls(page)).length).toBe(2);
+    expect((await calls(page))[1]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
+  });
+
+  test('in full Files, a file dropped on a folder goes into that cluster\'s files; the copy key copies it', async ({ page }) => {
+    await open(page);
+    await openFullFiles(page);
+    const folder = page.locator('.ft[data-folder-id="b-sundown"]');
+    await expect(folder).toHaveAttribute('data-drop-board', 'b-sundown');
+    await expect(page.locator('.list-wrap')).toHaveAttribute('data-drop-board', 'root');
+    for (const alt of [false, true]) {
+      await page.evaluate(({ alt }) => {
+        const dt = new DataTransfer();
+        const tile = document.querySelector('[data-item-id="home-image"]');
+        tile.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        const f = document.querySelector('.ft[data-folder-id="b-sundown"]');
+        const r = f.getBoundingClientRect();
+        const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, altKey: alt };
+        f.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, ...at }));
+        window.__heldFolder = { dt, at };
+      }, { alt });
+      await expect(folder).toHaveClass(/is-drop-target/);
+      await page.evaluate(() => {
+        const { dt, at } = window.__heldFolder;
+        document.querySelector('.ft[data-folder-id="b-sundown"]').dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, ...at }));
+        window.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+      });
+    }
+    await expect.poll(async () => (await calls(page)).length).toBe(2);
+    const got = await calls(page);
+    expect(got[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: false });
+    expect(got[1]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
+  });
+
+  test('in full Files, a file\'s menu offers Copy to… beside Move to…', async ({ page }) => {
+    await open(page);
+    await openFullFiles(page);
+    await page.evaluate(() => { (window.__filesRulesQa ||= { calls: [] }).pick = 'b-stills'; });
+    await page.locator('[data-item-id="home-image"]').click({ button: 'right' });
+    const menu = page.locator('.ctx-menu').last();
+    await expect(menu.getByText('Move to…', { exact: true })).toBeVisible();
+    await menu.getByText('Copy to…', { exact: true }).click();
+    await expect.poll(async () => (await calls(page)).length).toBe(1);
+    expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-stills', cardIds: ['home-image'], copy: true });
+  });
+});
+
+test.describe('a card dragged off the board onto a cluster in the sidebar', () => {
+  // The mouse, held: down on the card, across the board, onto a stand-in row.
+  async function dragCardTo(page, cardSel, rowSel, { release = true, steps = 12 } = {}) {
+    const from = await page.locator(cardSel).boundingBox();
+    const to = await page.locator(rowSel).boundingBox();
+    const x0 = from.x + from.width / 2, y0 = from.y + from.height / 2;
+    const x1 = to.x + 40, y1 = to.y + to.height / 2;
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    for (let i = 1; i <= steps; i++) {
+      await page.mouse.move(x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps);
+      await page.waitForTimeout(16);
+    }
+    // Held still a moment: the hit test runs at its own pace.
+    await page.waitForTimeout(120);
+    await page.mouse.move(x1 + 2, y1);
+    if (release) await page.mouse.up();
+  }
+
+  test('over a cluster row the label says Move and the row lights; letting go moves it there by the route', async ({ page }) => {
+    await open(page);
+    const card = page.locator('.card[data-card-id="home-image"]');
+    const before = await card.boundingBox();
+    await dragCardTo(page, '.card[data-card-id="home-image"]', '.sbqa-rules-rows [data-drop-board="b-sundown"]', { release: false });
+    await expect(page.locator('.sbf-draglabel')).toContainText('to Sundown Highway');
+    await expect(page.locator('.sbf-draglabel')).toContainText('Into its files, not onto its board');
+    await expect(page.locator('.sbqa-rules-rows [data-drop-board="b-sundown"]')).toHaveAttribute('data-card-drop', '');
+    await page.mouse.up();
+    await expect(page.locator('.sbf-draglabel')).toHaveCount(0);
+    await expect(page.locator('[data-card-drop]')).toHaveCount(0);
+    await expect.poll(async () => (await calls(page)).length).toBe(1);
+    expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: false });
+    // It went back to its place on the board; the route takes it from there.
+    const after = await card.boundingBox();
+    expect(Math.round(after.x)).toBe(Math.round(before.x));
+    expect(Math.round(after.y)).toBe(Math.round(before.y));
+  });
+
+  test('a cluster you can only view says so and takes nothing; the card goes back', async ({ page }) => {
+    await open(page);
+    const card = page.locator('.card[data-card-id="home-image"]');
+    const before = await card.boundingBox();
+    await dragCardTo(page, '.card[data-card-id="home-image"]', '.sbqa-rules-rows [data-drop-board="b-stills"]', { release: false });
+    await expect(page.locator('.sbf-draglabel')).toContainText('Stills is view only');
+    await expect(page.locator('.sbqa-rules-rows [data-drop-board="b-stills"]')).not.toHaveAttribute('data-card-drop', '');
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    expect(await calls(page)).toHaveLength(0);
+    const after = await card.boundingBox();
+    expect(Math.round(after.x)).toBe(Math.round(before.x));
   });
 });

@@ -468,6 +468,13 @@ body.sbf-sizing .app,
   --sbf-thumb: 24px; --sbf-gap: 10px;
 }
 .sbf-files.is-dropping { box-shadow: inset 0 0 0 2px var(--soleil); }
+/* A card dragged off the board over a cluster outside it lights the place it
+   would go, as a drag from Files does (CanvasSurface sets data-card-drop: the
+   drag is the board's, and React doesn't own the attribute). */
+.sb-tree-row.is-files[data-card-drop], .sb-shared-row[data-card-drop] { box-shadow: inset 0 0 0 1.5px var(--soleil); }
+.sbf-files[data-card-drop] { box-shadow: inset 0 0 0 2px var(--soleil); }
+.ft[data-card-drop] { border-color: var(--soleil); background: var(--soleil-soft); }
+.list-wrap[data-card-drop] { outline: 1.5px dashed color-mix(in srgb, var(--soleil) 65%, transparent); outline-offset: -6px; }
 
 /* What the files show: the cluster, Recent or Starred, a segmented control,
    the shown one a raised chip. In a narrow card, each is as wide as its word

@@ -12,6 +12,13 @@
 // A dragover arrives several times a second while the pointer is in the
 // window; when they stop (it left the window, Safari never says so) the chip
 // goes, and comes back on the next one.
+//
+// A card dragged off the board is a pointer drag, not a drag session: the
+// board says where it is with 'soleil-card-drag-over' ({ el, x, y, mods,
+// drag: { files, sourceName, workspaceId } }) and stops with
+// 'soleil-card-drag-end'. The label answers in the event (detail.decision),
+// so the board does what it said. A pointer that holds still sends nothing,
+// so that label stays until the end.
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -21,10 +28,20 @@ import { onDragSession } from '../../lib/springLoad.js';
 
 const QUIET_MS = 250;
 
+// The browser's own drag image, blank, for a drag this label speaks for: the
+// label is the one thing under the pointer. Only while one is mounted
+// (dragLabelShown) — without it a blank image would leave nothing there.
+export const BLANK_DRAG_IMAGE = typeof Image !== 'undefined'
+  ? Object.assign(new Image(), { src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' })
+  : null;
+let mounted = 0;
+export const dragLabelShown = () => mounted > 0;
+
 export function DragLabel({ resolve, idle = 'Drop on a cluster or a board' }) {
   const [shown, setShown] = useState(null);   // { x, y, label, thumbs, n }
   const resolveRef = useRef(resolve);
   resolveRef.current = resolve;
+  useEffect(() => { mounted += 1; return () => { mounted -= 1; }; }, []);
 
   useEffect(() => {
     let off = null;
@@ -58,7 +75,36 @@ export function DragLabel({ resolve, idle = 'Drop on a cluster or a board' }) {
         clearTimeout(quiet);
       };
     });
-    return () => { unsubscribe(); stop(); };
+    // The board's card drags.
+    let cardFrame = 0;
+    let cardLast = null;
+    const paintCard = () => {
+      cardFrame = 0;
+      if (!cardLast) return;
+      const { x, y, label, n } = cardLast;
+      setShown({ x, y, label, thumbs: [], n });
+    };
+    const onCardOver = (ev) => {
+      const d0 = ev.detail || {};
+      const d = d0.el ? resolveRef.current?.(d0.el, d0.mods || {}, d0.drag || null) : null;
+      d0.decision = d;
+      const label = d?.label?.top ? d.label : { top: idle, sub: '', hint: '', no: false, idle: true };
+      cardLast = { x: d0.x, y: d0.y, label, n: d0.drag?.files?.length || 0 };
+      if (!cardFrame) cardFrame = requestAnimationFrame(paintCard);
+    };
+    const onCardEnd = () => {
+      cancelAnimationFrame(cardFrame);
+      cardFrame = 0;
+      if (cardLast) { cardLast = null; setShown(null); }
+    };
+    document.addEventListener('soleil-card-drag-over', onCardOver);
+    document.addEventListener('soleil-card-drag-end', onCardEnd);
+    return () => {
+      unsubscribe(); stop();
+      document.removeEventListener('soleil-card-drag-over', onCardOver);
+      document.removeEventListener('soleil-card-drag-end', onCardEnd);
+      cancelAnimationFrame(cardFrame);
+    };
   }, [idle]);
 
   if (!shown) return null;
