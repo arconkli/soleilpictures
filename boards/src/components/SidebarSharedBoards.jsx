@@ -98,6 +98,12 @@ export function SidebarSharedBoards({
                       return (
                         <div key={row.board_id}
                              className={`sb-row sb-shared-row ${isActive ? 'active' : ''}`}
+                             // Another workspace's cluster: the drag label says files
+                             // can't go there (lib/dropRules.js); nothing here takes them.
+                             data-drop-board={row.board_id}
+                             data-drop-ws={row.source_workspace_id || 'elsewhere'}
+                             data-drop-ws-name={row.source_workspace_name || ''}
+                             data-drop-name={row.board_name || ''}
                              onMouseEnter={() => prefetchBoard(row.board_id)}
                              onClick={() => onOpenBoard?.(row.board_id)}
                              title={`${row.board_name} · ${row.role === 'viewer' ? 'view only' : 'editor'}`}>

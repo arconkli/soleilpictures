@@ -429,6 +429,7 @@ export function SidebarBoardTree({
         <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}${filesView ? ' is-files' : ''}`}
              style={{ paddingLeft: filesView ? 8 + depth * INDENT : 6 + depth * 14 }}
              data-board-id={board.id}
+             {...(filesView ? { 'data-drop-board': board.id, 'data-drop-where': 'files' } : {})}
              draggable={!isRenaming}
              onDragStart={(e) => {
                dragGestureRef.current.dragged = true;
@@ -452,6 +453,9 @@ export function SidebarBoardTree({
              }}
              onDragOver={(e) => {
                const t = e.dataTransfer.types;
+               // Held over a folded cluster with clusters inside, a drag from
+               // Files opens it, whether or not it can take the drop itself.
+               if (hasKids && !isOpen) filesView?.springOpen?.(board.id);
                const fileEffect = filesView?.dropEffect?.(e, board.id);
                if (fileEffect) {
                  e.preventDefault();
@@ -473,6 +477,7 @@ export function SidebarBoardTree({
              }}
              onDragLeave={(e) => {
                if (e.currentTarget.contains?.(e.relatedTarget)) return;
+               filesView?.springLeave?.(board.id, e);
                setDropTargetId(prev => (prev === board.id ? null : prev));
              }}
              onDrop={(e) => {

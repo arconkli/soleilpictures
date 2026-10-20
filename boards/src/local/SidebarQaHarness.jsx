@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import '../styles.css';
 import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
+import { SidebarSharedBoards } from '../components/SidebarSharedBoards.jsx';
 import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout } from '../lib/sidebarLayout.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { shelfOf } from '../lib/sidebarShelves.js';
@@ -208,6 +209,14 @@ const MSG_QA = QS.has('messages');
 const WHO = QS.get('who') || 'here';
 // A phone shows the drawer open unless &drawer=0 asks for what's under it.
 const DRAWER = QS.get('drawer') !== '0';
+// Moving files between clusters: &viewonly=<cluster> is one this person may
+// only look at; &shared=1 adds a cluster shared from another workspace under
+// the tree, where nothing can be dropped.
+const VIEW_ONLY = QS.get('viewonly') || null;
+const SHARED = QS.has('shared') ? [{
+  board_id: 'grade', board_name: 'Grade', role: 'viewer',
+  source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse',
+}] : [];
 userProfiles.populateFromPeers(PEERS);
 
 // Home: the harness's clusters with real covers and an order, who's on which,
@@ -377,6 +386,7 @@ export function SidebarQaHarness() {
         <div className="sb-mid">
           <ClusterSidebar
             workspaceId={WS}
+            workspaceName="Sidebar QA"
             boards={BOARDS}
             allBoards={allBoards}
             rootId="root"
@@ -397,10 +407,11 @@ export function SidebarQaHarness() {
               messages: { pressed: msgsOpen, unread: 2, onClick: () => { say('messages'); if (MSG_QA) setMsgsOpen((o) => !o); } },
             }}
             listRef={listRef}
+            sharedSection={SHARED.length ? <SidebarSharedBoards shared={SHARED} activeBoardId={active} onOpenBoard={(id) => say(`open shared ${id}`)} /> : null}
             source={source}
             boardsSectionProps={{
               boards: BOARDS, workspaceId: WS, rootId: 'root', activeBoardId: SURFACE === 'home' ? null : active,
-              onOpenBoard: (id) => setActive(id), canEditBoard: () => true,
+              onOpenBoard: (id) => setActive(id), canEditBoard: (id) => id !== VIEW_ONLY,
               onOpenPicker: () => say('picker'),
             }}
             meterProps={{ isPaid: false, cardsUsed: 38, cardLimit: 50, storage: { used: 1.2 * 1024 ** 3, quota: 5 * 1024 ** 3, loading: false } }}

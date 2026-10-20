@@ -62,28 +62,34 @@ export function whatOf(files) {
 //           canMove? }] — canMove false: its cluster is view only, so it can
 //           only be copied out
 // target    where it would land: { boardId, name, where: 'files' | 'board',
-//           workspaceId, writable, owner? (another workspace's owner) }
+//           workspaceId, writable, and for another workspace's cluster its
+//           owner's name or the workspace's own: owner?, workspaceName? }
 // workspaceId, workspaceName   the files' own workspace
 // copy      the copy key is held
 // sourceName  the cluster they come from, when they all come from one
 //
 // → { action: 'move' | 'copy' | 'mixed' | 'place' | 'none', reason,
-//     moveIds, copyIds, placeIds, effect: 'move' | 'copy' | 'none',
+//     move, copy, place (the files each happens to, so a caller can group
+//     them by the cluster each came from: ids alone can repeat across
+//     clusters), moveIds, copyIds, placeIds, effect: 'move' | 'copy' | 'none',
 //     label: { top, sub, hint, no } }
 export function decideDrop({
   files = [], target = null, workspaceId = null, workspaceName = '', copy = false,
   sourceName = '', mac = isMacPlatform(),
 } = {}) {
   const none = (reason, top, sub = '', hint = '') => ({
-    action: 'none', reason, moveIds: [], copyIds: [], placeIds: [], effect: 'none',
+    action: 'none', reason, move: [], copy: [], place: [], moveIds: [], copyIds: [], placeIds: [], effect: 'none',
     label: { top, sub, hint, no: true },
   });
+  const ids = (list) => list.map((f) => f.id);
   if (!target?.boardId || !files.length) return none('nothing', '');
   const name = clip(target.name || 'Untitled', 32);
 
   if (target.workspaceId && workspaceId && target.workspaceId !== workspaceId) {
+    const there = target.owner ? `${clip(target.owner, 24)}’s workspace`
+      : target.workspaceName ? clip(target.workspaceName, 28) : 'another workspace';
     return none('workspace',
-      `${name} is in ${target.owner ? `${clip(target.owner, 24)}’s` : 'another'} workspace`,
+      `${name} is in ${there}`,
       workspaceName ? `Files can only move within ${clip(workspaceName, 24)}` : 'Files stay in their own workspace');
   }
   if (!target.writable) return none('view-only', `${name} is view only`, 'You can’t add files to it');
@@ -95,7 +101,7 @@ export function decideDrop({
   if (!ready.length) {
     if (target.where === 'board' && here.length) {
       return {
-        action: 'place', reason: null, moveIds: [], copyIds: [], placeIds: here.map((f) => f.id), effect: 'move',
+        action: 'place', reason: null, move: [], copy: [], place: here, moveIds: [], copyIds: [], placeIds: ids(here), effect: 'move',
         label: { top: `Put ${whatOf(here)} here`, sub: 'Onto the board, where you let go', hint: '', no: false },
       };
     }
@@ -103,16 +109,16 @@ export function decideDrop({
     return none('same', `Already in ${name}`, `Drop ${here.length === 1 ? 'it' : 'them'} on another cluster`);
   }
 
-  const copyIds = ready.filter((f) => copy || f.canMove === false).map((f) => f.id);
-  const moveIds = ready.filter((f) => !copy && f.canMove !== false).map((f) => f.id);
-  const placeIds = target.where === 'board' ? here.map((f) => f.id) : [];
-  const action = moveIds.length && copyIds.length ? 'mixed' : moveIds.length ? 'move' : 'copy';
+  const copying = ready.filter((f) => copy || f.canMove === false);
+  const moving = ready.filter((f) => !copy && f.canMove !== false);
+  const placing = target.where === 'board' ? here : [];
+  const action = moving.length && copying.length ? 'mixed' : moving.length ? 'move' : 'copy';
   const what = whatOf(ready);
   const one = ready.length === 1;
   const from = clip(sourceName, 24);
 
   let top;
-  if (action === 'mixed') top = `Move ${moveIds.length} and copy ${copyIds.length} to ${name}`;
+  if (action === 'mixed') top = `Move ${moving.length} and copy ${copying.length} to ${name}`;
   else top = `${action === 'move' ? 'Move' : 'Copy'} ${what} to ${name}`;
 
   let sub;
@@ -126,7 +132,8 @@ export function decideDrop({
   else hint = from ? `${from} is view only, so ${one ? 'it’s' : 'they’re'} copied` : 'Some are view only, so they’re copied';
 
   return {
-    action, reason: null, moveIds, copyIds, placeIds,
+    action, reason: null, move: moving, copy: copying, place: placing,
+    moveIds: ids(moving), copyIds: ids(copying), placeIds: ids(placing),
     effect: action === 'copy' ? 'copy' : 'move',
     label: { top, sub, hint, no: false },
   };

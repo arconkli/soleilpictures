@@ -816,3 +816,62 @@ body.sbf-sizing .app,
 .app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-nav { max-height: none; overflow: visible; }
 .app.sb-files .sidebar.is-mobile-open .sbf-files { overflow: visible; border-radius: 0; border-top: 1px solid var(--line-1); padding-top: 6px; }
 .app.sb-files .sidebar.is-mobile-open .sbf-files-list { overflow: visible; -webkit-mask-image: none; mask-image: none; }
+
+/* ── Another cluster's files, and dragging them (owner, round 11) ─────────── */
+/* The cluster tab switches: "Feature film ⌄" opens every cluster of the
+   workspace, and Files shows the one picked while the board stays put. */
+.sbf-tab.is-cluster .sbf-tab-caret { display: inline-grid; place-items: center; margin-left: 4px; color: var(--ink-2); flex-shrink: 0; }
+.sbf-tab.is-cluster.is-on .sbf-tab-caret, .sbf-tab.is-cluster.is-open .sbf-tab-caret { color: var(--ink-0); }
+.sbf-tab.is-cluster { display: inline-flex; align-items: center; justify-content: center; }
+.sbf-switch { width: 264px; }
+.sbf-switch-find {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px; height: 32px; margin: 0 0 4px; padding: 0 10px;
+  border-radius: var(--radius); background: color-mix(in srgb, var(--ink-0) 5%, transparent); color: var(--ink-2);
+}
+.sbf-switch-find input { flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; color: var(--ink-0); font: 400 13px/1 var(--font-sans); outline: none; box-shadow: none; }
+.sbf-switch-find input::placeholder { color: var(--ink-2); }
+.sbf-switch .sbf-menu-item { padding-right: 10px; }
+.sbf-switch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbf-switch-note { flex-shrink: 0; padding-left: 12px; color: var(--ink-2); font: 400 11.5px/1 var(--font-sans); }
+.sbf-switch-empty { padding: 10px 10px 12px 28px; color: var(--ink-2); font: 400 12.5px/1.4 var(--font-sans); }
+
+/* Looking at another cluster's files: back to the board's, or open this one. */
+.sbf-away { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 28px; padding: 0 9px 2px; }
+.sbf-away-btn {
+  display: inline-flex; align-items: center; gap: 3px; min-width: 0; height: 24px; padding: 0 6px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer;
+  font: 500 12px/1 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sbf-away-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-away-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-away-btn.is-open { flex-shrink: 1; }
+
+/* The chip at the pointer (DragLabel.jsx), above everything, never a target. */
+.sbf-draglabel {
+  position: fixed; z-index: 2147483600; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; max-width: 300px; padding: 7px 13px 7px 7px;
+  border-radius: 11px; background: color-mix(in oklab, var(--bg-3) 96%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-0) 10%, transparent), var(--shadow-3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+  font-family: var(--font-sans);
+}
+.sbf-draglabel-stack { position: relative; flex: 0 0 42px; width: 42px; height: 38px; }
+.sbf-draglabel-stack img, .sbf-draglabel-blank {
+  position: absolute; width: 30px; height: 30px; border-radius: 5px; object-fit: cover;
+  background: var(--bg-4); box-shadow: 0 0 0 1.5px var(--bg-3), 0 1px 3px rgba(0,0,0,.35);
+}
+.sbf-draglabel-stack img:nth-child(1), .sbf-draglabel-blank { left: 0; top: 6px; transform: rotate(-7deg); }
+.sbf-draglabel-stack img:nth-child(2) { left: 6px; top: 4px; transform: rotate(3deg); }
+.sbf-draglabel-stack img:nth-child(3) { left: 11px; top: 2px; }
+.sbf-draglabel-n {
+  position: absolute; right: -2px; bottom: -1px; min-width: 17px; height: 17px; padding: 0 4px; box-sizing: border-box;
+  border-radius: 9px; display: grid; place-items: center; background: var(--ink-0); color: var(--bg-0);
+  font: 700 10.5px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.sbf-draglabel-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sbf-draglabel-top { display: flex; align-items: center; gap: 6px; color: var(--ink-0); font: 500 13px/1.2 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbf-draglabel-sub { color: var(--ink-2); font: 400 11.5px/1.2 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbf-draglabel.is-no .sbf-draglabel-stack { opacity: .45; }
+.sbf-draglabel.is-no .sbf-draglabel-top { color: var(--ink-1); }
+.sbf-draglabel.is-no .sbf-draglabel-top svg { flex-shrink: 0; color: var(--ink-2); }
+.sbf-draglabel.is-idle .sbf-draglabel-top { color: var(--ink-1); font-weight: 400; }

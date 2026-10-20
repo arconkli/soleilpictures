@@ -823,7 +823,7 @@ test.describe('sidebar files: organizing', () => {
     const [mv] = await calls(page, 'moveFiles');
     expect(mv.params).toMatchObject({ from: 'film', to: 'mood', mode: 'move' });
     expect(mv.params.cardIds).toHaveLength(2);
-    await expect(page.getByTestId('sbqa-toast')).toContainText('Moved 2 files to Moodboards');
+    await expect(page.getByTestId('sbqa-toast')).toContainText('Moved 2 photos to Moodboards');
     await page.getByTestId('sbqa-toast').getByRole('button', { name: 'Undo' }).click();
     await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(2);
     const undo = (await calls(page, 'moveFiles'))[1];
@@ -991,5 +991,189 @@ test.describe('sidebar files: hiding them', () => {
     await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
     await expect(page.locator('.sbf-block').first()).toBeVisible();
     await expect.poll(() => sidebarW(page)).toBe(wide + 30);
+  });
+});
+
+// ── Another cluster's files, and the rules for dragging them (round 11) ─────
+// The owner: "easily navigate to other clusters so we can drag files from one
+// cluster to another… figure out the rules". The cluster tab lists every
+// cluster; dragging moves, the copy key copies, nothing goes into a cluster
+// you can only view or out of the workspace, and a label at the pointer says
+// which before you let go. Playwright's dragTo lets go at once, so a drag that
+// has to be held (to read the label, or to spring a cluster open) is held in
+// the page: dragstart on the file, then dragover on the target every 80ms, as
+// a browser does, until letGo drops it.
+async function holdDrag(page, from, to, { alt = false } = {}) {
+  await page.evaluate(({ from, to, alt }) => {
+    const src = document.querySelector(from);
+    const dt = new DataTransfer();
+    src.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    const held = { dt, dst: null, alt, timer: 0 };
+    held.over = (sel, altKey) => {
+      held.dst = document.querySelector(sel);
+      held.alt = altKey;
+      clearInterval(held.timer);
+      const fire = () => {
+        const r = held.dst.getBoundingClientRect();
+        held.dst.dispatchEvent(new DragEvent('dragover', {
+          bubbles: true, cancelable: true, dataTransfer: dt,
+          clientX: r.left + 24, clientY: r.top + r.height / 2, altKey: held.alt,
+        }));
+      };
+      fire();
+      held.timer = setInterval(fire, 80);
+    };
+    held.over(to, alt);
+    window.__heldDrag = held;
+  }, { from, to, alt });
+}
+const holdOver = (page, to, { alt = false } = {}) => page.evaluate(({ to, alt }) => window.__heldDrag.over(to, alt), { to, alt });
+async function letGo(page) {
+  await page.evaluate(() => {
+    const h = window.__heldDrag;
+    clearInterval(h.timer);
+    const r = h.dst.getBoundingClientRect();
+    h.dst.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: h.dt, clientX: r.left + 24, clientY: r.top + r.height / 2, altKey: h.alt }));
+    window.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: h.dt }));
+  });
+}
+const label = (page) => page.locator('.sbf-draglabel');
+const treeRowSel = (id) => `.sb-tree-row[data-board-id="${id}"]`;
+
+test.describe('sidebar files: another cluster, and the rules', () => {
+  test('the cluster tab lists every cluster; picking one shows its files while the board stays, and Back returns', async ({ page }) => {
+    await open(page);
+    const f = files(page);
+    await expect(shown(page)).toHaveText('Feature film');
+    await tab(page, 'Feature film').click();
+    const list = page.getByRole('menu', { name: 'Show the files of' });
+    await expect(list).toBeVisible();
+    await expect(list.getByRole('menuitemradio', { name: /Feature film/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(list.getByRole('menuitemradio', { name: /Feature film/ })).toContainText('Open now');
+    // Found by name; Enter takes the first.
+    await list.getByRole('searchbox', { name: 'Find a cluster' }).fill('cast');
+    await expect(list.getByRole('menuitemradio')).toHaveText(['Casting']);
+    await page.keyboard.press('Enter');
+    await expect(list).toHaveCount(0);
+    await expect(shown(page)).toHaveText('Casting');
+    await expect(photoRows(page, 'cast').first()).toBeVisible();
+    // The board didn't move: the tree still marks Feature film.
+    await expect(page.getByTestId('sbqa-active')).toHaveText('open: film');
+    await expect(row(page, 'Feature film')).toHaveClass(/active/);
+    await expect(f.getByRole('searchbox', { name: 'Search Casting' })).toBeVisible();
+
+    await f.getByRole('button', { name: 'Back to Feature film' }).click();
+    await expect(shown(page)).toHaveText('Feature film');
+    await expect(f.locator('.sbf-away')).toHaveCount(0);
+
+    // Open takes the board there, and Files simply follows it.
+    await tab(page, 'Feature film').click();
+    await list.getByRole('menuitemradio', { name: 'Casting' }).click();
+    await f.getByRole('button', { name: 'Open Casting' }).click();
+    await expect(page.getByTestId('sbqa-active')).toHaveText('open: cast');
+    await expect(shown(page)).toHaveText('Casting');
+    await expect(f.locator('.sbf-away')).toHaveCount(0);
+  });
+
+  test('the list opens from the keyboard and Escape closes it, back on the tab', async ({ page }) => {
+    await open(page);
+    await tab(page, 'Feature film').focus();
+    await page.keyboard.press('ArrowDown');
+    const list = page.getByRole('menu', { name: 'Show the files of' });
+    await expect(list.getByRole('searchbox', { name: 'Find a cluster' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(list.getByRole('menuitemradio').first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+    await expect(tab(page, 'Feature film')).toBeFocused();
+  });
+
+  test('the label at the pointer says Move, says Copy while ⌥ is held, and Undo names where they went', async ({ page }) => {
+    await open(page);
+    const first = '[data-sb-item="film:film-img-0"]';
+    await holdDrag(page, first, treeRowSel('loc'));
+    await expect(label(page)).toContainText('Move film-still-001.jpg to Locations');
+    await expect(label(page)).toContainText('Into its files, not onto its board');
+    await expect(label(page)).toContainText('Hold Ctrl to copy instead');   // desktop-chrome is Windows here
+    await holdOver(page, treeRowSel('loc'), { alt: true });
+    await expect(label(page)).toContainText('Copy film-still-001.jpg to Locations');
+    await expect(label(page)).toContainText('The original stays in Feature film');
+    await holdOver(page, treeRowSel('loc'));
+    await letGo(page);
+    await expect(label(page)).toHaveCount(0);
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(1);
+    const [mv] = await calls(page, 'moveFiles');
+    expect(mv.params).toMatchObject({ from: 'film', to: 'loc', mode: 'move', cardIds: ['film-img-0'] });
+    await expect(page.getByTestId('sbqa-toast')).toContainText('Moved film-still-001.jpg to Locations');
+  });
+
+  test('over the cluster the file is in, and over a cluster from another workspace, the label says why not', async ({ page }) => {
+    await page.goto('/?sidebarqa=1&shared=1');
+    await page.waitForSelector('[data-sidebarqa-ready]');
+    await page.locator('.sb-shared-head').click();
+    await expect(page.locator('.sb-shared-row', { hasText: 'Grade' })).toBeVisible();
+    await holdDrag(page, '[data-sb-item="film:film-img-0"]', treeRowSel('film'));
+    await expect(label(page)).toContainText('Already in Feature film');
+    await holdOver(page, '.sb-shared-row[data-drop-board="grade"]');
+    await expect(label(page)).toContainText('Grade is in Gradehouse');
+    await expect(label(page)).toContainText('Files can only move within Sidebar QA');
+    await letGo(page);
+    expect(await calls(page, 'moveFiles')).toHaveLength(0);
+  });
+
+  test('a cluster you can only view takes nothing, and its files can be copied out but not moved', async ({ page }) => {
+    await page.goto('/?sidebarqa=1&viewonly=mood');
+    await page.waitForSelector('[data-sidebarqa-ready]');
+    await holdDrag(page, '[data-sb-item="film:film-img-0"]', treeRowSel('mood'));
+    await expect(label(page)).toContainText('Moodboards is view only');
+    await letGo(page);
+    expect(await calls(page, 'moveFiles')).toHaveLength(0);
+
+    await page.goto('/?sidebarqa=1&viewonly=film');
+    await page.waitForSelector('[data-sidebarqa-ready]');
+    await photoRows(page).first().click({ button: 'right' });
+    const menu = page.locator('.ctx-menu').last();
+    await expect(menu.getByText('Copy to…', { exact: true })).toBeVisible();
+    await expect(menu.getByText('Move to…', { exact: true })).toHaveCount(0);
+    await menu.getByText('Copy to…', { exact: true }).click();
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(1);
+    expect((await calls(page, 'moveFiles'))[0].params).toMatchObject({ from: 'film', to: 'mood', mode: 'copy' });
+    // Dragged, they copy too: the label says why.
+    await holdDrag(page, '[data-sb-item="film:film-img-1"]', treeRowSel('loc'));
+    await expect(label(page)).toContainText('Copy film-still-002.jpg to Locations');
+    await expect(label(page)).toContainText('Feature film is view only, so it’s copied');
+    await letGo(page);
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(2);
+    expect((await calls(page, 'moveFiles'))[1].params).toMatchObject({ from: 'film', to: 'loc', mode: 'copy' });
+  });
+
+  test('a selection from two clusters drags whole: each goes from its own', async ({ page }) => {
+    await open(page);
+    // One from Feature film, then, through the cluster tab, one from Casting.
+    await photoRows(page).first().click({ modifiers: ['ControlOrMeta'] });
+    await tab(page, 'Feature film').click();
+    await page.getByRole('menu', { name: 'Show the files of' }).getByRole('menuitemradio', { name: 'Casting' }).click();
+    await expect(shown(page)).toHaveText('Casting');
+    await photoRows(page, 'cast').first().click({ modifiers: ['ControlOrMeta'] });
+    await expect(page.locator('.sbf-bulk')).toContainText('2 selected');
+    await holdDrag(page, '[data-sb-item="cast:cast-img-0"]', treeRowSel('mood'));
+    await expect(label(page)).toContainText('Move 2 photos to Moodboards');
+    await expect(label(page)).toContainText('Into its files, not onto its board');
+    await letGo(page);
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(2);
+    const moves = (await calls(page, 'moveFiles')).map((c) => [c.params.from, c.params.cardIds.join()]).sort();
+    expect(moves).toEqual([['cast', 'cast-img-0'], ['film', 'film-img-0']]);
+  });
+
+  test('held over a folded cluster, a drag opens it', async ({ page }) => {
+    await open(page);
+    await row(page, 'Feature film').locator('.sb-tree-chev').click();
+    await expect(row(page, 'Feature film')).toHaveAttribute('aria-expanded', 'false');
+    await holdDrag(page, '[data-sb-item="film:film-img-0"]', treeRowSel('film'));
+    await expect(row(page, 'Feature film')).toHaveAttribute('aria-expanded', 'true', { timeout: 2500 });
+    await expect(row(page, 'Locations')).toBeVisible();
+    await holdOver(page, treeRowSel('loc'));
+    await letGo(page);
+    await expect.poll(async () => (await calls(page, 'moveFiles')).length).toBe(1);
   });
 });

@@ -45,6 +45,7 @@ test('files stay in their workspace', () => {
   assert.equal(d.reason, 'workspace');
   assert.deepEqual(d.label, { top: 'Grade is in Priya’s workspace', sub: 'Files can only move within Lost Time', hint: '', no: true });
   assert.equal(decide({ files: three, target: row({ workspaceId: 'ws-2' }), workspaceName: '' }).label.top, 'Locations is in another workspace');
+  assert.equal(decide({ files: three, target: row({ name: 'Grade', workspaceId: 'ws-2', workspaceName: 'Gradehouse' }) }).label.top, 'Grade is in Gradehouse');
   assert.equal(decide({ files: three, target: row({ workspaceId: 'ws-2' }), copy: true }).action, 'none', 'not even a copy, yet');
 });
 

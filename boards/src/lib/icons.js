@@ -172,4 +172,6 @@ export {
   SpeakerLow,
   Keyboard,
   Gift,
+  // The drag label's "can't go there" (components/sidebar/DragLabel.jsx).
+  Prohibit,
 } from '@phosphor-icons/react';

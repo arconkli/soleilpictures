@@ -4228,24 +4228,32 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Files dragged from the sidebar out of ANOTHER cluster onto this board move
   // here, at the drop point (⌥ still makes the linked copy, in CanvasSurface).
-  const moveFilesHere = async (targetId, payload, at) => {
+  // Files from another cluster dropped on a board (CanvasSurface's Files drop):
+  // moved there by the route, at the drop point, or copied with the copy key
+  // (lib/dropRules.js decides which, and names them `what` as the drag did).
+  const moveFilesHere = async (targetId, payload, at, { copy = false, what = null } = {}) => {
     const from = payload?.sourceBoardId;
     const cardIds = (payload?.cards || []).map((c) => c.id);
-    const r = await moveFiles({ from, to: targetId, cardIds, mode: 'move', at });
-    if (!r.ok) { feedback.toast({ type: 'error', message: failureMessage(r, 'move') }); return; }
+    const r = await moveFiles({ from, to: targetId, cardIds, mode: copy ? 'copy' : 'move', at });
+    if (!r.ok) { feedback.toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') }); return; }
     setSidebarRefresh((n) => n + 1);
-    if (!r.moved) {
-      feedback.toast({ type: 'info', message: r.kept?.length ? 'Those files are still uploading. Try again when they finish.' : 'Nothing moved.' });
+    const n = copy ? (r.copied || 0) : (r.moved || 0);
+    if (!n) {
+      const late = (r.kept?.length || 0) + (r.skipped?.length || 0);
+      feedback.toast({ type: 'info', message: late ? 'Those files are still uploading. Try again when they finish.' : 'Nothing moved.' });
       return;
     }
+    const said = what && n === cardIds.length ? what : n === 1 ? '1 file' : `${n} files`;
     undoToast(feedback, {
-      message: `Moved ${r.moved === 1 ? '1 file' : `${r.moved} files`} here from ${boards[from]?.name || 'another cluster'}`,
+      message: `${copy ? 'Copied' : 'Moved'} ${said} here from ${boards[from]?.name || 'another cluster'}`,
       onUndo: async () => {
-        const u = await moveFiles({
-          from: targetId, to: from, mode: 'move',
-          cardIds: (r.pairs || []).map((p) => p.to),
-          restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
-        });
+        const u = copy
+          ? await removeCards({ boardId: targetId, cardIds: (r.cards || []).map((c) => c.id) })
+          : await moveFiles({
+            from: targetId, to: from, mode: 'move',
+            cardIds: (r.pairs || []).map((p) => p.to),
+            restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
+          });
         if (!u.ok) feedback.toast({ type: 'error', message: failureMessage(u, 'move') });
         setSidebarRefresh((n) => n + 1);
       },
@@ -9569,7 +9577,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
             <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={canvasCards} allCards={cards} arrows={arrows} strokes={strokes} groups={groups}
                            onRevealUnplaced={(ids) => revealInFiles(board.id, ids, isMain)}
-                           onMoveFilesHere={filesSidebar ? (payload, at) => moveFilesHere(board.id, payload, at) : null}
+                           onMoveFilesHere={filesSidebar ? (payload, at, opts) => moveFilesHere(board.id, payload, at, opts) : null}
                            /* The empty panel waits for the Y.Doc (boardReady) and takes its
                               first-board shape from the server card count: no cards anywhere
                               means this is the first board (lib/firstBoardCopy). */
@@ -10042,6 +10050,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               snug={sidebarSnug}
               sizable={!mobileShell && sidebarOpen}
               workspaceId={workspace.id}
+              workspaceName={workspace.name || ''}
               boards={ownedBoards}
               allBoards={boards}
               rootId={rootBoard.id}
