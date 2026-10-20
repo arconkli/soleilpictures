@@ -496,12 +496,10 @@ export function AdminUserDetail({
           </div>
           <div className="admin-detail-actions">
             {detail?.flags?.is_internal && <span className="admin-badge-promo" title="Seeded / internal account">internal</span>}
+            {/* flags.verified is 0461's: the owner entered the emailed code. */}
             {detail?.flags && detail.flags.verified === false && (
-              <span
-                className="admin-badge-ghost"
-                title={detail.flags.email_confirmed === false ? 'Email not confirmed' : 'Never signed in'}
-              >
-                unverified
+              <span className="admin-badge-ghost" title="Asked for a sign-in code and never entered it">
+                never got in
               </span>
             )}
             {row.banned && <span className="admin-detail-banned" title={detail?.identity?.banned_reason || 'Account suspended'}>banned</span>}

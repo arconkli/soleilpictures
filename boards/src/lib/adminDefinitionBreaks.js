@@ -21,9 +21,10 @@
 // Only one entry cuts. That is a judgement made series by series, not an
 // omission:
 //
-//   - signups: the verified rule filters on CURRENT column values, so the
-//     series is computed the same way for every week back in time. Nothing to
-//     cut.
+//   - signups: since 0461 a signup is an account whose owner entered the
+//     emailed code, judged by today's evidence for every week back in time,
+//     and metrics_daily was restated the same way. Nothing steps, so nothing
+//     to cut or mark.
 //   - cards: card_index.created_at was backfilled from updated_at, which the
 //     client never updates, so it is first-index time throughout. Uniform on
 //     both sides of 0254: a marker, not a cut.

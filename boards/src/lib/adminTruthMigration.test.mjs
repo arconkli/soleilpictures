@@ -27,7 +27,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MIGRATIONS_DIR, migrationFiles, latestDefinition } from './migrationText.mjs';
+import { MIGRATIONS_DIR, migrationFiles, latestDefinitionPastCodeEntry, CODE_ENTRY_FILE } from './migrationText.mjs';
 
 const FILE = '0460_admin_numbers_tell_the_truth.sql';
 const PATH = join(MIGRATIONS_DIR, FILE);
@@ -41,10 +41,19 @@ const definitionRe = (fn) => new RegExp(
   `create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.)?${fn}\\s*\\(` +
   `[\\s\\S]*?as\\s*(\\$[a-z_]*\\$)[\\s\\S]*?\\1\\s*;`, 'i');
 
+// Past 0461, which restated several of these only to change who counts as a
+// signup; their logic is still this file's.
 const defOf = (fn) => {
-  const def = latestDefinition(fn);
+  const def = latestDefinitionPastCodeEntry(fn);
   assert.ok(def, `${fn} is defined somewhere`);
   return def;
+};
+
+// This file's own definition, whatever came after it.
+const ownDefinition = (fn) => {
+  const body = src.match(definitionRe(fn))?.[0];
+  assert.ok(body, `${FILE} defines ${fn}`);
+  return { file: FILE, body };
 };
 
 // The last definition before this file: what 0460 rewrote.
@@ -397,9 +406,10 @@ test('the proof names every signature and checks every role, the heartbeat and t
 });
 
 test('admin_universe_stats counts live rows exactly, carries no clock, and keeps today as the cards chart reads it', () => {
-  const def = defOf('admin_universe_stats');
-  assert.equal(def.file, FILE);
-  const body = def.body;
+  // 0461 rewrote how its people are counted; signupAtCodeEntryMigration.test.mjs
+  // pins that edit against this body, and the clock again.
+  assert.equal(defOf('admin_universe_stats').file, CODE_ENTRY_FILE);
+  const body = ownDefinition('admin_universe_stats').body;
   assert.doesNotMatch(body, /platform_counters/, 'no counter maintained by triggers and a cron');
   assert.match(body, /'total_cards',\s+\(select count\(\*\) from public\.card_index ci join public\.boards b on b\.id = ci\.board_id where b\.deleted_at is null\)/,
     'cards on live clusters only');

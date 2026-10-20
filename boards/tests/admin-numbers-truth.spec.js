@@ -146,11 +146,11 @@ test.describe('Analytics › Overview', () => {
     await expect(rail).toContainText('Accounts', { timeout: 20000 });
     await expect(rail).toContainText('Clusters made');
     await expect(rail).toContainText('+628 Studios');
-    await expect(rail.locator('.admin-lifetime-scope')).toHaveText('totals now · team excluded · verified only');
+    await expect(rail.locator('.admin-lifetime-scope')).toHaveText('totals now · team excluded · entered the code');
 
     await recordRpc(page, ['admin_lifetime_totals', 'admin_recent_signups', 'admin_active_now']);
     await page.getByRole('switch', { name: /Internal/ }).click();
-    await expect(rail.locator('.admin-lifetime-scope')).toHaveText('totals now · incl. team · verified only');
+    await expect(rail.locator('.admin-lifetime-scope')).toHaveText('totals now · incl. team · entered the code');
     await expect.poll(() => page.evaluate(() => window.__rpcSeen.map(([n, p]) => `${n}:${p?.p_exclude_internal}`)))
       .toEqual(expect.arrayContaining([
         'admin_lifetime_totals:false', 'admin_recent_signups:false', 'admin_active_now:false',

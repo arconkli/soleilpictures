@@ -19,7 +19,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MIGRATIONS_DIR, migrationFiles, latestDefinition } from './migrationText.mjs';
+import { MIGRATIONS_DIR, migrationFiles, latestDefinitionPastCodeEntry } from './migrationText.mjs';
 import { WEEKLY_METRICS } from './weeklySeries.js';
 import { WEEKLY_SERIES_KEYS } from './adminDefinitionBreaks.js';
 
@@ -48,8 +48,11 @@ const SERIES_COLUMNS = [
   ['work_measurable', 'boolean'], ['cards', 'int'], ['active_floor', 'date'], ['work_floor', 'date'],
 ];
 
+// Past 0461, which restated _admin_people only to swap 0149's verified rule
+// for "entered the emailed code" (signupAtCodeEntryMigration.test.mjs pins
+// that); everything else in it is still this file's.
 const defOf = (fn) => {
-  const def = latestDefinition(fn);
+  const def = latestDefinitionPastCodeEntry(fn);
   assert.ok(def, `${fn} is defined somewhere`);
   return def;
 };

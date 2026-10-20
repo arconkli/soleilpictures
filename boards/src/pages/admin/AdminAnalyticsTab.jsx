@@ -89,10 +89,10 @@ function VerifiedToggle() {
       role="switch"
       aria-checked={f.verifiedOnly}
       onClick={() => f.setVerifiedOnly(!f.verifiedOnly)}
-      title="Count only verified users (email confirmed + signed in at least once), or everyone including unverified signups"
+      title="On: count an account once its owner has entered the emailed sign-in code. Off: also count addresses that asked for a code and never entered it."
     >
       <span className="admin-toggle-dot" aria-hidden="true" />
-      {f.verifiedOnly ? 'Verified only' : 'All users'}
+      {f.verifiedOnly ? 'Entered the code' : 'All accounts'}
     </button>
   );
 }
@@ -130,7 +130,7 @@ function DeckStatus({ view }) {
     // weeks its trends read and how far into this one we are; the others
     // follow the range control, which is why the range control is hidden on Overview.
     ['WINDOW', overview ? `7d${weeksRead}` : `${f.days}d`],
-    ['POP', f.verifiedOnly ? 'verified' : 'all signups'],
+    ['POP', f.verifiedOnly ? 'entered the code' : 'all accounts'],
     ['INTERNAL', f.excludeInternal ? 'excluded' : 'counted'],
     ['SYNC', `${Math.round(cadence / 1000)}s`],
   ];

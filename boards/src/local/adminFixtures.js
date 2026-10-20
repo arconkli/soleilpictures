@@ -71,10 +71,10 @@ const listUsers = NAMES.map((name, i) => {
   const tier = TIERS[i % TIERS.length];
   const paid = tier === 'paid';
   const contacted = i % 5 === 0;   // sprinkle a few "reached out" users for the preview
-  // A couple of unverified examples so the badge + dropdown have something to show:
-  // i===4 confirmed email but never signed in; i===11 email never confirmed.
-  const neverSignedIn = i === 4;
-  const emailUnconfirmed = i === 11;
+  // Two accounts that asked for a code and never entered it, so the badge and
+  // the dropdown have something to show. email_confirmed is 0462's: entered
+  // the code. Their one sign-in is the one made with the account.
+  const neverGotIn = i === 4 || i === 11;
   return {
     user_id: `u-${i}`,
     email: `${name}@${['studio.co', 'gmail.com', 'acme.io', 'proton.me'][i % 4]}`,
@@ -82,8 +82,8 @@ const listUsers = NAMES.map((name, i) => {
     card_count: Math.max(0, wave(i, 70, 60)),
     seconds_in_app: Math.max(0, wave(i, 9000, 8000)) * 6,
     created_at: tsISO((i + 1) * 1440 * 3),
-    last_sign_in_at: neverSignedIn ? null : tsISO((i % 5) * 120 + 15),
-    email_confirmed: !emailUnconfirmed,
+    last_sign_in_at: neverGotIn ? tsISO((i + 1) * 1440 * 3) : tsISO((i % 5) * 120 + 15),
+    email_confirmed: !neverGotIn,
     subscription_plan: paid ? (i % 2 ? 'annual' : 'monthly') : null,
     subscription_status: paid ? 'active' : null,
     current_period_end: paid ? tsISO(-1440 * 20) : null,
@@ -112,19 +112,21 @@ const topUsers = (tier) => listUsers
 // ── funnel ──────────────────────────────────────────────────────────
 const signupFunnel = [
   { ord: 1,  step: 'landing_view',        label: 'Landing view',           branch: 'core',     sessions: 4280, users: 0 },
-  { ord: 2,  step: 'email_submit',        label: 'Email submitted',        branch: 'core',     sessions: 1190, users: 0 },
-  { ord: 3,  step: 'otp_verify',          label: 'OTP verified (account)', branch: 'core',     sessions: 1102, users: 1102 },
+  { ord: 2,  step: 'email_submit',        label: 'Asked for a code',       branch: 'core',     sessions: 1190, users: 0 },
+  { ord: 3,  step: 'otp_verify',          label: 'Entered the code',       branch: 'core',     sessions: 1102, users: 1102 },
   { ord: 4,  step: 'welcome_view',        label: 'Welcome page',           branch: 'core',     sessions: 988,  users: 988 },
   { ord: 5,  step: 'submit_socials_open', label: 'Opened waitlist form',   branch: 'waitlist', sessions: 545,  users: 545 },
   { ord: 6,  step: 'submit_socials_done', label: 'Joined waitlist',        branch: 'waitlist', sessions: 412,  users: 412 },
   { ord: 7,  step: 'pricing_view',        label: 'Viewed pricing',         branch: 'pricing',  sessions: 612,  users: 612 },
   { ord: 8,  step: 'checkout_open',       label: 'Opened checkout',        branch: 'pricing',  sessions: 286,  users: 286 },
   { ord: 9,  step: 'checkout_success',    label: 'Completed payment',      branch: 'pricing',  sessions: 142,  users: 142 },
-  { ord: 20, step: 'email_submit_error',  label: 'Email submit failed',    branch: 'leak',     sessions: 64,   users: 0 },
-  { ord: 21, step: 'otp_verify_error',    label: 'OTP verify failed',      branch: 'leak',     sessions: 38,   users: 0 },
+  { ord: 20, step: 'email_submit_error',  label: 'Code request failed',    branch: 'leak',     sessions: 64,   users: 0 },
+  { ord: 21, step: 'otp_verify_error',    label: 'Code not accepted',      branch: 'leak',     sessions: 38,   users: 0 },
   { ord: 22, step: 'waitlist_abandon',    label: 'Abandoned waitlist form',branch: 'leak',     sessions: 121,  users: 121 },
   { ord: 23, step: 'pricing_abandon',     label: 'Abandoned pricing',      branch: 'leak',     sessions: 240,  users: 240 },
   { ord: 24, step: 'checkout_error',      label: 'Checkout failed',        branch: 'leak',     sessions: 31,   users: 31 },
+  // 0461: derived from steps 2 and 3, not an event of its own.
+  { ord: 25, step: 'code_never_entered',  label: 'Never entered the code', branch: 'leak',     sessions: 88,   users: 0 },
 ];
 const funnelSegments = [
   { dim: 'source', value: 'google',   sessions: 1840 },
@@ -964,7 +966,7 @@ function userDetailFixture(userId) {
   const paid = row.tier === 'paid';
   const clustersMade = made ? 1 + (i % 6) : 0;
   const activeDays = made ? 3 + (i % 17) : i % 2;
-  const verified = row.email_confirmed && !!row.last_sign_in_at;
+  const verified = row.email_confirmed;
   return {
     user_id: row.user_id,
     email: row.email,

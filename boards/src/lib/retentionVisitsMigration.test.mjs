@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MIGRATIONS_DIR, latestDefinition } from './migrationText.mjs';
+import { MIGRATIONS_DIR, latestDefinition, latestDefinitionPastCodeEntry } from './migrationText.mjs';
 
 const FILE = '0322_honest_visits_fixed_horizon.sql';
 const src = readFileSync(join(MIGRATIONS_DIR, FILE), 'utf8');
@@ -46,9 +46,10 @@ test('0322 owns the latest definition of every function it touches', () => {
 
 // _admin_visits is the one visit definition every retention read shares. A
 // later migration may EXTEND its passive list (0363 added the day-one greeting's
-// own impression, which is telemetry, not a person) — and nothing else.
+// own impression, which is telemetry, not a person) — and nothing else. 0461's
+// restatement, which only changed who counts as a signup, is read past.
 test('_admin_visits is 0322\'s body, extended only by passive events', () => {
-  const latest = latestDefinition('_admin_visits');
+  const latest = latestDefinitionPastCodeEntry('_admin_visits');
   const own = src.match(/create\s+(?:or\s+replace\s+)?function\s+public\._admin_visits\s*\([\s\S]*?\$\$;/i);
   assert.ok(latest && own, '_admin_visits found in 0322 and in the migration history');
   const listOf = (body) => {

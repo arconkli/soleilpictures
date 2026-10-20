@@ -521,7 +521,7 @@ export function OverviewView() {
                   ? `${formatCount(Math.round(lifeN('seconds_in_app') / 3600))}h` : '—'}</dd>
               </div>
               <div className="admin-lifetime-scope">
-                totals now · {f.excludeInternal ? 'team excluded' : 'incl. team'} · {f.verifiedOnly ? 'verified only' : 'all signups'}
+                totals now · {f.excludeInternal ? 'team excluded' : 'incl. team'} · {f.verifiedOnly ? 'entered the code' : 'all accounts'}
               </div>
             </dl>
           ) : null}
@@ -632,9 +632,9 @@ export function OverviewView() {
             span={8}
             title="Weekly, by metric"
             meta={`${COMPLETE_WEEKS} complete weeks + this week so far · UTC Monday`}
-            // Both ways: _admin_people reads email_confirmed_at and last_sign_in_at
-            // as they are now, so an account verified late joins weeks already drawn.
-            foot="History can shrink: deleted accounts and cards leave it. It can also grow: a late verification raises a recent week."
+            // Both ways: _admin_people asks _admin_entered_code() as things are
+            // now, so a code entered late joins a week already drawn.
+            foot="History can shrink: deleted accounts and cards leave it. It can also grow: a code entered late counts in the week the account was made."
           >
             <WeeklyMultiples
               weeks={weeks}
