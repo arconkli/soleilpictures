@@ -11,9 +11,10 @@
 // each session to 60s per 60s window. On tab close we can't await an async RPC,
 // so we fire a keepalive fetch (sendBeacon can't set the apikey header).
 //
-// Anon-callable RPC, so this also fires on the landing page before sign-in —
-// "total time on the platform" really means total, not just authenticated time;
-// the per-user seconds_in_app column only accrues when a user_id is present.
+// Signed-in only. bump_seconds_in_app credits its caller (0470: the server
+// uses auth.uid(), whatever p_user_id says) and never credited a signed-out
+// call (0254 put every write behind the user id), so a signed-out flush drops
+// its time and work ops, as the anon call used to, without making the request.
 
 import { supabase } from './supabase.js';
 import { getAppSessionId } from './appSession.js';
@@ -121,12 +122,21 @@ async function refreshAuth() {
   } catch (_) { /* keep last cached */ }
 }
 
+// Signed out there is no one to credit: drop the time, the per-surface slices
+// and the work ops, as the anon call that used to carry them did.
+function dropSignedOut() {
+  activeMs = 0;
+  bySurface.clear();
+  takeWorkOps();
+}
+
 // Normal cadence + visibility-hidden: async RPC (the page is still alive).
 async function flush() {
   if (!supabase) return;
   sample();
   const secs = Math.floor(activeMs / 1000);
   await refreshAuth();
+  if (!cachedUid) { dropSignedOut(); return; }
   if (secs <= 0) return;
   activeMs -= secs * 1000;         // keep the sub-second remainder
   const sid = ensureSessionId();
@@ -142,9 +152,6 @@ async function flush() {
     });
   } catch (_) { /* fire-and-forget */ }
 
-  // Dimensional slices are signed-in only — record_usage_slice no-ops for anon,
-  // so sending them would be pure noise.
-  if (!cachedUid) { bySurface.clear(); return; }
   const slices = drainSurfaceSlices();
   // Work ops are attributed to the surface with the most time this window. It's
   // an approximation, and labelled as one: the exact per-op surface would mean
@@ -182,6 +189,7 @@ function rpcBeacon(fn, body) {
 function flushBeacon() {
   sample();
   const secs = Math.floor(activeMs / 1000);
+  if (!cachedUid) { dropSignedOut(); return; }
   if (secs <= 0 || !SUPABASE_URL || !PUBLIC_KEY) return;
   activeMs = 0;
   const sid = ensureSessionId();
@@ -189,7 +197,6 @@ function flushBeacon() {
   rpcBeacon('bump_seconds_in_app', {
     p_seconds: secs, p_session_id: sid, p_user_id: cachedUid, p_did_work: ops > 0,
   });
-  if (!cachedUid) { bySurface.clear(); return; }
   const slices = drainSurfaceSlices();
   let busiest = 0;
   for (let i = 1; i < slices.length; i++) if (slices[i].secs > slices[busiest].secs) busiest = i;
