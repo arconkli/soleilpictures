@@ -7682,6 +7682,39 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "On a touch screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "On a touch screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " the selection carries a gold "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. Touch and hold a card to pick it up and move it."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Info",
@@ -38228,21 +38261,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Select"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Long press"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Context menu"
+       "v": "Select a card; on empty canvas, clear the selection"
       }
      ]
     ],
@@ -38257,6 +38276,58 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Add menu at that point"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold a card"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Pick it up to move it (on a cluster you can only view, its menu)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold anything else"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its menu: the board's, or a group label's, an arrow's, a tag's, the comments button's archive"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "⋯",
+       "children": [
+        {
+         "t": "text",
+         "v": "⋯"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on the selection"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The menu for every selected card"
       }
      ]
     ]

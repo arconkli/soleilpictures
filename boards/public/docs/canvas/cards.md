@@ -2,7 +2,7 @@
 
 > A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-11_
+_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-20_
 
 Everything on a canvas is a card. They differ in what they hold and nothing
 else — position, size, stacking order, selection, grouping, tagging, commenting
@@ -73,6 +73,10 @@ once. Moving cards doesn't change how many you have.
 
 **Copy link** — a deep link that opens the board with that card selected. Useful
 in a message or a doc.
+
+**On a touch screen** the selection carries a gold **⋯** at its top-right
+corner. It opens the menu a right-click would, for one card or for every
+selected card at once. Touch and hold a card to pick it up and move it.
 
 ## Info
 

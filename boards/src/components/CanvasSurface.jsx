@@ -5,7 +5,7 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, boardGroundAllowed, bulkImportAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, boardGroundAllowed, bulkImportAllowed, touchPassAllowed } from '../lib/appHost.js';
 import { isZipFile } from '../lib/importZips.js';
 import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
@@ -169,6 +169,7 @@ import { isShowcaseCard } from '../lib/onboardingStarter.js';
 import { recordIntent } from '../lib/frictionSignal.js';
 import { useGesture } from '@use-gesture/react';
 import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
@@ -335,6 +336,15 @@ function noteCopiedGroups(items, ydoc) {
 const SCHEDULE_SCROLL_PANES = '.rd-body, .schedt, .schedc-rail-body';
 
 const RESIZE_HANDLE_PX = 14;
+// How far the multi-selection's frame (.sel-bbox) sits outside its cards.
+const SEL_FRAME_PAD = 6;
+// The selection's ⋯, in screen px from the selection's top-right corner:
+// over the corner, as it sat on a card, or clear of it on a selection drawn
+// smaller than SEL_MENU_OUT_BELOW_PX, so it never covers the card a finger is on.
+const SEL_MENU_BTN_PX = 36;
+const SEL_MENU_OUT_BELOW_PX = 96;
+const SEL_MENU_OVER = { dx: -26, dy: -14 };
+const SEL_MENU_OUT = { dx: 4, dy: -40 };
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
 // Mobile press-and-hold to pick up a card. On touch a one-finger drag PANS
@@ -1275,6 +1285,22 @@ export function CanvasSurface({
   // pointerup. Without this, the window pointermove/pointerup listeners stay
   // armed after Escape and still commit the gesture on release.
   const pointerOpAbortRef = useRef(null);
+  // A finger on empty canvas (startTouchCanvasPress): the press in flight, so
+  // the long-press menu and Android's contextmenu stand back while it decides;
+  // the ring that fills while it is held; the last tap, for a double tap; and
+  // when a double tap last opened the add menu, so the browser's own dblclick
+  // that follows it can't open a second one.
+  const touchPressRef = useRef(null);
+  const holdCueRef = useRef(null);
+  // When a press last began on the selection's ⋯ (only those open its menu).
+  const selMenuPressRef = useRef(0);
+  const lastBgTapRef = useRef({});
+  const bgDoubleTapAtRef = useRef(0);
+  // "Select…" from the hold menu: until Done, a tap on a card adds it to the
+  // selection or takes it out, instead of selecting only it.
+  const [touchSelecting, setTouchSelecting] = useState(false);
+  const touchSelectingRef = useRef(false);
+  touchSelectingRef.current = touchSelecting;
   const [arrowFrom, setArrowFrom] = useState(null);
   // While the arrow tool has a source picked, the card the cursor is over
   // (highlighted as the connect target) and the live cursor position (for the
@@ -2323,6 +2349,26 @@ export function CanvasSurface({
     setSelectedTool('select');
     return true;
   };
+  // A finger's photo picker waits for the finger to lift. A touch screen
+  // grants a page the right to open one on the release (pointerup), not the
+  // press, and iOS drops a picker asked for any earlier. Placed where the
+  // finger came down, if it lifted there (a drag isn't a tap).
+  const placesOnRelease = (e) => selectedTool === 'image' && e.pointerType === 'touch';
+  const placeToolOnRelease = (e) => {
+    const at = { x: e.clientX, y: e.clientY };
+    const done = () => {
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
+    };
+    const onUp = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      done();
+      if (Math.hypot(ev.clientX - at.x, ev.clientY - at.y) <= TOUCH_LIFT_TOLERANCE) placeToolAt(clientToCanvas(at.x, at.y));
+    };
+    const onCancel = (ev) => { if (ev.pointerId === e.pointerId) done(); };
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
+  };
 
   // Briefly enable smooth transform after programmatic zoom changes.
   const enableSmoothTransform = useCallback(() => {
@@ -2911,7 +2957,7 @@ export function CanvasSurface({
     mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
   }, [selected, mutators]);
 
-  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); setAnnotPlacing(null); }, [selectedTool, board.id]);
+  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); setAnnotPlacing(null); setTouchSelecting(false); }, [selectedTool, board.id]);
   useEffect(() => {
     setSelected(new Set());
     setSelectedStrokes(new Set());
@@ -3569,6 +3615,21 @@ export function CanvasSurface({
     const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
     return boundsOfCards(items);
   }, [effectiveSelectedIds, cards]);
+
+  // Where the selection's ⋯ sits: the top-right corner of the selection's
+  // frame (.sel-bbox), or of the one card. `id` is the card whose menu it
+  // opens; with several selected, any of them opens the menu for them all
+  // (buildMenu's `multi`).
+  const selMenuAnchor = useMemo(() => {
+    const id = [...selected].find((sid) => cardById[sid]);
+    if (!id) return null;
+    const b = multiSelectionBounds;
+    if (b) return { id, x: b.x + b.w + SEL_FRAME_PAD, y: b.y - SEL_FRAME_PAD, w: b.w, h: b.h };
+    const c = cardById[id];
+    return { id, x: c.x + c.w, y: c.y, w: c.w, h: c.h };
+    // cardById is mutated in place; `cards` is what says it moved.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, cards, multiSelectionBounds]);
 
   // Group bounding box (computed from member cards) — used by arrow
   // anchoring so arrows can attach to groups, not just cards.
@@ -5452,6 +5513,18 @@ export function CanvasSurface({
   useLongPress(
     wrapRef,
     (x, y, e) => {
+      // What keeps its own menu on a right-click: the comments eye's archive,
+      // a group's label, an arrow, a tag chip. A hold there is that
+      // right-click. Android raises the contextmenu itself on a hold; iOS
+      // never does, so there the canvas menu used to open instead. Letting go
+      // then must not also click it (the eye would hide every comment).
+      const own = e.target.closest?.('.cnv-comments-eye, .group-label, .card-tag-chip, [data-arrow-idx] path');
+      if (own) {
+        touchPressRef.current?.abort();
+        swallowNextClick({ held: true });
+        own.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        return;
+      }
       const cardEl = e.target.closest?.('.card');
       if (cardEl) {
         const id = cardEl.getAttribute('data-card-id');
@@ -5464,11 +5537,20 @@ export function CanvasSurface({
         if (canEdit && selectedTool === 'select') return;
         if (!selected.has(c.id)) setSelected(new Set([c.id]));
         setBgCtx(b => ({ ...b, open: false }));
+        swallowNextClick({ held: true });
         setCtx({ open: true, x, y, cardId: c.id });
         return;
       }
-      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox')) return;
+      // The selection's ⋯ and its resize corner sit outside every card.
+      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox, .sel-menu, .multi-resize')) return;
+      // A finger on empty canvas decides this itself, on letting go
+      // (startTouchCanvasPress): the hold may yet become a selection box.
+      if (touchPressRef.current) return;
+      // With a tool in hand a hold is part of using it: a finger that paused
+      // at the start of a stroke opened the board's menu under itself.
+      if (selectedTool !== 'select' && selectedTool !== 'pan') return;
       const pos = clientToCanvas(x, y);
+      swallowNextClick({ held: true });
       setBgCtx({ open: true, x, y, canvasPos: pos });
     },
     { ms: 480, tolerance: 10, pointerType: 'touch' },
@@ -6151,6 +6233,8 @@ export function CanvasSurface({
         if (addMenuOpen) { setAddMenuOpen(false); return; }
         if (tplPanelOpen) { setTplPanelOpen(false); return; }
         if (annotPlacing) { setAnnotPlacing(null); return; }
+        // Select… ends and keeps what it selected, as Done does.
+        if (touchSelecting) { setTouchSelecting(false); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
         if (selected.size || selectedStrokes.size || selectedArrows.size) {
@@ -6163,7 +6247,7 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
+      ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing, touchSelecting,
       hasSplit, paneId, board?.id, isPublic]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
@@ -6264,7 +6348,8 @@ export function CanvasSurface({
     if (typeof document !== 'undefined') document.body.removeAttribute('data-zooming');
   }, []);
 
-  const startPan = (e) => {
+  // `onTap(ev)`: a touch that let go without travelling was a tap, not a pan.
+  const startPan = (e, { onTap = null } = {}) => {
     e.preventDefault();
     glideRef.current = null;
     const startClient = { x: e.clientX, y: e.clientY };
@@ -6273,6 +6358,7 @@ export function CanvasSurface({
     const startedFromTouch = e.pointerType === 'touch';
     document.body.style.cursor = 'grabbing';
     let aborted = false;
+    let travelled = false;
     const cleanup = () => {
       document.body.style.cursor = '';
       window.removeEventListener('pointermove', onMove);
@@ -6286,6 +6372,7 @@ export function CanvasSurface({
       // panRef with stale values computed from startPanXY + delta and
       // overwrite whatever useGesture's pinch handler just set.
       if (ev.pointerId !== initialPointerId) return;
+      if (!travelled && Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) > TOUCH_LIFT_TOLERANCE) travelled = true;
       panRef.current = {
         x: startPanXY.x + (ev.clientX - startClient.x),
         y: startPanXY.y + (ev.clientY - startClient.y),
@@ -6318,6 +6405,7 @@ export function CanvasSurface({
       setPan({ x: panRef.current.x, y: panRef.current.y });
       scheduleVisibleRecompute();
       emitCanvasSettle();
+      if (onTap && startedFromTouch && !travelled) onTap(ev);
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -6886,6 +6974,7 @@ export function CanvasSurface({
     // lands at the cursor (it can overlap; the user drags it off).
     if (PLACE_TOOLS.includes(selectedTool)) {
       e.stopPropagation();
+      if (placesOnRelease(e)) { placeToolOnRelease(e); return; }
       placeToolAt(clientToCanvas(e.clientX, e.clientY));
       return;
     }
@@ -6925,12 +7014,17 @@ export function CanvasSurface({
     // a lift. `touchHold` gates every mobile-specific branch below; for mouse /
     // pen it stays false and the original synchronous path runs verbatim.
     const touchHold = e.pointerType === 'touch' && e.isPrimary;
+    // Select… (the hold menu): a tap adds the card or takes it out (the tap
+    // branch of onUp), and a lift carries the whole selection, this card with it.
+    const toggling = touchHold && touchSelectingRef.current;
 
     let nextSelected;
     if (e.shiftKey) {
       nextSelected = new Set(selected);
       if (nextSelected.has(c.id)) nextSelected.delete(c.id);
       else nextSelected.add(c.id);
+    } else if (toggling) {
+      nextSelected = new Set(selected).add(c.id);
     } else if (selected.has(c.id) && selected.size > 1) {
       nextSelected = selected;
     } else {
@@ -6942,7 +7036,7 @@ export function CanvasSurface({
     // touch until onLift / the tap branch of onUp (see touchHold above).
     const applyCardSelection = () => {
       setSelected(nextSelected);
-      if (!e.shiftKey) {
+      if (!e.shiftKey && !toggling) {
         setSelectedStrokes(new Set());
         setSelectedArrows(new Set());
       }
@@ -7441,7 +7535,11 @@ export function CanvasSurface({
           emitCanvasSettle();
         } else if (!panned && !touchScrolling && !aborted) {
           // Tap: boards still open on tap (as before); other cards select.
-          if (openOnClick) {
+          if (toggling) {
+            const next = new Set(selected);
+            if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+            setSelected(next);
+          } else if (openOnClick) {
             if (c.kind === 'board') onOpenBoard(c.id);
             else if (c.kind === 'boardlink') onOpenBoard(c.target);
           } else {
@@ -8852,6 +8950,9 @@ export function CanvasSurface({
   // empty-board hint advertises). Cards, chrome, strokes and arrows keep
   // their own double-click behaviors.
   const onBackgroundDoubleClick = (e) => {
+    // A finger's double tap already opened the menu (onTouchTapEmpty); this is
+    // the browser's own dblclick for the same two taps, where it sends one.
+    if (e.type === 'dblclick' && performance.now() - bgDoubleTapAtRef.current < 700) return;
     // Any tour (locked desktop OR the unlocked mobile_lite variant) owns input —
     // a double-tap must not open the quick-add menu over the pill or drop a stray
     // cluster/note that steers away from the guided path.
@@ -8883,6 +8984,237 @@ export function CanvasSurface({
     try { logEvent(EV.CARD_CREATE_INTENT, { method: 'dblclick_menu', board_id: board?.id }); } catch (_) {}
     try { setJourneyState({ phase: JOURNEY_PHASE.FIRST_INTENT }); } catch (_) {}
     setQuickAdd({ open: true, x: e.clientX, y: e.clientY, pos: clientToCanvas(e.clientX, e.clientY) });
+  };
+
+  // ── The selection box ─────────────────────────────────────────────────────
+  // A mouse drags it from a press on empty canvas; a finger from a hold
+  // (startTouchCanvasPress). Snapshot the selection first so Escape can put it
+  // back, and treat `additive` (Shift, or a finger in Select…) as a union. We
+  // do NOT clear the current selection on pointerdown — doing so used to drop
+  // a multi-selection the instant a click twitched a pixel. Clearing happens
+  // only once the gesture is confirmed as a drag (first move past the
+  // threshold) or resolves as a plain click on empty canvas (an end with no
+  // move). The caller tracks the pointer and calls sample / end / abort.
+  const beginMarquee = (startClient, { additive = false } = {}) => {
+    const startCanvas = clientToCanvas(startClient.x, startClient.y);
+    setMarquee({ x0: startCanvas.x, y0: startCanvas.y, x1: startCanvas.x, y1: startCanvas.y });
+    const preSelected = new Set(selected);
+    const preStrokes = new Set(selectedStrokes);
+    const preArrows = new Set(selectedArrows);
+
+    let moved = false;
+    let cleared = false;
+    // Fresh (non-additive) marquee: clear the existing selection the first
+    // time movement is confirmed, so the live preview reflects only the box.
+    const clearForFreshMarquee = () => {
+      if (cleared || additive) return;
+      cleared = true;
+      setSelected(new Set());
+      setSelectedStrokes(new Set());
+      setSelectedArrows(new Set());
+    };
+    const sample = (ev) => {
+      const dxClient = ev.clientX - startClient.x;
+      const dyClient = ev.clientY - startClient.y;
+      // 4px matches the card-drag click threshold — the old 3px meant a
+      // tiny drift could start a lasso where the same drift on a card
+      // still counted as a click.
+      if (!moved && Math.abs(dxClient) < 4 && Math.abs(dyClient) < 4) return;
+      moved = true;
+      clearForFreshMarquee();
+      const cur = clientToCanvas(ev.clientX, ev.clientY);
+      setMarquee(prev => prev ? { ...prev, x1: cur.x, y1: cur.y } : null);
+    };
+    // Restore the pre-marquee selection + drop the box (Escape or iOS cancel).
+    const abort = () => {
+      setSelected(preSelected);
+      setSelectedStrokes(preStrokes);
+      setSelectedArrows(preArrows);
+      setMarquee(null);
+    };
+    const end = (ev) => {
+      if (moved) {
+        const cur = clientToCanvas(ev.clientX, ev.clientY);
+        const minX = Math.min(startCanvas.x, cur.x);
+        const maxX = Math.max(startCanvas.x, cur.x);
+        const minY = Math.min(startCanvas.y, cur.y);
+        const maxY = Math.max(startCanvas.y, cur.y);
+        const rect = { minX, maxX, minY, maxY };
+        const hits = (cards || [])
+          .filter(c => c.x < maxX && c.x + c.w > minX && c.y < maxY && c.y + c.h > minY)
+          .map(c => c.id);
+        const strokeHits = (strokes || [])
+          .map((stroke, index) => strokeIntersectsRect(stroke, rect) ? index : null)
+          .filter(index => index !== null);
+        const arrowHits = (arrows || [])
+          .map((_, index) => {
+            const att = arrowAttachments[index];
+            if (!att?.from || !att?.to) return null;
+            const s = att.from.point, e = att.to.point;
+            return (pointInRect(s, rect) || pointInRect(e, rect) ||
+              (Math.min(s.x, e.x) <= rect.maxX && Math.max(s.x, e.x) >= rect.minX &&
+               Math.min(s.y, e.y) <= rect.maxY && Math.max(s.y, e.y) >= rect.minY)) ? index : null;
+          })
+          .filter(index => index !== null);
+        // Additive = union with the pre-marquee selection; a plain marquee
+        // replaces it. Applied uniformly to cards, strokes, arrows.
+        const next = new Set(additive ? preSelected : []);
+        hits.forEach(id => next.add(id));
+        const nextStrokes = new Set(additive ? preStrokes : []);
+        strokeHits.forEach(i => nextStrokes.add(i));
+        const nextArrows = new Set(additive ? preArrows : []);
+        arrowHits.forEach(i => nextArrows.add(i));
+        setSelected(next);
+        setSelectedStrokes(nextStrokes);
+        setSelectedArrows(nextArrows);
+      } else if (!additive) {
+        // Plain click on empty canvas → deselect everything.
+        setSelected(new Set());
+        setSelectedStrokes(new Set());
+        setSelectedArrows(new Set());
+      }
+      setMarquee(null);
+    };
+    return { sample, end, abort };
+  };
+
+  // Select…: a tap on a card only chooses it. What is inside a card keeps its
+  // own clicks out of it (a cluster's list of what's in it opens that, a
+  // link opens its page), stopped here on the way down.
+  const onSelectingClickCapture = (e) => {
+    if (!e.target.closest?.('.card')) return;
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  // ── A finger on empty canvas ─────────────────────────────────────────────
+  // A tap clears the selection, as a click does, and two taps open the add
+  // menu there, as a double-click does. The browser's own dblclick can't do
+  // it: the canvas owns every touch (touch-action: none, and the pan's
+  // preventDefault), and most browsers never send one.
+  const onTouchTapEmpty = (ev) => {
+    if (tapIsDouble(lastBgTapRef, ev)) {
+      bgDoubleTapAtRef.current = performance.now();
+      onBackgroundDoubleClick(ev);
+      return;
+    }
+    if (touchSelectingRef.current) setTouchSelecting(false);
+    setSelected(new Set());
+    setSelectedStrokes(new Set());
+    setSelectedArrows(new Set());
+  };
+
+  // Held (touchPassAllowed): one press, four ways it can go.
+  //   • a tap: onTouchTapEmpty.
+  //   • a drag: pans, once the finger is past the slop (TOUCH_LIFT_TOLERANCE),
+  //     by the whole way it has come, as a card's press does before its lift.
+  //   • a hold (TOUCH_LIFT_MS), let go where it was held: the canvas menu at
+  //     the finger, with Select… in it. On letting go, not on the timer, so
+  //     the menu never covers the place a box was about to be dragged over.
+  //   • a hold, then a drag: a selection box, as a mouse drags one.
+  // A second finger at any point hands the gesture to the pinch untouched:
+  // no pan committed, no box, no menu, the selection as it was.
+  const startTouchCanvasPress = (e) => {
+    e.preventDefault();
+    glideRef.current = null;
+    const startClient = { x: e.clientX, y: e.clientY };
+    const startPanXY = { x: panRef.current.x, y: panRef.current.y };
+    const press = { phase: 'pending' };   // → pan | armed | box, then done
+    touchPressRef.current = press;
+    let box = null;
+    let dispose = null;
+    // The ring that fills over the hold, under the finger (.cnv-hold-cue).
+    // Driven by hand rather than state: a pan must not cost the canvas two
+    // renders just to show and hide it.
+    const cue = holdCueRef.current;
+    const wrapRect = wrapRef.current?.getBoundingClientRect();
+    const showCue = (on) => {
+      if (!cue || !wrapRect) return;
+      cue.classList.remove('is-on');
+      if (!on) return;
+      cue.style.left = `${startClient.x - wrapRect.left}px`;
+      cue.style.top = `${startClient.y - wrapRect.top}px`;
+      void cue.offsetWidth;   // restart the fill
+      cue.classList.add('is-on');
+    };
+    showCue(true);
+    let timer = setTimeout(() => {
+      timer = null;
+      if (press.phase !== 'pending') return;
+      press.phase = 'armed';
+      try { navigator.vibrate?.(8); } catch (_) {}
+    }, TOUCH_LIFT_MS);
+    const finish = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      window.removeEventListener('pointerdown', onSecondTouch, true);
+      showCue(false);
+      if (touchPressRef.current === press) touchPressRef.current = null;
+      if (pointerOpAbortRef.current === abort) pointerOpAbortRef.current = null;
+    };
+    // Escape, or a second finger: nothing this press did stays.
+    const abort = () => {
+      if (press.phase === 'done') return;
+      dispose?.();
+      finish();
+      if (press.phase === 'box') box.abort();
+      press.phase = 'done';
+    };
+    press.abort = abort;   // a hold on something with its own menu (useLongPress)
+    const onSecondTouch = (ev) => {
+      if (ev.pointerType !== 'touch' || ev.pointerId === e.pointerId) return;
+      abort();
+    };
+    const travel = (ev) => Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
+    const onSample = (ev) => {
+      if (press.phase === 'pending' && travel(ev) > TOUCH_LIFT_TOLERANCE) {
+        press.phase = 'pan';
+        if (timer) { clearTimeout(timer); timer = null; }
+        showCue(false);
+        // A pan is the camera's: Escape goes back to closing what's open.
+        if (pointerOpAbortRef.current === abort) pointerOpAbortRef.current = null;
+      } else if (press.phase === 'armed' && travel(ev) > TOUCH_LIFT_TOLERANCE) {
+        press.phase = 'box';
+        showCue(false);
+        box = beginMarquee(startClient, { additive: touchSelectingRef.current });
+      }
+      if (press.phase === 'pan') {
+        panRef.current = {
+          x: startPanXY.x + (ev.clientX - startClient.x),
+          y: startPanXY.y + (ev.clientY - startClient.y),
+        };
+        gestureUntilRef.current = performance.now() + 200; // ADD-only cull while panning
+        markGestureActiveUntil(gestureUntilRef.current);
+        markCanvasInteracting();  // immersive look-around
+        applyCanvasTransform();
+        scheduleVisibleRecompute();
+      } else if (press.phase === 'box') {
+        box.sample(ev);
+      }
+    };
+    const onEnd = (ev, { canceled }) => {
+      const phase = press.phase;
+      finish();
+      press.phase = 'done';
+      if (phase === 'pan') {
+        // Commit once at gesture end, as startPan does.
+        gestureUntilRef.current = 0;
+        setPan({ x: panRef.current.x, y: panRef.current.y });
+        scheduleVisibleRecompute();
+        emitCanvasSettle();
+        return;
+      }
+      if (canceled) { if (phase === 'box') box.abort(); return; }
+      if (phase === 'box') { box.end(ev); return; }
+      if (phase === 'pending') { onTouchTapEmpty(ev); return; }
+      // Held, and let go where it was held: the menu, at the finger.
+      swallowNextClick();
+      closeCardMenu();
+      setBgCtx({ open: true, x: startClient.x, y: startClient.y,
+        canvasPos: clientToCanvas(startClient.x, startClient.y), viaTouch: true });
+    };
+    dispose = trackStroke({ pointerId: e.pointerId, onSample, onEnd });
+    window.addEventListener('pointerdown', onSecondTouch, true);
+    pointerOpAbortRef.current = abort;
   };
 
   const onBackgroundPointerDown = (e) => {
@@ -9346,122 +9678,43 @@ export function CanvasSurface({
     }
 
     if (selectedTool !== 'select') {
+      if (placesOnRelease(e)) { placeToolOnRelease(e); return; }
       // board/image/text/palette drop at the click via the shared placer;
       // shape (drag-to-draw) and draw/arrow were already handled above.
       placeToolAt(clientToCanvas(e.clientX, e.clientY));
       return;
     }
 
-    // On touch (finger), one-finger drag on empty canvas should pan, not
-    // lasso-select. Tapping a card still selects it (cards have their own
-    // handlers); long-press still opens the background context menu.
-    // Pen / stylus keeps the desktop lasso behavior so Apple Pencil users
-    // can still marquee-select.
+    // A finger on empty canvas. Pen / stylus keeps the desktop marquee below,
+    // so Apple Pencil users can still drag a box.
     //
-    // Only start pan for the PRIMARY pointer (first finger). When the
-    // user adds a second finger for pinch-zoom, that pointerdown also
-    // reaches this handler — if we called startPan(e) again, its
-    // e.preventDefault() would block useGesture from recognising the
-    // second touch and pinch would silently fail. isPrimary is true
-    // only for the first active touch in a sequence; subsequent fingers
+    // Only the PRIMARY pointer (first finger) does anything. When the user
+    // adds a second finger for pinch-zoom, that pointerdown also reaches this
+    // handler — and a preventDefault() on it would block useGesture from
+    // recognising the second touch, so pinch would silently fail. isPrimary
+    // is true only for the first active touch in a sequence; later fingers
     // bail and useGesture's pinch / two-finger pan handler takes over.
     if (e.pointerType === 'touch') {
-      if (e.isPrimary) startPan(e);
+      if (!e.isPrimary) return;
+      // Held (lib/appHost.js): a hold, then a drag, draws a selection box.
+      if (touchPassAllowed()) { startTouchCanvasPress(e); return; }
+      // One finger pans; a tap clears the selection, two open the add menu.
+      startPan(e, { onTap: onTouchTapEmpty });
       return;
     }
 
-    // Select tool: marquee. Snapshot the pre-marquee selection so we can
-    // restore it if Escape aborts, and treat Shift as additive. We do NOT
-    // clear the current selection on pointerdown — doing so used to drop a
-    // multi-selection the instant a click twitched a pixel. Clearing happens
-    // only once the gesture is confirmed as a drag (first move past the
-    // threshold) or resolves as a plain click on empty canvas (pointerup).
-    const startClient = { x: e.clientX, y: e.clientY };
-    const startCanvas = clientToCanvas(e.clientX, e.clientY);
-    setMarquee({ x0: startCanvas.x, y0: startCanvas.y, x1: startCanvas.x, y1: startCanvas.y });
-    const wasShift = e.shiftKey;
-    const preSelected = new Set(selected);
-    const preStrokes = new Set(selectedStrokes);
-    const preArrows = new Set(selectedArrows);
-
-    let moved = false;
-    let cleared = false;
-    // Fresh (non-shift) marquee: clear the existing selection the first time
-    // movement is confirmed, so the live preview reflects only the box.
-    const clearForFreshMarquee = () => {
-      if (cleared || wasShift) return;
-      cleared = true;
-      setSelected(new Set());
-      setSelectedStrokes(new Set());
-      setSelectedArrows(new Set());
-    };
-    const onSample = (ev) => {
-      const dxClient = ev.clientX - startClient.x;
-      const dyClient = ev.clientY - startClient.y;
-      // 4px matches the card-drag click threshold — the old 3px meant a
-      // tiny drift could start a lasso where the same drift on a card
-      // still counted as a click.
-      if (!moved && Math.abs(dxClient) < 4 && Math.abs(dyClient) < 4) return;
-      moved = true;
-      clearForFreshMarquee();
-      const cur = clientToCanvas(ev.clientX, ev.clientY);
-      setMarquee(prev => prev ? { ...prev, x1: cur.x, y1: cur.y } : null);
-    };
-    // Restore the pre-marquee selection + drop the box (Escape or iOS cancel).
-    const abortMarquee = () => {
-      setSelected(preSelected);
-      setSelectedStrokes(preStrokes);
-      setSelectedArrows(preArrows);
-      setMarquee(null);
-    };
-    const onEnd = (ev, { canceled }) => {
-      pointerOpAbortRef.current = null;
-      if (canceled) { abortMarquee(); return; }
-      if (moved) {
-        const cur = clientToCanvas(ev.clientX, ev.clientY);
-        const minX = Math.min(startCanvas.x, cur.x);
-        const maxX = Math.max(startCanvas.x, cur.x);
-        const minY = Math.min(startCanvas.y, cur.y);
-        const maxY = Math.max(startCanvas.y, cur.y);
-        const rect = { minX, maxX, minY, maxY };
-        const hits = (cards || [])
-          .filter(c => c.x < maxX && c.x + c.w > minX && c.y < maxY && c.y + c.h > minY)
-          .map(c => c.id);
-        const strokeHits = (strokes || [])
-          .map((stroke, index) => strokeIntersectsRect(stroke, rect) ? index : null)
-          .filter(index => index !== null);
-        const arrowHits = (arrows || [])
-          .map((_, index) => {
-            const att = arrowAttachments[index];
-            if (!att?.from || !att?.to) return null;
-            const s = att.from.point, e = att.to.point;
-            return (pointInRect(s, rect) || pointInRect(e, rect) ||
-              (Math.min(s.x, e.x) <= rect.maxX && Math.max(s.x, e.x) >= rect.minX &&
-               Math.min(s.y, e.y) <= rect.maxY && Math.max(s.y, e.y) >= rect.minY)) ? index : null;
-          })
-          .filter(index => index !== null);
-        // Shift = additive (union with the pre-marquee selection); a plain
-        // marquee replaces it. Applied uniformly to cards, strokes, arrows.
-        const next = new Set(wasShift ? preSelected : []);
-        hits.forEach(id => next.add(id));
-        const nextStrokes = new Set(wasShift ? preStrokes : []);
-        strokeHits.forEach(i => nextStrokes.add(i));
-        const nextArrows = new Set(wasShift ? preArrows : []);
-        arrowHits.forEach(i => nextArrows.add(i));
-        setSelected(next);
-        setSelectedStrokes(nextStrokes);
-        setSelectedArrows(nextArrows);
-      } else if (!wasShift) {
-        // Plain click on empty canvas → deselect everything.
-        setSelected(new Set());
-        setSelectedStrokes(new Set());
-        setSelectedArrows(new Set());
-      }
-      setMarquee(null);
-    };
-    const dispose = trackStroke({ pointerId: e.pointerId, onSample, onEnd });
+    // Select tool: marquee, Shift adding to the selection (beginMarquee).
+    const box = beginMarquee({ x: e.clientX, y: e.clientY }, { additive: e.shiftKey });
+    const dispose = trackStroke({
+      pointerId: e.pointerId,
+      onSample: box.sample,
+      onEnd: (ev, { canceled }) => {
+        pointerOpAbortRef.current = null;
+        if (canceled) box.abort(); else box.end(ev);
+      },
+    });
     // Escape-abort: tear down listeners (no commit) + restore selection.
-    pointerOpAbortRef.current = () => { dispose(); abortMarquee(); };
+    pointerOpAbortRef.current = () => { dispose(); box.abort(); };
   };
 
   const onBackgroundContextMenu = (e) => {
@@ -9652,9 +9905,15 @@ export function CanvasSurface({
     // read-only actions. (The demo-tier upgrade CTA died with 0188.)
     const clusterInfo = { id: 'cluster-info', label: 'Cluster info', shortcut: modShortcut('I'),
       run: () => openInfo({ boardId: board.id, clusterId: board.id, follow: infoFollow }) };
+    // Opened by a finger's hold: a finger has no Shift, so it gets a mode in
+    // which taps add cards to the selection (touchSelecting).
+    const selectSome = bgCtx.viaTouch
+      ? [{ id: 'selectsome', label: 'Select…', run: () => setTouchSelecting(true) }]
+      : [];
     if (!canEdit) {
       return [
         { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
+        ...selectSome,
         clusterInfo,
       ];
     }
@@ -9703,6 +9962,7 @@ export function CanvasSurface({
         shortcut: modShortcut('V'), disabled: clipboardSize() === 0,
         run: () => doPaste(pos) },
       { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
+      ...selectSome,
       { header: 'BOARD' },
       clusterInfo,
       { id: 'bg', label: 'Background', submenu: [
@@ -10185,6 +10445,9 @@ export function CanvasSurface({
   // For boards: only the cover area triggers open — title/meta dbl-click
   // does nothing (so accidental clicks near the title don't navigate).
   const onCardDoubleClick = (e, c) => {
+    // Select…: two quick taps are two cards chosen, even where the browser
+    // reads them as a double-click (it does across ~100px of a tablet).
+    if (touchSelectingRef.current) return;
     if (isEditorPointerTarget(e)) return;
     if (e.target.closest && e.target.closest('.editable')) return;
     // A shortcut opens the file shared with you, in the in-app viewer.
@@ -10246,6 +10509,7 @@ export function CanvasSurface({
   const lastCardTapRef = useRef({});
   const onCardPointerUp = (e, c) => {
     if (e.pointerType !== 'touch') return;
+    if (touchSelectingRef.current) return;   // Select…: taps choose, they don't open (onCardDoubleClick)
     if (tapIsDouble(lastCardTapRef, e, { key: c.id })) onCardDoubleClick(e, c);
   };
 
@@ -10928,21 +11192,6 @@ export function CanvasSurface({
         )}
         {canEdit && selectedTool === 'select' && isSelected && canRotate && (
           <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate (shift = 15° steps)" />
-        )}
-        {/* Touch-only "⋯" — the card context menu's new home now that a
-            long-press lifts the card for dragging instead of opening it.
-            CSS hides it except on coarse pointers (desktop keeps right-click). */}
-        {canEdit && selectedTool === 'select' && isSelected
-          && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
-          <button type="button" className="card-menu-btn" aria-label="Card options"
-            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-            onClick={(e) => {
-              e.stopPropagation();
-              const r = e.currentTarget.getBoundingClientRect();
-              setBgCtx(b => ({ ...b, open: false }));
-              if (!selected.has(c.id)) setSelected(new Set([c.id]));
-              setCtx({ open: true, x: r.left, y: r.bottom, cardId: c.id });
-            }}>⋯</button>
         )}
         {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
           && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
@@ -12503,6 +12752,17 @@ export function CanvasSurface({
   // The first card on an empty board sets its ground following the camera.
   useEffect(() => { scheduleGroundDraw(); }, [boardIsEmpty]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The tool hints, worded for the hand on the device: a finger taps and has
+  // no Escape key, so it gets a Done button where a keyboard gets "esc".
+  const clickWord = isTouch ? 'Tap' : 'Click';
+  const placeNoun = (tool) => {
+    const noun = tool === 'text' ? 'note' : tool === 'board' ? 'cluster' : tool;
+    return `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
+  };
+  const hintExit = (onExit) => (isTouch
+    ? <button className="cnv-hint-btn" onClick={onExit}>Done</button>
+    : <button className="cnv-hint-x" onClick={onExit}>esc</button>);
+
   // Viewport-centre canvas point — where the empty-state tiles drop their card
   // (same calc the old single CTA used inline).
   const emptyCenterPos = () => {
@@ -12527,9 +12787,12 @@ export function CanvasSurface({
          onDragStart={(e) => e.preventDefault()}
          onPointerDown={onBackgroundPointerDown}
          onDoubleClick={onBackgroundDoubleClick}
-         onContextMenu={onBackgroundContextMenu}>
+         onContextMenu={onBackgroundContextMenu}
+         onClickCapture={touchSelecting ? onSelectingClickCapture : undefined}>
       {/* The ground (drawGround): first, so the grain and everything else sit over it. */}
       {groundOn && <canvas ref={groundRef} className="cnv-ground" aria-hidden="true" />}
+      {/* A finger held on empty canvas (startTouchCanvasPress shows it). */}
+      <div ref={holdCueRef} className="cnv-hold-cue" aria-hidden="true" />
       {/* Grain texture — sits behind cards on the canvas surface
           only. Cards / popovers / modals all stack above it. */}
       <div className="grain-canvas" aria-hidden="true" />
@@ -12666,7 +12929,7 @@ export function CanvasSurface({
           const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
           const startBounds = multiResize?.startBounds || multiSelectionBounds;
           // A little breathing room so the frame sits just outside the cards.
-          const PAD = 6;
+          const PAD = SEL_FRAME_PAD;
           return (
             <>
               <div className="sel-bbox"
@@ -12688,6 +12951,47 @@ export function CanvasSurface({
                      pointerEvents: 'auto',
                    }} />
             </>
+          );
+        })()}
+
+        {/* The selection's ⋯: the card menu's home for a finger, now that a
+            hold on a card lifts it. One for any selection, so several cards
+            get New cluster / Move / Copy / Delete at once. Drawn here, not in
+            the card: there the card's own clip (overflow: hidden; contain:
+            paint) cut more than half of it away, and it shrank with the zoom
+            to 12px on a phone. .sel-menu undoes the zoom, so it is 36px on
+            screen at every zoom; CSS shows it to coarse pointers only (a
+            mouse right-clicks). Out of the way while anything moves. */}
+        {canEdit && selectedTool === 'select' && selMenuAnchor
+          && !drag && !resize && !rotateState && !multiResize && !marquee && (() => {
+          const a = selMenuAnchor;
+          let { dx, dy } = Math.min(a.w, a.h) * zoom < SEL_MENU_OUT_BELOW_PX ? SEL_MENU_OUT : SEL_MENU_OVER;
+          // Kept on screen while the selection is: one at the edge of the
+          // view (a phone shows little else) would push it off.
+          const { w: vw, h: vh } = wrapWHRef.current;
+          const sx = pan.x + a.x * zoom, sy = pan.y + a.y * zoom;
+          if (vw && vh && sx > 0 && sx - a.w * zoom < vw && sy < vh && sy + a.h * zoom > 0) {
+            dx = Math.max(8 - sx, Math.min(dx, vw - 8 - SEL_MENU_BTN_PX - sx));
+            dy = Math.max(8 - sy, Math.min(dy, vh - 8 - SEL_MENU_BTN_PX - sy));
+          }
+          return (
+          <div className="sel-menu"
+               style={{ left: a.x, top: a.y, transform: `scale(${1 / zoom})` }}>
+            <button type="button" className="card-menu-btn" style={{ left: dx, top: dy }}
+              aria-label={selected.size > 1 ? `Options for ${selected.size} cards` : 'Card options'}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); selMenuPressRef.current = performance.now(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Only a press that began here (or a key): the tap that selects
+                // a card draws this under the finger, and that tap's own click
+                // lands on it a moment later.
+                if (e.detail > 0 && performance.now() - selMenuPressRef.current > 1500) return;
+                selMenuPressRef.current = 0;
+                const r = e.currentTarget.getBoundingClientRect();
+                setBgCtx(b => ({ ...b, open: false }));
+                setCtx({ open: true, x: r.left, y: r.bottom, cardId: a.id });
+              }}>⋯</button>
+          </div>
           );
         })()}
 
@@ -13701,30 +14005,30 @@ export function CanvasSurface({
       )}
       {selectedTool === 'arrow' && (
         <div className="cnv-hint">
-          {arrowFrom ? 'Click target card to connect' : 'Click a card to start, or drag on empty canvas for a free arrow'}
-          <button className="cnv-hint-x" onClick={() => { setSelectedTool('select'); setArrowFrom(null); }}>esc</button>
+          {arrowFrom ? `${clickWord} target card to connect` : `${clickWord} a card to start, or drag on empty canvas for a free arrow`}
+          {hintExit(() => { setSelectedTool('select'); setArrowFrom(null); })}
         </div>
       )}
       {selectedTool === 'draw' && (
-        <div className="cnv-hint">{drawOptions.mode === 'eraser' ? 'Drag to erase strokes' : 'Drag to draw'} <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button></div>
+        <div className="cnv-hint">{drawOptions.mode === 'eraser' ? 'Drag to erase strokes' : 'Drag to draw'} {hintExit(() => setSelectedTool('select'))}</div>
       )}
       {selectedTool === 'pan' && (
-        <div className="cnv-hint">Drag to pan <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button></div>
+        <div className="cnv-hint">Drag to pan {hintExit(() => setSelectedTool('select'))}</div>
       )}
       {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'doc' || selectedTool === 'shape' || selectedTool === 'palette') && (
         <div className="cnv-hint">
           {selectedTool === 'board' && clusterNudgesAllowed()
             // The tool explains itself once picked, instead of standing out.
-            ? 'Click to place a cluster: a canvas inside this one. Drop cards onto it to file them.'
-            : <>Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}</>}
-          <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
+            ? `${clickWord} to place a cluster: a canvas inside this one. Drop cards onto it to file them.`
+            : <>{clickWord} on the canvas to place {placeNoun(selectedTool)}</>}
+          {hintExit(() => setSelectedTool('select'))}
         </div>
       )}
       {/* The naming bar (lib/hints.js): a cluster placed here is still called
           "Untitled cluster" a minute later. Most of them stay that way, and a
           cluster with no name is one nobody searches for again. Yields to the
           tool bars above, which share this spot. */}
-      {nameHint && selectedTool === 'select' && !annotPlacing && (
+      {nameHint && selectedTool === 'select' && !annotPlacing && !touchSelecting && (
         <div className="cnv-hint cnv-hint-name" role="status" data-hint="name_cluster">
           Your new cluster is still “{boards?.[nameHint.id]?.name || 'Untitled cluster'}” — name it so you can find it later.
           <button className="cnv-hint-btn" onClick={() => triggerInlineEdit(nameHint.id, 'title')}>Name it</button>
@@ -13733,8 +14037,16 @@ export function CanvasSurface({
       )}
       {annotPlacing && (
         <div className="cnv-hint">
-          Click a card to attach, or empty space to drop a {annotPlacing}
-          <button className="cnv-hint-x" onClick={() => setAnnotPlacing(null)}>esc</button>
+          {clickWord} a card to attach, or empty space to drop a {annotPlacing}
+          {hintExit(() => setAnnotPlacing(null))}
+        </div>
+      )}
+      {/* Select… from the hold menu: taps add cards and take them out. Done
+          (or Escape) keeps the selection; a tap on empty canvas drops it. */}
+      {touchSelecting && selectedTool === 'select' && !annotPlacing && (
+        <div className="cnv-hint" role="status" data-hint="touch_select">
+          Tap cards to select
+          <button className="cnv-hint-btn" onClick={() => setTouchSelecting(false)}>Done</button>
         </div>
       )}
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (

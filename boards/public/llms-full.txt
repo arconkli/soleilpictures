@@ -619,7 +619,7 @@ A: Yes. Touch gestures pan and zoom, long-press opens the context menu, and the 
 ========================================================================
 # Cards
 URL: https://clusters.soleilpictures.com/docs/canvas/cards
-Updated: 2026-10-11
+Updated: 2026-10-20
 
 A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
@@ -677,6 +677,8 @@ Tag — right-click → tag. See Tags.
 Comment — right-click → comment, which anchors a bubble to that card. See Comments.
 
 Copy link — a deep link that opens the board with that card selected. Useful in a message or a doc.
+
+On a touch screen the selection carries a gold ⋯ at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. Touch and hold a card to pick it up and move it.
 
 Info
 
@@ -4094,7 +4096,7 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-10-12
+Updated: 2026-10-20
 
 Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
@@ -4105,9 +4107,11 @@ Touch on the canvas
 Gesture | Does
 One finger drag | Pan
 Pinch | Zoom
-Tap | Select
-Long press | Context menu
+Tap | Select a card; on empty canvas, clear the selection
 Double tap | Add menu at that point
+Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu)
+Touch and hold anything else | Its menu: the board's, or a group label's, an arrow's, a tag's, the comments button's archive
+⋯ on the selection | The menu for every selected card
 
 With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable.
 

@@ -440,12 +440,12 @@ export function ToolOptionsBar({
 }) {
   const recentColors = useRecentColors();
   const pointerPolicy = usePointerPolicy();
-  const { isTouch: isTouchDevice, isPhone, isTablet } = useBreakpoint();
-  // Same shape as `mobileShell` — a phone, or a touch tablet. The draw bar is
-  // the widest in the app and on an iPhone it laid out to 1319px inside a 372px
-  // strip: 72% of it, including every colour swatch and the whole thickness
-  // picker, sat past the right edge of a scroll nobody could see.
-  const compactBar = isPhone || (isTablet && isTouchDevice);
+  const { isTouch: isTouchDevice, isPhone } = useBreakpoint();
+  // A phone, or any touch screen. The draw bar is the widest in the app: on an
+  // iPhone it laid out to 1319px inside a 372px strip, 72% of it (every colour
+  // swatch, the whole thickness picker) past the right edge of a scroll nobody
+  // could see, and an iPad held sideways is still narrower than the full bar.
+  const compactBar = isPhone || isTouchDevice;
   const [drawSheet, setDrawSheet] = useState(false);
   const openPickerAt = (e, opts) => {
     if (!openColorPicker) return;

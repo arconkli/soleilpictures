@@ -432,7 +432,7 @@ export const DOCS_PAGES = [
     "answer": "A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
     "section": "canvas",
     "order": 1,
-    "updated": "2026-10-11",
+    "updated": "2026-10-20",
     "navLabel": "Cards",
     "headings": [
       {
@@ -2877,7 +2877,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-10-12",
+    "updated": "2026-10-20",
     "navLabel": "Mobile and tablet",
     "headings": [
       {
