@@ -39877,7 +39877,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — filmmaker, photographer, designer, artist or illustrator, student, or something else — and offers a single follow-up in your own words. Both are optional: the first tap has already been recorded either way. Your role is asked for once per account too."
+     "v": " — filmmaker, photographer, designer, artist or illustrator, student, or something else. Under that it asks for "
+    },
+    {
+     "t": "strong",
+     "v": "your age",
+     "children": [
+      {
+       "t": "text",
+       "v": "your age"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", marked optional, as one of five ranges: under 18, 18–24, 25–34, 35–44, or 45 and over. It never asks for your date of birth. Then it offers a single follow-up in your own words. All of these are optional: the first tap has already been recorded either way. Your role and your age range are each asked for once per account too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The age range you pick is stored with your answers and nowhere else. The app's usage records note only that an age range was given, never which one."
     }
    ]
   },

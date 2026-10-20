@@ -35,7 +35,7 @@ import { describeFeedbackContext } from '../../lib/feedbackContext.js';
 // Asserted against the table's CHECK by src/lib/feedbackContract.test.mjs — a
 // kind the database can store and this array cannot ask for is a row written
 // and then hidden behind a filter.
-const KINDS = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted', 'upgrade_reason', 'role'];
+const KINDS = ['bug', 'idea', 'praise', 'other', 'return_reason', 'account_deleted', 'upgrade_reason', 'role', 'age_range'];
 const PAGE_SIZE = 50;
 // Long enough that most messages are shown whole — the reading column is
 // capped, so this is about how many LINES a row costs, not characters on one.
@@ -256,6 +256,7 @@ const GROUPS = [
   { id: 'upgrade_reason', label: "What's holding you back?", kinds: ['upgrade_reason'] },
   { id: 'return_reason',  label: 'What brings you back',     kinds: ['return_reason'] },
   { id: 'role',           label: 'What best describes you',  kinds: ['role'] },
+  { id: 'age_range',      label: 'Age range (optional)',     kinds: ['age_range'] },
   { id: 'topics',         label: 'Send feedback topics',     kinds: ['bug', 'idea', 'praise', 'other'] },
 ];
 

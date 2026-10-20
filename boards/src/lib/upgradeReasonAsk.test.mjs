@@ -92,7 +92,15 @@ test('markers and pending answers belong to an account, never to a shared device
   const rr = read('../components/ReturnReasonAsk.jsx');
   assert.match(rr, /const roleKey = \(uid\) => `soleil\.role\.v1:\$\{uid \|\| 'anon'\}`;/);
   assert.match(rr, /if \(p\.uid && p\.uid !== uid\) \{ flushed = false; return; \}/);
-  assert.match(rr, /if \(p\?\.uid && p\.uid !== uid\) \{ roleFlushed = false; return; \}/);
+  // The role and the age range share one flush (flushTapPending), and both
+  // its markers are per account.
+  assert.match(rr, /if \(p\?\.uid && p\.uid !== uid\) \{ tapsFlushed\.delete\(key\); return; \}/,
+    'another account\'s pending role or age range is never sent in this session');
+  assert.match(rr, /const ageKey = \(uid\) => `soleil\.age\.v1:\$\{uid \|\| 'anon'\}`;/);
+  assert.match(rr, /flushTapPending\(ROLE_PENDING_KEY, 'role', userId, deliverRole\);/);
+  assert.match(rr, /flushTapPending\(AGE_PENDING_KEY, 'range', userId, deliverAge\);/);
+  assert.match(rr, /JSON\.stringify\(\{ uid: userId, role: id,/);
+  assert.match(rr, /JSON\.stringify\(\{ uid: userId, range: id,/);
 });
 
 test('a note carries the context of the tap it follows', () => {

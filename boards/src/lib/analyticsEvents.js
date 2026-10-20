@@ -317,7 +317,7 @@ export const EV = Object.freeze({
   // were the last event in their session — a banner painted into a tab already
   // closing. Rates across that boundary are not comparable.
   RETURN_REASON_SHOWN:     'return_reason_shown',         // delivered to a live screen {days_since_last_seen} — the denominator
-  RETURN_REASON_ANSWERED:  'return_reason_answered',      // a choice was taken {choice,days_since_last_seen,boards_opened,cards_placed,wrote} (must-land). The session shape rides along so the self-report can be checked against behaviour. The answer TEXT never rides here; it goes to public.feedback and nowhere else
+  RETURN_REASON_ANSWERED:  'return_reason_answered',      // a choice was taken {choice,days_since_last_seen,role_asked,age_asked,boards_opened,cards_placed,wrote} (must-land). role_asked/age_asked: the next step offers that question, the denominators of role_answered and age_range_answered. The session shape rides along so the self-report can be checked against behaviour. The answer TEXT never rides here; it goes to public.feedback and nowhere else
   RETURN_REASON_NOTE:      'return_reason_note',          // the follow-up was written {choice,len} — LENGTH ONLY, same rule as search_run's q_len
   RETURN_REASON_WRITE_FAILED: 'return_reason_write_failed', // the answer did not reach the table {code,terminal,stage}. Its absence is why 0282's total loss of every answer looked exactly like success — do not remove it
   RETURN_REASON_DISMISSED: 'return_reason_dismissed',     // "Not now" {days_since_last_seen,via:'x'|'skip'} — remembered permanently, so a high rate here means the ask is wrong and should come out rather than be re-timed a third time
@@ -325,6 +325,9 @@ export const EV = Object.freeze({
   // the read that tells the professional positioning from the audience acquired.
   ROLE_ANSWERED:           'role_answered',               // a role was tapped {role,surface:'return_banner'} (must-land). Stored by submit_role in public.feedback kind='role'
   ROLE_WRITE_FAILED:       'role_write_failed',           // the role did not reach the table {code,terminal}
+  // And under it, optional (2026-10-20): "Your age", five bands, one per account.
+  AGE_RANGE_ANSWERED:      'age_range_answered',          // an age range was tapped {surface:'return_banner',after_role} (must-land). NEVER the band: submit_age_range stores it in public.feedback kind='age_range' (0471), the one place it lives
+  AGE_RANGE_WRITE_FAILED:  'age_range_write_failed',      // the age range did not reach the table {code,terminal}
 
   // ── "What's holding you back?" (see components/UpgradeReasonAsk.jsx) ──
   // Asked once per account as a demo owner CLOSES an offer (the pricing modal,

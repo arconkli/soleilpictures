@@ -2209,6 +2209,7 @@
 .fbk-kind-account_deleted { --k: rgb(205,140,95); }
 .fbk-kind-upgrade_reason  { --k: rgb(200,130,200); }
 .fbk-kind-role            { --k: rgb(110,190,200); }
+.fbk-kind-age_range       { --k: rgb(160,140,235); }
 /* The record that rode along with an answer, and the author's consent to be
  * written to about it. Quiet: filing, not content. */
 .fbk-ctx { color: var(--ink-3); }

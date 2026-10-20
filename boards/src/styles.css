@@ -22907,6 +22907,12 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
  * the accent only on hover, on focus, and on the one that was actually chosen.
  */
 .rr-ask {
+  /* A definite width, not shrink-to-fit. .fv-banner sits at left: 50%, so an
+   * auto width could never pass half the screen: 195px on a 390px phone, too
+   * narrow for the five age segments, and the banner changed width between
+   * its steps. 460px on a desktop, the screen less 24px on a phone, as in the
+   * mockup the owner picked (2026-10-20). */
+  width: min(460px, calc(100vw - 24px));
   max-width: 460px;
   box-shadow: var(--shadow-3);
   /* A COLUMN, unlike every other fv-banner. The frame's default puts actions in
@@ -22980,6 +22986,40 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 }
 
 .rr-chip:disabled:not(.is-picked) { cursor: default; }
+
+/* The optional age range under the roles (owner's pick A, 2026-10-20): a label
+ * and five equal segments, so it reads as one small aside rather than a
+ * second list. The segments are the same chips, centred. */
+.rr-age { margin-top: 14px; }
+.rr-age-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 600 12px/1.2 var(--font-sans);
+  color: var(--ink-1);
+}
+.rr-age-label span { font-weight: 400; color: var(--ink-2); }
+.rr-ages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 7px;
+}
+.rr-ages .rr-chip {
+  padding: 0 2px;
+  font-size: 12.5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A 320px screen leaves 51px a segment only with the side padding trimmed:
+ * "Under 18" is 48px at 11.5px. */
+@media (max-width: 360px) {
+  .rr-ask { padding-left: 12px; padding-right: 12px; }
+  .rr-ages { gap: 4px; }
+  .rr-ages .rr-chip { padding: 0; font-size: 11.5px; }
+}
 
 /* Two rows, not a 30px slot. Field size sets expected answer length: a single
  * line asks for two words, and two words is not what this question is for. */
