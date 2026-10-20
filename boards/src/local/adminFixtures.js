@@ -229,7 +229,7 @@ const RPCS = {
     total_users: 1284, new_users_7d: 96,
     total_seconds_in_app: 40_000_000,    // ~1.3 yr — exercises the y/mo/d/h/m/s breakdown
     tier_counts: { admin: 3, paid: 142, demo: 806, waitlist: 333 },
-    sub_counts: { active: 138, trialing: 4, canceled: 18 },
+    sub_counts: { active: 138, trialing: 4, canceled: 18 }, trialing_subs: 4,
     mrr_cents: 312400, comped_paid: 6, subscribed_paid: 136, discounted_subs: 21,
     waitlist_pending: 211, waitlist_total: 333,
   },
@@ -552,11 +552,15 @@ RPCS.admin_journey_reconstruct_by_user = [
   journey('j-recent', 190, JOURNEY_A),
 ];
 
-// admin_universe_stats() -> platform_counters + today. Today's lifetime strip
-// and the "all time" figure beside each window metric read from this.
+// admin_universe_stats() -> exact live totals (0460), the last 24 hours and
+// today since midnight UTC. total_boards is clusters made plus Studios, one
+// Studio per workspace here, and the 24h boards count the new workspaces'
+// Studios too, so nodes_created_24h = users + workspaces + boards + cards.
 RPCS.admin_universe_stats = {
   total_users: 1284, total_workspaces: 640, total_boards: 1810, total_cards: 18420,
+  total_clusters_made: 1170, total_studios: 640,
   total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 4_812_000,
+  last_24h: { users: 7, workspaces: 4, boards: 13, clusters_made: 9, cards: 72 },
   today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
 };
 
@@ -1081,15 +1085,19 @@ function rpcResult(name, params) {
   // behaves differently there (no trend line, no change badge, and a sub-label
   // that says why), and that behaviour needs to be previewable.
   if (name === 'admin_stats' && zeroRevenue()) {
+    // Production's actual state since the first trial: one subscription,
+    // trialing, so nothing is paying and MRR is $0. subscribed_paid counts the
+    // trial, as the real admin_stats does — the trap the tiles' wording avoids.
     const s = RPCS.admin_stats;
     return {
       ...s,
       mrr_cents: 0,
-      sub_counts: {},
+      sub_counts: { trialing: 1 },
+      trialing_subs: 1,
       comped_paid: 0,
-      subscribed_paid: 0,
+      subscribed_paid: 1,
       discounted_subs: 0,
-      tier_counts: { ...s.tier_counts, paid: 0, demo: (s.tier_counts.demo || 0) + (s.tier_counts.paid || 0) },
+      tier_counts: { ...s.tier_counts, paid: 1, demo: (s.tier_counts.demo || 0) + (s.tier_counts.paid || 0) - 1 },
     };
   }
   if (name === 'admin_metrics_history' && zeroRevenue()) {

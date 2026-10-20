@@ -156,7 +156,9 @@ function readQaWsTarget() {
 // the HUD would render zeros and the ticker couldn't be reviewed at all.
 const FIXTURE_UNIVERSE_STATS = {
   total_users: 1284, total_workspaces: 640, total_boards: 1810, total_cards: 18420,
+  total_clusters_made: 1170, total_studios: 640,
   total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 40_000_000,
+  last_24h: { users: 7, workspaces: 4, boards: 13, clusters_made: 9, cards: 72 },
   today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
 };
 
@@ -188,14 +190,14 @@ function UniverseQaTab() {
 }
 
 // The real Command Center over fixture RPCs. Its universe backdrop is the
-// synthetic corpus; the SSE-fed bottom cells stay 0 (no party server), which
-// is a useful check of the null path — the renderer-fed Nodes/Connections
-// cells beside them still fill in.
+// synthetic corpus, and the SSE-fed figures (the bottom strip, Cards · 24h, the
+// live bar of Cards created) read the same synthetic counters as the ticker,
+// because the labels on those cells are exactly what a review has to read.
 function CommandCenterQaTab() {
   const [ds] = useState(() => makeSyntheticDataSource({ nodeTarget: readQaNodeTarget(), wsTarget: readQaWsTarget() }));
   return (
     <div className="universe-tab">
-      <AdminCommandCenter dataSource={ds} />
+      <AdminCommandCenter dataSource={ds} statsOverride={FIXTURE_UNIVERSE_STATS} />
     </div>
   );
 }

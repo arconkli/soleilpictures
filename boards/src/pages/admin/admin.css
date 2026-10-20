@@ -2386,6 +2386,16 @@
 /* Paired "nodes · connections" value in the Drawn cell. */
 .universe-ticker-sep { color: var(--ink-3); margin: 0 3px; font-weight: 400; }
 
+/* "incl. team": said once for the whole pill, after the last cell. */
+.universe-ticker-scope {
+  padding: 0 12px 0 10px;
+  font: 600 9px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
 /* Node-kind key, bottom-left. The universe had no legend at all, so the only
    way to learn what a colour meant was to click a node — and the neutral slate
    ("Other") looked like an unfinished palette rather than a deliberate bucket.
@@ -2762,7 +2772,7 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .cc-universe-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 
 /* Shared frosted-glass surface for every panel. */
-.cc-kpi, .cc-panel, .cc-uni, .cc-ticker, .cc-updated, .cc-ctrl-btn {
+.cc-kpi, .cc-panel, .cc-uni, .cc-ticker, .cc-updated, .cc-scope, .cc-ctrl-btn {
   background: rgba(10,10,12,0.55);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -3008,6 +3018,8 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 .cc-controls { position: absolute; top: 14px; right: 14px; z-index: 6; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
 
 .cc-updated { font: 500 11px/1 var(--font-sans); color: var(--ink-2); padding: 6px 12px; border-radius: 999px; }
+
+.cc-scope { font: 500 11px/1 var(--font-sans); color: var(--ink-2); padding: 6px 12px; border-radius: 999px; }
 
 .cc-ctrl-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; color: var(--ink-1); cursor: pointer; }
 
