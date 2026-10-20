@@ -24,6 +24,7 @@ import { touchAppSession, noteAuthChange, persistAppSession,
          getAppSession, setSessionRotateHandler } from './appSession.js';
 import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
 import { BUILD_SHA } from './buildInfo.js';
+import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
 // otherwise and used a raw literal to avoid one that doesn't exist.)
@@ -246,8 +247,10 @@ let firstSourceStamping = false;
 function stampDone(key) { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } }
 async function stampFirstSourceIfNeeded() {
   if (firstSourceStamping || !supabase) return;
-  const src = getFirstSource();
-  if (!src || Object.keys(src).length === 0) return;
+  // Off production it also carries the build, so a new account made on a
+  // preview or dev build becomes internal (0470). Never stored.
+  const src = firstSourcePayload(getFirstSource(), ENV);
+  if (Object.keys(src).length === 0) return;
   const { data } = await supabase.auth.getSession();
   const uid = data?.session?.user?.id;
   if (!uid) return;                                  // no session yet — retry on next SIGNED_IN
@@ -256,7 +259,10 @@ async function stampFirstSourceIfNeeded() {
   firstSourceStamping = true;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      await supabase.rpc('set_first_source', { p_source: src });
+      // supabase-js resolves an error rather than throwing, so without this a
+      // failed stamp was marked done and never tried again.
+      const { error } = await supabase.rpc('set_first_source', { p_source: src });
+      if (error) throw error;
       try { localStorage.setItem(doneKey, '1'); } catch (_) {}   // mark done only on confirmed success
       firstSourceStamping = false;
       return;
@@ -428,6 +434,12 @@ export function getAnalyticsContext() { return { ...ctx }; }
 // than stored so the column stays meaningful.
 const BUILD = BUILD_SHA && BUILD_SHA !== 'dev' && BUILD_SHA !== 'unknown' ? BUILD_SHA : null;
 
+// Which build this page is, and the marks its rows carry: none on production,
+// env + synthetic_reason on a preview deploy or a dev build, which the divert
+// trigger keeps out of the live table (eventEnv.js, 0470).
+const ENV = eventEnv(import.meta.env.DEV);
+const ENV_MARKS = envMarks(ENV);
+
 // ── Batched, redirect-safe delivery ────────────────────────────────────
 // Maximal instrumentation means many small events (scroll/field/dwell), and
 // some fire microseconds before a navigation. One insert-per-event would flood
@@ -566,6 +578,8 @@ function buildRow(name, props) {
   // monetization read grades on, and a handful of preview exposures against a
   // funnel whose CTA count is zero would not be noise, it would be the finding.
   if (isAnyQaMode() || isCaptureActive() || isGalleryActive()) merged.synthetic = true;
+  // Forced over caller props: whether a row is kept is not a call site's choice.
+  if (ENV_MARKS) Object.assign(merged, ENV_MARKS);
   // Ambient context: where they are, what they're paying, which build. Merged
   // last and never over caller props, so an explicit board_id at the call site
   // still wins over the one the app happens to have open.
