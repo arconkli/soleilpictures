@@ -48,9 +48,10 @@ test('the code step survives a reload, with the address and an inbox shortcut', 
   await expect(page.locator('.auth-code-input')).toHaveCount(0);
 });
 
+// The step lasts as long as a code does: an hour (lib/pendingCode.js).
 test('an expired code step falls back to the email field', async ({ page }) => {
   await isolate(page);
-  await seed(page, { email: 'old-step@gmail.com', offset: -16 * 60 * 1000 });
+  await seed(page, { email: 'old-step@gmail.com', offset: -61 * 60 * 1000 });
   await page.goto('/');
   await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.auth-code-input')).toHaveCount(0);

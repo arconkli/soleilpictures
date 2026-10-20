@@ -1,12 +1,16 @@
-// emailTypo.js — a mistyped consumer domain gets a one-tap fix.
+// emailTypo.js — a mistyped consumer domain gets a one-tap fix, and an address
+// that cannot receive mail is refused before the code is sent.
 //
-// About one signup in eight verifies an address and is never seen again, and a
-// large share of those addresses are typo or bare-TLD domains: gmail.como,
-// gmasil.com, andrewconklin, design. The verification mail bounces, the person
-// waits a couple of minutes for a code that is never coming, and leaves. The
-// form can see this before the send. Pure, node-testable, no network: a small
-// dictionary of consumer providers, a map of the typos actually seen, and an
-// edit distance for the rest. It only ever OFFERS; nothing blocks the send.
+// Submitting an address creates the account on the spot (shouldCreateUser and
+// email autoconfirm), so a typo becomes an account whose code goes nowhere: the
+// person waits a couple of minutes for it and leaves, or comes back with the
+// right address as a second account. Many signups that never got past the code
+// step had typed gmail.como, gamil.com, a bare "gmail", or a domain with no
+// ending at all (@ddsb, @a.m). The form can see this before the send. Pure,
+// node-testable, no network: a small dictionary of consumer providers, a map of
+// the typos actually seen, and an edit distance for the rest.
+//
+// suggestEmail only ever OFFERS. emailProblem is the one thing the form refuses.
 
 const DOMAINS = Object.freeze([
   'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.uk', 'hotmail.com', 'hotmail.co.uk',
@@ -80,4 +84,21 @@ export function suggestEmail(raw) {
   const to = fixDomain(domain);
   if (!to || to === domain) return null;
   return { suggestion: `${local}@${to}`, fromDomain: domain, toDomain: to };
+}
+
+// A domain whose last label cannot be a top-level domain: no dot at all (@ddsb,
+// @maildrop), a one-letter ending (@a.m), digits, or an empty one (@ddsb.).
+// The browser's type="email" check passes these, because user@localhost is a
+// valid HTML address, and GoTrue then sends a code into the void. 'no_tld' or
+// null; everything else about the address is left to the browser and GoTrue.
+const TLD = /^(?:[a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
+
+export function emailProblem(raw) {
+  if (typeof raw !== 'string') return null;
+  const s = raw.trim();
+  const at = s.lastIndexOf('@');
+  if (at <= 0) return null;
+  const labels = s.slice(at + 1).toLowerCase().split('.');
+  if (labels.length < 2 || !TLD.test(labels[labels.length - 1])) return 'no_tld';
+  return null;
 }
