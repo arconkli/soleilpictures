@@ -7369,7 +7369,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // enrollment and could disagree with TierRouter's render decision, so the seed
         // loop leaves it alone.
         // workspace_setup is the same: TierRouter decides and stamps it before
-        // App mounts (lib/setupGate.js), and its arm is carried over below.
+        // App mounts (lib/setupGate.js).
         if (key === 'instant_entry' || key === 'workspace_setup') continue;
         // Hardened: a throw here (bad weights, a thenable without .catch, a
         // throwing logEvent) must NEVER escape and abort the rest of the seed —
@@ -7389,13 +7389,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
         } catch (_) { /* one experiment failing must not block the seed */ }
       }
-      // setEnrolledExperiments replaces the cache, so the setup gate's arm (set
-      // this page load, never an override) rides along rather than being wiped.
-      {
-        const so = getSetupOutcome(user.id);
-        if (so?.arm && !so.override) enrolled.exp_workspace_setup = so.arm;
-      }
-      if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
+      if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled, user.id);
 
       // onboarding_v2 arm decides the whole first-run flow (seed content +
       // first-action). Default 'A' (control) if unenrolled (config fetch failed /

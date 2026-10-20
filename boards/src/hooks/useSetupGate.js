@@ -13,10 +13,9 @@ import { EV } from '../lib/analyticsEvents.js';
 import { assignArm } from '../lib/experiments.js';
 import { onPreviewHost, workspaceSetupAllowed } from '../lib/appHost.js';
 import { isSetupCandidate, initialSetupState } from '../lib/workspaceSetup.js';
-import { readSetupOverride, inviteeTarget, inviteeCopy, rememberSetup } from '../lib/setupGate.js';
+import { readSetupOverride, inviteeTarget, inviteeCopy, rememberSetup, stampSetupArm } from '../lib/setupGate.js';
 
 const SESSION_PREFIX = 'soleil.boards.session.';
-const ENROLLED_PREFIX = 'soleil.setup.enrolled.';
 
 function readJson(key) {
   try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) { return null; }
@@ -95,21 +94,23 @@ export function useSetupGate({ user, tier, loading, onboarding }) {
   }, [candidate]);
   const arm = candidate ? (override || assignArm('workspace_setup', uid)) : null;
 
-  // Stamp both arms once per account, whichever it is: the absent-only server
-  // stamp, the enrollment event, and the arm on every event that follows.
-  // Candidates have never been seeded, so there are no other arms of theirs to
-  // keep; the App seed loop carries this one over when it enrolls the rest.
+  // Stamp both arms once per account, whichever it is: the arm on every event
+  // that follows (the cache merges, so App's seed loop adds its own beside it),
+  // and the server's record the test is read from, tried until it lands
+  // (stampSetupArm), with the enrollment logged when it does.
   const stampedRef = useRef(null);
   useEffect(() => {
     if (!candidate || !arm || override || stampedRef.current === uid) return;
     stampedRef.current = uid;
-    setEnrolledExperiments({ exp_workspace_setup: arm });
-    let already = false;
-    try { already = localStorage.getItem(`${ENROLLED_PREFIX}${uid}`) === arm; } catch (_) {}
-    if (already) return;
-    try { localStorage.setItem(`${ENROLLED_PREFIX}${uid}`, arm); } catch (_) {}
-    if (supabase) supabase.rpc('set_experiment_arm', { p_key: 'workspace_setup', p_arm: arm }).then(undefined, () => {});
-    try { logEvent(EV.EXPERIMENT_ENROLLED, { key: 'workspace_setup', arm }); } catch (_) {}
+    setEnrolledExperiments({ exp_workspace_setup: arm }, uid);
+    if (!supabase) return;
+    let storage = null;
+    try { storage = window.localStorage; } catch (_) { /* stamp without the mark */ }
+    stampSetupArm({
+      uid, arm, storage,
+      rpc: () => supabase.rpc('set_experiment_arm', { p_key: 'workspace_setup', p_arm: arm }),
+      log: () => logEvent(EV.EXPERIMENT_ENROLLED, { key: 'workspace_setup', arm }),
+    });
   }, [candidate, arm, override, uid]);
 
   const [state, setState] = useState({ uid: null, status: 'pending', welcome: null, invitee: null });

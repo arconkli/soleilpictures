@@ -80,6 +80,39 @@ export function inviteeCopy({ name, owner, others = [], role, kind } = {}) {
   return { head, sub: `${lead}${can}${withWhom}.` };
 }
 
+// ── The stamp ───────────────────────────────────────────────────────────────
+
+export const STAMP_MARK_PREFIX = 'soleil.setup.enrolled.';
+export const STAMP_TRIES = 3;
+export const STAMP_RETRY_MS = 3_000;
+
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+// The test is read from the server's record of the arm (set_experiment_arm,
+// absent-only), so a stamp that fails is tried again: three times on this
+// load, and on the next load if all three fail. supabase-js resolves a failed
+// call with { error } instead of rejecting, so success is read from the
+// result. The mark that stops a second stamp is written only once the server
+// has the arm, and the enrollment is logged then, once.
+//   rpc: () => the set_experiment_arm call (a thenable resolving { error })
+//   → 'already' | 'stamped' | 'failed'
+export async function stampSetupArm({ uid, arm, rpc, storage, log, wait = sleep, tries = STAMP_TRIES } = {}) {
+  if (!uid || !arm || typeof rpc !== 'function') return 'failed';
+  const mark = `${STAMP_MARK_PREFIX}${uid}`;
+  try { if (storage?.getItem(mark) === arm) return 'already'; } catch (_) { /* stamp anyway */ }
+  for (let n = 1; n <= tries; n += 1) {
+    let ok = false;
+    try { ok = !(await rpc())?.error; } catch (_) { ok = false; }
+    if (ok) {
+      try { storage?.setItem(mark, arm); } catch (_) { /* the server has it either way */ }
+      try { log?.(); } catch (_) { /* never in the way */ }
+      return 'stamped';
+    }
+    if (n < tries) await wait(STAMP_RETRY_MS);
+  }
+  return 'failed';
+}
+
 // ── The outcome, for App ────────────────────────────────────────────────────
 
 const EMPTY = { uid: null, arm: null, welcome: null, override: false };
