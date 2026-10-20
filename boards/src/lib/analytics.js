@@ -25,6 +25,7 @@ import { touchAppSession, noteAuthChange, persistAppSession,
 import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
 import { BUILD_SHA } from './buildInfo.js';
 import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
+import { createArmCache } from './armCache.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
 // otherwise and used a raw literal to avoid one that doesn't exist.)
@@ -275,50 +276,45 @@ async function stampFirstSourceIfNeeded() {
   firstSourceStamping = false;
 }
 
-// Experiment arms ride every event as exp_<key>, exactly like first_source. The
-// enrolled map is written by App's seed effect (new users only) via
-// setEnrolledExperiments and cached in localStorage so it survives reloads in the
-// same browser. Existing users (no seed) have no map → no exp_* on their events,
-// keeping the event-level cohort aligned with the server-stamped one.
-const EXPERIMENTS_KEY = 'soleil_experiments';
-let cachedExperiments = null;
+// Experiment arms ride every event as exp_<key>, exactly like first_source. Each
+// account has its own map: enrollments (App's seed effect, the setup gate) merge
+// into it, and the server's stamp, read once a page load, is the truth for it,
+// so the event-level cohort matches the stamped one the readouts use. Signed out
+// there are no arms. See armCache.js.
+const armCache = createArmCache(() => (typeof localStorage === 'undefined' ? null : localStorage));
 function getExperiments() {
-  if (cachedExperiments !== null) return cachedExperiments;
-  if (typeof localStorage === 'undefined') { cachedExperiments = {}; return cachedExperiments; }
-  try { const raw = localStorage.getItem(EXPERIMENTS_KEY); cachedExperiments = raw ? JSON.parse(raw) : {}; }
-  catch (_) { cachedExperiments = {}; }
-  return cachedExperiments;
+  return armCache.arms(cachedUserId);
 }
-// Called once at enrollment (App seed effect) with { exp_<key>: arm }.
-export function setEnrolledExperiments(map) {
-  if (!map || typeof map !== 'object') return;
-  cachedExperiments = { ...map };
-  try { localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(cachedExperiments)); } catch (_) {}
+// An enrollment, { exp_<key>: arm }, merged into that account's arms. Made
+// before this module has heard who is signed in, it asks the auth client, so it
+// lands on the account that made it; with no session at all it does nothing.
+export function setEnrolledExperiments(map, uid = cachedUserId) {
+  if (uid) { armCache.enroll(map, uid); return; }
+  supabase?.auth.getSession().then(({ data }) => armCache.enroll(map, data?.session?.user?.id), () => {});
 }
 
 // Synchronous read of the caller's stamped arm for one experiment. Consumers use
 // this (NOT assignArm) because bandit assignment is randomized — the arm is only
 // knowable from the stamp/cache, never recomputable from the user id.
-export function getEnrolledArm(key) {
-  return getExperiments()[`exp_${key}`] || null;
+export function getEnrolledArm(key, uid = cachedUserId) {
+  return armCache.arm(uid, key);
 }
 
-// Cross-browser backfill: a returning user on a fresh device has no cache, but the
-// server has their stamped arms. Best-effort, once per page-load, never blocks
-// render. Only seeds the cache when it's EMPTY (a seed-written map always wins).
-let experimentsPrimed = false;
-async function primeEnrolledExperiments() {
-  if (experimentsPrimed || !supabase) return;
-  experimentsPrimed = true;
+// The server's stamp for the account that just signed in: best-effort, once a
+// page load per account, never blocks render. A failed read is tried again at
+// the next auth event (a token refresh at the latest).
+const primedFor = new Set();
+async function primeEnrolledExperiments(uid) {
+  if (!uid || !supabase || primedFor.has(uid)) return;
+  primedFor.add(uid);
   try {
-    if (Object.keys(getExperiments()).length > 0) return;   // cache already warm
-    const { data } = await supabase.rpc('get_my_experiments');
-    if (data && typeof data === 'object' && Object.keys(data).length) {
-      const map = {};
-      for (const k in data) map[`exp_${k}`] = data[k];
-      if (Object.keys(getExperiments()).length === 0) setEnrolledExperiments(map);
-    }
-  } catch (_) {}
+    const { data, error } = await supabase.rpc('get_my_experiments');
+    // supabase-js resolves an error rather than throwing, and the read ran with
+    // whichever session was current; only a clean answer for this account may
+    // replace its arms.
+    if (error || cachedUserId !== uid) throw error || new Error('identity changed');
+    armCache.adoptServer(data, uid);
+  } catch (_) { primedFor.delete(uid); }
 }
 
 // The DEVICE id. Named "session" for historical reasons and deliberately left
@@ -381,7 +377,7 @@ if (supabase) {
         try { flushBeacon(); } catch (_) {}
         try { noteAuthChange(); } catch (_) {}
       }
-      if (session?.user?.id) { stampFirstSourceIfNeeded(); primeEnrolledExperiments(); }
+      if (session?.user?.id) { stampFirstSourceIfNeeded(); primeEnrolledExperiments(session.user.id); }
     });
   } catch (_) {}
 }
