@@ -15,7 +15,7 @@ import { Icon } from '../../components/Icon.jsx';
 import {
   User as UsersIcon, GlobeIcon, Sparkle, Clock, Tag, Star, Code,
 } from '../../lib/icons.js';
-import { formatDuration } from '../../lib/formatDuration.js';
+import { formatDurationPrecise } from '../../lib/formatDuration.js';
 import { DEMO_CARD_LIMIT } from '../../lib/demoCardCap.js';
 import {
   formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes,
@@ -33,6 +33,24 @@ const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 function Row({ label, children }) {
   return (<><dt>{label}</dt><dd>{children}</dd></>);
 }
+
+// user_active_day's days are UTC calendar days ('YYYY-MM-DD'). Formatting one
+// through new Date() in local time puts it on the previous evening anywhere
+// west of Greenwich, so it is read as a calendar day instead.
+function dayLabel(day) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(day || ''));
+  if (!m) return '—';
+  const y = Number(m[1]);
+  const d = new Date(Date.UTC(y, Number(m[2]) - 1, Number(m[3])));
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'UTC',
+    ...(y !== new Date().getUTCFullYear() ? { year: 'numeric' } : {}),
+  });
+}
+
+const DAYS_HINT = 'Days the app was open, one per UTC day. Counted since May 19, 2026; '
+  + 'real work (changing something on a cluster) since Aug 17, 2026, so an older '
+  + 'account\'s first day here is the first day anything was counted.';
 
 // Long opaque click-ids / tokens are de-emphasized (muted) vs human-meaningful
 // utm/referrer values.
@@ -154,7 +172,15 @@ function EngagementSection({ eng, tier, lastSignInAt, lastWorkedAt, device, geo 
             </>
           )}
         </Row>
-        <Row label="Boards">{formatCount(eng.board_count)}</Row>
+        {/* Clusters this person made, with their Studio apart. This row was
+            "Boards" and counted the Studio, the top-level cluster every
+            workspace is born with, so someone who had made nothing read 1. */}
+        <Row label="Clusters">
+          <span className="is-strong">{formatCount(eng.clusters_made ?? 0)}</span> made
+          {eng.studios > 0 && (
+            <span className="is-muted"> · plus {eng.studios === 1 ? 'a Studio' : `${formatCount(eng.studios)} Studios`}</span>
+          )}
+        </Row>
         {/* Cards sitting on soft-deleted clusters. They count against nobody's
             cap, and purge_old_deleted_boards() hard-deletes them 30 days after
             deletion. Hidden at zero, which is nearly every account. */}
@@ -177,7 +203,16 @@ function EngagementSection({ eng, tier, lastSignInAt, lastWorkedAt, device, geo 
             <span className="is-muted" style={{ marginLeft: 6 }}>{"· counts against those owners' caps"}</span>
           </Row>
         )}
-        <Row label="Time in app">{formatDuration(Number(eng.seconds_in_app || 0))}</Row>
+        <Row label="Time in app">{formatDurationPrecise(Number(eng.seconds_in_app || 0))}</Row>
+        <Row label="Days here">
+          <span title={DAYS_HINT}>
+            <span className="is-strong">{formatCount(eng.active_days ?? 0)}</span>
+            {eng.active_days === 1 ? ' day' : ' days'}, {formatCount(eng.work_days ?? 0)} with real work
+            {eng.first_active_day && (
+              <span className="is-muted"> · first {dayLabel(eng.first_active_day)} · last {dayLabel(eng.last_active_day)}</span>
+            )}
+          </span>
+        </Row>
         {/* Was one row labelled "Last active" showing user_presence.last_seen_at,
             which only means the app was open. Split, because the two answer
             different questions and the presence one was doing the talking. */}
@@ -397,7 +432,9 @@ export function AdminUserDetail({
                   </div>
                   <div className="admin-share-stat">
                     <span className="is-strong">{s.signups}</span> signup{s.signups === 1 ? '' : 's'}
-                    {s.activated > 0 && <span className="is-muted"> · {s.activated} active</span>}
+                    {/* 0460: the Users list's rule — placed a card, holds
+                        cards, or made a cluster of their own. */}
+                    {s.activated > 0 && <span className="is-muted"> · {s.activated} made something</span>}
                   </div>
                 </div>
               ))}

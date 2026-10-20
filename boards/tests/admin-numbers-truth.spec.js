@@ -75,3 +75,47 @@ test.describe('Command Center', () => {
     await expect(mrr).not.toContainText('subscribed');
   });
 });
+
+test.describe('Users', () => {
+  test('the activity filter says what it means, and the source counts follow it', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    const activity = page.getByRole('combobox', { name: 'Filter by activity' });
+    await expect(activity).toBeVisible({ timeout: 20000 });
+    await expect(activity.locator('option')).toHaveText(['Made something', 'Made nothing yet', 'All activity']);
+    await expect(activity).toHaveValue('active');
+
+    // The channel "(n)" counts used to ignore this filter entirely.
+    await page.evaluate(async () => {
+      const { supabase } = await import('/src/lib/supabase.js');
+      const orig = supabase.rpc;
+      window.__channelCalls = [];
+      supabase.rpc = (name, params) => {
+        if (name === 'admin_acquisition_channels') window.__channelCalls.push(params);
+        return orig(name, params);
+      };
+    });
+    await activity.selectOption('inactive');
+    await expect.poll(() => page.evaluate(() => window.__channelCalls.map((p) => p?.p_activity)))
+      .toContain('inactive');
+  });
+
+  test('a profile counts clusters made apart from the Studio, keeps two units of time, and counts days', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    await page.locator('.admin-user-row').first().click();
+    const dd = (label) => page.locator('.admin-detail-kv dt', { hasText: new RegExp(`^${label}$`) })
+      .locator('xpath=following-sibling::dd[1]');
+
+    await expect(dd('Clusters')).toHaveText('1 made · plus a Studio', { timeout: 20000 });
+    await expect(page.locator('.admin-detail-kv dt', { hasText: /^Boards$/ })).toHaveCount(0);
+    await expect(dd('Time in app')).toHaveText(/^\d+(y|mo|d|h|m|s)( \d+(y|mo|d|h|m|s))?$/);
+    await expect(dd('Days here')).toContainText('3 days, 1 with real work');
+    await expect(dd('Days here')).toContainText(/first \w{3} \d{1,2} · last \w{3} \d{1,2}/);
+  });
+
+  test('share signups count who made something, by the list\'s rule', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    const stats = page.locator('.admin-share-stat');
+    await expect(stats.first()).toHaveText('14 signups · 9 made something', { timeout: 20000 });
+    await expect(stats.last()).toHaveText('2 signups');
+  });
+});

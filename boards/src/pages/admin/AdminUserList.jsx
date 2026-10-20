@@ -36,14 +36,22 @@ const VERIFICATION = [
   { value: 'unverified', label: 'Unverified' },
   { value: 'all',        label: 'All users' },
 ];
-// Activity = did they actually create anything? Junk/undeliverable accounts
-// (misspelled emails) still count as "signed in", so activity is the real
-// signal that separates real users from dead signups. Default hides the dead.
+// Activity = did they ever make anything? Junk/undeliverable accounts
+// (misspelled emails) still count as "signed in", so this is the signal that
+// separates real users from dead signups, and the default hides the dead.
+//
+// "Made something" is 0460's _admin_made_something(): placed a card at some
+// point, holds cards now, or made a cluster of their own. Until then it was
+// "owns a cluster", and every account owns one the moment its workspace's
+// Studio is created, so the default hid almost nobody. The values stay
+// 'active' / 'inactive' because the RPCs take them.
 const ACTIVITY = [
-  { value: 'active',   label: 'Active' },
-  { value: 'inactive', label: 'No activity' },
+  { value: 'active',   label: 'Made something' },
+  { value: 'inactive', label: 'Made nothing yet' },
   { value: 'all',      label: 'All activity' },
 ];
+const ACTIVITY_HINT = 'Made something = placed a card at some point, holds cards now, '
+  + 'or made a cluster of their own. The Studio every workspace starts with does not count.';
 
 function UserListRow({ row, selected, isSelf, onSelect }) {
   const ghost = row.tier === 'waitlist' && !row.joined_waitlist;
@@ -184,7 +192,7 @@ export function AdminUserList({
             value={activity}
             onChange={(e) => onActivityChange(e.target.value)}
             aria-label="Filter by activity"
-            title="Active = created at least one card or board"
+            title={ACTIVITY_HINT}
           >
             {ACTIVITY.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>

@@ -912,6 +912,87 @@ RPCS.admin_api_overview = {
   first_call_at: tsISO(60 * 24 * 22),
   last_call_at: tsISO(6),
 };
+// admin_share_signups(p_limit): shares that brought people to the PRODUCT.
+// `activated` is 0460's rule, the Users list's "made something". One public
+// cluster, one invite link, and one share whose cluster has since been deleted
+// (board_title null), so all three of the pane's branches render.
+RPCS.admin_share_signups = [
+  { kind: 'public_board', token: null, slug: 'storyboard-kit', board_id: 'b-share-1', board_title: 'Storyboard kit',
+    shared_by_email: 'mara@studio.co', link_kind: null, link_role: null, signups: 14, activated: 9 },
+  { kind: 'share_link', token: 'tok-share-2', slug: null, board_id: 'b-share-2', board_title: 'Lookbook, spring',
+    shared_by_email: 'devon@ridge.io', link_kind: 'invite', link_role: 'editor', signups: 6, activated: 4 },
+  { kind: 'share_link', token: 'tok-share-3', slug: null, board_id: null, board_title: null,
+    shared_by_email: 'kit@paperlane', link_kind: 'view', link_role: 'viewer', signups: 2, activated: 0 },
+];
+
+// admin_user_detail(p_user_id), built from that person's list row so the pane
+// agrees with the row it was opened from. The shape is the live payload's
+// (0460). Without this the RPC resolved to null and the pane showed only its
+// header, so none of the Engagement rows could be looked at.
+function userDetailFixture(userId) {
+  const i = listUsers.findIndex((u) => u.user_id === userId);
+  const row = listUsers[i];
+  if (!row) return null;
+  const made = row.card_count > 0;
+  const paid = row.tier === 'paid';
+  const clustersMade = made ? 1 + (i % 6) : 0;
+  const activeDays = made ? 3 + (i % 17) : i % 2;
+  const verified = row.email_confirmed && !!row.last_sign_in_at;
+  return {
+    user_id: row.user_id,
+    email: row.email,
+    flags: {
+      banned: row.banned, verified, is_internal: i === 0,
+      email_confirmed: row.email_confirmed, last_sign_in_at: row.last_sign_in_at,
+    },
+    identity: {
+      tier: row.tier, color: null, banned: row.banned, banned_at: null, banned_by: null, avatar_url: null,
+      display_name: null, banned_reason: row.banned ? 'Spam signups' : null, banned_by_email: null,
+    },
+    acquisition: {
+      label: row.acquisition_source, landing_path: i % 3 ? '/' : '/vs/pureref',
+      referrer: i % 2 ? 'https://www.google.com/' : null, referrer_host: i % 2 ? 'www.google.com' : null,
+      utm_source: null, utm_medium: null, utm_campaign: null, utm_term: null, utm_content: null,
+      share: null, share_token: null, public_slug: null, last_touch: null, raw: {},
+      fbclid: null, gclid: null, wbraid: null, gbraid: null, msclkid: null, ttclid: null, twclid: null,
+      li_fat_id: null, rdt_cid: null, sccid: null, epik: null,
+    },
+    activation: {
+      created_at: row.created_at,
+      first_board_at: made ? row.created_at : null,
+      first_card_at: made ? row.created_at : null,
+      first_share_at: made && i % 3 === 0 ? row.created_at : null,
+      first_backlink_at: null,
+      first_paid_at: paid ? row.created_at : null,
+      milestones: [],
+    },
+    engagement: {
+      card_count: row.card_count, effective_card_limit: 50, demo_card_cap: 50,
+      bonus_card_credits: i % 3 === 0 ? 10 : 0, card_cap_base: i % 7 === 0 ? 100 : 50,
+      board_count: clustersMade + 1, clusters_made: clustersMade, studios: 1,
+      discarded_cards: i % 9 === 0 ? 6 : 0, discarded_clusters: i % 9 === 0 ? 1 : 0,
+      guest_cards: i % 8 === 0 ? 12 : 0, guest_clusters: i % 8 === 0 ? 2 : 0, guest_workspaces: i % 8 === 0 ? 1 : 0,
+      seconds_in_app: row.seconds_in_app, last_seen_at: row.last_sign_in_at, online: i % 6 === 0,
+      storage: { used_bytes: paid ? 2_400_000_000 : 0, quota_bytes: paid ? 100_000_000_000 : null, image_count: paid ? 812 : 0 },
+      active_days: activeDays, work_days: made ? Math.max(1, Math.floor(activeDays / 2)) : 0,
+      first_active_day: activeDays ? dayISO(activeDays * 2 + 3) : null,
+      last_active_day: activeDays ? dayISO(i % 4) : null,
+    },
+    device: {
+      last: { device_type: ['desktop', 'mobile', 'tablet'][i % 3], os: ['macOS', 'iOS', 'iPadOS'][i % 3], browser: ['Chrome', 'Safari', 'Safari'][i % 3] },
+      breakdown: [{ device_type: 'desktop', events: 120 + i }, { device_type: 'mobile', events: 14 + (i % 5) }],
+    },
+    geo: { country: ['US', 'GB', 'CA', 'DE'][i % 4], signup_country: ['US', 'GB', 'CA', 'DE'][i % 4], breakdown: [] },
+    billing: paid ? {
+      plan: row.subscription_plan, status: row.subscription_status, trialing: false,
+      monthly_amount_cents: row.subscription_amount_cents, discounted: row.subscription_discounted,
+      cancel_at_period_end: false, current_period_end: row.current_period_end, stripe_customer_id: 'cus_fixture',
+    } : null,
+    grants: [],
+    outreach: [],
+  };
+}
+
 RPCS.admin_user_api_usage = {
   days: 30,
   tokens: [
@@ -1105,6 +1186,7 @@ function rpcResult(name, params) {
     const want = Number(params?.p_days) || rows.length;
     return rows.slice(Math.max(0, rows.length - want)).map((r) => ({ ...r, mrr_cents: 0, paid_users: 0 }));
   }
+  if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
   // admin_top_users is called with { p_tier } — route to the right list.
   if (name === 'admin_top_users') {
     const v = params?.p_tier === 'paid' ? RPCS.admin_top_users_paid
