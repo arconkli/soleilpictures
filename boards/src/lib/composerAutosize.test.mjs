@@ -35,3 +35,10 @@ test('the composer and the edit box grow; the stylesheet doesn’t cap them belo
   const rule = css.slice(css.indexOf('.msg-composer-input {'), css.indexOf('}', css.indexOf('.msg-composer-input {')));
   assert.doesNotMatch(rule, /max-height/);
 });
+
+test('the text is measured in a hidden copy, never by collapsing the field (that let the thread go of the bottom)', () => {
+  const hook = readFileSync(new URL('../hooks/useAutosizeTextarea.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(hook, /style\.height = 'auto'/);
+  assert.match(hook, /mirror\.value = el\.value;/);
+  assert.match(hook, /if \(el\.style\.height !== h\) el\.style\.height = h;/);
+});
