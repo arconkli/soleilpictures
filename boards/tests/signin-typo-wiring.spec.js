@@ -10,7 +10,7 @@ const events = () => read('src/lib/analyticsEvents.js');
 test.describe('sign-in typo + code copy wiring', () => {
   test('the form offers the fix on both stages and logs both events', () => {
     const s = gate();
-    expect(s).toMatch(/import \{ suggestEmail \} from '\.\.\/lib\/emailTypo\.js'/);
+    expect(s).toMatch(/import \{ suggestEmail, emailProblem \} from '\.\.\/lib\/emailTypo\.js'/);
     expect((s.match(/typoOffer\('email'\)/g) || []).length).toBe(1);
     expect((s.match(/typoOffer\('code'\)/g) || []).length).toBe(1);
     expect(s).toMatch(/EV\.EMAIL_TYPO_SUGGESTED/);

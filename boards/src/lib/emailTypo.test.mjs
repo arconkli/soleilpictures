@@ -3,7 +3,7 @@
 //   node --test src/lib/emailTypo.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestEmail } from './emailTypo.js';
+import { suggestEmail, emailProblem } from './emailTypo.js';
 
 test('common gmail/hotmail/yahoo typos map to the real domain, local part preserved', () => {
   assert.deepEqual(suggestEmail('me@gmail.como'), { suggestion: 'me@gmail.com', fromDomain: 'gmail.como', toDomain: 'gmail.com' });
@@ -41,4 +41,23 @@ test('tolerates junk, case and whitespace', () => {
   assert.equal(suggestEmail('nope'), null);
   assert.equal(suggestEmail('a@b@c'), null);
   assert.deepEqual(suggestEmail('  Me@GMAIL.COMO '), { suggestion: 'Me@gmail.com', fromDomain: 'gmail.como', toDomain: 'gmail.com' }, 'domain lower-cased, local part kept');
+});
+
+test('an address with no real ending is refused: no dot, one letter, digits, a trailing dot', () => {
+  for (const addr of ['me@ddsb', 'me@maildrop', 'me@a.m', 'me@sd', 'me@gmail', 'me@ddsb.', 'me@10.0.0.1', ' me@DDSB ', 'me@']) {
+    assert.equal(emailProblem(addr), 'no_tld', addr);
+  }
+});
+
+test('real addresses pass, including long, country and punycode endings', () => {
+  for (const addr of ['me@gmail.com', 'me@yahoo.co.uk', 'me@fh-salzburg.ac.at', 'me@studio.photography',
+    'me@proton.me', 'me@xn--80ak6aa92e.xn--p1ai', ' Me@Gmail.Com ', 'me@gmail.como', 'me@maildrop.cc']) {
+    assert.equal(emailProblem(addr), null, addr);
+  }
+});
+
+test('leaves malformed input to the browser and GoTrue', () => {
+  for (const v of ['', null, undefined, 42, 'nope', '@gmail']) {
+    assert.equal(emailProblem(v), null, String(v));
+  }
 });

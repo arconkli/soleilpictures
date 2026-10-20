@@ -4,12 +4,17 @@
 //   3. signed in           → render children + expose user via context.
 //
 // Sign-in flow (post-rework):
-//   • User types email → we call signInWithOtp (shouldCreateUser defaults true,
-//     so new emails get an account created at verify time).
-//   • The email contains BOTH a clickable magic link AND a 6-digit code.
-//   • A 6-digit code input slides in on the same page. The user can type the
-//     code from any device (e.g. read on phone, type on desktop) OR click the
-//     magic link to land back here with ?code=… and consume that.
+//   • User types email → we call signInWithOtp. shouldCreateUser defaults true
+//     and email autoconfirm is on, so a new address becomes an account, already
+//     confirmed and holding one session, the moment it is submitted. Nothing is
+//     created "at verify time": an account with no second session is someone
+//     who never typed the code (a typo, a duplicate, or a person stuck here).
+//   • The email carries ONLY a 6-digit code (supabase/templates/magic_link.html
+//     leaves the link out: mail scanners pre-fetch links and burn the token).
+//     The code can be read on one device and typed on another. Asking again
+//     kills the earlier code; only the newest one works.
+//   • A 6-digit code input slides in on the same page. A ?code=… callback is
+//     still consumed below, for flows that land with one.
 //   • Tier='waitlist' is the default for new accounts (set in migration
 //     0088's ensure_profile_for_new_user trigger; 0085/0087 had briefly
 //     regressed it to 'demo'). TierRouter sends waitlist users to
@@ -30,7 +35,7 @@ import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, 
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
 import { getFbCookies } from '../lib/metaPixel.js';
-import { suggestEmail } from '../lib/emailTypo.js';
+import { suggestEmail, emailProblem } from '../lib/emailTypo.js';
 import { savePendingCode, readPendingCode, clearPendingCode, resendWait } from '../lib/pendingCode.js';
 import { captchaEnabled, captchaToken } from './turnstile.js';
 import { mailboxFor, isConsumerAddress } from '../lib/mailboxLink.js';
@@ -352,16 +357,20 @@ async function consumePendingInvite(userId) {
   }
 }
 
-// ── Did verification actually reach the product? ────────────────────────
-// Roughly one in eight signups completes email verification and is then never
-// seen: last_sign_in_at is set, and there is no workspace, no board, no event
-// and no error. Nothing ran.
+// ── Did a callback actually reach the product? ──────────────────────────
+// Written when the sign-in email carried a link, to find signups that "verified
+// and were never seen": last_sign_in_at set, and no workspace, board or event.
+// That reading was wrong (2026-10-20). Under email autoconfirm, submitting an
+// address creates the account confirmed and signed in, so last_sign_in_at is
+// set before anyone types a code; those accounts never entered it. The email
+// has no link now, so a ?code= or #access_token landing here is rare (staging
+// handoffs, mostly), and this still measures that hop.
 //
 // Supabase's /auth/v1/verify stamps last_sign_in_at BEFORE redirecting here, so
-// everything between "signed in" and "our JS executed" was invisible — and that
-// is exactly where they are being lost. This fires at MODULE SCOPE, before
-// React renders, so it lands even if boot then fails; and it beacons rather
-// than queues, so it survives a tab closed a second later.
+// everything between "signed in" and "our JS executed" was invisible. This
+// fires at MODULE SCOPE, before React renders, so it lands even if boot then
+// fails; and it beacons rather than queues, so it survives a tab closed a
+// second later.
 //
 // It is necessarily anonymous: the code has not been exchanged yet, so there is
 // no user to attribute it to. AUTH_SESSION_READY below is the one that carries
@@ -622,7 +631,8 @@ function SignIn() {
   // The code step survives a reload (lib/pendingCode.js). A phone goes to its
   // mail app to read the code and can come back to a reloaded tab; with the
   // step held only in state, that person faced an empty email field and no sign
-  // that their code was coming. Only the address is remembered, for 15 minutes.
+  // that their code was coming. Only the address is remembered (and how many
+  // codes went to it), for as long as a code lives: an hour.
   const [restored] = useState(() => {
     try { return readPendingCode(window.localStorage, Date.now()); } catch (_) { return null; }
   });
@@ -650,6 +660,10 @@ function SignIn() {
   const [code,  setCode]        = useState('');
   const [error, setError]       = useState(null);
   const [resendCooldown, setResendCooldown] = useState(() => (restored ? resendWait(restored.sentAt, Date.now()) : 0));
+  // Codes sent to this address in this step. Asking again kills the code before
+  // it, and nothing used to say so: one person resent, then typed the old code
+  // three times. From the second send on, the step and its errors say "newest".
+  const [sends, setSends] = useState(() => (restored ? restored.sends : 0));
   // Non-null when the user arrived via an /?invite=<token> link.
   // We pre-fill the email field and show an "invited as ..." banner.
   const [inviteHint, setInviteHint] = useState(null);
@@ -720,6 +734,7 @@ function SignIn() {
             setStage('email');
             setCode('');
             setResendCooldown(0);
+            setSends(0);
           }
           if (!restored || restored.email.toLowerCase() !== String(addr).toLowerCase()) setEmail(addr);
           setInviteHint({ email: addr });
@@ -760,6 +775,15 @@ function SignIn() {
 
   const sendCode = async (resending = false) => {
     setError(null);
+    // An address with no real ending (@ddsb, @a.m) passes the browser's own
+    // check and would get an account and a code that goes nowhere. Refused here;
+    // a known provider typed bare ("@gmail") still gets its one-tap fix above.
+    const problem = emailProblem(email);
+    if (problem) {
+      logEvent(EV.EMAIL_SUBMIT_ERROR, { reason: problem, resend: !!resending });
+      setError("That address is missing its ending, like .com — check the part after the @.");
+      return;
+    }
     setBusy(true);
     try {
       // If this visitor arrived via a Facebook/Instagram click, the persisted
@@ -819,9 +843,11 @@ function SignIn() {
       if (!resending) lpCtaClick('/', 'home', 'form');
       if (!resending) setStage('code');
       const sentAt = Date.now();
+      const sent = resending ? Math.max(1, sends) + 1 : 1;
       sentAtRef.current = sentAt;
+      setSends(sent);
       setResendCooldown(resendWait(sentAt, sentAt));
-      savePendingCode(window.localStorage, email.trim().toLowerCase(), sentAt);
+      savePendingCode(window.localStorage, email.trim().toLowerCase(), sentAt, sent);
     } catch (e) {
       logEvent(EV.EMAIL_SUBMIT_ERROR, { reason: classifyAuthError(e), resend: !!resending });
       setError(humanError(e));
@@ -859,8 +885,8 @@ function SignIn() {
       clearPendingCode(window.localStorage);
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
-      logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e) });
-      setError(humanError(e));
+      logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e), sends });
+      setError(humanError(e, { resent: sends > 1 }));
       // Ready for the next try: the field was disabled while verifying (which
       // drops a phone's keyboard) and left holding six digits that maxLength
       // wouldn't let anyone type over. Empty it and give focus back.
@@ -875,6 +901,7 @@ function SignIn() {
     clearPendingCode(window.localStorage);
     setStage('email');
     setCode('');
+    setSends(0);
     setError(null);
   };
   const applyTypo = (atStage) => () => {
@@ -1011,7 +1038,9 @@ function SignIn() {
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="auth-hint t-meta">
-              Check your inbox for the 6-digit code — and Spam or Promotions if it isn't there.{' '}
+              {sends > 1
+                ? 'New code sent. Only the newest one works — check Spam or Promotions if it isn\'t there.'
+                : 'Check your inbox for the 6-digit code — and Spam or Promotions if it isn\'t there.'}{' '}
               {/* The resend control stays a button during cooldown (disabled,
                   counting down) — swapping it for a bare span made it look
                   like the option vanished. */}
@@ -1052,14 +1081,18 @@ function SignIn() {
   );
 }
 
-function humanError(e) {
+// resent: more than one code went to this address, so an earlier one may be
+// what was typed. Only the newest works.
+function humanError(e, { resent = false } = {}) {
   const msg = (e?.message || String(e || '')).toLowerCase();
   if (msg.includes('captcha')) return "We couldn't confirm you're a person, not a bot. Try again — or another browser if it keeps happening.";
   if (msg.includes('rate') || msg.includes('too many')) return 'Hold on — too many attempts. Try again in a minute.';
   // One GoTrue message covers a wrong digit and a dead token; do not tell a
   // mistyped code it "expired" and send the person to the resend button.
+  if (resent && msg.includes('expired') && msg.includes('invalid')) return "That code didn't match. Only the newest code works — use the one in the latest email.";
   if (msg.includes('expired') && msg.includes('invalid')) return "That code didn't match. Check the digits, or request a new one.";
   if (msg.includes('expired'))                          return "That code expired. Request a new one.";
+  if (resent && msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Only the newest code works — use the one in the latest email.";
   if (msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Try again or request a new one.";
   if (msg.includes('email') && msg.includes('invalid')) return "That email doesn't look right.";
   return e?.message || String(e || 'Something went wrong.');

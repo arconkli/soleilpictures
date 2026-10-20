@@ -11,27 +11,28 @@ export const EV = Object.freeze({
   LANDING_INVITE_PREFILL:  'landing_invite_prefill_seen', // invite email pre-filled
   LANDING_JOIN_PREFILL:    'landing_join_prefill_seen',   // ?join= landing named the cluster {had_name}
   EMAIL_SUBMIT:            'email_submit',                // OTP send ok {resend}
-  EMAIL_TYPO_SUGGESTED:    'email_typo_suggested',        // the sign-in form offered a corrected address {from_domain,to_domain,at:'blur'|'submit'} — logged once the person stopped typing, never per keystroke (rows before 2026-10-01 counted mid-word prefixes like 'gmail' and '.co') — typo and bare-TLD domains are a large share of accounts that verify an address and are never seen again
+  EMAIL_TYPO_SUGGESTED:    'email_typo_suggested',        // the sign-in form offered a corrected address {from_domain,to_domain,at:'blur'|'submit'} — logged once the person stopped typing, never per keystroke (rows before 2026-10-01 counted mid-word prefixes like 'gmail' and '.co') — typo and bare-TLD domains are a large share of accounts that never enter their code: submitting the address creates the account (autoconfirm), and the code goes nowhere
   EMAIL_TYPO_ACCEPTED:     'email_typo_accepted',         // the offer was taken {to_domain,stage:'email'|'code'}
-  EMAIL_SUBMIT_ERROR:      'email_submit_error',          // OTP send failed {reason,resend}
+  EMAIL_SUBMIT_ERROR:      'email_submit_error',          // OTP send failed {reason,resend} — reason 'no_tld' (from 2026-10-20) = refused before sending, the address has no real ending (lib/emailTypo emailProblem); every other reason is classifyAuthError's
   OTP_VERIFY:              'otp_verify',                  // code verified ok {is_webview,webview_app}
-  // ── Did verification actually reach the product? ──
-  // About one in eight signups completes email verification and is then never
-  // seen again: last_sign_in_at is set server-side, but there is no workspace,
-  // no board, no event and no error. Nothing ran. Supabase's /auth/v1/verify
-  // stamps last_sign_in_at BEFORE redirecting here, so the gap between "signed
-  // in" and "our JS executed" was completely unmeasured — and that gap is where
-  // they are being lost.
+  // ── Did a callback actually reach the product? ──
+  // Added to find signups that "verified and were never seen": last_sign_in_at
+  // set server-side, but no workspace, board, event or error. That reading was
+  // wrong (2026-10-20): under email autoconfirm, submitting an address creates
+  // the account confirmed and signed in, so those accounts never typed their
+  // code; the gap is the code step, not boot. The sign-in email carries no link
+  // now, so these two only see the rare ?code= / #access_token landing.
   //
   // AUTH_LANDED is the first line of JS to run on a callback URL; it may be
   // anonymous, because the code hasn't been exchanged yet. AUTH_SESSION_READY
   // fires once a session exists and therefore carries user_id, which is what
-  // makes it joinable to auth.users. A user with last_sign_in_at and NO
-  // auth_session_ready never completed the landing — that subtraction is the
-  // whole measurement.
+  // makes it joinable to auth.users. An auth_landed with no auth_session_ready
+  // after it never completed the landing — that subtraction is the whole
+  // measurement. (last_sign_in_at alone proves nothing: autoconfirm sets it at
+  // submit.)
   AUTH_LANDED:             'auth_landed',                 // browser executed our JS on a callback URL {method:'code'|'hash',is_webview,webview_app,standalone} — beaconed immediately, so it survives a tab closed one second later
   AUTH_SESSION_READY:      'auth_session_ready',          // a session actually exists on this device {method,is_webview,webview_app,ms_since_landed}
-  OTP_VERIFY_ERROR:        'otp_verify_error',            // code verify failed {reason:'code_rejected'|'expired'|'invalid'|'invalid_email'|'rate_limit'|'network'|'other'} — GoTrue answers a wrong digit and a dead token with ONE message ("expired or is invalid"), which is code_rejected; the bursts of 3-4 in a minute after a single send are typos, not expiry
+  OTP_VERIFY_ERROR:        'otp_verify_error',            // code verify failed {reason:'code_rejected'|'expired'|'invalid'|'invalid_email'|'rate_limit'|'network'|'other', sends} — sends (from 2026-10-20) = codes sent to the address in this step; only the newest works, so code_rejected with sends>1 is often the old code — GoTrue answers a wrong digit and a dead token with ONE message ("expired or is invalid"), which is code_rejected; the bursts of 3-4 in a minute after a single send are typos, not expiry
   LANDING_EDIT_EMAIL:      'landing_edit_email',          // "edit" clicked on the code step
   AUTH_CODE_RESTORED:      'auth_code_restored',          // the code step came back after a reload or reopen {age_s} — before 2026-10-05 a reload landed on an empty email field (lib/pendingCode.js)
   AUTH_MAILBOX_OPEN:       'auth_mailbox_open',           // the code step's "Open Gmail"-style shortcut was used {provider:'gmail'|'outlook'|'yahoo'|'yahoo_jp'|'icloud'|'proton'}

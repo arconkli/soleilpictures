@@ -2,8 +2,18 @@
 <!--
   Soleil Clusters — Magic Link / OTP email template (dark, brand-true).
 
-  Paste into Supabase Dashboard → Auth → Email Templates → "Magic Link".
-  Recommended subject line: "Your Clusters sign-in code"
+  Paste into Supabase Dashboard → Authentication → Emails → "Magic link".
+  Subject (the Dashboard's subject field):
+      {{ .Token }} is your Clusters sign-in code
+  The code in the subject shows on a phone's lock screen and in the inbox
+  list, so it can be read without opening the mail app and finding this
+  message. GoTrue renders the subject with the same data as the body; its own
+  reauthentication email does exactly this.
+
+  "It works for an hour" below must match Email OTP Expiration in the
+  Dashboard (Authentication → Sign In / Providers → Email): 3600 seconds. The
+  app remembers the code step for the same hour (boards/src/lib/pendingCode.js).
+  Asking for a new code kills the one before it, so the body says so.
 
   Token renders via {{ .Token }}. We do NOT include {{ .ConfirmationURL }}
   on purpose — disposable / corporate email scanners prefetch links and
@@ -82,7 +92,7 @@
             <tr>
               <td align="center" style="padding-bottom:28px;">
                 <div class="ink-2" style="font:400 14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#b3b3b7;">
-                  Enter this 6-digit code on the sign-in screen.<br>It'll expire in 10&nbsp;minutes.
+                  Enter this 6-digit code on the sign-in screen.<br>It works for an hour. Asked for more than one? Only the newest works.
                 </div>
               </td>
             </tr>

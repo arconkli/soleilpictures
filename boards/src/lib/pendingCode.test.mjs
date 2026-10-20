@@ -16,8 +16,23 @@ function mem() {
 test('a saved code step comes back within the window, with the address only', () => {
   const s = mem();
   assert.equal(savePendingCode(s, 'ana@gmail.com', 1_000_000), true);
-  assert.deepEqual(readPendingCode(s, 1_000_000 + 60_000), { email: 'ana@gmail.com', sentAt: 1_000_000 });
+  assert.deepEqual(readPendingCode(s, 1_000_000 + 60_000), { email: 'ana@gmail.com', sentAt: 1_000_000, sends: 1 });
   assert.doesNotMatch(s._m.get(PENDING_CODE_KEY), /code"\s*:/, 'the code itself is never stored');
+});
+
+test('it lasts as long as the code does, an hour, and counts the codes sent', () => {
+  const s = mem();
+  assert.equal(PENDING_CODE_TTL_MS, 60 * 60 * 1000);
+  savePendingCode(s, 'ana@gmail.com', 0);
+  assert.equal(readPendingCode(s, 59 * 60 * 1000)?.email, 'ana@gmail.com', 'back from the mail app 59 minutes later');
+  savePendingCode(s, 'ana@gmail.com', 1_000, 3);
+  assert.equal(readPendingCode(s, 2_000).sends, 3, 'a reload after a resend still knows only the newest code works');
+  for (const bad of [0, -1, 1.5, '2', null]) {
+    savePendingCode(s, 'ana@gmail.com', 1_000, bad);
+    assert.equal(readPendingCode(s, 2_000).sends, 1, String(bad));
+  }
+  s.setItem(PENDING_CODE_KEY, JSON.stringify({ email: 'ana@gmail.com', sentAt: 1_000 }));
+  assert.equal(readPendingCode(s, 2_000).sends, 1, 'an entry from before sends existed reads as one send');
 });
 
 test('an expired, malformed or future-dated entry is dropped and removed', () => {
