@@ -1387,12 +1387,16 @@ const PAGES = [
   {
     path: '/vs/pureref',
     kind: 'compare',
-    // HELD without the "What it costs" block (owner, 2026-10-01). This page
-    // carries most of the comparison traffic and converts best of them, and its
-    // copy was corrected 2026-10-02. Turn the block on — delete this line — two
-    // weeks after that corrected copy is live on production, not before: one
-    // change at a time on the page that pays.
-    planBlock: false,
+    // "What it costs" is ON (owner, 2026-10-20), as kind:'compare' implies.
+    // It was held from 2026-10-01 until two weeks after the copy corrected on
+    // 2026-10-02 was live on production, so that the page that pays changes one
+    // thing at a time. The block went on as this page's only change.
+    //   Read: planBlock.js's pre-registered read, window +3d to +31d from the
+    //     PRODUCTION deploy of this change, never inside 3 days of it; and
+    //     signups / sessions by first landing on this path at +14 days.
+    //   Hold: no other edit to this page sooner than +14 days after that
+    //     deploy (the PureRef FAQs and the video page link wait for it).
+    //   Baselines are in the project notes, not in this public file.
     // 2026-08-23 INTENT SPLIT. The 2026-08-04 experiment (lead with the
     // film-studio credential) worked: 0 clicks → 10 and position 11.3 → 8.9
     // across the pivot, on real per-day data (seo_page_daily, 0254). This is

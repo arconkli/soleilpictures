@@ -31,12 +31,13 @@
 //   Guardrail: same-session visitor -> ps_signup on the same pages. Pull the
 //     block if the point estimate falls by more than a third — deliberately
 //     trigger-happy, because the test cannot confirm a fall that size.
-//   Two phases. /vs/pureref carries roughly nine in ten compare sessions and is
+//   Two phases. /vs/pureref carries roughly nine in ten compare sessions and was
 //     held without the block (planBlock: false) until two weeks after its
-//     corrected copy is live on production. Until then the block runs on pages
-//     too quiet to read anything from: collect, do not grade. The read starts
-//     the day /vs/pureref gets the block — window +3d to +31d from that
-//     production deploy, never inside 3 days of it.
+//     corrected copy was live on production; it got the block on 2026-10-20.
+//     Before that the block ran on pages too quiet to read anything from:
+//     collect, do not grade. The read starts the day /vs/pureref's block
+//     reaches production — window +3d to +31d from that production deploy,
+//     never inside 3 days of it.
 //   Power, stated now so nobody over-reads it later: at this page family's
 //     traffic only a fall of about three-quarters is distinguishable from noise
 //     (80% power, alpha 0.05). A smaller effect reports as "not detected",
@@ -59,7 +60,7 @@ export const PLAN_BLOCK_HEADING = 'What it costs';
 
 // Which pages carry it. One predicate, shared by every renderer and the tests.
 // An explicit `planBlock: false` wins over kind:'compare' — that is how a
-// comparison page is held back (see /vs/pureref).
+// comparison page is held back (/vs/pureref was, until 2026-10-20).
 export function hasPlanBlock(spec) {
   if (!spec || spec.storefront || spec.planBlock === false) return false;
   return spec.kind === 'compare' || spec.planBlock === true;

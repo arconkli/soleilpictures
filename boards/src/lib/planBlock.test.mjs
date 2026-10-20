@@ -28,11 +28,12 @@ test('the block is on every comparison page and every flagged page — and nowhe
     if (spec) assert.equal(hasPlanBlock(spec), false, `${p} is a solo/hobbyist page — no price block (see planBlock.js)`);
   }
   assert.ok(SEO_LANDING_PAGES.some(hasPlanBlock), 'no page carries the block at all');
-  // Held by the owner (2026-10-01): /vs/pureref converts best, so it gets the
-  // block only two weeks after its corrected copy is live on production.
+  // Held by the owner 2026-10-01 until two weeks after its corrected copy was
+  // live on production; turned on 2026-10-20 as the page's only change. A
+  // stray `planBlock: false` coming back would quietly end planBlock.js's read.
   const pureref = SEO_LANDING_PAGES.find((s) => s.path === '/vs/pureref');
   assert.equal(pureref?.kind, 'compare');
-  assert.equal(hasPlanBlock(pureref), false, '/vs/pureref is held without the block — see planBlock.js');
+  assert.equal(hasPlanBlock(pureref), true, '/vs/pureref carries the block — see planBlock.js');
   // And an explicit false beats kind:'compare' in the predicate itself.
   assert.equal(hasPlanBlock({ kind: 'compare', planBlock: false }), false);
   assert.equal(hasPlanBlock({ kind: 'compare' }), true);
