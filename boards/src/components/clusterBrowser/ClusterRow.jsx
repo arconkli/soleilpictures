@@ -62,6 +62,7 @@ export const ClusterRow = memo(function ClusterRow({
   audioMode = false, draggable = false, onBoard = false,
   rename = null,   // inline rename: { onCommit, onCancel }
   markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
+  rowIndex = undefined,   // its place among all rows, when the table mounts only some
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
@@ -78,7 +79,7 @@ export const ClusterRow = memo(function ClusterRow({
       className={`ct-row${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}`}
       data-item-id={item.id}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
-      role="row"
+      role="row" aria-rowindex={rowIndex}
       draggable={draggable && !item.pending && !rename ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}

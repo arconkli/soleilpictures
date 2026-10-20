@@ -9391,6 +9391,11 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }
+/* A windowed table (ClusterTable, past 300 rows) mounts only the rows near
+   the viewport, so it needs no skipping, and a row's real height must hold
+   for the spacers' arithmetic. */
+.ct-table.is-windowed .ct-row { content-visibility: visible; contain-intrinsic-size: none; }
+.ct-spacer { flex: none; }
 /* The header stays put. Scrolling a three-hundred-loop pack past its column
    labels leaves four columns of bare numbers — which of 120 and 0:04 is the
    tempo is not guessable. */
