@@ -25,7 +25,7 @@ test('the thread marks up to its newest server row, never a send in flight', () 
 
 test('the end of the thread on screen opens the read gate', () => {
   const thread = read('../components/MessageThread.jsx');
-  assert.match(thread, /readGate: bottomSeen,/);
+  assert.match(thread, /readGate: bottomSeen && newAfter !== undefined,/, 'and never before the old read position is known');
   assert.match(thread, /new IntersectionObserver\(\(\[e\]\) => setBottomSeen\(e\.isIntersecting\), \{ root, threshold: 0 \}\)/);
   assert.match(thread, /<div className="msg-thread-end" ref=\{endRef\} aria-hidden="true" \/>/);
 });

@@ -16610,6 +16610,15 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   min-height: 100%;
 }
 .msg-thread-end { height: 1px; flex-shrink: 0; }
+/* "New": above the first message since you last read. */
+.msg-new-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 2px 6px;
+  color: var(--ink-1);
+  font: 600 11px/1 var(--font-sans);
+}
+.msg-new-divider::before,
+.msg-new-divider::after { content: ''; flex: 1; height: 1px; background: currentColor; opacity: .4; }
 
 /* "Load earlier messages" — first row of a thread that holds more history
    than its newest page. Scrolling up to it loads the page too; the button is

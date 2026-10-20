@@ -7,7 +7,7 @@ import { useStickToBottom } from '../hooks/useStickToBottom.js';
 import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
-  searchMessagesInConversation, fetchMessagesByIds,
+  searchMessagesInConversation, fetchMessagesByIds, fetchReadState,
   fetchReplies, replyCountsFor, togglePin,
   listPinnedForConversation,
   addParticipants, leaveConversation, rejoinConversation, renameConversation,
@@ -26,6 +26,7 @@ import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
 import { newMessageId, toggleReactionMap } from '../lib/messageStore.js';
+import { buildFeedItems } from '../lib/messageFeed.js';
 import { showingConversation } from '../lib/threadAttention.js';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
@@ -41,11 +42,41 @@ const LOAD_OLDER_THRESHOLD_PX = 120;
 export function MessageThread({
   workspaceId, currentUser, conversation,
   onBack, onClose, onChanged, jumpToMessageId, onJumpConsumed,
-  canSend = true, readOnlyReason = null,
+  canSend = true, readOnlyReason = null, lastReadAt,
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
+  const scrollRef = useRef(null);
   const [bottomSeen, setBottomSeen] = useState(false);
+  // The end of the thread, checked live when it's time to mark read: the
+  // observer behind bottomSeen reports changes, and an empty thread's end was
+  // "seen" before its rows arrived and the view moved off it.
+  const endRef = useRef(null);
+  const endOnScreen = useCallback(() => {
+    const root = scrollRef.current;
+    const end = endRef.current;
+    if (!root || !end) return false;
+    const r = root.getBoundingClientRect();
+    const e = end.getBoundingClientRect();
+    return e.top <= r.bottom && e.bottom >= r.top;
+  }, []);
+  // Where you'd read up to when the conversation opened: the "New" line sits
+  // after it and stays put while the thread is open, however it gets marked.
+  // undefined until known. A link or a toast can open a thread before the
+  // list has loaded: then it reads it itself, and marks nothing read until
+  // it has, or the mark would wipe out where you'd got to.
+  const [newAfter, setNewAfter] = useState(() => lastReadAt);
+  const fixtureMode = !!useContext(MessagesFixtureContext);
+  useEffect(() => {
+    if (newAfter !== undefined) return undefined;
+    if (lastReadAt !== undefined || fixtureMode) { setNewAfter(lastReadAt ?? null); return undefined; }
+    let cancelled = false;
+    fetchReadState({ conversationId }).then((rows) => {
+      if (cancelled) return;
+      setNewAfter((rows || []).find(r => r.user_id === userId)?.last_read_at ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [lastReadAt, newAfter, conversationId, userId, fixtureMode]);
   const feedback = useFeedback();
   // The files sidebar's card look: who's in it under the name, the thread in
   // bubbles (messagesCard.css), no glowing mark on an empty one.
@@ -55,15 +86,16 @@ export function MessageThread({
 
   const {
     messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading,
-    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback,
+    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback, fresh,
   } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
-    // Read means seen: the newest message has been on screen (see endRef).
-    readGate: bottomSeen,
+    // Read means seen: the newest message has been on screen (see endRef),
+    // and where you'd read up to before is known (the "New" line).
+    readGate: bottomSeen && newAfter !== undefined,
+    isReadable: endOnScreen,
   });
 
-  const scrollRef = useRef(null);
 
   // Tell the inbox this conversation is on screen, so its toast and OS
   // notification stay quiet only while it really is (COMMS-03).
@@ -144,7 +176,6 @@ export function MessageThread({
 
   // The end of the thread on screen = the newest message seen: only then does
   // the thread mark itself read (useMessageThread's readGate).
-  const endRef = useRef(null);
   useEffect(() => {
     const root = scrollRef.current;
     const end = endRef.current;
@@ -215,9 +246,7 @@ export function MessageThread({
   // they're up, and back to the bottom after if that's where you were.
   useEffect(() => {
     if (!searchOpen && !replyParent) return undefined;
-    const wasStuck = stick.stuckRef.current;
-    const resume = stick.suspend();
-    return () => { resume(); if (wasStuck) requestAnimationFrame(() => stick.pin()); };
+    return stick.suspend();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchOpen, !!replyParent]);
 
@@ -359,39 +388,34 @@ export function MessageThread({
     setSeekId(msgId);
   };
 
-  // ── Day-divider + consecutive-sender grouping ───────────────────────
-  // A message is a "continuation" of the one above it when it's from the
-  // same sender, within 5 minutes, on the same day, and is neither a reply
-  // nor pinned. Continuations drop their avatar/name/time header (see
-  // MessageBubble's isContinuation) so a burst reads as one block instead
-  // of repeating the author on every line.
-  const groupedMessages = useMemo(() => {
-    const groups = [];
-    let lastKey = null;
-    let prevMsg = null; // previous *message* row actually rendered (not a divider/system)
-    const list = replyParent ? [] : (messages || []);
-    for (const m of list) {
-      const k = dayKey(m.created_at);
-      let brokeDay = false;
-      if (k !== lastKey) {
-        groups.push({ kind: 'divider', key: 'd-' + k, label: dayLabel(m.created_at) });
-        lastKey = k; brokeDay = true; prevMsg = null;
-      }
-      if (m.kind === 'system') {
-        groups.push({ kind: 'msg', key: m.id, msg: m });
-        prevMsg = null; // a system row always breaks the run
-        continue;
-      }
-      const within5 = prevMsg && m.created_at && prevMsg.created_at
-        && (new Date(m.created_at) - new Date(prevMsg.created_at)) < 5 * 60 * 1000;
-      const isContinuation = !brokeDay && !!prevMsg
-        && prevMsg.sender_id === m.sender_id
-        && !m.parent_id && !m.is_pinned && within5;
-      groups.push({ kind: 'msg', key: m.id, msg: m, isContinuation });
-      prevMsg = m;
-    }
-    return groups;
-  }, [messages, replyParent]);
+  // ── Day dividers, runs and the "New" line (lib/messageFeed.js) ───────
+  // A message continues the run above it when it's from the same sender,
+  // within 5 minutes of the one before it, on the same day, and is neither a
+  // reply nor pinned; continuations drop their avatar/name/time header (see
+  // MessageBubble's isContinuation). A message still sending is laid out
+  // like the one it becomes, so it never changes shape when it's saved.
+  const groupedMessages = useMemo(
+    () => (replyParent ? [] : buildFeedItems(messages, { selfId: userId, newAfter: newAfter || null })),
+    [messages, replyParent, userId, newAfter],
+  );
+
+  // Opening with more unread than fits: land on the "New" line, not the
+  // bottom, so you start where you left off. A linked message wins, and so
+  // does the bottom when everything new fits on screen.
+  const landedRef = useRef(false);
+  useLayoutEffect(() => {
+    if (landedRef.current || !fresh) return;
+    landedRef.current = true;
+    if (jumpToMessageId) return;
+    const el = scrollRef.current;
+    const line = el?.querySelector('.msg-new-divider');
+    if (!el || !line) return;
+    // Measured from the end of the thread, wherever the scroller is right now.
+    const lineInContent = line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+    if (el.scrollHeight - lineInContent <= el.clientHeight) return;
+    stick.holdAt(line, 64);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fresh]);
 
   // ── Send / Edit / Delete / React / Reply / Pin / Copy-link ──────────
   // Everything shows before the server answers (useMessageThread's local
@@ -859,6 +883,8 @@ export function MessageThread({
           <>
             {groupedMessages.map(g => g.kind === 'divider' ? (
               <div key={g.key} className="msg-day-divider"><span>{g.label}</span></div>
+            ) : g.kind === 'new' ? (
+              <div key={g.key} className="msg-new-divider" role="separator" aria-label="New messages"><span>New</span></div>
             ) : g.msg.kind === 'system' ? (
               <div key={g.key} className="msg-system-row t-meta">{g.msg.body}</div>
             ) : (
@@ -1127,23 +1153,4 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
       </div>
     </div>
   ), document.body);
-}
-
-function dayKey(iso) {
-  if (!iso) return 'unknown';
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-function dayLabel(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  if (isToday) return 'Today';
-  const yest = new Date(now); yest.setDate(yest.getDate() - 1);
-  if (d.toDateString() === yest.toDateString()) return 'Yesterday';
-  const days = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
-  return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
 }

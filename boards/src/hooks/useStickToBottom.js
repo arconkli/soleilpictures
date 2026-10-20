@@ -21,6 +21,10 @@ export function useStickToBottom({ scrollRef, contentRef, threshold = STICK_THRE
   const [stuck, setStuckState] = useState(startStuck);
   const anchorRef = useRef(null);
   const suspendedRef = useRef(0);
+  // The last scrollTop seen, to tell the reader scrolling up from content
+  // growing under a pinned view (an image landing between our pin and the
+  // scroll event it fires must not read as "the reader left the bottom").
+  const lastTopRef = useRef(0);
 
   const setStuck = useCallback((v) => {
     stuckRef.current = v;
@@ -59,7 +63,7 @@ export function useStickToBottom({ scrollRef, contentRef, threshold = STICK_THRE
     const node = el.querySelector(`[data-msg-id="${CSS.escape(a.id)}"]`);
     if (!node) return;
     const delta = anchorCorrection(a, node.getBoundingClientRect().top, el.getBoundingClientRect().top);
-    if (Math.abs(delta) >= 1) el.scrollTop += delta;
+    if (Math.abs(delta) >= 1) { el.scrollTop += delta; lastTopRef.current = el.scrollTop; }
   }, [scrollRef]);
 
   // Jumps are instant: a smooth scroll would race the observer for its whole run.
@@ -67,8 +71,19 @@ export function useStickToBottom({ scrollRef, contentRef, threshold = STICK_THRE
     const el = scrollRef.current;
     anchorRef.current = null;
     setStuck(true);
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) { el.scrollTop = el.scrollHeight; lastTopRef.current = el.scrollTop; }
   }, [scrollRef, setStuck]);
+
+  // Hold the view with `node`'s top this far below the top edge (opening on
+  // the "New" line), as if the reader had scrolled there.
+  const holdAt = useCallback((node, offset = 0) => {
+    const el = scrollRef.current;
+    if (!el || !node) return;
+    setStuck(false);
+    el.scrollTop += (node.getBoundingClientRect().top - el.getBoundingClientRect().top) - offset;
+    lastTopRef.current = el.scrollTop;
+    captureAnchor();
+  }, [scrollRef, setStuck, captureAnchor]);
 
   // A send: follow it to the bottom whatever the reader was doing. The new
   // row grows the content, and the observer pins in that same frame.
@@ -79,23 +94,46 @@ export function useStickToBottom({ scrollRef, contentRef, threshold = STICK_THRE
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    const now = isStuck({ scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight }, threshold);
+    // Whatever borrowed the scroller (search, a reply thread) scrolls its own
+    // content: the reader's place in the thread is saved, not overwritten.
+    if (!el || suspendedRef.current) return;
+    const metrics = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight };
+    const movedUp = metrics.scrollTop < lastTopRef.current - 1;
+    lastTopRef.current = metrics.scrollTop;
+    // Only the reader scrolling up leaves the bottom. Anything else that finds
+    // a pinned view short of it (our own pin's scroll event, content that grew
+    // meanwhile) just pins again.
+    if (stuckRef.current && !movedUp) {
+      if (!isStuck(metrics, threshold)) { el.scrollTop = el.scrollHeight; lastTopRef.current = el.scrollTop; }
+      return;
+    }
+    const now = isStuck(metrics, threshold);
     setStuck(now);
     if (now) anchorRef.current = null;
-    else if (!suspendedRef.current) captureAnchor();
+    else captureAnchor();
   }, [scrollRef, threshold, setStuck, captureAnchor]);
 
-  // Search results and the like borrow the scroller: hands off until resumed.
+  // Search results and the like borrow the scroller: hands off until resumed,
+  // then back to where the reader was (the bottom, or the message they held).
   const suspend = useCallback(() => {
+    const saved = { stuck: stuckRef.current, anchor: anchorRef.current };
     suspendedRef.current += 1;
     let done = false;
     return () => {
       if (done) return;
       done = true;
       suspendedRef.current = Math.max(0, suspendedRef.current - 1);
+      if (suspendedRef.current) return;
+      anchorRef.current = saved.anchor;
+      setStuck(saved.stuck);
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        if (stuckRef.current) { el.scrollTop = el.scrollHeight; lastTopRef.current = el.scrollTop; }
+        else restoreAnchor();
+      });
     };
-  }, []);
+  }, [scrollRef, setStuck, restoreAnchor]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -105,7 +143,7 @@ export function useStickToBottom({ scrollRef, contentRef, threshold = STICK_THRE
     if (typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver(() => {
       if (suspendedRef.current) return;
-      if (stuckRef.current) el.scrollTop = el.scrollHeight;
+      if (stuckRef.current) { el.scrollTop = el.scrollHeight; lastTopRef.current = el.scrollTop; }
       else restoreAnchor();
     });
     ro.observe(content);
@@ -114,6 +152,6 @@ export function useStickToBottom({ scrollRef, contentRef, threshold = STICK_THRE
   }, [scrollRef, contentRef, restoreAnchor]);
 
   return useMemo(() => ({
-    stuck, stuckRef, onScroll, pin, requestPin, suspend, captureAnchor, restoreAnchor,
-  }), [stuck, onScroll, pin, requestPin, suspend, captureAnchor, restoreAnchor]);
+    stuck, stuckRef, onScroll, pin, holdAt, requestPin, suspend, captureAnchor, restoreAnchor,
+  }), [stuck, onScroll, pin, holdAt, requestPin, suspend, captureAnchor, restoreAnchor]);
 }

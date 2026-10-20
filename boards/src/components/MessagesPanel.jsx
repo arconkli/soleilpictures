@@ -228,6 +228,8 @@ export function MessagesPanel({
         // next one when a toast, an avatar or a link switches it in place.
         key={openConversationId}
         workspaceId={workspaceId}
+        // undefined while the list is still loading: the thread reads it itself.
+        lastReadAt={myOpenState ? (myOpenState.last_read_at || null) : undefined}
         currentUser={currentUser}
         // A group you left is readable (a permalink, a toast) but not yours
         // to post in; a hidden DM is rejoined above.

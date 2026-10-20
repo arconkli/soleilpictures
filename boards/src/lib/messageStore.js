@@ -72,6 +72,21 @@ export function dropWrite(writes, opId) {
   return next.length === writes.length ? writes : next;
 }
 
+// The acknowledged writes that can fold into the rows now, and the rest. An
+// acknowledged write waits while an earlier write to the same message is
+// still out: answers come back in any order, and folding a later toggle's
+// answer before an earlier one's would leave the older state on screen.
+export function splitFoldable(writes) {
+  const waiting = new Set();
+  const fold = [];
+  const keep = [];
+  for (const w of writes) {
+    if (w.ackedAt == null) { waiting.add(w.id); keep.push(w); continue; }
+    if (waiting.has(w.id)) keep.push(w); else fold.push(w);
+  }
+  return { fold, keep };
+}
+
 // A server read that started at `issuedAt` has landed: drop every write it
 // already reflects. Same array back when nothing changes, so React can skip.
 export function pruneWrites(writes, issuedAt) {

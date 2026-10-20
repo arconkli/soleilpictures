@@ -310,6 +310,18 @@ export async function getUnreadCounts() {
 
 // ── Read state ──────────────────────────────────────────────────────
 
+// Everyone's read position in a conversation: { user_id, last_read_at,
+// left_at } rows, readable by every participant (0058 "participants read").
+// Null on a failed read.
+export async function fetchReadState({ conversationId }) {
+  if (!conversationId) return [];
+  const { data, error } = await supabase.from('conversation_participants')
+    .select('user_id, last_read_at, left_at')
+    .eq('conversation_id', conversationId);
+  if (error) { console.warn('fetchReadState', error); return null; }
+  return data || [];
+}
+
 // Update conversation_participants.last_read_at = now() for (conv, me).
 // Returns true on success so the caller can decide to bump a refresh
 // tick (the unread badge cache lives upstream).

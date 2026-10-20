@@ -55,3 +55,42 @@ test('the cache holds server rows only, never sends in flight or optimistic chan
   const src = read('../hooks/useMessageThread.js');
   assert.match(src, /putCachedThread\(userId, conversationId, \{\s*rows: messagesRef\.current\.filter/);
 });
+
+// ── Review fixes: nothing confirmed lingers in the log, re-reads keep order ──
+const hook = read('../hooks/useMessageThread.js');
+
+test('once no read is out, every confirmed change folds into the rows (none replays over newer ones)', () => {
+  assert.match(hook, /const foldAcked = useCallback\(\(\) => \{\s*if \(inFlightRef\.current !== 0\) return;\s*const \{ fold, keep \} = splitFoldable\(writesRef\.current\);/);
+  assert.match(hook, /\} finally \{\s*inFlightRef\.current -= 1;\s*foldAcked\(\);\s*\}/, 'the read that lands last folds what waited on it');
+  const settle = hook.slice(hook.indexOf('const settle = useCallback'), hook.indexOf('const rollback = useCallback'));
+  assert.match(settle, /ackWrite\(ws, opId, epoch, result\)\);\s*foldAcked\(\);/);
+});
+
+test('a nudge judges against what is on screen, writes included', () => {
+  assert.match(hook, /const shownNow = applyWrites\(messagesRef\.current, writesRef\.current\);/);
+});
+
+test('re-reads by id run one at a time and never land on a newer page', () => {
+  assert.match(hook, /chain = chain\.then\(async \(\) => \{/);
+  assert.match(hook, /if \(landedSeqRef\.current > pageSeqAtStart\) return;/);
+});
+
+test('an empty thread marks nothing (there is no server time to mark it with)', () => {
+  assert.match(hook, /if \(!upTo\) return;/);
+});
+
+test('typing timers go with the thread', () => {
+  assert.match(hook, /typingTimers\.forEach\(clearTimeout\);/);
+});
+
+test('whatever borrows the scroller can’t overwrite the reader’s place', () => {
+  const stick = read('../hooks/useStickToBottom.js');
+  assert.match(stick, /if \(!el \|\| suspendedRef\.current\) return;/);
+  assert.match(stick, /const saved = \{ stuck: stuckRef\.current, anchor: anchorRef\.current \};/);
+});
+
+test('only the reader scrolling up leaves the bottom; content growing under a pinned view never does', () => {
+  const stick = read('../hooks/useStickToBottom.js');
+  assert.match(stick, /const movedUp = metrics\.scrollTop < lastTopRef\.current - 1;/);
+  assert.match(stick, /if \(stuckRef\.current && !movedUp\) \{/);
+});

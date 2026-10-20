@@ -31760,7 +31760,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A conversation counts as read once its newest message has been on your screen, not just because it's open. Scrolled up in a long one, you stay where you are when something new arrives, and a button takes you back down to the latest."
+     "v": "A conversation counts as read once its newest message has been on your screen, not just because it's open. A "
+    },
+    {
+     "t": "strong",
+     "v": "New",
+     "children": [
+      {
+       "t": "text",
+       "v": "New"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " line marks where you left off, and when more has arrived than fits, the conversation opens at that line rather than the bottom. Scrolled up in a long one, you stay where you are when something new arrives, and a button takes you back down to the latest."
     }
    ]
   },

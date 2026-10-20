@@ -244,3 +244,106 @@ test('a thread is marked read only once its newest message has been on screen', 
   await page.locator('.msg-jump-pill').click();
   await expect.poll(reads).toBeGreaterThan(marked);
 });
+
+// ── The "New" line (C2.5) ──────────────────────────────────────────────
+test('the "New" line sits above what arrived since you last read; when it all fits you open at the bottom', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const line = page.locator('.msg-new-divider');
+  await expect(line).toHaveCount(1);
+  // The two unread messages from Maya follow it.
+  const after = await line.evaluate((n) => [...n.parentElement.children].slice([...n.parentElement.children].indexOf(n) + 1)
+    .filter((x) => x.hasAttribute('data-msg-id')).length);
+  expect(after).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => fromBottom(page)).toBeLessThanOrEqual(2);
+});
+
+test('with more unread than fits, it opens on the "New" line and marks nothing read until you reach the bottom', async ({ page }) => {
+  await open(page);
+  // Pretend you last read c-long 60 messages ago, then let the list read that.
+  await qa(page, () => {
+    const rows = window.__msgQa.db.messages.filter((m) => m.conversation_id === 'c-long' && !m.deleted_at)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const me = window.__msgQa.db.conversation_participants.find((p) => p.conversation_id === 'c-long' && p.user_id === 'qa-me');
+    me.last_read_at = rows[rows.length - 61].created_at;
+    window.__msgQa.dropSocket();
+  });
+  await expect(page.locator('.msg-row', { hasText: 'Jon Park' }).first()).toHaveClass(/is-unread/);
+  const reads = () => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'update:conversation_participants'
+    && c.args?.filters?.some((f) => f[2] === 'c-long')).length);
+  await page.locator('.msg-row', { hasText: 'Jon Park' }).first().click();
+  const line = page.locator('.msg-new-divider');
+  await expect(line).toBeVisible();
+  const offset = await line.evaluate((n) => n.getBoundingClientRect().top - n.closest('.msg-thread-body').getBoundingClientRect().top);
+  expect(Math.abs(offset - 64)).toBeLessThanOrEqual(4);
+  expect(await fromBottom(page)).toBeGreaterThan(200);
+  await expect(page.locator('.msg-jump-pill')).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(await reads()).toBe(0);
+  await page.locator('.msg-jump-pill').click();
+  await expect.poll(reads).toBeGreaterThan(0);
+});
+
+// ── Changes confirmed while a read is out (review fixes) ───────────────
+// A slow page read keeps a read in flight; dropSocket() starts one.
+async function readInFlight(page, ms = 1500) {
+  await qa(page, (t) => { window.__msgQa.setLatency({ 'select:messages': t }); window.__msgQa.dropSocket(); }, ms);
+  await page.waitForTimeout(350); // the resync coalesces, then reads
+}
+const bodyOf = (page, id) => qa(page, (x) => window.__msgQa.db.messages.find((m) => m.id === x)?.body, id);
+
+test('two edits while a read is out: the second one stays', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const b = await send(page, 'edit me twice');
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'edit me twice'))).toBe(true);
+  const id = await b.getAttribute('data-msg-id');
+  const row = page.locator(`[data-msg-id="${id}"]`);
+  await readInFlight(page);
+  for (const text of ['first edit', 'second edit']) {
+    await row.hover();
+    await row.locator('button[title="Edit"]').click();
+    await row.locator('textarea').fill(text);
+    await row.locator('textarea').press('Enter');
+    await expect(row.locator('.msg-bubble-body')).toContainText(text);
+  }
+  await page.waitForTimeout(1800); // the read lands
+  await expect(row.locator('.msg-bubble-body')).toContainText('second edit');
+  expect(await bodyOf(page, id)).toBe('second edit');
+});
+
+test('delete and Undo while a read is out: the message comes back and stays', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const b = await send(page, 'undo me mid-read');
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'undo me mid-read'))).toBe(true);
+  const id = await b.getAttribute('data-msg-id');
+  await readInFlight(page);
+  await b.hover();
+  await b.locator('button[title="Delete"]').click();
+  await page.locator('.toast-action', { hasText: 'Undo' }).click();
+  await page.waitForTimeout(1800);
+  await expect(page.locator(`[data-msg-id="${id}"]`)).toBeVisible();
+});
+
+test('a peer’s message deleted while a read is out leaves the screen', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await readInFlight(page);
+  const msgId = await qa(page, () => window.__msgQa.peer('maya').send('c-maya', 'here then gone')?.id);
+  await expect(page.locator('.msg-bubble-body', { hasText: 'here then gone' })).toBeVisible();
+  await qa(page, (x) => window.__msgQa.peer('maya').delete(x), msgId);
+  await page.waitForTimeout(1800);
+  await expect(page.locator('.msg-bubble-body', { hasText: 'here then gone' })).toHaveCount(0);
+});
+
+test('opening and closing search keeps your place in history', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  await scrollTo(page, 3000);
+  await page.waitForTimeout(100);
+  const before = await topAnchor(page);
+  await page.locator('button[aria-label="Search messages"], button[title^="Search"]').first().click();
+  await page.locator('.msg-search-input').fill('zzz no match');
+  await page.waitForTimeout(300);
+  await page.locator('.msg-search-input').press('Escape');
+  await page.waitForTimeout(300);
+  const after = await topAnchor(page);
+  expect(after.id).toBe(before.id);
+  expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(2);
+});

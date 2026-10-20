@@ -35,8 +35,10 @@ unread, `(@2)` when at least one mentions you directly, so you notice from
 another tab.
 
 A conversation counts as read once its newest message has been on your screen,
-not just because it's open. Scrolled up in a long one, you stay where you are
-when something new arrives, and a button takes you back down to the latest.
+not just because it's open. A **New** line marks where you left off, and when
+more has arrived than fits, the conversation opens at that line rather than
+the bottom. Scrolled up in a long one, you stay where you are when something new
+arrives, and a button takes you back down to the latest.
 
 ## Messages versus comments
 

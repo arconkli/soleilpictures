@@ -126,3 +126,15 @@ test('a reaction toggles like the server does', () => {
   toggleReactionMap(before, '🔥', 'me');
   assert.deepEqual(before, { '🔥': ['u2'] }, 'the input is never mutated');
 });
+
+test('a confirmed change waits behind an earlier change to the same message still out', async () => {
+  const { splitFoldable } = await import('./messageStore.js');
+  const t1 = { ...patchWrite('a', { reactions: { '👍': ['me'] } }), ackedAt: null };   // toggle 1, still out
+  const t2 = { ...patchWrite('a', { reactions: {} }), ackedAt: 4 };                    // toggle 2, answered first
+  const other = { ...patchWrite('b', { body: 'x' }), ackedAt: 5 };
+  const { fold, keep } = splitFoldable([t1, t2, other]);
+  assert.deepEqual(fold.map((w) => w.id), ['b'], 'another message folds now');
+  assert.deepEqual(keep.map((w) => w.opId), [t1.opId, t2.opId], 'the later answer waits for the earlier one');
+  const done = splitFoldable([{ ...t1, ackedAt: 6 }, t2]);
+  assert.deepEqual(done.fold.map((w) => w.opId), [t1.opId, t2.opId], 'then both fold, in order');
+});
