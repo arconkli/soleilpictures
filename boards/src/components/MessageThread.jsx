@@ -181,24 +181,43 @@ export function MessageThread({
     });
     return () => cancelAnimationFrame(id);
   }, [focusHome]);
+  // Only focus that's still ours: pressing or moving focus anywhere outside
+  // the panel lets it go, so an element removed after you've gone to the
+  // canvas never pulls you back into the box you type in.
+  const dropFocusIfOutside = useCallback((target) => {
+    if (target && !rootRef.current?.contains(target)) lastFocusRef.current = null;
+  }, []);
   useEffect(() => {
     const root = rootRef.current;
     if (!root || typeof MutationObserver === 'undefined') return undefined;
+    let frame = 0;
+    // Looked at once focus has settled: a press elsewhere can remove the
+    // focused element (a rename that commits on blur) mid-way through moving
+    // focus, and focus is on the page for that moment.
     const rescue = () => {
-      const had = lastFocusRef.current;
-      if (!had || had.isConnected) return;
-      const active = document.activeElement;
-      if (active && active !== document.body && active !== document.documentElement) return;
-      lastFocusRef.current = null;
-      focusHome();
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const had = lastFocusRef.current;
+        if (!had || had.isConnected) return;
+        const active = document.activeElement;
+        lastFocusRef.current = null;
+        if (active && active !== document.body && active !== document.documentElement) return;
+        focusHome();
+      });
     };
     const inside = new MutationObserver(rescue);
     inside.observe(root, { childList: true, subtree: true });
     // Menus, pickers and palettes are portals on <body>; their focus counts.
     const portals = new MutationObserver(rescue);
     portals.observe(document.body, { childList: true });
-    return () => { inside.disconnect(); portals.disconnect(); };
-  }, [focusHome]);
+    const onDown = (e) => dropFocusIfOutside(e.target);
+    document.addEventListener('pointerdown', onDown, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      inside.disconnect(); portals.disconnect();
+      document.removeEventListener('pointerdown', onDown, true);
+    };
+  }, [focusHome, dropFocusIfOutside]);
 
   // ── Staying where the reader is ─────────────────────────────────────
   // useStickToBottom keeps the newest message in view while you're at the
@@ -795,7 +814,9 @@ export function MessageThread({
   const draftKey = conversationId || '';
 
   return (
-    <div className="msg-pane msg-pane-thread" ref={rootRef} tabIndex={-1} onFocus={(e) => { lastFocusRef.current = e.target; }}>
+    <div className="msg-pane msg-pane-thread" ref={rootRef} tabIndex={-1}
+         onFocus={(e) => { lastFocusRef.current = e.target; }}
+         onBlur={(e) => dropFocusIfOutside(e.relatedTarget)}>
       <div className="msg-panel-head">
         <button
           className="msg-panel-icon"

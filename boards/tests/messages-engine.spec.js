@@ -806,3 +806,21 @@ test('a message landing while the panel plays its exit still brings its toast', 
   await qa(page, (id) => window.__msgQa.peer(id).send('c-maya', 'caught on the way out'), MAYA);
   await expect(page.locator('.toast-msg', { hasText: 'caught on the way out' })).toBeVisible();
 });
+
+test('focus you take elsewhere stays there: a rename that ends as you click away doesn’t pull you back later', async ({ page }) => {
+  await open(page, 'conv=c-cast');
+  await page.locator('.msg-pane-thread .msg-panel-name').click();
+  const rename = page.locator('.msg-panel-name-input');
+  await expect(rename).toBeFocused();
+  // Away, onto the page behind the panel: the rename commits on blur and goes.
+  await page.mouse.click(40, 300);
+  await expect(rename).toHaveCount(0);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+  // Something changes in the thread later: focus stays where you left it.
+  await qa(page, () => window.__msgQa.peer('lena').send('c-cast', 'later on'));
+  await expect(page.locator('.msg-bubble-body', { hasText: 'later on' })).toBeVisible();
+  await page.waitForTimeout(200);
+  await expect(composerInput(page)).not.toBeFocused();
+  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+});

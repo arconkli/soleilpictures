@@ -26,6 +26,7 @@ test('no hover chip under a finger, and the fields are 16px', async ({ page }) =
   const theirs = bubble(page, 'Thanks! Talk tomorrow.');
   await expect(theirs).toBeVisible();
   await expect(theirs.locator('.msg-bubble-actions')).toBeHidden();
+  await expect(page.locator('.msg-composer-input')).toHaveCSS('font-size', '16px');
   await page.locator('.msg-pane-thread .msg-panel-icon[aria-label="Search messages"]').tap();
   await expect(page.locator('.msg-search-input')).toHaveCSS('font-size', '16px');
   await page.locator('.msg-pane-thread .msg-panel-icon[aria-label="Back"]').tap();

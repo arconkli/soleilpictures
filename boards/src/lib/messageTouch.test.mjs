@@ -46,6 +46,13 @@ test('the stylesheets: no hover chip under a finger, no stray selector, and 16px
   const touch = css.slice(css.indexOf('@media (hover: none) and (pointer: coarse) {', css.indexOf('Hover-reveal affordances') - 2000));
   assert.match(touch, /\.msg-bubble-actions \{ display: none !important; \}/);
   assert.doesNotMatch(css, /\.msg-row-actions/, 'that selector matched nothing');
+  // WebKit inherits user-select: the edit box inside a bubble has to take it back.
+  assert.match(touch, /\.msg-bubble textarea \{ -webkit-touch-callout: default; -webkit-user-select: text; user-select: text; \}/);
   assert.match(css, /@media \(pointer: coarse\) \{\s*\.msg-composer-input,\s*\.msg-search-input,/);
-  assert.match(read('../components/messagesCard.css'), /@media \(pointer: coarse\) \{\s*\.msg-find input, body\[data-sb-files\] \.msg-search-input \{ font-size: 16px; \}/);
+  const card = read('../components/messagesCard.css');
+  assert.match(card, /@media \(pointer: coarse\) \{\s*\.msg-find input, body\[data-sb-files\] \.msg-search-input \{ font-size: 16px; \}/);
+  // After the card's own 13.5px for the box, or that one wins.
+  const sized = card.indexOf('body[data-sb-files] .msg-composer .msg-composer-input {');
+  const bumped = card.indexOf('  body[data-sb-files] .msg-composer .msg-composer-input { font-size: 16px; }');
+  assert.ok(sized > -1 && bumped > sized, 'the 16px rule comes after the 13.5px one');
 });

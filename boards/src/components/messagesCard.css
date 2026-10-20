@@ -216,6 +216,10 @@ body[data-sb-files] .msg-composer .msg-composer-input {
   color: var(--ink-0); font: 400 13.5px/1.5 var(--font-sans);
 }
 body[data-sb-files] .msg-composer .msg-composer-input:focus { border-color: transparent; box-shadow: none; }
+/* Under a finger: 16px, as in the drawer (this file's 13.5px came later and won). */
+@media (pointer: coarse) {
+  body[data-sb-files] .msg-composer .msg-composer-input { font-size: 16px; }
+}
 body[data-sb-files] .msg-composer-actions { gap: 2px; margin-left: -6px; }
 body[data-sb-files] .msg-composer-btn { width: 28px; height: 28px; border-radius: 7px; color: var(--ink-2); opacity: .7; }
 body[data-sb-files] .msg-composer-btn:hover { opacity: 1; color: var(--ink-0); background: var(--bg-hov); }

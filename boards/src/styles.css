@@ -21615,6 +21615,9 @@ button, [role="button"], a {
      selection or raising the system's callout. */
   .msg-bubble-actions { display: none !important; }
   .msg-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  /* …except the box you edit a message in: WebKit inherits user-select, and
+     a field you can't place the caret in can't be edited. */
+  .msg-bubble textarea { -webkit-touch-callout: default; -webkit-user-select: text; user-select: text; }
 
   /* Hover-reveal affordances across cards/docs/palettes. On a real
      mouse, parent:hover reveals these; on touch there's no hover so

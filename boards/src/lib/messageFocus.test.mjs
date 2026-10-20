@@ -13,11 +13,21 @@ const composer = read('../components/MessageComposer.jsx');
 test('home is the box you type in with a mouse and keyboard, the panel itself under a finger', () => {
   assert.match(thread, /if \(composerRef\.current && finePointer\(\)\) composerRef\.current\.focus\(\);\s*else rootRef\.current\?\.focus\(\{ preventScroll: true \}\);/);
   assert.match(read('./composerKeys.js'), /matchMedia\?\.\('\(hover: hover\) and \(pointer: fine\)'\)/);
-  assert.match(thread, /<div className="msg-pane msg-pane-thread" ref=\{rootRef\} tabIndex=\{-1\} onFocus=\{\(e\) => \{ lastFocusRef\.current = e\.target; \}\}>/);
+  assert.match(thread, /<div className="msg-pane msg-pane-thread" ref=\{rootRef\} tabIndex=\{-1\}\s+onFocus=\{\(e\) => \{ lastFocusRef\.current = e\.target; \}\}/);
 });
 
 test('the conversation opens with focus at home, unless something in it already has it', () => {
   assert.match(thread, /if \(!rootRef\.current\?\.contains\(document\.activeElement\)\) focusHome\(\);/);
+});
+
+test('focus you took elsewhere is never pulled back: a press or a focus outside the panel lets it go', () => {
+  // A rename that commits on blur, removed after you clicked into the canvas,
+  // used to leave the rescue armed: the next change in the thread pulled
+  // focus into the box you type in, and canvas shortcuts typed there.
+  assert.match(thread, /if \(target && !rootRef\.current\?\.contains\(target\)\) lastFocusRef\.current = null;/);
+  assert.match(thread, /document\.addEventListener\('pointerdown', onDown, true\);/);
+  assert.match(thread, /onBlur=\{\(e\) => dropFocusIfOutside\(e\.relatedTarget\)\}/);
+  assert.match(thread, /frame = requestAnimationFrame\(\(\) => \{\s*const had = lastFocusRef\.current;/, 'looked at once focus has settled');
 });
 
 test('focus that goes with its element comes home: in the panel, and in its portals on <body>', () => {
