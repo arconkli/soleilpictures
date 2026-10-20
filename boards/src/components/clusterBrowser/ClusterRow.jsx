@@ -4,7 +4,7 @@ import { Avatar } from '../primitives.jsx';
 import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { Icon } from '../Icon.jsx';
-import { Download } from '../../lib/icons.js';
+import { Download, Check } from '../../lib/icons.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { InlineRename } from './InlineRename.jsx';
 import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAnalysis.js';
@@ -63,6 +63,7 @@ export const ClusterRow = memo(function ClusterRow({
   rename = null,   // inline rename: { onCommit, onCancel }
   markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
   rowIndex = undefined,   // its place among all rows, when the table mounts only some
+  checks = false,   // Select is picking several: a check says which are in
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
@@ -85,6 +86,7 @@ export const ClusterRow = memo(function ClusterRow({
       onDoubleClick={onDoubleClick}
     >
       <div role="cell" className="ct-cell ct-c-name">
+        {checks && <span className="row-check" aria-hidden="true"><Icon as={Check} size={11} weight="bold" /></span>}
         <div className={`ct-thumb${canAudition ? ' is-audio' : ''}${bareAudio ? ' is-bare' : ''}`}>
           <CardPreview item={item} size="row" />
           {item.pending && <span className="ct-thumb-spin" aria-hidden="true" />}

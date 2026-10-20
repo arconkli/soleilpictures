@@ -74,7 +74,7 @@ import { downloadCardAsset, downloadCardAssets } from '../../lib/cardDownload.js
 import { FILES_DRAG_MIME, buildFilesPayload, parseFilesPayload } from '../../lib/filesDrag.js';
 import { moveFiles, appendCards, removeCards, failureMessage } from '../../lib/clustersApi.js';
 import { undoToast } from '../../lib/undoToast.js';
-import { fileSharesAllowed } from '../../lib/appHost.js';
+import { fileSharesAllowed, touchPassAllowed } from '../../lib/appHost.js';
 import { openFileShare } from '../../lib/fileShareBus.js';
 import { isShareableCard } from '../../lib/fileShares.js';
 import { captureDropEntries, captureDropHandles, hasDirectory } from '../../lib/folderWalk.js';
@@ -449,13 +449,18 @@ export function ClusterSidebar({
   }, [onShowFile]);
 
   // ── Selection: ⌘/Ctrl-click adds one, ⇧-click a run along the shelf ──────
+  // A finger has neither key: a hold's menu offers Select, which puts a check
+  // on every file and makes a tap add one or take it out (held to
+  // touchPassAllowed, with the canvas's and Files' own).
+  const touchPass = useMemo(() => touchPassAllowed(), []);
   const [selected, setSelected] = useState(() => new Map());   // key → item
+  const [selecting, setSelecting] = useState(false);
   const anchorRef = useRef(null);
-  const clearSelection = useCallback(() => { setSelected(new Map()); anchorRef.current = null; }, []);
+  const clearSelection = useCallback(() => { setSelected(new Map()); setSelecting(false); anchorRef.current = null; }, []);
   useEffect(() => { clearSelection(); }, [workspaceId, clearSelection]);
   const isSelected = useCallback((item) => selected.has(item.key), [selected]);
   const onItem = useCallback((item, siblings, e) => {
-    if (e && (e.metaKey || e.ctrlKey)) {
+    if (selecting || (e && (e.metaKey || e.ctrlKey))) {
       setSelected((m) => { const n = new Map(m); if (n.has(item.key)) n.delete(item.key); else n.set(item.key, item); return n; });
       anchorRef.current = item;
       return;
@@ -473,7 +478,7 @@ export function ClusterSidebar({
     clearSelection();
     anchorRef.current = item;
     openQuick(item, siblings, e);
-  }, [openQuick, clearSelection]);
+  }, [openQuick, clearSelection, selecting]);
 
   // ── Moving files between clusters ─────────────────────────────────────────
   // Plain drop moves, the copy key copies (a linked copy: same stored file, one
@@ -721,13 +726,13 @@ export function ClusterSidebar({
   // cluster's board — one cluster's at a time, as only one board comes up.
   const waitingSel = selItems.filter((x) => x.unplaced);
   const putting = useRef(false);
-  const putSelection = async () => {
-    const from = new Set(waitingSel.map((x) => x.boardId));
+  const putItems = async (list) => {
+    const from = new Set(list.map((x) => x.boardId));
     if (from.size > 1) { toast({ type: 'info', message: 'Put on board takes one cluster’s files at a time. Select files from one cluster.' }); return; }
     if (!from.size || putting.current) return;
     putting.current = true;
     try {
-      await onPutOnBoard([...from][0], waitingSel.map((x) => x.cardId));
+      await onPutOnBoard([...from][0], list.map((x) => x.cardId));
       clearSelection();
     } catch (e) {
       toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' });
@@ -736,6 +741,7 @@ export function ClusterSidebar({
       files.refresh();
     }
   };
+  const putSelection = () => putItems(waitingSel);
   const deleteSelection = () => deleteItems(selItems);
   const deleteItems = async (list) => {
     for (const [boardId, items] of groupByCluster(list)) {
@@ -773,7 +779,7 @@ export function ClusterSidebar({
   // ── A file's menu (right-click, Shift+F10, the Menu key) ───────────────────
   // On a file that is part of a selection it acts on the whole selection.
   const [fileMenu, setFileMenu] = useState(null);   // { x, y, item, siblings }
-  const onItemMenu = useCallback((item, siblings, x, y) => setFileMenu({ item, siblings, x, y }), []);
+  const onItemMenu = useCallback((item, siblings, x, y, opts) => setFileMenu({ item, siblings, x, y, viaTouch: !!opts?.viaTouch }), []);
   const fileMenuItems = () => {
     const m = fileMenu;
     if (!m) return [];
@@ -785,10 +791,23 @@ export function ClusterSidebar({
     const card = many ? null : cardFromItem(m.item);
     const shareable = !many && fileSharesAllowed() && isShareableCard(card)
       && !!boardsSectionProps?.canEditBoard?.(m.item.boardId);
+    // Select, first in a hold's menu: a check on every file, for a finger to
+    // pick several. The one held starts picked.
+    const select = m.viaTouch && touchPass && !selecting && { id: 'select', label: 'Select', run: () => {
+      setSelected((cur) => (cur.has(m.item.key) ? cur : new Map([[m.item.key, m.item]])));
+      setSelecting(true);
+    } };
+    // Files waiting in Files go on their board from here too: a finger can't
+    // drag them there.
+    const put = onPutOnBoard && group.every((x) => x.unplaced) && movable(group)
+      && new Set(group.map((x) => x.boardId)).size === 1
+      && { id: 'put', label: many ? `Put ${group.length} on board` : 'Put on board', run: () => putItems(group) };
     return composeMenuSections([
+      { items: [select] },
       { items: [
         { id: 'quick', label: 'Quick look', run: () => openQuick(m.item, m.siblings, { detail: 0 }) },
         { id: 'show', label: m.item.unplaced ? 'Show in Files' : 'Show on board', run: () => openItem(m.item) },
+        put,
         { id: 'star', label: starredNow ? 'Unstar' : 'Star', run: () => files.toggleStar(m.item.boardId, m.item.cardId) },
       ] },
       { header: SECTION.EDIT, items: [
@@ -842,7 +861,7 @@ export function ClusterSidebar({
     // half-typed name on blur.
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    if (selected.size && e.key === 'Escape') { e.preventDefault(); clearSelection(); return; }
+    if ((selected.size || selecting) && e.key === 'Escape') { e.preventDefault(); clearSelection(); return; }
     if (selected.size && (e.key === 'Backspace' || e.key === 'Delete') && e.target.closest?.('[data-sb-item]')) {
       e.preventDefault(); deleteSelection(); return;
     }
@@ -1149,7 +1168,9 @@ export function ClusterSidebar({
               onLoadMore={files.loadMore} canLoadMore={view === 'cluster' ? files.canLoadMore : () => false}
               onItem={onItem}
               isSelected={isSelected}
-              onDragItem={onDragItem}
+              checks={selecting}
+              // A hold opens the menu: on a touch screen it can't start a drag too.
+              onDragItem={coarse && touchPass ? null : onDragItem}
               onItemMenu={onItemMenu}
               onItemOpen={openItem}
               onOpenShelf={view === 'cluster' ? onOpenShelf : null}
@@ -1161,16 +1182,18 @@ export function ClusterSidebar({
         </div>
         </div>
 
-        {selected.size > 0 && (
+        {(selected.size > 0 || selecting) && (
           <div className="sbf-bulk" role="toolbar" aria-label="Selected files">
-            <span className="sbf-bulk-count">{selected.size} selected</span>
-            <button type="button" className="sbf-bulk-btn is-clear" aria-label="Clear selection" onClick={clearSelection}>✕</button>
-            <div className="sbf-bulk-acts">
+            <span className="sbf-bulk-count">{selected.size || !selecting ? `${selected.size} selected` : 'Select files'}</span>
+            {selecting
+              ? <button type="button" className="sbf-bulk-btn is-done" onClick={clearSelection}>Done</button>
+              : <button type="button" className="sbf-bulk-btn is-clear" aria-label="Clear selection" onClick={clearSelection}>✕</button>}
+            {selected.size > 0 && <div className="sbf-bulk-acts">
               {onPutOnBoard && waitingSel.length > 0 && movable(waitingSel) && <button type="button" className="sbf-bulk-btn is-lead" onClick={putSelection}>Put on board</button>}
               {onPickCluster && movable(selItems) && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
               {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={copySelection}>Copy…</button>}
               <button type="button" className="sbf-bulk-btn is-danger" onClick={deleteSelection}>Delete</button>
-            </div>
+            </div>}
           </div>
         )}
       </section>

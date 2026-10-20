@@ -56,7 +56,10 @@ function writeInfoPref(on) {
 }
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
-import { fileSharesAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
+import { fileSharesAllowed, clusterNudgesAllowed, touchPassAllowed } from '../lib/appHost.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { captureDropEntries, captureDropHandles, hasDirectory } from '../lib/folderWalk.js';
 import { isZipFile } from '../lib/importZips.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
@@ -71,7 +74,7 @@ import { uploadContext } from '../lib/uploadContext.js';
 import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon } from './Icon.jsx';
-import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder } from '../lib/icons.js';
+import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError, isPublicSurface,
@@ -805,11 +808,23 @@ export function ListSurface({
   }, [isPanel, toggleInfo, board.id, infoFollow, browsedCards]);
   useEffect(() => () => { closeInfo({ follow: infoFollow }); clearSelection(infoFollow); }, [infoFollow]);
 
+  // Touch (held: lib/appHost touchPassAllowed). A tap opens what it lands on,
+  // as the iPad's Files app does: a folder opens, a file opens in Quick look.
+  // Holding one opens its menu, and the menu's Select puts a check on
+  // everything, so taps pick several for the bar below to act on. Read per
+  // input, not per device: an iPad's trackpad clicks the way a mouse does.
+  const touchPass = useMemo(() => touchPassAllowed(), []);
+  const { isTouch } = useBreakpoint();
+  const lastPtrRef = useRef('mouse');
+  const [selecting, setSelecting] = useState(false);
+  const touchTap = (e) => touchPass && e?.type === 'click' && e.detail > 0 && lastPtrRef.current === 'touch';
+
   // Reset selection on board switch.
   useEffect(() => {
     setSelectedBoards(new Set());
     setSelectedCards(new Set());
     setSelectedGroupId(null);
+    setSelecting(false);
   }, [board.id]);
 
   // Files deleted or moved elsewhere — on the canvas, by a collaborator —
@@ -885,8 +900,11 @@ export function ListSurface({
   const onTileClick = (e, kind, id) => {
     if (e.target.closest && e.target.closest('.editable')) return;
     e.stopPropagation();
+    // A finger's tap opens it, unless Select is picking several.
+    const tapped = touchTap(e);
+    if (tapped && !selecting) { onTileDoubleClick(e, kind, id); return; }
     setSelectedGroupId(null); // selecting an item exits any family view
-    const additive = e.metaKey || e.ctrlKey;
+    const additive = e.metaKey || e.ctrlKey || tapped;
     const ranged = e.shiftKey && anchorRef.current.kind === kind && anchorRef.current.id;
     if (kind === 'board') {
       if (ranged) {
@@ -916,6 +934,8 @@ export function ListSurface({
 
   const onTileDoubleClick = (e, kind, id) => {
     if (e.target.closest && e.target.closest('.editable')) return;
+    // A tap has already opened it: the dblclick of a second tap would again.
+    if (touchPass && e?.type === 'dblclick' && lastPtrRef.current === 'touch') return;
     if (kind === 'board') onOpenBoard(id);
     else if (kind === 'boardlink') {
       const c = (cards || []).find(c => c.id === id);
@@ -1277,8 +1297,10 @@ export function ListSurface({
         setSelectedGroupId(null);
         return;
       }
-      // Esc clears the selection (and with it the detail panel).
+      // Esc clears the selection (and with it the detail panel), and puts
+      // Select's checks away.
       if (e.key === 'Escape') {
+        if (selecting) setSelecting(false);
         if (selectedCards.size || selectedBoards.size || selectedGroupId) {
           e.preventDefault();
           setSelectedCards(new Set());
@@ -1368,7 +1390,7 @@ export function ListSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedBoards, selectedCards, selectedGroupId, mutators, hasSplit, paneId, visibleItems,
       navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo, showInfo,
-      renamable, startRename]);
+      renamable, startRename, selecting]);
 
   // Board order puts a fresh upload last (it waits off the board, after
   // everything on it), so bring the first new row or tile into view rather
@@ -1684,7 +1706,10 @@ export function ListSurface({
   // Beside the board it always can — browsing another cluster included, where
   // dragging in is how a file gets onto this board. Full Files drags when
   // there's a board to drop on: an editable cluster, or a split pane.
-  const filesDraggable = !!board?.id && (isPanel || canEdit || hasSplit);
+  // A hold on a touch screen opens the menu, so it can't also start a drag:
+  // iPadOS lifts a draggable thing that's held, and cancels the press under it.
+  const noTouchDrag = touchPass && isTouch;
+  const filesDraggable = !!board?.id && (isPanel || canEdit || hasSplit) && !noTouchDrag;
   const onFilesDragStart = (e) => {
     const el = e.target?.closest?.('[data-item-id]');
     const id = el?.getAttribute?.('data-item-id');
@@ -2017,7 +2042,8 @@ export function ListSurface({
                 dropTarget={dropTileId === b.id}
                 springing={springTimer.armed === `folder:${b.id}`}
                 peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
-                draggable={canEdit}
+                draggable={canEdit && !noTouchDrag}
+                checks={selecting}
                 rename={renameFor(b.id)}
                 {...folderProps(b)} />
   );
@@ -2028,6 +2054,7 @@ export function ListSurface({
                   name={t?.name || c.name}
                   missing={!t && boardsReady}
                   selected={selectedCards.has(c.id)}
+                  checks={selecting}
                   springing={springTimer.armed === `folder:${c.target}`}
                   // Hold a drag over it and Files opens the cluster it links to.
                   onDragEnter={t && spring ? () => armFolder(c.target) : undefined}
@@ -2084,31 +2111,52 @@ export function ListSurface({
   // ── Right-click menu ──────────────────────────────────────────────────────
   // It acts on the selection; right-clicking something outside the selection
   // selects just that first, as Finder does. ⇧F10 opens it from the keyboard.
-  const onListContextMenu = (e) => {
-    if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
-    const fileId = e.target.closest?.('[data-item-id]')?.getAttribute('data-item-id')
-      || e.target.closest?.('[data-link-id]')?.getAttribute('data-link-id');
-    const folderId = e.target.closest?.('[data-folder-id]')?.getAttribute('data-folder-id');
-    if (!fileId && !folderId) return;   // empty floor keeps the browser's menu
-    if (fileId && navItems.find((n) => n.id === fileId)?.isGroup) return;
-    e.preventDefault();
+  // On a touch screen a hold asks the same (touchPass): the menu opens at the
+  // finger, and the tap that ends the hold is eaten, so it can neither open
+  // the file under the menu nor pick from it. Android raises a contextmenu of
+  // its own on a hold, which lands here and opens the same menu.
+  const openListMenuAt = (target, x, y, { viaTouch = false } = {}) => {
+    if (target.closest?.('input, textarea, [contenteditable="true"], [role="dialog"]')) return false;
+    const fileId = target.closest?.('[data-item-id]')?.getAttribute('data-item-id')
+      || target.closest?.('[data-link-id]')?.getAttribute('data-link-id');
+    const folderId = target.closest?.('[data-folder-id]')?.getAttribute('data-folder-id');
+    if (!fileId && !folderId) return false;   // empty floor keeps the browser's menu
+    if (fileId && navItems.find((n) => n.id === fileId)?.isGroup) return false;
+    // Picking several, a hold adds what it's on rather than starting over.
     if (folderId) {
-      if (!selectedBoards.has(folderId)) { setSelectedBoards(new Set([folderId])); setSelectedCards(new Set()); }
+      if (selecting) setSelectedBoards((prev) => new Set([...prev, folderId]));
+      else if (!selectedBoards.has(folderId)) { setSelectedBoards(new Set([folderId])); setSelectedCards(new Set()); }
+    } else if (selecting) {
+      setSelectedCards((prev) => new Set([...prev, fileId]));
     } else if (!selectedCards.has(fileId)) {
       setSelectedCards(new Set([fileId])); setSelectedBoards(new Set());
     }
     setSelectedGroupId(null);
-    setCtxMenu({ x: e.clientX, y: e.clientY });
+    setCtxMenu({ x, y, viaTouch });
+    return true;
   };
+  const onListContextMenu = (e) => {
+    const viaTouch = touchPass && lastPtrRef.current === 'touch';
+    if (!openListMenuAt(e.target, e.clientX, e.clientY, { viaTouch })) return;
+    e.preventDefault();
+    if (viaTouch) swallowNextClick({ held: true });
+  };
+  useLongPress(listInnerRef, (x, y, e) => {
+    if (touchPass && openListMenuAt(e.target, x, y, { viaTouch: true })) swallowNextClick({ held: true });
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  // Files copy (the rules); a cluster copies with its own Copy and Paste.
+  const canCopyTo = !!onMoveFiles && !!onPickCluster && selectedCards.size > 0 && !selectedBoards.size
+    && [...selectedCards].some((id) => { const c = (cards || []).find((x) => x.id === id); return c && c.kind !== 'boardlink'; });
   const menuItems = () => {
     const cIds = [...selectedCards];
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
     const canMove = canEdit && !!onPickCluster && movableSel > 0;
-    // Files copy (the rules); a cluster copies with its own Copy and Paste.
-    const canCopyTo = !!onMoveFiles && !!onPickCluster && cIds.length > 0 && !bIds.length
-      && cIds.some((id) => { const c = (cards || []).find((x) => x.id === id); return c && c.kind !== 'boardlink'; });
     const copyTo = canCopyTo && { id: 'copy-to', label: 'Copy to…', run: copySelection };
+    // A hold's menu starts with Select: a check on everything, for a finger to
+    // pick several (what ⌘-click and ⇧-click are to a keyboard).
+    const selectItem = ctxMenu?.viaTouch && !selecting && { id: 'select', label: 'Select', run: () => setSelecting(true) };
+    const select = { items: [selectItem] };
     // The menu's header already says how many; Delete needn't repeat it.
     const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
     // Info on anything: in full Files it's the panel beside the list, which
@@ -2119,6 +2167,7 @@ export function ListSurface({
     if (n === 1 && bIds.length) {
       const id = bIds[0];
       return composeMenuSections([
+        select,
         { items: [{ id: 'open', label: 'Open', run: () => onOpenBoard(id) }] },
         { items: [
           renamable(id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(id) },
@@ -2131,6 +2180,7 @@ export function ListSurface({
     const card = n === 1 ? (cards || []).find((c) => c.id === cIds[0]) : null;
     if (card?.kind === 'boardlink') {
       return composeMenuSections([
+        select,
         { items: [boards[card.target] && { id: 'open', label: 'Open', run: () => onOpenBoard(card.target) }] },
         { items: [boards[card.target] && info({ clusterId: card.target })] },
         { items: [canEdit && { id: 'unlink', label: 'Remove link', danger: true, run: deleteSelection }] },
@@ -2139,6 +2189,7 @@ export function ListSurface({
     const item = card ? items.find((it) => it.id === card.id) : null;
     if (item) {
       return composeMenuSections([
+        select,
         { items: [
           { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
           item.kind === 'video' && card.src && !item.pending && onRevealOnCanvas && { id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: card.id, card }) },
@@ -2165,6 +2216,7 @@ export function ListSurface({
     const offSel = cIds.filter((id) => items.find((it) => it.id === id)?.unplaced);
     return composeMenuSections([
       { header: `${n} selected`, items: [
+        selectItem,
         canEdit && offSel.length > 0 && { id: 'put', label: offSel.length === 1 ? 'Put 1 on board' : `Put ${offSel.length} on board`, run: () => putOnBoard(offSel) },
         downloadableSelected.length > 0 && {
           // "Download" when it's all of them; else say which part can go.
@@ -2182,16 +2234,18 @@ export function ListSurface({
     : null;
 
   return (
-    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`} ref={listWrapRef}
+    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}${selecting ? ' is-selecting' : ''}${noTouchDrag ? ' is-touch' : ''}`} ref={listWrapRef}
          data-drop-board={rulesOn ? board.id : undefined} data-drop-where={rulesOn ? 'files' : undefined}
          data-drop-name={rulesOn ? (board.name || undefined) : undefined}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-         onPointerDownCapture={() => setActivePane(paneId)}
+         onPointerDownCapture={(e) => { setActivePane(paneId); lastPtrRef.current = e.pointerType || 'mouse'; }}
          onPointerEnter={() => setActivePane(paneId)}
          onFocus={onListFocus}
          onClick={(e) => {
            // A click on empty floor clears the selection; one on a control,
-           // a tile or a menu is that thing's business.
+           // a tile or a menu is that thing's business. Picking several, a
+           // finger that lands between two tiles mustn't drop them all.
+           if (selecting) return;
            if (e.target.closest?.('button, a, input, select, label, [role="menu"], [role="dialog"], .ct-tile, .ct-row, .ft, .cbt, .list-selbar, .cb-detail')) return;
            setSelectedBoards(new Set()); setSelectedCards(new Set()); setSelectedGroupId(null);
          }}>
@@ -2336,7 +2390,7 @@ export function ListSurface({
                     activeId={activeId} playingId={playingId} registerRow={registerRow}
                     audioMode={audioMode}
                     draggableItems={filesDraggable} onBoardIds={onBoardIds} renameFor={renameFor}
-                    markUnplaced={markUnplaced}
+                    markUnplaced={markUnplaced} checks={selecting}
                     onRowClick={(e, id) => onTileClick(e, 'file', id)}
                     onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
                 )}
@@ -2418,10 +2472,10 @@ export function ListSurface({
         {/* Rendered LAST inside .list-inner and stuck to the bottom of the
             scrollport, so the actions for a selection are still on screen once
             you have scrolled past the rows you made it from. */}
-        {totalSel > 0 && (
+        {(totalSel > 0 || selecting) && (
           <div className="list-selbar" ref={selbarRef}>
             <span className="list-selbar-count" aria-live="polite"
-                  title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel} selected</span>
+                  title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel || !selecting ? `${totalSel} selected` : 'Select items'}</span>
             {downloadableSelected.length > 0 && (
               <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
                       title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
@@ -2445,13 +2499,19 @@ export function ListSurface({
                 <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
               </button>
             )}
+            {/* With no right-click to find it, a finger gets Copy to… here. */}
+            {touchPass && (selecting || isTouch) && canCopyTo && (
+              <button type="button" className="list-selbar-act" onClick={copySelection} title="Copy to…" aria-label="Copy to…">
+                <Icon as={Copy} size={14} weight="light" /><span>Copy to…</span>
+              </button>
+            )}
             {canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
               <button type="button" className="list-selbar-act" onClick={() => newClusterFromSelection()}
                       title="Move them into a new cluster" aria-label="New cluster">
                 <Icon as={Folder} size={14} weight="light" /><span>New cluster</span>
               </button>
             )}
-            {canEdit && (
+            {canEdit && totalSel > 0 && (
               <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete" aria-label="Delete">
                 <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
               </button>
@@ -2462,11 +2522,19 @@ export function ListSurface({
                 <Icon as={Info} size={14} weight="light" /><span>Info</span>
               </button>
             )}
-            <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
-                    onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
-              <Icon as={X} size={14} weight="light" />
-            </button>
-            {!isPanel && !multiHintSeen && (
+            {selecting ? (
+              <button type="button" className="list-selbar-act list-selbar-done"
+                      onClick={() => { setSelecting(false); setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
+                Done
+              </button>
+            ) : (
+              <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
+                      onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
+                <Icon as={X} size={14} weight="light" />
+              </button>
+            )}
+            {/* Keys to teach a keyboard; a finger has none of them. */}
+            {!isPanel && !multiHintSeen && !isTouch && (
               <span className="list-selbar-hint">
                 <kbd>{isMac ? '⌘A' : 'Ctrl+A'}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{isMac ? '⇧' : 'Shift'}</kbd>-click range
               </span>

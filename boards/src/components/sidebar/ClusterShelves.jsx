@@ -15,7 +15,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
 import { Icon } from '../Icon.jsx';
-import { ArrowsOutSimple, ChevronRight, GridFour, Scribble } from '../../lib/icons.js';
+import { ArrowsOutSimple, ChevronRight, GridFour, Scribble, Check } from '../../lib/icons.js';
 import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
@@ -85,7 +85,7 @@ function useHoldForMenu(item, onMenu) {
   useLongPress(ref, (x, y) => {
     if (!onMenu) return;
     held.current = true;
-    onMenu(item, x, y);
+    onMenu(item, x, y, { viaTouch: true });
   }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   const swallow = () => {
     if (!held.current) return false;
@@ -100,7 +100,7 @@ function useHoldForMenu(item, onMenu) {
 // One item as a row: its thumbnail or icon, its name, the stored-off-the-board
 // mark, a star, and its length or size. Shelves, Starred and Recent all draw
 // items with it, so an item looks the same wherever the sidebar lists it.
-export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null, onMenu = null }) {
+export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen, starred = false, where = '', selected = false, onDragStart = null, onMenu = null, checks = false }) {
   const meta = rowMeta(item);
   const hold = useHoldForMenu(item, onMenu);
   return (
@@ -114,7 +114,7 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
             data-sb-item={item.key}
             title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
             onClick={(e) => { if (!hold.swallow()) onClick?.(item, e); }}
-            onDoubleClick={() => onOpen?.(item)}
+            onDoubleClick={() => { if (!checks) onOpen?.(item); }}
             onPointerDown={hold.onPointerDown}
             onContextMenu={onMenu ? (e) => { e.preventDefault(); if (!hold.heldNow()) onMenu(item, e.clientX, e.clientY); } : undefined}
             onKeyDown={(e) => {
@@ -125,6 +125,7 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
                 onMenu(item, r.left + 24, r.bottom);
               }
             }}>
+      {checks && <span className="row-check" aria-hidden="true"><Icon as={Check} size={10} weight="bold" /></span>}
       <ItemGlyph item={item} />
       <span className="sbf-file-name">{item.name}</span>
       {where && <span className="sbf-file-where">{where}</span>}
@@ -139,7 +140,7 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
   const pad = { paddingLeft: ROW_PAD };
-  const { onItem, onItemOpen, onMore, onLess, onShelf, onOpenShelf, starred, selected, onDragItem, onItemMenu, emptyNote } = ctx;
+  const { onItem, onItemOpen, onMore, onLess, onShelf, onOpenShelf, starred, selected, onDragItem, onItemMenu, emptyNote, checks } = ctx;
 
   if (row.type === 'shelf') {
     const label = row.label || row.shelfId;
@@ -175,8 +176,8 @@ function Row({ row, depth, ctx }) {
   if (row.type === 'file') {
     return (
       <SidebarItemRow item={row.item} depth={depth} indent={ROW_PAD} starred={starred(row.item)}
-                      selected={selected(row.item)} onDragStart={onDragItem}
-                      onMenu={onItemMenu ? (it, x, y) => onItemMenu(it, row, x, y) : null}
+                      selected={selected(row.item)} onDragStart={onDragItem} checks={checks}
+                      onMenu={onItemMenu ? (it, x, y, opts) => onItemMenu(it, row, x, y, opts) : null}
                       onClick={(item, e) => onItem(item, row, e)} onOpen={onItemOpen} />
     );
   }
@@ -250,6 +251,7 @@ export function ClusterShelves({
   shelfState, onToggleShelf, onLoadMore, canLoadMore,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
   isSelected = null, onDragItem = null, onItemMenu = null,
+  checks = false,   // Select is picking several (a hold's menu, on touch)
 }) {
   const rows = useMemo(() => contentRows(boardId, depth, {
     contents, shelfState: (b, s) => shelfState?.(b, s) || {}, coarse,
@@ -279,10 +281,11 @@ export function ClusterShelves({
     onOpenShelf,
     starred: (item) => !!isStarred?.(item.boardId, item.cardId),
     selected: (item) => !!isSelected?.(item),
+    checks,
     onDragItem,
-    onItemMenu: onItemMenu ? (item, row, x, y) => {
+    onItemMenu: onItemMenu ? (item, row, x, y, opts) => {
       const shelf = contents?.shelves?.find((s) => s.id === row.shelfId);
-      onItemMenu(item, shelf?.items || [item], x, y);
+      onItemMenu(item, shelf?.items || [item], x, y, opts);
     } : null,
   };
 

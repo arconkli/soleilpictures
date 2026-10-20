@@ -16,7 +16,7 @@ import { memo } from 'react';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS, Avatar } from '../primitives.jsx';
-import { Link as LinkIcon } from '../../lib/icons.js';
+import { Link as LinkIcon, Check } from '../../lib/icons.js';
 import { InlineRename } from './InlineRename.jsx';
 
 // Unknown (no card_count yet) says nothing rather than claiming "Empty".
@@ -34,6 +34,7 @@ export const FolderTile = memo(function FolderTile({
   rename = null,   // inline rename: { onCommit, onCancel }
   compact = false, // the panel's one-line rows: a smaller cover and glyph
   springing = false, // a drag is held over it: it's about to open (lib/springLoad.js)
+  checks = false,    // Select is picking several: a check says whether it's in
   className = '', ...divProps
 }) {
   const people = [];
@@ -55,6 +56,7 @@ export const FolderTile = memo(function FolderTile({
          draggable={rename ? undefined : divProps.draggable}
          className={`ft${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${springing ? ' is-springing' : ''}${linked ? ' is-linked' : ''}${className ? ` ${className}` : ''}`}
          title={label}>
+      {checks && <span className="row-check" aria-hidden="true"><Icon as={Check} size={11} weight="bold" /></span>}
       <div className="ft-cover" data-cover={cover} style={{ '--ft-tint': tint }}>
         {board?.thumb_key ? (
           <R2Image src={board.thumb_key} key={board.thumb_updated_at || board.thumb_key}

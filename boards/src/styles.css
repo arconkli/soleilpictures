@@ -9829,6 +9829,24 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 .ct-tile:not(.is-selected) .ct-tile-preview[data-face='paper'] .ct-tile-check:hover { color: var(--ink-2); }
 .ct-tile.is-selected .ct-tile-check { background: var(--select); border-color: var(--select); color: #0a0a0c; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
 .ct-tile-check:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* Select — a touch screen's hold menu — picks several with a finger: the
+   tile checks show on every tile, and rows and folders get the same round
+   check, gold when picked. A tap anywhere on the row toggles it; the check
+   only says which are in. */
+.list-wrap.is-selecting .ct-tile-check { opacity: 1; }
+.row-check {
+  flex: none; width: 20px; height: 20px; box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--ink-0) 48%, transparent);
+  color: transparent;
+}
+:is(.ct-row, .ft, .sbf-file).is-selected .row-check {
+  background: var(--select); border-color: var(--select); color: #0a0a0c;
+}
+/* A held thumbnail is a menu, not iOS's Save Image sheet or a text selection. */
+.list-wrap.is-touch :is(.ct-tile, .ct-row, .ft) {
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
 /* Gallery transport. Centred over the preview rather than beside the name —
    with cover art being read off the files, the tile IS the artwork and the
    play button belongs on it. */
@@ -15185,6 +15203,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .split-close:hover { opacity: 1; color: var(--ink-0); background: var(--bg-hov); }
 .split-close:focus-visible { outline: none; opacity: 1; box-shadow: var(--shadow-glow); }
 @media (prefers-reduced-motion: reduce) { .split-close { transition: none; } }
+/* A finger: the 6px divider grabs 30px and a drag on it resizes rather than
+   scrolling, and its close is 32px drawn, 40 to touch (above the grab). */
+@media (pointer: coarse) {
+  .split-divider { touch-action: none; }
+  .split-divider::after { content: ''; position: absolute; top: 0; bottom: 0; left: -12px; right: -12px; }
+  .split-close { z-index: 1; width: 32px; height: 32px; }
+  .split-close::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; }
+}
 
 
 .split-pane.is-active { position: relative; }
@@ -23298,6 +23324,11 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 }
 .fdl-divider:hover::before, .fdl-divider.is-dragging::before { background: var(--line-3); }
 .fdl-divider:focus-visible::before { background: var(--soleil); }
+/* A finger has no hover to find it by: the grip shows, and grabs 28px. */
+@media (pointer: coarse) {
+  .fdl-divider { width: 28px; margin: 0 -14px; }
+  .fdl-grip { opacity: 1; }
+}
 /* Opening beside the board: a short slide in. Letting go here would close
    it: the panel fades, so the preview reads before the release. */
 .fdl-files { transition: opacity var(--dur-base) var(--ease); }
@@ -23948,8 +23979,17 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   .list-wrap { --ctl-h: 36px; }
   .list-wrap .cbt .view-pill-btn { height: 30px; }
   .list-wrap .cbt-sizepill.view-pill { height: var(--ctl-h); }
-  .list-wrap .list-selbar-act { height: 36px; }
+  /* The selection bar is where a finger acts on what it picked: 40px a
+     button, beside the board too, where a mouse gets 26. */
+  .list-wrap .list-selbar-act,
+  .list-wrap.is-panel .list-selbar-act { height: 40px; min-width: 40px; justify-content: center; }
   .list-wrap .cbt-input { font-size: 16px; }
+  /* The tile's round check is 24px drawn; a finger gets 44, once it shows.
+     Hidden (nothing picked), it takes no taps: the tile under it does. */
+  .ct-tile-check { pointer-events: none; }
+  .ct-jg:has(.ct-tile.is-selected) .ct-tile-check,
+  .list-wrap.is-selecting .ct-tile-check { pointer-events: auto; }
+  .ct-tile-check::before { content: ''; position: absolute; inset: -10px; border-radius: 50%; }
 }
 
 /* Clear-formatting glyph (doc toolbar + note bar): a "Tx", the convention from

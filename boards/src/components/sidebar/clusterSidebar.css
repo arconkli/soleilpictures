@@ -775,6 +775,8 @@ body.sbf-sizing .app,
 .sbf-bulk-acts .sbf-bulk-btn { flex: 1 1 auto; padding: 0 8px; }
 .sbf-bulk-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
 .sbf-bulk-btn.is-clear { width: 28px; padding: 0; border-color: transparent; color: var(--ink-2); }
+/* Select's way out, where ✕ sits otherwise. */
+.sbf-bulk-btn.is-done { padding: 0 12px; color: var(--ink-0); }
 /* The one that leads, in ink: gold stays for selection and focus. */
 .sbf-bulk-btn.is-lead { border-color: color-mix(in srgb, var(--ink-0) 22%, transparent); color: var(--ink-0); }
 .sbf-bulk-btn.is-danger:hover { color: #ef4444; border-color: rgba(239,68,68,.5); }
@@ -782,6 +784,8 @@ body.sbf-sizing .app,
 
 /* ── Touch: the drawer, and coarse pointers anywhere ─────────────────────── */
 @media (hover: none) and (pointer: coarse) {
+  /* A held file is its menu, not iOS's Save Image sheet or a text selection. */
+  .sbf-file { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .app.sb-files .sb-mid .sb-row { height: 44px; font-size: 15px; }
   .sb-tree-row.is-files { height: 44px; font-size: 15px; }
   /* A finger-sized chevron that still draws where the text starts, names

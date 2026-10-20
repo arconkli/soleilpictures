@@ -31,6 +31,7 @@ export function ClusterTable({
   expandedGroups, selectedGroupId, onGroupClick, onDownload = null,
   onAudition = null, onSeek = null, activeId = null, playingId = null, registerRow = null,
   audioMode = false, draggableItems = false, onBoardIds = null, renameFor = null, markUnplaced = false,
+  checks = false,   // Select (a touch screen's hold menu): a check on every row
 }) {
   const dateKey = sortKey === 'created' ? 'created' : 'updated';
   const th = (cls, col, label, note = null) => (
@@ -133,6 +134,7 @@ export function ClusterTable({
       rowRef={registerRow ? registerRow(it.id) : null}
       audioMode={audioMode} draggable={draggableItems} onBoard={!!onBoardIds?.has?.(it.id)}
       rename={renameFor ? renameFor(it.id) : null} markUnplaced={markUnplaced}
+      checks={checks}
       rowIndex={virtual ? i + 2 : undefined}
       onClick={(e) => onRowClick(e, it.id)}
       onDoubleClick={(e) => onRowDoubleClick(e, it.id)}
