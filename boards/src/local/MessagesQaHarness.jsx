@@ -23,6 +23,7 @@ import '../styles.css';
 import '../components/sidebar/clusterSidebar.css';
 import '../components/messagesCard.css';
 import { MessagesPanel } from '../components/MessagesPanel.jsx';
+import { MessagesPresence } from '../components/MessagesPresence.jsx';
 import { MessagesLookContext } from '../components/messagesLook.js';
 import { FeedbackProvider, useFeedback } from '../components/AppFeedback.jsx';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
@@ -140,7 +141,7 @@ function Inner() {
         {!open && (
           <button type="button" className="msgqa-reopen" data-testid="msgqa-reopen" onClick={() => setOpen(true)}>Open Messages</button>
         )}
-        {open && createPortal((
+        <MessagesPresence open={open}>{() => createPortal((
           <MessagesLookContext.Provider value={LOOK === 'card' ? 'card' : null}>
             <MessagesPanel
               workspaceId={WORKSPACE_ID}
@@ -160,7 +161,7 @@ function Inner() {
               onClose={() => setOpen(false)}
             />
           </MessagesLookContext.Provider>
-        ), document.body)}
+        ), document.body)}</MessagesPresence>
       </EntityTrieContext.Provider>
     </OpenDmContext.Provider>
   );

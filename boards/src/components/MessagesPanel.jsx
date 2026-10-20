@@ -16,6 +16,7 @@ import { MessageThread } from './MessageThread.jsx';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { usePanelPresence } from './MessagesPresence.jsx';
 
 const NO_PARTICIPANTS = [];
 
@@ -209,12 +210,12 @@ export function MessagesPanel({
   // view did (COMMS-22). The list takes focus when it shows, so the key
   // reaches it straight after opening; a press claimed by a picker or menu
   // on top, or meant for something outside the panel, is left alone.
-  const listRef = useRef(null);
+  const rootRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {
     if (openConversationId) return;
-    try { listRef.current?.focus({ preventScroll: true }); } catch (_) {}
+    try { rootRef.current?.focus({ preventScroll: true }); } catch (_) {}
     const onKey = (e) => { if (escapeClosesPanel(e, '.msg-panel')) onCloseRef.current?.(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -230,8 +231,13 @@ export function MessagesPanel({
     participants: openParts,
   }), [openConversationId, openConv?.title, openParts]);
 
-  if (openConversationId) {
-    return (
+  // One panel for the list and every conversation. Opening one doesn't
+  // remount the panel (or replay its entrance): the conversation is a pane
+  // over the list, and the list stays under it, inert and hidden, keeping its
+  // place for when you come back. Closing plays an exit (MessagesPresence).
+  const presence = usePanelPresence();
+  const threadOpen = !!openConversationId;
+  const thread = threadOpen && (
       <MessageThread
         // One instance per conversation: nothing a thread holds (a reply
         // target, staged files, search, the pinned list) can carry into the
@@ -256,11 +262,11 @@ export function MessagesPanel({
         }}
         onClose={() => { onPermalinkConsumed?.(); onClose?.(); }}
       />
-    );
-  }
+  );
 
   return (
-    <div className="msg-panel" ref={listRef} tabIndex={-1}>
+    <div className="msg-panel" ref={rootRef} tabIndex={-1} data-state={presence} data-view={threadOpen ? 'thread' : 'list'}>
+      <div className="msg-pane msg-pane-list" inert={threadOpen ? '' : undefined}>
       <div className="msg-panel-head">
         <div className="msg-panel-title">
           {card ? (
@@ -342,6 +348,9 @@ export function MessagesPanel({
           />
         ))}
       </div>
+      </div>
+
+      {thread}
 
       {rowMenu && (() => {
         const isGroup = !isDmConversation(participantsByConv.get(rowMenu.convId));

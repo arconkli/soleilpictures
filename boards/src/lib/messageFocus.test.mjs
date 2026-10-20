@@ -13,7 +13,7 @@ const composer = read('../components/MessageComposer.jsx');
 test('home is the box you type in with a mouse and keyboard, the panel itself under a finger', () => {
   assert.match(thread, /if \(composerRef\.current && finePointer\(\)\) composerRef\.current\.focus\(\);\s*else rootRef\.current\?\.focus\(\{ preventScroll: true \}\);/);
   assert.match(read('./composerKeys.js'), /matchMedia\?\.\('\(hover: hover\) and \(pointer: fine\)'\)/);
-  assert.match(thread, /<div className="msg-panel" ref=\{rootRef\} tabIndex=\{-1\} onFocus=\{\(e\) => \{ lastFocusRef\.current = e\.target; \}\}>/);
+  assert.match(thread, /<div className="msg-pane msg-pane-thread" ref=\{rootRef\} tabIndex=\{-1\} onFocus=\{\(e\) => \{ lastFocusRef\.current = e\.target; \}\}>/);
 });
 
 test('the conversation opens with focus at home, unless something in it already has it', () => {

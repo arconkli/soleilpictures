@@ -155,6 +155,7 @@ import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
 import { MessagesPanel } from './components/MessagesPanel.jsx';
+import { MessagesPresence } from './components/MessagesPresence.jsx';
 import { MessagesLookContext } from './components/messagesLook.js';
 import { NotificationsPanel } from './components/NotificationsPanel.jsx';
 import { addShootDays, scaffoldShootDay, nextDayNumber } from './lib/productionDay.js';
@@ -11089,7 +11090,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onClose={() => setNotifOpen(false)}
         />
       ), document.body)}
-      {tweak.showMessages && createPortal((
+      {/* Kept for its exit while it closes (MessagesPresence). */}
+      <MessagesPresence open={!!tweak.showMessages}>{() => createPortal((
         // With the files sidebar Messages wears its card (messagesLook.js).
         <MessagesLookContext.Provider value={filesSidebar ? 'card' : null}>
         <MessagesPanel
@@ -11116,7 +11118,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onClose={() => setTweak('showMessages', false)}
         />
         </MessagesLookContext.Provider>
-      ), document.body)}
+      ), document.body)}</MessagesPresence>
 
       {shareOpen && (() => {
         // Sharing the WORKSPACE shares its root cluster (links then cover

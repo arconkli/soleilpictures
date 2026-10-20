@@ -44,7 +44,9 @@ test('the Schedule panel and the Messages list close on Escape, and take focus t
   assert.match(ntf, /rootRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
   const panel = read('../components/MessagesPanel.jsx');
   assert.match(panel, /if \(openConversationId\) return;[\s\S]*?escapeClosesPanel\(e, '\.msg-panel'\)\) onCloseRef\.current\?\.\(\)/);
-  assert.match(panel, /<div className="msg-panel" ref=\{listRef\} tabIndex=\{-1\}>/);
+  // One root for the list and the conversations, focused when the list shows.
+  assert.match(panel, /<div className="msg-panel" ref=\{rootRef\} tabIndex=\{-1\} /);
+  assert.match(panel, /rootRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
 });
 
 test('the nested controls claim Escape', () => {

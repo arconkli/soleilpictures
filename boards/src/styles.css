@@ -16436,6 +16436,26 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 /* The list view takes focus when it shows so Escape reaches it; the
    container itself draws no ring (its controls keep theirs). */
 .msg-panel:focus { outline: none; }
+/* One panel, two panes (MessagesPanel): a conversation is a pane over the
+   list, and the list stays mounted under it, inert and hidden, so it keeps
+   its place and nothing replays the panel's entrance on a switch. */
+.msg-pane {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0;
+}
+.msg-pane-list[inert] { visibility: hidden; }
+.msg-pane-thread:focus { outline: none; }
+/* Closing plays an exit before the panel goes (MessagesPresence waits for
+   it); under reduced motion it goes at once. */
+.msg-panel[data-state="closing"] {
+  animation: msg-panel-out 160ms var(--ease) forwards;
+  pointer-events: none;
+}
+@keyframes msg-panel-out { to { opacity: 0; transform: translateY(4px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) {
+  .msg-panel[data-state="closing"] { animation: none; }
+}
 
 /* While a doc-card overlay is up, lift the messages panel above it.
    .doc-card-modal is z-index 2147483600 and portals to <body>, so fullscreen

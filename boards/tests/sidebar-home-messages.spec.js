@@ -233,7 +233,7 @@ test.describe('Messages in the sidebar\'s card', () => {
 
   test('a group thread: who is in it, the pinned row, bubbles, yours on the right, a neutral Send', async ({ page }) => {
     await open(page, '&messages=1&conv=c-cast');
-    await expect(panel(page).locator('.msg-panel-name')).toHaveText('Casting · Feature film');
+    await expect(panel(page).locator('.msg-pane-thread .msg-panel-name')).toHaveText('Casting · Feature film');
     await expect(panel(page).locator('.msg-panel-sub')).toHaveText('Lena, Jon, Sam and you');
     await expect(panel(page).locator('.msg-pinned-text')).toHaveText('Callback list v3 is the source of truth.');
     await expect(panel(page).locator('.msg-pinned-n')).toHaveText('1 pinned');

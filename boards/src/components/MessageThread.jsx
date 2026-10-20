@@ -34,6 +34,7 @@ import { lastMessageId } from '../lib/messagePaging.js';
 import { newMessageId, toggleReactionMap } from '../lib/messageStore.js';
 import { buildFeedItems, selectSeenMessageId } from '../lib/messageFeed.js';
 import { showingConversation } from '../lib/threadAttention.js';
+import { usePanelPresence } from './MessagesPresence.jsx';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
 import { isDmConversation } from '../lib/conversationState.js';
@@ -113,7 +114,10 @@ export function MessageThread({
 
   // Tell the inbox this conversation is on screen, so its toast and OS
   // notification stay quiet only while it really is (COMMS-03).
-  useEffect(() => showingConversation(conversationId), [conversationId]);
+  // Not while the panel plays its exit: a message landing then should still
+  // say so with a toast.
+  const closing = usePanelPresence() === 'closing';
+  useEffect(() => (closing ? undefined : showingConversation(conversationId)), [conversationId, closing]);
 
   // ── Active participants (for title + group menu) ─────────────────────
   const activeParticipants = useMemo(
@@ -759,7 +763,7 @@ export function MessageThread({
   const draftKey = conversationId || '';
 
   return (
-    <div className="msg-panel" ref={rootRef} tabIndex={-1} onFocus={(e) => { lastFocusRef.current = e.target; }}>
+    <div className="msg-pane msg-pane-thread" ref={rootRef} tabIndex={-1} onFocus={(e) => { lastFocusRef.current = e.target; }}>
       <div className="msg-panel-head">
         <button
           className="msg-panel-icon"

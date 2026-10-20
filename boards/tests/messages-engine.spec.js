@@ -60,10 +60,10 @@ test('sending a message shows it in the thread and in the fake db', async ({ pag
   await input.fill('hello from QA');
   await input.press('Enter');
   await expect(page.locator('.msg-bubble-body', { hasText: 'hello from QA' })).toBeVisible();
-  const saved = await qa(page, () => window.__msgQa.db.messages
+  // The bubble shows before the server has it (it's optimistic): wait for the row.
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages
     .filter((m) => m.conversation_id === 'c-maya' && m.body === 'hello from QA')
-    .map((m) => ({ sender: m.sender_id, kind: m.kind })));
-  expect(saved).toEqual([{ sender: ME, kind: 'user' }]);
+    .map((m) => ({ sender: m.sender_id, kind: m.kind })))).toEqual([{ sender: ME, kind: 'user' }]);
 });
 
 test('a message from a peer appears in the open thread', async ({ page }) => {
@@ -552,7 +552,7 @@ test('a draft waits in its conversation — text, a file still uploading, the re
   await input.fill('half a thought');
   await attach(page, png('frame.png'));
   await qa(page, () => window.__msgQa.openConversation('c-cast'));
-  await expect(page.locator('.msg-panel-title')).toContainText('Casting');
+  await expect(page.locator('.msg-pane-thread .msg-panel-title')).toContainText('Casting');
   await expect(input).toHaveValue('');
   await expect(page.locator('.msg-composer-att-chip')).toHaveCount(0);
   await expect(page.locator('.msg-reply-bar')).toHaveCount(0);
@@ -604,7 +604,7 @@ test('a conversation opens with the box you type in focused, from a link and fro
   await expect(composerInput(page)).toBeFocused();
   await page.locator('.msg-panel-icon[aria-label="Back"]').click();
   await page.locator('.msg-row', { hasText: 'Casting' }).first().click();
-  await expect(page.locator('.msg-panel-title')).toContainText('Casting');
+  await expect(page.locator('.msg-pane-thread .msg-panel-title')).toContainText('Casting');
   await expect(composerInput(page)).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.locator('.msg-thread-body')).toHaveCount(0);
@@ -752,4 +752,57 @@ test('the actions chip shows on hover and keyboard focus, and not while editing'
   await page.mouse.move(2, 2);
   await mine.locator('button[title="Reply"]').focus();
   await expect(chip).toHaveCSS('opacity', '1');
+});
+
+// ── One panel (C2.11) ──────────────────────────────────────────────────
+test('opening conversations and going back keeps one panel and one list, and the list keeps its place', async ({ page }) => {
+  await open(page);
+  await expect(page.locator('.msg-row').first()).toBeVisible();
+  // A short list body so it scrolls; tags on the panel and the list would go
+  // with a remount.
+  await page.addStyleTag({ content: '.msg-pane-list .msg-panel-body { max-height: 90px !important; flex: none !important; }' });
+  await page.evaluate(() => {
+    document.querySelector('.msg-panel').__probe = 'panel';
+    const body = document.querySelector('.msg-pane-list .msg-panel-body');
+    body.__probe = 'list';
+    body.scrollTop = 40;
+  });
+  const listTop = await page.locator('.msg-pane-list .msg-panel-body').evaluate((el) => el.scrollTop);
+  expect(listTop).toBeGreaterThan(0);
+  // Opened by the harness, not a click: a click would scroll the row into view first.
+  await qa(page, () => window.__msgQa.openConversation('c-maya'));
+  await expect(page.locator('.msg-pane-thread')).toBeVisible();
+  await expect(page.locator('.msg-pane-list')).toBeHidden();
+  await qa(page, () => window.__msgQa.openConversation('c-cast'));
+  await expect(page.locator('.msg-pane-thread .msg-panel-title')).toContainText('Casting');
+  await page.locator('.msg-pane-thread .msg-panel-icon[aria-label="Back"]').click();
+  await expect(page.locator('.msg-pane-list')).toBeVisible();
+  await expect(page.locator('.msg-pane-thread')).toHaveCount(0);
+  expect(await page.evaluate(() => [
+    document.querySelector('.msg-panel').__probe,
+    document.querySelector('.msg-pane-list .msg-panel-body').__probe,
+    document.querySelector('.msg-pane-list .msg-panel-body').scrollTop,
+  ])).toEqual(['panel', 'list', listTop]);
+  expect(await page.locator('.msg-panel').count()).toBe(1);
+  await expect(page.locator('.msg-panel')).toBeFocused();
+});
+
+test('closing plays its exit and then the panel goes; under reduced motion it goes at once', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await page.locator('.msg-pane-thread .msg-panel-icon[aria-label="Close messages"]').click();
+  await expect(page.locator('.msg-panel[data-state="closing"]')).toHaveCount(1);
+  await expect(page.locator('.msg-panel')).toHaveCount(0);
+  await page.getByTestId('msgqa-reopen').click();
+  await expect(page.locator('.msg-panel[data-state="open"]')).toBeVisible();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await composerInput(page).press('Escape');
+  expect(await page.locator('.msg-panel').count()).toBe(0);
+});
+
+test('a message landing while the panel plays its exit still brings its toast', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await qa(page, () => window.__msgQa.setLatency({ default: 0 }));
+  await page.locator('.msg-pane-thread .msg-panel-icon[aria-label="Close messages"]').click();
+  await qa(page, (id) => window.__msgQa.peer(id).send('c-maya', 'caught on the way out'), MAYA);
+  await expect(page.locator('.toast-msg', { hasText: 'caught on the way out' })).toBeVisible();
 });
