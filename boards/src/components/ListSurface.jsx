@@ -55,6 +55,8 @@ function writeInfoPref(on) {
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
 import { fileSharesAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
+import { captureDropEntries, captureDropHandles, hasDirectory } from '../lib/folderWalk.js';
+import { isZipFile } from '../lib/importZips.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { publishNewClusterPick } from '../lib/newClusterPick.js';
 import { spotBesideContent } from '../lib/projectsHome.js';
@@ -147,6 +149,9 @@ export function ListSurface({
   onJumpToPeer,
   // Drop / picked OS files → into the cluster, waiting in Files off the board.
   onDropFilesToCluster,
+  // A dropped folder or zips → bulk import into the cluster (lib/importStart.js):
+  // (input, { boardId }) => Promise<{ loose }>. Null where bulk import is off.
+  onImportTree = null,
   // Set of card ids just added via a list drop — flashes those rows.
   recentlyAddedIds,
   // Live presence: awareness handle + identity for per-row highlight.
@@ -1484,6 +1489,19 @@ export function ListSurface({
       onDropInboxItem && onDropInboxItem(item.id, { ...card, x: spot.x, y: spot.y, unplaced: true });
       return;
     }
+    // A folder, or zips, is a bulk import into this cluster, as on the board:
+    // folders become clusters and their files wait in Files. Read off the
+    // drop while it is still being dispatched (Chrome empties its items
+    // after), the handles too, so an import a reload stops can go on. Loose
+    // files beside them go in as below.
+    const tree = (input) => {
+      const handles = captureDropHandles(e.dataTransfer);
+      Promise.resolve(onImportTree({ ...input, handles, source: 'list' }, { boardId: board.id }))
+        .then((out) => { if (out?.loose?.length) onDropFilesToCluster?.(out.loose, { boardId: board.id }); })
+        .catch(() => {});
+    };
+    const entries = onImportTree ? captureDropEntries(e.dataTransfer) : [];
+    if (hasDirectory(entries)) { tree({ entries }); return; }
     // OS files (or a picked FileList) → the cluster's file-ingest mutator. They
     // join the cluster but not its board: they wait here, marked Not on board,
     // until dragged onto the canvas or Put on board (App.ingestFilesArranged).
@@ -1497,6 +1515,8 @@ export function ListSurface({
         return;
       }
     }
+    // Zips get the bulk import's question: unpack into clusters, or keep them.
+    if (onImportTree && Array.from(dropped || []).some(isZipFile)) { tree({ files: Array.from(dropped) }); return; }
     if (e.dataTransfer.files && e.dataTransfer.files.length) {
       try { logEvent(EV.LIST_ADD_FILES, { board_id: board.id, n: e.dataTransfer.files.length, via: 'drop' }); } catch (_) {}
       onDropFilesToCluster?.(e.dataTransfer.files, { boardId: board.id });

@@ -9629,6 +9629,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        peersBelowByBoard={peersBelowByBoard}
                        onJumpToPeer={jumpToPeer}
                        onDropFilesToCluster={(files) => muts.ingestFilesArranged?.(files)}
+                       onImportTree={bulkImportAllowed() ? (input, { boardId }) => importFolder({
+                         ...input, boardId, canAttemptFiles: bulkImportEnv().who(boardId).plan !== 'free', boardWasEmpty: false,
+                       }) : null}
                        onRevealDone={(token) => setFilesReveal((r) => (r?.token === token ? null : r))}
                        recentlyAddedIds={recentlyAdded?.boardId === board.id ? recentlyAdded.ids : null}
                        getAwareness={yh.getAwareness}
