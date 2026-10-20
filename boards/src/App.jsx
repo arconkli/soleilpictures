@@ -10271,6 +10271,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               onPickCluster={requestClusterPick}
               onSetOpensAs={(id, v) => setView(v, 'sidebar_menu', id)}
               onDropFilesOnCluster={dropFilesOnCluster}
+              onImportTreeOnCluster={bulkImportAllowed() ? (boardId, input) => importFolder({
+                ...input, boardId, canAttemptFiles: bulkImportEnv().who(boardId).plan !== 'free', boardWasEmpty: false,
+              }) : null}
               uploadsByBoard={sidebarUploads}
               liveMutators={mainMutators}
               refreshToken={sidebarRefresh}

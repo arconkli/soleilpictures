@@ -29,6 +29,16 @@ test.describe('bulk import entry wiring', () => {
     expect(drop).toMatch(/if \(out\?\.loose\?\.length\) onDropFilesToCluster\?\.\(out\.loose, \{ boardId: board\.id \}\)/);
   });
 
+  test('App hands the sidebar the bulk import for a folder or zips dropped on a cluster row, only where it is on', () => {
+    const s = read('src/App.jsx');
+    const sidebar = s.slice(s.indexOf('<ClusterSidebar'), s.indexOf('uploadsByBoard={sidebarUploads}'));
+    expect(sidebar).toMatch(/onImportTreeOnCluster=\{bulkImportAllowed\(\) \? \(boardId, input\) => importFolder\(\{\s*\.\.\.input, boardId, canAttemptFiles: bulkImportEnv\(\)\.who\(boardId\)\.plan !== 'free', boardWasEmpty: false,\s*\}\) : null\}/);
+    // ClusterSidebar reads the drop before anything can take it: the folder
+    // check and the handles are taken in the drop handler, before any await.
+    const bar = read('src/components/sidebar/ClusterSidebar.jsx');
+    expect(bar).toMatch(/const entries = onImportTreeOnCluster \? captureDropEntries\(e\.dataTransfer\) : \[\];/);
+  });
+
   test('App hands the List view the bulk import only where it is on, through importFolder', () => {
     const s = read('src/App.jsx');
     expect(s).toMatch(/onImportTree=\{bulkImportAllowed\(\) \? \(input, \{ boardId \}\) => importFolder\(\{\s*\.\.\.input, boardId, canAttemptFiles: bulkImportEnv\(\)\.who\(boardId\)\.plan !== 'free', boardWasEmpty: false,\s*\}\) : null\}/);
