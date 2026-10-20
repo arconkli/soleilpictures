@@ -104,6 +104,22 @@ export async function fetchConversationRange({ conversationId, from, to }) {
   return data || [];
 }
 
+// Re-read the messages a peer's nudge named (a new message, an edit, a
+// reaction, a pin, a delete or its undo), deleted ones included so the caller
+// can drop them. A broadcast's payload is never trusted for content: anyone in
+// the conversation can send anything on its channel, so the database is the
+// truth. Null on a failed read.
+export async function fetchMessagesByIds({ conversationId, ids }) {
+  const list = [...new Set((ids || []).filter(Boolean))];
+  if (!conversationId || list.length === 0) return [];
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .in('id', list);
+  if (error) { console.warn('fetchMessagesByIds', error); return null; }
+  return data || [];
+}
+
 export async function fetchMessageById(id) {
   if (!id) return null;
   const { data, error } = await supabase.from('messages')

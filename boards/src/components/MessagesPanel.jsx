@@ -223,6 +223,10 @@ export function MessagesPanel({
     const parts = participantsByConv.get(openConversationId) || [];
     return (
       <MessageThread
+        // One instance per conversation: nothing a thread holds (a reply
+        // target, staged files, search, the pinned list) can carry into the
+        // next one when a toast, an avatar or a link switches it in place.
+        key={openConversationId}
         workspaceId={workspaceId}
         currentUser={currentUser}
         // A group you left is readable (a permalink, a toast) but not yours
