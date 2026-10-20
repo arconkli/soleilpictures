@@ -99,7 +99,9 @@ import {
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
+import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween, spreadDropPoints } from '../lib/filesDrag.js';
+import { decideDrop, copyKeyHeld, whatOf } from '../lib/dropRules.js';
+import { dragSession } from '../lib/springLoad.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
 import { unlinkGridForCopy, gridLinkOf, relinkGrid, readGridModel } from '../lib/gridState.js';
 import { yMapToCard } from '../lib/yhelpers.js';
@@ -7415,7 +7417,9 @@ export function CanvasSurface({
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
       // Drop onto a different canvas pane.
       if (dropWrap && sourceWrap && dropWrap !== sourceWrap && Math.abs(dx) + Math.abs(dy) > 4) {
-        const isCopy = ev.metaKey || ev.ctrlKey;
+        // Into another pane's cluster the copy key copies (lib/dropRules.js),
+        // as ⌘/Ctrl always did; ⌥ only means "don't snap" inside one board.
+        const isCopy = ev.metaKey || ev.ctrlKey || copyKeyHeld(ev);
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
         document.dispatchEvent(new CustomEvent('soleil-cross-pane-drop', {
           detail: {
@@ -10840,6 +10844,70 @@ export function CanvasSurface({
     if (plan.liveCopy.length) copyHereFromCluster(payload, plan.liveCopy.map((c) => c.id), at);
   };
 
+  // What letting go of files from Files here does, where the sidebar's Files
+  // is on (lib/dropRules.js): the same decision the sidebar and the words at
+  // the pointer make about this board. The files come from the drag session
+  // (lib/springLoad.js) — a dragover can't read the payload — or, at a drop
+  // the session missed, from the payload.
+  const filesDropRules = (e, payload = null) => {
+    const s = dragSession();
+    let files = null;
+    let sourceName = '';
+    let fromWs = workspaceId || null;
+    if (s?.kind === 'files' && s.files?.length) {
+      files = s.files;
+      sourceName = s.sourceName || '';
+      fromWs = s.workspaceId || fromWs;
+    } else if (payload) {
+      // Whether each can leave its cluster isn't known here: the route refuses
+      // a move it can't make, and says so.
+      files = payload.cards.map((c) => ({ id: c.id, kind: c.kind, name: c.title || '', boardId: c.sourceBoardId || payload.sourceBoardId }));
+      sourceName = payload.sourceName || '';
+    }
+    if (!files || !board?.id) return null;
+    return decideDrop({
+      files, sourceName, workspaceId: fromWs, copy: copyKeyHeld(e),
+      target: {
+        boardId: board.id, where: 'board', name: board.name,
+        workspaceId: board.workspace_id || workspaceId || null, writable: !!canEdit && !isPublic,
+      },
+    });
+  };
+
+  // Its own files go where they were let go (dropFromFiles); every other
+  // cluster's move here, or are copied with the copy key, through the route
+  // (App moveFilesHere) — one request, and one Undo, per cluster they come
+  // from. Each lot lands beside the last, not on it.
+  const dropFilesByRules = (e, payload, at) => {
+    if (!boards?.[payload.sourceBoardId]) return;
+    const d = filesDropRules(e, payload);
+    if (!d || d.action === 'none') return;
+    const byCluster = (list) => {
+      const out = new Map();
+      for (const f of list) { if (!out.has(f.boardId)) out.set(f.boardId, []); out.get(f.boardId).push(f); }
+      return [...out];
+    };
+    const cardOf = new Map(payload.cards.map((c) => [`${c.sourceBoardId || payload.sourceBoardId}:${c.id}`, c]));
+    const cardsOf = (fs) => fs.map((f) => cardOf.get(`${f.boardId}:${f.id}`) || { id: f.id, kind: f.kind });
+    const live = new Map((everyCard || []).map((c) => [c.id, c]));
+    const lots = [];
+    if (d.place.length) lots.push({ place: true, cards: d.place.map((f) => live.get(f.id) || cardOf.get(`${f.boardId}:${f.id}`)).filter(Boolean) });
+    for (const [copy, list] of [[false, d.move], [true, d.copy]]) {
+      for (const [from, fs] of byCluster(list)) lots.push({ copy, from, files: fs, cards: cardsOf(fs) });
+    }
+    const points = spreadDropPoints(lots.map((l) => l.cards), at);
+    lots.forEach((lot, i) => {
+      if (lot.place) {
+        dropFromFiles({ ...payload, sourceBoardId: board.id, cards: lot.cards }, points[i]);
+        return;
+      }
+      onMoveFilesHereRef.current?.(
+        { sourceBoardId: lot.from, sourceName: boards?.[lot.from]?.name || '', cards: lot.files.map((f) => ({ id: f.id })) },
+        points[i], { copy: lot.copy, what: whatOf(lot.files) },
+      );
+    });
+  };
+
   // Is this pane still showing the board (and live doc) a move started on? A
   // "Move here" toast lives ten seconds, and the snapshot read is a network
   // round trip: the pane may have moved on, and a destroyed Y.Doc accepts
@@ -11126,13 +11194,25 @@ export function CanvasSurface({
     // View-only board: accept the event (no browser navigation) but show a
     // no-drop cursor and don't highlight — the drop handler will reject it.
     if (!canEdit) { e.dataTransfer.dropEffect = 'none'; return; }
-    // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl to copy.
+    // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl, or the copy key, to copy.
     if (types.includes(CARD_TRANSFER_MIME)) {
-      e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey) ? 'copy' : 'move';
+      e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey || copyKeyHeld(e)) ? 'copy' : 'move';
     } else if (types.includes(FILES_DRAG_MIME)) {
-      // From Files: this board's own files move; another cluster's are copied.
-      const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
-      e.dataTransfer.dropEffect = from === board?.id ? 'move' : 'copy';
+      // From Files, where the sidebar's Files is on: what the rules say letting
+      // go here does (a move, a copy, or nothing — then no outline either).
+      // Without it, this board's own files move; another cluster's are copied.
+      const d = onMoveFilesHereRef.current ? filesDropRules(e) : null;
+      if (d?.effect === 'none') {
+        e.dataTransfer.dropEffect = 'none';
+        if (dragOver) setDragOver(false);
+        return;
+      }
+      if (d) e.dataTransfer.dropEffect = d.effect;
+      else if (onMoveFilesHereRef.current) e.dataTransfer.dropEffect = copyKeyHeld(e) ? 'copy' : 'move';
+      else {
+        const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
+        e.dataTransfer.dropEffect = from === board?.id ? 'move' : 'copy';
+      }
     } else {
       e.dataTransfer.dropEffect = 'copy';
     }
@@ -11207,11 +11287,9 @@ export function CanvasSurface({
       e.preventDefault();
       try { window.__soleilFilesDrag = null; } catch (_) {}
       const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
-      if (payload?.intent === 'move' && payload.sourceBoardId !== board?.id && !e.altKey && onMoveFilesHereRef.current) {
-        onMoveFilesHereRef.current(payload, { x: cx, y: cy });
-        return;
-      }
-      if (payload) dropFromFiles(payload, { x: cx, y: cy }, { extraCopy: e.altKey });
+      if (!payload) return;
+      if (onMoveFilesHereRef.current) { dropFilesByRules(e, payload, { x: cx, y: cy }); return; }
+      dropFromFiles(payload, { x: cx, y: cy }, { extraCopy: e.altKey });
       return;
     }
 
@@ -11465,7 +11543,7 @@ export function CanvasSurface({
       try { payload = JSON.parse(e.dataTransfer.getData(CARD_TRANSFER_MIME)); }
       catch (_) { return; }
       if (!payload?.card) return;
-      const isCopy = e.metaKey || e.ctrlKey;
+      const isCopy = e.metaKey || e.ctrlKey || copyKeyHeld(e);
       // Pre-drop safety snapshot. Fire-and-forget; never block the actual drop.
       if (ydoc && board?.id) {
         saveBoardVersion(board.id, ydoc, {
@@ -12275,6 +12353,10 @@ export function CanvasSurface({
   return (
     <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''} ${canEdit ? '' : 'is-readonly'}${groundOn ? ' has-ground' : ''}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
+         data-drop-board={!isPublic && onMoveFilesHere ? board.id : undefined}
+         data-drop-where={!isPublic && onMoveFilesHere ? 'board' : undefined}
+         data-drop-name={!isPublic && onMoveFilesHere ? (board.name || undefined) : undefined}
+         data-drop-ws={!isPublic && onMoveFilesHere && board.workspace_id && workspaceId && board.workspace_id !== workspaceId ? board.workspace_id : undefined}
          ref={wrapRef}
          style={wrapStyle}
          onDragOver={handleDragOver}

@@ -527,6 +527,8 @@ export function SidebarQaHarness() {
         <div className="fdl fdl-off">
         <div className="fdl-canvas">
           <div className="canvas-wrap sbqa-canvas" style={GROUND}
+               // What CanvasSurface tells the drag label about its board.
+               data-drop-board={active} data-drop-where="board"
                onPointerDown={(e) => { if (!e.target.closest('button')) say('canvas'); }}>
             {/* CanvasSurface's own first layer: the grain over the ground. */}
             <div className="grain-canvas" aria-hidden="true" />

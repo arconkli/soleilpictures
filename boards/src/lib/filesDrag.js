@@ -203,6 +203,29 @@ export function planCrossDrop(cards, at, {
   return { copies, moves, liveCopy };
 }
 
+// Several blocks let go of at once (a selection from more than one cluster,
+// each moved by its own request): side by side in one row centred on the drop
+// point, rather than in a pile on it. Each block is measured as its drop lays
+// it out (layoutDrop: photographs in justified rows, anything else a grid).
+export function spreadDropPoints(blocks, at, { gap = 48 } = {}) {
+  const list = blocks || [];
+  if (!Number.isFinite(at?.x) || !Number.isFinite(at?.y)) return list.map(() => at);
+  if (list.length < 2) return list.map(() => ({ x: at.x, y: at.y }));
+  const widths = list.map((cards) => {
+    const sized = (cards || []).map((c, i) => ({ id: c?.id || String(i), kind: c?.kind, w: num(c?.w, 240), h: num(c?.h, 200) }));
+    const allImages = sized.length > 1 && sized.every((c) => c.kind === 'image');
+    const laid = sized.length ? layoutDrop(sized, { at: { x: 0, y: 0 }, layout: allImages ? 'justified' : 'grid' }) : [];
+    return laid.length ? Math.max(...laid.map((c) => c.x + c.w)) - Math.min(...laid.map((c) => c.x)) : 0;
+  });
+  const total = widths.reduce((s, w) => s + w, 0) + gap * (list.length - 1);
+  let x = at.x - total / 2;
+  return widths.map((w) => {
+    const p = { x: Math.round(x + w / 2), y: at.y };
+    x += w + gap;
+    return p;
+  });
+}
+
 export function summarizeDrop({ copied = 0, moved = 0, sourceName = '' }) {
   const parts = [];
   const from = sourceName ? ` from “${sourceName}”` : '';

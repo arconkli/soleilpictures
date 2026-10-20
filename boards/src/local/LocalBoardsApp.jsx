@@ -206,6 +206,24 @@ const MIX_QA_COUNT = typeof window !== 'undefined' && import.meta.env.DEV
     })()
   : 0;
 
+// Dev/test-only: ?local=1&filesrules=1 hands the board the sidebar's Files
+// drop (App.jsx moveFilesHere) as a recorder, so a spec can drive the board's
+// half of the drop rules (lib/dropRules.js) without the route: each move or
+// copy a drop asks for lands in window.__filesRulesQa.calls. DEV-gated from
+// the outside, as MIX_QA_COUNT is, so the bundler drops it.
+const FILES_RULES_QA = typeof window !== 'undefined' && import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('filesrules') === '1'
+  : false;
+const filesRulesQaMove = FILES_RULES_QA
+  ? (payload, at, opts = {}) => {
+      const qa = (window.__filesRulesQa ||= { calls: [] });
+      qa.calls.push({
+        from: payload?.sourceBoardId, cardIds: (payload?.cards || []).map((c) => c.id),
+        at, copy: !!opts.copy, what: opts.what || null,
+      });
+    }
+  : null;
+
 // Dev-only: add &tour=1 (best alongside &blank=1) to walk the REAL first-run
 // guided tour on a live local canvas — no Supabase / arm enrollment needed.
 // &tour=mobile walks the phones-only photos-first variant over the real puck;
@@ -2038,6 +2056,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 cards={placedOf(framedState.cards)}
                 allCards={framedState.cards}
                 onRevealUnplaced={(ids) => revealInFilesLocal(ids)}
+                onMoveFilesHere={filesRulesQaMove}
                 focusRequest={focusRequest?.boardId === currentBoard?.id ? focusRequest : null}
                 clearFocusRequest={() => setFocusRequest(null)}
                 arrows={currentState.arrows}

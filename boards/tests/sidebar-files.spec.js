@@ -1165,6 +1165,25 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     expect(moves).toEqual([['cast', 'cast-img-0'], ['film', 'film-img-0']]);
   });
 
+  test('over the board, the label says where the file goes: put there, or moved onto it from where it was', async ({ page }) => {
+    await open(page);
+    await holdDrag(page, '[data-sb-item="film:film-img-0"]', '.sbqa-canvas');
+    await expect(label(page)).toContainText('Put film-still-001.jpg here');
+    await expect(label(page)).toContainText('Onto the board, where you let go');
+    await letGo(page);
+    // Another cluster's file, shown from the tab, over this board.
+    await tab(page, 'Feature film').click();
+    await page.getByRole('menu', { name: 'Show the files of' }).getByRole('menuitemradio', { name: 'Casting' }).click();
+    await expect(photoRows(page, 'cast').first()).toBeVisible();
+    await holdDrag(page, '[data-sb-item="cast:cast-img-0"]', '.sbqa-canvas');
+    await expect(label(page)).toContainText(/Move .+ to Feature film/);
+    await expect(label(page)).toContainText('Onto the board · it leaves Casting');
+    await holdOver(page, '.sbqa-canvas', { alt: true });
+    await expect(label(page)).toContainText('Onto the board, where you let go');
+    await expect(label(page)).toContainText('The original stays in Casting');
+    await letGo(page);
+  });
+
   test('held over a folded cluster, a drag opens it', async ({ page }) => {
     await open(page);
     await row(page, 'Feature film').locator('.sb-tree-chev').click();
