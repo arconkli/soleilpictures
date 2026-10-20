@@ -15,7 +15,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
-import { emitCapi, clientIpFromHeaders } from "../_shared/meta-capi.ts";
+import { emitCapi, clientIpFromHeaders, gpcFrom } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     const userId = u.data.user.id;
     const email  = u.data.user.email || null;
 
-    let body: { event_name?: string; event_id?: string; fbp?: string; fbc?: string };
+    let body: { event_name?: string; event_id?: string; fbp?: string; fbc?: string; gpc?: boolean };
     try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
 
     const eventName = String(body.event_name || "");
@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
         clientIpAddress: clientIpFromHeaders(req),
         clientUserAgent: req.headers.get("user-agent"),
       },
+      optOut: gpcFrom(req, body),
     });
 
     return json({ ok: true }, 200);

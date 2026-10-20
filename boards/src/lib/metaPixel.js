@@ -25,6 +25,15 @@ function fbqReady() {
   return typeof window !== 'undefined' && typeof window.fbq === 'function';
 }
 
+// Global Privacy Control, honoured for everyone (2026-10-20). index.html skips
+// the pixel, so fbqReady() is false; and every body sent to a Conversions API
+// sender carries this flag, because Chrome has no GPC of its own and an
+// extension that adds it may set this property without the Sec-GPC header the
+// servers also read. src/lib/gpc.test.mjs holds both halves in place.
+export function gpcOn() {
+  try { return typeof navigator !== 'undefined' && navigator.globalPrivacyControl === true; } catch (_) { return false; }
+}
+
 // Durable _fbc fallback. The pixel sets the _fbc cookie from an fbclid on the
 // landing page, but that cookie can be lost to Safari ITP / ad blockers, and our
 // funnel spans DAYS (ad click → waitlist → approval → purchase) — longer than a
@@ -161,7 +170,7 @@ export async function trackRegistration(session, { skipAgeCheck = false } = {}) 
     await fetch(TRACK_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ event_name: 'CompleteRegistration', event_id: eventId, fbp, fbc }),
+      body: JSON.stringify({ event_name: 'CompleteRegistration', event_id: eventId, fbp, fbc, gpc: gpcOn() }),
     });
   } catch (_) {
     // Never throw into the auth flow.
@@ -196,7 +205,7 @@ export async function trackAdLead(session) {
     await fetch(TRACK_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ event_name: 'Lead', event_id: eventId, fbp, fbc }),
+      body: JSON.stringify({ event_name: 'Lead', event_id: eventId, fbp, fbc, gpc: gpcOn() }),
     });
     try { localStorage.setItem(flag, '1'); } catch (_) {}
   } catch (_) {

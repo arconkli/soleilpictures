@@ -19,7 +19,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
-import { clientIpFromHeaders, emitCapi } from "../_shared/meta-capi.ts";
+import { clientIpFromHeaders, emitCapi, gpcFrom } from "../_shared/meta-capi.ts";
 import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer, promoCodesAllowedForPlan } from "../_shared/activateCore.mjs";
 import { CREATOR_TRIAL_DAYS, creatorTrialEligibility, customerHasTrialed } from "../_shared/trialCore.mjs";
 
@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
     let plan: string;
     let fbp = "", fbc = "", icEventId = "";
     let trial = false;
+    let gpc = false;
     let surface = "", header = "", via = "";
     try {
       const body = await req.json();
@@ -97,11 +98,15 @@ Deno.serve(async (req) => {
       // Shared event_id for the InitiateCheckout CAPI mirror — the browser pixel
       // fired the same id, so Meta collapses the two into one event.
       if (typeof body.ic_event_id === "string") icEventId = body.ic_event_id.slice(0, 200);
+      // Global Privacy Control: nothing about this checkout goes to Meta, and
+      // the session says so for the two Purchase senders that read it later.
+      gpc = gpcFrom(req, body);
+      if (gpc) { fbp = ""; fbc = ""; }
     } catch { return json({ error: "invalid json" }, 400); }
 
     // IP + UA come from THIS request (the user's browser), not the later webhook.
-    const clientIp = clientIpFromHeaders(req);
-    const clientUa = (req.headers.get("user-agent") || "").slice(0, 500);
+    const clientIp = gpc ? null : clientIpFromHeaders(req);
+    const clientUa = gpc ? "" : (req.headers.get("user-agent") || "").slice(0, 500);
 
     const price = plan === "monthly" ? PRICE_MONTHLY
                 : plan === "annual"  ? PRICE_ANNUAL
@@ -288,6 +293,7 @@ Deno.serve(async (req) => {
         supabase_user_id: userId,
         plan,
         ...(trial    ? { trial: "1" }           : {}),
+        ...(gpc      ? { gpc: "1" }             : {}),
         ...(fbp      ? { fbp }                  : {}),
         ...(fbc      ? { fbc }                  : {}),
         ...(clientIp ? { client_ip: clientIp }  : {}),
@@ -344,6 +350,7 @@ Deno.serve(async (req) => {
           content_name: "Creator",
           content_category: plan,
         },
+        optOut: gpc,
       });
     }
 

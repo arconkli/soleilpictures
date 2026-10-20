@@ -98,6 +98,7 @@ const privacy = {
       heading: '5. Advertising and Analytics',
       blocks: [
         'We use the Meta Pixel and the Meta Conversions API to measure the effectiveness of our advertising and to understand how visitors arrive at and use the Service. This can involve sharing limited event data — such as page views, sign-ups, and purchases, along with identifiers like a hashed email or an ad click ID — with Meta.',
+        'If your browser sends the Global Privacy Control signal, we treat it as a request to opt out of this sharing, wherever you are: we do not load the Meta Pixel, and we do not send your sign-ups, checkouts or purchases to the Meta Conversions API.',
         'When you reach the Service from other advertising networks (for example Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, or Snapchat), we may receive and record the ad-click identifier from that link so we can attribute the visit and measure how our campaigns perform.',
         'We also use Cloudflare Web Analytics, which is designed to measure traffic without using cookies to track individuals across sites. See our Cookie Policy and the “Your Rights and Choices” section below for how to limit this.',
       ],
@@ -268,6 +269,7 @@ const terms = {
 const cookies = {
   slug: 'cookies',
   title: 'Cookie Policy',
+  updated: 'October 20, 2026',
   intro:
     'This Cookie Policy explains how Soleil Clusters uses cookies, local storage, and similar technologies (together, “cookies”) when you use the Service. For more on how we handle personal information, see our Privacy Policy.',
   sections: [
@@ -295,7 +297,7 @@ const cookies = {
       blocks: [
         'Browser settings. Most browsers let you block or delete cookies and clear local storage. Note that blocking strictly necessary cookies or storage may prevent you from signing in or using parts of the Service.',
         'Advertising opt-outs. You can manage ad preferences in your Facebook and Instagram settings, and use industry opt-out tools — such as the Digital Advertising Alliance (optout.aboutads.info) or Your Online Choices (youronlinechoices.eu) — to limit interest-based advertising.',
-        'Preference signals. Where required by law, we honor recognized browser opt-out preference signals, such as Global Privacy Control.',
+        'Preference signals. We honor Global Privacy Control wherever you are. When your browser sends it, we do not load the Meta Pixel, so it sets no Meta cookies, and we do not send your activity to Meta through the Conversions API.',
       ],
     },
     {

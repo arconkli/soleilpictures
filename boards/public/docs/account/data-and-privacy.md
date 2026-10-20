@@ -138,6 +138,14 @@ This record stays in Clusters' own database and is not sent to advertising
 partners. To build it, Clusters does not probe your graphics card, your fonts or
 your audio hardware.
 
+### Global Privacy Control
+
+If your browser sends **Global Privacy Control**, Clusters treats it as a
+request not to share what it learns about you for advertising, wherever you
+are. Meta's pixel is not loaded, and your sign-up, a purchase or the start of a
+checkout is not sent to Meta's Conversions API. What Clusters records for
+itself, described above, is the same either way.
+
 ## When Clusters asks you a question
 
 Clusters asks two questions, each **once per account**, and Send feedback is

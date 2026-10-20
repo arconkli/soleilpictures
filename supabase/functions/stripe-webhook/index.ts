@@ -183,6 +183,9 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
       plan: m.plan ?? null,
       subscription_id: subId ?? null,
     },
+    // Stripe's request carries no browser signal: create-checkout-session
+    // stamped metadata.gpc when the buyer's browser sent Global Privacy Control.
+    optOut: m.gpc === "1",
   });
 
   // First-party conversion analytics (subscription_started) — server-side so a

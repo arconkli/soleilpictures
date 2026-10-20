@@ -12,7 +12,7 @@
 import { supabase } from './supabase.js';
 import { logEvent, logEventNow } from './analytics.js';
 import { EV } from './analyticsEvents.js';
-import { getFbCookies, trackInitiateCheckout } from './metaPixel.js';
+import { getFbCookies, gpcOn, trackInitiateCheckout } from './metaPixel.js';
 import { PRICING } from './billingCopy.js';
 import { checkoutErrorKind } from './checkoutErrors.js';
 import { isGalleryActive } from './galleryState.js';
@@ -97,7 +97,7 @@ export async function startCheckout({ plan, surface, header = null, via = null, 
     const res = await fetch(CHECKOUT_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId, trial: Boolean(trial), surface, header, via }),
+      body: JSON.stringify({ plan, fbp, fbc, gpc: gpcOn(), ic_event_id: icEventId, trial: Boolean(trial), surface, header, via }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.url) {

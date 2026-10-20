@@ -201,8 +201,12 @@
     } catch (_) {}
   </script>
 
-  <!-- Meta Pixel Code -->
+  <!-- Meta Pixel Code. Not loaded at all when the browser sends Global Privacy
+       Control (2026-10-20): window.fbq then never exists, so every caller in
+       src/lib/metaPixel.js no-ops through fbqReady(), and the server senders
+       withhold the same events (supabase/functions/_shared/meta-capi.ts). -->
   <script>
+    if (navigator.globalPrivacyControl !== true) {
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -213,6 +217,7 @@
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '1671656413978924');
     fbq('track', 'PageView');
+    }
   </script>
   <!-- End Meta Pixel Code -->
 

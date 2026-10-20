@@ -39767,6 +39767,41 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Global Privacy Control",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Global Privacy Control"
+    }
+   ],
+   "id": "global-privacy-control"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If your browser sends "
+    },
+    {
+     "t": "strong",
+     "v": "Global Privacy Control",
+     "children": [
+      {
+       "t": "text",
+       "v": "Global Privacy Control"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", Clusters treats it as a request not to share what it learns about you for advertising, wherever you are. Meta's pixel is not loaded, and your sign-up, a purchase or the start of a checkout is not sent to Meta's Conversions API. What Clusters records for itself, described above, is the same either way."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "When Clusters asks you a question",
    "inline": [
