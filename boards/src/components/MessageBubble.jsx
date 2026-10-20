@@ -17,16 +17,16 @@ import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 //   msg              — full row from messages table
 //   selfId           — current user
 //   highlight        — optional substring to <mark> inside the body (search)
-//   replyMeta        — { count, lastAt } for replies count badge
-//   parent           — when this message is a reply, the parent message row
-//                      (renders as an iMessage-style preview chip above the
-//                      bubble). Null for top-level messages.
+//   parent           — when this message is a reply, the row it quotes
+//                      (an iMessage-style preview chip above the bubble), or
+//                      { id, unavailable: 'deleted' | 'missing' }. Null for
+//                      a message that isn't a reply.
 //   onJumpToMessage  — called with an id when the user clicks the parent
 //                      preview chip; parent flashes/scrolls into view.
 //   isFocused        — keyboard-nav highlight ring
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
 export function MessageBubble({
-  msg, selfId, highlight, replyMeta, parent, onJumpToMessage, isFocused, seen = false,
+  msg, selfId, highlight, parent, onJumpToMessage, isFocused, seen = false,
   isContinuation = false, // consecutive message from the same sender — drop the header
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
@@ -100,7 +100,8 @@ export function MessageBubble({
 
   // iMessage-style parent preview shown on replies. Click → parent flashes
   // and scrolls into view in the same feed.
-  const parentProfile = parent ? userProfiles.resolve(parent.sender_id) : null;
+  const parentGone = parent?.unavailable || null;
+  const parentProfile = parent && !parentGone ? userProfiles.resolve(parent.sender_id) : null;
   const parentName = parent
     ? (parentProfile?.name || parentProfile?.email || parent.sender_name
         || (parent.sender_email ? emailToFriendly(parent.sender_email) : null) || 'Member')
@@ -113,10 +114,17 @@ export function MessageBubble({
          data-msg-id={msg.id}
          id={`msg-${msg.id}`}
          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      {parent && (
+      {parent && parentGone && (
+        <div className="msg-reply-preview is-gone">
+          <span className="msg-reply-preview-body">
+            {parentGone === 'deleted' ? 'Original message deleted' : 'Original message unavailable'}
+          </span>
+        </div>
+      )}
+      {parent && !parentGone && (
         <button type="button"
                 className="msg-reply-preview"
-                title={`Reply to ${parentName}`}
+                title={`Go to ${parentName}'s message`}
                 onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
           <span className="msg-reply-preview-line" style={{ background: parentColor }} aria-hidden="true" />
           <span className="msg-reply-preview-author" style={{ color: parentColor }}>{parentName}</span>
@@ -165,7 +173,7 @@ export function MessageBubble({
           </>
         )}
         <span className={`msg-bubble-actions ${hover && !editing && !sendState ? 'is-visible' : ''}`}>
-          {onReply && <button title="Reply in thread" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
+          {onReply && <button title="Reply" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
           <button title="React" onClick={(e) => setEmojiAnchor(e.currentTarget.getBoundingClientRect())}><Icon as={Smile} size={12} /></button>
           {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
           {onCopyLink && <button title="Copy link" onClick={() => onCopyLink(msg)}><Icon as={LinkIcon} size={12} /></button>}
@@ -264,18 +272,6 @@ export function MessageBubble({
             </button>
           ))}
         </div>
-      )}
-      {/* Replies-count badge — visible when this message has replies. */}
-      {replyMeta?.count > 0 && (
-        <button className="msg-bubble-replies"
-                onClick={() => onReply?.(msg)}
-                title="Open thread">
-          <Icon as={MessageSquare} size={11} />
-          <span>{replyMeta.count} {replyMeta.count === 1 ? 'reply' : 'replies'}</span>
-          {replyMeta.lastAt && (
-            <span className="msg-bubble-replies-time">· last {formatRelTime(replyMeta.lastAt)}</span>
-          )}
-        </button>
       )}
       {seen && <div className="msg-bubble-seen">Seen</div>}
       {emojiAnchor && (

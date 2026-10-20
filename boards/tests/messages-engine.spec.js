@@ -378,3 +378,46 @@ test('a group never says Seen', async ({ page }) => {
   await page.waitForTimeout(400);
   await expect(page.locator('.msg-bubble-seen')).toHaveCount(0);
 });
+
+// ── Replies, inline (C2.7) ─────────────────────────────────────────────
+test('a reply quotes what it answers, in the conversation, with no thread view', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const original = page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: 'Thanks! Talk tomorrow.' }) }).last();
+  const originalId = await original.getAttribute('data-msg-id');
+  await original.hover();
+  await original.locator('button[title="Reply"]').click();
+  await expect(page.locator('.msg-reply-bar-who')).toHaveText(/^Replying to /);
+  await expect(page.locator('.msg-composer-input')).toBeFocused();
+  const reply = await send(page, 'same time works');
+  await expect(reply.locator('.msg-reply-preview-body')).toContainText('Thanks! Talk tomorrow.');
+  await expect(page.locator('.msg-reply-bar')).toHaveCount(0);
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.find((m) => m.body === 'same time works')?.parent_id)).toBe(originalId);
+  await expect(page.locator('.msg-bubble-replies, .msg-thread-header')).toHaveCount(0);
+});
+
+test('Escape lets a reply go and keeps the panel open', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const original = page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: 'Thanks! Talk tomorrow.' }) }).last();
+  await original.hover();
+  await original.locator('button[title="Reply"]').click();
+  await expect(page.locator('.msg-reply-bar')).toBeVisible();
+  await page.locator('.msg-composer-input').press('Escape');
+  await expect(page.locator('.msg-reply-bar')).toHaveCount(0);
+  await expect(page.locator('.msg-panel')).toBeVisible();
+});
+
+test('a reply to a deleted message says the original is gone', async ({ page }) => {
+  await open(page, 'conv=c-cast');
+  await expect(page.locator('.msg-reply-preview.is-gone')).toContainText('Original message deleted');
+});
+
+test('a quote of an old message beyond the loaded pages is read by id, and clicking it pages back to it', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  const oldId = await qa(page, () => window.__msgQa.db.messages.filter((m) => m.conversation_id === 'c-long')
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))[5].id);
+  await qa(page, (id) => window.__msgQa.peer('jon').send('c-long', 'about that early one', { parentId: id }), oldId);
+  const reply = page.locator('.msg-bubble', { has: page.locator('.msg-bubble-body', { hasText: 'about that early one' }) });
+  await expect(reply.locator('.msg-reply-preview-body')).not.toHaveText('…');
+  await reply.locator('.msg-reply-preview').click();
+  await expect(page.locator(`[data-msg-id="${oldId}"]`)).toBeInViewport({ timeout: 10000 });
+});

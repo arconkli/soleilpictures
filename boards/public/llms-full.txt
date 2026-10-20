@@ -3372,6 +3372,7 @@ Attachments — send files, and drag one from a thread straight onto a canvas to
 Markdown and auto-links — formatting is rendered, URLs unfurl
 Mentions — @ a person, board, document or card; boards and cards become navigable links
 Per-thread drafts — a half-written message survives closing the drawer
+Replies — answer one message in particular: it's quoted above your reply, and clicking the quote takes you to it
 Edits and deletes — your own messages; a deleted message goes at once, with Undo on the notice that follows
 Seen — in a direct message, “Seen” appears under your latest message once the other person has read it
 Permalinks — a link to one specific message, which opens the thread scrolled to it

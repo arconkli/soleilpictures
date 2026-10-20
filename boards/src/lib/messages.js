@@ -204,36 +204,6 @@ export async function searchMessagesInConversation({ conversationId, query, limi
   return data || [];
 }
 
-// ── Threaded replies ────────────────────────────────────────────────
-
-export async function fetchReplies({ parentId }) {
-  if (!parentId) return [];
-  const { data, error } = await supabase.from('messages')
-    .select('*')
-    .eq('parent_id', parentId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
-  if (error) { console.warn('fetchReplies', error); return []; }
-  return data || [];
-}
-
-export async function replyCountsFor(parentIds) {
-  if (!Array.isArray(parentIds) || parentIds.length === 0) return new Map();
-  const { data, error } = await supabase.from('messages')
-    .select('parent_id, created_at')
-    .in('parent_id', parentIds)
-    .is('deleted_at', null);
-  if (error) { console.warn('replyCountsFor', error); return new Map(); }
-  const out = new Map();
-  for (const r of (data || [])) {
-    const cur = out.get(r.parent_id) || { count: 0, lastAt: null };
-    cur.count++;
-    if (!cur.lastAt || r.created_at > cur.lastAt) cur.lastAt = r.created_at;
-    out.set(r.parent_id, cur);
-  }
-  return out;
-}
-
 // ── Pin / unpin ─────────────────────────────────────────────────────
 
 export async function togglePin(messageId) {

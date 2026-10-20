@@ -8,7 +8,7 @@ import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
   searchMessagesInConversation, fetchMessagesByIds, fetchReadState,
-  fetchReplies, replyCountsFor, togglePin,
+  togglePin,
   listPinnedForConversation,
   addParticipants, leaveConversation, rejoinConversation, renameConversation,
 } from '../lib/messages.js';
@@ -127,6 +127,12 @@ export function MessageThread({
     return u?.name || u?.email || 'Member';
   });
   const titleText = conversation?.title || (peerLabels.length ? peerLabels.join(', ') : 'New conversation');
+  // A first name for "Replying to …": you, or whoever wrote it.
+  const replyName = (uid) => {
+    if (uid === userId) return 'yourself';
+    const u = userProfiles.get(uid);
+    return (u?.name || u?.email || 'Member').split(/[\s@]/)[0];
+  };
 
   // ── Staying where the reader is ─────────────────────────────────────
   // useStickToBottom keeps the newest message in view while you're at the
@@ -154,7 +160,7 @@ export function MessageThread({
     // bottom starts at scrollTop 0 and must not fetch history on its way down.
     const goingUp = el.scrollTop < lastScrollTopRef.current;
     lastScrollTopRef.current = el.scrollTop;
-    if (goingUp && el.scrollTop < LOAD_OLDER_THRESHOLD_PX && !searchOpen && !replyParent) requestOlder();
+    if (goingUp && el.scrollTop < LOAD_OLDER_THRESHOLD_PX && !searchOpen) requestOlder();
   };
   const jumpToBottom = () => {
     stick.pin();
@@ -216,39 +222,19 @@ export function MessageThread({
     setSearchResults([]);
   };
 
-  // ── Threaded replies ─────────────────────────────────────────────────
-  const [replyParent, setReplyParent] = useState(null);
-  const [replies, setReplies] = useState([]);
-  const [replyCounts, setReplyCounts] = useState(new Map());
+  // ── Replies ──────────────────────────────────────────────────────────
+  // A reply sits in the conversation with what it answers quoted above it
+  // (there's no separate thread view). replyTo is what your next send answers;
+  // the composer shows it as "Replying to …", and Escape lets it go.
+  const [replyTo, setReplyTo] = useState(null);
 
+  // Search results borrow the scroller: hands off while they're up, and back
+  // to where you were after.
   useEffect(() => {
-    if (!replyParent) return;
-    let cancelled = false;
-    fetchReplies({ parentId: replyParent.id }).then(rows => {
-      if (!cancelled) setReplies(rows);
-    });
-    return () => { cancelled = true; };
-  }, [replyParent, messages.length]);
-
-  useEffect(() => {
-    if (replyParent) return;
-    const topLevelIds = (messages || []).filter(m => !m.parent_id).map(m => m.id);
-    if (topLevelIds.length === 0) { setReplyCounts(new Map()); return; }
-    if (fixture) { setReplyCounts(new Map(Object.entries(fixture.replyCounts?.[conversationId] || {}))); return; }
-    let cancelled = false;
-    replyCountsFor(topLevelIds).then(map => {
-      if (!cancelled) setReplyCounts(map);
-    });
-    return () => { cancelled = true; };
-  }, [messages, replyParent, fixture, conversationId]);
-
-  // Search results and a reply thread borrow the scroller: hands off while
-  // they're up, and back to the bottom after if that's where you were.
-  useEffect(() => {
-    if (!searchOpen && !replyParent) return undefined;
+    if (!searchOpen) return undefined;
     return stick.suspend();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchOpen, !!replyParent]);
+  }, [searchOpen]);
 
   // ── Pinned strip ─────────────────────────────────────────────────────
   const [pinned, setPinned] = useState([]);
@@ -331,12 +317,12 @@ export function MessageThread({
         // panel on the same press threw away what you were in (COMMS-10).
         if (e.defaultPrevented || e.isComposing) return;
         if (searchOpen) { closeSearch(); return; }
-        if (replyParent) { setReplyParent(null); return; }
+        if (replyTo) { setReplyTo(null); return; }
         if (escapeClosesPanel(e, '.msg-panel')) onClose?.();
         return;
       }
       if (inField) return;
-      const list = replyParent ? [replyParent, ...replies] : messages;
+      const list = messages;
       if (list.length === 0) return;
       if (e.key === 'j' || e.key === 'k') {
         e.preventDefault();
@@ -352,7 +338,7 @@ export function MessageThread({
         }
       } else if (e.key === 'r' && focusedId) {
         const m = list.find(x => x.id === focusedId);
-        if (m && !m.parent_id) { e.preventDefault(); setReplyParent(m); }
+        if (m && !m.sendState) { e.preventDefault(); setReplyTo(m); }
       } else if (e.key === 'e' && focusedId) {
         const m = list.find(x => x.id === focusedId);
         if (m && m.sender_id === userId) {
@@ -363,7 +349,7 @@ export function MessageThread({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [searchOpen, replyParent, messages, replies, focusedId, userId, onClose]);
+  }, [searchOpen, replyTo, messages, focusedId, userId, onClose]);
 
   const flashMessage = (msgId) => {
     closeSearch();
@@ -388,6 +374,30 @@ export function MessageThread({
     setSeekId(msgId);
   };
 
+  // What a reply quotes when the original isn't on screen (older than the
+  // pages loaded, or deleted): read by id, once each.
+  const [quoteRows, setQuoteRows] = useState(() => new Map());
+  useEffect(() => {
+    const want = [...new Set(messages
+      .filter(m => m.parent_id && !messagesById.has(m.parent_id) && !quoteRows.has(m.parent_id))
+      .map(m => m.parent_id))];
+    if (!want.length || fixture || !conversationId) return undefined;
+    let cancelled = false;
+    fetchMessagesByIds({ conversationId, ids: want }).then(rows => {
+      if (cancelled || rows == null) return;
+      setQuoteRows(prev => {
+        const next = new Map(prev);
+        for (const id of want) {
+          const r = rows.find(x => x.id === id);
+          next.set(id, !r ? { id, unavailable: 'missing' } : r.deleted_at ? { id, unavailable: 'deleted' } : r);
+        }
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [messages, messagesById, quoteRows, conversationId, fixture]);
+  const quoteFor = (m) => (m.parent_id ? (messagesById.get(m.parent_id) || quoteRows.get(m.parent_id) || null) : null);
+
   // ── Day dividers, runs and the "New" line (lib/messageFeed.js) ───────
   // A message continues the run above it when it's from the same sender,
   // within 5 minutes of the one before it, on the same day, and is neither a
@@ -395,8 +405,8 @@ export function MessageThread({
   // MessageBubble's isContinuation). A message still sending is laid out
   // like the one it becomes, so it never changes shape when it's saved.
   const groupedMessages = useMemo(
-    () => (replyParent ? [] : buildFeedItems(messages, { selfId: userId, newAfter: newAfter || null })),
-    [messages, replyParent, userId, newAfter],
+    () => buildFeedItems(messages, { selfId: userId, newAfter: newAfter || null }),
+    [messages, userId, newAfter],
   );
 
   // "Seen", in a DM only: under your newest message once the other person has
@@ -480,7 +490,7 @@ export function MessageThread({
       workspace_id: workspaceId,
       kind: 'user',
       body, attachments, mentions,
-      parent_id: replyParent?.id || null,
+      parent_id: replyTo?.id || null,
       sender_id: userId,
       sender_email: currentUser?.email || null,
       sender_name: currentUser?.name || currentUser?.email,
@@ -488,10 +498,11 @@ export function MessageThread({
       created_at: new Date().toISOString(),
     };
     sendOpsRef.current.set(row.id, sendLocal(row));
+    setReplyTo(null);
     stick.requestPin();
     deliverPending(row);
     return true;
-  }, [conversationId, workspaceId, replyParent, userId, currentUser, sendLocal, deliverPending, stick]);
+  }, [conversationId, workspaceId, replyTo, userId, currentUser, sendLocal, deliverPending, stick]);
 
   const retryPending = useCallback((msg) => {
     markSendState(sendOpsRef.current.get(msg.id), 'sending');
@@ -565,7 +576,7 @@ export function MessageThread({
   }, [conversationId, userId, patchLocal, settle, rollback, feedback]);
 
   const handleReply = useCallback((msg) => {
-    setReplyParent(msg);
+    setReplyTo(msg);
     setFocusedId(null);
   }, []);
 
@@ -662,26 +673,20 @@ export function MessageThread({
   };
 
   // ── Render ───────────────────────────────────────────────────────────
-  const isEmpty = !searchOpen && !replyParent && messages.length === 0;
-  const subtitle = replyParent ? 'THREAD' : (isDm ? 'DIRECT MESSAGE' : 'GROUP CHAT');
+  const isEmpty = !searchOpen && messages.length === 0;
+  const subtitle = isDm ? 'DIRECT MESSAGE' : 'GROUP CHAT';
 
-  const threadList = replyParent
-    ? [{ kind: 'msg', key: replyParent.id, msg: replyParent }, ...replies.map(r => ({ kind: 'msg', key: r.id, msg: r }))]
-    : null;
+  const showPinned = !searchOpen && pinned.length > 0;
 
-  const showPinned = !replyParent && !searchOpen && pinned.length > 0;
-
-  const draftKey = conversationId
-    ? (replyParent ? `${conversationId}:r:${replyParent.id}` : conversationId)
-    : '';
+  const draftKey = conversationId || '';
 
   return (
     <div className="msg-panel">
       <div className="msg-panel-head">
         <button
           className="msg-panel-icon"
-          onClick={() => { if (replyParent) setReplyParent(null); else onBack?.(); }}
-          title={replyParent ? 'Back to thread' : 'Back'}
+          onClick={() => onBack?.()}
+          title="Back"
           aria-label="Back"
         >
           <Icon as={ChevronLeft} size={14} />
@@ -706,18 +711,18 @@ export function MessageThread({
             <button
               className="msg-panel-name"
               title={titleText}
-              onClick={!isDm && !replyParent ? beginRename : undefined}
+              onClick={!isDm ? beginRename : undefined}
             >
               {titleText}
             </button>
           )}
           {card && (
             <div className="msg-panel-sub">
-              {replyParent ? 'Thread' : isDm ? 'Direct message' : membersLine(peerLabels)}
+              {isDm ? 'Direct message' : membersLine(peerLabels)}
             </div>
           )}
         </div>
-        {!isDm && !replyParent && (
+        {!isDm && (
           <button
             className="msg-panel-icon"
             onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
@@ -822,7 +827,7 @@ export function MessageThread({
       <div className="msg-thread-scroll">
       <div className={`msg-thread-body${card ? (isDm ? ' is-dm' : ' is-group') : ''}`} ref={scrollRef} onScroll={onScroll}>
         <div className="msg-thread-content" ref={contentRef}>
-        {!searchOpen && !replyParent && hasOlder && (
+        {!searchOpen && hasOlder && (
           <button
             type="button"
             className="msg-load-older t-meta"
@@ -870,27 +875,6 @@ export function MessageThread({
             <div className="msg-empty-title">No messages yet</div>
             <div className="msg-empty-sub">Say hi</div>
           </div>
-        ) : replyParent && threadList ? (
-          <>
-            <div className="msg-thread-header">
-              <span className="t-eyebrow">REPLYING TO</span>
-            </div>
-            {threadList.map(g => (
-              <MessageBubble key={g.key} msg={g.msg} selfId={userId}
-                isFocused={focusedId === g.msg.id}
-                onDelete={handleDelete}
-                onReact={handleReact}
-                onEdit={handleEdit}
-                onPin={handlePin}
-                onCopyLink={handleCopyLink}
-                onAttachmentDragStart={handleAttachmentDragStart}
-              />
-            ))}
-            {messages.filter(m => m.sendState && m.parent_id === replyParent.id).map(m => (
-              <MessageBubble key={m.id} msg={m} selfId={userId}
-                onRetrySend={retryPending} onDiscardSend={discardPending} />
-            ))}
-          </>
         ) : (
           <>
             {groupedMessages.map(g => g.kind === 'divider' ? (
@@ -903,9 +887,8 @@ export function MessageThread({
               <MessageBubble
                 key={g.key} msg={g.msg} selfId={userId}
                 isContinuation={g.isContinuation}
-                replyMeta={replyCounts.get(g.msg.id) || null}
-                parent={g.msg.parent_id ? messagesById.get(g.msg.parent_id) : null}
-                onJumpToMessage={flashMessage}
+                parent={quoteFor(g.msg)}
+                onJumpToMessage={jumpTo}
                 isFocused={focusedId === g.msg.id}
                 onDelete={handleDelete}
                 onAttachmentDragStart={handleAttachmentDragStart}
@@ -931,7 +914,7 @@ export function MessageThread({
         </div>
       </div>
 
-      {!searchOpen && !replyParent && !stick.stuck && (
+      {!searchOpen && !stick.stuck && (
         <button type="button" className="msg-jump-pill" onClick={jumpToBottom}
                 aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
           <Icon as={ArrowDown} size={13} />
@@ -947,7 +930,10 @@ export function MessageThread({
           workspaceId={workspaceId}
           userId={userId}
           draftKey={draftKey}
-          placeholder={replyParent ? 'Reply…' : 'Message…'}
+          placeholder="Message…"
+          replyTo={replyTo}
+          replyToName={replyTo ? replyName(replyTo.sender_id) : ''}
+          onCancelReply={() => setReplyTo(null)}
         />
       ) : (
         <ReadOnlyComposerNotice reason={readOnlyReason} />

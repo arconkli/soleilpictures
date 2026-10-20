@@ -31673,6 +31673,22 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Replies",
+      "children": [
+       {
+        "t": "text",
+        "v": "Replies"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — answer one message in particular: it's quoted above your reply, and clicking the quote takes you to it"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Edits and deletes",
       "children": [
        {

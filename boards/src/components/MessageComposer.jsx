@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
-import { Paperclip, Smile, Link as LinkIcon } from '../lib/icons.js';
+import { Paperclip, Smile, Link as LinkIcon, Reply, X } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
 import { caretRect } from '../lib/caretRect.js';
 import { EntityPicker } from './EntityPicker.jsx';
@@ -21,7 +21,12 @@ function refChipLabel(ref) {
 // EntityPicker filtered to user/board/card/doc; resolved picks become
 // pendingMentions[] (people, drives notifications) or pendingEntityRefs[]
 // (entity attachments rendered as soleil pills).
-export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…' }) {
+//   replyTo / replyToName / onCancelReply — the message the next send answers:
+//   shown above the field as "Replying to …"; Escape or × lets it go.
+export function MessageComposer({
+  onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…',
+  replyTo = null, replyToName = '', onCancelReply,
+}) {
   const [body, setBody, clearDraft] = useDraft(draftKey || `tmp:${workspaceId || 'unknown'}`);
   const feedback = useFeedback();
   const [attachments, setAttachments] = useState([]);
@@ -34,6 +39,8 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   const [emojiAnchor, setEmojiAnchor] = useState(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  // Starting a reply puts you in the field to write it.
+  useEffect(() => { if (replyTo) inputRef.current?.focus({ preventScroll: true }); }, [replyTo]);
   const lastTypingRef = useRef(0);
   // Drag-over state for the visual drop affordance. enterCount tracks
   // dragenter/leave nesting so the highlight doesn't flicker when the
@@ -202,6 +209,19 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}>
       {dragOver && <div className="msg-composer-drop">Drop to attach</div>}
+      {replyTo && (
+        <div className="msg-reply-bar">
+          <Icon as={Reply} size={13} />
+          <span className="msg-reply-bar-text">
+            <span className="msg-reply-bar-who">Replying to {replyToName}</span>
+            <span className="msg-reply-bar-body">{(replyTo.body || '').replace(/\s+/g, ' ').trim() || 'Attachment'}</span>
+          </span>
+          <button type="button" className="msg-reply-bar-x" aria-label="Cancel the reply" title="Cancel (Esc)"
+                  onClick={() => { onCancelReply?.(); inputRef.current?.focus({ preventScroll: true }); }}>
+            <Icon as={X} size={12} />
+          </button>
+        </div>
+      )}
       {hasPayload && (
         <div className="msg-composer-attachments">
           {attachments.map((a, i) => (
@@ -238,6 +258,8 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
           }
         }}
         onKeyDown={(e) => {
+          // Escape lets a reply go first; the panel stays open.
+          if (e.key === 'Escape' && replyTo && !mention) { e.preventDefault(); onCancelReply?.(); return; }
           if (e.key === 'Enter' && !e.shiftKey && !mention) { e.preventDefault(); send(); }
         }}
       />

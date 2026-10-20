@@ -66,6 +66,7 @@ export {
   Copy,
   ArrowUUpLeft as Undo,
   ArrowUUpRight as Redo,
+  ArrowBendUpLeft as Reply,
   CircleNotch as Loader2,
   Folder,
   FolderOpen,

@@ -16610,6 +16610,26 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   min-height: 100%;
 }
 .msg-thread-end { height: 1px; flex-shrink: 0; }
+/* "Replying to …": above the composer while a reply is being written. */
+.msg-reply-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 4px 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+.msg-reply-bar-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.msg-reply-bar-who { font: 600 12px/1.25 var(--font-sans); color: var(--ink-1); }
+.msg-reply-bar-body { font: 400 12px/1.25 var(--font-sans); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-reply-bar-x {
+  width: 26px; height: 26px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.msg-reply-bar-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+/* A reply whose original was deleted or can't be read. */
+.msg-reply-preview.is-gone { cursor: default; }
+.msg-reply-preview.is-gone .msg-reply-preview-body { font-style: italic; color: var(--ink-2); }
 /* "Seen": a DM, under your newest message once they've read it. */
 .msg-bubble-seen {
   margin: 3px 0 0 32px;
@@ -16853,28 +16873,6 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 }
 .msg-bubble--reply { /* leave room for the preview chip above */ }
 
-/* Replies-count badge — appears under a parent message that has
-   replies. Click → opens thread mode.                                */
-.msg-bubble-replies {
-  appearance: none;
-  display: inline-flex; align-items: center; gap: 6px;
-  margin-left: 32px; margin-top: 2px;
-  padding: 4px 8px;
-  background: var(--bg-3);
-  border: 1px solid var(--line-2);
-  color: var(--ink-1);
-  border-radius: var(--radius);
-  cursor: pointer;
-  font: 600 11.5px/1 var(--font-sans);
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-}
-.msg-bubble-replies:hover { background: var(--bg-hov); border-color: var(--line-3); }
-.msg-bubble-replies svg { color: var(--ink-2); }
-.msg-bubble-replies-time {
-  color: var(--ink-3);
-  font-weight: 500;
-}
-
 /* Markdown elements rendered by renderMessageBody. */
 .msg-bubble-body p.msg-line { margin: 0; }
 .msg-bubble-body p.msg-line + p.msg-line { margin-top: 6px; }
@@ -16956,13 +16954,6 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .msg-pinned-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-
-/* Thread-mode header eyebrow. */
-.msg-thread-header {
-  padding: 0 4px 4px;
-  border-bottom: 1px solid var(--line-1);
-  margin-bottom: 4px;
-}
 
 /* Channel-row unread count pill (right side, replaces timestamp). Unread
    counts are inverse ink everywhere (sidebar, this row, the phone nav badge,

@@ -243,7 +243,8 @@ test.describe('Messages in the sidebar\'s card', () => {
     const theirs = await rect(panel(page).locator('.msg-bubble:not(.msg-bubble--mine) .msg-bubble-body').last());
     expect(p.right - mine.right).toBeLessThan(24);                                       // yours on the right
     expect(theirs.left - p.left).toBeGreaterThan(40);                                    // theirs past the marks
-    await expect(panel(page).locator('.msg-bubble-replies')).toContainText('3 replies');
+    // Replies sit in the conversation, quoting what they answer: no thread badge.
+    await expect(panel(page).locator('.msg-bubble-replies')).toHaveCount(0);
     const send = panel(page).locator('.msg-composer-send');
     expect(await send.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgb(255, 165, 0)');
   });
