@@ -245,6 +245,7 @@ import { setCoverMosaics } from './lib/coverMosaic.js';
 import { makeImportDeps } from './lib/importDeps.js';
 import { IMPORT_LIMITS, importLimitsFor } from './lib/importTree.js';
 import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs, importJobsSnapshot, importJobEntry } from './lib/importJobs.js';
+import { openImportGuide, isImportGuideOpen } from './lib/importGuide.js';
 import { ImportTray } from './components/ImportTray.jsx';
 import { ImportAskDialog } from './components/ImportAskDialog.jsx';
 import { ImportZipDialog } from './components/ImportZipDialog.jsx';
@@ -6460,6 +6461,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }),
     ask: (model) => new Promise((resolve) => setBulkAsk({ model, resolve })),
     askZip: (model) => new Promise((resolve) => setZipAsk({ model, resolve })),
+    // A zip dropped anywhere while the tray's guide is open is what it asked for.
+    unpackZips: () => isImportGuideOpen(),
     upgrade: (offer, { stoppedBy } = {}) => {
       if (offer === 'addon') window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'import' } }));
       else if (stoppedBy === 'storage') pitchStorageGate({ force: true });
@@ -6552,6 +6555,26 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   };
   const uploadFolderFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ pickedFiles: files, source: 'picker' }, 'Import into…') : null);
   const uploadZipsFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ zips: files, askZips: false, source: 'zip' }, 'Unpack into…') : null);
+  // The tray's guide (lib/importGuide.js): the cluster its drops go into,
+  // what fits there now, and its drops and picks, which import as the Upload
+  // menu's do (a zip unpacks without asking: that is what the guide is for).
+  const importGuideProps = () => {
+    const here = currentSurface === 'board' && currentBoard?.id && canEditBoard(currentBoard.id) ? currentBoard : null;
+    const w = bulkImportEnv().who(here?.id);
+    const st = sidebarStorage;
+    return {
+      target: here ? here.name || 'this cluster' : null,
+      room: {
+        own: here ? w.own : workspace?.created_by === user?.id,
+        plan: w.plan,
+        // Nothing until the plan is known: a paid plan still loading reads as free.
+        cardsLeft: myTier.tier == null ? null : (myTier.effectiveCardLimit || DEMO_CARD_LIMIT) - (Number(myTier.demoCardCount) || 0),
+        bytesLeft: st && !st.loading && !st.error && st.remaining != null ? Number(st.remaining) : null,
+      },
+      canFolder: !mobileShell,
+      onImport: (input) => uploadTreeFromSidebar({ ...input, askZips: false, source: 'guide' }, 'Import into…'),
+    };
+  };
   // Imports a reload or a closed tab stopped, offered in the tray once this
   // workspace's clusters are known (a job whose clusters are gone isn't). The
   // tray's store outlives a workspace switch, which remounts this: the
@@ -10254,6 +10277,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 cardsUsed: myTier.demoCardCount,
                 cardLimit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
                 storage: sidebarStorage,
+                onOpenGuide: bulkImportAllowed() ? () => openImportGuide() : null,
               }}
               onOpenPlan={() => openSettings('billing')}
               onUpload={uploadFromSidebar}
@@ -11140,7 +11164,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {/* A bulk import (lib/importStart.js): the tray, or its corner chip. */}
-      {bulkImportAllowed() && <ImportTray aboveNav={mobileShell} />}
+      {bulkImportAllowed() && <ImportTray aboveNav={mobileShell} guide={importGuideProps()} />}
       {bulkAsk && (
         <ImportAskDialog
           model={bulkAsk.model}

@@ -49,4 +49,28 @@ test.describe('bulk import entry wiring', () => {
     const s = read('src/App.jsx');
     expect(s).toMatch(/onImportTree=\{bulkImportAllowed\(\) \? \(input, \{ boardId \}\) => importFolder\(\{\s*\.\.\.input, boardId, canAttemptFiles: bulkImportEnv\(\)\.who\(boardId\)\.plan !== 'free', boardWasEmpty: false,\s*\}\) : null\}/);
   });
+
+  test("the tray's guide: opened from the Upload menu only where bulk import is on, it imports as the menu does", () => {
+    const s = read('src/App.jsx');
+    // The Upload menu's last item, through ClusterSidebar's meterProps spread.
+    const meter = s.slice(s.indexOf('meterProps={{'), s.indexOf('onOpenPlan={() => openSettings('));
+    expect(meter).toContain('onOpenGuide: bulkImportAllowed() ? () => openImportGuide() : null,');
+    // A zip dropped anywhere while it is open is what it asked for: no question.
+    const start = s.indexOf('const bulkImportEnv = useCallback(() => ({');
+    const env = s.slice(start, s.indexOf('}), [workspace?.id, workspace?.created_by', start));
+    expect(env).toContain('unpackZips: () => isImportGuideOpen(),');
+    expect(env).toContain('askZip: (model) => new Promise((resolve) => setZipAsk({ model, resolve })),');
+    // Its drops and picks go where the Upload menu's do: the open cluster
+    // when it can be edited, else one the person picks.
+    const props = s.slice(s.indexOf('const importGuideProps = () => {'), s.indexOf('// Imports a reload or a closed tab stopped'));
+    expect(props).toContain("onImport: (input) => uploadTreeFromSidebar({ ...input, askZips: false, source: 'guide' }, 'Import into…'),");
+    expect(props).toMatch(/const here = currentSurface === 'board' && currentBoard\?\.id && canEditBoard\(currentBoard\.id\) \? currentBoard : null;/);
+    expect(props).toContain('canFolder: !mobileShell,');
+    expect(s).toContain('{bulkImportAllowed() && <ImportTray aboveNav={mobileShell} guide={importGuideProps()} />}');
+    // The tray reads a drop on the guide while it is being dispatched.
+    const tray = read('src/components/ImportTray.jsx');
+    const drop = tray.slice(tray.indexOf('const onDrop = (e) => {'), tray.indexOf('return (', tray.indexOf('const onDrop = (e) => {')));
+    expect(drop).toMatch(/const entries = captureDropEntries\(e\.dataTransfer\);\s*const handles = captureDropHandles\(e\.dataTransfer\);/);
+    expect(drop.indexOf('captureDropEntries')).toBeLessThan(drop.indexOf('send('));
+  });
 });

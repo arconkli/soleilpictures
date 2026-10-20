@@ -9,6 +9,9 @@
 //   walk(entries, { signal, onProgress })          a drop (folderWalk)
 //   walkPicked(files, { onProgress })              a picker's files
 //   askZip(model) → 'unpack' | 'keep' | 'cancel'    the zip question (zipAskCopy)
+//   unpackZips() → true                              unpack without asking: the
+//                                                    tray's guide is open, and
+//                                                    that is what it asked for
 //   who(boardId) → { own, plan, ownerName, workspaceName, targetName,
 //                    trialOffer, addon, interval, firstPayment, tier }
 //   makeDeps({ targetBoardId, canAttemptFiles, source, kind, sourceRef, placeTops })
@@ -99,8 +102,8 @@ export async function startBulkImport(input, env) {
   let zips = [...Array.from(input.zips || []), ...given.filter(isZipFile)];
   const extra = given.filter((f) => !isZipFile(f));
   if (zips.length) {
-    let unpack = canUnpackZips() && input.askZips === false;
-    if (canUnpackZips() && input.askZips !== false) {
+    let unpack = canUnpackZips() && (input.askZips === false || !!env.unpackZips?.());
+    if (canUnpackZips() && !unpack) {
       const choice = await env.askZip(zipAskCopy({ zips: zips.map((z) => ({ name: z.name, size: z.size })), groups: zipGroups(zips) }));
       env.log(EV.IMPORT_JOB, { source: `bulk_${source}`, board_id: input.boardId, phase: 'zip_question', choice, n_zips: zips.length });
       if (choice === 'cancel') return { loose: [], key: null };

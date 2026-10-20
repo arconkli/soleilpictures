@@ -310,6 +310,17 @@ test('picked as a zip to unpack: no question', async () => {
   assert.equal(server.s.appended, 2);
 });
 
+test("a zip dropped while the tray's guide is open unpacks without the question, and logs none", async () => {
+  const { env, store, seen, server } = fakeEnv({ zipAnswer: 'keep' });
+  env.unpackZips = () => true;
+  const out = await dropFiles(env, [nightZip(), photo()]);
+  assert.equal(seen.zipAsks.length, 0);
+  assert.deepEqual(out.loose.map((f) => f.name), ['p.jpg']);
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  assert.equal(server.s.appended, 2);
+  assert.ok(!seen.logs.some(([n, p]) => n === 'import_job' && p === 'zip_question'));
+});
+
 test('a ".zip" that isn\'t one is added as a file, and the real one still comes in', async () => {
   const { env, store, server } = fakeEnv();
   const fake = new File(['only words'], 'Notes.zip', { type: 'application/zip' });

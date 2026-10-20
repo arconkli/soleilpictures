@@ -8,6 +8,7 @@ import { SidebarMeter } from '../components/sidebar/SidebarMeter.jsx';
 import { askCopy, zipAskCopy } from '../lib/importCopy.js';
 import { UnplacedOffer } from '../components/UnplacedOffer.jsx';
 import { ImportWaitRow } from '../components/ImportWaitRow.jsx';
+import { openImportGuide } from '../lib/importGuide.js';
 
 // Dev-only bulk-import QA page (?importqa=1), no backend. Renders the tray, its
 // chip and the ask dialog from fixtures shaped like lib/importCopy.test.mjs.
@@ -16,10 +17,14 @@ import { ImportWaitRow } from '../components/ImportWaitRow.jsx';
 //          (reload / redrop: stopped by a reload, with and without a kept folder)
 //   ?min=1 starts folded to the chip   ?phone=1 lifts it over the phone nav
 //   ?theme=light|dark   ?dialog=free|creator|trial|guest|zip-takeout|zip-one|zip-many
-//   ?menu=1 opens the sidebar's Upload menu
+//   ?menu=1 opens the sidebar's Upload menu (its last item opens the guide)
+//   ?guide=1 opens the tray's guide: &app=drive|photos|dropbox|onedrive|icloud|other
+//          &target=0 (no open cluster: drops ask which)   &plan=free|trial|paid|guest|full
+//          (over ?state's import, which shows again when the guide closes)
 //   ?land=night|wait|coming|plain   an imported cluster's empty canvas
 //   ?row=1 adds a cluster's Files, with its "waiting for room" row while ?state waits
-// window.__importQa.put / .drop add and take away imports, as App does.
+// window.__importQa.put / .drop add and take away imports, as App does;
+// .openGuide opens the guide. The guide's drops and picks log "[importqa] guide".
 // Imported only behind main.jsx's `import.meta.env.DEV &&` guard.
 
 const GB = 1024 ** 3;
@@ -137,6 +142,25 @@ function RowQa() {
   );
 }
 
+// The tray's guide prop, as App builds it (importGuideProps).
+const ROOMS = {
+  free: { own: true, plan: 'free', cardsLeft: 12, bytesLeft: 3.8 * GB },
+  full: { own: true, plan: 'free', cardsLeft: 0, bytesLeft: 2.8 * GB },
+  trial: { own: true, plan: 'trial', cardsLeft: null, bytesLeft: 87.6 * GB },
+  paid: { own: true, plan: 'paid', cardsLeft: null, bytesLeft: 412 * GB },
+  guest: { own: false, plan: 'free', cardsLeft: 12, bytesLeft: 3.8 * GB },
+};
+const guideProps = () => ({
+  target: params.get('target') === '0' ? null : 'Studio',
+  room: ROOMS[params.get('plan')] || ROOMS.free,
+  canFolder: params.get('phone') !== '1',
+  onImport: (input) => {
+    const [kind, list] = input.zips ? ['zips', input.zips] : input.pickedFiles ? ['folder', input.pickedFiles]
+      : input.entries ? ['entries', input.entries] : ['files', input.files || []];
+    console.log('[importqa] guide', kind, list.length);
+  },
+});
+
 function MenuQa() {
   const ref = useRef(null);
   useEffect(() => {
@@ -149,7 +173,8 @@ function MenuQa() {
     <div className="sbf-card is-files" ref={ref} style={{ position: 'fixed', left: 8, bottom: 8, width: 312, height: params.get('short') === '1' ? 140 : 560, display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 1 }} />
       <SidebarMeter cardsUsed={38} cardLimit={50} storage={{ used: 1.2 * 1024 ** 3, quota: 5 * 1024 ** 3 }}
-                    onUpload={log('files')} onUploadFolder={log('folder')} onUploadZips={log('zips')} />
+                    onUpload={log('files')} onUploadFolder={log('folder')} onUploadZips={log('zips')}
+                    onOpenGuide={params.get('noguide') === '1' ? null : () => openImportGuide()} />
     </div>
   );
 }
@@ -165,16 +190,22 @@ export function ImportQaHarness() {
     return () => document.body.removeAttribute('data-sb-files');
   }, [theme]);
 
+  const guide = params.get('guide') === '1';
   useEffect(() => {
-    if (dialog || params.get('menu') === '1' || params.get('land')) return undefined;
+    if (dialog || params.get('menu') === '1' || params.get('land') || (guide && !params.get('state'))) return undefined;
     putImportJob('qa', { ...fixture(state), act: (id) => console.log('[importqa] act', id) });
     return () => dropImportJob('qa');
-  }, [state, dialog]);
+  }, [state, dialog, guide]);
 
   useEffect(() => {
-    window.__importQa = { put: putImportJob, drop: dropImportJob };
+    // Over ?state's import, once the tray has seen it: an import that appears
+    // while the guide is open is one the guide started, and closes it.
+    const later = guide && params.get('state') ? setTimeout(() => openImportGuide(params.get('app')), 50) : null;
+    if (guide && !later) openImportGuide(params.get('app'));
+    window.__importQa = { put: putImportJob, drop: dropImportJob, openGuide: openImportGuide };
     document.getElementById('root')?.setAttribute('data-importqa-ready', '1');
-  }, []);
+    return () => clearTimeout(later);
+  }, [guide]);
 
   return (
     <div className="app sb-files is-floating-chrome" style={{ position: 'fixed', inset: 0, background: 'var(--bg-0, #0b0b0d)' }}>
@@ -188,12 +219,12 @@ export function ImportQaHarness() {
         : dialog && DIALOGS[dialog]
         ? <ImportAskDialog model={askCopy(DIALOGS[dialog])} onChoose={(id) => console.log('[importqa] choose', id)} />
         : params.get('menu') === '1'
-        ? <MenuQa />
+        ? <><MenuQa /><ImportTray guide={guideProps()} /></>
         : params.get('land')
         ? <LandQa which={params.get('land')} />
         : <>
             {params.get('row') === '1' && <RowQa />}
-            <ImportTray aboveNav={params.get('phone') === '1'} initialMinimized={params.get('min') === '1'} />
+            <ImportTray aboveNav={params.get('phone') === '1'} initialMinimized={params.get('min') === '1'} guide={guideProps()} />
           </>}
     </div>
   );

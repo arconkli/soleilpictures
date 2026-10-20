@@ -12,13 +12,16 @@
 //
 // Upload opens a menu (files, a folder, zips) when onUploadFolder or
 // onUploadZips is given; with neither it opens the file picker directly.
+// onOpenGuide adds the menu's last item, "Bring files from another app…",
+// which opens the import tray's guide (lib/importGuide.js); without it the
+// menu ends on a line saying the same in short.
 
 import { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { fmtBytes } from '../../lib/storageLabel.js';
 import { Icon } from '../Icon.jsx';
-import { Upload, FolderOpen, FileZip } from '../../lib/icons.js';
+import { Upload, FolderOpen, FileZip, CloudArrowDown } from '../../lib/icons.js';
 
 const NEAR = 0.9;
 
@@ -32,7 +35,7 @@ function storageText(used, quota) {
 
 export function SidebarMeter({
   isPaid = false, cardsUsed = 0, cardLimit = null, storage = null,
-  onOpenPlan, onUpload, onUploadFolder, onUploadZips, uploadTitle = 'Upload files',
+  onOpenPlan, onUpload, onUploadFolder, onUploadZips, onOpenGuide = null, uploadTitle = 'Upload files',
 }) {
   const inputRef = useRef(null);
   const folderRef = useRef(null);
@@ -132,7 +135,14 @@ export function SidebarMeter({
                   </button>
                 )}
                 <div className="sbf-upsep" role="separator" />
-                <div className="sbf-upnote">Moving from Google Drive or Dropbox? Download it as a zip, or pick its folder on your computer.</div>
+                {onOpenGuide ? (
+                  <button type="button" className="sbf-upitem" role="menuitem" onClick={() => { setOpen(false); onOpenGuide(); }}>
+                    <Icon as={CloudArrowDown} size={16} weight="regular" />
+                    <span className="sbf-upitem-l"><b>Bring files from another app…</b><small>Google Drive, Dropbox and more</small></span>
+                  </button>
+                ) : (
+                  <div className="sbf-upnote">Moving from Google Drive or Dropbox? Download it as a zip, or pick its folder on your computer.</div>
+                )}
               </div>, document.body)}
             <input ref={inputRef} type="file" multiple hidden
                    onChange={(e) => { const files = [...(e.target.files || [])]; if (files.length) onUpload(files); }} />
