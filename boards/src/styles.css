@@ -16460,6 +16460,10 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    row of reactions, then one action a row, each a finger's size. Over a doc
    overlay the panel is lifted, so the sheet goes above it. */
 body[data-doc-overlay='1'] .sheet-root.msg-sheet { z-index: 2147483604; }
+/* A phone's width wherever it opens: on a tablet a full-width sheet spread
+   the reactions a screen apart. */
+.sheet-root.msg-sheet { align-items: center; }
+.sheet-root.msg-sheet .sheet-panel { width: 100%; max-width: 480px; }
 .msg-sheet-quote {
   padding: 2px 4px 12px;
   color: var(--ink-2); font: 400 14px/1.4 var(--font-sans);

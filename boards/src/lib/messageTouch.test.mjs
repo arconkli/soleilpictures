@@ -26,7 +26,9 @@ test('the sheet: reactions, then Reply, Copy text, Copy link, Pin, and Edit and 
   assert.match(sheet, /const editable = isMine && withinEditWindow\(msg\.created_at\) && !msg\.sendState;/);
   assert.match(sheet, /\{editable && <button/);
   assert.match(sheet, /\{isMine && onDelete && \(/);
-  assert.match(sheet, /<Sheet open onClose=\{onClose\} snap="half" className="msg-sheet">/);
+  // Sized to what's in it (half the screen hid Edit and Delete on a landscape tablet).
+  assert.match(sheet, /<Sheet open onClose=\{onClose\} className="msg-sheet">/);
+  assert.match(read('../styles.css'), /\.sheet-root\.msg-sheet \.sheet-panel \{ width: 100%; max-width: 480px; \}/);
 });
 
 test('holding a conversation opens its menu, without opening the conversation too', () => {

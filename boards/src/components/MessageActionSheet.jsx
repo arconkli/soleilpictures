@@ -19,7 +19,7 @@ export function MessageActionSheet({
   const quote = String(msg.body || '').replace(/\s+/g, ' ').trim() || 'Attachment';
   const run = (fn) => () => { onClose(); fn?.(msg); };
   return (
-    <Sheet open onClose={onClose} snap="half" className="msg-sheet">
+    <Sheet open onClose={onClose} className="msg-sheet">
       <div className="msg-sheet-quote">{quote}</div>
       <div className="msg-sheet-reactions" role="group" aria-label="React">
         {QUICK_EMOJIS.map((emoji) => (
