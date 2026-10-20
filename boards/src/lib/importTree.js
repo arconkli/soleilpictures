@@ -41,6 +41,16 @@ import { openEntry } from './zipRead.js';
 // stored file is a slice of the zip and has no such limit.
 export const IMPORT_LIMITS = Object.freeze({ maxFiles: 50000, maxDepth: 12, maxClusters: 5000, maxInflateBytes: 4 * 1024 ** 3 });
 
+// On a device with a hard memory ceiling (device.lowMemoryDevice: iOS, or 4 GB
+// of RAM or less) that ceiling is far lower. M3 (2026-10-20): WebKit, which
+// keeps a big Blob in memory where Chromium spills it to disk, held ~0.45 GB
+// for a 256 MiB entry and ~1 GB for a 1 GiB one, and an iPhone tab is killed
+// at 1–2 GB.
+export const LOW_MEMORY_INFLATE_BYTES = 256 * 1024 ** 2;
+export function importLimitsFor({ lowMemory = false } = {}) {
+  return lowMemory ? Object.freeze({ ...IMPORT_LIMITS, maxInflateBytes: LOW_MEMORY_INFLATE_BYTES }) : IMPORT_LIMITS;
+}
+
 const MIME = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
   heic: 'image/heic', heif: 'image/heif', avif: 'image/avif', svg: 'image/svg+xml',
@@ -177,6 +187,9 @@ export function treeFromZip(merged, zips, { limits = IMPORT_LIMITS, open = openE
       size,
       lastModified,
       type,
+      // Inflated whole before it uploads, where a stored file is a slice of
+      // the zip: the job lets one big one at a time hold that memory.
+      inflates: !!f.entry && f.entry.method !== 0,
       open: async () => {
         if (f.entry?.method !== 0 && size > (limits.maxInflateBytes ?? Infinity)) throw new Error('Too large to unpack here.');
         return new File([await open(zips[f.zip], f.entry)], name, { type, lastModified });

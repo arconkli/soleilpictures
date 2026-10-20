@@ -243,7 +243,7 @@ import { findStoppedImports, loadImportSeed, lockImport, matchStopped } from './
 import { saveImportHandles, loadImportHandles, dropImportHandles, pruneImportHandles } from './lib/importHandles.js';
 import { setCoverMosaics } from './lib/coverMosaic.js';
 import { makeImportDeps } from './lib/importDeps.js';
-import { IMPORT_LIMITS } from './lib/importTree.js';
+import { IMPORT_LIMITS, importLimitsFor } from './lib/importTree.js';
 import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs, importJobsSnapshot, importJobEntry } from './lib/importJobs.js';
 import { ImportTray } from './components/ImportTray.jsx';
 import { ImportAskDialog } from './components/ImportAskDialog.jsx';
@@ -6423,6 +6423,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     drop: dropImportJob,
     walk: (entries, opts) => walkEntries(entries, { limits: IMPORT_LIMITS, ...opts }),
     walkPicked: (files, opts) => treeFromRelativePaths(files, { limits: IMPORT_LIMITS, ...opts }),
+    // A zip's files are inflated in the tab: far less of that on a phone.
+    limits: importLimitsFor({ lowMemory: lowMemoryDevice() }),
     // Whose plan the files count against, and what could make room on it —
     // the same reading as the drop preflight's capSource.
     who: (boardId) => {

@@ -19,7 +19,7 @@
 //   openBoard(id) · removeImport({ topIds, title })
 //   wake(fn) → off                                   focus, billing changes
 //   every(ms, fn) → off · log(name, props) · toast(t) · now()
-//   clusterCost
+//   clusterCost · limits (importLimitsFor: the inflate ceiling for this device)
 // and for an import a reload stopped (lib/importResume.js, offerStopped):
 //   stoppedFor({ boardId, tops }) → { jobId, key } | null   one of these folders here
 //   loadSeed(jobId) → seed                           what its ledger says came in
@@ -137,7 +137,7 @@ export async function startBulkImport(input, env) {
         : await env.walkPicked(input.pickedFiles, { onProgress }));
       walkedSoFar = { files: walked?.files || 0, folders: walked?.clusters || 0 };
     }
-    if (zips.length && !stopped) unzipped = await readZips(zips, { signal: reader.signal, onProgress: show });
+    if (zips.length && !stopped) unzipped = await readZips(zips, { signal: reader.signal, onProgress: show, limits: env.limits });
   } catch (e) {
     env.drop(key);
     env.toast({ type: 'error', message: `The ${kind} could not be read: ${e?.message || e}`, ttl: 8000 });

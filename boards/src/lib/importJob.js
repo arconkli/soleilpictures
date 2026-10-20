@@ -74,6 +74,12 @@ export const JOB_LIMITS = Object.freeze({
   ledgerBatch: 1000,      // rows per import_items_put (its own cap)
 });
 
+// A file inflated out of a zip (importTree's `inflates`) is held whole in
+// memory until it has gone up: M3 (2026-10-20) measured a 1 GiB one at ~0.55
+// GB in Chromium, which spills big Blobs to disk, and ~1 GB in WebKit, which
+// doesn't. Past this size one uploads at a time, however many slots are free.
+export const HEAVY_INFLATE_BYTES = 64 * 1024 ** 2;
+
 const isCapHit = (e) => e?.status === 402 || e?.code === 'limit_reached';
 const isDriveFull = (e) => [402, 403].includes(e?.code) || [402, 403].includes(e?.status) || e?.reason === 'over_quota';
 const isRetryable = (e) => e?.status === 503 || e?.status === 429 || e?.retry === true
@@ -200,6 +206,16 @@ export function createImportJob({
   let seq = 0;
   const failed = [];
   const abort = new AbortController();
+  // The turn for a heavy inflated file (HEAVY_INFLATE_BYTES): a chain, each
+  // upload's release opening the next.
+  let heavyTail = Promise.resolve();
+  const heavyTurn = () => {
+    let free;
+    const mine = new Promise((resolve) => { free = resolve; });
+    const ready = heavyTail;
+    heavyTail = heavyTail.then(() => mine);
+    return ready.then(() => free);
+  };
 
   // Progress: bytes in flight per file, the batch's unfinished files, and a
   // smoothed rate for the ETA.
@@ -480,8 +496,11 @@ export function createImportJob({
 
   async function uploadOne(it, boardId, id) {
     const rel = it.file.relPath;
+    const release = it.file.inflates && it.bytes >= HEAVY_INFLATE_BYTES ? await heavyTurn() : null;
     inflight.set(rel, 0);
     try {
+      // Cancelled while it waited: nothing to inflate.
+      if (release && stopFlag === 'cancel') throw new DOMException('Cancelled', 'AbortError');
       const file = await it.file.open();
       const up = await deps.upload(it, file, {
         boardId, cardId: id, signal: abort.signal,
@@ -514,6 +533,8 @@ export function createImportJob({
       emitSoon();
       maybeFlush();
       return 'failed';
+    } finally {
+      release?.();
     }
   }
 

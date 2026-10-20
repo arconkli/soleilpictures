@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createImportJob, pendingCard, finishFields, spotFor } from './importJob.js';
+import { createImportJob, pendingCard, finishFields, spotFor, HEAVY_INFLATE_BYTES } from './importJob.js';
 import { planBulk } from './importPlan.js';
 
 const file = (relPath, size = 10) => ({
@@ -416,4 +416,58 @@ test('tiles: clusters from an earlier run are left alone, and a cover that fails
   await settled();
   assert.equal(end.status, 'done');
   assert.deepEqual(fTiles.map((t) => t[0]), ['Night', 'Night/Stills', 'Wardrobe']);
+});
+
+// Takeout: big clips inflated out of the zip, a small one, and a stored clip.
+const heavyRoot = (f) => ({ name: null, relPath: '', files: [], dirs: [dir('Takeout', [
+  f('Takeout/a.mov', HEAVY_INFLATE_BYTES, true), f('Takeout/b.mov', HEAVY_INFLATE_BYTES + 1, true),
+  f('Takeout/c.jpg', 10, true), f('Takeout/d.mov', HEAVY_INFLATE_BYTES, false),
+  f('Takeout/e.mov', HEAVY_INFLATE_BYTES, true), f('Takeout/g.jpg', 10, false),
+])] });
+const isHeavy = (it) => it.file.inflates && it.bytes >= HEAVY_INFLATE_BYTES;
+
+test('files inflated out of a zip past HEAVY_INFLATE_BYTES go up one at a time; the rest keep their slots', async () => {
+  const live = new Set();
+  let most = 0;
+  let alongside = 0;
+  const h = harness({
+    uploadGate: async (item) => {
+      live.add(item);
+      const heavy = [...live].filter(isHeavy).length;
+      most = Math.max(most, heavy);
+      if (heavy && live.size > heavy) alongside++;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      live.delete(item);
+    },
+  });
+  const f = (rel, size, inflates) => ({ ...file(rel, size), inflates });
+  const job = createImportJob({ plan: planBulk(heavyRoot(f), { clusterCost: 0, classify }), deps: h.deps, clusterCost: 0, limits: { uploads: 4 } });
+  const end = await job.start();
+  assert.equal(end.status, 'done');
+  assert.equal(uploads(h.log).length, 6);
+  assert.equal(most, 1, 'never two big inflated files at once');
+  assert.ok(alongside > 0, 'small and stored files went up beside one');
+});
+
+test('a cancel while a heavy file waits its turn never inflates it', async () => {
+  const opened = [];
+  let entered;
+  const inFirst = new Promise((resolve) => { entered = resolve; });
+  const h = harness({
+    uploadGate: (item, signal) => {
+      entered();
+      return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError'))));
+    },
+  });
+  const f = (rel, size, inflates) => ({ ...file(rel, size), inflates, open: async () => { opened.push(rel); return { name: rel }; } });
+  const root = { name: null, relPath: '', files: [], dirs: [dir('Takeout', [
+    f('Takeout/a.mov', HEAVY_INFLATE_BYTES, true), f('Takeout/b.mov', HEAVY_INFLATE_BYTES, true),
+  ])] };
+  const job = createImportJob({ plan: planBulk(root, { clusterCost: 0, classify }), deps: h.deps, clusterCost: 0, limits: { uploads: 2 } });
+  const run = job.start();
+  await inFirst;
+  const end = await job.cancel();
+  await run;
+  assert.equal(end.status, 'cancelled');
+  assert.deepEqual(opened, ['Takeout/a.mov']);
 });

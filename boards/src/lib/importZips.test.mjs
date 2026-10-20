@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isZipFile, zipGroups, readZips } from './importZips.js';
-import { treeFromZip, IMPORT_LIMITS } from './importTree.js';
+import { treeFromZip, IMPORT_LIMITS, importLimitsFor, LOW_MEMORY_INFLATE_BYTES } from './importTree.js';
 import { storedZip } from './zipFixture.mjs';
 
 const names = (node) => node.files.map((f) => f.name);
@@ -75,4 +75,27 @@ test('a compressed file over the inflate ceiling fails with a reason; a stored o
   assert.equal((await flat.open()).name, 'flat.mov');
   assert.deepEqual(opened, [0], 'the big one is never inflated');
   assert.ok(IMPORT_LIMITS.maxInflateBytes >= 1024 ** 3);
+});
+
+test('a phone unpacks far less: a compressed file over 256 MiB fails there and opens elsewhere', async () => {
+  assert.equal(importLimitsFor(), IMPORT_LIMITS);
+  const low = importLimitsFor({ lowMemory: true });
+  assert.equal(LOW_MEMORY_INFLATE_BYTES, 256 * 1024 ** 2);
+  assert.equal(low.maxInflateBytes, LOW_MEMORY_INFLATE_BYTES);
+  assert.deepEqual({ ...low, maxInflateBytes: 0 }, { ...IMPORT_LIMITS, maxInflateBytes: 0 }, 'nothing else changes');
+  const merged = {
+    rootName: 'Takeout', dirs: [], dropped: {},
+    files: [
+      { relPath: 'clip.mov', size: 300 * 1024 ** 2, lastModified: 1, zip: 0, entry: { method: 8 } },
+      { relPath: 'flat.mov', size: 300 * 1024 ** 2, lastModified: 1, zip: 0, entry: { method: 0 } },
+    ],
+  };
+  const open = async () => new Blob(['x']);
+  const phone = treeFromZip(merged, [{}], { limits: low, open }).root.dirs[0].files;
+  const desk = treeFromZip(merged, [{}], { open }).root.dirs[0].files;
+  await assert.rejects(phone[0].open(), /Too large to unpack here/);
+  assert.equal((await phone[1].open()).name, 'flat.mov', 'a stored file is a slice, on a phone too');
+  assert.equal((await desk[0].open()).name, 'clip.mov');
+  // What the job reads to let one big inflated file up at a time.
+  assert.deepEqual(phone.map((f) => f.inflates), [true, false]);
 });

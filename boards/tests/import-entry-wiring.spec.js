@@ -29,6 +29,12 @@ test.describe('bulk import entry wiring', () => {
     expect(drop).toMatch(/if \(out\?\.loose\?\.length\) onDropFilesToCluster\?\.\(out\.loose, \{ boardId: board\.id \}\)/);
   });
 
+  test("App gives the zip reader this device's inflate ceiling: a phone unpacks far less", () => {
+    const s = read('src/App.jsx');
+    const env = s.slice(s.indexOf('const bulkImportEnv = useCallback(() => ({'), s.indexOf('makeDeps: ({ targetBoardId'));
+    expect(env).toContain('limits: importLimitsFor({ lowMemory: lowMemoryDevice() }),');
+  });
+
   test('App hands the sidebar the bulk import for a folder or zips dropped on a cluster row, only where it is on', () => {
     const s = read('src/App.jsx');
     const sidebar = s.slice(s.indexOf('<ClusterSidebar'), s.indexOf('uploadsByBoard={sidebarUploads}'));

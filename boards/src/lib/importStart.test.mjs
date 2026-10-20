@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { startBulkImport, pokeImport, offerStopped } from './importStart.js';
 import { matchStopped } from './importResume.js';
 import { storedZip } from './zipFixture.mjs';
+import { IMPORT_LIMITS } from './importTree.js';
 
 const jpg = (name, size = 10) => ({ name, size, lastModified: 1, type: 'image/jpeg' });
 // A walked folder as folderWalk returns it: Night (a, b) / Stills (c, d), plus a loose file.
@@ -276,6 +277,14 @@ test('a dropped zip is asked about; Unpack makes its folders the tree and the ph
   assert.equal(seen.deps.kind, 'zip');
   assert.deepEqual(seen.deps.sourceRef.zips, ['Night.zip']);
   assert.deepEqual(seen.logs.filter(([n]) => n === 'import_job').map(([, p]) => p).slice(0, 1), ['zip_question']);
+});
+
+test("the env's limits reach the zip reader (a phone's inflate ceiling, importLimitsFor)", async () => {
+  const { env, store, server } = fakeEnv({ zipAnswer: 'unpack' });
+  env.limits = { ...IMPORT_LIMITS, maxFiles: 1 };
+  const out = await dropFiles(env, [nightZip()]);
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  assert.equal(server.s.appended, 1, 'the tree stopped at the one file the limits allow');
 });
 
 test('Add as zip files: nothing is read and no tray appears; the zips come back to be added as they are', async () => {
