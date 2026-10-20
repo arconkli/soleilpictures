@@ -84,6 +84,20 @@ export function sidebarFilesAllowed() {
   try { return window.localStorage.getItem(SIDEBAR_FILES_DEV_FLAG) === '1'; } catch (_) { return false; }
 }
 
+// Bulk import (lib/importJob.js): a whole folder tree or zip export becomes
+// clusters, its files land in Files, and an import bigger than the plan brings
+// what fits while the rest waits. Its files land in the sidebar's Files, so it
+// opens only where that does; on dev it is opt-in on top, localStorage
+// soleil.dev.bulkImport = '1'. Everywhere else a dropped folder keeps today's
+// path until the release flips this with its docs.
+export const BULK_IMPORT_DEV_FLAG = 'soleil.dev.bulkImport';
+export function bulkImportAllowed() {
+  if (!sidebarFilesAllowed()) return false;
+  if (onPreviewHost()) return true;
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(BULK_IMPORT_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
 // The board's ground drawn on a canvas in step with the camera, and a mouse
 // wheel's zoom that glides (lib/canvasGround.js). Held like the files sidebar:
 // on for the preview deploy, and on dev only when opted in with localStorage

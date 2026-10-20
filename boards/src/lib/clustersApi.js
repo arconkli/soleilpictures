@@ -39,6 +39,8 @@ export const moveFiles = (body) => post('move', body);
 export const appendCards = (body) => post('append', body);
 // { boardId, cardIds } → { removed: [card, ...] }, whole, for the Undo.
 export const removeCards = (body) => post('remove', body);
+// { boardId, patches: [{ id, fields }] } → { updated } — only PATCHABLE fields.
+export const patchCards = (body) => post('patch', body);
 
 // The words a failed call leaves in a toast.
 export function failureMessage(r, verb = 'move') {

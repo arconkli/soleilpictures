@@ -33,6 +33,43 @@ export const CLUSTER_FILE_CEILING = 2000;
 // null / undefined / NaN / Infinity / non-numbers → unlimited; negatives → 0.
 const budget = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : Infinity);
 
+// The BUDGET FILL rule above, on its own: the longest run of planned `items`
+// that fits. planBulk runs it for the dialog; importJob runs it again each
+// time the plan grows, with `created` naming clusters already made (paid for).
+// parentOf: Map cluster key → parent key. Returns { fit, waiting, stoppedBy,
+// fitBytes, paid } — paid holds `created` plus every cluster the fit pays for.
+export function fillInOrder(items, {
+  parentOf, clusterCost = CLUSTER_CARD_COST, cardsLeft = Infinity, bytesLeft = Infinity, created = null,
+} = {}) {
+  const paid = new Set(created || []);
+  let cards = budget(cardsLeft);
+  let bytes = budget(bytesLeft);
+  const fit = [];
+  const waiting = [];
+  let stoppedBy = null;
+  let fitBytes = 0;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const unpaid = [];
+    if (clusterCost > 0) {
+      for (let k = it.clusterKey; k != null && !paid.has(k); k = parentOf.get(k)) unpaid.push(k);
+    }
+    const cardCost = 1 + unpaid.length * clusterCost;
+    const byteCost = it.bytes + (it.kind === 'video' || it.kind === 'audio' ? MEDIA_SLACK_BYTES : 0);
+    if (cardCost > cards || byteCost > bytes) {
+      stoppedBy = cardCost > cards ? 'cards' : 'storage';
+      for (let j = i; j < items.length; j++) waiting.push(items[j]);
+      break;
+    }
+    cards -= cardCost;
+    bytes -= byteCost;
+    fitBytes += it.bytes;
+    for (const k of unpaid) paid.add(k);
+    fit.push(it);
+  }
+  return { fit, waiting, stoppedBy, fitBytes, paid };
+}
+
 export function planBulk(root, {
   clusterCost = CLUSTER_CARD_COST, cardsLeft = Infinity, bytesLeft = Infinity,
   ceiling = CLUSTER_FILE_CEILING, classify = classifyDropFile, canAttemptFiles = true,
@@ -92,32 +129,7 @@ export function planBulk(root, {
 
   // 3. Fill the budget in reading order.
   const parentOf = new Map(clusters.map((c) => [c.key, c.parentKey]));
-  const paid = new Set();
-  let cards = budget(cardsLeft);
-  let bytes = budget(bytesLeft);
-  const fit = [];
-  const waiting = [];
-  let stoppedBy = null;
-  let fitBytes = 0;
-  for (let i = 0; i < planned.length; i++) {
-    const it = planned[i];
-    const unpaid = [];
-    if (clusterCost > 0) {
-      for (let k = it.clusterKey; k != null && !paid.has(k); k = parentOf.get(k)) unpaid.push(k);
-    }
-    const cardCost = 1 + unpaid.length * clusterCost;
-    const byteCost = it.bytes + (it.kind === 'video' || it.kind === 'audio' ? MEDIA_SLACK_BYTES : 0);
-    if (cardCost > cards || byteCost > bytes) {
-      stoppedBy = cardCost > cards ? 'cards' : 'storage';
-      for (let j = i; j < planned.length; j++) waiting.push(planned[j]);
-      break;
-    }
-    cards -= cardCost;
-    bytes -= byteCost;
-    fitBytes += it.bytes;
-    for (const k of unpaid) paid.add(k);
-    fit.push(it);
-  }
+  const { fit, waiting, stoppedBy, fitBytes, paid } = fillInOrder(planned, { parentOf, clusterCost, cardsLeft, bytesLeft });
 
   let totalBytes = 0;
   for (const it of planned) totalBytes += it.bytes;
