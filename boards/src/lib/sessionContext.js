@@ -114,6 +114,9 @@ export function readSessionContext(g = globalThis, extra = {}) {
     langs,
     region: edge.region,
     net_kind: edge.net_kind,
+    // Where those two came from: the page's tag, or (set by analytics.js) the
+    // Worker's /api/ctx for a session that started on `/`, which no tag reaches.
+    edge_src: edge.region || edge.net_kind ? 'meta' : null,
 
     vw: round10(safe(() => g.innerWidth)),
     vh: round10(safe(() => g.innerHeight)),

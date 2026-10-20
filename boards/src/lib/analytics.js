@@ -27,7 +27,8 @@ import { BUILD_SHA } from './buildInfo.js';
 import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
 import { createArmCache } from './armCache.js';
 import { readSessionContext, contextDue, CTX_SENT_KEY } from './sessionContext.js';
-import { featureFlags } from './appHost.js';
+import { featureFlags, onProdHost, onPreviewHost } from './appHost.js';
+import { parseEdgeContext } from './edgeContext.js';
 import { getWebviewInfo } from './webview.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
@@ -628,8 +629,31 @@ function sendContextIfDue(row) {
   try { localStorage.setItem(CTX_SENT_KEY, ctxSentFor); } catch (_) {}
   try {
     const props = readSessionContext(window, { flags: featureFlags(), webview: getWebviewInfo() });
-    enqueue(buildRow(EV.SESSION_CONTEXT, props));
+    const ctxRow = buildRow(EV.SESSION_CONTEXT, props);
+    enqueue(ctxRow);
+    if (!props.edge_src && (onProdHost() || onPreviewHost())) fillEdgeContext(ctxRow);
   } catch (_) { /* context must never cost the row that called for it */ }
+}
+
+// `/` is answered by the static assets before the Worker runs, so a session
+// that starts there has no soleil-ctx tag. Ask the Worker for the same codes and
+// fill them into the row while it waits in the queue (the flush is 5s off). A
+// row already beaconed by then goes without, as it would have anyway.
+function fillEdgeContext(ctxRow) {
+  try {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = setTimeout(() => { try { ctl?.abort(); } catch (_) {} }, 3000);
+    fetch('/api/ctx', { cache: 'no-store', credentials: 'omit', signal: ctl?.signal })
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((text) => {
+        const edge = parseEdgeContext(text);
+        if (!edge.region && !edge.net_kind) return;
+        Object.assign(ctxRow.props, edge, { edge_src: 'api' });
+        if (queue.includes(ctxRow)) saveQueue();
+      })
+      .catch(() => {})
+      .finally(() => clearTimeout(timer));
+  } catch (_) {}
 }
 
 // Loss used to be invisible: the queue silently dropped its oldest rows and a

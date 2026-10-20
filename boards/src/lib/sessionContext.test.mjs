@@ -36,7 +36,7 @@ test('a desktop browser reads as itself', () => {
   }), { now: NOW, flags: { sidebarFiles: true, bulkImport: false }, webview: { is_webview: false, webview_app: null } });
   assert.deepEqual(ctx, {
     tz: 'America/Los_Angeles', tz_offset_min: -420, lang: 'en-US', langs: ['en-US', 'en', 'fr-CA'],
-    region: 'US-CA', net_kind: 'isp',
+    region: 'US-CA', net_kind: 'isp', edge_src: 'meta',
     vw: 1440, vh: 800, sw: 1510, sh: 980, dpr: 2, gamut: 'p3',
     pointer: 'fine', any_fine: true, any_coarse: false, hover: true, touch_points: 0,
     scheme: 'dark', theme: 'dark', reduced_motion: false, contrast: null, forced_colors: false,
@@ -69,6 +69,7 @@ test('a phone, installed, on a slow connection, in an in-app browser', () => {
   assert.equal(ctx.webview, true);
   assert.equal(ctx.webview_app, 'instagram');
   assert.equal(ctx.region, null, 'no meta, no region');
+  assert.equal(ctx.edge_src, null);
   assert.deepEqual(ctx.ff, {});
 });
 
@@ -154,8 +155,18 @@ test('analytics.js sends it from enqueue, once, with the holds and the webview',
     'marked sent before the row is built, so the context row cannot call for another');
   assert.match(send, /localStorage\.setItem\(CTX_SENT_KEY, ctxSentFor\)/);
   assert.match(send, /readSessionContext\(window, \{ flags: featureFlags\(\), webview: getWebviewInfo\(\) \}\)/);
-  assert.match(send, /enqueue\(buildRow\(EV\.SESSION_CONTEXT, props\)\)/);
+  assert.match(send, /const ctxRow = buildRow\(EV\.SESSION_CONTEXT, props\);\s*enqueue\(ctxRow\);/);
   assert.equal(CTX_SENT_KEY, 'soleil_ctx_session');
+});
+
+test('a session that started on / asks the Worker, only on our own web hosts, through the same reader', () => {
+  const src = readFileSync(new URL('./analytics.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(!props\.edge_src && \(onProdHost\(\) \|\| onPreviewHost\(\)\)\) fillEdgeContext\(ctxRow\);/,
+    'never from dev or the native shells, and never when the tag was there');
+  const fill = src.slice(src.indexOf('function fillEdgeContext(ctxRow) {'));
+  assert.match(fill, /fetch\('\/api\/ctx', \{ cache: 'no-store', credentials: 'omit'/);
+  assert.match(fill, /const edge = parseEdgeContext\(text\);/, 'the answer passes the same checks as the tag');
+  assert.match(fill, /Object\.assign\(ctxRow\.props, edge, \{ edge_src: 'api' \}\)/);
 });
 
 test('every hold in appHost.js is read into ff', () => {

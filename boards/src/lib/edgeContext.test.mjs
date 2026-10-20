@@ -99,6 +99,8 @@ test('the reader takes back exactly what the writer can write', () => {
 test('the Worker hands request.cf to edgeContext and to nothing else', () => {
   const src = readFileSync(new URL('../worker.js', import.meta.url), 'utf8');
   assert.match(src, /edgeContextMeta\(request\.cf\)/, 'the wrapper builds the tag from request.cf');
+  assert.match(src, /if \(url\.pathname === '\/api\/ctx' && request\.method === 'GET'\) \{\s*return new Response\(edgeContext\(request\.cf\), \{\s*headers: \{ 'content-type': 'text\/plain; charset=utf-8', 'cache-control': 'no-store' \}/,
+    '/api/ctx answers the same codes, uncached');
   assert.ok(!/asOrganization/.test(src), 'the Worker must not read the network name itself');
   assert.ok(!/\bcf\.(city|postalCode|latitude|longitude|metroCode)\b/.test(src), 'no city or coordinates');
 });

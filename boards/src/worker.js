@@ -96,7 +96,7 @@ const RELOAD_BY = '2026-10-21T00:00:00Z';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { OLD_PARTY_HOST, OLD_PARTY_GONE_AFTER } from './lib/partyDefaults.js';
 import { partyFetch } from './lib/partyFetch.js';
-import { edgeContextMeta } from './lib/edgeContext.js';
+import { edgeContext, edgeContextMeta } from './lib/edgeContext.js';
 
 // ── Per-route SEO metadata ──────────────────────────────────────────────
 // The SPA serves ONE index.html for every path (single-page-application
@@ -727,6 +727,15 @@ const worker = {
         return json({ // json() defaults to no-store
           sha: BUILD_SHA, date: BUILD_DATE, party: PARTY_HOST || null,
           minBuild: MIN_CLIENT_BUILD, reloadBy: RELOAD_BY,
+        });
+      }
+      // The soleil-ctx codes (lib/edgeContext.js) for a page that could not carry
+      // the tag: `/` is answered by the static assets before this Worker runs,
+      // so a session that starts there asks here, once. The same string the tag
+      // would have held: codes only, never the network's name.
+      if (url.pathname === '/api/ctx' && request.method === 'GET') {
+        return new Response(edgeContext(request.cf), {
+          headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
         });
       }
       // IndexNow ownership key file (Bing/Yandex verify our submissions here).
