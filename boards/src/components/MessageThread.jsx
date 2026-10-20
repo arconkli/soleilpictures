@@ -44,6 +44,9 @@ import { isDmConversation } from '../lib/conversationState.js';
 import { useMessagesLook } from './messagesLook.js';
 import { membersLine } from '../lib/messagesCard.js';
 import { MessagesFixtureContext } from '../lib/messagesFixture.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { sendShape, errorCode } from '../lib/messageEvents.js';
 
 // Dragging an attachment out of a message onto a canvas makes it a card.
 function attachmentDragStart(e, att) {
@@ -283,6 +286,9 @@ export function MessageThread({
   const [searching, setSearching] = useState(false);
   const searchInputRef = useRef(null);
   const searchSeqRef = useRef(0);
+  // The search's last settled query, logged once as the search ends: its
+  // length and what it found, never the words (msg_search).
+  const searchStatRef = useRef(null);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -291,17 +297,31 @@ export function MessageThread({
     const seq = ++searchSeqRef.current;
     const t = setTimeout(async () => {
       let rows = [];
+      let failed = false;
       try {
         rows = await searchMessagesInConversation({ conversationId, query: q, limit: 50 });
-      } catch (e) { console.warn('search failed', e); }
+      } catch (e) { failed = true; console.warn('search failed', e); }
       if (seq !== searchSeqRef.current) return;
+      searchStatRef.current = { q_len: q.length, results_n: rows.length, failed };
       setSearchResults(rows);
       setSearching(false);
     }, 150);
     return () => clearTimeout(t);
   }, [searchQuery, searchOpen, conversationId]);
 
+  const endSearch = (picked) => {
+    const stat = searchStatRef.current;
+    searchStatRef.current = null;
+    if (stat) logEvent(EV.MSG_SEARCH, { ...stat, picked });
+  };
+  // Closing the panel mid-search ends it too.
+  useEffect(() => () => {
+    const stat = searchStatRef.current;
+    if (stat) logEvent(EV.MSG_SEARCH, { ...stat, picked: false });
+  }, []);
+
   const closeSearch = () => {
+    endSearch(false);
     setSearchOpen(false);
     setSearchQuery('');
     setSearchResults([]);
@@ -543,9 +563,14 @@ export function MessageThread({
   // (the composer already cleared, so the bubble owns recovery) plus a toast
   // in case you've scrolled away.
   const sendOpsRef = useRef(new Map()); // message id → its send's write
+  const sendTriesRef = useRef(new Map()); // message id → { n: attempts, at: when the last began } (msg_send)
 
   const deliverPending = useCallback(async (row) => {
     const opId = sendOpsRef.current.get(row.id);
+    const tries = sendTriesRef.current.get(row.id) || { n: 0, at: 0 };
+    tries.n += 1;
+    tries.at = Date.now();
+    sendTriesRef.current.set(row.id, tries);
     let saved = null;
     try {
       saved = await sendMessage({
@@ -563,12 +588,15 @@ export function MessageThread({
       if (!saved) {
         console.warn('send failed', e);
         markSendState(opId, 'failed');
+        logEvent(EV.MSG_SEND, { ok: false, attempt: tries.n, ms: Date.now() - tries.at, code: errorCode(e), ...sendShape(row) });
         feedback.toast({ type: 'error', message: "Message didn't send — it's kept in the thread with a Retry button." });
         return;
       }
     }
     sendOpsRef.current.delete(row.id);
+    sendTriesRef.current.delete(row.id);
     confirmSend(opId, saved);
+    logEvent(EV.MSG_SEND, { ok: true, attempt: tries.n, ms: Date.now() - tries.at, ...sendShape(row) });
     // Tell the others once it's saved, without waiting on the socket: a slow
     // or failed broadcast must never make a saved message look unsent. They
     // re-read it by id; the payload carries nothing else.
@@ -608,6 +636,8 @@ export function MessageThread({
   const discardPending = useCallback((msg) => {
     rollback(sendOpsRef.current.get(msg.id));
     sendOpsRef.current.delete(msg.id);
+    logEvent(EV.MSG_ACTION, { action: 'discard', attempts: sendTriesRef.current.get(msg.id)?.n || 0 });
+    sendTriesRef.current.delete(msg.id);
   }, [rollback]);
 
   const handleDelete = useCallback(async (msg) => {
@@ -619,10 +649,12 @@ export function MessageThread({
     } catch (e) {
       console.warn('delete failed', e);
       rollback(opId);
+      logEvent(EV.MSG_ACTION, { action: 'delete', ok: false, code: errorCode(e) });
       feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });
       return;
     }
     settle(opId);
+    logEvent(EV.MSG_ACTION, { action: 'delete', ok: true });
     // Peers only learn of a change already in the thread from a nudge:
     // messages aren't in the realtime publication (COMMS-04).
     broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
@@ -633,10 +665,12 @@ export function MessageThread({
         try {
           await restoreMessage({ id: msg.id });
           settle(back);
+          logEvent(EV.MSG_ACTION, { action: 'undo_delete', ok: true });
           broadcastConversationChange({ conversationId, changed: 'restore', id: msg.id });
         }
         catch (e) {
           rollback(back);
+          logEvent(EV.MSG_ACTION, { action: 'undo_delete', ok: false, code: errorCode(e) });
           feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' });
         }
       },
@@ -651,23 +685,28 @@ export function MessageThread({
     } catch (e) {
       console.warn('edit failed', e);
       rollback(opId);
+      logEvent(EV.MSG_ACTION, { action: 'edit', ok: false, code: errorCode(e) });
       feedback.toast({ type: 'error', message: 'Could not save your edit — try again.' });
       return false;
     }
     settle(opId);
+    logEvent(EV.MSG_ACTION, { action: 'edit', ok: true });
     broadcastConversationChange({ conversationId, changed: 'edit', id: msg.id });
     return true;
   }, [conversationId, patchLocal, settle, rollback, feedback]);
 
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
+    const action = Array.isArray(msg.reactions?.[emoji]) && msg.reactions[emoji].includes(userId) ? 'unreact' : 'react';
     const opId = patchLocal(msg.id, { reactions: toggleReactionMap(msg.reactions, emoji, userId) });
     try {
       const reactions = await toggleReaction({ messageId: msg.id, emoji, userId });
       settle(opId, reactions && typeof reactions === 'object' ? { patch: { reactions } } : {});
+      logEvent(EV.MSG_ACTION, { action, ok: true });
       broadcastConversationChange({ conversationId, changed: 'react', id: msg.id });
     } catch (e) {
       rollback(opId);
+      logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
       feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
     }
   }, [conversationId, userId, patchLocal, settle, rollback, feedback]);
@@ -675,6 +714,7 @@ export function MessageThread({
   const handleReply = useCallback((msg) => {
     setReplyTo(msg);
     setFocusedId(null);
+    logEvent(EV.MSG_ACTION, { action: 'reply' });
   }, []);
 
   // ↑ in an empty composer: edit your last message (the `e` key's event),
@@ -690,6 +730,7 @@ export function MessageThread({
   }, [messages, userId]);
 
   const handlePin = useCallback(async (msg) => {
+    const action = msg.is_pinned ? 'unpin' : 'pin';
     const opId = patchLocal(msg.id, { is_pinned: !msg.is_pinned });
     try {
       const isPinned = await togglePin(msg.id);
@@ -697,10 +738,12 @@ export function MessageThread({
       broadcastConversationChange({ conversationId, changed: 'pin', id: msg.id });
       const rows = await listPinnedForConversation({ conversationId });
       setPinned(rows);
+      logEvent(EV.MSG_ACTION, { action, ok: true });
     } catch (e) {
       console.warn('pin failed', e);
       rollback(opId);
       feedback.toast({ type: 'error', message: msg.is_pinned ? "Couldn't unpin the message — try again." : "Couldn't pin the message — try again." });
+      logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
     }
   }, [conversationId, patchLocal, settle, rollback, feedback]);
 
@@ -709,8 +752,10 @@ export function MessageThread({
     const url = `${window.location.origin}${window.location.pathname}?m=${msg.id}`;
     try {
       await navigator.clipboard.writeText(url);
+      logEvent(EV.MSG_ACTION, { action: 'copy_link', ok: true });
       feedback.toast({ type: 'success', message: 'Link copied' });
     } catch (_) {
+      logEvent(EV.MSG_ACTION, { action: 'copy_link', ok: false });
       feedback.toast({ type: 'error', message: "Couldn't copy the link — your browser blocked the clipboard." });
     }
   }, [feedback]);
@@ -734,14 +779,17 @@ export function MessageThread({
     heldAtRef.current = Date.now();
     swallowNextClick({ held: true });
     setSheetId(id);
+    logEvent(EV.MSG_ACTION, { action: 'sheet' });
   }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   const sheetMsg = sheetId ? messagesById.get(sheetId) || null : null;
   const onThreadContextMenu = (e) => { if (Date.now() - heldAtRef.current < 1500) e.preventDefault(); };
   const handleCopyText = useCallback(async (msg) => {
     try {
       await navigator.clipboard.writeText(msg.body || '');
+      logEvent(EV.MSG_ACTION, { action: 'copy_text', ok: true });
       feedback.toast({ type: 'success', message: 'Copied' });
     } catch (_) {
+      logEvent(EV.MSG_ACTION, { action: 'copy_text', ok: false });
       feedback.toast({ type: 'error', message: "Couldn't copy — your browser blocked the clipboard." });
     }
   }, [feedback]);
@@ -986,7 +1034,7 @@ export function MessageThread({
             {searchResults.map(m => {
               const parts = snippetParts(m.body, searchQuery);
               return (
-                <button key={m.id} type="button" className="msg-search-result" onClick={() => jumpTo(m.id)}>
+                <button key={m.id} type="button" className="msg-search-result" onClick={() => { endSearch(true); jumpTo(m.id); }}>
                   <span className="msg-search-result-head">
                     <span className="msg-search-result-who">{senderName(m)}</span>
                     <RelTime className="msg-search-result-time" iso={m.created_at} />

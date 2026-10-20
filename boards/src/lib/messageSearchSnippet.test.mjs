@@ -32,7 +32,8 @@ test('search results are plain rows: one button each, no message bubble inside',
   const thread = readFileSync(new URL('../components/MessageThread.jsx', import.meta.url), 'utf8');
   const rows = thread.slice(thread.indexOf('{searchResults.map('), thread.indexOf(') : isEmpty && loadFailed ? ('));
   assert.match(rows, /className="msg-search-result"/);
-  assert.match(rows, /onClick=\{\(\) => jumpTo\(m\.id\)\}/);
+  // The jump also ends the search as one that found what it was for (msg_search).
+  assert.match(rows, /onClick=\{\(\) => \{ endSearch\(true\); jumpTo\(m\.id\); \}\}/);
   assert.doesNotMatch(rows, /<MessageBubble/);
   assert.match(rows, /snippetParts\(m\.body, searchQuery\)/);
 });

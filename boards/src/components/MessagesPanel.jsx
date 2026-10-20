@@ -31,7 +31,8 @@ const NO_PARTICIPANTS = [];
 //   workspaceId, currentUser
 //   openConversationId, setOpenConversationId — controlled by App.jsx so a
 //     toast's "Open" can open a thread (which thread is on screen, for
-//     toast suppression, is threadAttention.js's job)
+//     toast suppression, is threadAttention.js's job). An open says how it
+//     came about as a second argument, for App's msg_conv_open.
 //   initialOpenConversationId — set by permalink resolver to deep-link
 //   jumpToMessageId           — passed through to MessageThread
 //   pendingOpenPeerId         — when set, find/create a DM with this
@@ -65,7 +66,7 @@ export function MessagesPanel({
   // First-mount permalink: open whatever the parent says is open.
   useEffect(() => {
     if (initialOpenConversationId) {
-      setOpenConversationId(initialOpenConversationId);
+      setOpenConversationId(initialOpenConversationId, 'link');
       setPendingJump(jumpToMessageId ? { convId: initialOpenConversationId, messageId: jumpToMessageId } : null);
     }
   }, [initialOpenConversationId, jumpToMessageId, setOpenConversationId]);
@@ -108,7 +109,7 @@ export function MessagesPanel({
         return;
       }
       if (convId) {
-        setOpenConversationId(convId);
+        setOpenConversationId(convId, 'person');
         onRefreshRequestedRef.current?.();
       }
       onPeerConsumedRef.current?.();
@@ -155,7 +156,7 @@ export function MessagesPanel({
   }, [card, find, visibleConversations, participantsByConv, userId]);
 
   const handleConversationCreated = useCallback((convId) => {
-    setOpenConversationId(convId);
+    setOpenConversationId(convId, 'new');
     onRefreshRequested?.();
   }, [onRefreshRequested]);
 
@@ -351,7 +352,7 @@ export function MessagesPanel({
             participants={participantsByConv.get(conv.conversation_id) || []}
             unreadCount={unreadByConv.get(conv.conversation_id) || 0}
             currentUserId={userId}
-            onOpen={() => setOpenConversationId(conv.conversation_id)}
+            onOpen={() => setOpenConversationId(conv.conversation_id, 'list')}
             onMenu={(x, y) => setRowMenu({ convId: conv.conversation_id, x, y })}
           />
         ))}

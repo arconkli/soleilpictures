@@ -246,6 +246,15 @@ export const EV = Object.freeze({
   COMMENT_CREATE:          'comment_create',              // a comment was posted {board_id,is_reply,anchor_kind,has_mention,len_bucket} — never the text
   COMMENT_RESOLVE:         'comment_resolve',             // a comment thread was resolved or reopened {board_id,resolved}
 
+  // ── Messages (components/MessageThread + MessagesPanel; App logs the opens) ──
+  // Shape only, never words: a length is a bucket, a search is its length, and
+  // no name, title or emoji is recorded (lib/messageEvents.js).
+  MSG_PANEL:               'msg_panel',                   // the Messages panel {action:'open', unread, convs} | {action:'close', ms (open for)} — only an open someone made: a reload with it already open logs neither
+  MSG_CONV_OPEN:           'msg_conv_open',               // a conversation opened {via:'list'|'toast'|'person' (a face's DM)|'new'|'link'|'other', kind:'dm'|'group'|'solo'|null (just made), people, unread}
+  MSG_SEND:                'msg_send',                    // each send attempt's answer {ok, attempt (1 = first try, 2+ = Retry), ms (to the server's answer), code (failure), chars:'xs'|'s'|'m'|'l', attach_n, mention_n, reply}
+  MSG_ACTION:              'msg_action',                  // {action:'delete'|'undo_delete'|'edit'|'react'|'unreact'|'pin'|'unpin'|'copy_link'|'copy_text' (each with ok, and code on a failed write)|'reply'|'discard' (a failed send dropped; attempts)|'sheet' (press and hold opened the action sheet)}
+  MSG_SEARCH:              'msg_search',                  // a search within a conversation ended {q_len, results_n, failed, picked (a result was opened)} — the last settled query, once per search
+
   // ── In-product engagement (breadth / depth / intent / loop / return — batched, high-signal) ──
   BOARD_OPEN:              'board_open',                  // opened/navigated to a board {board_id,depth,is_subboard}
   CARD_EDIT:               'card_edit',                   // edited a card's content (once per card per session) {kind,board_id}

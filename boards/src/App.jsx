@@ -61,6 +61,7 @@ import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolle
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { conversationKind } from './lib/messageEvents.js';
 import { isDefaultClusterName } from './lib/hints.js';
 import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
 import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
@@ -1245,7 +1246,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // open a thread. Toast suppression for the thread
   // you're looking at is threadAttention.js's job (it knows when the panel is
   // closed or the tab is hidden), not this id's.
-  const [openConversationId, setOpenConversationId] = useState(null);
+  const [openConversationId, setOpenConversationIdState] = useState(null);
+  // An open says how it came about (the panel passes 'list', 'new', 'person'
+  // or 'link'; a toast's Open is 'toast'), for msg_conv_open below.
+  const convOpenViaRef = useRef(null);
+  const setOpenConversationId = React.useCallback((id, via) => {
+    convOpenViaRef.current = id ? (via || null) : null;
+    setOpenConversationIdState(id);
+  }, []);
   const conversationList = useConversationList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
   const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByConv: conversationList.unreadByConv });
   useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
@@ -1263,9 +1271,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // OS notifications, publishes to inboxBus for optimistic list updates.
   const openConversationFromToast = React.useCallback((convId) => {
     if (!convId) return;
-    setOpenConversationId(convId);
+    setOpenConversationId(convId, 'toast');
     setTweak('showMessages', true);
-  }, [setTweak]);
+  }, [setOpenConversationId, setTweak]);
+
+  // Which conversations get opened, how, and with how much waiting in them.
+  // Who is in one, never who: people is a count.
+  useEffect(() => {
+    if (!openConversationId) return;
+    const via = convOpenViaRef.current || 'other';
+    convOpenViaRef.current = null;
+    const conv = conversationList.conversations.find(c => c.conversation_id === openConversationId);
+    const people = conv?.active_participant_count ?? null;
+    logEvent(EV.MSG_CONV_OPEN, {
+      via, kind: conversationKind(people), people,
+      unread: conversationList.unreadByConv.get(openConversationId) || 0,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openConversationId]);
   useInboxLive({
     userId: user.id,
     onOpenConversation: openConversationFromToast,
@@ -1289,6 +1312,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // nothing. Opening either one closes the other, whichever path opened it.
   useEffect(() => {
     if (tweak.showMessages) setNotifOpen(false);
+  }, [tweak.showMessages]);
+
+  // msg_panel: an open someone made (false → true) and how long it stayed.
+  // The panel's state survives a reload, so one already open at mount is
+  // neither an open nor, later, a close.
+  const msgPanelRef = useRef({ open: !!tweak.showMessages, at: 0 });
+  useEffect(() => {
+    const open = !!tweak.showMessages;
+    const was = msgPanelRef.current;
+    if (open === was.open) return;
+    if (open) {
+      logEvent(EV.MSG_PANEL, { action: 'open', unread: messagesUnread, convs: conversationList.conversations.length });
+    } else if (was.at) {
+      logEvent(EV.MSG_PANEL, { action: 'close', ms: Date.now() - was.at });
+    }
+    msgPanelRef.current = { open, at: open ? Date.now() : 0 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tweak.showMessages]);
   useEffect(() => {
     if (notifOpen && tweak.showMessages) setTweak('showMessages', false);
