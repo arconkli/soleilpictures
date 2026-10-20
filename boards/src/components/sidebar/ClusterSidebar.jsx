@@ -362,8 +362,12 @@ export function ClusterSidebar({
       window.removeEventListener('scroll', place, true);
     };
   }, [switchOpen]);
+  // Open, the find box takes the keys; on a touch screen the ticked cluster
+  // does instead, so no keyboard comes up over the list.
   useEffect(() => {
-    if (switchOpen && switchPos) switchPopRef.current?.querySelector('input')?.focus({ preventScroll: true });
+    if (!switchOpen || !switchPos) return;
+    const pop = switchPopRef.current;
+    (coarse ? pop?.querySelector('[aria-checked="true"]') : pop?.querySelector('input'))?.focus({ preventScroll: true });
   }, [switchOpen, !!switchPos]);   // eslint-disable-line react-hooks/exhaustive-deps
   const closeSwitch = () => { setSwitchOpen(false); clusterTabRef.current?.focus({ preventScroll: true }); };
   const pickCluster = (id) => {

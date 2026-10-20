@@ -57,6 +57,9 @@ test.describe('sidebar files on a phone', () => {
     await files.getByRole('tab', { name: 'Feature film', exact: true }).tap();
     const list = page.getByRole('menu', { name: 'Show the files of' });
     await expect(list).toBeVisible();
+    // No keyboard over the list: the ticked cluster has the focus, not the find box.
+    await expect(list.getByRole('menuitemradio', { name: /Feature film/ })).toBeFocused();
+    await expect(list.getByRole('searchbox', { name: 'Find a cluster' })).not.toBeFocused();
     const vw = page.viewportSize().width;
     const box = await list.boundingBox();
     expect(box.x).toBeGreaterThanOrEqual(0);
