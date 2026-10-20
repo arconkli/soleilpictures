@@ -783,6 +783,8 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
         const old = clone(row);
         row.last_read_at = clock.now();
         emitChange('conversation_participants', 'UPDATE', row, old);
+        // A current client says so on conv:; a legacy one (peer.legacy) doesn't.
+        if (!p.legacy) deliver(`conv:${convId}`, 'chat-read', { user_id: userId });
       },
     };
     peers.set(userId, p);

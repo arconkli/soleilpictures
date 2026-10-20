@@ -347,3 +347,34 @@ test('opening and closing search keeps your place in history', async ({ page }) 
   expect(after.id).toBe(before.id);
   expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(2);
 });
+
+// ── Seen, in a DM (C2.6) ───────────────────────────────────────────────
+test('Seen shows under your newest message once they read it, and goes when they reply', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const mine = await send(page, 'did you get the permit?');
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'did you get the permit?'))).toBe(true);
+  await expect(page.locator('.msg-bubble-seen')).toHaveCount(0);
+  await qa(page, () => window.__msgQa.peer('maya').read('c-maya'));
+  await expect(mine.locator('.msg-bubble-seen')).toHaveText('Seen');
+  await expect(page.locator('.msg-bubble-seen')).toHaveCount(1);
+  await qa(page, () => window.__msgQa.peer('maya').send('c-maya', 'yes, signed'));
+  await expect(page.locator('.msg-bubble-seen')).toHaveCount(0);
+});
+
+test('a peer whose client never says it read catches up on the next resync', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  await send(page, 'ping from an old client test');
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'ping from an old client test'))).toBe(true);
+  // No chat-read from this client: a resync (or any list refresh) still finds it.
+  await qa(page, () => { const p = window.__msgQa.peer('maya'); p.legacy = true; p.read('c-maya'); window.__msgQa.dropSocket(); });
+  await expect(page.locator('.msg-bubble-seen')).toHaveCount(1);
+});
+
+test('a group never says Seen', async ({ page }) => {
+  await open(page, 'conv=c-cast');
+  await send(page, 'room 4 confirmed');
+  await expect.poll(() => qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'room 4 confirmed'))).toBe(true);
+  await qa(page, () => { for (const id of ['lena', 'jon', 'sam']) window.__msgQa.peer(id).read('c-cast'); });
+  await page.waitForTimeout(400);
+  await expect(page.locator('.msg-bubble-seen')).toHaveCount(0);
+});

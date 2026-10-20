@@ -31689,6 +31689,22 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Seen",
+      "children": [
+       {
+        "t": "text",
+        "v": "Seen"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — in a direct message, “Seen” appears under your latest message once the other person has read it"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Permalinks",
       "children": [
        {

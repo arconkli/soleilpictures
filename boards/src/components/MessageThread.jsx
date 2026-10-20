@@ -26,7 +26,7 @@ import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
 import { newMessageId, toggleReactionMap } from '../lib/messageStore.js';
-import { buildFeedItems } from '../lib/messageFeed.js';
+import { buildFeedItems, selectSeenMessageId } from '../lib/messageFeed.js';
 import { showingConversation } from '../lib/threadAttention.js';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
@@ -86,7 +86,7 @@ export function MessageThread({
 
   const {
     messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading,
-    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback, fresh,
+    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback, fresh, readState,
   } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
@@ -397,6 +397,18 @@ export function MessageThread({
   const groupedMessages = useMemo(
     () => (replyParent ? [] : buildFeedItems(messages, { selfId: userId, newAfter: newAfter || null })),
     [messages, replyParent, userId, newAfter],
+  );
+
+  // "Seen", in a DM only: under your newest message once the other person has
+  // read it (lib/messageFeed.js). Their position is the later of what the
+  // list knows and what this thread last read; one who left still counts.
+  const peerId = isDm ? (conversation?.participants || []).find(p => p.user_id !== userId)?.user_id || null : null;
+  const listReadAt = (conversation?.participants || []).find(p => p.user_id === peerId)?.last_read_at || null;
+  const liveReadAt = peerId ? readState.get(peerId) || null : null;
+  const peerLastReadAt = !listReadAt ? liveReadAt : !liveReadAt ? listReadAt : (listReadAt > liveReadAt ? listReadAt : liveReadAt);
+  const seenId = useMemo(
+    () => selectSeenMessageId(messages, { selfId: userId, isDm, peerId, peerLastReadAt }),
+    [messages, userId, isDm, peerId, peerLastReadAt],
   );
 
   // Opening with more unread than fits: land on the "New" line, not the
@@ -904,6 +916,7 @@ export function MessageThread({
                 onCopyLink={handleCopyLink}
                 onRetrySend={retryPending}
                 onDiscardSend={discardPending}
+                seen={g.msg.id === seenId}
               />
             ))}
             {typingUsers.size > 0 && (

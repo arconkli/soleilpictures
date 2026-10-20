@@ -7807,7 +7807,18 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 
 /* "⋯" card-options button — touch-only home for the card context menu now
    that a long-press lifts the card to drag. Hidden by default; the coarse-
-   pointer block reveals it on selected cards. Desktop keeps right-click. */
+   pointer block reveals it on the selection. Desktop keeps right-click.
+   It sits in .sel-menu, a point at the selection's top-right corner drawn
+   outside the cards (a card clips what pokes out of it), which undoes the
+   board's zoom so these offsets are screen pixels at every zoom. */
+.sel-menu {
+  position: absolute;
+  width: 0; height: 0;
+  transform-origin: 0 0;
+  z-index: 999996;
+  pointer-events: none;
+}
+.sel-menu > .card-menu-btn { pointer-events: auto; }
 .card-menu-btn {
   display: none;
   position: absolute;
@@ -7855,9 +7866,28 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   15%  { opacity: .55; }
   100% { opacity: .95; clip-path: inset(0 0 0 0); }
 }
+/* The same fill for a finger held on empty canvas: once it closes, dragging
+   draws a selection box and letting go opens the menu. Wider than a fingertip
+   so it shows around one. Shown and hidden by hand (startTouchCanvasPress). */
+.cnv-hold-cue {
+  display: none;
+  position: absolute;
+  width: 64px; height: 64px;
+  margin: -32px 0 0 -32px;
+  border: 2px solid var(--select);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 4;
+}
+.cnv-hold-cue.is-on {
+  display: block;
+  opacity: 0;
+  animation: card-lift-arm var(--lift-ms, 480ms) linear forwards;
+}
 /* Respect a reduced-motion preference: keep the affordance, drop the sweep. */
 @media (prefers-reduced-motion: reduce) {
   .card.is-lifting::after { animation: none; opacity: .7; clip-path: none; }
+  .cnv-hold-cue.is-on { animation: none; opacity: .7; }
 }
 
 /* Card "picked up" by a press-and-hold (touch). Deliberate lift cue that does
@@ -16610,6 +16640,12 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   min-height: 100%;
 }
 .msg-thread-end { height: 1px; flex-shrink: 0; }
+/* "Seen": a DM, under your newest message once they've read it. */
+.msg-bubble-seen {
+  margin: 3px 0 0 32px;
+  font: 400 11px/1.3 var(--font-sans);
+  color: var(--ink-2);
+}
 /* "New": above the first message since you last read. */
 .msg-new-divider {
   display: flex; align-items: center; gap: 10px;
@@ -21498,9 +21534,11 @@ button, [role="button"], a {
   .ctx-item { min-height: 40px; }
   .ent-pop-foot-btn { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
 
-  /* The card "⋯" options button is touch-only: on a real mouse the card
-     context menu opens via right-click, so it stays hidden there. */
-  .card.is-selected > .card-menu-btn { display: flex; }
+  /* The selection's "⋯" options button is touch-only: on a real mouse the
+     card context menu opens via right-click, so it stays hidden there. 36px
+     drawn, 44px to a finger. */
+  .sel-menu > .card-menu-btn { display: flex; }
+  .sel-menu > .card-menu-btn::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; }
 
   /* Resize (14px) + rotate (12px) handles were the ONLY card affordances not
      bumped for touch — a finger essentially couldn't resize or rotate. Enlarge

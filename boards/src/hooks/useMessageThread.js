@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { fetchConversationMessages, fetchConversationRange, fetchMessagesByIds, markRead } from '../lib/messages.js';
-import { subscribeConversation } from '../lib/messageRealtime.js';
+import { fetchConversationMessages, fetchConversationRange, fetchMessagesByIds, fetchReadState, markRead } from '../lib/messages.js';
+import { subscribeConversation, broadcastConversationRead } from '../lib/messageRealtime.js';
 import { MESSAGE_PAGE, mergeNewestPage, prependOlder, lastMessageId } from '../lib/messagePaging.js';
 import {
   applyWrites, pruneWrites, splitFoldable, upsertWrite, patchWrite, removeWrite, ackWrite, updateWrite, dropWrite,
@@ -97,6 +97,18 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
   // Reads started and not landed yet. With none out, a confirmed change folds
   // straight into the rows instead of waiting in the write log.
   const inFlightRef = useRef(0);
+  // Everyone's read position (user_id → last_read_at), for a DM's "Seen".
+  // Read from the database on open, whenever someone says they've read, and
+  // on every resync (which covers a peer whose client never says so).
+  const [readState, setReadState] = useState(() => new Map());
+  const refreshReadState = useCallback(async () => {
+    if (!conversationId || fixture) return;
+    const rows = await fetchReadState({ conversationId });
+    if (!rows || convRef.current !== conversationId) return;
+    setReadState(new Map(rows.map(r => [r.user_id, r.last_read_at])));
+  }, [conversationId, fixture]);
+  useEffect(() => { refreshReadState(); }, [refreshReadState]);
+
   // The newest page read that has painted, by its seq: a by-id re-read that
   // started before it is older news and must not land on top of it.
   const landedSeqRef = useRef(0);
@@ -302,7 +314,10 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
     (async () => {
       const ok = await markRead({ conversationId, userId, upTo });
       if (cancelled) return;
-      if (ok) onMarkedReadRef.current?.();
+      if (ok) {
+        onMarkedReadRef.current?.();
+        broadcastConversationRead({ conversationId, userId });
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -330,7 +345,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
     // Read again whenever the live feed may have dropped something: the
     // channel (re)joining, the tab coming back, the network returning, or a
     // nudge whose re-read failed (COMMS-04).
-    const resync = watchForResync(() => refetch());
+    const resync = watchForResync(() => { refetch(); refreshReadState(); });
     // A broadcast only says WHICH message changed. Its payload is never
     // trusted for content (anyone in the conversation can send anything on
     // conv:*): the named rows are read again from the database instead.
@@ -382,7 +397,10 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
       }, 3000);
       typingTimers.add(t);
     };
-    const unsub = subscribeConversation({ conversationId, onMessage, onTyping, onSubscribed: resync.kick });
+    // Someone read the thread: read everyone's position again (the payload
+    // is only a nudge). Your own reads change nothing that's shown.
+    const onRead = (payload) => { if (payload?.user_id !== userId) refreshReadState(); };
+    const unsub = subscribeConversation({ conversationId, onMessage, onTyping, onRead, onSubscribed: resync.kick });
     // An inbox ping for this conversation names its new message, and lands
     // even when the conv: join itself failed, so the thread can't freeze.
     const unsubInbox = subscribeInbox(userId, (payload) => {
@@ -394,11 +412,11 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
       typingTimers.forEach(clearTimeout);
       resync.stop(); unsubInbox(); unsub();
     };
-  }, [conversationId, userId, refetch, fixture, applyServerRows]);
+  }, [conversationId, userId, refetch, fixture, applyServerRows, refreshReadState]);
 
   return {
     messages: view, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed,
-    loading: !!conversationId && loadedFor !== conversationId, fresh,
+    loading: !!conversationId && loadedFor !== conversationId, fresh, readState,
     sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback,
   };
 }

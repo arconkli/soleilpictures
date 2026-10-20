@@ -26,7 +26,7 @@ import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 //   isFocused        — keyboard-nav highlight ring
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
 export function MessageBubble({
-  msg, selfId, highlight, replyMeta, parent, onJumpToMessage, isFocused,
+  msg, selfId, highlight, replyMeta, parent, onJumpToMessage, isFocused, seen = false,
   isContinuation = false, // consecutive message from the same sender — drop the header
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
@@ -277,6 +277,7 @@ export function MessageBubble({
           )}
         </button>
       )}
+      {seen && <div className="msg-bubble-seen">Seen</div>}
       {emojiAnchor && (
         <EmojiPalette
           anchor={emojiAnchor}

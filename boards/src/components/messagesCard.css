@@ -181,6 +181,8 @@ body[data-sb-files] .msg-bubble--mine .msg-bubble-actions { right: auto; left: 8
 body[data-sb-files] .msg-bubble-actions button { border-radius: 6px; }
 body[data-sb-files] .msg-bubble-actions button.is-active { color: var(--ink-0); }
 
+body[data-sb-files] .msg-bubble--mine .msg-bubble-seen { align-self: flex-end; margin: 3px 12px 0 0; }
+
 body[data-sb-files] .msg-jump-pill {
   background: var(--sbf-chip); color: var(--ink-0);
   box-shadow: var(--sbf-chip-shadow), 0 6px 20px rgba(0, 0, 0, .35);

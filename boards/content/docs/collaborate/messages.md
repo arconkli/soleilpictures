@@ -42,6 +42,7 @@ Direct and group conversations in one list, ordered by recency.
 - **[Mentions](/docs/organize/links-and-mentions)** — `@` a person, board, document or card; boards and cards become navigable links
 - **Per-thread drafts** — a half-written message survives closing the drawer
 - **Edits and deletes** — your own messages; a deleted message goes at once, with Undo on the notice that follows
+- **Seen** — in a direct message, “Seen” appears under your latest message once the other person has read it
 - **Permalinks** — a link to one specific message, which opens the thread scrolled to it
 
 ## Unread
