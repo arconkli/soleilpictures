@@ -38,11 +38,14 @@ function fakeDeps({ writable = [A, B, C], user = { ok: true, userId: 'u1' }, mov
     addCardsToBoard: rec('add', add || (async (_env, o) => ({ cards: o.buildCards([]), live: true }))),
     updateCardsOnBoard: rec('update', async (_env, o) => o.patches.map(() => ({}))),
     deleteCardsFromBoard: rec('delete', async (_env, o) => o.cardIds.map((id) => ({ id, kind: 'note' }))),
-    readBoardCardsChecked: rec('read', async () => ({
+    withBoardCards: rec('read', async (_env, _id, _tok, use) => use({
       loaded: true,
+      templates: { t1: { layout: { cols: 3, rows: 2 } } },
       cards: [
         { id: 'p1', kind: 'image', src: 'r2:p1', w: 100, h: 80, x: 0, y: 0, groupId: 'g' },
         { id: 'd1', kind: 'doc', title: 'Script', w: 300, h: 400 },
+        { id: 'g1', kind: 'grid', templateId: 't1', seqId: 's1', w: 400, h: 300 },
+        { id: 'k1', kind: 'board', boardId: 'kid', w: 200, h: 200 },
         { id: 'up', kind: 'image', pending: true, w: 10, h: 10 },
       ],
     })),
@@ -185,19 +188,24 @@ test('a move the rooms could not take comes back as try-again, with nothing repo
   assert.equal(repoints(named).length, 0);
 });
 
-test('a copy only needs to write the destination, and copies only what a snapshot can carry', async () => {
+test('a copy only needs to write the destination, and copies every kind but a cluster', async () => {
   const { deps, named } = fakeDeps({ writable: [B] });
-  const r = await call(deps, '/api/clusters/move', { from: A, to: B, cardIds: ['p1', 'd1', 'up'], mode: 'copy' });
+  const r = await call(deps, '/api/clusters/move', { from: A, to: B, cardIds: ['p1', 'd1', 'g1', 'k1', 'up'], mode: 'copy' });
   assert.equal(r.status, 200, JSON.stringify(r.body));
-  assert.equal(r.body.copied, 1);
-  assert.deepEqual(r.body.skipped.sort(), ['d1', 'up']);
+  assert.equal(r.body.copied, 3);
+  assert.deepEqual(r.body.skipped.sort(), ['k1', 'up'], 'a cluster never travels as a card; an upload has no bytes yet');
   const built = named('add')[0].args[1].buildCards([]);
-  assert.equal(built.length, 1);
-  assert.notEqual(built[0].id, 'p1', 'a copy is a new card');
-  assert.deepEqual(built[0].sourceRef, { boardId: A, cardId: 'p1' });
-  assert.equal(built[0].src, 'r2:p1', 'the same stored file');
-  assert.equal(built[0].groupId, undefined, 'place fields stay behind');
-  assert.equal(built[0].unplaced, true, 'dropped on a cluster, so stored off the board');
+  const byKind = Object.fromEntries(built.map((c) => [c.kind, c]));
+  assert.notEqual(byKind.image.id, 'p1', 'a copy is a new card');
+  assert.deepEqual(byKind.image.sourceRef, { boardId: A, cardId: 'p1' });
+  assert.equal(byKind.image.src, 'r2:p1', 'the same stored file');
+  assert.equal(byKind.image.groupId, undefined, 'place fields stay behind');
+  assert.equal(byKind.image.unplaced, true, 'dropped on a cluster, so stored off the board');
+  assert.equal(byKind.doc.title, 'Script', 'a doc copies whole');
+  assert.equal(byKind.doc.unplaced, false, 'a doc always lives on a board');
+  assert.equal(byKind.grid.templateId, undefined, 'a grid leaves its shared layout behind...');
+  assert.equal(byKind.grid.seqId, undefined);
+  assert.deepEqual(byKind.grid.layout, { cols: 3, rows: 2 }, '...and takes the layout along');
   assert.equal(repoints(named).length, 0, 'a copy never takes the original\'s share');
 });
 
@@ -309,6 +317,32 @@ test('landing: undo puts cards back exactly, a drop point places them, a cluster
   assert.ok(s.p.y >= 100, 'below what is already there');
 });
 
+test('landing: a file already stored off its board stays stored, there and back', () => {
+  const existing = [{ id: 'e', kind: 'image', x: 0, y: 0, w: 100, h: 100 }];
+  const kept = { id: 'k', kind: 'image', x: 0, y: 300, w: 100, h: 80, unplaced: true };
+  const there = landCards(existing, [kept]);
+  assert.equal(there[0].unplaced, true, 'dropped on a cluster: into its files, not onto its board');
+  const back = landCards(existing, [{ ...there[0] }], { restore: [{ id: 'k', x: 5, y: 6, unplaced: true }] });
+  assert.equal(back[0].unplaced, true, 'and the undo puts it back in Files');
+  const locked = landCards(existing, [{ ...kept, id: 'l', locked: true }]);
+  assert.equal(locked[0].unplaced, false, 'a locked card stays on a board');
+});
+
+test('landing: the undo of a move puts a card back in its group, and a grid back on its shared layout', () => {
+  const grid = { id: 'g', kind: 'grid', layout: { cols: 2 }, x: 0, y: 0, w: 300, h: 200 };
+  const link = { templateId: 't1', seqId: 's1', hadLayout: false, hadTextStyle: false };
+  const back = landCards([], [grid, { id: 'p', kind: 'image', x: 0, y: 0, w: 10, h: 10 }], {
+    restore: [{ id: 'g', x: 1, y: 2, unplaced: false, link }, { id: 'p', x: 3, y: 4, unplaced: false, groupId: 'grp' }],
+    hasTemplate: (t) => t === 't1',
+    hasSequence: () => false,
+  });
+  const byId = Object.fromEntries(back.map((c) => [c.id, c]));
+  assert.equal(byId.g.templateId, 't1');
+  assert.equal(byId.g.layout, undefined, 'the shared layout again, not the copy it carried');
+  assert.equal(byId.g.seqId, undefined, 'a sequence that is gone is not pointed at');
+  assert.equal(byId.p.groupId, 'grp');
+});
+
 // ── The fail-closed move, for real ──────────────────────────────────────────
 // No room answers (the WebSocket errors), so both boards come back not-live.
 // With requireLive the move must refuse BEFORE its first write: no version
@@ -354,7 +388,10 @@ function fakeRooms(t, spec) {
   const rooms = {};
   for (const [id, s] of Object.entries(spec)) {
     const doc = new Y.Doc();
-    doc.transact(() => { const m = doc.getMap('cards'); for (const c of s.cards || []) m.set(c.id, cardToYMap(c)); });
+    doc.transact(() => {
+      const m = doc.getMap('cards'); for (const c of s.cards || []) m.set(c.id, cardToYMap(c));
+      const tm = doc.getMap('gridTemplates'); for (const [k, v] of Object.entries(s.templates || {})) tm.set(k, v);
+    });
     rooms[id] = { doc, s, n: 0 };
   }
   const writes = [];
@@ -431,6 +468,19 @@ test('a confirmed move: the card is in the destination room and gone from the so
   assert.equal(f.card(B, 'c1').movedFrom, A, 'stamped, so a retry knows it landed');
   assert.equal(f.wrote('board_state').length, 2);
   assert.equal(f.wrote('card_index').length, 1);
+});
+
+test('a moved grid takes its layout along and a moved card leaves its group; the originals keep both for the undo', async (t) => {
+  const grid = { id: 'c1', kind: 'grid', templateId: 't1', seqId: 's1', x: 0, y: 0, w: 300, h: 200, groupId: 'grp' };
+  const f = fakeRooms(t, { [A]: { cards: [grid], templates: { t1: { layout: { cols: 4 } } } }, [B]: { cards: [] } });
+  const r = await moveOne();
+  const there = f.card(B, 'c1');
+  assert.equal(there.templateId, undefined);
+  assert.equal(there.seqId, undefined);
+  assert.deepEqual(there.layout, { cols: 4 });
+  assert.equal(there.groupId, undefined, 'the group is the old cluster\'s');
+  assert.deepEqual(r.originals[0].link, { templateId: 't1', seqId: 's1', hadLayout: false, hadTextStyle: false });
+  assert.equal(r.originals[0].groupId, 'grp');
 });
 
 test('a destination that drops the update is nothing moved: no state, no index, the source untouched', async (t) => {

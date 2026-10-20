@@ -26,13 +26,14 @@ import { verifyUser } from './lib/workerAuth.js';
 import { userRpc, userSelect } from './lib/apiAuth.js';
 import {
   moveCardsBetweenBoards, addCardsToBoard, updateCardsOnBoard, deleteCardsFromBoard,
-  readBoardCardsChecked,
+  withBoardCards,
 } from './lib/scoutBoard.js';
 import { scoutPatch } from './lib/scoutDb.js';
 import { repointCardMeta } from './lib/objectMeta.js';
 import { isStillUploading } from './lib/abandonedUploads.js';
-import { COPYABLE_KINDS, plainCardForCopy } from './lib/filesDrag.js';
-import { canUnplace, positionUnplaced } from './lib/placement.js';
+import { canCopyCard, liveCardForCopy } from './lib/filesDrag.js';
+import { canStore, positionUnplaced } from './lib/placement.js';
+import { unlinkGridForCopy, relinkGrid } from './lib/gridState.js';
 import { layoutDrop } from './lib/layoutEngine.js';
 
 export const LIMITS = Object.freeze({
@@ -53,7 +54,7 @@ export const PATCHABLE = new Set([
 const DEFAULT_DEPS = {
   verifyUser, userRpc, userSelect,
   moveCardsBetweenBoards, addCardsToBoard, updateCardsOnBoard, deleteCardsFromBoard,
-  readBoardCardsChecked, scoutPatch, repointCardMeta,
+  withBoardCards, scoutPatch, repointCardMeta,
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -103,22 +104,29 @@ async function canWrite(deps, env, token, boardId) {
 
 // Where moved or copied cards land, decided against what the destination
 // already holds:
-//   restore  — an undo: each card goes back exactly where it was
+//   restore  — an undo: each card goes back exactly where it was, in the
+//              group it was in, and a grid rejoins the shared layout it
+//              left (when that cluster still has it: `hasTemplate`,
+//              `hasSequence`, from the destination's doc)
 //   at       — dropped on a canvas: laid out at the drop point, on the board
 //   neither  — dropped on a cluster in the sidebar: stored off the board, in
 //              the free space below its content, like any sidebar upload.
 //              A kind that can't be stored off the board (a doc, a grid) is
 //              put in that same free space ON the board instead.
-export function landCards(existing, cards, { at = null, restore = null } = {}) {
+// Whether a card is stored is a question about its kind (canStore), never its
+// current state: a file already in Files stays there.
+export function landCards(existing, cards, { at = null, restore = null, hasTemplate, hasSequence } = {}) {
   const back = new Map((restore || []).map((r) => [String(r.id), r]));
   const rest = cards.filter((c) => !back.has(String(c.id)));
   const restored = cards.filter((c) => back.has(String(c.id))).map((c) => {
     const r = back.get(String(c.id));
+    const card = r.link ? relinkGrid(c, r.link, { hasTemplate, hasSequence }) : c;
     return {
-      ...c,
+      ...card,
       x: Number.isFinite(r.x) ? r.x : c.x,
       y: Number.isFinite(r.y) ? r.y : c.y,
-      unplaced: r.unplaced === true && canUnplace(c),
+      ...(typeof r.groupId === 'string' && r.groupId ? { groupId: r.groupId } : {}),
+      unplaced: r.unplaced === true && canStore(c),
     };
   });
   if (!rest.length) return restored;
@@ -128,7 +136,7 @@ export function landCards(existing, cards, { at = null, restore = null } = {}) {
     return [...restored, ...laid.map((c) => ({ ...c, unplaced: false }))];
   }
   const spots = positionUnplaced([...existing, ...restored], rest);
-  return [...restored, ...spots.map((c) => ({ ...c, unplaced: canUnplace(c) }))];
+  return [...restored, ...spots.map((c) => ({ ...c, unplaced: canStore(c) }))];
 }
 
 // A move takes what hangs off a card with it: comments anchored to it (the
@@ -190,7 +198,7 @@ async function routeMove(deps, env, token, userId, body) {
     cardIds,
     requireLive: true,
     keep: isStillUploading,
-    layout: async (existing, moving) => landCards(existing, moving, { at, restore }),
+    layout: async (existing, moving, here) => landCards(existing, moving, { at, restore, ...here }),
   });
   // The cards reached the destination but didn't all come off the source.
   // Nothing hanging off them is repointed yet: the same request again finds
@@ -223,44 +231,48 @@ async function routeMove(deps, env, token, userId, body) {
   });
 }
 
-// A copy is the linked copy the app already makes (filesDrag.js): a new card
-// on the SAME stored file, pointing back at the original, so it uploads
-// nothing and adds no bytes. It does add a card, which is why it goes through
-// card_index's cap trigger like any new card. Kinds whose content lives in live
-// Yjs structures (docs, grids, notes) can't be copied from a snapshot and come
-// back in `skipped`.
+// A copy is a new card on the SAME stored file, pointing back at the original,
+// so it uploads nothing and adds no bytes. It does add a card, which is why it
+// goes through card_index's cap trigger like any new card (all or nothing: a
+// cap hit adds none). Every kind copies but a cluster: the source stays open
+// while the copies are written, so content that lives in live Yjs structures
+// (a doc's pages and the comments written in them, a note's text, a grid's
+// cells) is cloned into the destination (cardToYMap). Comments ON the card,
+// its star and its share link stay with the original. A linked grid can't keep
+// its shared layout in another cluster, so it takes the layout along.
 async function routeCopy(deps, env, token, userId, { src, dst, cardIds, at }) {
-  const { cards, loaded } = await deps.readBoardCardsChecked(env, src.id, token);
-  if (!loaded) throw fail(503, 'room_unavailable', 'the cluster could not be read; nothing was copied');
-  const wanted = new Set(cardIds);
-  const picked = cards.filter((c) => wanted.has(String(c.id)));
-  const copyable = picked.filter((c) => COPYABLE_KINDS.has(c.kind) && !isStillUploading(c));
-  const skipped = picked.filter((c) => !copyable.includes(c)).map((c) => String(c.id));
-  if (!copyable.length) return json({ ok: true, mode: 'copy', copied: 0, cards: [], skipped, live: false });
+  return deps.withBoardCards(env, src.id, token, async ({ cards, templates, loaded }) => {
+    if (!loaded) throw fail(503, 'room_unavailable', 'the cluster could not be read; nothing was copied');
+    const wanted = new Set(cardIds);
+    const picked = cards.filter((c) => wanted.has(String(c.id)));
+    const copyable = picked.filter((c) => canCopyCard(c));
+    const skipped = picked.filter((c) => !copyable.includes(c)).map((c) => String(c.id));
+    if (!copyable.length) return json({ ok: true, mode: 'copy', copied: 0, cards: [], skipped, live: false });
 
-  const out = await deps.addCardsToBoard(env, {
-    boardId: dst.id,
-    workspaceId: dst.workspace_id,
-    userId,
-    accessToken: token,
-    requireLive: true,
-    buildCards: (existing) => landCards(existing, copyable.map((c) => ({
-      ...plainCardForCopy(c),
-      // The slow append path keeps whatever id it is handed (only the room
-      // fast path mints one), so a copy brings its own.
-      id: globalThis.crypto.randomUUID(),
-      w: Number.isFinite(c.w) ? c.w : 240,
-      h: Number.isFinite(c.h) ? c.h : 200,
-      sourceRef: { boardId: src.id, cardId: String(c.id) },
-    })), { at }),
-  });
-  return json({
-    ok: true,
-    mode: 'copy',
-    copied: out.cards.length,
-    cards: out.cards.map((c) => ({ id: String(c.id), sourceCardId: c.sourceRef?.cardId || null })),
-    skipped,
-    live: !!out.live,
+    const out = await deps.addCardsToBoard(env, {
+      boardId: dst.id,
+      workspaceId: dst.workspace_id,
+      userId,
+      accessToken: token,
+      requireLive: true,
+      buildCards: (existing) => landCards(existing, copyable.map((c) => ({
+        ...unlinkGridForCopy(liveCardForCopy(c), templates),
+        // The slow append path keeps whatever id it is handed (only the room
+        // fast path mints one), so a copy brings its own.
+        id: globalThis.crypto.randomUUID(),
+        w: Number.isFinite(c.w) ? c.w : 240,
+        h: Number.isFinite(c.h) ? c.h : 200,
+        sourceRef: { boardId: src.id, cardId: String(c.id) },
+      })), { at }),
+    });
+    return json({
+      ok: true,
+      mode: 'copy',
+      copied: out.cards.length,
+      cards: out.cards.map((c) => ({ id: String(c.id), sourceCardId: c.sourceRef?.cardId || null })),
+      skipped,
+      live: !!out.live,
+    });
   });
 }
 

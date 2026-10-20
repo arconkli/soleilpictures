@@ -26,6 +26,7 @@ import { bytesToB64, b64ToBytes, cardToYMap, readCards } from './yhelpers.js';
 import { buildCardIndexRows, stampCard } from '../../scripts/lib/cardEncode.mjs';
 import { scoutSelect, scoutInsert, scoutRpc, scoutPatch, scoutDelete } from './scoutDb.js';
 import { PARTY_HOST } from './partyHost.js';
+import { unlinkGridForCopy, gridLinkOf } from './gridState.js';
 
 const MESSAGE_SYNC = 0;
 const SYNC_STEP_1 = 0;
@@ -719,6 +720,16 @@ export async function moveCardsBetweenBoards(env, {
     const existing = readCards(dst.doc);
     const maxZ = existing.reduce((m, c) => Math.max(m, Number(c.z) || 0), 0);
     const nowIso = new Date().toISOString();
+    // A linked grid's layout lives in its cluster's shared templates, and its
+    // group in that cluster's groups: neither exists on the destination, so the
+    // grid takes its layout along and the card leaves the group (the undo puts
+    // both back; `originals` below).
+    let srcTemplates = {};
+    try { srcTemplates = src.doc.getMap('gridTemplates').toJSON(); } catch (_) { /* none */ }
+    const here = {
+      hasTemplate: (t) => dst.doc.getMap('gridTemplates').has(t),
+      hasSequence: (q) => dst.doc.getMap('gridSequences').has(q),
+    };
 
     // Pre-move checkpoints for BOTH boards (the client's cross-board drag
     // writes pre-drop rows for both sides; the API path wrote neither).
@@ -743,8 +754,9 @@ export async function moveCardsBetweenBoards(env, {
       }
       if (id !== String(c.id)) renames.set(String(c.id), id);
       originalOf.set(id, String(c.id));
+      const { groupId: _group, ...rest } = c.kind === 'grid' ? unlinkGridForCopy(c, srcTemplates) : c;
       return {
-        ...c, id, z: maxZ + i + 1, updatedAt: nowIso, updatedBy: userId || null,
+        ...rest, id, z: maxZ + i + 1, updatedAt: nowIso, updatedBy: userId || null,
         movedFrom: String(fromBoardId),
       };
     }).filter((c) => !dstCards.has(c.id));
@@ -756,7 +768,7 @@ export async function moveCardsBetweenBoards(env, {
     let liveTo = true;
     let droppedHeader = false;
     if (prepared.length) {
-      const placed = await layout(existing, prepared);
+      const placed = await layout(existing, prepared, here);
       // A section header the layout invented is a NEW card, so it needs its own
       // card_index row — and that row goes through the cap trigger. At exactly
       // 100 cards the insert fails; the move itself must not fail with it, so we
@@ -802,6 +814,8 @@ export async function moveCardsBetweenBoards(env, {
       x: Number.isFinite(c.x) ? c.x : null,
       y: Number.isFinite(c.y) ? c.y : null,
       unplaced: c.unplaced === true,
+      ...(typeof c.groupId === 'string' && c.groupId ? { groupId: c.groupId } : {}),
+      ...(c.kind === 'grid' && (c.templateId || c.seqId) ? { link: gridLinkOf(c) } : {}),
     }));
     const result = (extra) => ({
       // `moved` is what landed on the destination in THIS call; `count` and
@@ -1077,6 +1091,22 @@ export async function readBoardCardsChecked(env, boardId, accessToken = null) {
   const { doc, ws, loaded } = await openBoard(env, boardId, accessToken);
   try {
     return { cards: readCards(doc), loaded };
+  } finally {
+    try { ws?.close(); } catch (_) { /* already gone */ }
+    doc.destroy();
+  }
+}
+
+// A board's cards for copying elsewhere. Live content (a doc's pages, a note's
+// text, a grid's cells) can only be cloned while its doc is open, so the caller
+// does its work inside `use`, and the doc closes after. `templates` are the
+// board's shared Grid layouts, for a linked grid leaving it.
+export async function withBoardCards(env, boardId, accessToken, use) {
+  const { doc, ws, loaded } = await openBoard(env, boardId, accessToken);
+  try {
+    let templates = {};
+    try { templates = doc.getMap('gridTemplates').toJSON(); } catch (_) { /* none */ }
+    return await use({ cards: readCards(doc), templates, loaded });
   } finally {
     try { ws?.close(); } catch (_) { /* already gone */ }
     doc.destroy();

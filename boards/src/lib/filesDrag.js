@@ -62,6 +62,24 @@ export function plainCardForCopy(card) {
   return out;
 }
 
+// What the sidebar's copy can take (worker-clusters.js routeCopy): everything
+// but a cluster, once its bytes have arrived.
+export function canCopyCard(card) {
+  return !!card && !NEVER_DRAGGED.has(card.kind) && !isStillUploading(card);
+}
+
+// The card as a copy made on the server from its cluster's open doc: its own
+// fields and its live content (a doc's pages, a note's text, a grid's cells,
+// cloned into the destination by cardToYMap), nothing tied to its place.
+export function liveCardForCopy(card) {
+  const out = {};
+  for (const [k, v] of Object.entries(card || {})) {
+    if (PLACE_FIELDS.has(k) || typeof v === 'function') continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 // The stored file a card shows — the identity two copies share.
 export function fileKeyOf(card) {
   if (!card) return null;

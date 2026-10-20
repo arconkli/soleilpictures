@@ -50,6 +50,14 @@ export function canUnplace(card) {
   return !!card && !isUnplaced(card) && !card.locked && UNPLACEABLE.has(card.kind);
 }
 
+// Whether a card can be kept off a board at all: what landing it in another
+// cluster's Files asks. canUnplace() asks whether one ON the board can come off
+// it now, which is false for a card that's already off — so a stored file
+// moved by that test landed on the destination's board.
+export function canStore(card) {
+  return !!card && !card.locked && UNPLACEABLE.has(card.kind);
+}
+
 // Where unplaced files wait: free space over EVERY card, placed or not, so on
 // a client that ignores the flag a batch from Files never lands on the board's
 // content or on an earlier batch.
