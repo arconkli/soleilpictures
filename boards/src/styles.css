@@ -16584,14 +16584,32 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 
 .sb-row-count.has-unread { background: var(--ink-0); color: var(--bg-0); padding: 2px 6px; border-radius: 999px; font-weight: 600; }
 
+/* The thread's scroller sits in a wrapper that also holds the jump button, so
+   the button stays just above the composer whatever height the composer is.
+   useStickToBottom keeps the reader at the bottom or holds their place, so the
+   browser's own scroll anchoring is off (Safari has none; two would fight). */
+.msg-thread-scroll {
+  position: relative;
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
 .msg-thread-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-anchor: none;
   padding: 12px;
   display: flex; flex-direction: column;
   gap: 0; /* sender-grouping owns the vertical rhythm via per-bubble margins */
   position: relative;
 }
+.msg-thread-content {
+  display: flex; flex-direction: column;
+  /* Never shrink to the scroller: the observer has to see it grow. */
+  flex-shrink: 0;
+  min-height: 100%;
+}
+.msg-thread-end { height: 1px; flex-shrink: 0; }
 
 /* "Load earlier messages" — first row of a thread that holds more history
    than its newest page. Scrolling up to it loads the page too; the button is
@@ -17213,20 +17231,22 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   30%           { opacity: 1;    transform: translateY(-2px); }
 }
 
-/* Floating "↓ N new messages" pill that appears when a new message
-   arrives while the user is scrolled up reading history.        */
+/* "Latest" / "N new messages": shows whenever the reader is scrolled up,
+   and takes them back to the bottom. Neutral: gold is for selection and focus. */
 .msg-jump-pill {
   position: absolute;
-  left: 50%; transform: translateX(-50%);
-  bottom: 78px;       /* above the composer */
-  appearance: none; border: 0;
-  background: var(--soleil);
-  color: var(--on-soleil);
+  /* Centred without a transform: its entrance animation owns transform. */
+  left: 0; right: 0; margin: 0 auto; width: max-content;
+  bottom: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  appearance: none; border: 1px solid var(--line-2);
+  background: var(--bg-3);
+  color: var(--ink-0);
   font: 600 11.5px/1 var(--font-sans);
-  padding: 7px 14px;
+  padding: 7px 14px 7px 11px;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  box-shadow: var(--shadow-2);
   z-index: 5;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }

@@ -313,13 +313,19 @@ export async function getUnreadCounts() {
 // Update conversation_participants.last_read_at = now() for (conv, me).
 // Returns true on success so the caller can decide to bump a refresh
 // tick (the unread badge cache lives upstream).
-export async function markRead({ conversationId, userId }) {
+// `upTo` is the newest message seen, by its server created_at — what
+// get_unread_counts compares against. A device clock used to stand in for it,
+// and a fast one marked messages read before they arrived. The write only
+// ever moves forward, so an older tab can't take a read back.
+export async function markRead({ conversationId, userId, upTo = null }) {
   if (!conversationId || !userId) return false;
+  const at = upTo || new Date().toISOString();
   const { error } = await supabase
     .from('conversation_participants')
-    .update({ last_read_at: new Date().toISOString() })
+    .update({ last_read_at: at })
     .eq('conversation_id', conversationId)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .or(`last_read_at.is.null,last_read_at.lt."${at}"`);
   if (error) { console.warn('markRead', error); return false; }
   return true;
 }

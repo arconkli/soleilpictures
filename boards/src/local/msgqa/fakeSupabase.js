@@ -281,6 +281,8 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
       const m = /^([^.]+)\.(not\.)?([a-z]+)\.(.*)$/.exec(s.trim());
       if (!m) throw new Error(`fakeSupabase: cannot parse or() part "${s}"`);
       let v = m[4];
+      // PostgREST: a value holding reserved characters (an ISO time's : and .) comes quoted.
+      if (/^".*"$/.test(v)) v = v.slice(1, -1).replace(/\\"/g, '"');
       if (m[3] === 'is') v = v === 'null' ? null : v === 'true';
       else if (m[3] === 'in') v = v.replace(/^\(|\)$/g, '').split(',');
       const p = predicate(m[1], m[3], v);

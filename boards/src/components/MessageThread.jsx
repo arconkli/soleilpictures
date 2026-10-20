@@ -1,8 +1,9 @@
 import { useContext, useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit } from '../lib/icons.js';
+import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit, ArrowDown } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
+import { useStickToBottom } from '../hooks/useStickToBottom.js';
 import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
@@ -33,7 +34,6 @@ import { useMessagesLook } from './messagesLook.js';
 import { membersLine } from '../lib/messagesCard.js';
 import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 
-const STICK_THRESHOLD_PX = 80;
 // Start fetching the previous page this far before the reader hits the top.
 const LOAD_OLDER_THRESHOLD_PX = 120;
 
@@ -45,6 +45,7 @@ export function MessageThread({
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
+  const [bottomSeen, setBottomSeen] = useState(false);
   const feedback = useFeedback();
   // The files sidebar's card look: who's in it under the name, the thread in
   // bubbles (messagesCard.css), no glowing mark on an empty one.
@@ -58,6 +59,8 @@ export function MessageThread({
   } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
+    // Read means seen: the newest message has been on screen (see endRef).
+    readGate: bottomSeen,
   });
 
   const scrollRef = useRef(null);
@@ -93,32 +96,26 @@ export function MessageThread({
   });
   const titleText = conversation?.title || (peerLabels.length ? peerLabels.join(', ') : 'New conversation');
 
-  // ── Sticky-scroll behavior ───────────────────────────────────────────
-  const wasAtBottomRef = useRef(true);
+  // ── Staying where the reader is ─────────────────────────────────────
+  // useStickToBottom keeps the newest message in view while you're at the
+  // bottom, whatever grows (a message, an image, a reaction, the typing row,
+  // the composer), and holds your place while you read history (older pages,
+  // reactions and images landing above you). A send always goes to the bottom.
+  const contentRef = useRef(null);
+  const stick = useStickToBottom({ scrollRef, contentRef, startStuck: !jumpToMessageId });
   const [unseenCount, setUnseenCount] = useState(0);
   const prevLastIdRef = useRef(null);
-  // Scroll height captured just before an older page is prepended, so the
-  // message the reader is looking at stays put instead of jumping down.
-  const anchorRef = useRef(null);
 
-  const isNearBottom = () => {
-    const el = scrollRef.current;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < STICK_THRESHOLD_PX;
-  };
   const requestOlder = () => {
-    const el = scrollRef.current;
-    if (!hasOlder || loadingOlder || !el) return;
-    const anchor = { height: el.scrollHeight, top: el.scrollTop };
-    anchorRef.current = anchor;
-    // A bail (mid-switch) brings no page: a stale anchor would shift the
-    // next arrival by its height.
-    loadOlder().then(started => { if (!started && anchorRef.current === anchor) anchorRef.current = null; });
+    if (!hasOlder || loadingOlder || !scrollRef.current) return;
+    // The controller holds the first message in view while the page lands above it.
+    stick.captureAnchor();
+    loadOlder();
   };
   const lastScrollTopRef = useRef(0);
   const onScroll = () => {
-    wasAtBottomRef.current = isNearBottom();
-    if (wasAtBottomRef.current) setUnseenCount(0);
+    stick.onScroll();
+    if (stick.stuckRef.current) setUnseenCount(0);
     const el = scrollRef.current;
     if (!el) return;
     // Only an UPWARD scroll near the top pages back: the opening jump to the
@@ -127,67 +124,35 @@ export function MessageThread({
     lastScrollTopRef.current = el.scrollTop;
     if (goingUp && el.scrollTop < LOAD_OLDER_THRESHOLD_PX && !searchOpen && !replyParent) requestOlder();
   };
-  const jumpToBottom = (smooth = true) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+  const jumpToBottom = () => {
+    stick.pin();
     setUnseenCount(0);
   };
 
-  // Initial mount + conversation switch: jump to bottom instantly.
-  useEffect(() => {
-    wasAtBottomRef.current = true;
-    setUnseenCount(0);
-    prevLastIdRef.current = null;
-    anchorRef.current = null;
-    requestAnimationFrame(() => jumpToBottom(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
-
-  // New messages land at the END, so "something arrived" is the newest id
-  // moving — not the length, which also grows when older history is
-  // prepended and stays flat once a thread holds a full page.
+  // While you read history, count what the others send: the jump button says
+  // how many. At the bottom the controller simply keeps you there.
   const lastId = lastMessageId(messages);
   useEffect(() => {
     const prevId = prevLastIdRef.current;
     prevLastIdRef.current = lastId;
-    if (!lastId || lastId === prevId) return;
-    if (wasAtBottomRef.current || !prevId) {
-      // The first page of a conversation lands instantly: smooth-scrolling
-      // it animated through the whole history on every open (COMMS-16).
-      // Only a later arrival glides.
-      requestAnimationFrame(() => jumpToBottom(!!prevId));
-    } else {
-      const at = messages.findIndex(m => m.id === prevId);
-      const added = at >= 0 ? messages.length - 1 - at : 1;
-      if (added > 0) setUnseenCount(c => c + added);
-    }
+    if (!lastId || !prevId || lastId === prevId || stick.stuckRef.current) return;
+    const at = messages.findIndex(m => m.id === prevId);
+    const added = messages.slice(at + 1).filter(m => m.sender_id !== userId && !m.sendState).length;
+    if (added > 0) setUnseenCount(c => c + added);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastId]);
 
-  // An image that finishes loading above the newest message grows the thread
-  // under the reader; while they're at the bottom, keep them there. (load
-  // doesn't bubble — listen in the capture phase.)
+  // The end of the thread on screen = the newest message seen: only then does
+  // the thread mark itself read (useMessageThread's readGate).
+  const endRef = useRef(null);
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onLoad = (e) => {
-      if (e.target?.tagName !== 'IMG' || !wasAtBottomRef.current) return;
-      el.scrollTop = el.scrollHeight;
-    };
-    el.addEventListener('load', onLoad, true);
-    return () => el.removeEventListener('load', onLoad, true);
+    const root = scrollRef.current;
+    const end = endRef.current;
+    if (!root || !end || typeof IntersectionObserver === 'undefined') { setBottomSeen(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => setBottomSeen(e.isIntersecting), { root, threshold: 0 });
+    io.observe(end);
+    return () => io.disconnect();
   }, []);
-
-  // After an older page is prepended, push the scroll position down by the
-  // height it added so the reader's place doesn't move.
-  useLayoutEffect(() => {
-    const a = anchorRef.current;
-    const el = scrollRef.current;
-    if (!a || !el || loadingOlder) return;
-    anchorRef.current = null;
-    el.scrollTop = el.scrollHeight - a.height + a.top;
-  }, [messages, loadingOlder]);
 
   // ── Search ───────────────────────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
@@ -245,6 +210,16 @@ export function MessageThread({
     });
     return () => { cancelled = true; };
   }, [messages, replyParent, fixture, conversationId]);
+
+  // Search results and a reply thread borrow the scroller: hands off while
+  // they're up, and back to the bottom after if that's where you were.
+  useEffect(() => {
+    if (!searchOpen && !replyParent) return undefined;
+    const wasStuck = stick.stuckRef.current;
+    const resume = stick.suspend();
+    return () => { resume(); if (wasStuck) requestAnimationFrame(() => stick.pin()); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchOpen, !!replyParent]);
 
   // ── Pinned strip ─────────────────────────────────────────────────────
   const [pinned, setPinned] = useState([]);
@@ -477,10 +452,10 @@ export function MessageThread({
       created_at: new Date().toISOString(),
     };
     sendOpsRef.current.set(row.id, sendLocal(row));
-    wasAtBottomRef.current = true;
+    stick.requestPin();
     deliverPending(row);
     return true;
-  }, [conversationId, workspaceId, replyParent, userId, currentUser, sendLocal, deliverPending]);
+  }, [conversationId, workspaceId, replyParent, userId, currentUser, sendLocal, deliverPending, stick]);
 
   const retryPending = useCallback((msg) => {
     markSendState(sendOpsRef.current.get(msg.id), 'sending');
@@ -808,7 +783,9 @@ export function MessageThread({
         </div>
       )}
 
+      <div className="msg-thread-scroll">
       <div className={`msg-thread-body${card ? (isDm ? ' is-dm' : ' is-group') : ''}`} ref={scrollRef} onScroll={onScroll}>
+        <div className="msg-thread-content" ref={contentRef}>
         {!searchOpen && !replyParent && hasOlder && (
           <button
             type="button"
@@ -911,13 +888,18 @@ export function MessageThread({
             )}
           </>
         )}
+          <div className="msg-thread-end" ref={endRef} aria-hidden="true" />
+        </div>
       </div>
 
-      {!searchOpen && unseenCount > 0 && (
-        <button className="msg-jump-pill" onClick={() => jumpToBottom(true)}>
-          ↓ {unseenCount} new message{unseenCount === 1 ? '' : 's'}
+      {!searchOpen && !replyParent && !stick.stuck && (
+        <button type="button" className="msg-jump-pill" onClick={jumpToBottom}
+                aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
+          <Icon as={ArrowDown} size={13} />
+          {unseenCount > 0 ? `${unseenCount} new message${unseenCount === 1 ? '' : 's'}` : 'Latest'}
         </button>
       )}
+      </div>
 
       {canSend ? (
         <MessageComposer

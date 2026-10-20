@@ -41,6 +41,8 @@ test('a hidden or unfocused thread does not mark itself read', () => {
   const src = read('../hooks/useMessageThread.js');
   assert.match(src, /tabIsAttended\(\)/);
   assert.match(src, /visibilitychange/);
-  const effect = src.slice(src.indexOf('markRead({ conversationId, userId })') - 400);
+  const effect = src.slice(src.indexOf('markRead({ conversationId, userId') - 400);
   assert.match(effect, /if \(!userId \|\| !conversationId \|\| !attended\) return;/);
+  // …and not before the newest message has been on screen.
+  assert.match(effect, /if \(!readGate\) return;/);
 });

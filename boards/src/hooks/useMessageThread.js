@@ -29,7 +29,10 @@ const time = (m) => Date.parse(m?.created_at || '') || 0;
 //                    last_read_at write, so the parent (useConversationList)
 //                    can refresh its unread counts. Fixes the
 //                    "stuck at 1" bug from the old useChannelList.
-export function useMessageThread({ conversationId, userId, onMarkedRead }) {
+//   readGate       — false while the newest message isn't on screen (the
+//                    reader is up in history): nothing is marked read until
+//                    it has been seen. Omitted, the thread marks on arrival.
+export function useMessageThread({ conversationId, userId, onMarkedRead, readGate = true }) {
   // The dev QA harness's rows, when it provides them (lib/messagesFixture.js).
   const fixture = useContext(MessagesFixtureContext);
   // Going back to a conversation paints what it showed last time, then reads
@@ -262,19 +265,26 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
   // Mark read whenever the conversation opens, a new message arrives, or the
   // reader comes back to the tab — keyed on the newest id the server has, not
   // the length, which stops moving at a full page and jumps when older
-  // history loads. After marking, notify the parent so unread counts refresh.
-  const lastId = lastMessageId(view.filter(m => !m.sendState));
+  // history loads — once the newest message has been on screen. Marked up to
+  // that message's SERVER time: this device's clock, ahead or behind, used to
+  // mark later messages read or leave earlier ones unread. After marking,
+  // notify the parent so unread counts refresh.
+  const newest = [...view].reverse().find(m => !m.sendState) || null;
+  const lastId = newest?.id || null;
+  const upTo = newest?.created_at || null;
   useEffect(() => {
     if (fixture) return;
     if (!userId || !conversationId || !attended) return;
+    if (!readGate) return;
     let cancelled = false;
     (async () => {
-      const ok = await markRead({ conversationId, userId });
+      const ok = await markRead({ conversationId, userId, upTo });
       if (cancelled) return;
       if (ok) onMarkedReadRef.current?.();
     })();
     return () => { cancelled = true; };
-  }, [userId, conversationId, lastId, attended, fixture]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, conversationId, lastId, attended, fixture, readGate]);
 
   // Remember this conversation for a quick return: the server's rows only.
   useEffect(() => () => {

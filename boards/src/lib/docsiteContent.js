@@ -31741,6 +31741,15 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A conversation counts as read once its newest message has been on your screen, not just because it's open. Scrolled up in a long one, you stay where you are when something new arrives, and a button takes you back down to the latest."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Messages versus comments",

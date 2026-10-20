@@ -86,6 +86,9 @@ const pageReads = (page) => qa(page, () => window.__msgQa.calls.filter((c) => c.
 
 test('a send shows at once and keeps its element when the server confirms it, with no thread re-read', async ({ page }) => {
   await open(page, 'conv=c-maya');
+  await expect(page.locator('.msg-bubble-body', { hasText: 'Thanks! Talk tomorrow.' })).toBeVisible();
+  // Let the opening reads (StrictMode mounts twice in dev) land before counting.
+  await expect.poll(async () => { const a = await pageReads(page); await page.waitForTimeout(250); return a === await pageReads(page); }).toBe(true);
   await qa(page, () => window.__msgQa.setLatency({ 'insert:messages': 700 }));
   const before = await pageReads(page);
   const b = await send(page, 'optimistic hello');
@@ -150,4 +153,94 @@ test('a failed edit shows at once, then reopens the editor with your text', asyn
   await expect(row.locator('textarea')).toHaveValue('after edit');
   await expect(page.locator('.toast-msg', { hasText: 'Could not save your edit' })).toBeVisible();
   expect(await qa(page, () => window.__msgQa.db.messages.some((m) => m.body === 'after edit'))).toBe(false);
+});
+
+// ── Staying where the reader is (C2.4) ─────────────────────────────────
+const fromBottom = (page) => page.locator('.msg-thread-body').evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight);
+const scrollTo = (page, top) => page.locator('.msg-thread-body').evaluate((el, t) => { el.scrollTop = t; el.dispatchEvent(new Event('scroll')); }, top);
+// The first message showing at the top of the view, and where its top sits.
+const topAnchor = (page) => page.locator('.msg-thread-body').evaluate((el) => {
+  const box = el.getBoundingClientRect();
+  const first = [...el.querySelectorAll('[data-msg-id]')].find((n) => n.getBoundingClientRect().bottom > box.top);
+  return first ? { id: first.getAttribute('data-msg-id'), offset: first.getBoundingClientRect().top - box.top } : null;
+});
+
+test('a conversation opens at the bottom and stays there while slow images load', async ({ page }) => {
+  await page.route('**/qa-photos/**', async (route) => { await new Promise((r) => setTimeout(r, 900)); await route.continue(); });
+  await open(page, 'conv=c-maya');
+  await expect(page.locator('.msg-bubble-body', { hasText: 'Thanks! Talk tomorrow.' })).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(await fromBottom(page)).toBeLessThanOrEqual(2);
+});
+
+test('sending while reading history goes to the bottom at once', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  await scrollTo(page, 200);
+  expect(await fromBottom(page)).toBeGreaterThan(200);
+  await send(page, 'from up in history');
+  await expect.poll(() => fromBottom(page), { timeout: 400 }).toBeLessThanOrEqual(2);
+  await expect(page.locator('.msg-bubble-body', { hasText: 'from up in history' })).toBeInViewport();
+});
+
+test('a peer’s message while you read history doesn’t move you; the jump button counts it and takes you down', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  await scrollTo(page, 3000);
+  await page.waitForTimeout(100);
+  const before = await topAnchor(page);
+  await expect(page.locator('.msg-jump-pill')).toHaveText(/Latest/);
+  await qa(page, () => window.__msgQa.peer('jon').send('c-long', 'news while you read'));
+  await expect(page.locator('.msg-jump-pill')).toHaveText(/1 new message/);
+  const after = await topAnchor(page);
+  expect(after.id).toBe(before.id);
+  expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(1);
+  await page.locator('.msg-jump-pill').click();
+  await expect.poll(() => fromBottom(page)).toBeLessThanOrEqual(2);
+  await expect(page.locator('.msg-jump-pill')).toHaveCount(0);
+});
+
+test('older history loads above without moving what you are reading', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  const count = () => page.locator('.msg-thread-body [data-msg-id]').count();
+  const first = await count();
+  await scrollTo(page, 400);
+  await scrollTo(page, 60); // an upward scroll near the top pages back
+  const before = await topAnchor(page);
+  await expect.poll(count).toBeGreaterThan(first);
+  await page.waitForTimeout(150);
+  const after = await topAnchor(page);
+  expect(after.id).toBe(before.id);
+  expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(2);
+});
+
+test('a reaction landing above where you read keeps your place', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  await scrollTo(page, 2500);
+  await page.waitForTimeout(100);
+  const before = await topAnchor(page);
+  // React to a message a little above the view, as a peer.
+  const above = await page.locator('.msg-thread-body').evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const rows = [...el.querySelectorAll('[data-msg-id]')].filter((n) => n.getBoundingClientRect().bottom < box.top);
+    return rows[rows.length - 3]?.getAttribute('data-msg-id');
+  });
+  await qa(page, ([id]) => { const p = window.__msgQa.peer('jon'); ['👍', '🔥', '🎬'].forEach((e) => p.react(id, e)); }, [above]);
+  await page.waitForTimeout(400);
+  const after = await topAnchor(page);
+  expect(after.id).toBe(before.id);
+  expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(1);
+});
+
+test('a thread is marked read only once its newest message has been on screen', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  const reads = () => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'update:conversation_participants').length);
+  await expect.poll(reads).toBeGreaterThan(0); // opened at the bottom: seen
+  await scrollTo(page, 1500);
+  await page.waitForTimeout(150);
+  const marked = await reads();
+  await qa(page, () => window.__msgQa.peer('jon').send('c-long', 'unseen for now'));
+  await expect(page.locator('.msg-jump-pill')).toHaveText(/1 new message/);
+  await page.waitForTimeout(300);
+  expect(await reads()).toBe(marked);
+  await page.locator('.msg-jump-pill').click();
+  await expect.poll(reads).toBeGreaterThan(marked);
 });
