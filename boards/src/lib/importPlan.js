@@ -28,6 +28,14 @@ import { classifyDropFile } from './fileIngest.js';
 import { CLUSTER_CARD_COST } from './gridCount.js';
 import { MEDIA_SLACK_BYTES } from './importPreflight.js';
 
+// Why 2,000 (M1, scripts/measure-import-doc.mjs, 2026-10-20: the doc built
+// the way the import builds it, pending cards a batch per /append and each
+// finished card replaced whole by /patch). A file card costs 560–580 bytes
+// of Yjs, history included, so a full cluster's doc is ~1.1 MB (1.5 MB as
+// board_state's base64), which the room re-flushes whole on every change.
+// Every /append and /patch opens the whole doc, so one cluster's import moves
+// ~33 MB over its life at 2,000, but ~206 MB at 5,000 and ~0.8 GB at 10,000:
+// the cost grows as the square.
 export const CLUSTER_FILE_CEILING = 2000;
 
 // null / undefined / NaN / Infinity / non-numbers → unlimited; negatives → 0.
