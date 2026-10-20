@@ -6744,13 +6744,13 @@ Yes, once you are in. Linking the account you already have comes with your invit
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/mood-board-maker
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 # Mood Board Maker
 
-> Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
+> Soleil Clusters is a free online mood board maker: drag images, links, video, color palettes and any other file onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
 
-_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-20_
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
@@ -6791,6 +6791,10 @@ Yes — Clusters is a real-time collaborative canvas. Multiple people can edit t
 ### What can I put on a mood board?
 
 Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file, at any size. Everything lives on one infinite canvas you can pan and zoom.
+
+### What happens when my drive is full?
+
+Nothing you have made is removed or locked. A drop that would not fit is caught before anything uploads, so you can add the part that fits. The rest waits in that browser tab and goes on by itself when you upgrade or add storage — or press Upload now after deleting something to make room. Closing the tab lets the waiting files go; they are still on your computer.
 
 ### Can I share a mood board without making people sign up?
 
@@ -6881,7 +6885,7 @@ It sees exactly what your account sees — no more. It runs as you, under the sa
 
 ### Is it free?
 
-Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers 50 cards, and every cluster counts as one.
+Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers 50 cards or 5GB of files, whichever comes first, and every cluster counts as one card.
 
 
 
@@ -6947,19 +6951,19 @@ Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first �
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/shot-list-maker
-Updated: 2026-10-01
+Updated: 2026-10-20
 
 # Shot List Maker
 
 > Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, group shots into a cluster per shoot day, and share one live link with the crew.
 
-_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-10-20_
 
 Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.
 
 ## A shot list with pictures, not just rows
 
-A spreadsheet tells you what to shoot; it never shows you. In Clusters your shot list lives on a visual board, so each shot can carry its own reference frame, lens note, and movement right beside the description. Switch a board to list view when you want the clean table, and back to canvas when you want to see it.
+A spreadsheet tells you what to shoot; it never shows you. In Clusters your shot list lives on a visual board, so each shot can carry its own reference frame — or the reference clip itself, playing on the board — with the lens note and movement right beside the description. Switch a board to list view when you want the clean table, and back to canvas when you want to see it.
 
 - Every shot carries its reference frame and notes
 - Toggle between visual canvas and a clean list view
@@ -7013,7 +7017,7 @@ Yes. Share a live link with your crew, or export boards and docs to PDF.
 
 ### Is it free to start?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### How do I make a shot list for a short film?
 
@@ -7031,13 +7035,13 @@ Yes — planning the shots is the whole point. Each shot card carries its refere
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/look-book-maker
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 # Look Book Maker
 
 > Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to the polished, interactive board itself — no account or download required to view it.
 
-_Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 2026-10-20_
 
 Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.
 
@@ -7055,12 +7059,12 @@ Share a look book with a single link and the recipient sees a clean, interactive
 
 ## Keep every project’s looks together
 
-Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays yours, in a 1TB drive on Creator.
+Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays with the project — photos, video, PDFs and any other file, at any size — and the drive is the only limit: 5GB free, 1TB on Creator.
 
 ## How to make a look book
 
 1. **Start a board and set the mood** — Begin with a blank canvas — or a nested board per season, campaign, or client.
-2. **Drop in your looks** — Add your imagery and references, then adjust them non-destructively to unify the set.
+2. **Drop in your looks** — Add your imagery and references — stills, clips, PDFs, any file — then adjust the images non-destructively to unify the set.
 3. **Arrange the spreads** — Use grid layouts for tidy, editorial spreads that read intentionally.
 4. **Pull a color story** — Add a palette card so the color direction sits right in the presentation.
 5. **Send a link** — Share a single link for a polished, interactive look book — no account needed to view.
@@ -7091,19 +7095,19 @@ Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first �
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/free-mood-board-maker
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 # Free Online Mood Board Maker
 
 > Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and a 1TB drive.
 
-_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-20_
 
 Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.
 
 ## Free, and actually usable
 
-A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, notes, links, and color palettes on an infinite canvas — and share it, without paying and without installing anything. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.
+A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, video, notes, links, color palettes and any other file, at any size, on an infinite canvas — and share it, without paying and without installing anything. It holds 50 cards or 5GB of files, whichever comes first. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.
 
 - Works in any modern browser — nothing to download
 - Drop in images, links, video, notes, and palettes
@@ -7129,7 +7133,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### Do I have to download anything?
 
@@ -7137,7 +7141,11 @@ No. It runs in your browser, and on a phone or tablet it can be added to the hom
 
 ### What is the catch with the free tier?
 
-The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and gives you a 1TB drive.
+The Demo tier stops at 50 cards or 5GB of files, whichever comes first. Collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the card cap and gives you a 1TB drive.
+
+### What happens when the free drive is full?
+
+Nothing you have made is removed or locked. A drop that would not fit is caught before anything uploads, so you can add the part that fits. The rest waits in that browser tab and goes on by itself when you upgrade — or press Upload now after deleting something to make room. Closing the tab lets the waiting files go; they are still on your computer.
 
 ### Can I share my free mood board?
 
@@ -7151,13 +7159,13 @@ Yes. You own your references and control who can see each board and whether it i
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/reference-board-maker
-Updated: 2026-10-05
+Updated: 2026-10-20
 
 # An Online Reference Board Maker for Working Artists
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-05_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-20_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
@@ -7199,7 +7207,7 @@ A browser tool isn’t the answer for everyone, and it’s worth being plain abo
 
 ## How to make a reference board
 
-1. **Gather everything in one place** — Drag images, screenshots, and stills straight onto a new board. Paste links to pieces you found online, and drop in video clips or PDFs when your reference isn’t a still image.
+1. **Gather everything in one place** — Drag images, screenshots, and stills straight onto a new board. Paste links to pieces you found online, and drop in video clips, audio or PDFs when your reference isn’t a still image — any file lands as a card, at any size.
 2. **Arrange by what you’re studying** — Cluster the board around the problem — one area for lighting, one for anatomy, one for materials. The infinite canvas never runs out of room, and you can zoom from the whole board down to a single edge.
 3. **Tune the reference, not the file** — Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and sample its colors into a palette with the eyedropper. Adjustments are non-destructive, so the original stays intact.
 4. **Open it wherever you work** — The board lives at a URL, so the same reference is on your workstation, your laptop, and your tablet — no files to move, nothing to install.
@@ -7217,7 +7225,7 @@ A mood board communicates a direction to other people; a reference board support
 
 ### Is there a free online reference board maker?
 
-Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards, with each cluster you make counting as one. It runs in the browser with nothing to install.
+Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards or 5GB of files, whichever comes first, with each cluster you make counting as one card. It runs in the browser with nothing to install.
 
 ### Do I need to install anything to make a reference board?
 
@@ -7247,13 +7255,13 @@ PureRef is a beloved offline desktop app — free to use personally, and excelle
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/shared-reference-board
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 # Shared Reference Boards for Studio Art Teams
 
 > Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.
 
-_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-20_
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
 
@@ -7293,7 +7301,7 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
 2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
-3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.
+3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.
 4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
 
@@ -7333,7 +7341,7 @@ Yes. A view-only link opens the board in any browser with no account, can includ
 
 ### Can we bring our PureRef boards over?
 
-Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.
+Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On any plan you can also attach the .pur file itself, so the original travels with the board as a download.
 
 ### Does it work offline?
 
@@ -7440,7 +7448,7 @@ The same structure works: concept, world and look, performance and casting, ward
 
 ### Is it free?
 
-Free for 50 cards — each cluster counts as one — with free editors. Image-heavy treatments can outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+Free for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. Image-heavy treatments can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 
 
 
@@ -7532,7 +7540,7 @@ Invite them to comment and vote, free — or send a view-only link that opens wi
 
 ### Is it free?
 
-Free for 50 cards across the workspace — each cluster counts as one — with free editors. A full art department will outgrow that; Creator removes the cap for the whole workspace at once. See “What it costs” on this page.
+Free across the workspace for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full art department will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace at once. See “What it costs” on this page.
 
 
 
@@ -7558,7 +7566,7 @@ Costume is a story told across scenes, so one mood board for the whole film flat
 
 ## Swatches, colour and fittings together
 
-Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.
+Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it. A supplier’s PDF, a pattern file or the sketch itself can sit beside the look too — any file lands on the board as a card, at any size.
 
 ## One character tag, every reference
 
@@ -7620,7 +7628,7 @@ For the looks, yes: fitting and continuity photos live in the character’s grid
 
 ### Is it free?
 
-Free for 50 cards across the workspace — each cluster counts as one — with free editors. A full principal cast will outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+Free across the workspace for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full principal cast will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 
 
 
@@ -7712,7 +7720,7 @@ Yes, through a view-only link that opens in any browser and can expire after 7 o
 
 ### Is it free?
 
-Free for 50 cards — each cluster counts as one — with free editors. A full lookbook can outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+Free for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full lookbook can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 
 
 
@@ -7967,13 +7975,13 @@ Yes. Clusters runs in the mobile browser and can be added to the home screen as 
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/eagle
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 # An Eagle Alternative for Teams That Build Boards Together
 
 > Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.
 
-_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-20_
 
 Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.
 
@@ -8017,7 +8025,8 @@ How the two compare. Eagle figures are from its own store, blog and support page
 | Organising | Tags and nested clusters | Tags, smart folders and colour search |
 | Notes, docs and a screenplay beside the images | Yes | Notes on each asset |
 | Comments and votes from a team | Yes | No |
-| Price | Free to start (50 cards); Creator $25/mo | US$34.95 once, two devices |
+| Any file, any size | Yes — video, audio and PDFs play or open on the card; the drive is the only limit (5GB free, 1TB on Creator) | Yes — any format, previews for images, GIFs, video and audio |
+| Price | Free to start (50 cards or 5GB of files); Creator $25/mo | US$34.95 once, two devices |
 
 ## What it costs
 
@@ -8321,13 +8330,13 @@ In Clusters, yes — connect Claude or any MCP client with one URL and ask it to
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/miro
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 # A Miro Alternative for Filmmakers and Creative Teams
 
 > Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.
 
-_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-20_
 
 Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.
 
@@ -8336,6 +8345,7 @@ Miro is a whiteboard for everything. Clusters is a canvas built specifically for
 Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.
 
 - Image-first cards with photo adjustments and palettes
+- Video, audio, PDFs and any other file on the board, at any size
 - Docs and screenplay mode built in
 - Tags and a relationship graph across boards
 
@@ -8369,7 +8379,7 @@ Different tools for different jobs:
 | Client view without a workspace invite | Yes | Account for editing |
 | Flat pricing, not per-seat | Yes ($25/mo Creator) | Per-member |
 | Diagramming & integrations marketplace | Focused | Extensive |
-| Free tier | Yes | Yes |
+| Free tier | Yes — 50 cards or 5GB of files | Yes |
 
 ## What it costs
 
@@ -8407,7 +8417,7 @@ Yes. Share a link and they see a clean, interactive read-only preview — no wor
 
 ### Does Clusters have a free tier?
 
-Yes. The Demo tier is free; Creator is $25/mo for unlimited cards and a 1TB drive.
+Yes. The Demo tier is free for 50 cards or 5GB of files, whichever comes first; Creator is $25/mo for unlimited cards and a 1TB drive.
 
 ### Is there a simpler Miro alternative for mood boards?
 

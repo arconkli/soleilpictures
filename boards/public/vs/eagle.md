@@ -2,7 +2,7 @@
 
 > Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.
 
-_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-20_
 
 Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.
 
@@ -46,7 +46,8 @@ How the two compare. Eagle figures are from its own store, blog and support page
 | Organising | Tags and nested clusters | Tags, smart folders and colour search |
 | Notes, docs and a screenplay beside the images | Yes | Notes on each asset |
 | Comments and votes from a team | Yes | No |
-| Price | Free to start (50 cards); Creator $25/mo | US$34.95 once, two devices |
+| Any file, any size | Yes — video, audio and PDFs play or open on the card; the drive is the only limit (5GB free, 1TB on Creator) | Yes — any format, previews for images, GIFs, video and audio |
+| Price | Free to start (50 cards or 5GB of files); Creator $25/mo | US$34.95 once, two devices |
 
 ## What it costs
 

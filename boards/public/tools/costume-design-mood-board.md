@@ -16,7 +16,7 @@ Costume is a story told across scenes, so one mood board for the whole film flat
 
 ## Swatches, colour and fittings together
 
-Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it.
+Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it. A supplier’s PDF, a pattern file or the sketch itself can sit beside the look too — any file lands on the board as a card, at any size.
 
 ## One character tag, every reference
 
@@ -78,5 +78,5 @@ For the looks, yes: fitting and continuity photos live in the character’s grid
 
 ### Is it free?
 
-Free for 50 cards across the workspace — each cluster counts as one — with free editors. A full principal cast will outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+Free across the workspace for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full principal cast will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 

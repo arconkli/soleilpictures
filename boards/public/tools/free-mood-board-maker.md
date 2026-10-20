@@ -2,13 +2,13 @@
 
 > Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and a 1TB drive.
 
-_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-20_
 
 Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.
 
 ## Free, and actually usable
 
-A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, notes, links, and color palettes on an infinite canvas — and share it, without paying and without installing anything. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.
+A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, video, notes, links, color palettes and any other file, at any size, on an infinite canvas — and share it, without paying and without installing anything. It holds 50 cards or 5GB of files, whichever comes first. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.
 
 - Works in any modern browser — nothing to download
 - Drop in images, links, video, notes, and palettes
@@ -34,7 +34,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### Do I have to download anything?
 
@@ -42,7 +42,11 @@ No. It runs in your browser, and on a phone or tablet it can be added to the hom
 
 ### What is the catch with the free tier?
 
-The Demo tier is a generous sandbox capped at a set number of cards — collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the cap and gives you a 1TB drive.
+The Demo tier stops at 50 cards or 5GB of files, whichever comes first. Collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the card cap and gives you a 1TB drive.
+
+### What happens when the free drive is full?
+
+Nothing you have made is removed or locked. A drop that would not fit is caught before anything uploads, so you can add the part that fits. The rest waits in that browser tab and goes on by itself when you upgrade — or press Upload now after deleting something to make room. Closing the tab lets the waiting files go; they are still on your computer.
 
 ### Can I share my free mood board?
 

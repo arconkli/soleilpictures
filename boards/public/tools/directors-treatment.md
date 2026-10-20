@@ -89,5 +89,5 @@ The same structure works: concept, world and look, performance and casting, ward
 
 ### Is it free?
 
-Free for 50 cards — each cluster counts as one — with free editors. Image-heavy treatments can outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+Free for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. Image-heavy treatments can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 

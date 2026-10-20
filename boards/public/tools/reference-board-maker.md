@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-05_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-20_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
@@ -44,7 +44,7 @@ A browser tool isn’t the answer for everyone, and it’s worth being plain abo
 
 ## How to make a reference board
 
-1. **Gather everything in one place** — Drag images, screenshots, and stills straight onto a new board. Paste links to pieces you found online, and drop in video clips or PDFs when your reference isn’t a still image.
+1. **Gather everything in one place** — Drag images, screenshots, and stills straight onto a new board. Paste links to pieces you found online, and drop in video clips, audio or PDFs when your reference isn’t a still image — any file lands as a card, at any size.
 2. **Arrange by what you’re studying** — Cluster the board around the problem — one area for lighting, one for anatomy, one for materials. The infinite canvas never runs out of room, and you can zoom from the whole board down to a single edge.
 3. **Tune the reference, not the file** — Flip an image to black and white to read its values, nudge brightness or warmth to match your scene, and sample its colors into a palette with the eyedropper. Adjustments are non-destructive, so the original stays intact.
 4. **Open it wherever you work** — The board lives at a URL, so the same reference is on your workstation, your laptop, and your tablet — no files to move, nothing to install.
@@ -62,7 +62,7 @@ A mood board communicates a direction to other people; a reference board support
 
 ### Is there a free online reference board maker?
 
-Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards, with each cluster you make counting as one. It runs in the browser with nothing to install.
+Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards or 5GB of files, whichever comes first, with each cluster you make counting as one card. It runs in the browser with nothing to install.
 
 ### Do I need to install anything to make a reference board?
 

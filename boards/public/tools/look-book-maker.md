@@ -2,7 +2,7 @@
 
 > Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to the polished, interactive board itself — no account or download required to view it.
 
-_Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 2026-10-20_
 
 Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.
 
@@ -20,12 +20,12 @@ Share a look book with a single link and the recipient sees a clean, interactive
 
 ## Keep every project’s looks together
 
-Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays yours, in a 1TB drive on Creator.
+Nest boards inside boards so a season, a campaign, or a client each has its own space, and use the relationship graph to move between them. Everything you reference stays with the project — photos, video, PDFs and any other file, at any size — and the drive is the only limit: 5GB free, 1TB on Creator.
 
 ## How to make a look book
 
 1. **Start a board and set the mood** — Begin with a blank canvas — or a nested board per season, campaign, or client.
-2. **Drop in your looks** — Add your imagery and references, then adjust them non-destructively to unify the set.
+2. **Drop in your looks** — Add your imagery and references — stills, clips, PDFs, any file — then adjust the images non-destructively to unify the set.
 3. **Arrange the spreads** — Use grid layouts for tidy, editorial spreads that read intentionally.
 4. **Pull a color story** — Add a palette card so the color direction sits right in the presentation.
 5. **Send a link** — Share a single link for a polished, interactive look book — no account needed to view.

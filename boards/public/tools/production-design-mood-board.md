@@ -82,5 +82,5 @@ Invite them to comment and vote, free — or send a view-only link that opens wi
 
 ### Is it free?
 
-Free for 50 cards across the workspace — each cluster counts as one — with free editors. A full art department will outgrow that; Creator removes the cap for the whole workspace at once. See “What it costs” on this page.
+Free across the workspace for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full art department will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace at once. See “What it costs” on this page.
 
