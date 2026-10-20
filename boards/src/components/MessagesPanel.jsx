@@ -17,6 +17,8 @@ import { readOnlyCopy } from '../lib/messageAccess.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 
+const NO_PARTICIPANTS = [];
+
 // Right-drawer slot. Single unified conversation list (DMs + group
 // chats interleaved by recency). Two modes: list, or thread (one open
 // conversation).
@@ -218,9 +220,17 @@ export function MessagesPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [openConversationId]);
 
+  // The open thread's conversation: the same object until it changes, since
+  // the thread reads it in effects and memos.
+  const openConv = openConversationId ? conversations.find(c => c.conversation_id === openConversationId) : null;
+  const openParts = (openConversationId && participantsByConv.get(openConversationId)) || NO_PARTICIPANTS;
+  const threadConversation = useMemo(() => ({
+    id: openConversationId,
+    title: openConv?.title || null,
+    participants: openParts,
+  }), [openConversationId, openConv?.title, openParts]);
+
   if (openConversationId) {
-    const conv = conversations.find(c => c.conversation_id === openConversationId);
-    const parts = participantsByConv.get(openConversationId) || [];
     return (
       <MessageThread
         // One instance per conversation: nothing a thread holds (a reply
@@ -235,11 +245,7 @@ export function MessagesPanel({
         // to post in; a hidden DM is rejoined above.
         canSend={canSendMessages && !(myOpenState?.left_at && !openIsDm)}
         readOnlyReason={canSendMessages ? 'left' : readOnlyReason}
-        conversation={{
-          id: openConversationId,
-          title: conv?.title || null,
-          participants: parts,
-        }}
+        conversation={threadConversation}
         jumpToMessageId={pendingJump?.convId === openConversationId ? pendingJump.messageId : null}
         onJumpConsumed={() => setPendingJump(null)}
         onChanged={onRefreshRequested}

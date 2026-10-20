@@ -16863,7 +16863,10 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   transition: opacity var(--dur-fast) var(--ease);
 }
 .msg-bubble:hover .msg-bubble-actions,
-.msg-bubble-actions.is-visible { opacity: 1; }
+.msg-bubble:focus-within .msg-bubble-actions { opacity: 1; }
+/* Nothing to act on while a message is being edited or sent. */
+.msg-bubble.is-editing .msg-bubble-actions,
+.msg-bubble--pending .msg-bubble-actions { display: none; }
 .msg-bubble-actions button {
   background: transparent; border: 0; color: var(--ink-3);
   width: 24px; height: 24px;

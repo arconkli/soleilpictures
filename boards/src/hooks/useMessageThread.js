@@ -53,6 +53,9 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
     setWritesState(next);
   }, []);
   const [typingUsers, setTypingUsers] = useState(new Map()); // userId → ts
+  // Bumped when pins may have changed beyond what's loaded: a peer's pin (of
+  // a message older than the pages on screen, too) and every resync.
+  const [pinTick, setPinTick] = useState(0);
   const [hasOlder, setHasOlder] = useState(() => !!cached?.hasOlder);
   const [loadingOlder, setLoadingOlder] = useState(false);
   // The last newest-page read failed. The thread keeps what it shows; an
@@ -300,26 +303,42 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
   // that message's SERVER time: this device's clock, ahead or behind, used to
   // mark later messages read or leave earlier ones unread. After marking,
   // notify the parent so unread counts refresh.
-  const newest = [...view].reverse().find(m => !m.sendState) || null;
+  //
+  // Up to the newest message from someone else: your own never count as
+  // unread (get_unread_counts, 0058), so a send of yours marks nothing — no
+  // write, no re-read of the conversation list, no "read" ping that has the
+  // others check Seen again.
+  const newest = [...view].reverse().find(m => !m.sendState && m.sender_id !== userId) || null;
   const lastId = newest?.id || null;
   const upTo = newest?.created_at || null;
+  // On screen is checked again over the next few frames: a message that
+  // lands while you're at the bottom is laid out before the view re-pins to
+  // it, so the first look finds it just below the fold, and the read gate
+  // (an observer of the end) never flips to ask again. It stayed unread.
   useEffect(() => {
     if (fixture) return;
     if (!userId || !conversationId || !attended) return;
     if (!readGate) return;
-    if (isReadableRef.current && !isReadableRef.current()) return;
     // Nothing the server has sent yet: nothing to mark (and no server time to mark it with).
     if (!upTo) return;
     let cancelled = false;
-    (async () => {
+    let frame = 0;
+    let tries = 0;
+    const attempt = async () => {
+      if (cancelled) return;
+      if (isReadableRef.current && !isReadableRef.current()) {
+        if (tries++ < 3) frame = requestAnimationFrame(attempt);
+        return;
+      }
       const ok = await markRead({ conversationId, userId, upTo });
       if (cancelled) return;
       if (ok) {
         onMarkedReadRef.current?.();
         broadcastConversationRead({ conversationId, userId });
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    attempt();
+    return () => { cancelled = true; cancelAnimationFrame(frame); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, conversationId, lastId, attended, fixture, readGate]);
 
@@ -345,7 +364,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
     // Read again whenever the live feed may have dropped something: the
     // channel (re)joining, the tab coming back, the network returning, or a
     // nudge whose re-read failed (COMMS-04).
-    const resync = watchForResync(() => { refetch(); refreshReadState(); });
+    const resync = watchForResync(() => { refetch(); refreshReadState(); setPinTick((t) => t + 1); });
     // A broadcast only says WHICH message changed. Its payload is never
     // trusted for content (anyone in the conversation can send anything on
     // conv:*): the named rows are read again from the database instead.
@@ -379,6 +398,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
     });
     const onMessage = (payload) => {
       if (payload?.changed === 'participants') { resync.kick(); return; }
+      if (payload?.changed === 'pin') setPinTick((t) => t + 1);
       // Their message landed: they've stopped typing.
       if (payload?.sender_id) clearTyping(payload.sender_id);
       nudge(payload?.id);
@@ -415,7 +435,7 @@ export function useMessageThread({ conversationId, userId, onMarkedRead, readGat
   }, [conversationId, userId, refetch, fixture, applyServerRows, refreshReadState]);
 
   return {
-    messages: view, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed,
+    messages: view, typingUsers, pinTick, refetch, hasOlder, loadingOlder, loadOlder, failed,
     loading: !!conversationId && loadedFor !== conversationId, fresh, readState,
     sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback,
   };

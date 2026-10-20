@@ -18,7 +18,7 @@ test('marking read tells the others, after the write succeeded', () => {
 test('the receiver reads positions again, from the database, and on every resync', () => {
   assert.match(hook, /const onRead = \(payload\) => \{ if \(payload\?\.user_id !== userId\) refreshReadState\(\); \};/);
   assert.match(hook, /const rows = await fetchReadState\(\{ conversationId \}\);/);
-  assert.match(hook, /watchForResync\(\(\) => \{ refetch\(\); refreshReadState\(\); \}\)/);
+  assert.match(hook, /watchForResync\(\(\) => \{ refetch\(\); refreshReadState\(\);[^}]*\}\)/);
   const lib = read('./messages.js');
   const fn = lib.slice(lib.indexOf('export async function fetchReadState'));
   assert.match(fn.slice(0, fn.indexOf('\n}\n')), /\.select\('user_id, last_read_at, left_at'\)/);

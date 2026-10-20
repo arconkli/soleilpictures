@@ -15,7 +15,8 @@ import {
 import {
   broadcastConversationMessage, broadcastConversationTyping, broadcastConversationChange,
 } from '../lib/messageRealtime.js';
-import { MessageBubble, formatRelTime } from './MessageBubble.jsx';
+import { MessageBubble } from './MessageBubble.jsx';
+import { RelTime } from './RelTime.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
 import { finePointer } from '../lib/composerKeys.js';
 import { lastEditableMessage } from '../lib/messageEdit.js';
@@ -39,6 +40,14 @@ import { isDmConversation } from '../lib/conversationState.js';
 import { useMessagesLook } from './messagesLook.js';
 import { membersLine } from '../lib/messagesCard.js';
 import { MessagesFixtureContext } from '../lib/messagesFixture.js';
+
+// Dragging an attachment out of a message onto a canvas makes it a card.
+function attachmentDragStart(e, att) {
+  const payload = inboxPayloadFor(att);
+  if (!payload) return;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData(INBOX_MIME, JSON.stringify(payload));
+}
 
 // Start fetching the previous page this far before the reader hits the top.
 const LOAD_OLDER_THRESHOLD_PX = 120;
@@ -90,7 +99,7 @@ export function MessageThread({
   const fixture = useContext(MessagesFixtureContext);
 
   const {
-    messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading,
+    messages, typingUsers, pinTick, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading,
     sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback, fresh, readState,
   } = useMessageThread({
     conversationId, userId,
@@ -294,8 +303,9 @@ export function MessageThread({
   // ── Pinned strip ─────────────────────────────────────────────────────
   const [pinned, setPinned] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
-  // Also re-read when a loaded message is pinned or unpinned: a peer's pin
-  // arrives as a refetch that leaves the count where it was.
+  // Read again when a pin changes: one on screen (pinnedSig), a peer's pin
+  // of any message, and after a resync (pinTick). Not on every arrival: the
+  // pinned list is the whole conversation's, so a new message doesn't move it.
   const pinnedSig = messages.filter(m => m.is_pinned).map(m => m.id).join(',');
   useEffect(() => {
     if (!conversationId) return;
@@ -303,7 +313,7 @@ export function MessageThread({
     let cancelled = false;
     listPinnedForConversation({ conversationId }).then(rows => { if (!cancelled) setPinned(rows); });
     return () => { cancelled = true; };
-  }, [conversationId, messages.length, pinnedSig, fixture]);
+  }, [conversationId, pinnedSig, pinTick, fixture]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
   // Once, when the target's page is on screen. It re-ran on every new
@@ -423,11 +433,15 @@ export function MessageThread({
     return m;
   }, [messages]);
   // Jump within the thread: flash it if it's loaded, else page back to it.
-  const jumpTo = (msgId) => {
+  // One function for the life of the thread (it reads the latest through a
+  // ref), so the memoized bubbles that hold it don't all re-render.
+  const jumpToRef = useRef(null);
+  jumpToRef.current = (msgId) => {
     if (messagesById.has(msgId)) { flashMessage(msgId); return; }
     closeSearch();
     setSeekId(msgId);
   };
+  const jumpTo = useCallback((msgId) => jumpToRef.current(msgId), []);
 
   // What a reply quotes when the original isn't on screen (older than the
   // pages loaded, or deleted): read by id, once each.
@@ -534,8 +548,10 @@ export function MessageThread({
     // re-read it by id; the payload carries nothing else.
     broadcastConversationMessage({ conversationId, payload: { id: saved.id, sender_id: saved.sender_id } })
       .then(null, (e) => console.warn('send broadcast failed', e));
-    onChanged?.();
-  }, [workspaceId, conversationId, userId, currentUser, markSendState, confirmSend, onChanged, feedback]);
+    // No list re-read here: the insert bumps the conversation (0058's
+    // messages_touch_conversation) and the list hears that change live. A
+    // read per send was three queries in each of two lists, on top of it.
+  }, [workspaceId, conversationId, userId, currentUser, markSendState, confirmSend, feedback]);
 
   const handleSend = useCallback(async ({ body, attachments, mentions }) => {
     if (!conversationId) return false;
@@ -678,12 +694,7 @@ export function MessageThread({
     broadcastConversationTyping({ conversationId, userId });
   }, [conversationId, userId]);
 
-  const handleAttachmentDragStart = (e, att) => {
-    const payload = inboxPayloadFor(att);
-    if (!payload) return;
-    e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData(INBOX_MIME, JSON.stringify(payload));
-  };
+  const handleAttachmentDragStart = attachmentDragStart;
 
   // ── Group chat actions ───────────────────────────────────────────────
   const [menuAnchor, setMenuAnchor] = useState(null);
@@ -921,7 +932,7 @@ export function MessageThread({
                 <button key={m.id} type="button" className="msg-search-result" onClick={() => jumpTo(m.id)}>
                   <span className="msg-search-result-head">
                     <span className="msg-search-result-who">{senderName(m)}</span>
-                    <time className="msg-search-result-time" dateTime={m.created_at}>{formatRelTime(m.created_at)}</time>
+                    <RelTime className="msg-search-result-time" iso={m.created_at} />
                   </span>
                   <span className="msg-search-result-body">
                     {parts.length

@@ -230,6 +230,22 @@ test('a reaction landing above where you read keeps your place', async ({ page }
   expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(1);
 });
 
+test('a message that arrives while you are at the bottom is marked read as it lands', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const marks = () => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'update:conversation_participants').length);
+  await expect.poll(marks).toBeGreaterThan(0); // opened at the bottom: seen
+  await page.waitForTimeout(300);
+  const m0 = await marks();
+  await qa(page, () => window.__msgQa.peer('maya').send('c-maya', 'seen as it lands'));
+  await expect(page.locator('.msg-bubble-body', { hasText: 'seen as it lands' })).toBeVisible();
+  await expect.poll(marks).toBe(m0 + 1);
+  await expect.poll(() => qa(page, () => {
+    const me = window.__msgQa.db.conversation_participants.find((p) => p.conversation_id === 'c-maya' && p.user_id === 'qa-me');
+    const last = window.__msgQa.db.messages.filter((m) => m.conversation_id === 'c-maya').sort((a, b) => a.created_at.localeCompare(b.created_at)).pop();
+    return me.last_read_at >= last.created_at;
+  })).toBe(true);
+});
+
 test('a thread is marked read only once its newest message has been on screen', async ({ page }) => {
   await open(page, 'conv=c-long');
   const reads = () => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'update:conversation_participants').length);
@@ -667,4 +683,73 @@ test('click the conversation and J/K move through it; R replies to the message y
   await page.keyboard.press('r');
   await expect(page.locator('.msg-reply-bar-body')).toContainText(words);
   await expect(composerInput(page)).toBeFocused();
+});
+
+// ── A light thread (C2.10) ─────────────────────────────────────────────
+const pinnedReads = (page) => qa(page, () => window.__msgQa.calls
+  .filter((c) => c.target === 'select:messages' && (c.args?.filters || []).some((f) => f[0] === 'is_pinned')).length);
+const listReads = (page) => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'select:conversation_summary').length);
+
+test('your send costs one live list update and nothing else; an arrival never re-reads the pinned list', async ({ page }) => {
+  await open(page, 'conv=c-cast');
+  await expect(page.locator('.msg-bubble').first()).toBeVisible();
+  await page.waitForTimeout(800); // the opening reads settle (StrictMode mounts twice)
+  const marks = () => qa(page, () => window.__msgQa.calls.filter((c) => c.target === 'update:conversation_participants').length);
+  const pins0 = await pinnedReads(page);
+  const lists0 = await listReads(page);
+  const marks0 = await marks();
+  const mine = await send(page, 'no extra reads');
+  await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+  await page.waitForTimeout(1000);
+  // The insert bumps the conversation and the list hears that, once. Your own
+  // message isn't unread for you, so nothing is marked read for it.
+  expect(await listReads(page) - lists0).toBe(1);
+  expect(await marks() - marks0).toBe(0);
+  await qa(page, () => window.__msgQa.peer('lena').send('c-cast', 'and one from lena'));
+  await expect(page.locator('.msg-bubble-body', { hasText: 'and one from lena' })).toBeVisible();
+  await expect.poll(marks).toBe(marks0 + 1); // theirs is, once it's on screen
+  await page.waitForTimeout(600);
+  expect(await pinnedReads(page)).toBe(pins0);
+});
+
+test('a peer’s pin, even of a message older than the pages loaded, updates the pinned list', async ({ page }) => {
+  await open(page, 'conv=c-long');
+  await expect(page.locator('.msg-bubble').first()).toBeVisible();
+  const oldId = await qa(page, () => window.__msgQa.db.messages.filter((m) => m.conversation_id === 'c-long')
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))[3].id);
+  await expect(page.locator(`[data-msg-id="${oldId}"]`)).toHaveCount(0);
+  await qa(page, (id) => window.__msgQa.peer('jon').pin(id), oldId);
+  await expect(page.locator('.msg-pinned-strip')).toBeVisible();
+});
+
+test('times move on by the shared clock, and Edit goes when the edit window closes', async ({ page }) => {
+  await page.clock.install();
+  await open(page, 'conv=c-empty');
+  const mine = await send(page, 'clockwork');
+  await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+  await expect(mine.locator('.msg-bubble-time')).toHaveText('just now');
+  await page.clock.fastForward('05:30');
+  await expect(mine.locator('.msg-bubble-time')).toHaveText('5m ago');
+  await mine.hover();
+  await expect(mine.locator('button[title="Edit"]')).toHaveCount(1);
+  await page.clock.fastForward('11:00');
+  await expect(mine.locator('.msg-bubble-time')).toHaveText('16m ago');
+  await expect(mine.locator('button[title="Edit"]')).toHaveCount(0);
+});
+
+test('the actions chip shows on hover and keyboard focus, and not while editing', async ({ page }) => {
+  await open(page, 'conv=c-maya');
+  const mine = await send(page, 'chip check');
+  await expect(mine).not.toHaveClass(/msg-bubble--pending/);
+  const chip = mine.locator('.msg-bubble-actions');
+  await page.mouse.move(2, 2);
+  await expect(chip).toHaveCSS('opacity', '0');
+  await mine.hover();
+  await expect(chip).toHaveCSS('opacity', '1');
+  await mine.locator('button[title="Edit"]').click();
+  await expect(chip).toBeHidden();
+  await page.keyboard.press('Escape');
+  await page.mouse.move(2, 2);
+  await mine.locator('button[title="Reply"]').focus();
+  await expect(chip).toHaveCSS('opacity', '1');
 });

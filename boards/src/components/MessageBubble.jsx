@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
 import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download } from '../lib/icons.js';
 import { EmojiPalette } from './EmojiPalette.jsx';
@@ -15,6 +15,8 @@ import { useOpenDm } from '../hooks/useOpenDm.js';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLinks.js';
 import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
+import { RelTime } from './RelTime.jsx';
+import { useMinuteNow } from '../hooks/useMinuteNow.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -28,7 +30,11 @@ import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 //                      preview chip; parent flashes/scrolls into view.
 //   isFocused        — keyboard-nav highlight ring
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
-export function MessageBubble({
+//
+// Memoized: a thread of hundreds re-renders only the bubbles whose props
+// changed (the thread keeps its handlers and rows stable). The time moves on
+// through <RelTime>, and an edit window that closes through the shared clock.
+export const MessageBubble = memo(function MessageBubble({
   msg, selfId, highlight, parent, onJumpToMessage, isFocused, seen = false,
   isContinuation = false, // consecutive message from the same sender — drop the header
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
@@ -40,12 +46,13 @@ export function MessageBubble({
   // confirmed by the server yet. They render dimmed with no actions.
   const sendState = msg.sendState || null;
   const inEditWindow = withinEditWindow(msg.created_at);
-  const [hover, setHover] = useState(false);
+  // Re-check on the shared clock while it's open, so Edit goes when it shuts.
+  useMinuteNow(isMine && inEditWindow);
   const [emojiAnchor, setEmojiAnchor] = useState(null);
   const reactBtnRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(msg.body);
-  const [, force] = useState(0);
+  const [profilesSeen, force] = useState(0);
   const openDm = useOpenDm();
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
@@ -62,16 +69,28 @@ export function MessageBubble({
   // nothing to stop at and swallowed the rest of the sentence (COMMS-05).
   // Both the display name and the address: the composer inserts whichever
   // the picker showed. Re-renders on profile load via the subscribe above.
-  const mentionNames = {};
-  for (const id of (msg.mentions || [])) {
-    const p = userProfiles.resolve(id);
-    mentionNames[id] = [p?.name, p?.email].filter(Boolean);
-  }
+  const mentionNames = useMemo(() => {
+    const names = {};
+    for (const id of (msg.mentions || [])) {
+      const p = userProfiles.resolve(id);
+      names[id] = [p?.name, p?.email].filter(Boolean);
+    }
+    return names;
+  }, [msg.mentions, profilesSeen]);
 
-  const time = formatRelTime(msg.created_at);
-  const fullTime = msg.created_at
+  // The body is parsed once per change to it, not on every render.
+  const body = useMemo(() => renderMessageBody(msg.body, {
+    mentions: msg.mentions || [],
+    userNamesById: mentionNames,
+    attachments: msg.attachments || [],
+    highlight,
+    trie,
+    workspaceId,
+  }), [msg.body, msg.mentions, msg.attachments, mentionNames, highlight, trie, workspaceId]);
+
+  const fullTime = useMemo(() => (msg.created_at
     ? new Date(msg.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-    : '';
+    : ''), [msg.created_at]);
 
   // The thread's `e` shortcut asks the focused message to edit itself; nothing
   // listened, so the advertised key did nothing (COMMS-24). Only your own
@@ -115,10 +134,9 @@ export function MessageBubble({
   const parentExcerpt = parent ? (parent.body || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
 
   return (
-    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''}`}
+    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''} ${editing ? 'is-editing' : ''}`}
          data-msg-id={msg.id}
-         id={`msg-${msg.id}`}
-         onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+         id={`msg-${msg.id}`}>
       {parent && parentGone && (
         <div className="msg-reply-preview is-gone">
           <span className="msg-reply-preview-body">
@@ -171,13 +189,13 @@ export function MessageBubble({
             {sendState ? (
               <span className="msg-bubble-time">{sendState === 'sending' ? 'Sending…' : ''}</span>
             ) : (
-              <time className="msg-bubble-time" dateTime={msg.created_at} title={fullTime}>
-                {time}{msg.edited_at ? ' · edited' : ''}
-              </time>
+              <RelTime className="msg-bubble-time" iso={msg.created_at} title={fullTime}
+                       suffix={msg.edited_at ? ' · edited' : ''} />
             )}
           </>
         )}
-        <span className={`msg-bubble-actions ${hover && !editing && !sendState ? 'is-visible' : ''}`}>
+        {/* Shown on hover or keyboard focus (CSS), never while editing or sending. */}
+        <span className="msg-bubble-actions">
           {onReply && <button title="Reply" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
           <button title="React" ref={reactBtnRef} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor((a) => (a ? null : r)); }}><Icon as={Smile} size={12} /></button>
           {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
@@ -204,16 +222,7 @@ export function MessageBubble({
           </div>
         </form>
       ) : (
-        <div className="msg-bubble-body">
-          {renderMessageBody(msg.body, {
-            mentions: msg.mentions || [],
-            userNamesById: mentionNames,
-            attachments: msg.attachments || [],
-            highlight,
-            trie,
-            workspaceId,
-          })}
-        </div>
+        <div className="msg-bubble-body">{body}</div>
       )}
       {sendState === 'failed' && (
         <div className="msg-bubble-failed" role="alert">
@@ -291,7 +300,7 @@ export function MessageBubble({
       )}
     </div>
   );
-}
+});
 
 function emailToFriendly(email) {
   if (!email) return null;
@@ -318,15 +327,3 @@ function shortClock(iso) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-export function formatRelTime(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const ms = Date.now() - d.getTime();
-  const sec = Math.floor(ms / 1000);
-  if (sec < 30)    return 'just now';
-  if (sec < 60)    return `${sec}s ago`;
-  if (sec < 3600)  return `${Math.floor(sec / 60)}m ago`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
-  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
