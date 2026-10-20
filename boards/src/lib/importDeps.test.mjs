@@ -120,3 +120,32 @@ test('readBudgets: the owner\'s cards left from the cap the trigger enforces, th
   const deps = makeImportDeps(base({ budgets: null, supabase: rpc([{ is_capped: true, used: 1, cap: 50 }], null, 'target-1'), storageRoom: room }));
   assert.equal((await deps.budgets()).cardsLeft, 49, 'the default budgets read the target');
 });
+
+test('cover: pictures are drawn, uploaded and stamped with the count; otherwise the count alone, and a chosen cover stays', async () => {
+  const calls = [];
+  const covers = (over = {}) => ({
+    draw: async (files) => { calls.push(['draw', files.map((f) => f.name)]); return { size: 1 }; },
+    upload: async (o) => { calls.push(['upload', o.workspaceId, o.boardId, o.userId]); return { src: 'r2:ws-1/thumbs/b-1.webp' }; },
+    stamp: async (id, f) => { calls.push(['stamp', id, f]); },
+    count: async (id, n) => { calls.push(['count', id, n]); },
+    isCustom: async () => false,
+    version: 8,
+    ...over,
+  });
+  assert.equal(makeImportDeps(base()).cover, null, 'no covers, no step: the runner skips it');
+
+  const d = makeImportDeps(base({ covers: covers() }));
+  await d.cover('b-1', { files: [{ name: 'a.jpg' }, { name: 'b.jpg' }], cardCount: 7 });
+  await d.cover('b-1', { files: null, cardCount: 9 });
+  assert.deepEqual(calls, [
+    ['draw', ['a.jpg', 'b.jpg']],
+    ['upload', 'ws-1', 'b-1', 'u-1'],
+    ['stamp', 'b-1', { thumbKey: 'r2:ws-1/thumbs/b-1.webp', cardCount: 7, thumbVersion: 8 }],
+    ['count', 'b-1', 9],
+  ]);
+
+  calls.length = 0;
+  await makeImportDeps(base({ covers: covers({ isCustom: async () => true }) })).cover('b-2', { files: [{ name: 'a.jpg' }], cardCount: 3 });
+  await makeImportDeps(base({ covers: covers({ draw: async () => null }) })).cover('b-3', { files: [{ name: 'x.heic' }], cardCount: 4 });
+  assert.deepEqual(calls, [['count', 'b-2', 3], ['count', 'b-3', 4]]);
+});

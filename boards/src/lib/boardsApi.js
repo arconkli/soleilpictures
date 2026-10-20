@@ -1002,6 +1002,16 @@ export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = n
   if (error) console.warn('[updateBoardThumb]', error);
 }
 
+// The item count a cluster's tile shows, without touching its cover: the bulk
+// import brings it up to date as each folder fills (lib/importJob.js), where
+// updateBoardThumb would mark the cover new and send every parent tile that
+// draws it to regenerate.
+export async function updateBoardCardCount(boardId, cardCount) {
+  if (!boardId || !Number.isFinite(cardCount)) return;
+  const { error } = await supabase.from('boards').update({ card_count: cardCount }).eq('id', boardId);
+  if (error) console.warn('[updateBoardCardCount]', error);
+}
+
 // Authoritative "is this board's thumbnail user-set?" check for the yboard regen
 // funnel (_renderUploadStampThumb), which has only a boardId and no in-memory
 // board row. One indexed PK select behind the same 8s throttle + content-hash

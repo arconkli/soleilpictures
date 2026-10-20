@@ -141,7 +141,7 @@ import { invitedStartWorkspace } from './lib/startWorkspace.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
-import { RENDER_VERSION as THUMB_VERSION } from './lib/renderThumbnail.js';
+import { RENDER_VERSION as THUMB_VERSION, renderMosaicBlob } from './lib/renderThumbnail.js';
 import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
 import { useAudioPeaksBackfill } from './hooks/useAudioPeaksBackfill.js';
@@ -165,7 +165,7 @@ import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
@@ -238,6 +238,7 @@ import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles, layoutTops } from './lib/folderImport.js';
 import { startBulkImport, pokeImport } from './lib/importStart.js';
+import { setCoverMosaics } from './lib/coverMosaic.js';
 import { makeImportDeps } from './lib/importDeps.js';
 import { IMPORT_LIMITS } from './lib/importTree.js';
 import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs } from './lib/importJobs.js';
@@ -279,6 +280,11 @@ const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.
 const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.jsx').then(m => ({ default: m.Spotlight })));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
+
+// A cluster with nothing on its board but files in Files gets a cover of its
+// pictures (lib/coverMosaic.js). Stored covers reach every host, so only where
+// bulk import runs, until it ships.
+setCoverMosaics(bulkImportAllowed());
 
 const TWEAK_DEFAULTS = {
   // NOTE: theme is intentionally NOT a tweak. It lives in the per-user
@@ -6305,6 +6311,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       uploads: { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile },
       workspaceId: boardsRef.current?.[targetBoardId]?.workspace_id || workspace.id,
       targetBoardId, userId: user.id, source: kind || 'folder', sourceRef, storageRoom, placeTops, canAttemptFiles,
+      covers: {
+        draw: (files) => renderMosaicBlob({ files }), upload: uploadBoardThumbnail, stamp: updateBoardThumb,
+        count: updateBoardCardCount, isCustom: isBoardThumbCustom, version: THUMB_VERSION,
+      },
     }),
     ask: (model) => new Promise((resolve) => setBulkAsk({ model, resolve })),
     askZip: (model) => new Promise((resolve) => setZipAsk({ model, resolve })),

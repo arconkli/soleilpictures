@@ -341,3 +341,77 @@ test('retryFailed: the failed files go again, in order, under the same card ids'
   assert.deepEqual([...fixed], ['Night/Stills/d.jpg'], 'only the failed file goes again');
   assert.equal(h2.boardByKey('Night/Stills').cards.get('c-Night/Stills/d.jpg').pending, false);
 });
+
+// The tiles the import stamps (cover()), by cluster name: the pictures it
+// drew the cover from, or null for the count alone, and the count.
+const tileLog = (h, { fail = () => false } = {}) => {
+  const tiles = [];
+  h.deps.cover = async (boardId, { files, cardCount }) => {
+    const key = h.boards.get(boardId).key;
+    tiles.push([key, files && files.map((f) => f.name), cardCount]);
+    if (fail(key)) throw new Error('presign refused');
+  };
+  return tiles;
+};
+const settled = () => new Promise((resolve) => setImmediate(resolve));
+
+test('tiles: an empty board gets its first pictures in reading order; every cluster filled gets its count', async () => {
+  const h = harness({ failOn: ['Night/b.jpg'] });
+  const tiles = tileLog(h);
+  await createImportJob({ plan: planFor(0), deps: h.deps, clusterCost: 0, limits: { uploads: 2 } }).start();
+  await settled();
+  assert.deepEqual(tiles, [
+    ['Night', null, 2],   // its Stills card is on its board, so no cover; b failed, so a and the card
+    ['Night/Stills', ['c.jpg', 'd.jpg', 'e.jpg'], 3],
+    ['Wardrobe', ['f.jpg'], 1],
+  ]);
+});
+
+test('tiles: a cover grows as more of its pictures land; cards added again are not counted twice', async () => {
+  const h = harness({ cap: 3 });
+  const tiles = tileLog(h);
+  const job = createImportJob({ plan: planFor(0), deps: h.deps, clusterCost: 0, limits: { uploads: 1 } });
+  await job.start();   // a, b, then c alone
+  h.s.cap = Infinity;
+  await job.release();
+  await settled();
+  assert.deepEqual(tiles, [
+    ['Night', null, 3],
+    ['Night/Stills', ['c.jpg'], 1],
+    ['Night/Stills', ['c.jpg', 'd.jpg', 'e.jpg'], 3],
+    ['Wardrobe', ['f.jpg'], 1],
+  ]);
+
+  const d = harness({ drive: 25 });
+  const dTiles = tileLog(d);
+  const full = createImportJob({ plan: planFor(0), deps: d.deps, clusterCost: 0, limits: { uploads: 1 } });
+  await full.start();   // Stills' cards go in pending, then the drive is full
+  d.s.drive = Infinity;
+  await full.release(); // the same three again: the room skips them
+  await settled();
+  assert.deepEqual(dTiles.filter((t) => t[0] === 'Night/Stills'), [
+    ['Night/Stills', null, 3],
+    ['Night/Stills', ['c.jpg', 'd.jpg', 'e.jpg'], 3],
+  ]);
+});
+
+test('tiles: clusters from an earlier run are left alone, and a cover that fails stops nothing', async () => {
+  const h = harness();
+  for (const [key, id] of [['Night', 'bN'], ['Night/Stills', 'bS'], ['Wardrobe', 'bW']]) {
+    h.boards.set(id, { key, parent: null, doc: [], cards: new Map() });
+  }
+  const tiles = tileLog(h);
+  await createImportJob({
+    plan: planFor(0), deps: h.deps, clusterCost: 0,
+    seed: { jobId: 'job-9', created: [['Night', 'bN'], ['Night/Stills', 'bS'], ['Wardrobe', 'bW']], landed: [], cardIds: [] },
+  }).start();
+  await settled();
+  assert.deepEqual(tiles, [], 'their docs may hold more than this run put there');
+
+  const f = harness();
+  const fTiles = tileLog(f, { fail: (key) => key === 'Night' });
+  const end = await createImportJob({ plan: planFor(0), deps: f.deps, clusterCost: 0 }).start();
+  await settled();
+  assert.equal(end.status, 'done');
+  assert.deepEqual(fTiles.map((t) => t[0]), ['Night', 'Night/Stills', 'Wardrobe']);
+});

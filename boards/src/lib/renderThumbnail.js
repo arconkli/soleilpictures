@@ -20,7 +20,8 @@
 
 import { resolveSrc, cachedUrl } from './r2.js';
 import { loadCorsCleanImage } from './corsImage.js';
-import { getMeta as getImageMeta } from './imageMeta.js';
+import { getMeta as getImageMeta, primeImageMeta } from './imageMeta.js';
+import { mosaicPicks, mosaicCells, MOSAIC_PICS, coverMosaicsOn } from './coverMosaic.js';
 import { pickVariantSrc } from './imageVariantPick.js';
 import { sanitizeNoteHtml } from './sanitizeNoteHtml.js';
 import {
@@ -103,7 +104,9 @@ function quickHashCards(cards, strokes) {
   for (const c of (cards || [])) {
     // `u`: off the board (lib/placement.js) — drawn or not, so Remove from
     // board and Put on board both change the hash and re-render the thumb.
-    h += `${c.id || ''}:${c.x || 0},${c.y || 0},${c.w || 0},${c.h || 0},${c.kind || ''},${c.title || ''},${c.src || ''}${c.unplaced === true ? ',u' : ''}|`;
+    // A video in Files draws as its poster (lib/coverMosaic.js), which can
+    // arrive after its upload (useVideoPosterBackfill).
+    h += `${c.id || ''}:${c.x || 0},${c.y || 0},${c.w || 0},${c.h || 0},${c.kind || ''},${c.title || ''},${c.src || ''}${c.poster ? `,${c.poster}` : ''}${c.unplaced === true ? ',u' : ''}|`;
   }
   for (let i = 0; i < (strokes || []).length; i++) {
     const s = strokes[i];
@@ -471,8 +474,9 @@ async function loadCorsImage(url) {
 // Crop-fill (object-fit: cover) an image into a rect. Throws 'TAINT' via
 // caller's try/catch if the canvas got poisoned.
 function drawCover(ctx, img, x, y, w, h) {
-  const iw = img.naturalWidth || 1;
-  const ih = img.naturalHeight || 1;
+  // An <img> knows its natural size; an ImageBitmap (renderMosaicBlob) its size.
+  const iw = img.naturalWidth || img.width || 1;
+  const ih = img.naturalHeight || img.height || 1;
   const targetAR = w / h;
   const srcAR = iw / ih;
   let sx = 0, sy = 0, sw = iw, sh = ih;
@@ -1107,11 +1111,16 @@ function drawGenericInterior(ctx, c, x, y, w, h, boards) {
 
 // Build the actual draw plan synchronously (bounds + per-card ops) so we
 // can do the async image loading in parallel up front, then draw in z-order.
-function buildDrawPlan(cards, strokes, arrows, boards) {
+function buildDrawPlan(cards, strokes, arrows, boards, { mosaic = false } = {}) {
   // A cluster's thumbnail is its board: files waiting in Files aren't on it
   // (lib/placement.js). Its card_count still counts them — that's the callers'.
-  cards = (cards || []).filter((c) => c?.unplaced !== true);
-  if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) return null;
+  // An empty board whose files are all in Files gets their mosaic, when asked.
+  const every = cards || [];
+  cards = every.filter((c) => c?.unplaced !== true);
+  if (cards.length === 0 && (!strokes || strokes.length === 0)) {
+    const picks = mosaic ? mosaicPicks(every) : null;
+    return picks ? { mosaic: picks } : null;
+  }
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   const ext = (x, y) => {
@@ -1161,6 +1170,7 @@ function buildDrawPlan(cards, strokes, arrows, boards) {
 // first kick off all image loads in parallel, then draw everything in
 // z-order. Returns a Blob or null.
 async function planToBlob(plan, { width, height, allowImages, bgColor }) {
+  if (plan.mosaic) return mosaicToBlob(plan.mosaic, { width, height, allowImages });
   const { sorted, strokes, arrows, arrowPlacements, minX, minY, contentW, contentH, boards } = plan;
 
   // Wait for webfonts once so the first thumbnails don't bake fallback
@@ -1365,9 +1375,13 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
   // full opacity), floored so they stay visible at fit-to-content scale.
   drawStrokes(ctx, strokes, { ppu: pxPerUnit });
 
-  // Encode. Prefer WebP for size; browsers reject the call for tainted
-  // canvases with a SecurityError — caller retries with allowImages=false.
-  const blob = await new Promise((resolve, reject) => {
+  return canvasToWebp(canvas);
+}
+
+// Encode. Prefer WebP for size; browsers reject the call for tainted
+// canvases with a SecurityError — caller retries with allowImages=false.
+function canvasToWebp(canvas) {
+  return new Promise((resolve, reject) => {
     try {
       canvas.toBlob((b) => {
         if (b) resolve(b);
@@ -1377,15 +1391,134 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
       reject(e);
     }
   });
-  return blob;
+}
+
+// ── The cover of a cluster with nothing on its board (lib/coverMosaic.js) ──
+// Its first pictures edge to edge, one large and two small, or plain tiles
+// labelled with what its files are. Frame px, scaled to the output like the
+// rest: a 2px gap on a canvas tile.
+const MOSAIC_GAP = 8;
+const DOC_TILE_W = 225, DOC_TILE_H = 286, DOC_TILE_GAP = 51;
+
+function frameCanvas(width, height) {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * SUPERSAMPLE));
+  canvas.height = Math.max(1, Math.round(height * SUPERSAMPLE));
+  return canvas;
+}
+
+// images: decoded pictures in order (a null keeps its cell plain surface);
+// docs: tile labels, when there are no pictures.
+function drawMosaic(ctx, W, H, { images = null, docs = null }) {
+  const u = W / FRAME_W;
+  ctx.fillStyle = T.bg2;
+  ctx.fillRect(0, 0, W, H);
+  if (images?.length) {
+    const cells = mosaicCells(images.length, W, H, MOSAIC_GAP * u);
+    images.forEach((img, i) => {
+      const [x, y, w, h] = cells[i];
+      if (img) drawCover(ctx, img, x, y, w, h);
+      else { ctx.fillStyle = T.bg3; ctx.fillRect(x, y, w, h); }
+    });
+    return;
+  }
+  const n = (docs || []).length;
+  if (!n) return;
+  const tw = DOC_TILE_W * u, th = DOC_TILE_H * u, gap = DOC_TILE_GAP * u;
+  let x = (W - (n * tw + (n - 1) * gap)) / 2;
+  const y = (H - th) / 2;
+  ctx.font = `600 ${52 * u}px ${FONT_SANS}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const label of docs) {
+    roundRectPath(ctx, x, y, tw, th, 20 * u);
+    ctx.fillStyle = T.bg3;
+    ctx.fill();
+    ctx.lineWidth = 4 * u;
+    ctx.strokeStyle = T.line2;
+    ctx.stroke();
+    ctx.fillStyle = T.ink3;
+    ctx.fillText(label, x + tw / 2, y + th / 2);
+    x += tw + gap;
+  }
+}
+
+// From stored pictures: each from the smallest stored size that covers its
+// cell (the stored sizes are asked for first, so three originals are never
+// fetched for a tile).
+async function mosaicToBlob(picks, { width, height, allowImages }) {
+  try { await document.fonts.ready; } catch (_) {}
+  const canvas = frameCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  let images = null;
+  if (picks.pics) {
+    const cells = mosaicCells(picks.pics.length, canvas.width, canvas.height, 0);
+    if (allowImages) {
+      const keys = picks.pics.map((p) => p.src).filter((src) => src.startsWith('r2:')).map((src) => src.slice(3));
+      if (keys.length) { try { await primeImageMeta(keys); } catch (_) { /* the originals still draw */ } }
+    }
+    images = await Promise.all(picks.pics.map(async (p, i) => {
+      if (!allowImages) return null;
+      const src = pickVariantSrc(p.src, getImageMeta, Math.max(cells[i][2], cells[i][3]));
+      const url = await resolveImageUrl(src);
+      return url ? loadCorsImage(url) : null;
+    }));
+  }
+  try {
+    drawMosaic(ctx, canvas.width, canvas.height, { images, docs: picks.docs || null });
+  } catch (e) {
+    if (String(e?.name) === 'SecurityError') throw new Error('TAINT');
+    throw e;
+  }
+  return canvasToWebp(canvas);
+}
+
+// A mosaic cover from pictures already in hand: the bulk import draws a
+// cluster's cover from the files it has just uploaded instead of fetching
+// them back (lib/importJob.js). files: up to three image Files or Blobs, in
+// order, each decoded at the frame's height; one this browser can't decode
+// (HEIC outside Safari, a damaged file) is left out.
+//   → Promise<Blob | null>
+export async function renderMosaicBlob({ files, width = FRAME_W, height = FRAME_H } = {}) {
+  const canvas = frameCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const images = [];
+  for (const f of (files || []).slice(0, MOSAIC_PICS)) {
+    const img = await decodeForCover(f, canvas.height);
+    if (img) images.push(img);
+  }
+  if (!images.length) return null;
+  try {
+    drawMosaic(ctx, canvas.width, canvas.height, { images });
+  } finally {
+    for (const img of images) img.close?.();
+  }
+  return canvasToWebp(canvas);
+}
+
+// Decoded off the main thread, already down to the height it's drawn at, so
+// a folder of 40-megapixel photos never holds three of them at full size. A
+// browser that refuses the resize options decodes it whole.
+async function decodeForCover(blob, h) {
+  if (!blob || typeof createImageBitmap !== 'function') return null;
+  try {
+    return await createImageBitmap(blob, { resizeHeight: Math.max(1, Math.round(h)), resizeQuality: 'medium', imageOrientation: 'from-image' });
+  } catch (_) {
+    try { return await createImageBitmap(blob); } catch (_) { return null; }
+  }
 }
 
 // Core renderer: returns a raw Blob (WebP) with a CORS-tainted fallback to
 // placeholder rects. No caching — callers that upload the bytes use this
 // directly (the URL cache below is only for the live <img> thumbnails).
-//   { cards, strokes, arrows, boards, bgColor, width, height } → Promise<Blob | null>
-export async function renderThumbnailBlob({ cards, strokes, arrows, boards = {}, bgColor = null, width = FRAME_W, height = FRAME_H } = {}) {
-  const plan = buildDrawPlan(cards, strokes, arrows, boards);
+//   { cards, strokes, arrows, boards, bgColor, width, height, mosaic } → Promise<Blob | null>
+// `mosaic`: an empty board whose files are in Files gets their mosaic
+// (lib/coverMosaic.js) instead of no cover — by default when App has turned
+// mosaics on.
+export async function renderThumbnailBlob({ cards, strokes, arrows, boards = {}, bgColor = null, width = FRAME_W, height = FRAME_H, mosaic = coverMosaicsOn() } = {}) {
+  const plan = buildDrawPlan(cards, strokes, arrows, boards, { mosaic });
   if (!plan) return null;
   try {
     return await planToBlob(plan, { width, height, allowImages: true, bgColor });
@@ -1412,15 +1545,15 @@ export async function renderThumbnailBlob({ cards, strokes, arrows, boards = {},
 
 // Public entry for live <img> thumbnails. Renders to a blob URL with an
 // in-memory cache keyed by content hash + dims + bg. Wraps renderThumbnailBlob.
-//   { cards, strokes, arrows, boards, bgColor, width, height } → Promise<blobUrl | null>
-export async function renderThumbnailToBlob({ cards, strokes, arrows, boards = {}, bgColor = null, width = FRAME_W, height = FRAME_H } = {}) {
+//   { cards, strokes, arrows, boards, bgColor, width, height, mosaic } → Promise<blobUrl | null>
+export async function renderThumbnailToBlob({ cards, strokes, arrows, boards = {}, bgColor = null, width = FRAME_W, height = FRAME_H, mosaic = coverMosaicsOn() } = {}) {
   if ((!cards || cards.length === 0) && (!strokes || strokes.length === 0)) return null;
 
-  const key = `${width}x${height}:${quickVisualHash(cards, strokes, arrows, bgColor || '')}`;
+  const key = `${width}x${height}:${mosaic ? 'm:' : ''}${quickVisualHash(cards, strokes, arrows, bgColor || '')}`;
   const hit = _cacheGet(key);
   if (hit) return hit;
 
-  const blob = await renderThumbnailBlob({ cards, strokes, arrows, boards, bgColor, width, height });
+  const blob = await renderThumbnailBlob({ cards, strokes, arrows, boards, bgColor, width, height, mosaic });
   if (!blob) return null;
   const url = URL.createObjectURL(blob);
   _cacheSet(key, url);

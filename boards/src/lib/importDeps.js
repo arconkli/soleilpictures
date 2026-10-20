@@ -63,9 +63,13 @@ export function encodeClusterDoc(cards) {
   return bytesToB64(Y.encodeStateAsUpdate(doc));
 }
 
+// covers (optional): what an imported cluster's tile is drawn and stamped
+// with — { draw(files) → Blob|null, upload({ workspaceId, boardId, blob,
+// userId }) → { src }, stamp(boardId, { thumbKey, cardCount, thumbVersion }),
+// count(boardId, n), isCustom(boardId) → boolean, version }.
 export function makeImportDeps({
   supabase, clusters, uploads, workspaceId, targetBoardId, userId, source, sourceRef = {},
-  budgets = null, storageRoom = null, placeTops = null, canAttemptFiles = false,
+  budgets = null, storageRoom = null, placeTops = null, canAttemptFiles = false, covers = null,
   newId = () => crypto.randomUUID(),
   now = () => Date.now(),
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -125,6 +129,21 @@ export function makeImportDeps({
         if (error) throw dbError(error, 'card_index');
       }
     },
+
+    // An imported cluster's tile (importJob step 4): the count it shows and,
+    // with pictures to draw, its cover — the yboard regen funnel's upload and
+    // stamp (_renderUploadStampThumb), which never replaces a cover someone
+    // chose. Without pictures, or when one can't be drawn, the count alone.
+    cover: covers ? async (boardId, { files, cardCount }) => {
+      if (files?.length && !(await covers.isCustom(boardId))) {
+        const blob = await covers.draw(files);
+        if (blob) {
+          const { src } = await covers.upload({ workspaceId, boardId, blob, userId });
+          return covers.stamp(boardId, { thumbKey: src, cardCount, thumbVersion: covers.version });
+        }
+      }
+      return covers.count(boardId, cardCount);
+    } : null,
 
     newId,
     // The stamp the app's own adds carry (App buildMutators stampCreate).

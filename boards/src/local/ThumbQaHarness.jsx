@@ -9,7 +9,7 @@
 // guard at the main.jsx call site.
 
 import { useEffect, useState } from 'react';
-import { renderThumbnailBlob, RENDER_VERSION } from '../lib/renderThumbnail.js';
+import { renderThumbnailBlob, renderMosaicBlob, RENDER_VERSION } from '../lib/renderThumbnail.js';
 
 // ── Fixture helpers ──────────────────────────────────────────────────────
 
@@ -181,6 +181,36 @@ function fixtures() {
     arrows: [], strokes: [], boards: {},
   });
 
+  // 9–13 — A cluster with nothing on its board, its files in Files (every
+  // folder a bulk import makes): its cover is its pictures (lib/coverMosaic.js).
+  const inFiles = (kind, extra) => ({ id: id(kind[0]), kind, x: 0, y: 0, w: 240, h: 180, unplaced: true, ...extra });
+  const shots = [
+    svgPhoto('#b75c2a', '#2a1c12', 640, 480, 'first'), svgPhoto('#28425e', '#0e1722', 480, 640, 'second'),
+    svgPhoto('#54683a', '#161c10', 640, 480, 'third'), svgPhoto('#6b3a5e', '#1a0e17', 640, 480, 'fourth'),
+  ];
+  out.push({
+    name: 'Imported folder: three pictures',
+    mosaic: true, bgColor: null, arrows: [], strokes: [], boards: {},
+    cards: [inFiles('image', { pending: true }), ...shots.map((src) => inFiles('image', { src }))],
+  });
+  out.push({
+    name: 'Imported folder: two pictures',
+    mosaic: true, bgColor: null, arrows: [], strokes: [], boards: {},
+    cards: [inFiles('pdf', { name: 'Call sheet' }), inFiles('image', { src: shots[0] }), inFiles('image', { src: shots[1] })],
+  });
+  out.push({
+    name: 'Imported folder: one picture (a video poster)',
+    mosaic: true, bgColor: null, arrows: [], strokes: [], boards: {},
+    cards: [inFiles('video', { src: 'r2:qa/clip.mov', poster: shots[2] })],
+  });
+  out.push({
+    name: 'Imported folder: no pictures',
+    mosaic: true, bgColor: null, arrows: [], strokes: [], boards: {},
+    cards: [inFiles('pdf', { name: 'Script' }), inFiles('file', { fileName: 'Budget v3.xlsx' }), inFiles('audio', { fileName: 'room tone.wav' }), inFiles('file', { fileName: 'notes.txt' })],
+  });
+  // What the import draws from the files it has just uploaded, never fetched back.
+  out.push({ name: 'Imported folder: drawn from the files in hand', files: ['/signin-losttime-still1.webp', '/signin-losttime-still2.webp', '/signin-losttime.webp'] });
+
   return out;
 }
 
@@ -198,10 +228,12 @@ export function ThumbQaHarness() {
         const t0 = performance.now();
         let url = null, kb = 0, err = null;
         try {
-          const blob = await renderThumbnailBlob({
-            cards: f.cards, strokes: f.strokes, arrows: f.arrows,
-            boards: f.boards, bgColor: f.bgColor,
-          });
+          const blob = f.files
+            ? await renderMosaicBlob({ files: await Promise.all(f.files.map((u) => fetch(u).then((r) => r.blob()))) })
+            : await renderThumbnailBlob({
+              cards: f.cards, strokes: f.strokes, arrows: f.arrows,
+              boards: f.boards, bgColor: f.bgColor, mosaic: !!f.mosaic,
+            });
           if (blob) {
             url = URL.createObjectURL(blob);
             urls.push(url);

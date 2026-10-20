@@ -33,6 +33,11 @@
 //   3. Once what fits is in, the rest waits on 'cards' or 'storage' until
 //      release(), which the App calls when the plan or the drive grows; it runs
 //      the fill again from exactly where it stopped.
+//   4. After each batch, the tile of the cluster it filled (cover(), best
+//      effort, one at a time, never in the import's way): the count it shows,
+//      and for a cluster with nothing on its board — a folder with no
+//      subfolders — a cover of its first pictures, drawn from the files in
+//      hand (lib/coverMosaic.js), so the grid shows them while it runs.
 //
 // deps (all async unless noted):
 //   createJob({ totals }) → jobId          budgets() → { cardsLeft, bytesLeft }
@@ -43,6 +48,8 @@
 //   placeTops([{ key, id, name }])?        indexClusterCards([{ boardId, cards }])?
 //   newId() → uuid · cardId(item, n) · encodeDoc(cards) → base64 · now() · sleep(ms)
 //   stamp()? → { createdBy, createdAt, updatedBy, updatedAt } for new cards
+//   cover(boardId, { files, cardCount })? — files: the pictures to draw it
+//     from, in order, or null for the count alone
 
 import { buildClusterCards } from './folderImport.js';
 import { cardFromUpload, cardKindFor, measuredSize } from './cardFromUpload.js';
@@ -51,6 +58,7 @@ import { parseLoopMeta } from './loopMeta.js';
 import { CLUSTER_CARD_COST } from './gridCount.js';
 import { fillInOrder } from './importPlan.js';
 import { MEDIA_SLACK_BYTES } from './importPreflight.js';
+import { MOSAIC_PICS } from './coverMosaic.js';
 
 export const JOB_LIMITS = Object.freeze({
   createRows: 500,        // clusters per import_create_clusters call (its own cap)
@@ -139,6 +147,7 @@ export function createImportJob({
   const cardIds = new Map(seed?.cardIds || []);   // relPath → its card's id
   const docCards = new Map();                     // cluster key → its cluster cards
   const used = new Map();                         // cluster key → file cards added
+  const inDoc = new Map();                        // cluster key → ids of the file cards in its doc
   const onBoard = new Map();                      // relPath → { boardId, id }: pending, bytes not in
 
   const done = { files: 0, bytes: 0 };
@@ -319,6 +328,40 @@ export function createImportJob({
     last_modified: Number.isFinite(it.file.lastModified) ? it.file.lastModified : null, ...extra,
   });
 
+  // ── Tiles ─────────────────────────────────────────────────────────────────
+  // Only for clusters this run made: their docs hold nothing but what it put
+  // there, so it knows their counts. Each one's cover is its first pictures in
+  // reading order — what the cover drawn from its cards picks (mosaicPicks) —
+  // whose files are kept from their upload until the cover has them all.
+  const fresh = new Set();
+  const coverWant = new Map();   // cluster key → its first MOSAIC_PICS pictures
+  const wanted = new Set();      // their relPaths
+  for (const it of all) {
+    if (cardKindFor(it) !== 'image') continue;
+    const list = coverWant.get(it.clusterKey) || [];
+    if (list.length >= MOSAIC_PICS) continue;
+    list.push(it);
+    coverWant.set(it.clusterKey, list);
+    wanted.add(it.file.relPath);
+  }
+  const coverFiles = new Map();  // relPath → its file, landed
+  const coverDrawn = new Map();  // cluster key → pictures in its last cover
+  let tiles = Promise.resolve();
+  function noteTile(key, boardId) {
+    if (!deps.cover || !fresh.has(key)) return;
+    const own = docCards.get(key)?.length || 0;
+    const cardCount = own + (inDoc.get(key)?.size || 0);
+    let files = null;
+    const want = coverWant.get(key) || [];
+    const pics = own ? [] : want.filter((it) => coverFiles.has(it.file.relPath));
+    if (pics.length > (coverDrawn.get(key) || 0)) {
+      coverDrawn.set(key, pics.length);
+      files = pics.map((it) => coverFiles.get(it.file.relPath));
+      if (pics.length === want.length) for (const it of pics) coverFiles.delete(it.file.relPath);
+    }
+    tiles = tiles.then(() => deps.cover(boardId, { files, cardCount })).catch(() => { /* the cover drawn from its cards follows */ });
+  }
+
   // ── Clusters ──────────────────────────────────────────────────────────────
   async function makeClusters(keys) {
     if (!keys.length) return;
@@ -332,7 +375,7 @@ export function createImportJob({
     for (let i = 0; i < rows.length; i += L.createRows) {
       const chunk = rows.slice(i, i + L.createRows);
       await call(() => deps.createClusters(jobId, chunk));
-      for (const row of chunk) created.set(row.key, row.id);
+      for (const row of chunk) { created.set(row.key, row.id); fresh.add(row.key); }
     }
     // Both best-effort: the reconcile places a missing top card, and the next
     // save of a cluster indexes its cards.
@@ -387,6 +430,8 @@ export function createImportJob({
         const stamp = deps.stamp?.() || null;
         await call(() => deps.appendCards(boardId, part.map((it, i) => pendingCard(it, idOf(it), spotFor(cards, base + i), stamp))));
         used.set(key, base + part.length);
+        if (!inDoc.has(key)) inDoc.set(key, new Set());
+        for (const it of part) inDoc.get(key).add(idOf(it));
         break;
       } catch (e) {
         if (!isCapHit(e)) throw e;
@@ -420,6 +465,7 @@ export function createImportJob({
 
     held.sort(byOrder);
     if (stopFlag === 'cancel') return;
+    noteTile(key, boardId);
     if (held.length) queue.unshift(...held);
     if (driveFull) return stop('storage');
   }
@@ -442,6 +488,7 @@ export function createImportJob({
       count(it, 1);
       ledger.push(ledgerRow(it, 'landed', { board_id: boardId, card_id: id }));
       push(patches, boardId, { id, fields: finishFields(it, up, id) });
+      if (wanted.has(rel) && fresh.has(it.clusterKey)) coverFiles.set(rel, file);
       sample();
       emitSoon();
       maybeFlush();
@@ -455,6 +502,7 @@ export function createImportJob({
       failed.push({ relPath: rel, message: messageOf(e) });
       ledger.push(ledgerRow(it, 'failed', { board_id: boardId, card_id: id, error: messageOf(e) }));
       push(removals, boardId, id);
+      inDoc.get(it.clusterKey)?.delete(id);
       emitSoon();
       maybeFlush();
       return 'failed';
@@ -504,6 +552,7 @@ export function createImportJob({
     }
     if (rest.length) return stop(plannedStop || 'cards');
     status = 'done';
+    coverFiles.clear();
     await call(() => deps.setJob(jobId, { status: 'done' }));
     emit();
   }
@@ -511,6 +560,7 @@ export function createImportJob({
   async function finishCancel() {
     for (const { boardId, id } of onBoard.values()) push(removals, boardId, id);
     onBoard.clear();
+    coverFiles.clear();
     rest = [...queue, ...rest];
     queue = [];
     status = 'cancelled';
