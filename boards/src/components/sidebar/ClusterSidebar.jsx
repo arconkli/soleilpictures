@@ -75,6 +75,9 @@ import { undoToast } from '../../lib/undoToast.js';
 import { fileSharesAllowed } from '../../lib/appHost.js';
 import { openFileShare } from '../../lib/fileShareBus.js';
 import { isShareableCard } from '../../lib/fileShares.js';
+import { captureDropEntries, captureDropHandles, hasDirectory } from '../../lib/folderWalk.js';
+import { isZipFile } from '../../lib/importZips.js';
+import { ImportWaitRow } from '../ImportWaitRow.jsx';
 import './clusterSidebar.css';
 
 const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
@@ -212,6 +215,10 @@ export function ClusterSidebar({
   feedback = null,        // the app's toasts (useFeedback)
   onPickCluster = null,   // ({ placeholder, excludeIds }) => Promise<boardId|null>
   onPutOnBoard = null,    // (boardId, cardIds) => Promise — files waiting in that cluster's Files go on its board (App brings it up first)
+  // (boardId, { entries | files, handles, source }) => Promise<{ loose }> — a
+  // folder or zips dropped on a cluster: a bulk import into it (null where
+  // bulk import is off). Loose files beside them go in as any drop does.
+  onImportTreeOnCluster = null,
   onSetOpensAs = null,    // (boardId, 'list' | 'canvas') => void — the cluster's view, for everyone
   onDropFilesOnCluster = null,  // (boardId, File[]) => void — desktop files dropped on a row
   uploadsByBoard = null,  // { boardId: n } — files still going up into a cluster
@@ -716,9 +723,22 @@ export function ClusterSidebar({
       return;
     }
     if (!canEdit(boardId)) return;
+    // A folder, or zips, is a bulk import into that cluster, as on the board
+    // and in full Files: folders become clusters, their files wait in Files.
+    // Read off the drop while it's being dispatched (Chrome empties it after),
+    // the handles too, so an import a reload stops can go on.
+    const tree = (input) => {
+      const handles = captureDropHandles(e.dataTransfer);
+      Promise.resolve(onImportTreeOnCluster(boardId, { ...input, handles, source: 'sidebar' }))
+        .then((out) => { if (out?.loose?.length) onDropFilesOnCluster?.(boardId, out.loose); })
+        .catch(() => {});
+    };
+    const entries = onImportTreeOnCluster ? captureDropEntries(e.dataTransfer) : [];
+    if (hasDirectory(entries)) { tree({ entries }); return; }
     const dropped = [...(e.dataTransfer?.files || [])];
+    if (onImportTreeOnCluster && dropped.some(isZipFile)) { tree({ files: dropped }); return; }
     if (dropped.length) onDropFilesOnCluster?.(boardId, dropped);
-  }, [runMove, onDropFilesOnCluster, canEdit, allBoards, workspaceId, workspaceName]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [runMove, onDropFilesOnCluster, onImportTreeOnCluster, canEdit, allBoards, workspaceId, workspaceName]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Held over a folded cluster in the tree, a drag opens it, as Finder's
   // folders spring open: its sub-clusters show, to drop on.
@@ -1142,6 +1162,8 @@ export function ClusterSidebar({
         <div className="sbf-files-list" ref={filesListRef} onKeyDown={onListKeyDown}>
           {/* Keyed on what it shows: a new source starts at the top, and fades in. */}
           <div className="sbf-files-body" key={sourceKey}>
+          {/* While the import that made this cluster waits for room: how many, why, and the tray's step. */}
+          {view === 'cluster' && <ImportWaitRow boardId={shownId} name={shownBoard?.name} />}
           {starredClusters.length > 0 && (
             <div className="sbf-block" role="group" aria-label="Starred clusters">
               <div className="sbf-shelf sbf-starred-head">

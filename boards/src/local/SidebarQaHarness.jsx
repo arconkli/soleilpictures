@@ -431,6 +431,12 @@ export function SidebarQaHarness() {
             }}
             onSetOpensAs={(id, v) => say(`opens-as ${id} ${v}`)}
             onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
+            // A folder or zips on a cluster: the bulk import's door, recorded;
+            // a loose file beside the zips comes back to go in as a drop.
+            onImportTreeOnCluster={async (boardId, input) => {
+              source.calls.push({ fn: 'importTree', params: { boardId, files: (input.files || []).map((f) => f.name), entries: (input.entries || []).length, source: input.source } });
+              return { loose: (input.files || []).filter((f) => !/\.zip$/i.test(f.name)) };
+            }}
             uploadsByBoard={{ cast: 3 }}
           />
         </div>

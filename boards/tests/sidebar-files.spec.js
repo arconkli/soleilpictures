@@ -1203,6 +1203,23 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     await expect(t).toContainText('Locations is view-only for you.');
   });
 
+  test('zips dropped on a cluster row go to the bulk import; a loose file beside them goes in as a drop', async ({ page }) => {
+    await open(page);
+    await page.evaluate((sel) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File(['PK'], 'shoot-day-1.zip', { type: 'application/zip' }));
+      dt.items.add(new File(['x'], 'notes.txt', { type: 'text/plain' }));
+      const el = document.querySelector(sel);
+      const r = el.getBoundingClientRect();
+      const at = { clientX: r.left + 24, clientY: r.top + r.height / 2 };
+      el.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, ...at }));
+      el.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, ...at }));
+    }, treeRowSel('loc'));
+    await expect.poll(async () => (await calls(page, 'importTree')).length).toBe(1);
+    expect((await calls(page, 'importTree'))[0].params).toEqual({ boardId: 'loc', files: ['shoot-day-1.zip', 'notes.txt'], entries: 0, source: 'sidebar' });
+    await expect(page.getByTestId('sbqa-log')).toContainText('drop 1 on loc');
+  });
+
   test('held over a folded cluster, a drag opens it', async ({ page }) => {
     await open(page);
     await row(page, 'Feature film').locator('.sb-tree-chev').click();
