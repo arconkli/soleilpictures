@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode, isMsgQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startBuildWatch } from './lib/buildWatch.js';
@@ -430,6 +430,18 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <SidebarQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isMsgQaMode()) {
+  // Messages QA (?msgqa=1). The real <MessagesPanel> over an in-memory fake of
+  // the Supabase client (the harness installs it before it renders), so the
+  // spec can drive threads, peers, failures and screenshots with no backend.
+  // DEV guard drops it from production builds.
+  import('./local/MessagesQaHarness.jsx').then(({ MessagesQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <MessagesQaHarness />
       </StrictMode>
     );
   });

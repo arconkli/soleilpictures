@@ -10,7 +10,8 @@ import { EntityLink } from './EntityLink.jsx';
 import { coerceRef } from '../lib/entityRef.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
-import { attachmentUrl, attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLinks.js';
+import { attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLinks.js';
+import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -219,7 +220,7 @@ export function MessageBubble({
               )}
               {att.kind === 'file' && (att.storage_path ? (
                 <a className="msg-attachment-file"
-                   href={attachmentUrl(SUPABASE_URL, att.storage_path, { download: att.name || 'file' })}
+                   href={publicAttachmentUrl(att.storage_path, { download: att.name || 'file' })}
                    download={att.name || 'file'}
                    target="_blank" rel="noopener noreferrer"
                    title={`Download ${att.name || 'file'}`}>
@@ -294,9 +295,8 @@ function emailToFriendly(email) {
     .join(' ');
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 function publicUrl(path) {
-  return attachmentUrl(SUPABASE_URL, path);
+  return publicAttachmentUrl(path);
 }
 
 // Bare wall-clock (e.g. "2:14 PM") shown in the gutter on grouped

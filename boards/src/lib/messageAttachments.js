@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { publicAttachmentUrl } from './messageAttachmentUrls.js';
 
 // Content types we are willing to have a browser RENDER inline straight off the
 // storage domain. Everything else uploads as application/octet-stream, which
@@ -78,9 +79,7 @@ async function readImageDims(file) {
 // CanvasSurface.handleDrop already understands. Each attachment kind maps
 // to the appropriate seeded card.
 export function inboxPayloadFor(att) {
-  const url = att.storage_path
-    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/message-attachments/${att.storage_path}`
-    : att.href;
+  const url = att.storage_path ? publicAttachmentUrl(att.storage_path) : att.href;
   switch (att.kind) {
     case 'image':
       return { kind: 'image', src: url, label: att.name, w: att.width, h: att.height };

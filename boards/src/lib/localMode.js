@@ -172,6 +172,13 @@ export function isSidebarQaMode() {
   return new URLSearchParams(window.location.search).get('sidebarqa') === '1';
 }
 
+// Messages QA (?msgqa=1): the real MessagesPanel over an in-memory fake of the
+// Supabase client (local/MessagesQaHarness.jsx).
+export function isMsgQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('msgqa') === '1';
+}
+
 // Dev-only single-file share QA (?fileshareqa=<fixture>): the real
 // <FileSharePage> over a fake api (local/FileShareQaHarness.jsx). Returns the
 // fixture name, or '' when off.
@@ -237,7 +244,7 @@ export function isReadOnlyQaMode() {
 const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
   'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
-  'presenceqa', 'shareqa', 'roqa',
+  'presenceqa', 'shareqa', 'roqa', 'msgqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;

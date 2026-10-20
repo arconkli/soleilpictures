@@ -74,7 +74,7 @@ function makeNamespacedStorage(suffix) {
   };
 }
 
-export const supabase = (url && publicKey)
+export let supabase = (url && publicKey)
   ? createClient(url, publicKey, {
       auth: {
         persistSession: true,
@@ -103,6 +103,14 @@ export const supabase = (url && publicKey)
   : null;
 
 export const isSupabaseConfigured = !!supabase;
+
+// Dev-only seam for the Messages QA harness (?msgqa=1, local/MessagesQaHarness):
+// swaps in an in-memory fake. `supabase` is a live ES binding, so every importer
+// sees the fake at call time. The DEV literal lets Vite drop this in production.
+export function installSupabaseForQa(fake) {
+  if (!import.meta.env.DEV) return;
+  supabase = fake;
+}
 
 // A browser that refuses the WebSocket made every channel().subscribe() throw
 // out of its React effect (realtime-js rethrows the constructor failure from
