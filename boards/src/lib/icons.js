@@ -8,6 +8,7 @@ export {
   Plus,
   Minus,
   X,
+  XCircle,
   Check,
   BookOpen,
   CaretDown as ChevronDown,

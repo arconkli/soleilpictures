@@ -12,7 +12,7 @@ import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
-import { boardRecency } from '../lib/projectsHome.js';
+import { sortSiblings } from '../lib/clusterSwitchList.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
@@ -342,8 +342,8 @@ export function SidebarBoardTree({
       // the project they are in now is at the top rather than wherever its
       // creation date put it. Deeper levels keep creation order — a project's
       // own structure should not reshuffle every time a card moves.
-      if (rootId && key === rootId) arr.sort((a, b) => boardRecency(b) - boardRecency(a));
-      else arr.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+      // (lib/clusterSwitchList.js: the cluster tab's list keeps the same order.)
+      sortSiblings(arr, key, rootId);
     }
     return out;
   })();

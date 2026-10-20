@@ -1038,6 +1038,10 @@ async function letGo(page) {
   });
 }
 const label = (page) => page.locator('.sbf-draglabel');
+// The cluster tab's list (ClusterSwitch.jsx), and the moment it has finished
+// growing from the tab (measured mid-way, it's still scaled).
+const switchList = (page) => page.getByRole('dialog', { name: 'Show the files of' });
+const settled = (loc) => loc.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => {}))));
 const treeRowSel = (id) => `.sb-tree-row[data-board-id="${id}"]`;
 
 test.describe('sidebar files: another cluster, and the rules', () => {
@@ -1046,13 +1050,17 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     const f = files(page);
     await expect(shown(page)).toHaveText('Feature film');
     await tab(page, 'Feature film').click();
-    const list = page.getByRole('menu', { name: 'Show the files of' });
+    const list = switchList(page);
     await expect(list).toBeVisible();
-    await expect(list.getByRole('menuitemradio', { name: /Feature film/ })).toHaveAttribute('aria-checked', 'true');
-    await expect(list.getByRole('menuitemradio', { name: /Feature film/ })).toContainText('Open now');
-    // Found by name; Enter takes the first.
-    await list.getByRole('searchbox', { name: 'Find a cluster' }).fill('cast');
-    await expect(list.getByRole('menuitemradio')).toHaveText(['Casting']);
+    await expect(tab(page, 'Feature film')).toHaveClass(/is-open/);
+    await expect(list.getByRole('option', { name: 'Feature film' })).toHaveAttribute('aria-selected', 'true');
+    // The board's cluster is the one checked, so nothing says "Open now".
+    await expect(list.getByText('Open now')).toHaveCount(0);
+    // Found by name: flat, each saying the cluster it's in; Enter takes the first.
+    await list.getByRole('combobox', { name: 'Find a cluster' }).fill('cast');
+    await expect(list.getByRole('option')).toHaveCount(1);
+    await expect(list.getByRole('option')).toContainText('Casting');
+    await expect(list.getByRole('option')).toContainText('in Feature film');
     await page.keyboard.press('Enter');
     await expect(list).toHaveCount(0);
     await expect(shown(page)).toHaveText('Casting');
@@ -1062,30 +1070,94 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     await expect(row(page, 'Feature film')).toHaveClass(/active/);
     await expect(f.getByRole('searchbox', { name: 'Search Casting' })).toBeVisible();
 
+    // Opened again away from the board: Casting is checked, and Feature film
+    // says it's the one open.
+    await tab(page, 'Casting').click();
+    await expect(list.getByRole('option', { name: 'Casting' })).toHaveAttribute('aria-selected', 'true');
+    await expect(list.getByRole('option', { name: /Feature film/ })).toContainText('Open now');
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+
     await f.getByRole('button', { name: 'Back to Feature film' }).click();
     await expect(shown(page)).toHaveText('Feature film');
     await expect(f.locator('.sbf-away')).toHaveCount(0);
 
     // Open takes the board there, and Files simply follows it.
     await tab(page, 'Feature film').click();
-    await list.getByRole('menuitemradio', { name: 'Casting' }).click();
+    await list.getByRole('option', { name: 'Casting' }).click();
     await f.getByRole('button', { name: 'Open Casting' }).click();
     await expect(page.getByTestId('sbqa-active')).toHaveText('open: cast');
     await expect(shown(page)).toHaveText('Casting');
     await expect(f.locator('.sbf-away')).toHaveCount(0);
   });
 
-  test('the list opens from the keyboard and Escape closes it, back on the tab', async ({ page }) => {
+  test('the list keeps the tree’s order, hangs from the tabs as wide as the card, and stops above the meter', async ({ page }) => {
+    await open(page);
+    await tab(page, 'Feature film').click();
+    const list = switchList(page);
+    await expect(list).toBeVisible();
+    await settled(list);
+    const tree = (await page.locator('.sb-tree .sb-tree-row .sb-row-label').allTextContents()).map((t) => t.trim());
+    const names = (await list.locator('.sbf-switch-name').allTextContents()).map((t) => t.trim());
+    expect(names).toEqual(tree);
+    // Nested clusters carry the tree's guide lines; the root none.
+    await expect(list.getByRole('option', { name: 'Studio' }).locator('.sbf-switch-guides')).toHaveCount(0);
+    await expect(list.getByRole('option', { name: 'Casting' }).locator('.sbf-switch-guides')).toHaveCount(1);
+    const at = await page.evaluate(() => {
+      const r = (sel) => document.querySelector(sel).getBoundingClientRect();
+      return { list: r('.sbf-switch'), tabs: r('.sbf-files .sbf-tabs'), card: r('.sbf-card.is-files'), meter: r('.sbf-card.is-files .sbf-meter') };
+    });
+    expect(Math.round(at.list.left)).toBe(Math.round(at.tabs.left));
+    expect(Math.round(at.list.right)).toBe(Math.round(at.card.right - (at.tabs.left - at.card.left)));
+    expect(at.list.top).toBeGreaterThan(at.tabs.bottom);
+    expect(at.list.bottom).toBeLessThanOrEqual(at.meter.top);
+  });
+
+  test('the find box keeps the keys: the arrows and the pointer move one highlight, typing carries on, Escape clears then closes', async ({ page }) => {
     await open(page);
     await tab(page, 'Feature film').focus();
     await page.keyboard.press('ArrowDown');
-    const list = page.getByRole('menu', { name: 'Show the files of' });
-    await expect(list.getByRole('searchbox', { name: 'Find a cluster' })).toBeFocused();
+    const list = switchList(page);
+    const find = list.getByRole('combobox', { name: 'Find a cluster' });
+    await expect(find).toBeFocused();
+    const active = () => list.locator('.sbf-switch-row.is-active');
+    // The highlight starts on the cluster shown; ↓ moves it, the box keeps the focus.
+    await expect(active()).toHaveText('Feature film');
     await page.keyboard.press('ArrowDown');
-    await expect(list.getByRole('menuitemradio').first()).toBeFocused();
+    await expect(active()).toHaveText('Locations');
+    await expect(find).toBeFocused();
+    await expect(find).toHaveAttribute('aria-activedescendant', await active().getAttribute('id'));
+    // The pointer moves the same highlight.
+    await list.getByRole('option', { name: 'Music video' }).hover();
+    await expect(active()).toHaveText('Music video');
+    await expect(list.locator('.sbf-switch-row.is-active')).toHaveCount(1);
+    // Typing after the arrows still finds.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.type('loc');
+    await expect(list.getByRole('option')).toHaveCount(1);
+    await expect(active()).toContainText('Locations');
+    // Escape clears what was typed, then closes, back on the tab.
+    await page.keyboard.press('Escape');
+    await expect(find).toHaveValue('');
+    await expect(list.getByRole('option').first()).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(list).toHaveCount(0);
     await expect(tab(page, 'Feature film')).toBeFocused();
+    await expect(tab(page, 'Feature film')).not.toHaveClass(/is-open/);
+  });
+
+  test('a press outside closes the list; nothing found says so', async ({ page }) => {
+    await open(page);
+    await tab(page, 'Feature film').click();
+    const list = switchList(page);
+    await list.getByRole('combobox', { name: 'Find a cluster' }).fill('zzz');
+    await expect(list.getByText('No cluster is called “zzz”')).toBeVisible();
+    await list.getByRole('button', { name: 'Clear' }).click();
+    await expect(list.getByRole('combobox', { name: 'Find a cluster' })).toHaveValue('');
+    await expect(list.getByRole('combobox', { name: 'Find a cluster' })).toBeFocused();
+    await page.mouse.click(1100, 700);
+    await expect(list).toHaveCount(0);
+    await expect(shown(page)).toHaveText('Feature film');
   });
 
   test('the label at the pointer says Move, says Copy while ⌥ is held, and Undo names where they went', async ({ page }) => {
@@ -1152,7 +1224,7 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     // One from Feature film, then, through the cluster tab, one from Casting.
     await photoRows(page).first().click({ modifiers: ['ControlOrMeta'] });
     await tab(page, 'Feature film').click();
-    await page.getByRole('menu', { name: 'Show the files of' }).getByRole('menuitemradio', { name: 'Casting' }).click();
+    await switchList(page).getByRole('option', { name: 'Casting' }).click();
     await expect(shown(page)).toHaveText('Casting');
     await photoRows(page, 'cast').first().click({ modifiers: ['ControlOrMeta'] });
     await expect(page.locator('.sbf-bulk')).toContainText('2 selected');
@@ -1173,7 +1245,7 @@ test.describe('sidebar files: another cluster, and the rules', () => {
     await letGo(page);
     // Another cluster's file, shown from the tab, over this board.
     await tab(page, 'Feature film').click();
-    await page.getByRole('menu', { name: 'Show the files of' }).getByRole('menuitemradio', { name: 'Casting' }).click();
+    await switchList(page).getByRole('option', { name: 'Casting' }).click();
     await expect(photoRows(page, 'cast').first()).toBeVisible();
     await holdDrag(page, '[data-sb-item="cast:cast-img-0"]', '.sbqa-canvas');
     await expect(label(page)).toContainText(/Move .+ to Feature film/);

@@ -836,20 +836,130 @@ body.sbf-sizing .app,
 /* ── Another cluster's files, and dragging them (owner, round 11) ─────────── */
 /* The cluster tab switches: "Feature film ⌄" opens every cluster of the
    workspace, and Files shows the one picked while the board stays put. */
-.sbf-tab.is-cluster .sbf-tab-caret { display: inline-grid; place-items: center; margin-left: 4px; color: var(--ink-2); flex-shrink: 0; }
-.sbf-tab.is-cluster.is-on .sbf-tab-caret, .sbf-tab.is-cluster.is-open .sbf-tab-caret { color: var(--ink-0); }
-.sbf-tab.is-cluster { display: inline-flex; align-items: center; justify-content: center; }
-.sbf-switch { width: 264px; }
-.sbf-switch-find {
-  flex-shrink: 0; display: flex; align-items: center; gap: 8px; height: 32px; margin: 0 0 4px; padding: 0 10px;
-  border-radius: var(--radius); background: color-mix(in srgb, var(--ink-0) 5%, transparent); color: var(--ink-2);
+.sbf-tab.is-cluster .sbf-tab-caret {
+  display: inline-grid; place-items: center; margin-left: 4px; color: var(--ink-2); flex-shrink: 0;
+  transition: transform 160ms var(--ease), color var(--dur-fast) var(--ease);
 }
-.sbf-switch-find input { flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; color: var(--ink-0); font: 400 13px/1 var(--font-sans); outline: none; box-shadow: none; }
+.sbf-tab.is-cluster.is-on .sbf-tab-caret, .sbf-tab.is-cluster.is-open .sbf-tab-caret { color: var(--ink-0); }
+.sbf-tab.is-cluster.is-open .sbf-tab-caret { transform: rotate(180deg); }
+.sbf-tab.is-cluster { display: inline-flex; align-items: center; justify-content: center; }
+
+/* The list (ClusterSwitch.jsx; owner, 2026-10-20, "A · Clean"). It hangs from
+   the tabs, lined up with the Files card's contents, and grows from the tab. */
+.sbf-switch {
+  position: fixed; z-index: 2147483600; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 10px; background: var(--bg-3); outline: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-0) 12%, transparent), 0 14px 36px rgba(0, 0, 0, .5), 0 3px 10px rgba(0, 0, 0, .32);
+  transform-origin: 40px -6px; animation: sbf-switch-in 170ms cubic-bezier(.2, .8, .2, 1);
+}
+.sbf-switch.is-above { transform-origin: 40px calc(100% + 6px); animation-name: sbf-switch-in-above; }
+.sbf-switch.is-closing { animation: sbf-switch-out 110ms ease-in forwards; pointer-events: none; }
+[data-theme='light'] .sbf-switch:not(.is-sheet) {
+  box-shadow: 0 0 0 1px rgba(10, 10, 12, .08), 0 12px 36px rgba(10, 10, 12, .12), 0 3px 10px rgba(10, 10, 12, .06);
+}
+@keyframes sbf-switch-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+@keyframes sbf-switch-in-above { from { opacity: 0; transform: translateY(6px) scale(.97); } }
+@keyframes sbf-switch-out { to { opacity: 0; transform: translateY(-4px) scale(.985); } }
+
+/* Find: a line of its own over the list, not a box inside the box. */
+.sbf-switch-find {
+  flex-shrink: 0; display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 8px 0 13px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-0) 8%, transparent); color: var(--ink-2); cursor: text;
+}
+.sbf-switch-find input {
+  flex: 1; min-width: 0; height: 100%; border: 0; padding: 0; background: transparent;
+  color: var(--ink-0); font: 400 13px/1 var(--font-sans); outline: none; box-shadow: none;
+}
 .sbf-switch-find input::placeholder { color: var(--ink-2); }
-.sbf-switch .sbf-menu-item { padding-right: 10px; }
-.sbf-switch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sbf-switch-note { flex-shrink: 0; padding-left: 12px; color: var(--ink-2); font: 400 11.5px/1 var(--font-sans); }
-.sbf-switch-empty { padding: 10px 10px 12px 28px; color: var(--ink-2); font: 400 12.5px/1.4 var(--font-sans); }
+.sbf-switch-clear {
+  flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.sbf-switch-clear:hover { color: var(--ink-0); }
+.sbf-switch-clear:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+
+/* The list scrolls inside, its edges fading where there's more (useScrollEdges). */
+.sbf-switch-list {
+  position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 5px; scrollbar-width: none;
+}
+.sbf-switch-list::-webkit-scrollbar { display: none; }
+.sbf-switch-list.fade-bottom:not(.fade-top) { mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+.sbf-switch-list.fade-top:not(.fade-bottom) { mask-image: linear-gradient(transparent, #000 28px); }
+.sbf-switch-list.fade-top.fade-bottom { mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+
+/* A row. The pointer and the arrow keys move one highlight. */
+.sbf-switch-row {
+  position: relative; display: flex; align-items: center; gap: 8px; height: 30px; padding-right: 8px;
+  border-radius: 6px; color: var(--ink-1); font: 500 13px/1 var(--font-sans); cursor: default; user-select: none;
+}
+.sbf-switch-row.is-active { background: color-mix(in srgb, var(--ink-0) 7.5%, transparent); color: var(--ink-0); }
+[data-theme='light'] .sbf-switch-row.is-active { background: rgba(10, 10, 12, .055); }
+.sbf-switch-row.is-shown { color: var(--ink-0); }
+.sbf-switch-name { flex: 0 1 auto; min-width: 0; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Found: what was typed stands out from the rest of the name, without a change of weight. */
+.sbf-switch-row.is-found .sbf-switch-name { color: var(--ink-2); }
+.sbf-switch-row.is-found .sbf-switch-hit { color: var(--ink-0); }
+.sbf-switch-where { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }
+.sbf-switch-note { flex-shrink: 0; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }
+.sbf-switch-check { flex-shrink: 0; width: 14px; display: grid; place-items: center; color: var(--soleil); }
+/* Nesting, drawn as the tree's guide lines. */
+.sbf-switch-guides {
+  position: absolute; top: 0; bottom: 0; left: 18px; pointer-events: none;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink-0) 11%, transparent) 0 1px, transparent 1px 16px);
+}
+.sbf-switch-empty { padding: 12px 10px 14px 12px; color: var(--ink-2); font: 400 12.5px/1.4 var(--font-sans); }
+
+/* In the phone drawer: a sheet from the bottom, with Done. */
+.sbf-switch-scrim {
+  position: fixed; inset: 0; z-index: 2147483599; background: rgba(0, 0, 0, .45);
+  animation: sbf-switch-fade 220ms ease;
+}
+[data-theme='light'] .sbf-switch-scrim { background: rgba(10, 10, 12, .28); }
+.sbf-switch-scrim.is-closing { animation: sbf-switch-fade-out 160ms ease forwards; pointer-events: none; }
+@keyframes sbf-switch-fade { from { opacity: 0; } }
+@keyframes sbf-switch-fade-out { to { opacity: 0; } }
+.sbf-switch.is-sheet {
+  left: 0; right: 0; bottom: 0; max-height: 74vh; max-height: 74dvh;
+  padding: 6px 8px calc(16px + env(safe-area-inset-bottom, 0px)); border-radius: 16px 16px 0 0;
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--ink-0) 8%, transparent), 0 -16px 40px rgba(0, 0, 0, .35);
+  transform-origin: 50% 100%; animation: sbf-switch-sheet-in 300ms cubic-bezier(.2, .9, .25, 1);
+}
+.sbf-switch.is-sheet.is-closing { animation: sbf-switch-sheet-out 200ms ease-in forwards; }
+@keyframes sbf-switch-sheet-in { from { transform: translateY(100%); } }
+@keyframes sbf-switch-sheet-out { to { transform: translateY(100%); } }
+.sbf-switch-grabber { flex-shrink: 0; width: 36px; height: 5px; margin: 0 auto 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink-0) 18%, transparent); }
+.sbf-switch-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 4px 0 10px; }
+.sbf-switch-title { color: var(--ink-0); font: 600 16px/1 var(--font-sans); }
+.sbf-switch-done {
+  height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--ink-0); font: 600 15px/1 var(--font-sans); cursor: pointer;
+}
+.sbf-switch-done:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-switch.is-sheet .sbf-switch-find {
+  height: 44px; margin: 2px 4px 8px; padding: 0 8px 0 12px; border: 0; border-radius: 10px;
+  background: var(--sbf-field, rgba(0, 0, 0, .24)); gap: 10px;
+}
+.sbf-switch.is-sheet .sbf-switch-find input { font-size: 16px; }   /* under 16px, iOS zooms the page on focus */
+.sbf-switch.is-sheet .sbf-switch-list { padding: 0 2px; }
+.sbf-switch.is-sheet .sbf-switch-row { height: 48px; gap: 12px; padding-right: 12px; border-radius: 10px; font: 400 16px/1 var(--font-sans); }
+.sbf-switch.is-sheet .sbf-switch-row.is-shown { font-weight: 500; }
+/* A finger marks nothing: the check says which is shown (the keys' highlight still shows). */
+.sbf-switch.is-sheet:not(.by-keys) .sbf-switch-row.is-active:not(:hover) { background: transparent; }
+.sbf-switch.is-sheet .sbf-switch-check { width: 18px; }
+.sbf-switch.is-sheet .sbf-switch-where, .sbf-switch.is-sheet .sbf-switch-note { font-size: 13px; }
+
+/* A touch screen with the floating cards (a tablet): rows a finger can take. */
+@media (hover: none) and (pointer: coarse) {
+  .sbf-switch:not(.is-sheet) .sbf-switch-row { height: 40px; font-size: 15px; }
+  .sbf-switch:not(.is-sheet) .sbf-switch-find input { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sbf-switch, .sbf-switch.is-above, .sbf-switch.is-closing, .sbf-switch.is-sheet, .sbf-switch.is-sheet.is-closing,
+  .sbf-switch-scrim, .sbf-switch-scrim.is-closing { animation: none; }
+  .sbf-tab.is-cluster .sbf-tab-caret { transition: none; }
+}
 
 /* Looking at another cluster's files: back to the board's, or open this one. */
 .sbf-away { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 28px; padding: 0 9px 2px; }

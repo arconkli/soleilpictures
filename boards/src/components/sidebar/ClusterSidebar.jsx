@@ -36,7 +36,9 @@
 // Any cluster's files, without leaving the board (owner, 2026-10-19: "easily
 // navigate to other clusters so we can drag files from one cluster to
 // another", picked from four mockups): the cluster tab says "Feature film ⌄",
-// and pressed again lists the workspace's clusters to pick from. Files then
+// and pressed again lists the workspace's clusters to pick from
+// (ClusterSwitch.jsx: the tree's order, a find box that keeps the keys; a
+// sheet from the bottom in the phone drawer). Files then
 // shows that one, with "Back to Feature film" and "Open Casting" under the
 // tabs. Dragging follows one set of rules wherever a file lands
 // (lib/dropRules.js): it moves, the copy key copies, nothing leaves its
@@ -78,6 +80,7 @@ import { isShareableCard } from '../../lib/fileShares.js';
 import { captureDropEntries, captureDropHandles, hasDirectory } from '../../lib/folderWalk.js';
 import { isZipFile } from '../../lib/importZips.js';
 import { ImportWaitRow } from '../ImportWaitRow.jsx';
+import { ClusterSwitch } from './ClusterSwitch.jsx';
 import './clusterSidebar.css';
 
 const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
@@ -136,48 +139,6 @@ function placeMenu(btn, menu) {
   const room = vh - 16;
   return { right, top: Math.max(8, vh - 8 - Math.min(want, room)), maxHeight: room };
 }
-
-// The cluster tab's list opens under the tab, from its left edge; with more
-// room above than below, over it.
-function placeUnder(btn, menu) {
-  if (!btn) return null;
-  const r = btn.getBoundingClientRect();
-  const vh = window.innerHeight;
-  const want = menu ? menu.scrollHeight : 0;
-  const left = Math.max(8, Math.min(r.left, window.innerWidth - 272));
-  const below = vh - r.bottom - 12;
-  const above = r.top - 12;
-  if (want <= below || below >= above) return { left, top: r.bottom + 4, maxHeight: below };
-  return { left, bottom: vh - r.top + 4, maxHeight: above };
-}
-
-// The workspace's clusters in the tree's order (by name under each parent),
-// each with its depth, for the cluster tab's list.
-function clustersInOrder(list, rootId) {
-  const kids = new Map();
-  for (const b of list) {
-    const p = b.parent_board_id || null;
-    if (!kids.has(p)) kids.set(p, []);
-    kids.get(p).push(b);
-  }
-  for (const arr of kids.values()) arr.sort((x, y) => (x.name || '').localeCompare(y.name || ''));
-  const out = [];
-  const seen = new Set();
-  const walk = (b, depth) => {
-    if (!b || seen.has(b.id) || depth > 30) return;
-    seen.add(b.id);
-    out.push({ board: b, depth });
-    for (const k of kids.get(b.id) || []) walk(k, depth + 1);
-  };
-  const root = list.find((b) => b.id === rootId);
-  if (root) walk(root, 0);
-  for (const b of kids.get(null) || []) walk(b, 0);
-  return out;
-}
-
-// Accents and case don't matter when finding a cluster by name.
-const plainText = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
 
 export function ClusterSidebar({
   workspaceId,
@@ -339,67 +300,48 @@ export function ClusterSidebar({
   useEffect(() => { if (view === 'cluster' && shownId) files.ensure(shownId); }, [view, shownId, files.ensure]);
 
   // ── The cluster tab's list ────────────────────────────────────────────────
-  // Pressing the cluster tab while it shows opens the workspace's clusters,
-  // with a box to find one by name.
+  // Pressing the cluster tab while it shows opens the workspace's clusters
+  // (ClusterSwitch.jsx), with a box to find one by name. It fades as it
+  // closes, and the tab has the focus back.
   const [switchOpen, setSwitchOpen] = useState(false);
-  const [switchFind, setSwitchFind] = useState('');
-  const [switchPos, setSwitchPos] = useState(null);
+  const [switchClosing, setSwitchClosing] = useState(false);
   const clusterTabRef = useRef(null);
-  const switchPopRef = useRef(null);
-  useDismissOnOutside(clusterTabRef, switchOpen, () => setSwitchOpen(false), { ignore: '.sbf-switch' });
-  useLayoutEffect(() => {
-    if (!switchOpen) { setSwitchPos(null); setSwitchFind(''); return undefined; }
-    const place = (e) => {
-      const t = e?.target;
-      if (t instanceof Node && switchPopRef.current?.contains(t)) return;
-      setSwitchPos(placeUnder(clusterTabRef.current, switchPopRef.current));
+  const tabsRef = useRef(null);
+  const switchTimer = useRef(0);
+  const switchOpenRef = useRef(false);
+  switchOpenRef.current = switchOpen;
+  useEffect(() => () => clearTimeout(switchTimer.current), []);
+  const openSwitch = () => {
+    clearTimeout(switchTimer.current);
+    switchTimer.current = 0;
+    setSwitchClosing(false);
+    setSwitchOpen(true);
+  };
+  // Gone at once: no fade, the focus left where it is.
+  const dropSwitch = useCallback(() => {
+    clearTimeout(switchTimer.current);
+    switchTimer.current = 0;
+    setSwitchClosing(false);
+    setSwitchOpen(false);
+  }, []);
+  const closeSwitch = useCallback(() => {
+    if (!switchOpenRef.current || switchTimer.current) return;
+    const done = () => {
+      switchTimer.current = 0;
+      setSwitchClosing(false);
+      setSwitchOpen(false);
+      clusterTabRef.current?.focus({ preventScroll: true });
     };
-    place();
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [switchOpen]);
-  // Open, the find box takes the keys; on a touch screen the ticked cluster
-  // does instead, so no keyboard comes up over the list.
-  useEffect(() => {
-    if (!switchOpen || !switchPos) return;
-    const pop = switchPopRef.current;
-    (coarse ? pop?.querySelector('[aria-checked="true"]') : pop?.querySelector('input'))?.focus({ preventScroll: true });
-  }, [switchOpen, !!switchPos]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const closeSwitch = () => { setSwitchOpen(false); clusterTabRef.current?.focus({ preventScroll: true }); };
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+    setSwitchClosing(true);
+    switchTimer.current = setTimeout(done, 110);
+  }, []);
+  useDismissOnOutside(clusterTabRef, switchOpen && !switchClosing, closeSwitch, { ignore: '.sbf-switch' });
   const pickCluster = (id) => {
     setBrowseId(id && id !== clusterId ? id : null);
     setShown(null);
     setQuery('');
     closeSwitch();
-  };
-  const switchRows = useMemo(() => {
-    if (!switchOpen) return [];
-    const all = clustersInOrder(boardList, rootId);
-    const q = plainText(switchFind.trim());
-    if (!q) return all;
-    // Found by name: flat, the names that start with it first.
-    return all.filter(({ board }) => plainText(board.name).includes(q))
-      .map(({ board }) => ({ board, depth: 0 }))
-      .sort((x, y) => Number(!plainText(x.board.name).startsWith(q)) - Number(!plainText(y.board.name).startsWith(q)));
-  }, [switchOpen, switchFind, boardList, rootId]);
-  const onSwitchKeyDown = (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSwitch(); return; }
-    if (e.key === 'Tab') { e.preventDefault(); closeSwitch(); return; }
-    const inFind = e.target?.tagName === 'INPUT';
-    if (inFind && e.key === 'Enter') { e.preventDefault(); if (switchRows[0]) pickCluster(switchRows[0].board.id); return; }
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
-    e.preventDefault();
-    const items = [...(switchPopRef.current?.querySelectorAll('[role^="menuitem"]') || [])];
-    if (!items.length) return;
-    const i = items.indexOf(document.activeElement);
-    const j = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1
-      : i === -1 ? (e.key === 'ArrowDown' ? 0 : items.length - 1)
-        : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-    items[j]?.focus();
   };
 
   const tabs = [
@@ -413,7 +355,7 @@ export function ClusterSidebar({
   const onTabsKeyDown = (e) => {
     if (e.key === 'ArrowDown' && e.target === clusterTabRef.current && view === 'cluster') {
       e.preventDefault();
-      setSwitchOpen(true);
+      openSwitch();
       return;
     }
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
@@ -999,10 +941,10 @@ export function ClusterSidebar({
   useEffect(() => {
     if (!folded) return;
     setMenuOpen(false);
-    setSwitchOpen(false);
+    dropSwitch();
     setFileMenu(null);
     clearSelection();
-  }, [folded, clearSelection]);
+  }, [folded, clearSelection, dropSwitch]);
 
   return (
     <>
@@ -1041,7 +983,7 @@ export function ClusterSidebar({
           </div>
         )}
         <header className="sbf-files-head">
-          <div className="sbf-tabs" role="tablist" aria-label="Show files from" onKeyDown={onTabsKeyDown}>
+          <div className="sbf-tabs" role="tablist" aria-label="Show files from" onKeyDown={onTabsKeyDown} ref={tabsRef}>
             {tabs.map((t) => {
               const on = view === t.id;
               const isCluster = t.id === 'cluster';
@@ -1049,12 +991,12 @@ export function ClusterSidebar({
                 <button type="button" key={t.id} role="tab" id={`${tabsId}-${t.id}`}
                         ref={isCluster ? clusterTabRef : undefined}
                         aria-selected={on} aria-controls={`${tabsId}-panel`} tabIndex={on ? 0 : -1}
-                        {...(isCluster ? { 'aria-haspopup': 'menu', 'aria-expanded': switchOpen } : {})}
-                        className={`sbf-tab${isCluster ? ' is-cluster' : ''}${on ? ' is-on' : ''}${isCluster && switchOpen ? ' is-open' : ''}`}
+                        {...(isCluster ? { 'aria-haspopup': 'dialog', 'aria-expanded': switchOpen && !switchClosing } : {})}
+                        className={`sbf-tab${isCluster ? ' is-cluster' : ''}${on ? ' is-on' : ''}${isCluster && switchOpen && !switchClosing ? ' is-open' : ''}`}
                         title={isCluster ? (on ? `${t.label} · press to see another cluster’s files` : t.label) : undefined}
                         onClick={() => {
                           if (!on) { t.select(); return; }
-                          if (isCluster) setSwitchOpen((o) => !o);
+                          if (isCluster) { if (switchOpen && !switchClosing) closeSwitch(); else openSwitch(); }
                         }}>
                   <span className="sbf-tab-label">{t.label}</span>
                   {isCluster && <span className="sbf-tab-caret" aria-hidden="true"><Icon as={ChevronDown} size={10} weight="regular" /></span>}
@@ -1241,31 +1183,10 @@ export function ClusterSidebar({
       )}
 
       {switchOpen && createPortal(
-        <div className="sbf-menu sbf-switch" role="menu" aria-label="Show the files of" ref={switchPopRef}
-             style={switchPos || { top: 0, left: 0, visibility: 'hidden' }}
-             onKeyDown={onSwitchKeyDown}>
-          <label className="sbf-switch-find">
-            <Icon as={Search} size={14} weight="regular" />
-            <input type="search" value={switchFind} placeholder="Find a cluster" aria-label="Find a cluster"
-                   onChange={(e) => setSwitchFind(e.target.value)} />
-          </label>
-          {switchRows.length ? (
-            <>
-              <div className="sbf-menu-label">Clusters</div>
-              {switchRows.map(({ board: b, depth }) => (
-                <button type="button" key={b.id} role="menuitemradio" aria-checked={b.id === tabClusterId}
-                        className={`sbf-menu-item${b.id === tabClusterId ? ' is-on' : ''}`}
-                        style={{ paddingLeft: 28 + depth * 14 }}
-                        onClick={() => pickCluster(b.id)}>
-                  <span className="sbf-switch-name">{b.name || 'Untitled'}</span>
-                  {b.id === clusterId && <span className="sbf-switch-note">Open now</span>}
-                </button>
-              ))}
-            </>
-          ) : (
-            <div className="sbf-switch-empty">No cluster is called “{switchFind.trim()}”.</div>
-          )}
-        </div>,
+        <ClusterSwitch list={boardList} rootId={rootId} shownId={tabClusterId} boardId={activeBoardId || null}
+                       sheet={!floating} focusList={coarse} closing={switchClosing}
+                       tabsRef={tabsRef} cardRef={filesCardRef}
+                       onPick={pickCluster} onClose={closeSwitch} />,
         document.body,
       )}
       <DragLabel resolve={resolveDrop} />

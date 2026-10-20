@@ -51,23 +51,37 @@ test.describe('sidebar files on a phone', () => {
     await expect(files.locator('[data-sb-item^="film:film-img-"]').first()).toBeVisible();
   });
 
-  test('the cluster tab, tapped again, lists every cluster to show the files of, inside the screen', async ({ page }) => {
+  test('the cluster tab, tapped again, lists every cluster in a sheet from the bottom, with no keyboard over it', async ({ page }) => {
     await open(page);
     const files = page.locator('.sbf-files');
     await files.getByRole('tab', { name: 'Feature film', exact: true }).tap();
-    const list = page.getByRole('menu', { name: 'Show the files of' });
+    const list = page.getByRole('dialog', { name: 'Show the files of' });
     await expect(list).toBeVisible();
-    // No keyboard over the list: the ticked cluster has the focus, not the find box.
-    await expect(list.getByRole('menuitemradio', { name: /Feature film/ })).toBeFocused();
-    await expect(list.getByRole('searchbox', { name: 'Find a cluster' })).not.toBeFocused();
+    await expect(list).toHaveClass(/is-sheet/);
+    // Measured once it has finished coming up from the bottom.
+    await list.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {}))));
+    // No keyboard over the list: the sheet has the focus, not the find box.
+    await expect(list).toBeFocused();
+    await expect(list.getByRole('combobox', { name: 'Find a cluster' })).not.toBeFocused();
+    await expect(list.getByRole('option', { name: 'Feature film' })).toHaveAttribute('aria-selected', 'true');
+    // The whole width, along the bottom, rows a finger can take.
     const vw = page.viewportSize().width;
+    const vh = page.viewportSize().height;
     const box = await list.boundingBox();
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(vw);
-    await list.getByRole('menuitemradio', { name: 'Casting' }).tap();
+    expect(Math.round(box.x)).toBe(0);
+    expect(Math.round(box.x + box.width)).toBe(vw);
+    expect(Math.round(box.y + box.height)).toBe(vh);
+    expect((await list.getByRole('option', { name: 'Casting' }).boundingBox()).height).toBeGreaterThanOrEqual(44);
+    await list.getByRole('option', { name: 'Casting' }).tap();
     await expect(list).toHaveCount(0);
     await expect(files.getByRole('tab', { selected: true })).toHaveText('Casting');
     await expect(files.locator('[data-sb-item^="cast:cast-img-"]').first()).toBeVisible();
+    // Done closes it without changing anything.
+    await files.getByRole('tab', { name: 'Casting', exact: true }).tap();
+    await expect(list.getByRole('option', { name: /Feature film/ })).toContainText('Open now');
+    await list.getByRole('button', { name: 'Done' }).tap();
+    await expect(list).toHaveCount(0);
+    await expect(files.getByRole('tab', { selected: true })).toHaveText('Casting');
     await files.getByRole('button', { name: 'Back to Feature film' }).tap();
     await expect(files.getByRole('tab', { selected: true })).toHaveText('Feature film');
   });
