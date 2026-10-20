@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { peekWorkspaceInviteLink, claimWorkspaceInviteLink } from '../lib/inviteApi.js';
+import { markJoined } from '../lib/workspaceLink.js';
 
 // The ?wsjoin= param is already gone from the address (AuthGate strips it on
 // arrival), so reloading the page as it stands opens the app afresh.
@@ -62,6 +63,7 @@ export default function WorkspaceJoinCard({ token, userId, onClose }) {
       try { logEventNow(EV.WORKSPACE_LINK_CLAIM_RESULT, { status, at: 'card' }); } catch (_) {}
       if (status === 'joined') {
         try { logEventNow(EV.ACCESS_GRANTED, { how: 'workspace_link', role: `workspace:${row.role || link.role}`, board_id: null, surface: 'wsjoin_card' }); } catch (_) {}
+        markJoined(userId, row.workspace_id);
       }
       if (row?.workspace_id && (status === 'joined' || status === 'member')) {
         onClose?.();

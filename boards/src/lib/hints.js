@@ -21,7 +21,10 @@
 // — and keep the same discipline: once per device, never over the tour, never
 // beside another hint. They are graded on cluster_nudge{surface} instead.
 
-export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'second_idea']);
+// setup_tips and invite_reask are the first-run setup's (components/setup/
+// SetupInWorkspace.jsx): they only claim and release, so nothing else pops up
+// beside them; their once-only records are their own.
+export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'second_idea', 'setup_tips', 'invite_reask']);
 
 // A new cluster that still carries its default name a minute later is one
 // nobody will find again. A minute, not ten seconds: people often place the

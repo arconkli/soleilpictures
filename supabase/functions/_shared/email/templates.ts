@@ -393,9 +393,18 @@ interface InviteAcceptedData {
   role?: string;
   workspaceId?: string;
   boardId?: string;
+  // 'workspace' when they joined the whole workspace (a workspace invite or
+  // its invite link): the mail names the workspace, not its first cluster.
+  scope?: string;
+  workspaceName?: string;
 }
 
+// A workspace's name in a button, while it reads as a name rather than a
+// sentence; a long one says "your workspace" instead.
+const WS_CTA_MAX = 28;
+
 function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
+  if (d.scope === "workspace" && d.workspaceName) return workspaceJoined(d);
   const role = (d.role || "editor").toLowerCase();
   const headline = `${d.joinerName} just joined you.`;
   const subtitle = `They now have ${role} access to "${d.boardName}" — go say hi and build together.`;
@@ -419,6 +428,42 @@ function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
       subtitle,
       "",
       "Open board: " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+// Someone joined the whole workspace: the mail names it, and the button opens
+// the workspace (the app picks its cluster), never the root cluster by name.
+function workspaceJoined(d: InviteAcceptedData): RenderedEmail {
+  const ws = d.workspaceName as string;
+  const viewer = (d.role || "").toLowerCase().endsWith("viewer");
+  const headline = `${d.joinerName} just joined you.`;
+  const subtitle = viewer
+    ? `They can now see everything in ${ws}, every cluster and file. Go say hi.`
+    : `They can now see and edit everything in ${ws}, every cluster and file. Go say hi and build together.`;
+  const label = [...ws].length <= WS_CTA_MAX ? `Open ${ws}` : "Open your workspace";
+  const url = deepLink(
+    { w: d.workspaceId },
+    { utm_source: "email", utm_medium: "transactional", utm_campaign: "invite_accepted" },
+  );
+  return {
+    subject: `${d.joinerName} joined ${ws}`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "They're in",
+      headline,
+      subtitle,
+      cta: { label, url },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      `${label}: ` + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -1623,11 +1668,13 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       });
     case "invite_accepted":
       return inviteAccepted({
-        joinerName:  safePerson(data.joinerName),
-        boardName:   safeLabel(data.boardName, 60, "a board"),
-        role:        data.role != null ? String(data.role) : undefined,
-        workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
-        boardId:     data.boardId != null ? String(data.boardId) : undefined,
+        joinerName:    safePerson(data.joinerName),
+        boardName:     safeLabel(data.boardName, 60, "a board"),
+        role:          data.role != null ? String(data.role) : undefined,
+        workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:       data.boardId != null ? String(data.boardId) : undefined,
+        scope:         data.scope === "workspace" ? "workspace" : undefined,
+        workspaceName: safeLabel(data.workspaceName, 60) || undefined,
       });
     case "pending_invite":
       // The recipient has no account, so this is the email a stranger reads:

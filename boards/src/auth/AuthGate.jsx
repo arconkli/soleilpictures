@@ -31,7 +31,7 @@ import { recordSeen } from '../lib/returnVisit.js';
 import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink, peekWorkspaceInviteLink, claimWorkspaceInviteLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
-import { WSJOIN_PARAM, parseWsJoinParam, stashWsJoin, readWsJoin, clearWsJoin } from '../lib/workspaceLink.js';
+import { WSJOIN_PARAM, parseWsJoinParam, stashWsJoin, readWsJoin, clearWsJoin, markJoined } from '../lib/workspaceLink.js';
 import { workspaceSetupAllowed } from '../lib/appHost.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
@@ -341,6 +341,7 @@ async function consumePendingWsJoin(userId) {
     try { logEventNow(EV.WORKSPACE_LINK_CLAIM_RESULT, { status, at: 'signup' }); } catch (_) {}
     if (status === 'joined') {
       try { logEvent(EV.ACCESS_GRANTED, { how: 'workspace_link', role: `workspace:${row.role || 'editor'}`, board_id: null, surface: 'wsjoin' }); } catch (_) {}
+      markJoined(userId, row.workspace_id);
     }
     if (row?.workspace_id && (status === 'joined' || status === 'member')) openWorkspaceNext(userId, row.workspace_id);
   } catch (e) {

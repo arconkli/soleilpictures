@@ -13,13 +13,16 @@
 //   &deadlink=1         the seeded Lost Time link no longer works
 //   &wsjoin=<token>     arrive by a workspace link (QA_LINK_TOKEN is Lost Time's)
 //   &theme=light        &latency=<ms>        &fresh=1 (drop the kept fake)
+//   &inws=tips|reask|joiner   after the setup, in the workspace: the tips and
+//                       the re-ask (SetupInWorkspace) over the real sidebar
+//                       (local/setupqa/InWorkspaceQa.jsx has its own params)
 //
 // The fake is kept in sessionStorage across reloads (joining by the card
 // reloads into the workspace), so a spec starts with &fresh=1. window.__setupQa
 // has db, calls, events(), clipboard, shared, setLinkMode, setLatency. The page
 // sets <html data-setupqa-ready="1"> once mounted.
 
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import '../styles.css';
 import { installSupabaseForQa } from '../lib/supabase.js';
 import { SIDEBAR_FILES_DEV_FLAG, WORKSPACE_SETUP_DEV_FLAG } from '../lib/appHost.js';
@@ -29,7 +32,10 @@ import { getSetupOutcome } from '../lib/setupGate.js';
 import { flushNow } from '../lib/analytics.js';
 import { buildSetupDb, createSetupFake } from './setupqa/fakeSetupSupabase.js';
 
+const InWorkspaceQa = lazy(() => import('./setupqa/InWorkspaceQa.jsx'));
+
 const QS = new URLSearchParams(window.location.search);
+const INWS = ['tips', 'reask', 'joiner'].includes(QS.get('inws')) ? QS.get('inws') : null;
 const KEEP_KEY = 'soleil.setupqa.db';
 
 // The gates the setup rides on are opt-in on dev.
@@ -65,6 +71,7 @@ function loadDb() {
     linkMode: QS.get('link'),
     inviteLimitAt: QS.has('invitelimit') ? Number(QS.get('invitelimit')) : null,
     deadLink: QS.get('deadlink') === '1',
+    inws: INWS,
   });
   // A member pointed at the workspace, the way a claim at sign-in leaves it.
   if (QS.get('invitee') === '1') {
@@ -141,6 +148,13 @@ function AppStub() {
 
 export function SetupQaHarness() {
   useEffect(() => { document.documentElement.setAttribute('data-setupqa-ready', '1'); }, []);
+  if (INWS) {
+    return (
+      <Suspense fallback={null}>
+        <InWorkspaceQa db={db} mode={INWS} qs={QS} />
+      </Suspense>
+    );
+  }
   return (
     <AuthGate>
       <TierRouter>

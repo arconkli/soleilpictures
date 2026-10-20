@@ -41,3 +41,16 @@ export function workspaceInviteUrl(token, origin) {
   const base = origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
   return `${base}/?${WSJOIN_PARAM}=${t}`;
 }
+
+// Someone who just joined a workspace by its link (at sign-in, or by the join
+// card) is marked for this tab, so the workspace can note where they landed
+// once it has opened (components/setup/SetupInWorkspace). Session storage: it
+// means this visit, and it is read once.
+export function joinedFlagKey(uid) {
+  return `soleil.setup.joined.${uid}`;
+}
+
+export function markJoined(uid, workspaceId) {
+  if (!uid || !workspaceId) return;
+  try { sessionStorage.setItem(joinedFlagKey(uid), workspaceId); } catch (_) { /* the landing just goes unnoted */ }
+}

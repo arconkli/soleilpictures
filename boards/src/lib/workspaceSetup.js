@@ -24,6 +24,8 @@ export const SETUP_EPOCH = '2026-10-20T00:00:00Z';
 export const NAME_MAX = 60;           // the invite emails cut names here too (safeLabel)
 export const REASK_MIN_CARDS = 6;     // where day-one return stops climbing slowly
 export const REASK_WINDOW_DAYS = 14;
+export const REASK_KEY = 'invite_reask';   // profiles.settings key; SetupInWorkspace is its one writer
+export const REASK_SETTLE_MS = 4_000;      // after the card that tipped it over, a beat before asking
 export const MAX_INVITE_ROWS = 8;
 
 export const TEAM_OPTIONS = Object.freeze([

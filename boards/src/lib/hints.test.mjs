@@ -55,6 +55,6 @@ test('the tour stamp on the body is what counts as the tour showing', () => {
 });
 
 test('the kinds and the naming delay are what the surfaces expect', () => {
-  assert.deepEqual([...HINT_KINDS], ['paste', 'name_cluster', 'studio_bar', 'second_idea']);
+  assert.deepEqual([...HINT_KINDS], ['paste', 'name_cluster', 'studio_bar', 'second_idea', 'setup_tips', 'invite_reask']);
   assert.ok(NAME_CLUSTER_AFTER_MS >= 30_000 && NAME_CLUSTER_AFTER_MS <= 120_000, 'a minute, give or take');
 });

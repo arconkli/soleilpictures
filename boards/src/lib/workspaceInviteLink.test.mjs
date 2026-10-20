@@ -111,3 +111,20 @@ test('only a manager of the link\'s workspace reads its terms, and never signed 
   assert.ok(latestMatch(/revoke all on function public\.get_workspace_invite_link_terms\(uuid\) from public, anon/));
   assert.ok(latestMatch(/grant execute on function public\.get_workspace_invite_link_terms\(uuid\) to authenticated, service_role/));
 });
+
+// "Maya joined Lost Time": a whole-workspace join names the workspace and
+// opens it, never "joined "Studio"" with "Open board". Held until the release
+// migration passes scope, so today's mail is unchanged.
+test('the joined email names the workspace once it is told the join was the whole workspace', async () => {
+  const { readFileSync } = await import('node:fs');
+  const tpl = readFileSync(new URL('../../../supabase/functions/_shared/email/templates.ts', import.meta.url), 'utf8');
+  const fn = tpl.slice(tpl.indexOf('function workspaceJoined('), tpl.indexOf('// Pre-account invite.'));
+  assert.ok(tpl.includes('if (d.scope === "workspace" && d.workspaceName) return workspaceJoined(d);'));
+  assert.ok(fn.includes('subject: `${d.joinerName} joined ${ws}`'));
+  assert.ok(fn.includes('`Open ${ws}`') && fn.includes('"Open your workspace"'));
+  assert.ok(fn.includes('deepLink(\n    { w: d.workspaceId },'), 'the button opens the workspace, not a cluster');
+  assert.doesNotMatch(fn, /Open board/);
+  const sw = tpl.slice(tpl.indexOf('case "invite_accepted":'), tpl.indexOf('case "pending_invite":'));
+  assert.match(sw, /scope:\s+data\.scope === "workspace" \? "workspace" : undefined/);
+  assert.match(sw, /workspaceName: safeLabel\(data\.workspaceName, 60\) \|\| undefined/);
+});

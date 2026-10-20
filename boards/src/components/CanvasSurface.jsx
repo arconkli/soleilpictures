@@ -663,6 +663,9 @@ export function CanvasSurface({
                            // writing tiles, never a container (lib/firstBoardCopy).
   firstBoardKind = null,   // 'references' | 'moodboard' | 'storyboard' | null —
                            // shapes the first board's headline and hero verb.
+  firstBoardLinks = false, // the hint names pasted links too (where the setup runs)
+  firstBoardJoin = null,   // { ws, by }: someone else's workspace with nothing in it
+                           // yet; the empty board names it and whose it is.
   freshProject = false,    // an empty TOP-LEVEL cluster (a project): it gets the
                            // first board's treatment — material from elsewhere,
                            // writing tiles, no empty containers as peers — and a
@@ -1990,7 +1993,7 @@ export function CanvasSurface({
   const firstLike = firstBoard || freshProject;
   const panelTiles = (firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES)
     .map((t) => (t.id === 'board' ? { ...t, icon: clusterGlyph() } : t));
-  const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
+  const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone, links: firstBoardLinks, join: firstBoardJoin });
   // On the empty Studio the panel ends with a line about clusters (below).
   // Seen is logged once per cluster per session, as the panel's own row is.
   const emptyStudioLine = !isPublic && board?.parent_board_id == null && clusterNudgesAllowed();
@@ -2054,7 +2057,9 @@ export function CanvasSurface({
       kind: firstBoard ? (firstBoardKind || null) : null,
       is_prompt: !!firstCardPrompt,          // shown over a seeded board, not a bare one
       escalated: !!frictionStuck,            // they'd already tripped the stuck signal
+      join: !!firstBoardJoin,                // a joiner's empty workspace (its own words)
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck, firstBoard, freshProject, firstBoardKind, panelTiles.length]);
 
   // ── Depth dock ──

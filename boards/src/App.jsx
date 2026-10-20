@@ -166,7 +166,7 @@ import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
@@ -284,6 +284,10 @@ const CaptureHud = lazyWithReload(() => import('./components/capture/CaptureHud.
 const SurfaceGallery = lazyWithReload(() => import('./components/gallery/SurfaceGallery.jsx'));
 const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.jsx').then(m => ({ default: m.AspectMask })));
 const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.jsx').then(m => ({ default: m.Spotlight })));
+// The setup's part inside the workspace: its three tips, its one invite re-ask
+// and where a link joiner landed. Mounted only where the setup runs
+// (appHost.js workspaceSetupAllowed), so nobody else downloads it.
+const SetupInWorkspace = lazyWithReload(() => import('./components/setup/SetupInWorkspace.jsx'));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
@@ -5443,14 +5447,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       // Someone accepted an invite / joined via an invite link (0189) — the
       // inviter's payoff moment. detail carries the joiner's display name.
+      // A whole-workspace join names the workspace and offers a hello rather
+      // than the root cluster it anchors on (`scope` comes with the setup's
+      // release migration; until then every row reads as a cluster).
       if (n.kind === 'joined') {
+        const scope = n.scope === 'workspace' ? 'workspace' : 'board';
+        try { logEvent(EV.JOINED_TOAST, { action: 'shown', scope }); } catch (_) {}
+        const opened = () => { try { logEvent(EV.JOINED_TOAST, { action: 'open', scope }); } catch (_) {} };
         const joinedBoard = boards[n.board_id];
+        if (scope === 'workspace') {
+          const wsName = joinedBoard ? workspace.name : null;
+          feedback.toast({
+            type: 'success',
+            ttl: 8000,
+            message: `${n.detail || 'Someone'} joined ${wsName || 'your workspace'} — say hi.`,
+            ...(n.shared_by ? { action: { label: 'Message', onClick: () => { opened(); openDmWith(n.shared_by); } } } : {}),
+          });
+          continue;
+        }
         const joinedName = joinedBoard?.name || 'your cluster';
         feedback.toast({
           type: 'success',
           ttl: 8000,
           message: `${n.detail || 'Someone'} joined "${joinedName}" — say hi.`,
-          ...(joinedBoard ? { action: { label: 'Open', onClick: () => openBoard(n.board_id) } } : {}),
+          ...(joinedBoard ? { action: { label: 'Open', onClick: () => { opened(); openBoard(n.board_id); } } } : {}),
         });
         continue;
       }
@@ -7170,6 +7190,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       landingPath: src.landing_path, referrerHost: src.referrer_host, utmSource: src.utm_source,
     });
   }, [tour?.state?.intent, myTier.onboarding?.intent, setupKind]);
+  // Where the setup runs, the empty board's hint names pasted links too, and
+  // someone else's workspace with nothing in it yet (a joiner's first look)
+  // gets a board that names it and its owner (lib/firstBoardCopy.js `join`).
+  // The owner's first name is looked up once; the copy waits for the answer
+  // rather than gain a name a moment after it paints.
+  const setupHere = workspaceSetupAllowed();
+  const wsCardTotal = useMemo(() => Object.values(ownedBoards || {})
+    .reduce((n, b) => n + (b && !b.deleted_at ? (Number(b.card_count) || 0) : 0), 0), [ownedBoards]);
+  const joinPanel = setupHere && boardsReady && !!workspace?.created_by && workspace.created_by !== user.id && wsCardTotal === 0;
+  const [ownerFirst, setOwnerFirst] = useState(null);   // { id, name }
+  useEffect(() => {
+    if (!joinPanel || ownerFirst?.id === workspace.created_by) return undefined;
+    let cancelled = false;
+    const ownerId = workspace.created_by;
+    getProfilesByIds([ownerId]).then(
+      (m) => { if (!cancelled) setOwnerFirst({ id: ownerId, name: String(m.get(ownerId)?.display_name || '').trim().split(/\s+/)[0] || '' }); },
+      () => { if (!cancelled) setOwnerFirst({ id: ownerId, name: '' }); },
+    );
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joinPanel, workspace?.created_by]);
+  const firstBoardJoin = useMemo(
+    () => (joinPanel && ownerFirst?.id === workspace.created_by ? { ws: workspace.name || '', by: ownerFirst.name } : null),
+    [joinPanel, ownerFirst, workspace?.created_by, workspace?.name],
+  );
   // Finishing the last step (or Skip) closes the onboarding UI. A genuine
   // completion (not Skip — Skip leaves `step` on the step it bailed from with
   // no terminal advance emitted; we key off the ref set by the emit below)
@@ -9771,6 +9816,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            boardSynced={synced}
                            firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
                            firstBoardKind={firstBoardKind}
+                           firstBoardLinks={setupHere}
+                           firstBoardJoin={isMain ? firstBoardJoin : null}
                            freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
                            gridTemplates={gridTemplates} gridSequences={gridSequences}
                            ydoc={yd}
@@ -11317,6 +11364,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             }
           }}
         />
+      )}
+
+      {/* The setup's tips and its one invite re-ask, and where a link joiner
+          landed (components/setup). Only where the setup runs, which needs the
+          files sidebar the tips point at; it waits for the tour, dialogs and
+          other hints on its own. */}
+      {setupHere && filesSidebar && (
+        <Suspense fallback={null}>
+          <SetupInWorkspace
+            user={user} workspace={workspace}
+            settings={mySettings} settingsLoaded={mySettingsLoaded}
+            welcome={setupWelcome} arm={setupOutcome?.arm || null}
+            ownCards={myTier.loading ? 0 : myTier.demoCardCount}
+            boardCards={ownedBoards?.[currentId]?.card_count}
+            wsCards={wsCardTotal}
+            uploading={Object.keys(sidebarUploads || {}).length > 0}
+            phone={mobileShell}
+            sidebarShown={mobileShell || sidebarOpen}
+            openDrawer={() => setMobileNavOpen(true)}
+            closeDrawer={() => setMobileNavOpen(false)}
+            canImport={bulkImportAllowed()}
+            openGuide={() => openImportGuide('drive')}
+            currentBoardId={currentId} rootBoardId={rootBoard.id}
+            boardsReady={boardsReady}
+            loadPhotos={loadClusterPhotos}
+          />
+        </Suspense>
       )}
 
       <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />

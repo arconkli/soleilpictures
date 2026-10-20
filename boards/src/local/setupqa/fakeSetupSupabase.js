@@ -31,7 +31,7 @@ export const QA_LINK_TOKEN = '6f1c2a9e-3b7d-4c55-9a1e-2d4b8c0f7a31';
 
 // The people and the workspace someone can be invited into, and the account
 // that signs in (or already is).
-export function buildSetupDb({ signedOut = false, invitee = false, resume = null, linkMode = null, inviteLimitAt = null, deadLink = false } = {}) {
+export function buildSetupDb({ signedOut = false, invitee = false, resume = null, linkMode = null, inviteLimitAt = null, deadLink = false, inws = null } = {}) {
   const me = { id: 'qa-me', email: 'maya@example.com', created_at: nowIso() };
   const lostTime = { id: 'ws-lost-time', name: 'Lost Time', created_by: 'qa-nora', created_at: '2026-09-01T00:00:00Z' };
   const db = {
@@ -76,6 +76,20 @@ export function buildSetupDb({ signedOut = false, invitee = false, resume = null
       team: resume === 'invite' ? 'few' : null, work: resume === 'invite' ? 'film' : null,
       invite: null, named_at: nowIso(), done_at: null,
     };
+  }
+  // In the workspace after the setup (SetupInWorkspace): their own Northlight,
+  // the setup finished, the invite step skipped for the re-ask and done for the
+  // tips; or, as a joiner, a member of Nora's Lost Time.
+  if (inws === 'tips' || inws === 'reask') {
+    const mine = { id: 'ws-northlight', name: 'Northlight', created_by: me.id, personal: true, created_at: nowIso() };
+    db.workspaces.push(mine);
+    db.members.push({ workspace_id: mine.id, user_id: me.id, role: 'owner', created_at: nowIso() });
+    db.profiles[0].settings.welcome = {
+      v: 1, step: 'done', done: true, invitee: false, team: 'few', work: 'film',
+      invite: inws === 'reask' ? 'skipped' : 'sent', named_at: nowIso(), done_at: nowIso(),
+    };
+  } else if (inws === 'joiner' && !invitee) {
+    db.members.push({ workspace_id: lostTime.id, user_id: me.id, role: 'editor', created_at: nowIso() });
   }
   return db;
 }

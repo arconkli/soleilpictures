@@ -46,3 +46,28 @@ test('the rotating list names the best-returning intent, and the first board off
   assert.ok(FIRST_BOARD_WORDS.includes('reference wall'));
   assert.deepEqual([...FIRST_BOARD_TILE_IDS], ['note', 'doc']);
 });
+
+test('where the setup runs, the hint names links too; a phone keeps the camera roll', () => {
+  assert.equal(firstBoardCopy(null, { links: true }).heroHint, 'Paste images or links from any tab, or drop a whole folder');
+  assert.equal(firstBoardCopy('moodboard', { links: true }).heroHint, 'Paste images or links from any tab, or drop a whole folder');
+  assert.equal(firstBoardCopy('storyboard', { links: true }).heroHint, 'Paste images or links from any tab, or drop a folder of frames');
+  assert.equal(firstBoardCopy('storyboard').heroHint, 'Paste or drag images from any tab, or drop a folder of frames', 'unchanged without it');
+  assert.equal(firstBoardCopy(null).heroHint, 'Paste or drag images from any tab, or drop a whole folder', 'unchanged without it');
+  assert.match(firstBoardCopy(null, { links: true, coarse: true }).heroHint, /camera roll/i);
+});
+
+test('a joiner\'s empty workspace names it and whose it is, whatever the kind', () => {
+  const j = firstBoardCopy('storyboard', { links: true, join: { ws: 'Lost Time', by: 'Maya' } });
+  assert.equal(j.head, 'Start Lost Time with Maya');
+  assert.equal(j.heroLabel, 'Add the first images');
+  assert.equal(j.heroHint, 'Paste images or links from any tab, or drop a folder. Maya sees them as they land.');
+  assert.equal(firstBoardCopy(null, { join: { ws: 'Lost Time', by: 'Maya' }, coarse: true }).heroHint,
+    'Pick several from your camera roll at once. Maya sees them as they land.');
+  const noName = firstBoardCopy(null, { join: { ws: 'Lost Time', by: '' } });
+  assert.equal(noName.head, 'Start Lost Time');
+  assert.equal(noName.heroHint, 'Paste images or links from any tab, or drop a folder. Everyone in it sees them as they land.');
+  assert.equal(firstBoardCopy(null, { join: { ws: 'Personal Workspace', by: 'Maya' } }).head, 'Start this workspace with Maya',
+    'the old default name is not read back as a name');
+  assert.equal(firstBoardCopy(null, { join: { ws: '  Lost\n Time ', by: ' Maya ' } }).head, 'Start Lost Time with Maya');
+  assert.equal(firstBoardCopy(null, { join: { ws: null, by: null } }).head, 'Start this workspace');
+});

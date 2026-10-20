@@ -101,7 +101,7 @@ test('every person-to-person template cleans the names it is handed', () => {
   const expect = {
     workspace_invite:    ['safeLabel(data.workspaceName', 'safePerson(data.inviterName)'],
     board_shared:        ['safeLabel(data.boardName', 'safePerson(data.sharerName)'],
-    invite_accepted:     ['safeLabel(data.boardName', 'safePerson(data.joinerName)'],
+    invite_accepted:     ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.joinerName)'],
     pending_invite:      ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.inviterName)'],
     mention_email:       ['safeLabel(data.surfaceContext', 'safePerson(data.mentionerName)'],
     comment_reply_email: ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.replierName)'],

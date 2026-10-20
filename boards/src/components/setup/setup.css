@@ -80,6 +80,9 @@
   transition:box-shadow var(--dur-base) var(--ease),border-color var(--dur-base) var(--ease)}
 .su-input::placeholder{color:var(--ink-2)}
 .su-input:focus{border-color:transparent;box-shadow:var(--shadow-glow)}
+/* iOS Safari (iPhone and iPad) zooms the page onto any field under 16px when it
+   takes focus, as .auth-input in styles.css notes for the sign-in form. */
+@media (pointer: coarse){.su-input{font-size:16px}}
 .su-error{margin-top:10px;color:var(--msg-warn);font:500 13px/1.4 var(--font-sans)}
 .su-actions{display:flex;flex-direction:row-reverse;justify-content:flex-start;align-items:center;gap:12px;margin-top:28px}
 .su-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:var(--radius);font:600 14px/1 var(--font-sans);white-space:nowrap;
