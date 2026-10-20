@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createImportJob, pendingCard, finishFields, spotFor, HEAVY_INFLATE_BYTES } from './importJob.js';
+import { createImportJob, pendingCard, finishFields, spotFor, HEAVY_INFLATE_BYTES, importFailCode } from './importJob.js';
 import { planBulk } from './importPlan.js';
 
 const file = (relPath, size = 10) => ({
@@ -151,6 +151,7 @@ test('a file that fails is recorded with its path and its card removed; the rest
   assert.equal(end.status, 'done');
   assert.equal(end.landed.files, 5);
   assert.deepEqual(end.failed.map((f) => f.relPath), ['Night/b.jpg']);
+  assert.deepEqual(end.failed.map((f) => f.code), ['other'], 'a plain read error counts as other');
   assert.ok(h.log.some((e) => e[0] === 'items' && e[1].includes('Night/b.jpg:failed')));
   assert.ok(h.log.some((e) => e[0] === 'remove' && e[1].includes('c-Night/b.jpg')));
   assert.deepEqual([...h.boardByKey('Night').cards.keys()], ['c-Night/a.jpg']);
@@ -470,4 +471,17 @@ test('a cancel while a heavy file waits its turn never inflates it', async () =>
   await run;
   assert.equal(end.status, 'cancelled');
   assert.deepEqual(opened, ['Takeout/a.mov']);
+});
+
+test('a failed file is counted by a word, never by its name', () => {
+  const err = (message, extra) => Object.assign(new Error(message), extra);
+  assert.equal(importFailCode(err('room', { status: 503, retry: true })), 'retry_exhausted');
+  assert.equal(importFailCode(new TypeError('Failed to fetch')), 'retry_exhausted');
+  assert.equal(importFailCode(err('cap', { status: 402, code: 'limit_reached' })), 'cap');
+  assert.equal(importFailCode(err('nope', { status: 413 })), 'http_413');
+  assert.equal(importFailCode(err('bad', { code: 'unsupported_type' })), 'unsupported_type');
+  assert.equal(importFailCode(err('x', { code: 'Has Spaces/And Paths.jpg' })), 'other', 'a code that is not a word is not trusted');
+  assert.equal(importFailCode(Object.assign(new Error('gone'), { name: 'NotFoundError' })), 'file_gone');
+  assert.equal(importFailCode(Object.assign(new Error('locked'), { name: 'NotReadableError' })), 'unreadable');
+  assert.equal(importFailCode(null), 'other');
 });

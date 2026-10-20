@@ -86,6 +86,17 @@ const isRetryable = (e) => e?.status === 503 || e?.status === 429 || e?.retry ==
   || e?.code === 'room_unavailable' || e?.name === 'TypeError';
 const isAbort = (e) => e?.name === 'AbortError';
 const messageOf = (e) => String(e?.message || e || 'Failed').slice(0, 300);
+// Why a file failed, as a word to count by (FOLDER_IMPORT's fail_codes): never
+// its name or path, which stay in the job's own ledger.
+const READ_FAILURES = { NotFoundError: 'file_gone', NotReadableError: 'unreadable', SecurityError: 'not_allowed', QuotaExceededError: 'browser_quota' };
+export function importFailCode(e) {
+  if (isRetryable(e)) return 'retry_exhausted';
+  if (isCapHit(e)) return 'cap';
+  const status = Number(e?.status);
+  if (Number.isInteger(status) && status >= 400 && status < 600) return `http_${status}`;
+  if (typeof e?.code === 'string' && /^[a-z][a-z0-9_]{0,31}$/.test(e.code)) return e.code;
+  return READ_FAILURES[e?.name] || 'other';
+}
 
 // A pending, unplaced card for a file not uploaded yet: the fields the Files
 // list needs to show it while it comes in. The same rules as the sidebar and
@@ -526,7 +537,7 @@ export function createImportJob({
       if (isAbort(e) || stopFlag === 'cancel') return 'held';
       if (isDriveFull(e)) return 'full';
       onBoard.delete(rel);
-      failed.push({ relPath: rel, message: messageOf(e) });
+      failed.push({ relPath: rel, message: messageOf(e), code: importFailCode(e) });
       ledger.push(ledgerRow(it, 'failed', { board_id: boardId, card_id: id, error: messageOf(e) }));
       push(removals, boardId, id);
       inDoc.get(it.clusterKey)?.delete(id);

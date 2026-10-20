@@ -39689,7 +39689,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters records what you do, not what you make: that a card was placed, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned."
+     "v": "Clusters records what you do, not what you make: that a card was placed, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned. Videos are measured the same way: that one started playing, for how many seconds, and roughly how far into it, never which video it was."
     }
    ]
   },

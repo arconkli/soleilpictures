@@ -118,6 +118,14 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
   sRef.current = s;
   const isDocRef = useRef(isDoc);
   isDocRef.current = isDoc;
+  // What is shared, on every event: FILE_SHARE_OPEN's kind, 'doc' for a doc.
+  const kindRef = useRef(null);
+  kindRef.current = s.kind || card?.kind || null;
+  // A read or write that failed, by the server's code, never its message.
+  const logFail = useCallback((action, err) => {
+    const c = err?.code ?? err?.status;
+    try { logEvent(EV.FILE_SHARE_FAIL, { action, code: c == null || c === '' ? null : String(c).slice(0, 16), kind: kindRef.current }); } catch (_) {}
+  }, []);
   const recheckTimer = useRef(null);
   const recheckNow = useRef(null);
   const chain = useRef(Promise.resolve());
@@ -177,12 +185,13 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     const { data, error: err } = await api.getFileShareSettings(boardId, cardId);
     if (!mounted.current) return;
     if (err) {
+      logFail('load', err);
       setPhase(err.code === '42501' ? 'denied' : 'error');
       return;
     }
     apply(data);
     setPhase('ready');
-  }, [api, apply, boardId, cardId]);
+  }, [api, apply, boardId, cardId, logFail]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -199,15 +208,16 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       });
       if (!mounted.current) return { data, error: err };
       if (err) {
+        logFail('access', err);
         rollback(err);
       } else {
         applyWrite(data);
         const after = normalizeSettings(data);
-        logEvent(EV.FILE_SHARE_ACCESS_SET, { link_access: after.linkAccess, allow_download: after.allowDownload });
+        logEvent(EV.FILE_SHARE_ACCESS_SET, { link_access: after.linkAccess, allow_download: after.allowDownload, kind: kindRef.current });
       }
       return { data, error: err };
     });
-  }, [api, applyWrite, rollback, boardId, cardId, enqueue]);
+  }, [api, applyWrite, rollback, boardId, cardId, enqueue, logFail]);
 
   const onGeneral = (v) => {
     if (v === 'anyone') writeShare({ linkAccess: s.linkAccess === 'none' ? 'view' : s.linkAccess });
@@ -241,6 +251,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     if (!mounted.current) return;
     setSending(false);
     if (err) {
+      logFail('add', err);
       setError(friendlyShareError(err));
       return;
     }
@@ -249,7 +260,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     const skipped = (Array.isArray(data?.skipped) ? data.skipped.length : 0) + invalidCount;
     setChips([]);
     say(sharedMessage(added, skipped));
-    logEvent(EV.FILE_SHARE_PEOPLE_ADD, { n: added, role, skipped });
+    logEvent(EV.FILE_SHARE_PEOPLE_ADD, { n: added, role, skipped, kind: kindRef.current });
   };
 
   const onDraftKey = (e) => {
@@ -280,7 +291,9 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     enqueue(async () => {
       const { data, error: err } = await api.setFileSharePerson(boardId, cardId, p.email, role);
       if (!mounted.current) return;
-      if (err) rollback(err); else applyWrite(data);
+      if (err) { logFail('role', err); rollback(err); return; }
+      applyWrite(data);
+      logEvent(EV.FILE_SHARE_PERSON_SET, { role, undo: false, kind: kindRef.current });
     });
   };
 
@@ -293,16 +306,18 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     enqueue(async () => {
       const { data, error: err } = await api.setFileSharePerson(boardId, cardId, p.email, null);
       if (!mounted.current) return;
-      if (err) { rollback(err); return; }
+      if (err) { logFail('remove', err); rollback(err); return; }
       applyWrite(data);
+      logEvent(EV.FILE_SHARE_PERSON_SET, { role: null, undo: false, kind: kindRef.current });
       // Undo puts the row back with its role. The server never re-sends the
       // invitation for an un-remove, and it spends no invite budget.
       const onUndo = () => {
         enqueue(async () => {
           const r = await api.setFileSharePerson(boardId, cardId, p.email, prevRole);
           if (!mounted.current) return;
-          if (r.error) say(friendlyShareError(r.error));
-          else applyWrite(r.data);
+          if (r.error) { logFail('undo_remove', r.error); say(friendlyShareError(r.error)); return; }
+          applyWrite(r.data);
+          logEvent(EV.FILE_SHARE_PERSON_SET, { role: prevRole, undo: true, kind: kindRef.current });
         });
       };
       say(`Removed ${label}`, { label: 'Undo', onClick: () => { setNotice(null); onUndo(); } });
@@ -328,13 +343,13 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       const { data, error: err } = await created;
       if (!mounted.current) return;
       setCopying(false);
-      if (err) { setError(friendlyShareError(err)); return; }
+      if (err) { logFail('link', err); setError(friendlyShareError(err)); return; }
       applyWrite(data);
     }
     if (!mounted.current) return;
-    if (!ok) { setError("Couldn't copy the link. Try again."); return; }
+    if (!ok) { logFail('clipboard', null); setError("Couldn't copy the link. Try again."); return; }
     const after = sRef.current;
-    logEvent(EV.FILE_SHARE_LINK_COPY, { link_access: after.linkAccess });
+    logEvent(EV.FILE_SHARE_LINK_COPY, { link_access: after.linkAccess, kind: kindRef.current });
     setCopied(true);
     setTimeout(() => { if (mounted.current) setCopied(false); }, 1800);
     say(after.linkAccess === 'none' && after.people.length === 0

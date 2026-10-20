@@ -2155,7 +2155,10 @@ export function ListSurface({
     const copyTo = canCopyTo && { id: 'copy-to', label: 'Copy to…', run: copySelection };
     // A hold's menu starts with Select: a check on everything, for a finger to
     // pick several (what ⌘-click and ⇧-click are to a keyboard).
-    const selectItem = ctxMenu?.viaTouch && !selecting && { id: 'select', label: 'Select', run: () => setSelecting(true) };
+    const selectItem = ctxMenu?.viaTouch && !selecting && { id: 'select', label: 'Select', run: () => {
+      setSelecting(true);
+      try { logEvent(EV.TOUCH_SELECT, { where: 'files', via: 'menu', n }); } catch (_) {}
+    } };
     const select = { items: [selectItem] };
     // The menu's header already says how many; Delete needn't repeat it.
     const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };

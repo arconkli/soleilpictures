@@ -35,6 +35,7 @@
 
 import { postPerfIncident } from './errorReporting.js';
 import { getDeviceInfo } from './device.js';
+import { createFrameStats, noteFrame, noteLongTask, snapshotFrameStats } from './frameStats.js';
 
 const LONGTASK_MS = 300;
 const LOW_FPS = 20;
@@ -57,6 +58,9 @@ const INTERACTION_WINDOW_MS = 1_000;
 
 const context = {};          // board context, pushed by CanvasSurface
 const counters = {};         // always-on counters (image tiers), via bumpPerf
+// Every frame the sampler times and every long task, since the page loaded:
+// the session summary's `perf` (lib/frameStats.js).
+const frameStats = createFrameStats();
 let initAt = 0;
 let sentCount = 0;
 let lastSentAt = 0;
@@ -83,6 +87,11 @@ export function clearPerfContext() {
 // Always-on counters (perf.js's are dead when the HUD is off).
 export function bumpPerf(name, n = 1) {
   counters[name] = (counters[name] || 0) + n;
+}
+// The frame and long-task totals so far, as a copy (analytics.js's summary
+// takes what moved during its session).
+export function perfTotals() {
+  return snapshotFrameStats(frameStats);
 }
 // Gesture handlers stamp their deadline; incidents compare at fire time.
 export function markGestureActiveUntil(ts) {
@@ -210,6 +219,7 @@ function samplerTick() {
   if (prevTickAt > 0) {
     const gap = now - prevTickAt;
     const interactingAtGapStart = prevTickAt - lastInteractionAt < INTERACTION_WINDOW_MS;
+    if (interactingAtGapStart && gap < FRAME_GAP_DISCARD_MS) noteFrame(frameStats, gap);
     if (gap >= FRAME_GAP_MS && gap < FRAME_GAP_DISCARD_MS && interactingAtGapStart) {
       report(frameGapBucket(gap), { gap_ms: Math.round(gap) });
     } else if (gap >= FREEZE_MIN_MS && gap < FREEZE_MAX_MS && interactingAtGapStart
@@ -268,6 +278,7 @@ export function initPerfReport() {
   try {
     const po = new PerformanceObserver((list) => {
       for (const e of list.getEntries()) {
+        noteLongTask(frameStats, e.duration);
         if (e.duration >= LONGTASK_MS) {
           report(longtaskBucket(e.duration), { longtask_ms: Math.round(e.duration) });
         }

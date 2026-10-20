@@ -139,7 +139,7 @@ import { openPlayer, takeCardPlayer } from '../lib/playerBus.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
-import { logEvent, logEventOnce } from '../lib/analytics.js';
+import { logEvent, logEventOnce, noteSessionCounter } from '../lib/analytics.js';
 import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js';
 import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
@@ -235,6 +235,9 @@ const folderUploadGlyph = () => (clusterNudgesAllowed() ? FolderOpen : Folder);
 // The Cluster tool's hover card shows what a cluster looks like on a canvas,
 // with the same Lost Time stills the sign-in page shows (public/).
 const CLUSTER_CARD_COVERS = ['/signin-losttime.webp', '/signin-losttime-still1.webp', '/signin-losttime-still2.webp'];
+// cluster_tool_hint{action:'seen'} is logged once per page load: one sighting
+// is what joins the card to the clusters made after it.
+let clusterCardSeenLogged = false;
 
 // Empty-board headline rotator — cycles a few accurate, breadth-signaling nouns
 // ("Start your moodboard / script / shot list…") to hint the app's full range
@@ -1922,6 +1925,25 @@ export function CanvasSurface({
   const [tplPanelOpen, setTplPanelOpen] = useState(false);
   // The rail's grid button, so the portaled panel can measure where to open.
   const tplAnchorRef = useRef(null);
+  // The Cluster tool's card shows 400ms into a hover or a keyboard focus
+  // (styles.css .cnv-tool-teach), so one that lasts 450ms is one that saw it.
+  const clusterCardRef = useRef({ timer: 0, shown: false });
+  useEffect(() => () => clearTimeout(clusterCardRef.current.timer), []);
+  const armClusterCard = () => {
+    const c = clusterCardRef.current;
+    clearTimeout(c.timer);
+    c.timer = setTimeout(() => {
+      c.shown = true;
+      if (clusterCardSeenLogged) return;
+      clusterCardSeenLogged = true;
+      try { logEvent(EV.CLUSTER_TOOL_HINT, { action: 'seen' }); } catch (_) {}
+    }, 450);
+  };
+  const disarmClusterCard = () => {
+    const c = clusterCardRef.current;
+    clearTimeout(c.timer);
+    c.shown = false;
+  };
   const [pendingGridLayout, setPendingGridLayout] = useState(null);
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
@@ -5092,6 +5114,7 @@ export function CanvasSurface({
       if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (!moved) return;
       moved = false;
+      noteSessionCounter('canvas.wasd');   // one glide, counted on the session's summary
       gestureUntilRef.current = 0;
       markGestureActiveUntil(0);
       setPerfContext({ zoom: zoomRef.current });
@@ -5199,10 +5222,17 @@ export function CanvasSurface({
     const el = wrapRef.current;
     if (!el) return;
     let commitTimer = 0;
+    // What this burst did and what made it — a mouse's notches or a trackpad's
+    // stream — counted once, as it settles, on the session's summary.
+    let burstKey = null;
+    const noteBurst = (e, intent) => {
+      if (!burstKey) burstKey = `canvas.wheel.${intent === 'zoom' ? 'zoom' : 'pan'}.${isWheelClick(e) ? 'mouse' : 'trackpad'}`;
+    };
     const scheduleCommit = () => {
       if (commitTimer) clearTimeout(commitTimer);
       commitTimer = setTimeout(() => {
         commitTimer = 0;
+        if (burstKey) { noteSessionCounter(burstKey); burstKey = null; }
         // Gesture settled: end ADD-only cull mode and run one strict
         // recompute to prune. Explicit call — the pan/zoom layout effect
         // only re-runs when the VALUES change, so a clamped or
@@ -5368,6 +5398,7 @@ export function CanvasSurface({
             from: curZoom, z: target, lastZ: curZoom,
             t0: performance.now(), cx: e.clientX, cy: e.clientY,
           };
+          noteBurst(e, intent);
           startGlide();
           return;
         }
@@ -5388,6 +5419,7 @@ export function CanvasSurface({
       markGestureActiveUntil(gestureUntilRef.current);
       applyCanvasTransform();
       scheduleVisibleRecompute();
+      noteBurst(e, intent);
       scheduleCommit();
       if (_tZ) {
         const ms = performance.now() - _tZ;
@@ -5412,10 +5444,14 @@ export function CanvasSurface({
   // Both gestures route through panRef/zoomRef + direct DOM transform like
   // the wheel handler above — see that comment for rationale.
   const touchPanCommitTimer = useRef(0);
+  // Which two-finger gesture this was, counted once as it settles: a pinch
+  // wins over the pan that rides along with it.
+  const touchGestureRef = useRef(null);
   const scheduleTouchPanCommit = () => {
     if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
     touchPanCommitTimer.current = setTimeout(() => {
       touchPanCommitTimer.current = 0;
+      if (touchGestureRef.current) { noteSessionCounter(`canvas.${touchGestureRef.current}`); touchGestureRef.current = null; }
       // Gesture settled — see scheduleCommit for the prune contract.
       gestureUntilRef.current = 0;
       markGestureActiveUntil(0);
@@ -5456,6 +5492,7 @@ export function CanvasSurface({
         markZooming();            // reveal the zoom widget while pinching
         applyCanvasTransform();
         scheduleVisibleRecompute();
+        touchGestureRef.current = 'pinch';
         scheduleTouchPanCommit();
         if (_tZ) {
           const dur = performance.now() - _tZ;
@@ -5481,6 +5518,7 @@ export function CanvasSurface({
         markCanvasInteracting();  // immersive look-around (auto-hide chrome)
         applyCanvasTransform();
         scheduleVisibleRecompute();
+        if (touchGestureRef.current !== 'pinch') touchGestureRef.current = 'two_finger_pan';
         scheduleTouchPanCommit();
       },
     },
@@ -6411,6 +6449,7 @@ export function CanvasSurface({
       setPan({ x: panRef.current.x, y: panRef.current.y });
       scheduleVisibleRecompute();
       emitCanvasSettle();
+      if (travelled) noteSessionCounter(`canvas.drag_pan.${e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse'}`);
       if (onTap && startedFromTouch && !travelled) onTap(ev);
     };
     window.addEventListener('pointermove', onMove);
@@ -7539,6 +7578,7 @@ export function CanvasSurface({
           setPan({ x: panRef.current.x, y: panRef.current.y });
           scheduleVisibleRecompute();
           emitCanvasSettle();
+          noteSessionCounter('canvas.drag_pan.touch');
         } else if (!panned && !touchScrolling && !aborted) {
           // Tap: boards still open on tap (as before); other cards select.
           if (toggling) {
@@ -9038,7 +9078,9 @@ export function CanvasSurface({
       setSelectedArrows(preArrows);
       setMarquee(null);
     };
+    // Returns how many things the box caught (cards, strokes and arrows).
     const end = (ev) => {
+      let caught = 0;
       if (moved) {
         const cur = clientToCanvas(ev.clientX, ev.clientY);
         const minX = Math.min(startCanvas.x, cur.x);
@@ -9073,6 +9115,7 @@ export function CanvasSurface({
         setSelected(next);
         setSelectedStrokes(nextStrokes);
         setSelectedArrows(nextArrows);
+        caught = hits.length + strokeHits.length + arrowHits.length;
       } else if (!additive) {
         // Plain click on empty canvas → deselect everything.
         setSelected(new Set());
@@ -9080,6 +9123,7 @@ export function CanvasSurface({
         setSelectedArrows(new Set());
       }
       setMarquee(null);
+      return caught;
     };
     return { sample, end, abort };
   };
@@ -9207,10 +9251,15 @@ export function CanvasSurface({
         setPan({ x: panRef.current.x, y: panRef.current.y });
         scheduleVisibleRecompute();
         emitCanvasSettle();
+        noteSessionCounter('canvas.drag_pan.touch');
         return;
       }
       if (canceled) { if (phase === 'box') box.abort(); return; }
-      if (phase === 'box') { box.end(ev); return; }
+      if (phase === 'box') {
+        const n = box.end(ev);
+        try { logEvent(EV.TOUCH_SELECT, { where: 'canvas', via: 'hold', n }); } catch (_) {}
+        return;
+      }
       if (phase === 'pending') { onTouchTapEmpty(ev); return; }
       // Held, and let go where it was held: the menu, at the finger.
       swallowNextClick();
@@ -9914,7 +9963,10 @@ export function CanvasSurface({
     // Opened by a finger's hold: a finger has no Shift, so it gets a mode in
     // which taps add cards to the selection (touchSelecting).
     const selectSome = bgCtx.viaTouch
-      ? [{ id: 'selectsome', label: 'Select…', run: () => setTouchSelecting(true) }]
+      ? [{ id: 'selectsome', label: 'Select…', run: () => {
+          setTouchSelecting(true);
+          try { logEvent(EV.TOUCH_SELECT, { where: 'canvas', via: 'menu', n: selected.size + selectedStrokes.size + selectedArrows.size }); } catch (_) {}
+        } }]
       : [];
     if (!canEdit) {
       return [
@@ -13879,7 +13931,7 @@ export function CanvasSurface({
           // which broke the oldest muscle memory in the app: pick the tool, tap
           // the canvas, get a grid. The panel is a refinement — choose a shape
           // before you click and that shape is what lands — not a gate.
-          const activate = isTpl
+          const arm = isTpl
             ? () => { const next = !tplPanelOpen; setTplPanelOpen(next); setSelectedTool(next ? 'grid' : 'select'); }
             : () => setSelectedTool(t.id);
           // The Cluster tool keeps its slot and its size; it teaches instead
@@ -13887,6 +13939,13 @@ export function CanvasSurface({
           // (the plain tip said only "Add cluster"), and picking it shows the
           // hint below the toolbar. Never on touch: there is no hover.
           const teaches = t.id === 'board' && clusterNudgesAllowed() && !isTouch;
+          const activate = !teaches ? arm : () => {
+            if (!active) {
+              try { logEvent(EV.CLUSTER_TOOL_HINT, { action: 'picked', after_card: clusterCardRef.current.shown }); } catch (_) {}
+            }
+            disarmClusterCard();
+            arm();
+          };
           const btn = (
             <div className={`cnv-tool ${active ? 'active' : ''}${teaches ? ' cnv-tool-teach' : ''}`}
                  data-tip={teaches ? undefined : t.title}
@@ -13905,7 +13964,11 @@ export function CanvasSurface({
                    // next rung — closing the panel AND disarming the tool.
                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
                  }}
-                 onPointerDown={(e) => { e.stopPropagation(); activate(); }}>
+                 onPointerDown={(e) => { e.stopPropagation(); activate(); }}
+                 onPointerEnter={teaches ? (e) => { if (e.pointerType !== 'touch' && !active) armClusterCard(); } : undefined}
+                 onPointerLeave={teaches ? disarmClusterCard : undefined}
+                 onFocus={teaches ? (e) => { if (!active && e.currentTarget.matches(':focus-visible')) armClusterCard(); } : undefined}
+                 onBlur={teaches ? disarmClusterCard : undefined}>
               <Icon as={t.icon} size={20} />
               {teaches && (
                 <span className="cnv-tool-card" role="tooltip">

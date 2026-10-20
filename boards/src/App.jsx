@@ -332,6 +332,18 @@ function logCardEdit(cardId, kind, boardId) {
   logEvent(EV.CARD_EDIT, { kind: kind || 'card', board_id: boardId });
 }
 
+// An error's code for a row (a SQLSTATE such as 23503, PostgREST's PGRST…, an
+// HTTP status), never its message.
+const errCodeOf = (e) => {
+  const c = e?.code ?? e?.status;
+  return c == null || c === '' ? null : String(c).slice(0, 16);
+};
+// A cluster that couldn't be made: by which door, and whether it failed being
+// made ('create') or after it was ('after_create': it exists, unannounced).
+function logClusterCreateFail(via, stage, e) {
+  try { logEvent(EV.CLUSTER_CREATE_FAIL, { via: via || 'unknown', stage, code: errCodeOf(e) }); } catch (_) {}
+}
+
 function readSession(key) {
   if (typeof localStorage === 'undefined') return null;
   try {
@@ -566,6 +578,9 @@ export function App() {
     />
   );
 }
+
+// Whether this page load's app_open has said how long the app took (boot_ms).
+let appOpenTimed = false;
 
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
   perf.usePerfRenderTime('Workspace');
@@ -3444,6 +3459,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
         }
       }
+      let madeId = null;
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -3451,6 +3467,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           name: defaultName, view, userId: user.id,
           cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
         });
+        madeId = b.id;
         const w = d.w || 280, h = d.h || 220;
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
@@ -3484,6 +3501,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return b.id;
       } catch (e) {
         console.error('createBoard failed', e);
+        logClusterCreateFail(opts.seed ? 'seed' : opts.via, madeId ? 'after_create' : 'create', e);
         feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
       }
       return null;
@@ -3523,6 +3541,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       const d = defaultsRef.current?.board || {};
       const view = d.view || 'canvas';
+      let madeId = null;
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -3531,6 +3550,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           view, userId: user.id,
           cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
         });
+        madeId = b.id;
         try {
           logEvent(EV.CLUSTER_CREATE, { via, parent_depth: 0, opened: true, board_id: b.id });
         } catch (_) {}
@@ -3543,6 +3563,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return b.id;
       } catch (e) {
         console.error('createBoard (project) failed', e);
+        logClusterCreateFail(via, madeId ? 'after_create' : 'create', e);
         feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
       }
       return null;
@@ -4697,6 +4718,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!ask.ok) return;
     const d = defaultsRef.current?.board || {};
     const view = d.view || 'canvas';
+    let madeId = null;
     try {
       const b = await createBoard({
         workspaceId: parent.workspace_id,
@@ -4705,6 +4727,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         view, userId: user.id,
         cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
       });
+      madeId = b?.id || null;
       try {
         logEvent(EV.CLUSTER_CREATE, {
           via: 'sidebar_inside', parent_depth: boardDepth(boards, parentId), opened: false, board_id: b?.id || null,
@@ -4714,6 +4737,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await refreshBoards();
     } catch (e) {
       console.error('createBoardInside failed', e);
+      logClusterCreateFail('sidebar_inside', madeId ? 'after_create' : 'create', e);
       feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
     }
   };
@@ -7051,9 +7075,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (_) { return {}; }
     })();
     const landedCards = Number(boards?.[landedId]?.card_count);
+    // How long the app took to be ready, from the navigation: the first mount
+    // of a page load only, as a workspace switch mounts again long after.
+    let bootMs = null;
+    if (!appOpenTimed) {
+      appOpenTimed = true;
+      const t = performance.now();
+      if (Number.isFinite(t) && t > 0 && t < 600_000) bootMs = Math.round(t);
+    }
     logEvent(EV.APP_OPEN, {
       tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root',
-      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null,
+      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null, boot_ms: bootMs,
     });
     // Post-signup journey: open it (idempotent — TierRouter also opens it for the
     // AdWelcome/waitlist branches) and mark that the App workspace actually
@@ -8671,15 +8703,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // A step that fails says so here, once (lib/moveFailure.js), and takes a
       // cluster made for these cards to the trash; the source keeps its cards
       // and drops that cluster's card.
-      const fail = async (err, message) => reject(await failMove({
-        err, message, createdBoardId, createdBoardName, acked,
-        trash: async (id) => {
-          await deleteBoard(id);
-          try { await refreshBoards(); } catch (_) {}
-          myTier.refetch?.();
-        },
-        toast: (t) => feedback.toast(t),
-      }));
+      const fail = async (err, message, stage) => {
+        const out = await failMove({
+          err, message, createdBoardId, createdBoardName, acked,
+          trash: async (id) => {
+            await deleteBoard(id);
+            try { await refreshBoards(); } catch (_) {}
+            myTier.refetch?.();
+          },
+          toast: (t) => feedback.toast(t),
+        });
+        try {
+          logEvent(EV.CARDS_MOVE_FAIL, {
+            via: via || null, n: movedCards?.length || 0, stage, made: !!createdBoardId,
+            trashed: !!out.createdBoardTrashed, code: errCodeOf(err), board_id: sourceBoardId, target_board_id: targetBoardId,
+          });
+        } catch (_) {}
+        reject(out);
+      };
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
       if (sourceBoardId === targetBoardId) { ack(); return; }
       // ── Onboarding AHA: first time the seed note is dragged into the tutorial
@@ -8780,7 +8821,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (!snap) {
           console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
           await fail(new Error('target board_state empty'),
-            'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.');
+            'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.', 'load');
           return;
         }
         const tmp = boardDoc(targetBoardId);
@@ -8866,7 +8907,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
           tmp.destroy();
           await fail(new Error('tmp card count below expected'),
-            'Move cancelled — the destination cluster’s state looked unsafe to overwrite.');
+            'Move cancelled — the destination cluster’s state looked unsafe to overwrite.', 'verify');
           return;
         }
         const tmpFinalCount = tmp.getMap('cards').size;
@@ -8876,7 +8917,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (saveErr) {
           console.error('[xbm:save] saveBoardSnapshot threw', saveErr);
           tmp.destroy();
-          await fail(saveErr, 'Could not save destination cluster: ' + (saveErr.message || saveErr));
+          await fail(saveErr, 'Could not save destination cluster: ' + (saveErr.message || saveErr), 'save');
           return;
         }
         console.log('[xbm:save] done');
@@ -8898,7 +8939,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (resetErr) {
           console.error('[xbm] target room reset failed; NOT acking (source keeps cards)', resetErr);
           await fail(resetErr,
-            'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.');
+            'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.', 'room_reset');
           return;
         }
         // If the target happens to be open (e.g. the split pane / another
@@ -9060,7 +9101,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       } catch (err) {
         console.error('cross-board move failed', err);
-        await fail(err, 'Move failed: ' + (err?.message || err));
+        await fail(err, 'Move failed: ' + (err?.message || err), acked ? 'after_ack' : 'other');
       }
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);

@@ -203,7 +203,10 @@ export async function startBulkImport(input, env) {
       if (!loose.length) env.toast({ type: 'info', message: 'Nothing in that folder could be added.' });
       return { loose, key: null };
     }
-    const base = { source: `bulk_${source}`, board_id: input.boardId, n_files: plan.totals.files, n_clusters: plan.clusters.length };
+    // run is this import's tray key: every row it logs carries it, and the
+    // server job's id once there is one, so one import's life reads as one.
+    const base = { source: `bulk_${source}`, board_id: input.boardId, n_files: plan.totals.files, n_clusters: plan.clusters.length, run: key };
+    const logRun = (name, props) => env.log(name, { ...props, job_id: job?.state?.id || null });
 
     // 4. Ask, when part of it would wait — once: an import going on was
     // asked when it began.
@@ -248,7 +251,7 @@ export async function startBulkImport(input, env) {
         const need = job.state.next;
         const b = await deps.budgets();
         if (need && b.cardsLeft >= need.cards && b.bytesLeft >= need.bytes) {
-          env.log(EV.IMPORT_JOB, { ...base, phase: 'resume', reason: job.state.waitingReason });
+          logRun(EV.IMPORT_JOB, { ...base, phase: 'resume', reason: job.state.waitingReason });
           job.release();   // not awaited: it runs until the next stop, and reports through onChange
         }
       } catch (_) { /* the next wake or poll tries again */ } finally { checking = false; }
@@ -308,15 +311,18 @@ export async function startBulkImport(input, env) {
         });
         watch(true);
         check();
-        env.log(EV.IMPORT_JOB, { ...base, phase: 'waiting', reason: snap.waitingReason, landed: snap.landed.files, waiting: snap.waiting.files });
+        logRun(EV.IMPORT_JOB, { ...base, phase: 'waiting', reason: snap.waitingReason, landed: snap.landed.files, waiting: snap.waiting.files });
       } else {
         watch(false);
         if (was === 'waiting') unhold();
       }
       if (['done', 'cancelled', 'failed'].includes(snap.status)) {
-        env.log(EV.FOLDER_IMPORT, {
+        const failCodes = {};
+        for (const f of snap.failed) failCodes[f.code || 'other'] = (failCodes[f.code || 'other'] || 0) + 1;
+        logRun(EV.FOLDER_IMPORT, {
           ...base, bulk: true, placed: snap.landed.files, failed: snap.failed.length, waiting: snap.waiting.files,
           cancelled: snap.status === 'cancelled', stopped: snap.status === 'failed' ? 'error' : null, ms: env.now() - started,
+          ...(snap.failed.length ? { fail_codes: failCodes } : {}),
         });
       }
     };
@@ -349,10 +355,15 @@ export async function startBulkImport(input, env) {
         controllers.delete(key);
         env.drop(key);
         if (topIds.length) await env.removeImport({ topIds, title });
-        env.log(EV.IMPORT_JOB, { ...base, phase: 'removed', landed: job.state.landed.files });
+        logRun(EV.IMPORT_JOB, { ...base, phase: 'removed', landed: job.state.landed.files });
       },
     };
-    env.put(key, { phase: 'job', snap: job.state, act: (id) => tray[id]?.(), ...who });
+    // Each press in the tray, with where the import stood when it came.
+    const act = (id) => {
+      if (tray[id]) logRun(EV.IMPORT_JOB, { ...base, phase: 'tray', action: id, status: job.state.status });
+      return tray[id]?.();
+    };
+    env.put(key, { phase: 'job', snap: job.state, act, ...who });
 
     // Buying from the question: hold first (so checkout opens in a new tab),
     // then open the offer. What fits comes in meanwhile.
@@ -360,7 +371,7 @@ export async function startBulkImport(input, env) {
       hold(plan.stoppedBy);
       env.upgrade(model?.offerKind, { stoppedBy: plan.stoppedBy });
     }
-    env.log(EV.IMPORT_JOB, seed
+    logRun(EV.IMPORT_JOB, seed
       ? { ...base, phase: 'restart', how: input.resume ? 'handles' : 'drop', landed: seed.landed.length }
       : { ...base, phase: 'start', choice, fit: plan.fit.length, waiting: plan.waiting.length });
     job.start().finally(() => {
@@ -404,7 +415,7 @@ export async function offerStopped(env, { signal = null, offered = [] } = {}) {
     const who = { ...(await env.who(job.target_board_id)) };
     if (signal?.aborted) return offered;
     const landed = Number(job.done?.files) || 0;
-    const base = { source: `bulk_${job.source}`, board_id: job.target_board_id, n_files: Number(job.totals?.files) || 0 };
+    const base = { source: `bulk_${job.source}`, board_id: job.target_board_id, n_files: Number(job.totals?.files) || 0, job_id: job.id };
     let busy = false;
     const act = async (id) => {
       if (busy) return;

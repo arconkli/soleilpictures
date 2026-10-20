@@ -592,7 +592,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
   } else if (kind === 'video') {
     viewer = (
       <FilmPlayer key={`v${gen}`} ref={playerRef} mode="full" keyboard={!manageOpen} src={SRC} poster={urls.poster ? POSTER : null}
-                  modalHandle={overlay ? hostModalRef : undefined}
+                  modalHandle={overlay ? hostModalRef : undefined} surface={overlay ? 'shared_file' : 'file_share'}
                   title={file.name || ''} markers={markers} onAction={onPlayerAction} onFrameChange={onFrameChange}
                   probe={() => import('../../hooks/useMediaFacts.js').then((m) => m.probeCardVideo({ kind: 'video', src: SRC }))} />
     );

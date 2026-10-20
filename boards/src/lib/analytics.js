@@ -23,6 +23,8 @@ import { isGalleryActive } from './galleryState.js';
 import { touchAppSession, noteAuthChange, persistAppSession,
          getAppSession, setSessionRotateHandler } from './appSession.js';
 import { createSummary, noteCounter, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
+import { perfTotals } from './perfReport.js';
+import { frameStatsSince } from './frameStats.js';
 import { BUILD_SHA } from './buildInfo.js';
 import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
 import { createArmCache } from './armCache.js';
@@ -810,9 +812,15 @@ function currentView() {
   } catch (_) { return null; }
 }
 
+// perfTotals() as the summary's session began: null for a page load's first,
+// which owns everything since the load.
+let summaryPerfBase = null;
 function ensureSummary(now) {
   const sess = getAppSession();
-  if (!summaryAcc || summaryAcc.id !== sess.id) summaryAcc = createSummary(sess, now, currentView());
+  if (!summaryAcc || summaryAcc.id !== sess.id) {
+    if (summaryAcc) summaryPerfBase = perfTotals();
+    summaryAcc = createSummary(sess, now, currentView());
+  }
   return summaryAcc;
 }
 
@@ -852,6 +860,9 @@ function emitSessionSummary(ended) {
     const acc = summaryAcc;
     if (!worthEmitting(acc)) return;
     const props = summaryProps(acc, ended);
+    // How smoothly it ran while in use (lib/frameStats.js), when anything ran.
+    const perf = frameStatsSince(perfTotals(), summaryPerfBase);
+    if (perf) props.perf = perf;
     // Straight to the queue: going through logEvent would fold this row into
     // the very accumulator it is reporting on.
     enqueue(buildRow(EV.SESSION_SUMMARY, props));
@@ -867,6 +878,7 @@ try {
     // one that ended, which is why of_session rides in props.
     emitSessionSummary('rotate');
     summaryAcc = createSummary(next, undefined, currentView());
+    summaryPerfBase = perfTotals();
   });
 } catch (_) { /* non-browser import */ }
 

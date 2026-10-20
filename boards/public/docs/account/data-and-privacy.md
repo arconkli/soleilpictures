@@ -114,6 +114,8 @@ never records the words, file names or search terms inside your clusters.
 Messages are measured the same way: roughly how long a message was, in one of
 four sizes, how many attachments and mentions it had, whether it was a reply,
 and whether it was delivered. Never what it said or who it mentioned.
+Videos are measured the same way: that one started playing, for how many
+seconds, and roughly how far into it, never which video it was.
 
 Once per visit, one record describes the setup you are using, so we know which
 devices and conditions the app has to work well on:

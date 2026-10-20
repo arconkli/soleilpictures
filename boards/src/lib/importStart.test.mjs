@@ -480,3 +480,19 @@ test('a new import keeps the folder it was dropped from once it has an id, holds
   assert.deepEqual(seen.unlocks, ['job-1']);
   assert.equal(seen.saved.has('job-1'), false, 'finished: nothing kept to go on with');
 });
+
+test('one import\'s rows carry its run and, once it has one, the server job\'s id; each tray press is logged', async () => {
+  const { env, store } = fakeEnv();
+  const rows = [];
+  env.log = (name, props) => rows.push([name, props]);
+  const out = await drop(env);
+  await until(() => store.get(out.key)?.snap?.status === 'done');
+  store.get(out.key).act('close');
+  const mine = rows.filter(([n]) => ['import_job', 'folder_import', 'import_preflight'].includes(n));
+  assert.ok(mine.length >= 3, mine.map(([n]) => n).join());
+  assert.ok(mine.every(([, p]) => p.run === out.key), 'every row names the run');
+  const [, done] = mine.find(([n]) => n === 'folder_import');
+  assert.match(String(done.job_id), /^job-\d+$/, 'the outcome names the server job');
+  assert.equal(done.fail_codes, undefined, 'nothing failed, so no codes');
+  assert.deepEqual(rows.filter(([, p]) => p.phase === 'tray').map(([, p]) => [p.action, p.status]), [['close', 'done']]);
+});
