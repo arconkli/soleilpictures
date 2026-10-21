@@ -2,6 +2,17 @@ import { expect, test } from '@playwright/test';
 
 // WS-5 — note-editor text-selection & paste robustness.
 
+// Placing a note mounts its editor a beat later, and keys typed before the
+// editor has the focus are lost: type once it has.
+const editing = (page) => expect(page.locator('.card .note-body[contenteditable="true"]')).toBeFocused();
+
+// A new card pops in (200ms of scale and fade), and it can mount a beat after
+// the typing that fills it. A drag that starts while it grows is measured and
+// pressed against a moving note, and Chrome restarts the selection on every
+// move. Drag once it holds still: a trial click waits for that, pressing
+// nothing.
+const landed = (page) => page.locator('.card .note-body[contenteditable="true"]').click({ trial: true });
+
 test('wrapSelectionStyle formats boundary text across a line break (collectTextNodes fix)', async ({ page }) => {
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
@@ -69,11 +80,13 @@ test('native drag-selection still spans plain line breaks (baseline guard)', asy
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
+  await editing(page);
   await page.keyboard.type('alpha');
   await page.keyboard.press('Enter');
   await page.keyboard.type('bravo');
   await page.keyboard.press('Enter');
   await page.keyboard.type('charlie');
+  await landed(page);
 
   const body = page.locator('.card .note-body').last();
   const box = await body.boundingBox();
@@ -124,10 +137,12 @@ test('drag-select spans a BLANK line (forward)', async ({ page }) => {
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
+  await editing(page);
   await page.keyboard.type('alpha');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter'); // empty line between
   await page.keyboard.type('bravo');
+  await landed(page);
 
   // Derive drag endpoints from the actual first/last CHARACTER rects (via
   // Range.getBoundingClientRect) so the mouse-down always lands on a glyph —
@@ -176,11 +191,13 @@ test('slow backward drag-select is not hijacked by the canvas marquee', async ({
   await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.locator('.canvas-wrap').click({ position: { x: cb.width / 2, y: cb.height / 2 } });
+  await editing(page);
   await page.keyboard.type('alpha');
   await page.keyboard.press('Enter');
   await page.keyboard.type('bravo');
   await page.keyboard.press('Enter');
   await page.keyboard.type('charlie');
+  await landed(page);
 
   // Anchor endpoints on actual glyph rects (same idiom as the blank-line
   // test, but scoped to the EDITING body — the seeded boards contain other
