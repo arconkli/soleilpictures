@@ -467,7 +467,7 @@ export const CHANGELOG_CONTENT = {
      {
       "t": "link",
       "v": "dropping a folder",
-      "href": "/docs/clusters#dropping-a-folder",
+      "href": "/docs/clusters#importing-folders-and-zips",
       "children": [
        {
         "t": "text",

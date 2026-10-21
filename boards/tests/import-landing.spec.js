@@ -80,9 +80,12 @@ test('Choose in Files opens Files beside the board', async ({ page }) => {
   await expect(panel(page).locator('.ct-tile-flag.is-off')).toHaveCount(2);
 });
 
-test('without bulk import the board keeps its one-line note', async ({ page }) => {
+// Bulk import is open everywhere since the sidebar release (2026-10-21), so
+// the offer no longer needs the old dev opt-in, and the one-line note it
+// replaced is gone.
+test('without the old dev opt-in the board still offers to put them on, not the one-line note', async ({ page }) => {
   await go(page, { bulk: false });
   await fillFiles(page, 2);
-  await expect(page.locator('.cnv-waiting')).toContainText('2 files are in Files, not on the board yet.');
-  await expect(offer(page)).toHaveCount(0);
+  await expect(offer(page).locator('.cnv-offer-title')).toHaveText('2 photos are in Files');
+  await expect(page.locator('.cnv-waiting')).toHaveCount(0);
 });

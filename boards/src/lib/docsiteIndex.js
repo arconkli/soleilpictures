@@ -313,10 +313,10 @@ export const DOCS_PAGES = [
     "title": "Coming from Another Tool — Soleil Clusters",
     "metaDescription": "Moving to Soleil Clusters from PureRef, Milanote, Miro, Boords, StudioBinder or Storyboarder — what maps across, what does not, and how to bring work over.",
     "h1": "Coming from another tool",
-    "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
+    "answer": "There is no connector to another app. Moving to Soleil Clusters means downloading your files and dragging them in, which is usually one drag: drop the folder, or the zip a cloud drive gives you, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
     "section": "start",
     "order": 4,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Coming from another tool",
     "headings": [
       {
@@ -330,6 +330,10 @@ export const DOCS_PAGES = [
       {
         "id": "by-tool",
         "text": "By tool"
+      },
+      {
+        "id": "bringing-files-from-google-drive-dropbox-and-other-apps",
+        "text": "Bringing files from Google Drive, Dropbox and other apps"
       },
       {
         "id": "comparisons-and-alternatives",
@@ -352,7 +356,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is there an importer?",
-        "a": "No. Reference boards move by dragging the images in, which takes about as long as an importer would. Structured formats are the exception — screenplays import as Final Draft or Fountain files."
+        "a": "Not a connector to another app. Download your files from it — Google Drive, Dropbox and OneDrive hand you a zip — and drop the folder or the zip in; every folder becomes a cluster. Structured formats are the exception — screenplays import as Final Draft or Fountain files."
+      },
+      {
+        "q": "How do I move my files from Google Drive or Dropbox?",
+        "a": "Download them as a zip — Google Takeout for a whole Drive, or Download on a folder in Drive or Dropbox — and drop the zip on a cluster. Unpacked, each folder becomes a cluster and its files go to that cluster's Files. In the app, the sidebar's Upload menu has the steps for each app under Bring files from another app."
       },
       {
         "q": "Will my layout survive?",
@@ -496,7 +504,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-10-17",
+    "updated": "2026-10-21",
     "navLabel": "Images",
     "headings": [
       {
@@ -1243,8 +1251,8 @@ export const DOCS_PAGES = [
         "text": "Starting a project"
       },
       {
-        "id": "dropping-a-folder",
-        "text": "Dropping a folder"
+        "id": "importing-folders-and-zips",
+        "text": "Importing folders and zips"
       },
       {
         "id": "adding-a-cluster-inside-one",
@@ -1469,7 +1477,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I make Files the default?",
-        "a": "Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone. A dropped folder opens in Files."
+        "a": "Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone."
       },
       {
         "q": "Can I use Clusters like Google Drive?",

@@ -67,6 +67,9 @@ import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
+import { IMPORT_LIMITS, LOW_MEMORY_INFLATE_BYTES } from '../src/lib/importTree.js';
+import { CLUSTER_FILE_CEILING } from '../src/lib/importPlan.js';
+import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
@@ -330,6 +333,21 @@ export const FACTS = {
   folderMaxFiles: String(FOLDER_LIMITS.maxFiles),
   folderMaxDepth: String(FOLDER_LIMITS.maxDepth),
   folderMaxClusters: String(FOLDER_LIMITS.maxClusters),
+  // A bulk import of folders and zips (lib/importTree IMPORT_LIMITS, read by
+  // folderWalk and treeFromZip): how many files one import reads, how deep
+  // folders nest before merging upward, and how many clusters it makes. A
+  // compressed file inside a zip is unpacked whole in the tab, so one bigger
+  // than maxInflateBytes fails with a reason, and far less on a phone or a
+  // low-memory device (LOW_MEMORY_INFLATE_BYTES via importLimitsFor). A folder
+  // with more files than CLUSTER_FILE_CEILING (lib/importPlan) splits into
+  // parts. One Put on board lays out at most PUT_ON_BOARD_MAX (lib/placement).
+  importMaxFiles: IMPORT_LIMITS.maxFiles.toLocaleString('en-US'),
+  importMaxDepth: String(IMPORT_LIMITS.maxDepth),
+  importMaxClusters: IMPORT_LIMITS.maxClusters.toLocaleString('en-US'),
+  importZipUnpackMax: `${IMPORT_LIMITS.maxInflateBytes / (1024 * MB)} GB`,
+  importZipUnpackLowMemory: `${LOW_MEMORY_INFLATE_BYTES / MB} MB`,
+  importClusterFileCeiling: CLUSTER_FILE_CEILING.toLocaleString('en-US'),
+  putOnBoardMax: String(PUT_ON_BOARD_MAX),
   // File versions (lib/cardVersions.js): how many a file keeps, and how long a deleted one waits.
   versionLimit: String(VERSION_LIMIT),
   versionDeletedDays: String(VERSION_DELETED_KEEP_DAYS),

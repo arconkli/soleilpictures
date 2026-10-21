@@ -32,10 +32,9 @@ the same menu turns it back with **Open on the board by default**.
 In split view, `F` acts on the pane you last worked in, and Files there fills
 that pane.
 
-Clusters made from a folder you [drop in](/docs/clusters#dropping-a-folder)
-open in Files for you, because a dropped folder is files first; their cards are
-still laid out on each canvas, and on the parent board they keep their
-thumbnail.
+A folder or zip you [import](/docs/clusters#importing-folders-and-zips) puts its
+files in each new cluster's Files, off the board, and the empty canvas offers to
+put them on.
 
 ## Dragging files
 
@@ -320,7 +319,7 @@ what a drive is really for, no. Here is the line:
 | Preview without opening | Yes — every item has a real preview, and Quick look shows it full size |
 | Download | Yes — one file, or a selection as a zip of up to 500 files or 500 MB |
 | Folders inside folders | Yes — nested clusters, as deep as you like |
-| Upload a whole folder | Yes — [drop it on a canvas](/docs/clusters#dropping-a-folder) and its folders become nested clusters |
+| Upload a whole folder | Yes — [drop it, or its zip](/docs/clusters#importing-folders-and-zips), and its folders become nested clusters with their files in Files |
 | Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free |
 | Store any kind of file | Yes, at any size, on every plan. The free plan holds 50 cards or 5GB of files, whichever comes first; Creator removes the card cap and gives you a 1TB drive |
 | Keep each file's original name | Yes — images and videos since names were kept; audio, PDFs and attachments always |

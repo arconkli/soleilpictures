@@ -17,7 +17,7 @@ faq:
   - q: Can I upload from Files?
     a: Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
   - q: Can I make Files the default?
-    a: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone. A dropped folder opens in Files.
+    a: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone.
   - q: Can I use Clusters like Google Drive?
     a: For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that.
 related:
@@ -55,10 +55,9 @@ the same menu turns it back with **Open on the board by default**.
 In split view, `F` acts on the pane you last worked in, and Files there fills
 that pane.
 
-Clusters made from a folder you [drop in](/docs/clusters#dropping-a-folder)
-open in Files for you, because a dropped folder is files first; their cards are
-still laid out on each canvas, and on the parent board they keep their
-thumbnail.
+A folder or zip you [import](/docs/clusters#importing-folders-and-zips) puts its
+files in each new cluster's Files, off the board, and the empty canvas offers to
+put them on.
 
 ## Dragging files
 
@@ -343,7 +342,7 @@ what a drive is really for, no. Here is the line:
 | Preview without opening | Yes — every item has a real preview, and Quick look shows it full size |
 | Download | Yes — one file, or a selection as a zip of up to {{fact:zipMaxFiles}} files or {{fact:zipMaxSize}} |
 | Folders inside folders | Yes — nested clusters, as deep as you like |
-| Upload a whole folder | Yes — [drop it on a canvas](/docs/clusters#dropping-a-folder) and its folders become nested clusters |
+| Upload a whole folder | Yes — [drop it, or its zip](/docs/clusters#importing-folders-and-zips), and its folders become nested clusters with their files in Files |
 | Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free |
 | Store any kind of file | Yes, at any size, on every plan. The free plan holds {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever comes first; {{fact:planName}} removes the card cap and gives you a {{fact:creatorStorage}} drive |
 | Keep each file's original name | Yes — images and videos since names were kept; audio, PDFs and attachments always |

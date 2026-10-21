@@ -4758,22 +4758,37 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no import button. For a reference board that is less of a problem than it sounds — dropping a folder takes about as long as an importer would, its folders become nested clusters, and they "
+     "v": "There is no connector to another app. That is less of a problem than it sounds — "
     },
     {
      "t": "link",
-     "v": "auto-arrange",
-     "href": "/docs/canvas/images",
+     "v": "dropping a folder or a zip",
+     "href": "/docs/clusters#importing-folders-and-zips",
      "children": [
       {
        "t": "text",
-       "v": "auto-arrange"
+       "v": "dropping a folder or a zip"
       }
      ]
     },
     {
      "t": "text",
-     "v": " on arrival."
+     "v": " takes about as long as a connector would, and its folders become nested clusters with their files in each one's Files. The steps for the usual places are "
+    },
+    {
+     "t": "link",
+     "v": "below",
+     "href": "#bringing-files-from-google-drive-dropbox-and-other-apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "below"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -4831,16 +4846,16 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Drag them in. "
+       "v": "Drag them in, folders and zips included. "
       },
       {
        "t": "link",
-       "v": "Any type on Creator",
+       "v": "Any type, at any size",
        "href": "/docs/files",
        "children": [
         {
          "t": "text",
-         "v": "Any type on Creator"
+         "v": "Any type, at any size"
         }
        ]
       },
@@ -5281,7 +5296,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — keep it for backup and sync. Download the folder a project needs (Drive hands you a zip), unzip it and drop it on a canvas: it becomes a cluster with its folders nested inside, every file under its own name."
+     "v": " — keep it for backup and sync. Download the folder a project needs (Drive hands you a zip) and drop the zip on a canvas as it is: it becomes a cluster with its folders nested inside, every file under its own name."
     }
    ]
   },
@@ -5471,6 +5486,389 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Bringing files from Google Drive, Dropbox and other apps",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Bringing files from Google Drive, Dropbox and other apps"
+    }
+   ],
+   "id": "bringing-files-from-google-drive-dropbox-and-other-apps"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters has no connector to these services: you download your files from them, then drop what you downloaded on a cluster. In the app, the sidebar's "
+    },
+    {
+     "t": "strong",
+     "v": "Upload",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu → "
+    },
+    {
+     "t": "strong",
+     "v": "Bring files from another app…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Bring files from another app…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shows these steps, with a place to drop and pickers, and brings what you give it into the cluster that is open, or one you pick."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Google Drive.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Drive."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " For a whole Drive, open "
+    },
+    {
+     "t": "link",
+     "v": "Google Takeout",
+     "href": "https://takeout.google.com/",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Takeout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", choose "
+    },
+    {
+     "t": "strong",
+     "v": "Deselect all",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deselect all"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and select "
+    },
+    {
+     "t": "strong",
+     "v": "Drive",
+     "children": [
+      {
+       "t": "text",
+       "v": "Drive"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "Next step",
+     "children": [
+      {
+       "t": "text",
+       "v": "Next step"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; keep "
+    },
+    {
+     "t": "strong",
+     "v": ".zip",
+     "children": [
+      {
+       "t": "text",
+       "v": ".zip"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", set the size to "
+    },
+    {
+     "t": "strong",
+     "v": "50 GB",
+     "children": [
+      {
+       "t": "text",
+       "v": "50 GB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Create export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Create export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Google emails a link when it is ready, which can take days for a big Drive, and the link lasts a week. Download every part, then drop all the parts at once: they become one tree. For a few folders, right-click one in Drive and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — Drive hands you a zip (a big folder comes as several) that comes in the same way."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Google Photos.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Photos."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The same Takeout steps with "
+    },
+    {
+     "t": "strong",
+     "v": "Google Photos",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Photos"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " selected. Each album and each year becomes a cluster, so a photo in an album can come in twice. The "
+    },
+    {
+     "t": "code",
+     "v": ".json"
+    },
+    {
+     "t": "text",
+     "v": " files Google puts beside each photo are left out."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Dropbox.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Dropbox."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " On dropbox.com, select the folders you want and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": Dropbox makes one zip of them, as long as it is under 250 GB and fewer than 10,000 files. For more than that, make the folder available offline in the Dropbox app on your computer and drag the folder in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "OneDrive.",
+     "children": [
+      {
+       "t": "text",
+       "v": "OneDrive."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " On onedrive.com, select the folders and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for one zip, up to 250 GB and 10,000 files. For more, set the folder to "
+    },
+    {
+     "t": "strong",
+     "v": "Always keep on this device",
+     "children": [
+      {
+       "t": "text",
+       "v": "Always keep on this device"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the OneDrive app and drag the folder in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "iCloud Drive.",
+     "children": [
+      {
+       "t": "text",
+       "v": "iCloud Drive."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " On a Mac, iCloud Drive is already a folder: in Finder, Control-click the folder, choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download Now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download Now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", wait for it to finish, and drag it in. On an iPhone or iPad, touch and hold the folder in the Files app, tap "
+    },
+    {
+     "t": "strong",
+     "v": "Compress",
+     "children": [
+      {
+       "t": "text",
+       "v": "Compress"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and choose the zip."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Anything else",
+     "children": [
+      {
+       "t": "text",
+       "v": "Anything else"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — Box, Notion, an old hard drive, a camera card: if it downloads as a zip, or sits in a folder on your computer, it comes in the same way. What fits on your plan comes in at once, and the rest waits for room — see "
+    },
+    {
+     "t": "link",
+     "v": "Importing folders and zips",
+     "href": "/docs/clusters#importing-folders-and-zips",
+     "children": [
+      {
+       "t": "text",
+       "v": "Importing folders and zips"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for the limits."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Comparisons and alternatives",
    "inline": [
     {
@@ -5586,7 +5984,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Drop its reference folder onto a canvas — it becomes a cluster, with a nested one for each folder inside it."
+      "v": "Drop its reference folder, or the zip you downloaded, onto a canvas — it becomes a cluster, with a nested one for each folder inside it."
      }
     ],
     [
@@ -8460,16 +8858,16 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its own, or select the files you want and drop them where you are — either way they upload in parallel and lay themselves out rather than landing in a heap. See "
+     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: select the files you want and drop them where you are, and they upload in parallel and lay themselves out rather than landing in a heap. Drag a whole folder or a zip onto the canvas instead and it becomes a cluster of its own, with its files waiting in Files until you put them on the board. See "
     },
     {
      "t": "link",
-     "v": "dropping a folder",
-     "href": "/docs/clusters#dropping-a-folder",
+     "v": "importing folders and zips",
+     "href": "/docs/clusters#importing-folders-and-zips",
      "children": [
       {
        "t": "text",
-       "v": "dropping a folder"
+       "v": "importing folders and zips"
       }
      ]
     },
@@ -17076,42 +17474,43 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder."
+     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder or zip."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Dropping a folder",
+   "text": "Importing folders and zips",
    "inline": [
     {
      "t": "text",
-     "v": "Dropping a folder"
+     "v": "Importing folders and zips"
     }
    ],
-   "id": "dropping-a-folder"
+   "id": "importing-folders-and-zips"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Drag a folder from your desktop onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file becomes a card in the cluster it was in — photos laid out in rows, everything else in a grid, each keeping its file name. "
+     "v": "Drag a folder from your computer onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file goes to the "
     },
     {
-     "t": "strong",
-     "v": "Add → Folder…",
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "Add → Folder…"
+       "v": "Files"
       }
      ]
     },
     {
      "t": "text",
-     "v": " does the same from a picker, on a desktop browser. A phone's or a tablet's browser can't pick a folder, so the menu leaves it out there."
+     "v": " of the cluster it was in, under its own name and with its own modified date. Nothing is laid out on a board for you: the canvas of each new cluster holds only the clusters nested in it."
     }
    ]
   },
@@ -17120,7 +17519,196 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "While it runs, a bar at the bottom of the screen counts the files and has a "
+     "v": "A zip comes in the same way. Drop one and you are asked first: "
+    },
+    {
+     "t": "strong",
+     "v": "Unpack into clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Unpack into clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " turns every folder in it into a cluster, or "
+    },
+    {
+     "t": "strong",
+     "v": "Add as a zip file",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add as a zip file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps it whole, as one file in Files. A Google Takeout or Google Drive export that arrives in several parts becomes one tree when you drop all the parts at once."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "You can start an import from:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "a canvas — drop a folder or a zip, or "
+     },
+     {
+      "t": "strong",
+      "v": "Add → Folder…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add → Folder…"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "link",
+      "v": "Files",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — drop a folder or a zip into the list"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a cluster in the sidebar — drop it onto the cluster's row"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the sidebar's "
+     },
+     {
+      "t": "strong",
+      "v": "Upload",
+      "children": [
+       {
+        "t": "text",
+        "v": "Upload"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu — "
+     },
+     {
+      "t": "strong",
+      "v": "A folder…",
+      "children": [
+       {
+        "t": "text",
+        "v": "A folder…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or "
+     },
+     {
+      "t": "strong",
+      "v": "A zip or Google Takeout…",
+      "children": [
+       {
+        "t": "text",
+        "v": "A zip or Google Takeout…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", which go into the cluster that is open, or one you pick"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A phone's or a tablet's browser can't pick or drag a folder, so there you choose a zip instead. To bring files over from Google Drive, Dropbox, OneDrive or iCloud, see "
+    },
+    {
+     "t": "link",
+     "v": "Coming from another tool",
+     "href": "/docs/migrating#bringing-files-from-google-drive-dropbox-and-other-apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "Coming from another tool"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "While it runs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While it runs"
+    }
+   ],
+   "id": "while-it-runs"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Before anything uploads, the import counts what you gave it. If all of it fits your plan it starts at once; if not, you are asked first (see below). While it runs, a tray in the corner shows how many files are in and roughly how long is left, with "
+    },
+    {
+     "t": "strong",
+     "v": "Pause",
+     "children": [
+      {
+       "t": "text",
+       "v": "Pause"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
     },
     {
      "t": "strong",
@@ -17134,21 +17722,67 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": what has landed is kept, and nothing empty is left behind. When it finishes, the message offers "
+     "v": ", and folds into a small chip when you minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it on screen. One import runs at a time; a second one you drop waits its turn."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If the page reloads or the tab closes part-way, the tray offers the stopped import the next time you open the app: "
     },
     {
      "t": "strong",
-     "v": "Undo",
+     "v": "Resume",
      "children": [
       {
        "t": "text",
-       "v": "Undo"
+       "v": "Resume"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", which takes every cluster it made back to "
+     "v": " where the browser kept the folder (it asks to read it again first), or drop the same folder or zip on the same cluster again — either way, files already in are skipped."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When it finishes, "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the cluster's name takes you there, and "
+    },
+    {
+     "t": "strong",
+     "v": "Remove this import",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove this import"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " moves every cluster it made to "
     },
     {
      "t": "link",
@@ -17163,7 +17797,72 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", with an undo. Files that couldn't be brought in are listed with the reason, and "
+    },
+    {
+     "t": "strong",
+     "v": "Try these again",
+     "children": [
+      {
+       "t": "text",
+       "v": "Try these again"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " retries them. A cluster made only of files gets a cover from its first pictures."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "When it doesn't all fit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When it doesn't all fit"
+    }
+   ],
+   "id": "when-it-doesn-t-all-fit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each file is one "
+    },
+    {
+     "t": "link",
+     "v": "card",
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and takes its size from your "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "/docs/files#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and each cluster it makes counts as a card as any cluster does. When the whole import won't fit your plan, it says how much would come in and how much would wait, and offers:"
     }
    ]
   },
@@ -17173,56 +17872,271 @@ export const DOCS_CONTENT = {
    "items": [
     [
      {
-      "t": "text",
-      "v": "One drop reads up to "
-     },
-     {
       "t": "strong",
-      "v": "500 files",
+      "v": "Bring … now",
       "children": [
        {
         "t": "text",
-        "v": "500 files"
+        "v": "Bring … now"
        }
       ]
      },
      {
       "t": "text",
-      "v": " and makes up to "
+      "v": " (or "
      },
      {
       "t": "strong",
-      "v": "60 clusters",
+      "v": "Keep it waiting",
       "children": [
        {
         "t": "text",
-        "v": "60 clusters"
+        "v": "Keep it waiting"
        }
       ]
      },
      {
       "t": "text",
-      "v": ". Past either, the import is partial and says so."
+      "v": ", when nothing fits yet) — makes every cluster and fills them in folder order with what fits. The rest "
+     },
+     {
+      "t": "strong",
+      "v": "waits",
+      "children": [
+       {
+        "t": "text",
+        "v": "waits"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the tray, and comes in by itself as soon as there is room — when you upgrade, add storage, delete files or empty the trash — for as long as the tab stays open. The cluster's Files says how many of its files are waiting for room."
      }
     ],
     [
      {
       "t": "text",
-      "v": "Folders nested more than "
-     },
+      "v": "an upgrade, a trial or extra storage, where one would make room"
+     }
+    ],
+    [
      {
       "t": "strong",
-      "v": "6 levels",
+      "v": "Cancel",
       "children": [
        {
         "t": "text",
-        "v": "6 levels"
+        "v": "Cancel"
+       }
+      ]
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Importing into someone else's workspace counts toward its owner's plan, and what waits comes in once the owner has room."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Putting files on the board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Putting files on the board"
+    }
+   ],
+   "id": "putting-files-on-the-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The canvas of an imported cluster offers to put its files on the board: "
+    },
+    {
+     "t": "strong",
+     "v": "Put them on the board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put them on the board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lays photos out in rows and anything else in a grid, in one undo step, and "
+    },
+    {
+     "t": "strong",
+     "v": "Choose in Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Choose in Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lets you pick. One press places up to 500 files; the rest stay in Files to place from there. Files that are still uploading aren't placed until they finish. In Files, select files and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at any time — see "
+    },
+    {
+     "t": "link",
+     "v": "Not on board",
+     "href": "/docs/clusters/list-view#not-on-board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
+   "id": "limits"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "One import reads up to "
+     },
+     {
+      "t": "strong",
+      "v": "50,000 files",
+      "children": [
+       {
+        "t": "text",
+        "v": "50,000 files"
        }
       ]
      },
      {
       "t": "text",
-      "v": " deep are merged into the deepest cluster rather than left out."
+      "v": "; files past that are left out. It makes up to "
+     },
+     {
+      "t": "strong",
+      "v": "5,000 clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "5,000 clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and folders past that many, or nested more than "
+     },
+     {
+      "t": "strong",
+      "v": "12 levels",
+      "children": [
+       {
+        "t": "text",
+        "v": "12 levels"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " deep, are merged into the cluster above rather than left out."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A folder with more than "
+     },
+     {
+      "t": "strong",
+      "v": "2,000 files",
+      "children": [
+       {
+        "t": "text",
+        "v": "2,000 files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is split into several clusters."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A compressed file inside a zip is unpacked in the browser, up to "
+     },
+     {
+      "t": "strong",
+      "v": "4 GB",
+      "children": [
+       {
+        "t": "text",
+        "v": "4 GB"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " a file — "
+     },
+     {
+      "t": "strong",
+      "v": "256 MB",
+      "children": [
+       {
+        "t": "text",
+        "v": "256 MB"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on an iPhone, an iPad or another device with little memory. A bigger one is listed as too large to unpack; unzip it on your computer and drop the folder."
      }
     ],
     [
@@ -17244,82 +18158,9 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " session or a Photos library — are left out, and so are files iCloud has not downloaded yet. The message counts them."
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "On the free plan the folder is counted before anything uploads: one "
-     },
-     {
-      "t": "link",
-      "v": "card",
-      "href": "/docs/canvas/cards",
-      "children": [
-       {
-        "t": "text",
-        "v": "card"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " for each file and one for each cluster it becomes. If it will not all fit, you are asked first, and "
-     },
-     {
-      "t": "strong",
-      "v": "Add what fits",
-      "children": [
-       {
-        "t": "text",
-        "v": "Add what fits"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " takes whole folders in order rather than a scatter of half-filled ones."
+      "v": " session or a Photos library — are left out, and so are files iCloud has not downloaded yet."
      }
     ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and the Files view takes files rather than folders. Clusters made from a dropped folder open in "
-    },
-    {
-     "t": "link",
-     "v": "Files",
-     "href": "/docs/clusters/list-view",
-     "children": [
-      {
-       "t": "text",
-       "v": "Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " for you; "
-    },
-    {
-     "t": "strong",
-     "v": "Board",
-     "children": [
-      {
-       "t": "text",
-       "v": "Board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " at the top shows the canvas, where the cards are already laid out."
-    }
    ]
   },
   {
@@ -17855,7 +18696,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sets which view new clusters open in; clusters made from a dropped folder open in Files for the person who dropped them."
+     "v": " sets which view new clusters open in."
     }
    ]
   },
@@ -19850,22 +20691,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters made from a folder you "
+     "v": "A folder or zip you "
     },
     {
      "t": "link",
-     "v": "drop in",
-     "href": "/docs/clusters#dropping-a-folder",
+     "v": "import",
+     "href": "/docs/clusters#importing-folders-and-zips",
      "children": [
       {
        "t": "text",
-       "v": "drop in"
+       "v": "import"
       }
      ]
     },
     {
      "t": "text",
-     "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, and on the parent board they keep their thumbnail."
+     "v": " puts its files in each new cluster's Files, off the board, and the empty canvas offers to put them on."
     }
    ]
   },
@@ -22154,18 +22995,18 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "link",
-       "v": "drop it on a canvas",
-       "href": "/docs/clusters#dropping-a-folder",
+       "v": "drop it, or its zip",
+       "href": "/docs/clusters#importing-folders-and-zips",
        "children": [
         {
          "t": "text",
-         "v": "drop it on a canvas"
+         "v": "drop it, or its zip"
         }
        ]
       },
       {
        "t": "text",
-       "v": " and its folders become nested clusters"
+       "v": ", and its folders become nested clusters with their files in Files"
       }
      ]
     ],

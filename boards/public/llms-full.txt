@@ -443,18 +443,18 @@ A: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app 
 ========================================================================
 # Coming from another tool
 URL: https://clusters.soleilpictures.com/docs/migrating
-Updated: 2026-10-20
+Updated: 2026-10-21
 
-There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
+There is no connector to another app. Moving to Soleil Clusters means downloading your files and dragging them in, which is usually one drag: drop the folder, or the zip a cloud drive gives you, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 
-There is no import button. For a reference board that is less of a problem than it sounds — dropping a folder takes about as long as an importer would, its folders become nested clusters, and they auto-arrange on arrival.
+There is no connector to another app. That is less of a problem than it sounds — dropping a folder or a zip takes about as long as a connector would, and its folders become nested clusters with their files in each one's Files. The steps for the usual places are below.
 
 What is worth knowing is how the concepts map.
 
 What transfers
 
  | 
-Images and files | Drag them in. Any type on Creator.
+Images and files | Drag them in, folders and zips included. Any type, at any size.
 Screenplays | Import Final Draft .fdx or Fountain — see screenplay mode
 Text | Paste into notes or documents
 Layout | Does not transfer from anything
@@ -477,7 +477,7 @@ PureRef — the closest match for pure reference work. You gain collaboration, s
 
 Eagle — a different job, so it is usually not a move at all. Eagle stays the private library on your disk; bring the references one project needs onto a cluster, where the team builds the board together. Eagle keeps every original as a real file, so they drag in like any other files.
 
-Google Drive — keep it for backup and sync. Download the folder a project needs (Drive hands you a zip), unzip it and drop it on a canvas: it becomes a cluster with its folders nested inside, every file under its own name.
+Google Drive — keep it for backup and sync. Download the folder a project needs (Drive hands you a zip) and drop the zip on a canvas as it is: it becomes a cluster with its folders nested inside, every file under its own name.
 
 Milanote — very similar shape. Boards become clusters, nesting maps directly, and the card model is comparable.
 
@@ -488,6 +488,22 @@ Storyflow — boards map to clusters and the references come across as files. Wh
 Boords, Storyboarder and the other storyboard tools — panels become grid cells, and the script side becomes a screenplay document on the same board.
 
 StudioBinder — production management. Clusters covers the visual and document side; it is not a call-sheet-and-crew-management system. The storyboard software roundup compares the two directly.
+
+Bringing files from Google Drive, Dropbox and other apps
+
+Clusters has no connector to these services: you download your files from them, then drop what you downloaded on a cluster. In the app, the sidebar's Upload menu → Bring files from another app… shows these steps, with a place to drop and pickers, and brings what you give it into the cluster that is open, or one you pick.
+
+Google Drive. For a whole Drive, open Google Takeout, choose Deselect all and select Drive, then Next step; keep .zip, set the size to 50 GB, and choose Create export. Google emails a link when it is ready, which can take days for a big Drive, and the link lasts a week. Download every part, then drop all the parts at once: they become one tree. For a few folders, right-click one in Drive and choose Download — Drive hands you a zip (a big folder comes as several) that comes in the same way.
+
+Google Photos. The same Takeout steps with Google Photos selected. Each album and each year becomes a cluster, so a photo in an album can come in twice. The .json files Google puts beside each photo are left out.
+
+Dropbox. On dropbox.com, select the folders you want and choose Download: Dropbox makes one zip of them, as long as it is under 250 GB and fewer than 10,000 files. For more than that, make the folder available offline in the Dropbox app on your computer and drag the folder in.
+
+OneDrive. On onedrive.com, select the folders and choose Download for one zip, up to 250 GB and 10,000 files. For more, set the folder to Always keep on this device in the OneDrive app and drag the folder in.
+
+iCloud Drive. On a Mac, iCloud Drive is already a folder: in Finder, Control-click the folder, choose Download Now, wait for it to finish, and drag it in. On an iPhone or iPad, touch and hold the folder in the Files app, tap Compress, and choose the zip.
+
+Anything else — Box, Notion, an old hard drive, a camera card: if it downloads as a zip, or sits in a folder on your computer, it comes in the same way. What fits on your plan comes in at once, and the rest waits for room — see Importing folders and zips for the limits.
 
 Comparisons and alternatives
 
@@ -501,7 +517,7 @@ The best storyboard software
 Practical route in
 
 Pick one live project rather than migrating an archive.
-Drop its reference folder onto a canvas — it becomes a cluster, with a nested one for each folder inside it.
+Drop its reference folder, or the zip you downloaded, onto a canvas — it becomes a cluster, with a nested one for each folder inside it.
 Give things names — names are what search works on.
 Nest sub-clusters where the old tool had folders.
 Invite the team. Editors are free, so there is no seat maths.
@@ -515,7 +531,10 @@ Worth knowing before you commit: board exports as PNG and PDF, document exports 
 ## Frequently asked questions
 
 Q: Is there an importer?
-A: No. Reference boards move by dragging the images in, which takes about as long as an importer would. Structured formats are the exception — screenplays import as Final Draft or Fountain files.
+A: Not a connector to another app. Download your files from it — Google Drive, Dropbox and OneDrive hand you a zip — and drop the folder or the zip in; every folder becomes a cluster. Structured formats are the exception — screenplays import as Final Draft or Fountain files.
+
+Q: How do I move my files from Google Drive or Dropbox?
+A: Download them as a zip — Google Takeout for a whole Drive, or Download on a folder in Drive or Dropbox — and drop the zip on a cluster. Unpacked, each folder becomes a cluster and its files go to that cluster's Files. In the app, the sidebar's Upload menu has the steps for each app under Bring files from another app.
 
 Q: Will my layout survive?
 A: No. Positions do not transfer from any other tool. Dropped images auto-arrange, and auto-arrange by colour is usually a faster route to a good layout than reproducing the old one.
@@ -738,11 +757,11 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-17
+Updated: 2026-10-21
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
-Images are the reason most boards exist. Getting them in is meant to be thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its own, or select the files you want and drop them where you are — either way they upload in parallel and lay themselves out rather than landing in a heap. See dropping a folder.
+Images are the reason most boards exist. Getting them in is meant to be thoughtless: select the files you want and drop them where you are, and they upload in parallel and lay themselves out rather than landing in a heap. Drag a whole folder or a zip onto the canvas instead and it becomes a cluster of its own, with its files waiting in Files until you put them on the board. See importing folders and zips.
 
 Adding images
 
@@ -1753,20 +1772,51 @@ New cluster on Home — type a name, press Enter
 The + next to Clusters in the sidebar — name it right in the sidebar
 ⌘K → "new project"
 
-A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder.
+A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder or zip.
 
-Dropping a folder
+Importing folders and zips
 
-Drag a folder from your desktop onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file becomes a card in the cluster it was in — photos laid out in rows, everything else in a grid, each keeping its file name. Add → Folder… does the same from a picker, on a desktop browser. A phone's or a tablet's browser can't pick a folder, so the menu leaves it out there.
+Drag a folder from your computer onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file goes to the Files of the cluster it was in, under its own name and with its own modified date. Nothing is laid out on a board for you: the canvas of each new cluster holds only the clusters nested in it.
 
-While it runs, a bar at the bottom of the screen counts the files and has a Cancel: what has landed is kept, and nothing empty is left behind. When it finishes, the message offers Undo, which takes every cluster it made back to Trash.
+A zip comes in the same way. Drop one and you are asked first: Unpack into clusters turns every folder in it into a cluster, or Add as a zip file keeps it whole, as one file in Files. A Google Takeout or Google Drive export that arrives in several parts becomes one tree when you drop all the parts at once.
 
-One drop reads up to 500 files and makes up to 60 clusters. Past either, the import is partial and says so.
-Folders nested more than 6 levels deep are merged into the deepest cluster rather than left out.
-The things a computer keeps in folders that are not yours to look at — .DS_Store, hidden files, app and project bundles such as a .logicx session or a Photos library — are left out, and so are files iCloud has not downloaded yet. The message counts them.
-On the free plan the folder is counted before anything uploads: one card for each file and one for each cluster it becomes. If it will not all fit, you are asked first, and Add what fits takes whole folders in order rather than a scatter of half-filled ones.
+You can start an import from:
 
-Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and the Files view takes files rather than folders. Clusters made from a dropped folder open in Files for you; Board at the top shows the canvas, where the cards are already laid out.
+a canvas — drop a folder or a zip, or Add → Folder…
+Files — drop a folder or a zip into the list
+a cluster in the sidebar — drop it onto the cluster's row
+the sidebar's Upload menu — A folder…, or A zip or Google Takeout…, which go into the cluster that is open, or one you pick
+
+A phone's or a tablet's browser can't pick or drag a folder, so there you choose a zip instead. To bring files over from Google Drive, Dropbox, OneDrive or iCloud, see Coming from another tool.
+
+While it runs
+
+Before anything uploads, the import counts what you gave it. If all of it fits your plan it starts at once; if not, you are asked first (see below). While it runs, a tray in the corner shows how many files are in and roughly how long is left, with Pause and Cancel, and folds into a small chip when you minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it on screen. One import runs at a time; a second one you drop waits its turn.
+
+If the page reloads or the tab closes part-way, the tray offers the stopped import the next time you open the app: Resume where the browser kept the folder (it asks to read it again first), or drop the same folder or zip on the same cluster again — either way, files already in are skipped.
+
+When it finishes, Open and the cluster's name takes you there, and Remove this import moves every cluster it made to Trash, with an undo. Files that couldn't be brought in are listed with the reason, and Try these again retries them. A cluster made only of files gets a cover from its first pictures.
+
+When it doesn't all fit
+
+Each file is one card and takes its size from your storage, and each cluster it makes counts as a card as any cluster does. When the whole import won't fit your plan, it says how much would come in and how much would wait, and offers:
+
+Bring … now (or Keep it waiting, when nothing fits yet) — makes every cluster and fills them in folder order with what fits. The rest waits in the tray, and comes in by itself as soon as there is room — when you upgrade, add storage, delete files or empty the trash — for as long as the tab stays open. The cluster's Files says how many of its files are waiting for room.
+an upgrade, a trial or extra storage, where one would make room
+Cancel
+
+Importing into someone else's workspace counts toward its owner's plan, and what waits comes in once the owner has room.
+
+Putting files on the board
+
+The canvas of an imported cluster offers to put its files on the board: Put them on the board lays photos out in rows and anything else in a grid, in one undo step, and Choose in Files lets you pick. One press places up to 500 files; the rest stay in Files to place from there. Files that are still uploading aren't placed until they finish. In Files, select files and choose Put on board at any time — see Not on board.
+
+Limits
+
+One import reads up to 50,000 files; files past that are left out. It makes up to 5,000 clusters, and folders past that many, or nested more than 12 levels deep, are merged into the cluster above rather than left out.
+A folder with more than 2,000 files is split into several clusters.
+A compressed file inside a zip is unpacked in the browser, up to 4 GB a file — 256 MB on an iPhone, an iPad or another device with little memory. A bigger one is listed as too large to unpack; unzip it on your computer and drop the folder.
+The things a computer keeps in folders that are not yours to look at — .DS_Store, hidden files, app and project bundles such as a .logicx session or a Photos library — are left out, and so are files iCloud has not downloaded yet.
 
 Adding a cluster inside one
 
@@ -1823,7 +1873,7 @@ Every cluster has two views of the same contents:
 Board — the infinite canvas, where position means something
 Files — a sortable, searchable file browser, as a grid or a list
 
-A cluster's files are always listed in the sidebar; press F, or ⤢ there, to fill the screen with them. Switching does not convert anything. Settings → Card defaults sets which view new clusters open in; clusters made from a dropped folder open in Files for the person who dropped them.
+A cluster's files are always listed in the sidebar; press F, or ⤢ there, to fill the screen with them. Switching does not convert anything. Settings → Card defaults sets which view new clusters open in.
 
 Finding clusters
 
@@ -1990,7 +2040,7 @@ Put a file somewhere on the board | Drag it from the sidebar's Files onto the bo
 
 In split view, F acts on the pane you last worked in, and Files there fills that pane.
 
-Clusters made from a folder you drop in open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, and on the parent board they keep their thumbnail.
+A folder or zip you import puts its files in each new cluster's Files, off the board, and the empty canvas offers to put them on.
 
 Dragging files
 
@@ -2142,7 +2192,7 @@ Search | Yes — ⌘K finds files by name, card text and the words inside docume
 Preview without opening | Yes — every item has a real preview, and Quick look shows it full size
 Download | Yes — one file, or a selection as a zip of up to 500 files or 500 MB
 Folders inside folders | Yes — nested clusters, as deep as you like
-Upload a whole folder | Yes — drop it on a canvas and its folders become nested clusters
+Upload a whole folder | Yes — drop it, or its zip, and its folders become nested clusters with their files in Files
 Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free
 Store any kind of file | Yes, at any size, on every plan. The free plan holds 50 cards or 5GB of files, whichever comes first; Creator removes the card cap and gives you a 1TB drive
 Keep each file's original name | Yes — images and videos since names were kept; audio, PDFs and attachments always
@@ -2170,7 +2220,7 @@ Q: Can I upload from Files?
 A: Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
 
 Q: Can I make Files the default?
-A: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone. A dropped folder opens in Files.
+A: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone.
 
 Q: Can I use Clusters like Google Drive?
 A: For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that.
@@ -10555,7 +10605,7 @@ depending on the page it came from.
   after it, each folder inside it a nested cluster in the same shape, and every
   file a card in the cluster it was in. **Add → Folder…** does the same from a
   picker, on a desktop browser. See
-  [dropping a folder](/docs/clusters#dropping-a-folder).
+  [dropping a folder](/docs/clusters#importing-folders-and-zips).
 - It runs with a progress bar and a **Cancel** that keeps what has landed, and
   its Undo takes every cluster it made to Trash. One drop reads up to
   500 files and makes up to 60

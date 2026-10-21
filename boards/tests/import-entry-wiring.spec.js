@@ -1,5 +1,7 @@
 // import-entry-wiring.spec.js — a folder or zips dropped on the List view is
-// a bulk import, as on the board, and only where bulk import is on.
+// a bulk import, as on the board. Every entry point still asks
+// bulkImportAllowed(), which is open everywhere since the sidebar release
+// (2026-10-21): it is the one switch back to the old folder path.
 //
 // The routing is App.jsx-only and ?local=1 (LocalBoardsApp) never mounts it,
 // and an OS folder drag can't be simulated, so it is asserted on code shape,
@@ -10,6 +12,12 @@ import { readFileSync } from 'node:fs';
 const read = (rel) => readFileSync(new URL(rel, new URL('../', import.meta.url)), 'utf8');
 
 test.describe('bulk import entry wiring', () => {
+  test('bulk import is open everywhere, and still reported in featureFlags()', () => {
+    const host = read('src/lib/appHost.js');
+    expect(host).toMatch(/export function bulkImportAllowed\(\) \{\n  return true;\n\}/);
+    expect(host).toContain('bulkImport: bulkImportAllowed,');
+  });
+
   test('the List view reads a folder off the drop before anything else can take it, and zips after a version drop', () => {
     const s = read('src/components/ListSurface.jsx');
     const drop = s.slice(s.indexOf('const handleDrop = (e) => {'), s.indexOf('// URLs / plain text still have no home'));
@@ -35,7 +43,7 @@ test.describe('bulk import entry wiring', () => {
     expect(env).toContain('limits: importLimitsFor({ lowMemory: lowMemoryDevice() }),');
   });
 
-  test('App hands the sidebar the bulk import for a folder or zips dropped on a cluster row, only where it is on', () => {
+  test('App hands the sidebar the bulk import for a folder or zips dropped on a cluster row, behind its switch', () => {
     const s = read('src/App.jsx');
     const sidebar = s.slice(s.indexOf('<ClusterSidebar'), s.indexOf('uploadsByBoard={sidebarUploads}'));
     expect(sidebar).toMatch(/onImportTreeOnCluster=\{bulkImportAllowed\(\) \? \(boardId, input\) => importFolder\(\{\s*\.\.\.input, boardId, canAttemptFiles: bulkImportEnv\(\)\.who\(boardId\)\.plan !== 'free', boardWasEmpty: false,\s*\}\) : null\}/);
@@ -45,12 +53,12 @@ test.describe('bulk import entry wiring', () => {
     expect(bar).toMatch(/const entries = onImportTreeOnCluster \? captureDropEntries\(e\.dataTransfer\) : \[\];/);
   });
 
-  test('App hands the List view the bulk import only where it is on, through importFolder', () => {
+  test('App hands the List view the bulk import behind its switch, through importFolder', () => {
     const s = read('src/App.jsx');
     expect(s).toMatch(/onImportTree=\{bulkImportAllowed\(\) \? \(input, \{ boardId \}\) => importFolder\(\{\s*\.\.\.input, boardId, canAttemptFiles: bulkImportEnv\(\)\.who\(boardId\)\.plan !== 'free', boardWasEmpty: false,\s*\}\) : null\}/);
   });
 
-  test("the tray's guide: opened from the Upload menu only where bulk import is on, it imports as the menu does", () => {
+  test("the tray's guide: opened from the Upload menu behind bulk import's switch, it imports as the menu does", () => {
     const s = read('src/App.jsx');
     // The Upload menu's last item, through ClusterSidebar's meterProps spread.
     const meter = s.slice(s.indexOf('meterProps={{'), s.indexOf('onOpenPlan={() => openSettings('));

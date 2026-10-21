@@ -86,16 +86,13 @@ export function sidebarFilesAllowed() {
 
 // Bulk import (lib/importJob.js): a whole folder tree or zip export becomes
 // clusters, its files land in Files, and an import bigger than the plan brings
-// what fits while the rest waits. Its files land in the sidebar's Files, so it
-// opens only where that does; on dev it is opt-in on top, localStorage
-// soleil.dev.bulkImport = '1'. Everywhere else a dropped folder keeps today's
-// path until the release flips this with its docs.
-export const BULK_IMPORT_DEV_FLAG = 'soleil.dev.bulkImport';
+// what fits while the rest waits. It was held to where the sidebar's Files
+// opened (the preview, and dev behind localStorage soleil.dev.bulkImport), and
+// was lifted for the sidebar release on 2026-10-21 with the docs that describe
+// it (docs/clusters#importing-folders-and-zips). It stays the one switch: hold
+// it again here, and a dropped folder goes back to the old path (lib/folderImport).
 export function bulkImportAllowed() {
-  if (!sidebarFilesAllowed()) return false;
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(BULK_IMPORT_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
 }
 
 // First-run setup (lib/workspaceSetup.js): a new signup names their workspace,
