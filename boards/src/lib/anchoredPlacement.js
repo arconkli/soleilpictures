@@ -5,10 +5,14 @@
 // the room on its side (and to `maxHeightRatio` of the window) and scrolls.
 // Pure, for hooks/useAnchoredPopover.js.
 //
+// `side: 'right'` hangs it beside the control instead (a menu off the tool
+// rail): `align` is then which part of the control's height it lines up with,
+// and with `fitHeight` it may be as tall as the window.
+//
 //   anchor    the control's box (getBoundingClientRect)
 //   size      the panel's { width, height } — its whole height, for fitHeight
 //   viewport  { width, height }
-//   → { top, left, side: 'below' | 'above', maxHeight: number | null }
+//   → { top, left, side: 'below' | 'above' | 'right', maxHeight: number | null }
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -16,6 +20,20 @@ export function placeAnchored(anchor, size, viewport, opts = {}) {
   const { side = 'below', align = 'start', gap = 6, pad = 8, fitHeight = false, maxHeightRatio = 0.7 } = opts;
   const { width: w, height: h } = size;
   const { width: vw, height: vh } = viewport;
+
+  if (side === 'right') {
+    const maxHeight = fitHeight ? Math.max(0, vh - pad * 2) : null;
+    const height = maxHeight == null ? h : Math.min(h, maxHeight);
+    const start = align === 'end' ? anchor.bottom - height
+      : align === 'center' ? anchor.top + anchor.height / 2 - height / 2
+        : anchor.top;
+    return {
+      top: clamp(start, pad, vh - height - pad),
+      left: clamp(anchor.right + gap, pad, vw - w - pad),
+      side,
+      maxHeight,
+    };
+  }
 
   const room = {
     below: vh - anchor.bottom - gap - pad,

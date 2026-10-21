@@ -43,7 +43,8 @@ test('the panel ends above the on-screen keyboard', () => {
 
 test('the stylesheets: no hover chip under a finger, no stray selector, and 16px fields', () => {
   const css = read('../styles.css');
-  const touch = css.slice(css.indexOf('@media (hover: none) and (pointer: coarse) {', css.indexOf('Hover-reveal affordances') - 2000));
+  // From the touch block the hover-reveal rules sit in, however much comes before them in it.
+  const touch = css.slice(css.lastIndexOf('@media (hover: none) and (pointer: coarse) {', css.indexOf('Hover-reveal affordances')));
   assert.match(touch, /\.msg-bubble-actions \{ display: none !important; \}/);
   assert.doesNotMatch(css, /\.msg-row-actions/, 'that selector matched nothing');
   // WebKit inherits user-select: the edit box inside a bubble has to take it back.

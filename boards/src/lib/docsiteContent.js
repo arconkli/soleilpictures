@@ -42975,7 +42975,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " replaces the tool rail's "
+     "v": ", behind the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the middle of the bottom bar, lays out everything you can add across the screen, sized for thumbs. The tool rail keeps its own "
     },
     {
      "t": "code",
@@ -42983,7 +42997,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " menu with a full-width sheet, sized for thumbs."
+     "v": ", whose menu opens beside the rail."
     }
    ]
   },
@@ -43023,7 +43037,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Tablets get closer to the desktop layout — the rail rather than the sheet — plus stylus drawing. On iPad, drawing, annotating and reviewing all work properly; long document editing is still better on a laptop."
+     "v": "Held upright, a tablet gets the phone's layout: the bottom bar, the drawer and the add sheet. On its side, most iPads are wide enough for the desktop layout, with a finger for a pointer. Either way it adds stylus drawing. On iPad, drawing, annotating and reviewing all work properly; long document editing is still better on a laptop."
     }
    ]
   },

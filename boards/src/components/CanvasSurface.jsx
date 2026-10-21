@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
@@ -84,6 +85,7 @@ import {
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
 import { Sheet } from './shell/Sheet.jsx';
@@ -1934,17 +1936,23 @@ export function CanvasSurface({
   // tools didn't). Esc is the canvas's ladder's, or the menu's own when focus
   // is in it. Focus goes to its first item as it opens, with a ring only when
   // a key opened it.
-  const addWrapRef = useRef(null);
+  // It hangs beside the rail from <body>: on a phone (and an iPad held upright)
+  // the rail scrolls, so it clipped a menu hanging out of it, and the + lit up
+  // over nothing a finger could reach. A finger's menu scrolls when the window
+  // is short; a mouse's doesn't, for its items' tips overflow it.
   const addBtnRef = useRef(null);
   const addByKeyRef = useRef(false);
   const closeAddMenu = useCallback(() => setAddMenuOpen(false), []);
-  useDismissOnOutside(addWrapRef, addMenuOpen, closeAddMenu, { escape: false });
+  const addPop = useAnchoredPopover({
+    open: addMenuOpen, onClose: closeAddMenu, anchorRef: addBtnRef, side: 'right', gap: 8, escape: false,
+    fitHeight: typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none) and (pointer: coarse)').matches,
+  });
   useEffect(() => {
     if (!addMenuOpen) return undefined;
     // A frame on: a mouse press focuses what it pressed (the +) once the
     // press's handlers, this one's opening among them, have run.
     const raf = requestAnimationFrame(() => {
-      const first = addWrapRef.current?.querySelector('.cnv-add-menu [role="menuitem"]');
+      const first = addPop.popRef.current?.querySelector('[role="menuitem"]');
       first?.focus({ preventScroll: true, focusVisible: addByKeyRef.current });
     });
     return () => cancelAnimationFrame(raf);
@@ -9089,7 +9097,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -9359,7 +9367,7 @@ export function CanvasSurface({
   const onBackgroundPointerDown = (e) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
-    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
+    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
 
     if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
@@ -9863,7 +9871,7 @@ export function CanvasSurface({
     // (Cut / Copy / Paste, spellcheck). Notes already got this in
     // onCardContextMenu; these got Add / Paste / Select all instead.
     if (isEditorPointerTarget(e)) return;
-    if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox, .tob')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-add-menu, .cnv-zoom, .inbox, .tob')) return;
     e.preventDefault();
     // A finger's press-and-hold already opened this menu through
     // useLongPress; Android's contextmenu would open it a second time.
@@ -13959,7 +13967,7 @@ export function CanvasSurface({
              railPressRef.current.scrolled = false;
              startTouchScrollGesture(e, { onEngage: () => { railPressRef.current.scrolled = true; } });
            }}>
-        <div className="cnv-add-wrap" ref={addWrapRef}>
+        <div className="cnv-add-wrap">
           <div
             ref={addBtnRef}
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
@@ -13993,8 +14001,11 @@ export function CanvasSurface({
           >
             <Icon as={Plus} size={20} />
           </div>
-          {addMenuOpen && (
-            <div className="cnv-add-menu" role="menu" aria-label="Add" onKeyDown={onAddMenuKeyDown}>
+          {/* A press in it isn't the rail's (its swipe scrolls the rail, not
+              the menu, which a finger scrolls itself out here). */}
+          {addMenuOpen && createPortal(
+            <div className="cnv-add-menu" role="menu" aria-label="Add" ref={addPop.popRef} style={addPop.style}
+                 onKeyDown={onAddMenuKeyDown} onPointerDown={(e) => e.stopPropagation()}>
               {addGroups.map(group => (
                 <Fragment key={group.title}>
                   <div className="cnv-add-group-head" aria-hidden="true">{group.title}</div>
@@ -14011,7 +14022,6 @@ export function CanvasSurface({
                       // shape"), which also breaks getByRole('menuitem') lookups.
                       aria-label={item.label}
                       data-tip={item.tip}
-                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => {
                         setAddMenuOpen(false);
                         item.action();
@@ -14023,7 +14033,8 @@ export function CanvasSurface({
                   ))}
                 </Fragment>
               ))}
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
         <div className="cnv-tool-sep" />

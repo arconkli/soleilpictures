@@ -649,6 +649,13 @@
 @media (pointer: coarse) {
   .film--full .film-btn { min-width: 44px; height: 44px; }
   .film--full .ft-track { height: 44px; }
+  /* The rest of the review view, a finger's 40px each; the timecode's chip
+     keeps its look and reaches out for the finger. */
+  .frv-iconbtn, .ft-zoom-chip { min-width: 40px; height: 40px; }
+  .film-pill { height: 40px; }
+  .film-dock .film-tc, .film-dock .film-dur { height: 40px; line-height: 40px; }
+  .film-chip--btn { position: relative; }
+  .film-chip--btn::after { content: ''; position: absolute; inset: -11px -3px; }
 }
 @keyframes film-hud-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {

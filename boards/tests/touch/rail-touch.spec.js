@@ -85,6 +85,24 @@ test('held sideways, the rail keeps its tools a finger tall and scrolls under a 
   expect(await armed(page)).toEqual(['Select tool']);
 });
 
+// On a phone the rail scrolls, so it clips whatever hangs out of it: the menu
+// opened (the + lit up) and none of it could be seen or tapped. Each item must
+// be under the finger where it's drawn.
+test('the add menu opens beside the rail, whole, and a tap on an item takes it', async ({ page }) => {
+  await open(page);
+  await tool(page, 'Add menu').tap();
+  await expect(addMenu(page)).toBeVisible();
+  const missed = await addMenu(page).getByRole('menuitem').evaluateAll((els) => els.filter((el) => {
+    const r = el.getBoundingClientRect();
+    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !at || !el.contains(at);
+  }).map((el) => el.getAttribute('aria-label')));
+  expect(missed, 'items a finger can\'t reach').toEqual([]);
+  await addMenu(page).getByRole('menuitem', { name: 'Shape', exact: true }).tap();
+  await expect(addMenu(page)).toHaveCount(0);
+  await expect(page.locator('.tob[aria-label="Shape"]')).toBeVisible();
+});
+
 test('a tap outside the add menu closes it, a card\'s included', async ({ page, browserName }) => {
   needsHold(test, browserName);
   await open(page);

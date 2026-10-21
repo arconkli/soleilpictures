@@ -24,16 +24,19 @@ import { topModal } from '../lib/modalGuard.js';
 //   const { popRef, style } = useAnchoredPopover({ open, onClose, anchorRef, side: 'above' });
 //   {open && createPortal(<div ref={popRef} style={style}>…</div>, document.body)}
 //
-//   side       'below' | 'above': where it goes when it fits there
+//   side       'below' | 'above': where it goes when it fits there; 'right':
+//              beside it (a menu off the tool rail)
 //   align      'start' | 'end' | 'center': which part of the control it lines up with
 //   fitHeight  cap its height to the room it gets, for a list that scrolls
 //   matchWidth at least as wide as the control
+//   escape     false: Escape is the owner's (a menu whose keys hand the focus
+//              back to its button)
 const HIDDEN = { position: 'fixed', top: 0, left: 0, bottom: 'auto', right: 'auto', visibility: 'hidden' };
 // Measured at its own width before it's placed, whatever min-width its CSS
 // gives it (a fixed box's 100% is the whole window).
 const HIDDEN_OWN_WIDTH = { ...HIDDEN, minWidth: 0 };
 
-export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', align = 'start', gap = 6, pad = 8, fitHeight = false, matchWidth = false }) {
+export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', align = 'start', gap = 6, pad = 8, fitHeight = false, matchWidth = false, escape = true }) {
   const popRef = useRef(null);
   const [placed, setPlaced] = useState(null);
   const onCloseRef = useRef(onClose);
@@ -76,7 +79,7 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
   }, [open, anchorRef, side, align, gap, pad, fitHeight, matchWidth]);
 
   useLayoutEffect(() => {
-    if (!open) return undefined;
+    if (!open || !escape) return undefined;
     const layer = topModal();
     const onKey = (e) => {
       if (e.key !== 'Escape' || isComposingKey(e) || topModal() !== layer) return;
@@ -86,7 +89,7 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, close]);
+  }, [open, close, escape]);
 
   const style = placed
     ? {

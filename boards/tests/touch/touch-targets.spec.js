@@ -1,14 +1,17 @@
 // Every control a finger can see must be one a finger can take, on every touch
 // device: a hit area of at least 40px each way (measured the way a tap finds it,
 // as tests/touch/helpers.js hitBox does, all in one pass so a page that
-// re-renders as it settles can't lose a control between steps), text fields at 16px or more (smaller and iOS
-// zooms the page in on focus), and nothing tappable sitting invisible at rest.
+// re-renders as it settles can't lose a control between steps), text fields and
+// selects at 16px or more (smaller and iOS zooms the page in on focus), and
+// nothing tappable sitting invisible at rest.
 //
 // The pages are the dev-only harnesses that draw the new tools with no backend,
 // plus the local app's canvas and Files, some with a menu or a popover opened
-// first. A control is a button, a link, a field or a role, or anything else
-// with a pointer cursor (a breadcrumb, a zoom readout). A control that is small
-// on purpose goes in ALLOW with the reason; a failure prints every offender.
+// first, and every toolbar, opened the way a finger opens it. A control is a
+// button, a link, a field or a role, or anything else with a pointer cursor (a
+// breadcrumb, a zoom readout). A control that is small on purpose goes in
+// ALLOW (or its page's `allow`) with the reason; a failure prints every offender.
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 const tapOn = async (page, sel) => {
@@ -18,10 +21,66 @@ const tapOn = async (page, sel) => {
   return true;
 };
 
+// Two taps, the way a finger opens a note or a doc (lib/doubleTap).
+const twoTaps = async (page, sel) => {
+  const el = page.locator(sel).first();
+  await el.tap();
+  await page.waitForTimeout(90);
+  await el.tap();
+};
+
+// The local board's note, open for writing: its bar is up.
+async function editNote(page) {
+  await twoTaps(page, '.canvas-wrap .card[data-card-id="home-note"] .note');
+  await page.locator('.note-body[contenteditable="true"]').waitFor();
+  await page.locator('.tob').waitFor();
+  return true;
+}
+
+// A doc open over the ?docqa harness, with some words in it.
+async function openDoc(page) {
+  await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
+  await page.evaluate(() => window.__soleilDocTest.openCard());
+  await page.locator('.doc-card-modal .tt-editor').first().waitFor();
+  await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent(
+    '<h2>Sundown Highway</h2><p>A night drive across the desert, told in three long takes.</p>'));
+}
+
+// An arrow drawn across the middle of an empty board, then picked: its
+// popover is up.
+async function pickAnArrow(page) {
+  await page.keyboard.press('a');
+  const b = await page.locator('.canvas-wrap').boundingBox();
+  const from = { x: b.x + b.width * 0.3, y: b.y + b.height * 0.4 };
+  const to = { x: b.x + b.width * 0.7, y: b.y + b.height * 0.55 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(from.x + (to.x - from.x) * i / 8, from.y + (to.y - from.y) * i / 8);
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  await page.keyboard.press('v');
+  const hit = page.locator('.arrow-g > path').first();
+  const box = await hit.boundingBox();
+  await hit.dispatchEvent('pointerdown', {
+    button: 0, pointerId: 1, isPrimary: true,
+    clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
+  });
+  await page.mouse.up();
+  await page.locator('.arrow-popover').waitFor();
+}
+
+const CLIP = readFileSync(new URL('../fixtures/media/frames-vp9.mp4', import.meta.url)).toString('base64');
+
 // `open` runs once the page is ready: false skips the page on this device (its
 // way in isn't drawn here, e.g. the floating bar's ⋯ in the phone's drawer).
 // `scope`: what it opened, the only part judged (the page under it has its own
 // test, and an open menu half-covers whatever it hangs over).
+// `allow(width)`: this page's own ALLOW, for the screen's width.
+// `dense(width)`: the controls of a bar too dense to grow where it is: finger
+// sized, it no longer fits its row, and how it folds is the toolbar language's
+// to design (B2, overflow included). Their hit areas wait for it, and the test
+// names them as it passes; their text and their visibility are judged now.
 // Home with `drawer=0`: on a phone the harness opens the drawer over it, as
 // the menu button would.
 const PAGES = [
@@ -43,6 +102,17 @@ const PAGES = [
   { name: 'files page', url: '/?sidebarqa=1&surface=files&drawer=0', ready: '[data-sidebarqa-ready]' },
   { name: 'files page menu', url: '/?sidebarqa=1&surface=files&drawer=0', ready: '[data-sidebarqa-ready]',
     open: (page) => tapOn(page, '.fp-tools .sbf-filter-btn'), scope: '.sbf-menu' },
+  // Two files picked in the Files card: the bar of what to do with them.
+  { name: 'files picked', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
+    open: async (page) => {
+      const rows = page.locator('[data-sb-item^="film:film-img-"]');
+      if (!(await rows.first().isVisible())) return false;
+      await rows.nth(0).click({ modifiers: ['ControlOrMeta'] });
+      await rows.nth(1).click({ modifiers: ['ControlOrMeta'] });
+      // Under the files, where a short screen has scrolled it out of view.
+      await page.locator('.sbf-bulk').scrollIntoViewIfNeeded();
+      return true;
+    }, scope: '.sbf-bulk' },
   { name: 'import tray', url: '/?importqa=1', ready: '#root[data-importqa-ready]' },
   { name: 'import guide', url: '/?importqa=1&guide=1', ready: '#root[data-importqa-ready]' },
   { name: 'import ask', url: '/?importqa=1&dialog=free', ready: '#root[data-importqa-ready]' },
@@ -54,6 +124,173 @@ const PAGES = [
       await page.locator('.list-wrap .ct-tile').first().waitFor();
       return true;
     } },
+  { name: 'files picked in the list', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      await page.locator('.view-pill--primary .view-pill-btn').nth(1).tap();
+      const tiles = page.locator('.list-wrap .ct-tile');
+      await tiles.nth(1).waitFor();
+      await tiles.nth(0).click({ modifiers: ['ControlOrMeta'] });
+      await tiles.nth(1).click({ modifiers: ['ControlOrMeta'] });
+      await page.locator('.list-selbar').waitFor();
+      return true;
+    }, scope: '.list-selbar' },
+
+  // ── The canvas's bars ──
+  { name: 'add menu', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: (page) => tapOn(page, '.cnv-tools [aria-label="Add menu"]'), scope: '.cnv-add-menu' },
+  { name: 'a card picked', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      await page.locator('.canvas-wrap .card[data-card-id="home-note"]').tap();
+      await page.locator('.sel-menu > .card-menu-btn').waitFor();
+      return true;
+    }, scope: '.sel-menu' },
+  { name: 'card menu', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      await page.locator('.canvas-wrap .card[data-card-id="home-note"]').tap();
+      await page.locator('.sel-menu > .card-menu-btn').tap();
+      await page.locator('.ctx-menu').waitFor();
+      return true;
+    }, scope: '.ctx-menu' },
+  { name: 'note bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: (page) => editNote(page), scope: '.tob',
+    dense: (w) => (w > 640 ? '.tob-btn, .size-combo, .size-combo-arrow' : null) },
+  { name: 'note colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      await editNote(page);
+      await page.locator('.tob').getByRole('button', { name: 'Text color' }).tap();
+      await page.locator('.tob-pop').waitFor();
+      return true;
+    }, scope: '.tob-pop' },
+  { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
+      await page.locator('.tob').waitFor();
+      return true;
+    }, scope: '.tob' },
+  { name: 'shape bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      await tapOn(page, '.cnv-tools [aria-label="Add menu"]');
+      await page.locator('.cnv-add-menu [role="menuitem"][aria-label="Shape"]').tap();
+      await page.locator('.tob').waitFor();
+      return true;
+    }, scope: '.tob' },
+  { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
+      await page.locator('.tob').waitFor();
+      return true;
+    }, scope: '.tob' },
+  { name: 'an arrow picked', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
+    open: async (page) => { await pickAnArrow(page); return true; }, scope: '.arrow-popover',
+    dense: () => '.arrow-popover button, .arrow-popover input' },
+  { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
+    open: async (page) => {
+      await pickAnArrow(page);
+      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await page.locator('.tob[aria-label="Line"]').waitFor();
+      return true;
+    }, scope: '.tob' },
+  { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
+      await page.locator('.tob').getByRole('button', { name: 'Open a fullscreen drawing canvas' }).tap();
+      await page.locator('.sketchpad-frame').waitFor();
+      return true;
+    }, scope: '.sketchpad-frame' },
+  { name: 'review player', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      await page.evaluate((data) => {
+        const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
+        window.__soleilVideoLive.addVideo({ id: 'vid-1', src: url, fileName: 'frames.mp4', x: 700, y: 500, w: 480, h: 270,
+          media: { fps: [24, 1], frames: 48, dur: 2, w: 64, h: 36, probed: 1 } });
+      }, CLIP);
+      // The card's own bar shows on a hover, or not at all on a phone's card,
+      // a few pixels wide at the board's zoom: its button is pressed directly.
+      const review = page.locator('[data-card-id="vid-1"] button[aria-label="Open in the review player"]');
+      await review.waitFor({ state: 'attached' });
+      await review.dispatchEvent('click');
+      await page.locator('.frv .film-dock').waitFor();
+      return true;
+    }, scope: '.frv' },
+
+  // ── A doc's bars ──
+  { name: 'doc toolbar', url: '/?docqa=1', ready: '#root',
+    open: async (page) => { await openDoc(page); return true; }, scope: '.doc-card-modal .doc-tb' },
+  { name: 'screenplay toolbar', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').tap();
+      await page.locator('.doc-paper.is-screenplay .ProseMirror').waitFor();
+      return true;
+    }, scope: '.doc-card-modal .doc-tb' },
+  { name: 'doc insert menu', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .doc-tb [aria-label="Insert a block"]').tap();
+      await page.locator('.doc-insert-menu').waitFor();
+      return true;
+    }, scope: '.doc-insert-menu' },
+  { name: 'doc export menu', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .doc-tb [aria-label="Export"]').tap();
+      await page.locator('.doc-export-menu').waitFor();
+      return true;
+    }, scope: '.doc-export-menu' },
+  { name: 'doc size presets', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .doc-tb .size-combo-arrow').tap();
+      await page.locator('.size-combo-pop').waitFor();
+      return true;
+    }, scope: '.size-combo-pop' },
+  { name: 'doc find', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: 'Find', exact: true }).tap();
+      await page.locator('.doc-find').waitFor();
+      return true;
+    }, scope: '.doc-find' },
+  // Docked beside the board: the bar's narrow form.
+  { name: 'docked doc toolbar', url: '/?docqa=1&panes=1', ready: '[data-docqa-panes-ready]',
+    open: async (page) => {
+      const dock = page.locator('[data-docqa-card="doc-a"] .doc-card').getByRole('button', { name: 'Open beside' });
+      if (!(await dock.count())) return false;
+      await dock.dispatchEvent('click');
+      await page.locator('[data-doc-pane="split"] .doc-tb').waitFor();
+      return true;
+    }, scope: '[data-doc-pane="split"] .doc-tb' },
+  { name: 'doc colours', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .doc-tb .doc-tb-colorwrap > button').first().tap();
+      await page.locator('.doc-tb-colorpop').waitFor();
+      return true;
+    }, scope: '.doc-tb-colorpop' },
+  { name: 'doc fonts', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: /^Font(: .+)?$/ }).tap();
+      await page.locator('.font-pop').waitFor();
+      return true;
+    }, scope: '.font-pop' },
+  { name: 'doc selection', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().selectAll().run());
+      await page.locator('.doc-bubble').waitFor();
+      return true;
+    }, scope: '.doc-bubble' },
+  { name: 'doc image', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      await openDoc(page);
+      await page.evaluate(() => window.__soleilDocTest.editor.chain().focus('end')
+        .setImage({ src: '/src/local/qa-photos/street.jpg' }).run());
+      await page.locator('.doc-card-modal .ProseMirror img').first().tap();
+      await page.locator('.tt-img-wrap.is-selected .tt-img-tb').waitFor();
+      return true;
+    }, scope: '.tt-img-tb' },
 ];
 
 // selector → why it may be smaller than a finger.
@@ -70,8 +307,8 @@ const ALLOW = {
   '.msg-panel, .msg-panel *': 'Messages UI (handed to its own session)',
 };
 
-async function audit(page, scope = null) {
-  return page.evaluate(([allow, scope]) => {
+async function audit(page, allow, scope = null, dense = null) {
+  return page.evaluate(([allow, scope, dense]) => {
     const out = [];
     const SEL = 'button, [role=button], a[href], input:not([type=hidden]), select, textarea, [role=menuitem], [role=tab], [role=option], [role=switch], [role=checkbox], [contenteditable=true]';
     const allowed = (el) => Object.keys(allow).some((s) => { try { return el.matches(s); } catch (_) { return false; } });
@@ -109,13 +346,23 @@ async function audit(page, scope = null) {
     };
     // helpers.js hitBox: walk out from the centre while a tap there still lands
     // on the control. Covered at its centre: under a menu or a sheet right now.
+    // WebKit on a Mac hit-tests a scroller's overlay scrollbar along its right
+    // and bottom edges; a finger on iOS taps through a scroll indicator. A
+    // point inside the control that lands there is the control's.
+    const overlayBar = (at, el, r, x, y) => {
+      if (!at.contains(el) || x < r.left || x >= r.right || y < r.top || y >= r.bottom) return false;
+      const o = getComputedStyle(at);
+      if (!/auto|scroll/.test(o.overflowX + o.overflowY)) return false;
+      const b = at.getBoundingClientRect();
+      return x >= b.right - 16 || y >= b.bottom - 16;
+    };
     const hitOf = (el, r) => {
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
       const hits = (x, y) => {
         if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return false;
         const at = document.elementFromPoint(x, y);
-        return !!at && (at === el || el.contains(at));
+        return !!at && (at === el || el.contains(at) || overlayBar(at, el, r, x, y));
       };
       if (!hits(cx, cy)) return { covered: true };
       const run = (dx, dy) => {
@@ -134,11 +381,12 @@ async function audit(page, scope = null) {
       const r = el.getBoundingClientRect();
       if (r.width < 1 || r.height < 1 || r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) continue;
       if (allowed(el) || scrolledOut(el, r)) continue;
-      const field = el.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]), textarea, [contenteditable=true]');
-      out.push({ name: name(el), field, fontSize: parseFloat(cs.fontSize), opacity: opacityOf(el), box: hitOf(el, r) });
+      const field = el.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]), textarea, select, [contenteditable=true]');
+      out.push({ name: name(el), field, fontSize: parseFloat(cs.fontSize), opacity: opacityOf(el), box: hitOf(el, r),
+        dense: !!dense && el.matches(dense) });
     }
     return out;
-  }, [ALLOW, scope]);
+  }, [allow, scope, dense]);
 }
 
 for (const p of PAGES) {
@@ -163,9 +411,11 @@ for (const p of PAGES) {
       test.skip(!shown, `${p.name} isn't reached this way on this device`);
       await page.waitForTimeout(500);
     }
-    const found = await audit(page, p.scope);
+    const width = page.viewportSize().width;
+    const found = await audit(page, { ...ALLOW, ...p.allow?.(width) }, p.scope, p.dense?.(width));
     if (p.scope) expect(found.length, `${p.name}: nothing to judge in ${p.scope}`).toBeGreaterThan(0);
     const bad = [];
+    const waiting = [];
     for (const c of found) {
       if (c.opacity < 0.05) { bad.push(`${c.name}: invisible at rest (opacity ${c.opacity.toFixed(2)})`); continue; }
       if (c.field && c.fontSize < 16) bad.push(`${c.name}: field text ${c.fontSize}px (iOS zooms below 16)`);
@@ -173,7 +423,12 @@ for (const p of PAGES) {
       if (box.covered) continue;  // under something else right now (a menu, a sheet): not reachable to judge
       // A pixel of slack: a 40px control flush with the screen's edge, or on a
       // half-pixel, measures 39.
-      if (Math.min(box.w, box.h) < 39) bad.push(`${c.name}: hit area ${box.w}×${box.h}`);
+      if (Math.min(box.w, box.h) >= 39) continue;
+      if (c.dense) waiting.push(`${c.name} ${box.w}×${box.h}`);
+      else bad.push(`${c.name}: hit area ${box.w}×${box.h}`);
+    }
+    if (waiting.length) {
+      test.info().annotations.push({ type: 'dense bar, sized in B2', description: waiting.join('; ') });
     }
     expect(bad, `${p.name} — controls a finger can't take:\n  ${bad.join('\n  ')}`).toEqual([]);
   });

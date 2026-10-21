@@ -74,6 +74,26 @@ test('a long list is capped to the room it gets, and to 70% of the window', () =
   assert.equal(r.maxHeight, 800 - 228 - 6 - 8);
 });
 
+test('beside its button, for a menu off the tool rail, kept on screen down the window', () => {
+  // The rail's + at the window's left edge: its menu hangs to the right, its
+  // top on the button's.
+  const plus = rect(19, 300, 30, 30);
+  assert.deepEqual(placeAnchored(plus, { width: 184, height: 420 }, VP, { side: 'right', gap: 8 }),
+    { top: 300, left: 57, side: 'right', maxHeight: null });
+  // Low in a short window: pulled up until its foot is 8px off the edge.
+  const low = placeAnchored(rect(15, 600, 40, 40), { width: 184, height: 400 }, VP, { side: 'right', gap: 8 });
+  assert.equal(low.top, 800 - 400 - 8);
+  assert.equal(low.left, 63);
+  // Taller than the window (a phone held sideways): as tall as the window
+  // lets it be, from the top, and it scrolls.
+  const sideways = { width: 851, height: 393 };
+  const p = placeAnchored(rect(15, 64, 40, 40), { width: 184, height: 420 }, sideways, { side: 'right', gap: 8, fitHeight: true });
+  assert.deepEqual(p, { top: 8, left: 63, side: 'right', maxHeight: 393 - 16 });
+  // Short enough: its own height, on the button.
+  const q = placeAnchored(rect(15, 64, 40, 40), { width: 184, height: 300 }, sideways, { side: 'right', gap: 8, fitHeight: true });
+  assert.deepEqual(q, { top: 64, left: 63, side: 'right', maxHeight: 393 - 16 });
+});
+
 test('the gap and the margin can be set', () => {
   const p = placeAnchored(rect(100, 100, 40, 24), { width: 200, height: 150 }, VP, { gap: 4, pad: 12 });
   assert.equal(p.top, 128);

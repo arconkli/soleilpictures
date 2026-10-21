@@ -832,8 +832,8 @@ body.sbf-sizing .app,
   .sbf-note { height: 44px; line-height: 44px; font-size: 14px; }
   .sbf-note.is-empty { height: 52px; }
   .sbf-shelf-open { display: none; }
-  .sbf-bulk-btn { height: 36px; padding: 0 12px; font-size: 13px; }
-  .sbf-bulk-btn.is-clear { width: 36px; }
+  .sbf-bulk-btn { height: 40px; padding: 0 12px; font-size: 13px; }
+  .sbf-bulk-btn.is-clear { width: 40px; }
   .sbf-meter-line { height: 48px; }
   .sbf-meter-text { font-size: 13px; }
   .sbf-upload { height: 36px; padding: 0 14px 0 12px; font-size: 14px; }

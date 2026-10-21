@@ -3900,6 +3900,11 @@ body {
   outline: none;
 }
 .ap-label-input:focus { border-color: var(--line-2); }
+/* Under 16px, iOS zooms the page in on focus. (The popover's buttons wait for
+   the toolbar language: finger-sized, they no longer fit it.) */
+@media (pointer: coarse) {
+  .ap-label-input { font-size: 16px; height: 28px; }
+}
 
 .ap-delete { color: var(--ink-3); }
 .ap-delete:hover { color: #ef4444 !important; background: rgba(239,68,68,.12) !important; }
@@ -4068,12 +4073,11 @@ body {
 }
 .cnv-tool-sep { height: 1px; background: var(--line-1); margin: 3px 4px; }
 .cnv-add-wrap { position: relative; }
-/* The open menu must paint ABOVE the rail tooltips (.cnv-tool[data-tip]::after is
-   z-index 60) — without this it has no z-index (0) and hides under them. */
+/* Hung beside the rail's + from <body> (CanvasSurface's useAnchoredPopover sets
+   its fixed top and left): inside the rail, a phone's rail, which scrolls,
+   clipped it. On the layer of the canvas's other menus (.ctx-menu), over the
+   rail's tips and a phone's bottom nav. */
 .cnv-add-menu {
-  position: absolute;
-  left: 38px;
-  top: 0;
   width: 184px;
   padding: 5px;
   border: 1px solid var(--line-2);
@@ -4086,7 +4090,7 @@ body {
   /* visible (not hidden) so the per-item hover tips can float to the right;
      the grain ::after self-clips via border-radius:inherit and sits at z-index:-1. */
   overflow: visible;
-  z-index: 70;
+  z-index: 2147483600;
 }
 /* While the + menu is open, don't also float the button's own "Add" tooltip over it. */
 .cnv-add-wrap .cnv-tool.active[data-tip]::after { display: none; }
@@ -4159,6 +4163,10 @@ body {
 }
 @media (hover: none) and (pointer: coarse) {
   .cnv-add-menu button[data-tip]::after { display: none; }
+  /* A finger's rows; and with no tips to float out of it, the menu scrolls
+     in a short window (a phone held sideways), which CanvasSurface caps it to. */
+  .cnv-add-menu { overflow-y: auto; overscroll-behavior: contain; }
+  .cnv-add-menu button { min-height: 40px; }
 }
 
 /* (.view-switch superseded by .view-pill in the topbar block) */
@@ -10452,18 +10460,22 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
    44px this app already holds itself to elsewhere (.ctx-item is 40px, the
    resize handles bump on coarse pointers). Drawing is the one tool people
    reach for MOST on a tablet, so its controls were the worst-sized in the app.
-   The ::after expands the hit box only as far as the gap allows, so neighbours
-   never overlap and a near-miss lands on nothing rather than on the wrong
-   colour. */
+   The ::after takes a swatch to 40px, half the gap a side (it hangs off the
+   30px inside the border), so neighbours meet and never overlap: a press
+   between two lands on the nearer colour. */
 @media (pointer: coarse) {
   .tob-swatches { gap: 8px; }
   .tob-sw { width: 32px; height: 32px; border-radius: 6px; position: relative; }
-  .tob-sw::after { content: ''; position: absolute; inset: -4px; }
+  .tob-sw::after { content: ''; position: absolute; inset: -5px; }
   .tob-sw:hover { transform: none; } /* no hover on touch — it just sticks */
   .tob-thickness { gap: 8px; }
   .tob-thick { width: 48px; height: 40px; }
   .tob-action, .tob-segmented button { min-height: 40px; }
-  .tob-icon-btn { min-width: 40px; }
+  .tob-action, .tob-icon-btn { min-width: 40px; }
+  /* The shape and line bars' fields, a finger tall; and text at 16px, under
+     which iOS zooms the page in on focus (the note bar's size field too). */
+  .tob-select, .tob-numinput { min-height: 40px; }
+  .tob-select, .tob-numinput, .size-combo { font-size: 16px; }
 }
 
 .tob-pop-wrap { position: relative; display: inline-block; }
@@ -10479,6 +10491,11 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
   border-radius: 6px;
   box-shadow: var(--shadow-1);
   z-index: 100;
+}
+/* A finger's swatches are 32px (above): columns to match, or each one lay
+   over half of the next. */
+@media (pointer: coarse) {
+  .tob-pop { grid-template-columns: repeat(8, 32px); gap: 8px; }
 }
 
 /* Mobile: the default bar is `max-width: calc(100% - 360px)`, which collapses
@@ -10506,8 +10523,12 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
     padding: 6px 8px;
   }
   .tob::-webkit-scrollbar { display: none; }
-  .tob-btn, .tob-action, .tob-icon-btn, .tob-thick { min-width: 38px; min-height: 38px; }
+  .tob-btn, .tob-action, .tob-icon-btn, .tob-thick { min-width: 40px; min-height: 40px; }
   .tob-sep { flex: 0 0 auto; }
+  /* The size field and its presets' chevron, a finger's each: the chevron
+     takes the field's right end, which grows to hold it. */
+  .tob .size-combo { width: 84px; height: 40px; padding-right: 40px; }
+  .tob .size-combo-arrow { right: 0; width: 40px; height: 40px; }
 }
 
 /* iPad-landscape (touch but wider than a phone): the note toolbar stays the
@@ -13740,6 +13761,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   color: var(--ink-2); font-size: 12px; line-height: 1;
   display: grid; place-items: center;
 }
+/* On touch, the doc toolbar's swatches: 32px drawn, 40 to a finger, half the
+   gap a side. */
+@media (hover: none) and (pointer: coarse) {
+  .doc-tb-colorpop { grid-template-columns: repeat(8, 32px); gap: 8px; }
+  .doc-tb-sw { width: 32px; height: 32px; position: relative; }
+  .doc-tb-sw::after { content: ''; position: absolute; inset: -5px; }
+  .doc-tb-sw:hover { transform: none; }
+}
 
 /* ── Paper / editor — letter-sized region, no visible card ──────────────
    Editor occupies an 8.5×11" region (816×1056px at 96dpi) so the
@@ -14749,6 +14778,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-sep { display: none; }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-x { grid-row: 1; grid-column: 6; }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-input--replace { grid-row: 2; grid-column: 1; }
+/* A finger's 40px; and the fields' text at 16px wherever a finger types, not
+   only on a phone (under it, iOS zooms the page in on focus). */
+@media (hover: none) and (pointer: coarse) {
+  .doc-find-input { height: 40px; font-size: 16px; }
+  .doc-find-btn, .doc-find-x { min-width: 40px; height: 40px; }
+}
 .doc-find-hit {
   background: var(--soleil-soft);
   border-bottom: 1px solid var(--soleil);
@@ -15013,6 +15048,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   font-family: var(--font-sans); font-size: 13px;
 }
 .tt-img-tb-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+@media (pointer: coarse) {
+  .tt-img-tb-btn { width: 40px; height: 40px; }
+}
 .tt-img-tb-sep { width: 1px; height: 14px; background: var(--line-2); margin: 0 3px; }
 
 /* ─────── Comment marks + panel ─────── */
@@ -20128,7 +20166,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   .sp-width { width: 48px; height: 44px; }
   .sp-action { min-height: 44px; padding: 10px 16px; }
   .sp-x { width: 44px; height: 44px; }
-  .sp-aspect { padding: 8px 10px; }
+  .sp-aspect { padding: 8px 10px; min-width: 40px; }
   .sp-aspect-box { width: 38px; }
 }
 
@@ -21752,9 +21790,21 @@ button, [role="button"], a {
   /* Doc editor toolbar — 28px buttons → 40px so the user can hit
      bold/italic/list/etc. with a finger without misfires. */
   .doc-tb-btn { width: 40px; height: 40px; }
-  .doc-tb-zoom .doc-tb-btn { width: 40px; height: 36px; }
-  /* Labeled pills (font picker, screenplay toggle) grow to match. */
-  .doc-tb-pill { height: 40px; }
+  .doc-tb-zoom .doc-tb-btn { width: 40px; height: 40px; }
+  /* Labeled pills (font picker, screenplay toggle) grow to match, and so do
+     the selects and the size field, whose presets' chevron takes the field's
+     right end (the field grows to hold it). The selects' text is 16px, as the
+     field's is, or iOS zooms the page in on focus, and the pills' labels match
+     them, so the bar reads as one size. The selects and the font pill widen to
+     hold their longest at that size ("Heading 6", "Scene Heading"; a font's
+     name still ends in … where it did). */
+  .doc-tb-pill, .doc-tb-select { height: 40px; }
+  .doc-tb .doc-tb-pill, .doc-tb-select { font-size: 16px; }
+  .doc-tb .doc-tb-pill { width: 140px; min-width: 140px; max-width: 140px; }
+  .doc-tb-select { width: 110px; min-width: 110px; }
+  .doc-tb-select.doc-tb-select--sp { width: 146px; min-width: 146px; }
+  .doc-tb .size-combo { width: 88px; height: 40px; padding-right: 40px; }
+  .doc-tb .size-combo-arrow { right: 0; width: 40px; height: 40px; }
 
   /* Messages: a message's actions are a press and hold away under a finger
      (MessageActionSheet), so the hover chip, which a tap only flashed, stays
@@ -21811,6 +21861,9 @@ button, [role="button"], a {
      fat-fingered. */
   .ctx-item { min-height: 40px; }
   .ent-pop-foot-btn { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+  /* The toolbars' lists: Export's rows, the fonts (the note bar's too) and
+     the size presets. */
+  .doc-export-menu button, .font-pop-row, .size-combo-item { min-height: 40px; }
 
   /* The selection's "⋯" options button is touch-only: on a real mouse the
      card context menu opens via right-click, so it stays hidden there. 36px
@@ -22621,6 +22674,18 @@ button, [role="button"], a {
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-pages-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
+/* …which it does here, for the whole docked bar: tightened for a mouse, it
+   kept a mouse's 26px under a finger too. It scrolls sideways either way. */
+@media (hover: none) and (pointer: coarse) {
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb { height: 40px; }
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-btn { width: 40px; height: 40px; }
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-select { max-width: none; font-size: 16px; }
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-select,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-screenplay-toggle,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-pages-toggle,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 40px; font-size: 16px; }
+}
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line-2); }
 
 /* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */
@@ -22740,14 +22805,15 @@ button, [role="button"], a {
    format button keeps showing it's on. */
 .doc-tb-btn.is-active:focus-visible { box-shadow: var(--shadow-glow), inset 0 -2px 0 0 var(--soleil); }
 
-/* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu). */
+/* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu): a
+   finger's 40px a button. */
 .doc-bubble {
   display: flex; gap: 2px; padding: 4px;
   background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
 }
 .doc-bubble button {
-  min-width: 36px; height: 36px; padding: 0 8px;
+  min-width: 40px; height: 40px; padding: 0 8px;
   border: 0; border-radius: 7px; background: transparent;
   color: var(--ink-1); font-size: 15px; cursor: pointer;
 }

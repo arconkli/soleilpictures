@@ -1,18 +1,20 @@
 // Empty-board panel refinement + add-menu stacking fix (CSS-only).
-//  - The "+" add menu must paint ABOVE the rail tooltips (z-index 70 > 60).
+//  - The "+" add menu must paint ABOVE the rail tooltips (z-index 60): it hangs
+//    from <body> now, out of the rail (which clipped it on a phone), over it.
 //  - The empty-board capability tiles must lay out as a balanced grid (no
 //    5-in-row-1 + 1-orphan), i.e. 2 rows of 3.
 //  - The redundant breadth subline is hidden for a minimal, simple panel.
 import { expect, test } from '@playwright/test';
 
 test.describe('empty-board panel + add-menu', () => {
-  test('the + add menu stacks above the rail tooltips (z-index 70)', async ({ page }) => {
+  test('the + add menu stacks above the rail tooltips', async ({ page }) => {
     await page.goto('/?local=1&reset=1');
     await expect(page.locator('.cnv-tools')).toBeVisible();
     await page.locator('.cnv-add-wrap').getByRole('button', { name: 'Add menu', exact: true }).click();
     const menu = page.locator('.cnv-add-menu');
     await expect(menu).toBeVisible();
-    expect(await menu.evaluate((el) => getComputedStyle(el).zIndex)).toBe('70');
+    expect(await menu.evaluate((el) => el.parentElement === document.body && !el.closest('.cnv-tools'))).toBe(true);
+    expect(Number(await menu.evaluate((el) => getComputedStyle(el).zIndex))).toBeGreaterThan(60);
   });
 
   test('the capability tiles form a balanced 2×3 grid (no orphan row)', async ({ page }) => {
