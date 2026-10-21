@@ -136,6 +136,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   const [plan, setPlan]   = useState(initialPlan === 'annual' ? 'annual' : 'monthly');
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
+  const downOnBackdropRef = useRef(false);   // the press that began on the backdrop itself
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
   // Back from Stripe restores the page mid-redirect: busy CTA, abandon muted.
   useBfcacheRestore(() => { setBusy(false); redirectingRef.current = false; });
@@ -278,7 +279,17 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   }, []);
 
   return createPortal(
-    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose('backdrop'); }}>
+    <div
+      className="upgrade-backdrop"
+      onPointerDown={(e) => { downOnBackdropRef.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        // A click whose press began somewhere else (the tap that opened the
+        // wall) is not a dismissal.
+        const pressedHere = downOnBackdropRef.current;
+        downOnBackdropRef.current = false;
+        if (e.target === e.currentTarget && pressedHere) handleClose('backdrop');
+      }}
+    >
       <div className="upgrade-modal" ref={modalRef}>
         <button className="upgrade-close" onClick={() => handleClose('x')} aria-label="Close">×</button>
 

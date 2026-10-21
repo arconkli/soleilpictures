@@ -437,3 +437,19 @@ test('a waitlist user with no application is offered a path forward', async ({ p
   await expect(page.getByText('Pick a path to continue.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'See Pricing →' })).toBeVisible();
 });
+
+test('a click whose press did not begin on the backdrop does not close the screen', async ({ page }) => {
+  // On a phone the tap that opens the wall can land its click on the backdrop
+  // that has just appeared under the finger. Only a press that began there is
+  // a dismissal.
+  await page.goto('/?local=1&reset=1&tier=demo&cards=42&limit=50');
+  await page.locator('.upgrade-chip').click();
+  const modal = page.locator('.upgrade-modal');
+  await expect(modal).toBeVisible();
+
+  await page.locator('.upgrade-backdrop').dispatchEvent('click');
+  await expect(modal).toBeVisible();
+
+  await page.mouse.click(5, 5);
+  await expect(modal).toBeHidden();
+});
