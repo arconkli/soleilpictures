@@ -220,6 +220,7 @@ import { todayISO } from './lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed } from './lib/appHost.js';
 import { getSetupOutcome } from './lib/setupGate.js';
 import { workToFirstBoardKind } from './lib/workspaceSetup.js';
+import { WHATS_NEW_KEY, predatesFilesSidebar } from './lib/whatsNew.js';
 import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
@@ -292,6 +293,7 @@ const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.js
 // and where a link joiner landed. Mounted only where the setup runs
 // (appHost.js workspaceSetupAllowed), so nobody else downloads it.
 const SetupInWorkspace = lazyWithReload(() => import('./components/setup/SetupInWorkspace.jsx'));
+const WhatsNewHint = lazyWithReload(() => import('./components/whatsNew/WhatsNewHint.jsx'));
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
@@ -11580,6 +11582,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             currentBoardId={currentId} rootBoardId={rootBoard.id}
             boardsReady={boardsReady}
             loadPhotos={loadClusterPhotos}
+          />
+        </Suspense>
+      )}
+
+      {/* The one-time "New" hint on the Files card, for accounts from before
+          the files sidebar (components/whatsNew); newer ones get the setup's
+          tips above instead. It waits for the tour, dialogs and other hints
+          on its own, and keeps its own record. */}
+      {filesSidebar && user?.id && predatesFilesSidebar(user.created_at) && (
+        <Suspense fallback={null}>
+          <WhatsNewHint
+            userId={user.id} createdAt={user.created_at}
+            record={mySettings?.[WHATS_NEW_KEY]} settingsLoaded={mySettingsLoaded}
+            phone={mobileShell}
+            save={(rec) => updateOwnSettings({ [WHATS_NEW_KEY]: rec })}
           />
         </Suspense>
       )}

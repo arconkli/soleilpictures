@@ -47,6 +47,8 @@ import { HomeGraph } from '../components/HomeGraph.jsx';
 import { GraphFixtureContext } from '../lib/graphFixture.js';
 import { graphFromRows } from '../lib/graphData.js';
 import { SELF, PEOPLE, PEERS, messagesFixture, HOME_COVERS, HOME_PHOTOS } from './sidebarQaFixtures.js';
+import WhatsNewHint from '../components/whatsNew/WhatsNewHint.jsx';
+import { whatsNewFlagKey } from '../lib/whatsNew.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -244,6 +246,15 @@ const QA_STYLE = `
 const SURFACE = ['home', 'files'].includes(QS.get('surface')) ? QS.get('surface') : 'board';
 const MSG_QA = QS.has('messages');
 const WHO = QS.get('who') || 'here';
+// &whatsnew=1: the one-time "New" hint on the Files card, as an account from
+// before the files sidebar gets it, a moment after the page opens. Its record
+// goes to the log ("whatsnew <action>") instead of a profile. This device's
+// mark is cleared first, so every load shows it; &whatsnew=again keeps it, to
+// see that it doesn't come back.
+const WHATS_NEW_QA = QS.has('whatsnew');
+if (WHATS_NEW_QA && QS.get('whatsnew') !== 'again') {
+  try { localStorage.removeItem(whatsNewFlagKey(SELF.id)); } catch (_) { /* nothing kept */ }
+}
 // The mobile shell shows the drawer open unless &drawer=0 asks for what's under
 // it. The Files page starts with it shut, as App leaves it after ⤢ (&drawer=1
 // opens it over the page).
@@ -874,6 +885,10 @@ export function SidebarQaHarness() {
           onOpenCluster={(id) => setActive(id)}
         />
       </FeedbackProvider>
+      {WHATS_NEW_QA && (
+        <WhatsNewHint userId={SELF.id} createdAt="2026-06-01T00:00:00Z" record={null} settingsLoaded
+          phone={mobileShell} save={(rec) => say(`whatsnew ${rec.action}`)} />
+      )}
     </div>
     {msgsOpen && createPortal((
       <FeedbackProvider>

@@ -269,5 +269,18 @@ __resetUpsellSlot();
 assert(claimUpsellSlot('resume', T, 'v2'), 'greeted');
 assert(claimUpsellSlot('cap-hit', T + 1_000, 'v2'), 'and the wall still always shows');
 
+// The What's-new hint on the Files card tells rather than asks: it holds the
+// minute without spending the visit, as the greeting does.
+__resetUpsellSlot();
+assert(claimUpsellSlot('whats-new', T, 'v3'), 'what changed is shown');
+assertEq(claimUpsellSlot('power-reveal', T + 5_000, 'v3'), false, 'and no ambient ask lands on that minute');
+assert(claimUpsellSlot('power-reveal', W, 'v3'), 'after it, the visit still has its one ambient ask');
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, 'v3'), 'an ask holds the minute');
+assertEq(claimUpsellSlot('whats-new', T + 5_000, 'v3'), false, 'so the hint waits for a minute of its own');
+__resetUpsellSlot();
+assert(claimUpsellSlot('whats-new', T, 'v3'), 'shown');
+assert(claimUpsellSlot('cap-hit', T + 1_000, 'v3'), 'and the wall still always shows');
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
