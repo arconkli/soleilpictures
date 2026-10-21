@@ -61,6 +61,7 @@ import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolle
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { bootMark, bootAt, bootDetail, onBootMark } from './lib/bootMarks.js';
 import { conversationKind } from './lib/messageEvents.js';
 import { isDefaultClusterName } from './lib/hints.js';
 import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
@@ -581,9 +582,13 @@ export function App() {
 
 // Whether this page load's app_open has said how long the app took (boot_ms).
 let appOpenTimed = false;
+// Whether this page load's board_ready has gone out: once, for the board the
+// load landed on. A board opened later by a click is not a boot.
+let boardReadySent = false;
 
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
   perf.usePerfRenderTime('Workspace');
+  bootMark('workspace');
   const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
@@ -1361,6 +1366,43 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     () => (yb.ready && yb.boardId === currentBoard.id ? filesCountOf(yb.cards) : 0),
     [yb.ready, yb.boardId, yb.cards, currentBoard.id]
   );
+
+  // Boot timing (lib/bootMarks.js): the board this load landed on has painted.
+  // board_ready says when, from what (this device's draft or cache, or the
+  // server) and with how many cards, then when the first picture arrived, so a
+  // slow open in the field names the step it was slow in. The landed board, not
+  // whatever is current: while the board list loads, a reload into a
+  // sub-cluster paints the root first, and that paint is not the one anybody
+  // was waiting for.
+  const landedBoardRef = useRef(stack[stack.length - 1] || rootBoard.id);
+  useEffect(() => {
+    if (boardReadySent) return;
+    // A landed board that no longer exists is pruned from the stack; then the
+    // board shown in its place is the one this load landed on.
+    if (!stack.includes(landedBoardRef.current)) landedBoardRef.current = stack[stack.length - 1];
+    if (!yb.ready || yb.boardId !== landedBoardRef.current) return;
+    boardReadySent = true;
+    const cards = yb.cards || [];
+    const source = yb.paintSource || null;
+    bootMark('paint', { source, cards: cards.length });
+    const ms = bootAt('paint');
+    let sent = false;
+    const send = () => {
+      if (sent) return;
+      sent = true;
+      const image = bootDetail('image');
+      logEvent(EV.BOARD_READY, {
+        ms, source, cards: cards.length,
+        first_image_ms: bootAt('image'), image_tier: image?.tier ?? null, image_meta: image?.meta ?? null,
+        refreshed: bootDetail('session')?.refreshed ?? null, shell_cached: bootDetail('shell')?.cached ?? null,
+      });
+    };
+    // A board with no pictures is ready at its paint. One with pictures waits
+    // for the first, up to 15 s; past that the picture is reported as missing.
+    if (!cards.some((c) => c.kind === 'image')) { send(); return; }
+    onBootMark('image', send);
+    setTimeout(send, 15_000);
+  }, [yb.ready, yb.boardId, yb.cards, yb.paintSource, stack]);
 
   // Avatar-click → open DM with a workspace member. Exposed via context.
   const [pendingDmPeerId, setPendingDmPeerId] = useState(null);
@@ -7078,14 +7120,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // How long the app took to be ready, from the navigation: the first mount
     // of a page load only, as a workspace switch mounts again long after.
     let bootMs = null;
+    // Where the boot spent that time (lib/bootMarks.js), on the same first mount.
+    let boot = {};
     if (!appOpenTimed) {
       appOpenTimed = true;
       const t = performance.now();
       if (Number.isFinite(t) && t > 0 && t < 600_000) bootMs = Math.round(t);
+      boot = {
+        t_session: bootAt('session'), t_shell: bootAt('shell'), t_tier: bootAt('tier'), t_ws: bootAt('workspace'),
+        shell_cached: bootDetail('shell')?.cached ?? null, refreshed: bootDetail('session')?.refreshed ?? null,
+      };
     }
     logEvent(EV.APP_OPEN, {
       tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root',
-      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null, boot_ms: bootMs,
+      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null, boot_ms: bootMs, ...boot,
     });
     // Post-signup journey: open it (idempotent — TierRouter also opens it for the
     // AdWelcome/waitlist branches) and mark that the App workspace actually

@@ -37,11 +37,11 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   const [resetEpoch, setResetEpoch] = useState(0);
   const emptySnapshot = (nextBoardId = null) => ({
     ready: false, synced: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: nextBoardId,
-    undoManager: null, canUndo: false, canRedo: false, sessionId: null,
+    undoManager: null, canUndo: false, canRedo: false, sessionId: null, paintSource: null,
   });
   const [snapshot, setSnapshot] = useState({
     ready: false, synced: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: null,
-    undoManager: null, canUndo: false, canRedo: false, sessionId: null,
+    undoManager: null, canUndo: false, canRedo: false, sessionId: null, paintSource: null,
   });
 
   // Reset signals come from THREE sources, all converging on a single
@@ -180,7 +180,12 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     // after the instant cache/draft paint so the board renders ahead of the
     // network snapshot.
     let earlyRefresh = () => {};
-    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb, fresh, onEarlyContent: () => earlyRefresh() });
+    // What the first paint came from: 'draft' (this device's unsaved edits),
+    // 'cache' (the last snapshot this device saw) or 'server'. Boot timing
+    // (lib/bootMarks.js) reads it; a cache paint is instant, a server one waits
+    // on board_state.
+    let paintSource = null;
+    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb, fresh, onEarlyContent: (source) => earlyRefresh(source) });
     handleRef.current = handle;
 
     let unmounted = false;
@@ -230,6 +235,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
         sessionId: handle.sessionId || null,
         getAwareness: handle.getAwareness,
         flushNow: handle.flushNow,
+        paintSource,
       });
       if (_t0) perf.mark('yboard.refresh.ms', performance.now() - _t0);
     };
@@ -242,7 +248,8 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
         refresh();
       });
     };
-    earlyRefresh = scheduleRefresh;   // now safe to fire the instant cache paint
+    // Now safe to fire the instant cache paint.
+    earlyRefresh = (source) => { paintSource = paintSource || source || 'cache'; scheduleRefresh(); };
 
     const onUpdate = (update, origin) => {
       perf.bump('yboard.update');
@@ -269,7 +276,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     handle.undoManager.on('stack-cleared', scheduleRefresh);
 
     // Initial render: don't wait for a frame.
-    handle.ready.then(() => refresh());
+    handle.ready.then(() => { paintSource = paintSource || 'server'; refresh(); });
 
     return () => {
       unmounted = true;

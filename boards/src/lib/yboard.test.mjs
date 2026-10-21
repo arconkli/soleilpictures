@@ -635,3 +635,52 @@ test('leaving while the snapshot fetch is still failing keeps everything in the 
   assert.equal(draftOf(boardId), null);
   h2.destroy();
 });
+
+// ── the instant paint, through the hook ─────────────────────────────────────
+// useYBoard wires its early-paint handler only after loadYBoard() has returned,
+// and a draft is applied before loadYBoard's first await. The draft's paint was
+// handed to the handler that wasn't wired yet, so a board with unsaved edits
+// waited for the server like a cold open. Boot timing reads paintSource.
+const PLANT = {
+  draft: (boardId, server) => {
+    const d = new Y.Doc();
+    Y.applyUpdate(d, Buffer.from(enc(server), 'base64'));
+    addCard(d, 'unsaved');
+    plantDraft(boardId, d, 7);
+  },
+  cache: (boardId, server) => { env.idb.set(boardId, enc(server)); },
+};
+for (const source of Object.keys(PLANT)) {
+  test(`a ${source} paints the board before the server answers, and says it did`, async () => {
+    const boardId = newBoardId();
+    const server = seedServer(boardId, ['a']);
+    PLANT[source](boardId, server);
+    let open; env.serverGate = new Promise((r) => { open = r; });   // slow network
+    const host = createHookHost((...a) => useYBoard(...a));
+    host.render(boardId, 'u1', null, 'ws1', true);
+    await advance(100);   // the local read resolves, then the paint's frame
+    assert.equal(host.current.ready, true, 'painted while board_state is still on its way');
+    assert.equal(host.current.synced, false);
+    assert.equal(host.current.paintSource, source);
+    open(); env.serverGate = null;
+    await advance(50);
+    assert.equal(host.current.synced, true);
+    assert.equal(host.current.paintSource, source, 'the first paint keeps its source');
+    host.unmount();
+  });
+}
+
+test('with nothing on this device, the first paint is the server snapshot', async () => {
+  const boardId = newBoardId();
+  seedServer(boardId, ['a']);
+  let open; env.serverGate = new Promise((r) => { open = r; });
+  const host = createHookHost((...a) => useYBoard(...a));
+  host.render(boardId, 'u1', null, 'ws1', true);
+  await advance(100);
+  assert.equal(host.current.ready, false, 'nothing to paint until the server answers');
+  open(); env.serverGate = null;
+  await advance(50);
+  assert.equal(host.current.ready, true);
+  assert.equal(host.current.paintSource, 'server');
+  host.unmount();
+});

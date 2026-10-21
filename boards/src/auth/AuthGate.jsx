@@ -45,6 +45,7 @@ import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
+import { bootMark } from '../lib/bootMarks.js';
 
 // Localstorage key holding an in-flight invite token between the
 // pre-signup landing (?invite=…) and the post-signup claim hook.
@@ -526,6 +527,22 @@ function hasStoredSession() {
   return false;
 }
 
+// Whether restoring the stored session has to refresh its token first: the
+// access token is expired, or inside supabase-js's 90 s refresh margin. The
+// first open of a day always does, and nothing can start until it answers.
+// null when there is no stored session to judge.
+function storedSessionNeedsRefresh() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith('sb-') || !k.endsWith('-auth-token')) continue;
+      const exp = Number(JSON.parse(localStorage.getItem(k) || 'null')?.expires_at);
+      if (Number.isFinite(exp)) return exp * 1000 - Date.now() < 90_000;
+    }
+  } catch (_) {}
+  return null;
+}
+
 // Only someone already signed in who opens a workspace invite link sees it.
 const WorkspaceJoinCard = lazy(() => import('../components/WorkspaceJoinCard.jsx'));
 
@@ -554,6 +571,7 @@ export function AuthGate({ children, signedOut = null }) {
     captureShareReturn();
     captureFileReturn();
     let cancelled = false;
+    const refreshDue = storedSessionNeedsRefresh();
     (async () => {
       try {
         const callbackSession = await consumeAuthCallback();
@@ -580,6 +598,7 @@ export function AuthGate({ children, signedOut = null }) {
             if (ws && !cancelled) setWsJoinAsk(ws);
           }
         }
+        if (data.session) bootMark('session', { refreshed: !callbackSession && refreshDue === true });
         if (data.session) hadSession.current = true;
         if (!cancelled) setSession(data.session);
       } catch (error) {
@@ -620,6 +639,7 @@ export function AuthGate({ children, signedOut = null }) {
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
         }
+        if (sess) bootMark('session', { refreshed: false });
         if (sess) hadSession.current = true;
         if (!cancelled) setSession(sess);
       })();

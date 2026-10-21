@@ -645,8 +645,15 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
         } catch (_) {}
       }
       // Render whatever we have NOW (cache or draft) so the board appears
-      // instantly, ahead of the network snapshot.
-      if (paintedEarly) { try { onEarlyContent?.(); } catch (_) {} }
+      // instantly, ahead of the network snapshot. A microtask later, not now: a
+      // draft is applied before this function's first await, i.e. inside the
+      // caller's loadYBoard() call, before useYBoard has wired the handler up.
+      // Called synchronously, the draft paint went nowhere and the board waited
+      // for the server like a cold open.
+      if (paintedEarly) {
+        const source = localDraft?.doc ? 'draft' : 'cache';
+        queueMicrotask(() => { try { onEarlyContent?.(source); } catch (_) {} });
+      }
 
       // Consume a hover-warmed snapshot if one is sitting in the
       // prefetch cache; otherwise fall through to the fetcher (which

@@ -39,6 +39,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { qaTierOverride } from '../lib/localMode.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
+import { bootMark } from '../lib/bootMarks.js';
 
 const EMPTY = Object.freeze({
   tier: null,
@@ -131,6 +132,7 @@ async function _fetchTier({ fromIndexSync = false } = {}) {
         effectiveCardLimit: Number(row?.effective_card_limit ?? DEMO_CARD_LIMIT),
         creatorTrialStartedAt: row?.creator_trial_started_at || null,
       };
+      bootMark('tier');
       _store.placedDelta -= settled;
       _store.error = null;
     } catch (e) {

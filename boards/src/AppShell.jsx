@@ -8,9 +8,20 @@ import { App as RawApp } from './App.jsx';
 import { withPerfTime } from './lib/perf.js';
 import { maybeRedirectToLatest } from './lib/stagingRedirect.js';
 import { StagingBanner } from './components/StagingBanner.jsx';
+import { bootMark } from './lib/bootMarks.js';
 
 // Wrap App so render.App.ms surfaces in perf.dump() without touching App.jsx.
 const App = withPerfTime(RawApp, 'App');
+
+// This chunk and everything it imports have run. `cached`: it came out of the
+// HTTP cache, which the first open after a deploy never does, since its hash
+// changes with nearly every promote.
+bootMark('shell', { cached: (() => {
+  try {
+    const e = performance.getEntriesByName(import.meta.url)[0];
+    return e ? e.transferSize === 0 : null;
+  } catch (_) { return null; }
+})() });
 
 export default function AppShell() {
   // DocSurface (TipTap) is lazy off DocCard so the public /share path never
