@@ -21,6 +21,12 @@
 # Playwright is deliberately not here yet: those specs need a built app and a
 # dev server, and several are documented as flaky. Adding them badly would teach
 # everyone to ignore a red X, which is worse than not running them.
+#
+# The bundle job builds the app and holds what a signed-in open downloads under
+# ceilings (scripts/bundleBudget.mjs): the entry, its stylesheet, and the
+# AppShell closure that has to arrive before the canvas paints. It also fails
+# when a chunk that was split out on purpose (the 3D graph, the charts, the PDF
+# writer) is pulled back into that closure by a static import.
 
 name: test
 
@@ -73,3 +79,36 @@ jobs:
       - name: Docs are in sync with the code
         working-directory: boards
         run: npm run docs:check
+
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: boards/package-lock.json
+
+      - name: Install boards dependencies
+        working-directory: boards
+        run: npm ci
+
+      # A fake Supabase pair keeps the signed-in app in the build: with no
+      # configured client it is dead-code-eliminated and the budget would
+      # measure the signed-out page alone. `vite build`, not `npm run build`:
+      # the prebuild hook restamps buildInfo.js and regenerates the docs, which
+      # the unit job already checks.
+      - name: Build
+        working-directory: boards
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: ci-budget-key
+          VITE_SUPABASE_ANON_KEY: ci-budget-key
+        run: npx vite build
+
+      - name: Bundle budget
+        working-directory: boards
+        run: node scripts/bundleBudget.mjs dist --report

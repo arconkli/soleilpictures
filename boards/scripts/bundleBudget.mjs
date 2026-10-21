@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+// Bundle budget: what a signed-in open has to download before the canvas can
+// paint, measured from a built dist/ and held under ceilings.
+//
+// Every figure is brotli at quality 5, close to what Cloudflare's edge sends
+// for these files:
+//   entry JS  — index.html's module script and everything it imports statically
+//   entry CSS — index.html's own stylesheets (Typekit's is not ours to count)
+//   app JS / app CSS — what Vite loads when the entry imports AppShell: the
+//               __vite__mapDeps list on that import() call, minus the entry's
+//               own files. lib/appPreloadList.mjs preloads the same list.
+//
+// It also fails when the app closure has pulled in something only a later click
+// needs. Each name in NEVER_IN_APP was split out on purpose, and one static
+// import is enough to put it back on every open.
+//
+// Usage: node scripts/bundleBudget.mjs [distDir] [--report]
+// The build must be one where Supabase is configured (real .env.local, or the
+// fake pair the CI step sets), or the signed-in app is dead-code-eliminated and
+// every number here is meaningless; a missing AppShell import fails the run.
+
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { brotliCompressSync, constants } from 'node:zlib';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+const DIST = resolve(args.find((a) => !a.startsWith('--')) || join(HERE, '..', 'dist'));
+const REPORT = args.includes('--report');
+
+// Ceilings in bytes (brotli q5), each about 3% over what main measured on
+// 2026-10-20, so ordinary growth fits and a new heavy import does not. Lower
+// them as the speed work lands; never raise one to make a change fit without
+// saying why in the commit.
+export const CEILINGS = {
+  entryJs: 165_000,
+  entryCss: 96_000,
+  appJs: 890_000,
+  appCss: 44_000,
+};
+
+// Chunks that must never be in the app's critical closure. Matched against the
+// chunk's file name prefix (the part before the content hash).
+export const NEVER_IN_APP = [
+  'vendor-graph3d', 'vendor-cosmograph', 'vendor-charts',
+  'AdminPage', 'DocsPage', 'jspdf', 'html2canvas', 'pdf',
+];
+
+const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;
+
+// "assets/CanvasSurface-DiqxAXy4.js" → "CanvasSurface"
+export function chunkName(file) {
+  const base = file.split('/').pop().replace(/\.(js|css)$/, '');
+  const i = base.lastIndexOf('-');
+  return i > 0 ? base.slice(0, i) : base;
+}
+
+// Static import edges of one minified chunk: `import{a as b}from"./x.js"` and
+// `import"./x.js"`. Dynamic `import("./x.js")` is not an edge.
+export function staticImports(src) {
+  const out = new Set();
+  for (const m of src.matchAll(/(?:^|[;\n}])\s*import\s*(?:[\w*{}\s,$]+from\s*)?["']\.\/([^"']+\.js)["']/g)) out.add(`assets/${m[1]}`);
+  return out;
+}
+
+// The deps Vite preloads for `import("./<name>-<hash>.js")` in `src`: the index
+// list passed to __vite__mapDeps right after that import, mapped through the
+// chunk's dep table. Returns null when the import is not there.
+export function preloadDepsFor(src, name) {
+  const table = src.match(/m\.f=(\[[^\]]*\])/);
+  if (!table) return null;
+  const files = JSON.parse(table[1]);
+  const at = src.search(new RegExp(`import\\(["']\\./${name}-[\\w-]+\\.js["']\\)`));
+  if (at < 0) return null;
+  const call = src.slice(at).match(/__vite__mapDeps\(\[([\d,\s]*)\]\)/);
+  if (!call) return null;
+  const own = src.slice(at).match(new RegExp(`\\./(${name}-[\\w-]+\\.js)`))[1];
+  const deps = call[1].split(',').map((s) => s.trim()).filter(Boolean).map((i) => files[Number(i)]);
+  return [...new Set([`assets/${own}`, ...deps])];
+}
+
+function closure(roots, read) {
+  const seen = new Set();
+  const stack = [...roots];
+  while (stack.length) {
+    const f = stack.pop();
+    if (seen.has(f)) continue;
+    seen.add(f);
+    let src;
+    try { src = read(f); } catch (_) { continue; }
+    for (const d of staticImports(src)) stack.push(d);
+  }
+  return seen;
+}
+
+export function measure(dist) {
+  const read = (f) => readFileSync(join(dist, f), 'utf8');
+  const html = read('index.html');
+  const entry = [...html.matchAll(/<script type="module"[^>]*src="\/(assets\/[^"]+\.js)"/g)].map((m) => m[1]);
+  const pre = [...html.matchAll(/<link rel="modulepreload"[^>]*href="\/(assets\/[^"]+\.js)"/g)].map((m) => m[1]);
+  const css = [...html.matchAll(/<link rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"/g)].map((m) => m[1]);
+  if (!entry.length) throw new Error(`no module entry in ${dist}/index.html`);
+  const entryClosure = closure([...entry, ...pre], read);
+
+  let appDeps = null;
+  for (const e of entry) { appDeps = preloadDepsFor(read(e), 'AppShell'); if (appDeps) break; }
+  if (!appDeps) throw new Error('the entry has no import() of AppShell: was the build made without Supabase configured?');
+  const app = appDeps.filter((f) => !entryClosure.has(f) && !css.includes(f));
+
+  const size = (f) => br(readFileSync(join(dist, f)));
+  const rows = (list) => list.map((f) => ({ file: f, br: size(f) })).sort((a, b) => b.br - a.br);
+  const appJsRows = rows(app.filter((f) => f.endsWith('.js')));
+  const appCssRows = rows(app.filter((f) => f.endsWith('.css')));
+  const entryJsRows = rows([...entryClosure]);
+  const entryCssRows = rows(css);
+  const sum = (r) => r.reduce((n, x) => n + x.br, 0);
+  return {
+    entryJs: sum(entryJsRows), entryCss: sum(entryCssRows),
+    appJs: sum(appJsRows), appCss: sum(appCssRows),
+    rows: { entryJs: entryJsRows, entryCss: entryCssRows, appJs: appJsRows, appCss: appCssRows },
+    forbidden: app.filter((f) => NEVER_IN_APP.includes(chunkName(f))),
+    files: readdirSync(join(dist, 'assets')).length,
+  };
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const m = measure(DIST);
+  const kb = (n) => `${(n / 1000).toFixed(1)} KB`;
+  let failed = false;
+  for (const [k, cap] of Object.entries(CEILINGS)) {
+    const over = m[k] > cap;
+    if (over) failed = true;
+    console.log(`${over ? 'OVER' : 'ok  '}  ${k.padEnd(8)} ${kb(m[k]).padStart(10)}  (ceiling ${kb(cap)}, ${m.rows[k].length} files)`);
+  }
+  if (m.forbidden.length) {
+    failed = true;
+    console.log(`\nIn the app's critical closure but split out on purpose: ${m.forbidden.join(', ')}`);
+    console.log('Something now imports them statically. Find it and make it lazyWithReload().');
+  }
+  if (REPORT) {
+    for (const k of Object.keys(CEILINGS)) {
+      console.log(`\n${k}:`);
+      for (const r of m.rows[k]) console.log(`  ${kb(r.br).padStart(10)}  ${r.file}`);
+    }
+  }
+  if (failed) process.exit(1);
+}
