@@ -87,6 +87,17 @@ export function formatCount(n) {
   return (Number(n) || 0).toLocaleString();
 }
 
+// A segment value as the admin names it. The sign-up links on a shared
+// cluster, file or template page set utm_campaign to the link's token, and
+// since 0474 the token is never stored: lib/linkTokens.js and the database both
+// write REDACTED_CAMPAIGN in its place, so every such link is this one value.
+// Only its name changes; the funnel still filters on the value as stored.
+export const REDACTED_CAMPAIGN = ':token';
+
+export function segmentLabel(value) {
+  return value === REDACTED_CAMPAIGN ? 'shared link · token not kept' : value;
+}
+
 // Money from cents → "$25" (no cents when whole, else two decimals).
 export function formatMoney(cents) {
   const v = (Number(cents) || 0) / 100;

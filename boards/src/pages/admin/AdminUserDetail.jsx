@@ -18,7 +18,7 @@ import {
 import { formatDurationPrecise } from '../../lib/formatDuration.js';
 import { DEMO_CARD_LIMIT } from '../../lib/demoCardCap.js';
 import {
-  formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes,
+  formatCount, formatMoney, formatExpires, fmtDate, relativeTime, formatBytes, segmentLabel,
 } from '../../lib/adminFormat.js';
 import { countryName, countryFlag } from '../../lib/countries.js';
 import { StatusPill } from './AdminPills.jsx';
@@ -77,11 +77,13 @@ function AcquisitionSection({ acq }) {
   ].filter(([k, v]) => v && !(share && (k === 'share_token' || k === 'public_slug')));
   // "Captured nothing" = nothing beyond the always-present landing_path.
   const meaningful = fields.filter(([k]) => k !== 'landing_path');
-  // Last-touch (latest click) — only rendered when an lt_* event existed.
+  // Last-touch (latest click) — only rendered when an lt_* event existed. It is
+  // read from events, where a shared link's campaign is a placeholder since
+  // 0474 (first touch reads profiles, which keep the token).
   const lt = acq.last_touch && typeof acq.last_touch === 'object' ? acq.last_touch : null;
   const ltFields = lt ? [
     ['utm_source', lt.utm_source], ['utm_medium', lt.utm_medium],
-    ['utm_campaign', lt.utm_campaign], ['referrer', lt.referrer], ['at', lt.at],
+    ['utm_campaign', segmentLabel(lt.utm_campaign)], ['referrer', lt.referrer], ['at', lt.at],
   ].filter(([, v]) => v) : [];
   return (
     <DetailSection title="Acquisition" icon={GlobeIcon}>

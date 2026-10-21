@@ -30,7 +30,12 @@
 //     both sides of 0254: a marker, not a cut.
 //   - work_users: did_work before 0347 was also stamped on no-op re-syncs and
 //     credited the board creator, so the weeks before 2026-10-01 over-count and
-//     must not be scored against the weeks after it. This is the cut.
+//     must not be scored against the weeks after it. This is the cut. 0473
+//     (2026-10-20) counts a day someone sent a message as work and stamped
+//     every such day back to the 0248 floor, so it restates the series
+//     without a step. The client's matching rule, that a work event reporting
+//     ok:false is not work, ships at the next promote and drops nothing: no
+//     work event had ever reported ok:false. No marker.
 //   - seconds_in_app: 0460 starts recording time in app on the day it happened.
 //     Before it there is only each person's running total, so there is no
 //     earlier week to compare against: a floor, like 0248, not a cut.

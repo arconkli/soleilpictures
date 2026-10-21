@@ -135,6 +135,9 @@ const funnelSegments = [
   { dim: 'source', value: 'direct',   sessions: 520 },
   { dim: 'campaign', value: 'launch-q3', sessions: 1420 },
   { dim: 'campaign', value: 'creators',  sessions: 880 },
+  // Since 0474 no shared link's token is stored, so every link's sign-ups
+  // arrive as this one campaign, and the admin names it (segmentLabel).
+  { dim: 'campaign', value: ':token',    sessions: 310 },
   { dim: 'content', value: 'hero-a',  sessions: 760 },
   { dim: 'content', value: 'hero-b',  sessions: 540 },
 ];

@@ -209,6 +209,22 @@ test.describe('Analytics › Funnel', () => {
     ]));
   });
 
+  test('a shared link\'s campaign is named, never shown as its placeholder, and still filters', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel' });
+    const select = page.getByRole('combobox', { name: 'Campaign' });
+    await expect(select).toBeVisible({ timeout: 15000 });
+    await expect(select.locator('option[value=":token"]')).toHaveText('shared link · token not kept (310)');
+    await expect(select.locator('option', { hasText: ':token' })).toHaveCount(0);
+    const well = page.locator('section', { has: page.locator('.adm-well-title', { hasText: /^Campaigns and creatives$/ }) });
+    await expect(well).toContainText('shared link · token not kept', { timeout: 20000 });
+    await expect(well).not.toContainText(':token');
+
+    await recordRpc(page, ['admin_signup_funnel']);
+    await select.selectOption(':token');
+    await expect.poll(() => page.evaluate(() => window.__rpcSeen.map(([n, p]) => `${n}:${p?.p_campaign}`)))
+      .toContain('admin_signup_funnel::token');
+  });
+
   test('with one trial and nobody paying, the money line names the trial', async ({ page }) => {
     await openAdmin(page, { view: 'funnel', query: '&mrr=0' });
     await page.getByRole('button', { name: /Checkout, upsell and the biggest accounts/ }).click();

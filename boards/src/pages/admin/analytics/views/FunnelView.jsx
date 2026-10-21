@@ -19,7 +19,7 @@
 import { supabase } from '../../../../lib/supabase.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
-import { formatCount } from '../../../../lib/adminFormat.js';
+import { formatCount, segmentLabel } from '../../../../lib/adminFormat.js';
 import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
 import { FunnelSteps } from '../../viz/FunnelSteps.jsx';
 import { Deck, Well } from '../../viz/Well.jsx';
@@ -98,9 +98,9 @@ function SegmentTraffic({ segments = [], days }) {
     .slice(0, 5)
     .map((s) => ({
       key: `${dim}:${s.value}`,
-      label: s.value,
+      label: segmentLabel(s.value),
       value: num(s.sessions),
-      title: `${label}: ${s.value}`,
+      title: `${label}: ${segmentLabel(s.value)}`,
     })));
 
   return (
