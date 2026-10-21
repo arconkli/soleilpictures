@@ -757,6 +757,9 @@ function SignIn() {
   };
   const [stage, setStage]       = useState(() => (restored ? 'code' : 'email')); // 'email' | 'code'
   const [busy,  setBusy]        = useState(false);
+  // The first code's request, still running under the code step (sendCode).
+  const [sending, setSending]   = useState(false);
+  const verifyingRef = useRef(false);
   const [code,  setCode]        = useState('');
   const [error, setError]       = useState(null);
   const [resendCooldown, setResendCooldown] = useState(() => (restored ? resendWait(restored.sentAt, Date.now()) : 0));
@@ -908,7 +911,12 @@ function SignIn() {
       setError("That address is missing its ending, like .com — check the part after the @.");
       return;
     }
-    setBusy(true);
+    // The first code: the step shows now and the request runs under it. Sending
+    // took a second or more, all of it spent on the email field behind a
+    // "Sending…" button; a send that fails comes back there with its reason. A
+    // resend stays where it is, as before.
+    if (resending) setBusy(true);
+    else { setSending(true); setStage('code'); }
     // The code takes a while to arrive and to type; the app downloads in the
     // meantime instead of after it is accepted. Preloaded, never run.
     if (!resending) preloadSignedInApp({ setup: workspaceSetupAllowed() });
@@ -968,7 +976,6 @@ function SignIn() {
       // The OTP form IS the '/' page's signup CTA — count it in lp_cta_click so
       // the landing scorecard's CTR column means the same thing on every page.
       if (!resending) lpCtaClick('/', 'home', 'form');
-      if (!resending) setStage('code');
       const sentAt = Date.now();
       const sent = resending ? Math.max(1, sends) + 1 : 1;
       sentAtRef.current = sentAt;
@@ -977,9 +984,15 @@ function SignIn() {
       savePendingCode(window.localStorage, email.trim().toLowerCase(), sentAt, sent);
     } catch (e) {
       logEvent(EV.EMAIL_SUBMIT_ERROR, { reason: classifyAuthError(e), resend: !!resending });
+      // A code typed meanwhile is already being checked (an earlier one can
+      // still work); that answer decides what shows, not this one.
+      if (!resending && verifyingRef.current) return;
+      if (!resending) { setStage('email'); setCode(''); }
       setError(humanError(e));
     } finally {
-      setBusy(false);
+      // Each undoes only its own: a code being checked holds `busy`.
+      if (resending) setBusy(false);
+      else setSending(false);
     }
   };
 
@@ -990,6 +1003,7 @@ function SignIn() {
     if (token.length < 6) { setError('Enter the 6-digit code from your email.'); return; }
     setError(null);
     setBusy(true);
+    verifyingRef.current = true;
     signingInByForm = true;
     try {
       const { error } = await supabase.auth.verifyOtp({
@@ -1014,6 +1028,7 @@ function SignIn() {
       // onAuthStateChange will fire SIGNED_IN; AuthGate re-renders to children.
     } catch (e) {
       signingInByForm = false;
+      verifyingRef.current = false;
       logEvent(EV.OTP_VERIFY_ERROR, { reason: classifyAuthError(e), sends });
       setError(humanError(e, { resent: sends > 1 }));
       // Ready for the next try: the field was disabled while verifying (which
@@ -1041,7 +1056,7 @@ function SignIn() {
     setTypo(null);
   };
   const typoOffer = (atStage) => (typo ? (
-    <button type="button" className="auth-link auth-typo" onClick={applyTypo(atStage)} disabled={busy}>
+    <button type="button" className="auth-link auth-typo" onClick={applyTypo(atStage)} disabled={busy || sending}>
       Did you mean <b>{typo.suggestion}</b>?
     </button>
   ) : null);
@@ -1136,7 +1151,9 @@ function SignIn() {
           <form className="auth-form" onSubmit={verifyCode}>
             <div className="auth-email-row">
               <span className="auth-email-readonly">{email}</span>
-              <button type="button" className="auth-link" onClick={editEmail} disabled={busy}>
+              {/* Not while the first code is on its way: its success would
+                  remember the step for the address being edited. */}
+              <button type="button" className="auth-link" onClick={editEmail} disabled={busy || sending}>
                 edit
               </button>
             </div>
@@ -1182,16 +1199,20 @@ function SignIn() {
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="auth-hint t-meta">
-              {sends > 1
-                ? 'New code sent. Only the newest one works — check Spam or Promotions if it isn\'t there.'
-                : 'Check your inbox for the 6-digit code — and Spam or Promotions if it isn\'t there.'}{' '}
-              {/* The resend control stays a button during cooldown (disabled,
-                  counting down) — swapping it for a bare span made it look
-                  like the option vanished. */}
-              <button type="button" className="auth-link" onClick={() => sendCode(true)}
-                      disabled={busy || resendCooldown > 0}>
-                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
-              </button>
+              {sending ? 'Sending your code…' : (
+                <>
+                  {sends > 1
+                    ? 'New code sent. Only the newest one works — check Spam or Promotions if it isn\'t there.'
+                    : 'Check your inbox for the 6-digit code — and Spam or Promotions if it isn\'t there.'}{' '}
+                  {/* The resend control stays a button during cooldown (disabled,
+                      counting down) — swapping it for a bare span made it look
+                      like the option vanished. */}
+                  <button type="button" className="auth-link" onClick={() => sendCode(true)}
+                          disabled={busy || resendCooldown > 0}>
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                  </button>
+                </>
+              )}
             </div>
             {/* A new tab, so this step stays put. Gmail's link searches every
                 folder: after the 09-20 invite abuse, codes sat in spam for most
