@@ -212,3 +212,37 @@ test.describe('List: the classic table', () => {
     await expect(page.locator('.fp-title-btn')).toContainText('Locations');
   });
 });
+
+test.describe('Grid: the tiles', () => {
+  test('marks on the picture: not on board, a video length, an upload, a peer', async ({ page }) => {
+    await open(page);
+    await expect(sheet(page).locator('[data-item-id="film-wait-0"] .ct-tile-off')).toHaveAttribute('aria-label', 'Not on board');
+    await expect(sheet(page).locator('[data-item-id="film-img-3"] .ct-tile-off')).toHaveCount(0);
+    await expect(sheet(page).locator('[data-item-id="film-vid-0"] .ct-tile-dur')).toHaveText('0:42');
+    await expect(sheet(page).locator('[data-item-id="film-up-0"] .ct-tile-pend')).toHaveText('Uploading…');
+    await expect(sheet(page).locator('[data-item-id="film-img-2"]')).toHaveClass(/is-peer/);
+    await expect(sheet(page).locator('[data-item-id="film-img-3"]')).toHaveAttribute('title', /film-still-004/);
+  });
+
+  test('a selected tile: a gold ring outside the picture and a white check', async ({ page }) => {
+    await open(page);
+    const tile = sheet(page).locator('[data-item-id="film-img-3"]');
+    await tile.click();
+    await expect(tile).toHaveClass(/is-selected/);
+    const ring = await tile.locator('.ct-tile-preview').evaluate((el) => getComputedStyle(el).outlineStyle);
+    expect(ring).toBe('solid');
+    const check = await tile.locator('.ct-tile-check').evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(check).toBe('rgb(255, 255, 255)');
+  });
+
+  test('F2 renames in place over the picture', async ({ page }) => {
+    await open(page);
+    const tile = sheet(page).locator('[data-item-id="film-img-3"]');
+    await tile.click();
+    await page.keyboard.press('F2');
+    await expect(tile).toHaveClass(/is-renaming/);
+    await expect(tile.locator('.ct-tile-rename')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(tile).not.toHaveClass(/is-renaming/);
+  });
+});

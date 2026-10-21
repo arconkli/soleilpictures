@@ -7,7 +7,8 @@
    Finder table. Every rule is under [data-look='sb'], which ListSurface and
    Quick look set only with that look (filesLook.js), or under .is-files-page,
    which App sets only then, or names a class only that look's markup carries
-   (fp-*, ct-status, ct-stored, ct-folder-link, is-glyph), so the page
+   (fp-*, ct-status, ct-stored, ct-folder-link, is-glyph, ct-tile-off,
+   ct-tile-dur, ct-tile-pend), so the page
    production has matches nothing here. */
 
 /* ── The ground ──────────────────────────────────────────────────────────── */
@@ -241,6 +242,62 @@
   background: var(--bg-act); border-bottom-color: transparent;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent);
 }
+
+/* ── Tiles: the picture is the name ──────────────────────────────────────── */
+.list-wrap[data-look='sb'] .ct-jg .ct-tile-preview { border-radius: 6px; }
+.list-wrap[data-look='sb'] .ct-jg .ct-tile-preview::before { box-shadow: inset 0 0 0 1px var(--sbf-thumb-line); }
+/* Selected: a gold ring just outside the picture, and the check turns white.
+   (Chromium floors a 1.5px outline to 1px; 2px at 80% reads as the still's.) */
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-selected .ct-tile-preview {
+  outline: 2px solid color-mix(in srgb, var(--soleil) 80%, transparent); outline-offset: 2px;
+}
+.list-wrap[data-look='sb'] .ct-tile.is-selected .ct-tile-check {
+  background: #fff; border-color: #fff; color: #0a0a0c; box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+.list-wrap[data-look='sb'] .ct-tile-check { width: 22px; height: 22px; }
+/* Only the picked tiles carry a check; another's shows under the pointer, so
+   a click on it still adds. Without hover (touch) every check stays, as the
+   way to pick a second one. */
+@media (hover: hover) {
+  .list-wrap[data-look='sb']:not(.is-selecting) .ct-jg .ct-tile:not(.is-selected):not(:hover) .ct-tile-check { opacity: 0; }
+}
+/* Not on board: the sidebar's hollow ring, on a dark disc so it reads on any
+   picture. The tile's own title says it in words, as a sidebar row's does. */
+.ct-tile-off {
+  position: absolute; top: 7px; right: 7px; z-index: 2;
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(10, 10, 12, .55);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.ct-tile-off > i {
+  display: block; width: 8px; height: 8px; box-sizing: border-box; border-radius: 50%;
+  border: 1.5px solid rgba(245, 245, 247, .92);
+}
+/* The download button sits where the ring is; with the ring, it steps left. */
+.list-wrap[data-look='sb'] .ct-tile-preview:has(.ct-tile-off) .ct-tile-dl { right: 33px; }
+/* A video's length, bottom left, as Photos shows it. */
+.ct-tile-dur {
+  position: absolute; left: 7px; bottom: 7px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px 0 6px;
+  border-radius: 6px; background: rgba(10, 10, 12, .62); color: #f5f5f7;
+  font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums; pointer-events: none;
+}
+/* An upload on its way: the word on the paper, under the spinner. */
+.ct-tile-pend {
+  position: absolute; left: 0; right: 0; top: calc(50% + 18px);
+  color: var(--ink-2); font: 400 12px/1 var(--font-sans); text-align: center; pointer-events: none;
+}
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-pending .ct-tile-preview::after { display: none; }
+/* Who has it selected: their colour round the picture (one ring: not the
+   tile's own as well), their face in the corner. */
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-peer { box-shadow: none; }
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-peer .ct-tile-preview { outline: 2px solid var(--peer-color); outline-offset: 2px; }
+.list-wrap[data-look='sb'] .ct-tile-peers { right: 7px; bottom: 7px; }
+/* Renaming without a caption: the field lies over the foot of the picture
+   (the tile is placed absolutely, so it holds the field). */
+.list-wrap[data-look='sb'] .ct-tile.is-renaming .ct-tile-meta { position: absolute; left: 7px; right: 7px; bottom: 7px; z-index: 3; padding: 0; }
+.list-wrap[data-look='sb'] .ct-tile.is-renaming .ir-input { height: 28px; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
 
 /* ── List: the classic table (C's) ───────────────────────────────────────── */
 /* One flat list, its clusters first, dense, every head sortable, a faint
