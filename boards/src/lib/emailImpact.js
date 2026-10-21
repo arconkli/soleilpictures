@@ -60,17 +60,20 @@ function joinAnd(parts) {
 
 /**
  * Every lifecycle email the cron sends, in the order the page lists them, with
- * its name on the page and its name inside a sentence. Kept in step with
- * lifecycle-email-cron by adminEmailImpactMigration.test.mjs.
+ * its name on the page, its name inside a sentence, and which of
+ * send-transactional-email's addresses it goes from (`from`: 'lifecycle' is
+ * FROM_LIFECYCLE, 'hello' is FROM_HELLO). Kept in step with lifecycle-email-cron
+ * and fromAddress by adminEmailImpactMigration.test.mjs.
  */
 export const EMAILS = Object.freeze([
-  { type: 'welcome_board',       name: 'Welcome',                 inline: 'the welcome' },
-  { type: 'activate_nudge_1',    name: 'First nudge',             inline: 'the first nudge' },
-  { type: 'activate_nudge_2',    name: 'Second nudge',            inline: 'the second nudge' },
-  { type: 'nudge_dormant_early', name: 'Early nudge',             inline: 'the early nudge' },
-  { type: 'board_waiting',       name: 'Your cluster is waiting', inline: 'Your cluster is waiting' },
-  { type: 'whats_new',           name: 'What’s new',              inline: 'What’s new' },
-  { type: 'reengage_1',          name: 'Come back',               inline: 'Come back' },
+  { type: 'welcome_board',       name: 'Welcome',                 inline: 'the welcome',             from: 'lifecycle' },
+  { type: 'activate_nudge_1',    name: 'First nudge',             inline: 'the first nudge',         from: 'lifecycle' },
+  { type: 'activate_nudge_2',    name: 'Second nudge',            inline: 'the second nudge',        from: 'lifecycle' },
+  { type: 'nudge_dormant_early', name: 'Early nudge',             inline: 'the early nudge',         from: 'lifecycle' },
+  { type: 'board_waiting',       name: 'Your cluster is waiting', inline: 'Your cluster is waiting', from: 'lifecycle' },
+  { type: 'product_update',      name: 'Product update',          inline: 'the product update',      from: 'hello' },
+  { type: 'whats_new',           name: 'What’s new',              inline: 'What’s new',              from: 'lifecycle' },
+  { type: 'reengage_1',          name: 'Come back',               inline: 'Come back',               from: 'lifecycle' },
 ]);
 
 const byType = new Map(EMAILS.map((e, i) => [e.type, { ...e, i }]));
@@ -281,15 +284,18 @@ function eachMeta(each, split) {
 }
 
 /**
- * The line under the opens. Every lifecycle email sends from one address
- * (send-transactional-email's FROM_LIFECYCLE, pinned by
+ * The line under the opens. The emails compared send from one address (each
+ * EMAILS entry's `from`, pinned to send-transactional-email's fromAddress by
  * adminEmailImpactMigration.test.mjs), so when some halved and some did not, the
  * address alone cannot be why. '' otherwise: then there is nothing to rule out.
+ * Nor is there when the emails compared do not all share an address (the
+ * product update goes from hello@): then the claim would not be true.
  */
 export function opensFoot(opens) {
   const each = opens?.each || [];
   const kept = each.filter((r) => !r.halved);
   if (each.length < 2 || !kept.length || kept.length === each.length) return '';
+  if (new Set(each.map((r) => byType.get(r.type)?.from ?? 'lifecycle')).size > 1) return '';
   const all = each.length === 2 ? 'Both send' : `All ${word(each.length)} send`;
   return `${all} from the same address, and ${joinAnd(kept.map((r) => inlineName(r.type)))} did not halve, `
     + 'so the address alone does not explain the drop.';

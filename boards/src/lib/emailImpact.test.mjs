@@ -197,6 +197,9 @@ test('the halving sentence counts in words, and names the ones that did not', ()
   assert.equal(foot([half('welcome_board')]), '');
   assert.equal(foot([half('welcome_board'), half('activate_nudge_2'), kept('activate_nudge_1')]),
     'All three send from the same address, and the first nudge did not halve, so the address alone does not explain the drop.');
+  // An email from another address in the comparison, and the address could be why.
+  assert.equal(foot([half('welcome_board'), kept('product_update')]), '');
+  assert.equal(foot([half('welcome_board'), half('product_update'), kept('activate_nudge_1')]), '');
   assert.equal(openRows({ ...RAW, types: [] }).meta, 'no email sent on both sides of Mar 29');
 });
 

@@ -34819,7 +34819,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Occasional messages about the product"
+       "v": "Occasional messages about the product, including a short note from the team when something new ships"
       }
      ]
     ]

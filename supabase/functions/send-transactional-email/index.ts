@@ -37,7 +37,7 @@ const logDb = (SUPABASE_URL && SERVICE_KEY)
 // Coarse bucket for the dashboard, derived from the template name.
 function emailCategory(template: string): string {
   if (template === "ops_alert") return "ops";
-  if (/^activate_|^reengage_|^welcome_|^board_waiting$|^nudge_dormant_early$|^whats_new$/.test(template)) return "lifecycle";
+  if (/^activate_|^reengage_|^welcome_|^board_waiting$|^nudge_dormant_early$|^whats_new$|^product_update$/.test(template)) return "lifecycle";
   if (template.startsWith("waitlist_"))       return "waitlist";
   return "transactional";
 }
@@ -75,8 +75,10 @@ async function logEmailSend(opts: {
 //     points at hello@ so any stray reply lands somewhere a human reads.
 const FROM_HELLO   = "Clusters <hello@clusters.soleilpictures.com>";
 const FROM_NOREPLY = "Clusters <noreply@updates.soleilpictures.com>";
-// Lifecycle nudges send from the brand on the bulk subdomain — keeping
-// marketing reputation off the auth domain (which carries the sign-in codes).
+// Lifecycle nudges send from the brand on the bulk subdomain. Note that the
+// sign-in codes are on it too: Supabase Auth sends them from
+// noreply@updates.soleilpictures.com (email_events, checked 2026-10-21), so it
+// is updates, not clusters, whose reputation a code depends on.
 const FROM_LIFECYCLE = "Clusters <hello@updates.soleilpictures.com>";
 // Security alerts to the owner (0369): never the bulk domain, whose reputation
 // is exactly what an abuse alert is likely to be about.
@@ -87,6 +89,14 @@ function fromAddress(template: string): string {
   switch (template) {
     case "waitlist_submitted":
     case "waitlist_accepted":
+      return FROM_HELLO;
+    // The release note (0506) is a note from the team to the people who use
+    // the product, sent to every account at once: it goes from the address
+    // replies are welcome at, which is also off the domain the sign-in codes
+    // go from (above), so one big send can't take sign-in mail down with it.
+    // Still lifecycle for consent, the one-click unsubscribe and the category
+    // the sunset counts.
+    case "product_update":
       return FROM_HELLO;
     case "activate_nudge_1":
     case "activate_nudge_2":
@@ -120,7 +130,7 @@ function fromAddress(template: string): string {
 //
 // mention_email and comment_reply_email joined in 0369: one person can cause
 // them, so the person receiving them gets the same one-click way out.
-const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board", "board_waiting", "nudge_dormant_early", "whats_new", "schedule_update", "share_activity", "mention_email", "comment_reply_email", "file_commented"]);
+const LIST_UNSUB_TEMPLATES = new Set(["activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board", "board_waiting", "nudge_dormant_early", "whats_new", "product_update", "schedule_update", "share_activity", "mention_email", "comment_reply_email", "file_commented"]);
 
 // WHICH preference the one-click link turns off. This used to be hardcoded to
 // email_lifecycle, so the moment a second unsubscribable template existed the

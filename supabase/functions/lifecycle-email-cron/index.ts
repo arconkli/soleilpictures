@@ -2,7 +2,8 @@
 //
 // Sends "simple note" lifecycle emails to users who fall into a segment (see
 // migrations 0173 / 0184 / 0194 / 0211): welcome_board (day-1, embeds the
-// user's own board thumbnail), whats_new (news win-back — the broadest dormant
+// user's own board thumbnail), product_update (the release note to everyone,
+// once per edition, 0506), whats_new (news win-back — the broadest dormant
 // gate, re-fires once per published edition), board_waiting (picture win-back),
 // reengage_1 (text win-back), nudge_dormant_early (never-activated gap-filler),
 // activate_nudge_1/2. Invoked hourly by pg_cron (job 'lifecycle-email-hourly').
@@ -120,6 +121,44 @@ async function whatsNewConfig(
   };
 }
 
+// product_update's edition lives in app_config 'lifecycle_product_update'
+// (migration 0506): the announcement to everyone, where whats_new is the
+// win-back to the people who left. The cron reads it FIRST and skips the type
+// without calling the RPC when it is absent, off, or missing its version, its
+// items or its subject, so a deploy that lands before the migration (no row,
+// no RPC) sends nothing and logs nothing. Every word in the mail comes from
+// here; templates.ts only lays it out.
+interface ProductUpdateConfig {
+  version: string;
+  // deno-lint-ignore no-explicit-any
+  copy: Record<string, any>;
+}
+
+// ignoreEnabled is for the testTo preview path ONLY, as with whatsNewConfig.
+async function productUpdateConfig(
+  admin: ReturnType<typeof createClient>, ignoreEnabled = false,
+): Promise<ProductUpdateConfig | null> {
+  const { data, error } = await admin
+    .from("app_config").select("value").eq("key", "lifecycle_product_update").maybeSingle();
+  if (error) { console.warn("lifecycle_product_update fetch failed", error.message); return null; }
+  // deno-lint-ignore no-explicit-any
+  const v: any = data?.value;
+  if (!v) return null;
+  if (!ignoreEnabled && v.enabled !== true) return null;
+  const version = String(v.version ?? "").trim();
+  const items = Array.isArray(v.items) ? v.items.filter((i: unknown) => i != null && i !== "") : [];
+  const subject = String(v.subject ?? "").trim();
+  if (!version || !items.length || !subject) return null;
+  return {
+    version,
+    copy: {
+      subject, preheader: v.preheader, greeting: v.greeting, intro: v.intro, items,
+      ctaLabel: v.cta_label, ctaPath: v.cta_path, outro: v.outro, signoff: v.signoff,
+      version,
+    },
+  };
+}
+
 async function sendOne(
   template: string, to: string, data: Record<string, unknown>, idempotencyKey: string,
 ): Promise<{ ok: boolean; id?: string }> {
@@ -200,6 +239,14 @@ Deno.serve(async (req) => {
       newsPreview = await whatsNewConfig(previewDb, /* ignoreEnabled */ true);
       if (!newsPreview) return json({ error: "no lifecycle_whats_new edition authored" }, 409);
     }
+    // product_update previews render the authored edition even while it is
+    // switched off, so the copy is read in an inbox before anyone flips it on.
+    let updatePreview: ProductUpdateConfig | null = null;
+    if (type === "product_update") {
+      const previewDb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+      updatePreview = await productUpdateConfig(previewDb, /* ignoreEnabled */ true);
+      if (!updatePreview) return json({ error: "no lifecycle_product_update edition authored" }, 409);
+    }
     // Mint a REAL resume token for the preview when a user id is supplied, so
     // the /resume flow can be walked end to end from a test inbox rather than
     // only inspected as a rendered URL. Without testUserId the preview renders
@@ -226,6 +273,7 @@ Deno.serve(async (req) => {
       ctaLabel: newsPreview?.ctaLabel,
       version: newsPreview?.version,
       variant: reqBody.variant ? String(reqBody.variant) : undefined,
+      ...(updatePreview ? updatePreview.copy : {}),
       unsubscribeToken: "0".repeat(64),
       // Date.now() in the key: repeat test sends must not be swallowed by
       // Resend's idempotency window while iterating on copy.
@@ -268,8 +316,9 @@ Deno.serve(async (req) => {
           if (mailed.has(userId)) { skipped++; continue; }
 
           const variant = pickVariant(variantCfg, emailType);
-          // Only whats_new returns a content_version — it's what makes that type
-          // re-fire once per published edition (unique index in 0211). Taken from
+          // Only whats_new and product_update return a content_version — it's
+          // what makes them re-fire once per published edition (unique indexes
+          // in 0211 and 0506). Taken from
           // the eligibility row rather than re-read here, so a config edit
           // mid-run can't claim one version and send another.
           const contentVersion = row.content_version != null ? String(row.content_version) : null;
@@ -347,6 +396,24 @@ Deno.serve(async (req) => {
     } catch (e) { console.warn("emailThumbUrl failed", e); }
     return { workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name, thumbUrl };
   });
+  // product_update, the release note to everyone (0506), runs right after the
+  // day-one welcome and ahead of every win-back: it is an edition the owner
+  // switched on by hand, and someone it reaches today is not also sent a
+  // win-back today (the one-per-day index and the `mailed` set). It has no
+  // entry in lifecycle_email_experiments, so pickVariant gives every send "A"
+  // and the claim holds nobody out. Skipped before the RPC is ever called when
+  // no edition is published.
+  const update = await productUpdateConfig(admin);
+  if (update) {
+    await runType("product_update", "lifecycle_due_product_update", (row) => ({
+      ...update.copy,
+      workspaceId: row.workspace_id, boardId: row.board_id,
+      // The row's version, not the config's: the one the claim recorded.
+      version: row.content_version != null ? String(row.content_version) : update.version,
+    }));
+  } else {
+    summary["product_update"] = { eligible: 0, sent: 0, skipped: 0, failed: 0, note: "no published edition" };
+  }
   // whats_new is the broadest dormant gate (any activation state, no account-age
   // ceiling), so it runs FIRST among the win-backs and wins the one-per-day
   // index and the `mailed` set. The narrower legacy types below stay in place as

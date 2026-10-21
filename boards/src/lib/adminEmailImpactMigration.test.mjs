@@ -153,15 +153,22 @@ test('every email the cron sends is named on the page, and the page names no oth
   assert.deepEqual([...new Set(sent)].sort(), EMAILS.map((e) => e.type).sort());
 });
 
-test('every lifecycle email sends from the one address the opens footnote relies on', () => {
+test('every lifecycle email sends from the address the page says it does, which the opens footnote relies on', () => {
   const send = readSrc('../../../supabase/functions/send-transactional-email/index.ts');
   const sw = send.match(/function fromAddress\(template: string\): string \{([\s\S]*?)\n\}/)?.[1] || '';
   assert.ok(sw, 'send-transactional-email picks a sender in fromAddress');
-  // The run of case labels that falls through to `return FROM_LIFECYCLE;`.
-  const block = sw.match(/((?:\s*case "[a-z0-9_]+":)+)\s*return FROM_LIFECYCLE;/)?.[1] || '';
-  const lifecycle = [...block.matchAll(/case "([a-z0-9_]+)":/g)].map((m) => m[1]);
-  for (const e of EMAILS) assert.ok(lifecycle.includes(e.type), `${e.type} sends from FROM_LIFECYCLE`);
-  assert.match(readSrc('./emailImpact.js'), /send-transactional-email's FROM_LIFECYCLE/);
+  // The case labels that fall through to each `return FROM_X;`. Every run is
+  // scanned, so a type listed under two returns is caught.
+  const casesFor = (konst) => [...sw.matchAll(new RegExp(`((?:\\s*case "[a-z0-9_]+":)+)\\s*return ${konst};`, 'g'))]
+    .flatMap((m) => [...m[1].matchAll(/case "([a-z0-9_]+)":/g)].map((c) => c[1]));
+  const by = { lifecycle: casesFor('FROM_LIFECYCLE'), hello: casesFor('FROM_HELLO') };
+  for (const e of EMAILS) {
+    assert.ok(by[e.from], `${e.type}: a from the page knows`);
+    assert.ok(by[e.from].includes(e.type), `${e.type} sends from FROM_${e.from.toUpperCase()}`);
+    for (const [k, list] of Object.entries(by)) if (k !== e.from) assert.ok(!list.includes(e.type), `${e.type} is not also FROM_${k.toUpperCase()}`);
+  }
+  assert.ok(EMAILS.filter((e) => e.from === 'lifecycle').length >= 7, 'the win-backs and nudges share one address');
+  assert.match(readSrc('./emailImpact.js'), /send-transactional-email's fromAddress/);
 });
 
 test('the welcome can go out up to 3 days after sign-up, which is when a sign-up week settles', () => {

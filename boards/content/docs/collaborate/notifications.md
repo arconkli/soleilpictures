@@ -33,7 +33,7 @@ Six categories, six independent switches, in **Settings → Notifications**.
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
 | **Invite accepted** | Someone you invited opens your link and joins |
-| **Product tips and check-ins** | Occasional messages about the product |
+| **Product tips and check-ins** | Occasional messages about the product, including a short note from the team when something new ships |
 
 The last one is the one to switch off if you only want to hear about your own
 work. The other five are all consequences of something a person did that
