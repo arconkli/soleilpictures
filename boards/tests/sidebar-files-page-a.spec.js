@@ -246,3 +246,50 @@ test.describe('Grid: the tiles', () => {
     await expect(tile).not.toHaveClass(/is-renaming/);
   });
 });
+
+test.describe('Info and the states', () => {
+  test('Info is a card beside the sheet, which makes room for it', async ({ page }) => {
+    await open(page);
+    const before = await sheet(page).boundingBox();
+    await sheet(page).locator('[data-item-id="film-img-3"]').click();
+    await page.keyboard.press('ControlOrMeta+i');
+    const card = sheet(page).locator('.cb-detail');
+    await expect(card).toBeVisible();
+    await expect(card.locator('.cbd-title')).toContainText('film-still-004');
+    const after = await sheet(page).boundingBox();
+    const box = await card.boundingBox();
+    const vw = page.viewportSize().width;
+    expect(Math.round(vw - (box.x + box.width))).toBe(8);
+    expect(Math.round(box.width)).toBe(340);
+    expect(Math.round(box.x - (after.x + after.width))).toBe(8);
+    expect(Math.round(box.y)).toBe(Math.round(after.y));
+    expect(after.width).toBeLessThan(before.width);
+    await sheet(page).evaluate((el) => el.scrollBy(0, 600));
+    const moved = await card.boundingBox();
+    expect(Math.round(moved.y)).toBe(Math.round(box.y));
+  });
+
+  test('a cluster with no files: its clusters, then what to do, in the middle of the sheet', async ({ page }) => {
+    await open(page, '&empty=1');
+    await expect(page.locator('.fp-tools')).toHaveCount(0);
+    await expect(page.locator('.fp-meta')).toHaveText('No files · 2 clusters');
+    await expect(page.locator('.fp-empty-title')).toHaveText('No files in Feature film');
+    await expect(page.locator('.fp-empty .fp-add')).toContainText('Add files');
+    await expect(sheet(page).locator('.fp-cls .ft')).toHaveCount(2);
+    await expect(page.locator('.list-empty')).toHaveCount(0);
+    // The block takes the rest of the sheet, so it sits in the middle of it.
+    const s = await sheet(page).boundingBox();
+    const e = await page.locator('.fp-empty').boundingBox();
+    expect(e.y + e.height).toBeGreaterThan(s.y + s.height - 60);
+    expect(await sheet(page).evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+  });
+
+  test('a search with no hits says so and clears', async ({ page }) => {
+    await open(page);
+    await page.locator('.fp-search input').fill('zzzz-nothing');
+    await expect(page.locator('.fp-nomatch')).toContainText('No files match.');
+    await page.locator('.fp-nomatch').getByRole('button', { name: 'Clear filters' }).click();
+    await expect(page.locator('.fp-search input')).toHaveValue('');
+    await expect(sheet(page).locator('[data-item-id="film-img-3"]')).toHaveCount(1);
+  });
+});

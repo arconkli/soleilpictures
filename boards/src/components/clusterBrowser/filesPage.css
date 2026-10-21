@@ -371,3 +371,71 @@
   .list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-row,
   .list-wrap[data-look='sb'] .ct-table.is-bare .ct-row { grid-template-columns: minmax(0, 1fr) 40px; }
 }
+
+/* ── Info: a card beside the sheet ───────────────────────────────────────── */
+/* Fixed to the Files area, so it stays put while the sheet scrolls, the
+   ground shows round it, and the sheet makes room. A container query box
+   doesn't hold fixed boxes (container-type no longer implies layout
+   containment), so the area takes layout containment while the card is
+   open; the page's menus and Quick look are portalled to <body>, so nothing
+   else fixed is inside it. Only with .has-info, which ListSurface sets
+   beside a sheet, never on a phone, where Info stays production's bottom
+   sheet. */
+.fdl-files:has(.list-wrap[data-look='sb'].has-info) { contain: layout; }
+.list-wrap[data-look='sb'].has-info { margin-right: 356px; }
+.list-wrap[data-look='sb'].has-info .cb-detail.surface-frosted {
+  position: fixed; top: var(--fp-top); right: 8px; bottom: auto; left: auto; z-index: 5;
+  width: 340px; min-width: 0; max-height: calc(100% - var(--fp-top) - 8px);
+  border: 0; border-radius: 12px;
+  background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--sbf-glass-shadow);
+  outline: 1px solid var(--sbf-glass-line); outline-offset: -1px;
+}
+.list-wrap[data-look='sb'] .cbd-head { padding: 14px 10px 10px 16px; border-bottom: 0; }
+.list-wrap[data-look='sb'] .cbd-title { font: 600 14px/1.3 var(--font-sans); }
+.list-wrap[data-look='sb'] .cbd-sub { font: 400 12px/1.3 var(--font-sans); color: var(--ink-2); }
+.list-wrap[data-look='sb'] .cbd-body { padding: 2px 16px 14px; }
+.list-wrap[data-look='sb'] .cbd-preview { border: 0; border-radius: 8px; background: var(--sbf-track); }
+.list-wrap[data-look='sb'] .cbd-section-label,
+.list-wrap[data-look='sb'] .cbd-members-label {
+  color: var(--sbf-quiet); font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
+}
+.list-wrap[data-look='sb'] .cbd-section + .cbd-section { border-top-color: var(--sbf-glass-line); }
+.list-wrap[data-look='sb'] .cbd-actions { padding: 10px 12px; border-top: 1px solid var(--sbf-glass-line); }
+.list-wrap[data-look='sb'] .cbd-act.is-primary { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); border-color: transparent; color: var(--ink-0); }
+.list-wrap[data-look='sb'] .cbd-act-danger { color: #ff8a80; }
+[data-theme='light'] .list-wrap[data-look='sb'] .cbd-act-danger { color: #c62828; }
+
+/* ── No files, no hits, still loading ────────────────────────────────────── */
+/* A cluster with no files: its clusters, then what to do, in the middle of
+   what's left of the sheet (.is-empty, which ListSurface sets only then). */
+.list-wrap[data-look='sb'].is-empty > .list-inner { display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
+.list-wrap[data-look='sb'].is-empty .cluster-browser,
+.list-wrap[data-look='sb'].is-empty .cb-split { flex: 1; }
+/* With no files, Info can only describe a cluster, which a phone's sheet
+   doesn't show: the room production leaves under the list for that sheet
+   (60vh) would only scroll the page. */
+.list-wrap[data-look='sb'].is-empty .cb-main { display: flex; flex-direction: column; padding-bottom: 0; }
+.list-wrap[data-look='sb'].is-empty .fp-empty { flex: 1; justify-content: center; }
+.fp-empty { display: flex; flex-direction: column; align-items: center; padding: 72px 16px; text-align: center; }
+.fp-empty-ico {
+  display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 14px;
+  border-radius: 12px; background: var(--sbf-count); color: var(--ink-1);
+}
+.fp-empty-title { color: var(--ink-0); font: 600 15px/1.3 var(--font-sans); }
+.fp-empty-sub { max-width: 38ch; margin: 6px 0 18px; color: var(--ink-2); font: 400 13px/1.5 var(--font-sans); }
+.fp-empty-acts { display: flex; align-items: center; gap: 8px; }
+.fp-empty .fp-add { margin: 0; }
+.fp-nomatch { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 56px 16px; color: var(--ink-2); font: 400 13px/1 var(--font-sans); }
+.fp-loading { padding: 56px 16px; text-align: center; color: var(--ink-2); font: 400 13px/1 var(--font-sans); }
+/* Hits in clusters under this one: open them, don't select them. */
+.fp-desc { display: flex; flex-direction: column; margin-bottom: 6px; }
+.fp-desc-row {
+  display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 8px 0 4px;
+  border: 0; border-radius: 6px; background: transparent; cursor: pointer; text-align: left;
+}
+.fp-desc-row:hover { background: var(--bg-hov); }
+.fp-desc-row:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.fp-desc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-1); font: 500 13px/1 var(--font-sans); }
+.fp-desc-where { flex: none; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }

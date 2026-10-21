@@ -76,7 +76,7 @@ import { resolveSrc } from '../lib/r2.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { useFilesLook } from './clusterBrowser/filesLook.js';
 import { FilesPageHead, FilesPageTools } from './clusterBrowser/FilesPageHead.jsx';
-import { FilesShelves } from './clusterBrowser/FilesShelves.jsx';
+import { FilesShelves, FilesShelfHead } from './clusterBrowser/FilesShelves.jsx';
 import {
   SORT_TO_PAGE, SORT_LABELS, sidebarSortOf, sortLabelOf, chipToFilter, filterToChip, chipCountsOf, pageChipsOf, chipLabelOf,
   sectionsOf, shelfClosed, shelfFoldable, screenOrderOf, navStep,
@@ -1965,10 +1965,12 @@ export function ListSurface({
     () => visibleItems.filter(it => DOWNLOADABLE.has(it.kind)),
     [visibleItems]);
   const narrowed = !!query || filters.size > 0 || unplacedOnly;
+  const emptyHere = sb && visibleItems.length === 0 && !loading && !narrowed;
   const canDownloadAll = downloadableVisible.length > 1 && bulkDownloadSupported();
   // Full Files' page header: what's in the cluster, in one line.
   const pageMeta = [
-    `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
+    sb && !otherCards.length ? (loading ? null : 'No files')
+      : `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
     subBoards.length ? `${subBoards.length} ${subBoards.length === 1 ? 'cluster' : 'clusters'}` : null,
     unplacedTotal ? `${unplacedTotal} not on board` : null,
   ].filter(Boolean).join(' · ');
@@ -2494,7 +2496,7 @@ export function ListSurface({
 
   return (
     <IconWeightContext.Provider value={sb ? 'regular' : null}>
-    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}${selecting ? ' is-selecting' : ''}${noTouchDrag ? ' is-touch' : ''}`} ref={listWrapRef}
+    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}${selecting ? ' is-selecting' : ''}${noTouchDrag ? ' is-touch' : ''}${sb && detailTarget && !phoneShell ? ' has-info' : ''}${emptyHere ? ' is-empty' : ''}`} ref={listWrapRef}
          data-look={sb ? look : undefined}
          data-drop-board={rulesOn ? board.id : undefined} data-drop-where={rulesOn ? 'files' : undefined}
          data-drop-name={rulesOn ? (board.name || undefined) : undefined}
@@ -2572,7 +2574,7 @@ export function ListSurface({
         )}
         {!isPanel && !sb && filesBlockShown && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
         {!isPanel && !sb && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
-        {!isPanel && clusterEmpty && (
+        {!isPanel && !sb && clusterEmpty && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
             <div className="list-empty-sub">
@@ -2634,6 +2636,56 @@ export function ListSurface({
                     galleryProps={galleryProps} tableProps={tableProps} tileSize={tileSize} onShelfLayout={onShelfLayout} />
                 ) : (visibleItems.length > 0 || folderRows.length > 0) && (
                   <ClusterTable {...tableProps} items={displayItems} variant="classic" leadRows={folderRows} />
+                )}
+                {visibleItems.length === 0 && (loading ? (
+                  <div className="fp-loading" role="status">Loading files…</div>
+                ) : narrowed ? (
+                  descHits.length === 0 && shownFolders.length === 0 && (
+                    <div className="fp-nomatch">
+                      <span>No files match.</span>
+                      <button type="button" className="fp-word" onClick={() => { setQuery(''); onClearFilters(); }}>Clear filters</button>
+                    </div>
+                  )
+                ) : (
+                  <div className={`fp-empty${canEdit ? '' : ' is-readonly'}`}>
+                    {canEdit && <span className="fp-empty-ico" aria-hidden="true"><Icon as={UploadSimple} size={20} weight="regular" /></span>}
+                    <div className="fp-empty-title">No files in {board?.name || 'this cluster'}</div>
+                    <div className="fp-empty-sub">
+                      {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
+                        : browsingFrom ? `Open ${board?.name || 'it'} to add files.` : 'Nothing here yet.'}
+                    </div>
+                    {canEdit ? (
+                      <div className="fp-empty-acts">
+                        <button type="button" className="sbf-upload fp-add" onClick={openAddPicker}>
+                          <Icon as={Plus} size={14} weight="regular" /><span className="fp-add-label">Add files</span>
+                        </button>
+                        {!shownFolders.length && mutators.addNewBoard && (
+                          <button type="button" className="fp-word" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}>New cluster</button>
+                        )}
+                        {!shownFolders.length && onOpenPicker && (
+                          <button type="button" className="fp-word" onClick={onOpenPicker}>Link a cluster</button>
+                        )}
+                      </div>
+                    ) : browsingFrom && dockControls?.onExpand ? (
+                      <button type="button" className="fp-word" onClick={dockControls.onExpand}>Open {board?.name || 'cluster'}</button>
+                    ) : null}
+                  </div>
+                ))}
+                {/* Hits in clusters under this one aren't loaded cards: rows
+                    that open the cluster they're in. */}
+                {descHits.length > 0 && (
+                  <>
+                    <FilesShelfHead id="desc" label="In sub-clusters" count={descHits.length}
+                      first={visibleItems.length === 0 && shownFolders.length === 0} />
+                    <div className="fp-desc">
+                      {descHits.map((h) => (
+                        <button key={`${h.boardId}:${h.id}`} type="button" className="fp-desc-row" onClick={() => onOpenBoard(h.boardId)}>
+                          <span className="fp-desc-name">{h.name}</span>
+                          <span className="fp-desc-where">{h.clusterName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
               {detailJsx}
