@@ -7410,6 +7410,90 @@ export function CanvasSurface({
       setSnapHints(snap.hints);
       movedSettled = true;
     };
+    // Drop-target hover detection (board nesting + grid-cell drop). Both use
+    // document.elementsFromPoint — a forced synchronous layout — so we (a)
+    // SKIP it entirely when this board has nothing to drop into, and (b)
+    // throttle it to ~20Hz and share ONE stack read. A hover highlight
+    // doesn't need 60/120Hz, and onUp tests the release point once more, so
+    // a drop goes where the pointer is let go. On throttled-out frames the
+    // current highlight is left as-is (no flicker).
+    const hitTestDropTargets = (ev, dx, dy, nowT) => {
+      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
+      // A card still uploading can't go into a cell (routeCardIntoCell), so it
+      // never lights one up either.
+      const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
+      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable || rulesDrag)
+        && (Math.abs(dx) + Math.abs(dy) > 4);
+      if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
+        lastHitTestT = nowT;
+        // The dragged cards sit under the cursor, so use elementsFromPoint and
+        // walk the stack for the first id that ISN'T in the dragged set.
+        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
+        // Over a cluster outside the board, nothing on the board under it counts.
+        const outsideEl = rulesDrag ? outsideTargetAt(stack) : null;
+        if (outsideEl !== outsideDrop.el) {
+          if (outsideEl) setOutside(outsideEl, null);
+          else clearOutside();
+        }
+        let nextDropTarget = null;
+        if (dropCandidateIds.length && !outsideEl) {
+          for (const el of stack) {
+            const cardEl = el?.closest?.('[data-card-id]');
+            const id = cardEl?.getAttribute?.('data-card-id');
+            if (!id) continue;
+            if (dragIds.includes(id)) continue;
+            const tc = cardById[id];
+            if (tc?.kind === 'board') { nextDropTarget = tc.id; break; }
+            if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
+            // Keep walking — non-board cards aren't targets but don't stop us.
+          }
+          // Touch-friendly fallback: on a phone the finger is offset from the
+          // card and occludes small boards, so the point hit-test above often
+          // misses the board you're clearly dragging ONTO. Pick the candidate
+          // board the dragged card visually overlaps the most.
+          if (!nextDropTarget) {
+            const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
+            const dr = dragEl?.getBoundingClientRect();
+            if (dr && dr.width && dr.height) {
+              let best = 0;
+              for (const bid of dropCandidateIds) {
+                const bEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(bid) : bid}"]`);
+                const br = bEl?.getBoundingClientRect();
+                if (!br || !br.width || !br.height) continue;
+                const ox = Math.max(0, Math.min(dr.right, br.right) - Math.max(dr.left, br.left));
+                const oy = Math.max(0, Math.min(dr.bottom, br.bottom) - Math.max(dr.top, br.top));
+                const overlap = ox * oy;
+                if (overlap <= 0) continue;
+                const minArea = Math.min(dr.width * dr.height, br.width * br.height);
+                if (overlap > best && overlap > 0.18 * minArea) {
+                  best = overlap;
+                  const tc = cardById[bid];
+                  nextDropTarget = tc?.kind === 'boardlink' ? tc.target : bid;
+                }
+              }
+            }
+          }
+        }
+        updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
+        // Grid-cell drop target: reuse the same stack for a [data-cell-id] in a
+        // grid that ISN'T part of the dragged set. A board drop wins over a cell
+        // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
+        // a multi-select drag never shows a misleading affordance.
+        let nextCell = null;
+        if (!nextDropTarget && soloCellable && !outsideEl) {
+          for (const el of stack) {
+            const cellEl = el?.closest?.('[data-cell-id]');
+            if (!cellEl) continue;
+            const gridEl = cellEl.closest('[data-grid-id]');
+            const gid = gridEl?.getAttribute?.('data-grid-id');
+            if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
+            nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
+            break;
+          }
+        }
+        updateCellDropTarget(nextCell);
+      }
+    };
     const flushMove = () => {
       moveRafId = 0;
       const ev = pendingMoveEv;
@@ -7513,88 +7597,7 @@ export function CanvasSurface({
       movedSettled = settled;
       if (settleTimer) clearTimeout(settleTimer);
       if (!skip) settleTimer = setTimeout(onSettle, SNAP_TUNING.SETTLE_MS);
-      // Drop-target hover detection (board nesting + grid-cell drop). Both use
-      // document.elementsFromPoint — a forced synchronous layout — so we (a)
-      // SKIP it entirely when this board has nothing to drop into, and (b)
-      // throttle it to ~20Hz and share ONE stack read. A hover highlight
-      // doesn't need 60/120Hz, and pointer-up resolves the real target
-      // independently (onUp), so drop accuracy is unchanged. On throttled-out
-      // frames the current highlight is left as-is (no flicker).
-      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
-      // A card still uploading can't go into a cell (routeCardIntoCell), so it
-      // never lights one up either.
-      const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
-      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable || rulesDrag)
-        && (Math.abs(dx) + Math.abs(dy) > 4);
-      if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
-        lastHitTestT = nowT;
-        // The dragged cards sit under the cursor, so use elementsFromPoint and
-        // walk the stack for the first id that ISN'T in the dragged set.
-        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
-        // Over a cluster outside the board, nothing on the board under it counts.
-        const outsideEl = rulesDrag ? outsideTargetAt(stack) : null;
-        if (outsideEl !== outsideDrop.el) {
-          if (outsideEl) setOutside(outsideEl, null);
-          else clearOutside();
-        }
-        let nextDropTarget = null;
-        if (dropCandidateIds.length && !outsideEl) {
-          for (const el of stack) {
-            const cardEl = el?.closest?.('[data-card-id]');
-            const id = cardEl?.getAttribute?.('data-card-id');
-            if (!id) continue;
-            if (dragIds.includes(id)) continue;
-            const tc = cardById[id];
-            if (tc?.kind === 'board') { nextDropTarget = tc.id; break; }
-            if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
-            // Keep walking — non-board cards aren't targets but don't stop us.
-          }
-          // Touch-friendly fallback: on a phone the finger is offset from the
-          // card and occludes small boards, so the point hit-test above often
-          // misses the board you're clearly dragging ONTO. Pick the candidate
-          // board the dragged card visually overlaps the most.
-          if (!nextDropTarget) {
-            const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
-            const dr = dragEl?.getBoundingClientRect();
-            if (dr && dr.width && dr.height) {
-              let best = 0;
-              for (const bid of dropCandidateIds) {
-                const bEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(bid) : bid}"]`);
-                const br = bEl?.getBoundingClientRect();
-                if (!br || !br.width || !br.height) continue;
-                const ox = Math.max(0, Math.min(dr.right, br.right) - Math.max(dr.left, br.left));
-                const oy = Math.max(0, Math.min(dr.bottom, br.bottom) - Math.max(dr.top, br.top));
-                const overlap = ox * oy;
-                if (overlap <= 0) continue;
-                const minArea = Math.min(dr.width * dr.height, br.width * br.height);
-                if (overlap > best && overlap > 0.18 * minArea) {
-                  best = overlap;
-                  const tc = cardById[bid];
-                  nextDropTarget = tc?.kind === 'boardlink' ? tc.target : bid;
-                }
-              }
-            }
-          }
-        }
-        updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
-        // Grid-cell drop target: reuse the same stack for a [data-cell-id] in a
-        // grid that ISN'T part of the dragged set. A board drop wins over a cell
-        // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
-        // a multi-select drag never shows a misleading affordance.
-        let nextCell = null;
-        if (!nextDropTarget && soloCellable && !outsideEl) {
-          for (const el of stack) {
-            const cellEl = el?.closest?.('[data-cell-id]');
-            if (!cellEl) continue;
-            const gridEl = cellEl.closest('[data-grid-id]');
-            const gid = gridEl?.getAttribute?.('data-grid-id');
-            if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
-            nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
-            break;
-          }
-        }
-        updateCellDropTarget(nextCell);
-      }
+      hitTestDropTargets(ev, dx, dy, nowT);
       // Over a cluster outside the board: the label follows the pointer and the
       // keys, every frame (the place under it is found at the hit test's pace).
       if (outsideDrop.el) setOutside(outsideDrop.el, decideOutside(outsideDrop.el, ev));
@@ -7711,6 +7714,12 @@ export function CanvasSurface({
           return;
         }
       }
+      // The last hover test can be up to 50ms old, and this release cancelled
+      // the frame's last move: a quick drop into a cell or onto a cluster
+      // card was decided by where the pointer had been, and the card landed
+      // beside it. Test where it is let go.
+      lastHitTestT = 0;
+      hitTestDropTargets(ev, dx, dy, ev.timeStamp || performance.now());
       // ── Drop a single card INTO a grid cell (auto-formats by kind) ──
       const cellTarget = cellDropTargetRef.current;
       updateCellDropTarget(null);
