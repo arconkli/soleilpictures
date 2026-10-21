@@ -39,8 +39,7 @@ header.
 
 A docked document is held by the workspace, not by the canvas underneath it. You
 can open other clusters, drill into nested ones, and move around the sidebar with
-the document still open beside you — it stays put until you close it. One
-document is docked at a time; opening another hands it the pane. Docking a
+the document still open beside you — it stays put until you close it. Docking a
 document also takes over the [split view](/docs/clusters#side-by-side) pane, since
 there is only one.
 
@@ -48,6 +47,20 @@ A document reopens **where you left it** — the same page, scrolled to the same
 spot — even after you close the tab. That position is remembered per browser,
 not synced between devices. Following a collaborator's avatar into a document
 still takes you to where *they* are.
+
+### Two documents side by side
+
+With a document docked, open another one on the board and it takes the board's
+place, so the two sit side by side: a script beside its treatment, notes beside
+the draft they are about. Each keeps its own toolbar, find and zoom, and `⌘Z` and
+`⌘F` act on the one you are working in. The sidebar tucks away while both are
+open; `⌘B` brings it back. Opening a third puts it in place of the second, and a
+card's **Open beside** button still changes which one is docked.
+
+**×** on either document brings the board back; close the docked one and the
+other moves into the dock. Going to another cluster closes the one from the
+board you left, and the docked one stays. On a phone, where there is room for
+one, the document you open takes the dock instead.
 
 ## Layout
 

@@ -33,6 +33,8 @@ import { useBoardCapacity } from './hooks/useBoardCapacity.js';
 import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
+import { DocPaneFrame } from './components/DocPaneFrame.jsx';
+import { openBesideDock, mainPaneMoved, sidebarShown, toggleSidebar } from './lib/docPanes.js';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
@@ -1530,6 +1532,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // overlay without giving up the pane that keeps its board loaded.
   const [splitDoc, setSplitDoc] = useState(null);
   const [splitDocFull, setSplitDocFull] = useState(false);
+  // A second doc, beside the docked one in the main pane's place, so two can
+  // be read at once (lib/docPanes.js; the owner's ask, 2026-10-20):
+  // { cardId, boardId } on the main pane's board, which stays mounted under it
+  // as it was. besideDocFull lifts it to fullscreen, as splitDocFull does.
+  const [besideDoc, setBesideDoc] = useState(null);
+  const [besideDocFull, setBesideDocFull] = useState(false);
+  // Two docs side by side take the sidebar's room: it tucks away while both
+  // are open, and its button and ⌘B bring it back meanwhile. Nothing is
+  // stored; it is as it was when one of them closes (docPanes.js).
+  const twoDocs = !!splitDoc && !!besideDoc && !mobileShell;
+  const [sidebarAskedBack, setSidebarAskedBack] = useState(false);
+  useEffect(() => { if (!twoDocs) setSidebarAskedBack(false); }, [twoDocs]);
+  const sidebarShownNow = sidebarShown({ open: sidebarOpen, twoDocs, askedBack: sidebarAskedBack });
+  const toggleSidebarNow = () => {
+    const next = toggleSidebar({ open: sidebarOpen, twoDocs, askedBack: sidebarAskedBack });
+    if (next.open !== sidebarOpen) setSidebarOpen(next.open);
+    setSidebarAskedBack(next.askedBack);
+  };
+  const showSidebarNow = () => { if (!sidebarShownNow) toggleSidebarNow(); };
   // The pane Board · Files acts on — the topbar switch, its count, F and the
   // ⌘K command all agree on it. Same rule as the breadcrumb (toolbarPane,
   // below): the split pane once you have touched it, unless a document is
@@ -1575,8 +1596,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setSplitStack([boardId]);
     setSplitDoc({ cardId });
     setSplitDocFull(false);
+    // Docking the doc that was beside moves it, and the board comes back.
+    setBesideDoc((b) => (b?.cardId === cardId ? null : b));
   };
-  const closeSplitDoc = () => { setSplitDoc(null); setSplitDocFull(false); setSplitStack([]); };
+  // × on the docked doc. One beside it moves into the dock, so the board comes
+  // back where it was (docPanes closeDock).
+  const closeSplitDoc = () => {
+    if (besideDoc) {
+      dockDocCard(besideDoc);
+      setBesideDoc(null);
+      setBesideDocFull(false);
+      return;
+    }
+    setSplitDoc(null); setSplitDocFull(false); setSplitStack([]);
+  };
+  // Any other doc opened while one is docked (a double-click, a double tap, a
+  // jump to it from Files or a peer) goes beside it: RichDocCard asks only
+  // while a doc is docked and it isn't that one.
+  const openBesideDoc = (doc) => {
+    const dock = splitDoc && splitId ? { cardId: splitDoc.cardId, boardId: splitId } : null;
+    const next = openBesideDock({ dock, beside: besideDoc }, doc);
+    if (!next || next.beside === besideDoc) return;
+    setBesideDoc(next.beside);
+    setBesideDocFull(false);
+  };
+  const closeBesideDoc = () => { setBesideDoc(null); setBesideDocFull(false); };
   // Safety net for the prune above: if the doc's host board is deleted the
   // split stack empties, and the dock must go with it.
   useEffect(() => {
@@ -1600,6 +1644,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if ((splitYb.cards || []).some(c => c.id === splitDoc.cardId)) return;
     setSplitDoc(null); setSplitDocFull(false); setSplitStack([]);
   }, [splitDoc, splitId, splitYb.ready, splitYb.boardId, splitYb.cards]);
+  // The doc beside lives on the main pane's board, in its place. The split
+  // closing takes it too (it is beside the dock, so it goes with it), and so
+  // does the main pane moving to another cluster or to its Files page
+  // (docPanes mainPaneMoved) or its card being deleted, once the board has
+  // loaded: absent while it hydrates is "not yet".
+  useEffect(() => {
+    if (!besideDoc) return;
+    const deleted = yb.ready && yb.boardId === besideDoc.boardId
+      && !(yb.cards || []).some(c => c.id === besideDoc.cardId);
+    const moved = !mainPaneMoved({ dock: splitDoc, beside: besideDoc }, { boardId: currentId, view }).beside;
+    if (!splitDoc || moved || deleted) {
+      setBesideDoc(null); setBesideDocFull(false);
+    }
+  }, [besideDoc, splitDoc, currentId, view, yb.ready, yb.boardId, yb.cards]);
+  // Opening it (or maximizing it) hands it the keyboard, as the dock does, and
+  // its going hands the keyboard back to the board.
+  useEffect(() => { if (besideDoc) setActivePane('beside'); }, [besideDoc, besideDocFull]);
+  useEffect(() => { if (!besideDoc && getActivePane() === 'beside') setActivePane('main'); }, [besideDoc]);
   // Board cards whose reparent is in flight — childBoardId → oldParentId. The
   // render filter (see renderSurface) hides each from its OLD parent's canvas
   // the instant the drop is dispatched, so the dragged card doesn't snap back
@@ -5248,8 +5310,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // events; we mirror them into state so workspace presence reflects
   // the exact location for click-to-jump.
   //   null OR { cardId, pageId }   (scrollTop lives in openDocScrollRef)
-  const [openDocCard, setOpenDocCard] = useState(null);
-  const openDocScrollRef = useRef({ cardId: null, scrollTop: 0 });
+  // Two can be open at once (docked, and beside it or fullscreen over it), so
+  // every open one is kept, oldest first: openDocCard is the newest, and
+  // closing it hands presence back to the one still open, which used to be
+  // dropped. Scroll offsets are kept per card.
+  const [openDocs, setOpenDocs] = useState([]);
+  const openDocCard = openDocs.length ? openDocs[openDocs.length - 1] : null;
+  const openDocScrollRef = useRef(new Map());
   // Keep a live reference to the board flush fns so the (empty-dep) doc-card
   // listener below can persist pending edits the moment a card closes. A doc
   // card's content lives in its host board's Y.Doc, so flushing the open
@@ -5266,17 +5333,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onMount = (e) => {
       const { cardId } = e.detail || {};
       if (!cardId) return;
-      openDocScrollRef.current = { cardId, scrollTop: 0 };
-      setOpenDocCard({ cardId, pageId: null });
+      openDocScrollRef.current.set(cardId, 0);
+      setOpenDocs(list => [...list.filter(d => d.cardId !== cardId), { cardId, pageId: null }]);
     };
     const onUnmount = (e) => {
       const { cardId } = e.detail || {};
       try { flushBoardsRef.current?.(); } catch (_) {}
-      setOpenDocCard(c => (c?.cardId === cardId ? null : c));
+      openDocScrollRef.current.delete(cardId);
+      setOpenDocs(list => (list.some(d => d.cardId === cardId) ? list.filter(d => d.cardId !== cardId) : list));
     };
     const onPage = (e) => {
       const { cardId, pageId } = e.detail || {};
-      setOpenDocCard(c => (c?.cardId === cardId ? { ...c, pageId: pageId || null } : c));
+      setOpenDocs(list => (list.some(d => d.cardId === cardId)
+        ? list.map(d => (d.cardId === cardId ? { ...d, pageId: pageId || null } : d)) : list));
     };
     // Scroll lands in a ref, never in state: this fires every 200ms while a
     // doc scrolls, and a state write here re-rendered the whole App (~9k
@@ -5285,7 +5354,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // reads it lazily at heartbeat time (see the location getter below).
     const onScroll = (e) => {
       const { cardId, scrollTop } = e.detail || {};
-      if (openDocScrollRef.current.cardId === cardId) openDocScrollRef.current.scrollTop = scrollTop || 0;
+      if (openDocScrollRef.current.has(cardId)) openDocScrollRef.current.set(cardId, scrollTop || 0);
     };
     document.addEventListener('soleil-doccard-mount', onMount);
     document.addEventListener('soleil-doccard-unmount', onUnmount);
@@ -8652,8 +8721,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // A getter, so the heartbeat reads the live value from the ref without
       // the scroll ever re-rendering App.
       get scrollTop() {
-        return openDocCard && openDocScrollRef.current.cardId === openDocCard.cardId
-          ? openDocScrollRef.current.scrollTop : 0;
+        return openDocCard ? (openDocScrollRef.current.get(openDocCard.cardId) || 0) : 0;
       },
       // True only when this tab is foregrounded AND user is on a board.
       // Peers consume this to hide presence dots from background tabs
@@ -9550,12 +9618,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // ProseMirror/contenteditable-descendant targets.
         if (isEditableTarget(e)) return;
         e.preventDefault();
-        setSidebarOpen(!sidebarOpen);
+        toggleSidebarNow();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [sidebarOpen, setSidebarOpen]);
+    // toggleSidebarNow reads exactly these (two docs tuck the sidebar away).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sidebarOpen, setSidebarOpen, twoDocs, sidebarAskedBack]);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   useEffect(() => {
@@ -9656,19 +9726,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'theme', label: 'Toggle theme', icon: themeMode === 'dark' ? Sun : Moon, keywords: ['theme', 'dark', 'light', 'mode'],
       run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
     { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
-      run: () => setSidebarOpen(!sidebarOpen) },
+      run: () => toggleSidebarNow() },
     // The files sidebar's files card: hidden, it folds to its
     // heading under the clusters; ⌘\ does the same (ClusterSidebar).
     { id: 'sidebar-files', label: pageFilesId || sidebarLayout.filesHidden ? 'Show files in the sidebar' : 'Hide files in the sidebar',
       icon: FilesIcon, keywords: ['files', 'sidebar', 'hide', 'show', 'panel'],
       // Hiding needs the sidebar open to mean anything; Show opens it too.
       // While the full Files page folds the card, Show shrinks the page back.
-      available: filesSidebar && !mobileShell && (sidebarOpen || !!sidebarLayout.filesHidden || !!pageFilesId),
+      available: filesSidebar && !mobileShell && (sidebarShownNow || !!sidebarLayout.filesHidden || !!pageFilesId),
       run: () => {
-        if (pageFilesId) { shrinkPageRef.current('palette'); if (!sidebarOpen) setSidebarOpen(true); return; }
+        if (pageFilesId) { shrinkPageRef.current('palette'); showSidebarNow(); return; }
         const hide = !sidebarLayout.filesHidden;
         onSidebarLayout(withFilesHidden(sidebarLayout, hide), { commit: true });
-        if (!hide && !sidebarOpen) setSidebarOpen(true);
+        if (!hide) showSidebarNow();
       } },
     // Keyworded for what people will actually type when the canvas isn't doing
     // what they expect ("scroll", "wheel", "zoom") rather than for the name of
@@ -9709,6 +9779,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+      twoDocs, sidebarAskedBack,
       sidebarLayout, onSidebarLayout, filesSidebar, mobileShell, pageFilesId,
       captureAllowed, capture.on, switchMode, switchInSplit, switchView, switchBoardId,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut, feedback]);
@@ -10078,6 +10149,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            depth={(isMain ? stack.length : splitStack.length) - 1}
                            onDockDoc={({ cardId }) => dockDocCard({ cardId, boardId: board.id })}
                            dockedDocCardId={splitDoc?.cardId || null}
+                           /* Not on a phone: its halves are too narrow to read
+                              two docs in, so a doc opened there takes the dock. */
+                           onOpenBesideDoc={isMain && splitDoc && !isPhone ? ({ cardId }) => openBesideDoc({ cardId, boardId: board.id }) : null}
                            onSetSchedule={handleSetSchedule}
                            /* Held with the calendar rebuild (lib/appHost.js). This is the
                               SECOND minting path: scaffoldShootDay puts a schedView:'day'
@@ -10166,54 +10240,65 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     );
   };
 
+  // A doc that takes a whole pane (lib/docPanes.js): docked in the split pane,
+  // or beside it in the main pane's place. DocPaneFrame claims the pane's
+  // keyboard and keeps a crash in the pane. Each rides the Y.Doc of the board
+  // its card is on, which its pane keeps loaded.
+  const renderDocPane = ({ pane, cardId, ybh, boardId, canEdit, mutators: muts, onClose, full, onSetFull }) => {
+    const here = ybh.ready && ybh.boardId === boardId;
+    const docCard = here ? (ybh.cards || []).find(c => c.id === cardId) : null;
+    const cardYMap = here ? ybh.ydoc?.getMap?.('cards')?.get?.(cardId) || null : null;
+    return (
+      /* No bar here either: DocCardOverlay's own header already carries the
+         document's title and its close button, so this was the same title
+         and the same × twice over. */
+      <DocPaneFrame pane={pane} cardId={cardId}>
+        {docCard && cardYMap ? (
+          <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
+            <DockedDocPane
+              card={docCard}
+              ydoc={ybh.ydoc}
+              cardYMap={cardYMap}
+              hostBoardId={boardId}
+              workspaceId={workspace.id}
+              userId={user.id}
+              currentUser={currentUser}
+              getAwareness={ybh.getAwareness}
+              boards={boards}
+              wsPeers={wsPeers}
+              onJumpToPeer={jumpToPeer}
+              canEdit={canEdit}
+              onUpdate={(patch) => muts.updateCard?.(cardId, patch)}
+              onClose={onClose}
+              full={full}
+              onSetFull={onSetFull}
+              pane={pane} />
+          </Suspense>
+        ) : (
+          <div className="doc-surface-skeleton" aria-hidden="true" />
+        )}
+      </DocPaneFrame>
+    );
+  };
+
   // The right pane, when it's holding a docked doc rather than a cluster. It
   // rides splitYb — the same second Y.Doc the cluster split uses — which is
   // the whole point: the main pane can navigate anywhere and the doc's board
   // stays loaded underneath it.
-  const renderSplitDoc = () => {
-    const cardId = splitDoc?.cardId;
-    const docCard = (splitYb.ready && splitYb.boardId === splitId)
-      ? (splitYb.cards || []).find(c => c.id === cardId) : null;
-    const cardYMap = splitYDoc?.getMap?.('cards')?.get?.(cardId) || null;
-    return (
-      /* Claim the pane the same way the two board surfaces do. The main
-         canvas registers WINDOW-level shortcut handlers and stands down only
-         for the pane that isn't active — without this claim, ⌘Z pressed while
-         writing in the docked doc would undo on the board behind it. */
-      <div className="surface-wrap is-split is-doc-pane"
-           onPointerDownCapture={() => setActivePane('split')}
-           onPointerEnter={() => setActivePane('split')}>
-        {/* No bar here either: DocCardOverlay's own header already carries the
-            document's title and its close button, so this was the same title
-            and the same × twice over. */}
-        <SurfaceErrorBoundary resetKey={cardId}>
-          {docCard && cardYMap ? (
-            <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
-              <DockedDocPane
-                card={docCard}
-                ydoc={splitYDoc}
-                cardYMap={cardYMap}
-                hostBoardId={splitId}
-                workspaceId={workspace.id}
-                userId={user.id}
-                currentUser={currentUser}
-                getAwareness={splitYb.getAwareness}
-                boards={boards}
-                wsPeers={wsPeers}
-                onJumpToPeer={jumpToPeer}
-                canEdit={splitBoardPerm.canEdit}
-                onUpdate={(patch) => splitMutators.updateCard?.(cardId, patch)}
-                onClose={closeSplitDoc}
-                full={splitDocFull}
-                onSetFull={setSplitDocFull} />
-            </Suspense>
-          ) : (
-            <div className="doc-surface-skeleton" aria-hidden="true" />
-          )}
-        </SurfaceErrorBoundary>
-      </div>
-    );
-  };
+  const renderSplitDoc = () => renderDocPane({
+    pane: 'split', cardId: splitDoc?.cardId, ybh: splitYb, boardId: splitId,
+    canEdit: splitBoardPerm.canEdit, mutators: splitMutators,
+    onClose: closeSplitDoc, full: splitDocFull, onSetFull: setSplitDocFull,
+  });
+
+  // A second doc beside the docked one, in the main pane's place, over the
+  // board, which stays as it was underneath. It rides the main pane's Y.Doc:
+  // its card is on the board that pane shows (it closes when the pane moves).
+  const renderBesideDoc = () => renderDocPane({
+    pane: 'beside', cardId: besideDoc?.cardId, ybh: yb, boardId: besideDoc?.boardId,
+    canEdit: canEditCurrent, mutators: mainMutators,
+    onClose: closeBesideDoc, full: besideDocFull, onSetFull: setBesideDocFull,
+  });
 
   // The sidebar's top and foot. The files sidebar puts them on its cards
   // (ClusterSidebar's top and foot); the old one has them where they always
@@ -10259,7 +10344,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           desktop collapse preference (to the account) and leave the
           drawer open with every row hidden. */}
       <button className="sb-mid-collapse"
-              onClick={() => (mobileShell ? setMobileNavOpen(false) : setSidebarOpen(false))}
+              onClick={() => (mobileShell ? setMobileNavOpen(false) : toggleSidebarNow())}
               title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
               aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
         <Icon as={PanelLeftClose} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
@@ -10462,8 +10547,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         shell the sidebar IS the drawer, and .sb-collapsed hides every row in
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
-    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}${filesSidebar && currentSurface === 'home' ? ' is-home' : ''}${pageFilesId ? ' is-files-page' : ''}`}
-         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarFootprint(shownSidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
+    <div className={`app ${sidebarShownNow || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}${filesSidebar && currentSurface === 'home' ? ' is-home' : ''}${pageFilesId ? ' is-files-page' : ''}`}
+         style={filesSidebar && !mobileShell && sidebarShownNow ? { '--sb-w': `${sidebarFootprint(shownSidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -10522,7 +10607,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               floating={!mobileShell}
               roomy={sidebarRoomy}
               snug={sidebarSnug}
-              sizable={!mobileShell && sidebarOpen}
+              sizable={!mobileShell && sidebarShownNow}
               workspaceId={workspace.id}
               workspaceName={workspace.name || ''}
               boards={ownedBoards}
@@ -10732,9 +10817,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <FloatingChrome
             left={(
               <>
-                {!sidebarOpen && (
+                {!sidebarShownNow && (
                   <button className="tb-icon" title="Open sidebar (⌘B)" aria-label="Open sidebar"
-                          onClick={() => setSidebarOpen(true)}>
+                          onClick={showSidebarNow}>
                     <Icon as={PanelLeftOpen} size={16} />
                   </button>
                 )}
@@ -10830,12 +10915,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ) : (
         <div className={`topbar${showNewCluster ? ' topbar-centered' : ''}`}>
           <div className="tb-left">
-            {(!sidebarOpen || mobileShell) && (
+            {(!sidebarShownNow || mobileShell) && (
               <button className="tb-icon" title={mobileShell ? 'Open menu' : 'Open sidebar (⌘B)'}
                       aria-label={mobileShell ? 'Open menu' : 'Open sidebar'}
                       onClick={() => {
                         if (mobileShell) setMobileNavOpen(true);
-                        else setSidebarOpen(true);
+                        else showSidebarNow();
                       }}>
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
@@ -11189,7 +11274,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             showSplit={!!splitId}
             activePane={focusedPane}
             onClose={() => setSplitId(null)}
-            left={renderSurface({ board: currentBoard, view, yb: ybFramed, isMain: true })}
+            /* The doc beside the docked one lies over the main pane's board
+               (lib/docPanes.js), which stays mounted under it: a sibling, so
+               opening and closing it never re-mounts the board. */
+            left={<>
+              {renderSurface({ board: currentBoard, view, yb: ybFramed, isMain: true })}
+              {besideDoc && splitDoc && renderBesideDoc()}
+            </>}
             right={!splitId ? null : splitDoc ? renderSplitDoc() : renderSurface({
               board: splitBoard, view: splitView, yb: splitYb, isMain: false,
             })}
@@ -11659,7 +11750,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             wsCards={wsCardTotal}
             uploading={Object.keys(sidebarUploads || {}).length > 0}
             phone={mobileShell}
-            sidebarShown={mobileShell || sidebarOpen}
+            sidebarShown={mobileShell || sidebarShownNow}
             openDrawer={() => setMobileNavOpen(true)}
             closeDrawer={() => setMobileNavOpen(false)}
             canImport={bulkImportAllowed()}

@@ -24425,7 +24425,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A docked document is held by the workspace, not by the canvas underneath it. You can open other clusters, drill into nested ones, and move around the sidebar with the document still open beside you — it stays put until you close it. One document is docked at a time; opening another hands it the pane. Docking a document also takes over the "
+     "v": "A docked document is held by the workspace, not by the canvas underneath it. You can open other clusters, drill into nested ones, and move around the sidebar with the document still open beside you — it stays put until you close it. Docking a document also takes over the "
     },
     {
      "t": "link",
@@ -24478,6 +24478,84 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " are."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Two documents side by side",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two documents side by side"
+    }
+   ],
+   "id": "two-documents-side-by-side"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a document docked, open another one on the board and it takes the board's place, so the two sit side by side: a script beside its treatment, notes beside the draft they are about. Each keeps its own toolbar, find and zoom, and "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "⌘F"
+    },
+    {
+     "t": "text",
+     "v": " act on the one you are working in. The sidebar tucks away while both are open; "
+    },
+    {
+     "t": "code",
+     "v": "⌘B"
+    },
+    {
+     "t": "text",
+     "v": " brings it back. Opening a third puts it in place of the second, and a card's "
+    },
+    {
+     "t": "strong",
+     "v": "Open beside",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open beside"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button still changes which one is docked."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "×",
+     "children": [
+      {
+       "t": "text",
+       "v": "×"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on either document brings the board back; close the docked one and the other moves into the dock. Going to another cluster closes the one from the board you left, and the docked one stays. On a phone, where there is room for one, the document you open takes the dock instead."
     }
    ]
   },

@@ -530,14 +530,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
 
   // ⌘F opens find. ⌘⇧F also opens find (legacy macOS Pages-style).
   // ⌘+ / ⌘- / ⌘0 zoom in / out / reset (when the cursor is in this doc).
+  // THIS doc: two can be open at once (docked, and beside it or fullscreen
+  // over it), and a check for any doc's surface opened find in both.
+  const rootRef = useRef(null);
   useEffect(() => {
     const onKey = (e) => {
       const cmd = e.metaKey || e.ctrlKey;
       if (!cmd) return;
-      const inDoc = e.target?.closest?.('.tt-editor')
-                 || e.target?.closest?.('.doc-find')
-                 || e.target?.closest?.('.doc-surface');
-      if (!inDoc) return;
+      if (!rootRef.current?.contains?.(e.target)) return;
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         setFindOpen(true);
@@ -1041,7 +1041,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   }
 
   return (
-    <div className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
+    <div ref={rootRef} className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
       {/* Phone-only backdrop that closes the page drawer. */}
       {mobileRailOpen && <div className="doc-rail-backdrop" onClick={() => setMobileRailOpen(false)} />}
       {/* Left rail — page tree */}

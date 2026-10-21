@@ -15110,6 +15110,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
   overflow: hidden;
+  /* Holds a doc opened beside the docked one (.is-doc-beside). */
+  position: relative;
 }
 .split-divider {
   width: 6px;
@@ -15598,6 +15600,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   animation: none;
 }
 .surface-wrap.is-doc-pane { background: var(--bg-1); }
+/* A doc opened beside the docked one takes the main pane's place, over the
+   board, which stays mounted under it as it was (lib/docPanes.js). Its own
+   stacking context (.surface-wrap isolates) sits above the board's, under the
+   active pane's gold edge (4) and the divider (5). */
+.surface-wrap.is-doc-beside { position: absolute; inset: 0; z-index: 1; }
 @keyframes doc-card-modal-in {
   from { opacity: 0; transform: scale(.985); }
   to   { opacity: 1; transform: scale(1); }

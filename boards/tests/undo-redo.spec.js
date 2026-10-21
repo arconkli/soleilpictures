@@ -319,7 +319,7 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     const ds = read('src/components/DocSurface.jsx');
     expect(ds).toMatch(/pushDocUndoTarget\(docUndoManager, pane\)/);
     expect(ds).toMatch(/removeDocUndoTarget\(docUndoManager\)/);
-    expect(read('src/components/DocCard.jsx')).toMatch(/pane=\{full \? null : 'split'\}/);
+    expect(read('src/components/DocCard.jsx')).toMatch(/pane=\{full \? null : pane\}/);
   });
 
   test('Version history restores through the bulletproof path only', () => {

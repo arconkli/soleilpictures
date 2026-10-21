@@ -73,6 +73,11 @@ export function RichDocCard({
   onDock = null,
   // True when THIS card is the one currently docked in the split pane.
   isDocked = false,
+  // Set while ANOTHER doc is docked: opening this one (a double-click, a double
+  // tap, a jump to it) puts it beside the docked one, in the board's place, so
+  // two docs can be read at once (lib/docPanes.js). The buttons on the card
+  // keep their own meaning: the dock button swaps what is docked.
+  onOpenBeside = null,
   // The cluster this card sits on. The doc scope carries it as `boardId`:
   // comment @-mention notifications, doc tagging and the save footer are all
   // keyed by the HOST board, and without it they silently did nothing.
@@ -166,7 +171,18 @@ export function RichDocCard({
   };
   // What a plain double-click (or a peer jump) should do — the layout the user
   // last chose, falling back to fullscreen for anyone who has never docked.
-  const openRemembered = () => open(isPublic ? 'full' : readDocOpenMode());
+  // With another doc docked, beside it. Read through a ref: the open-event
+  // listener below outlives the render that made it, and a doc docked after
+  // this card mounted must still count.
+  const onOpenBesideRef = useRef(onOpenBeside);
+  onOpenBesideRef.current = isPublic ? null : onOpenBeside;
+  const openRemembered = () => {
+    const beside = onOpenBesideRef.current;
+    if (!beside) { open(isPublic ? 'full' : readDocOpenMode()); return; }
+    // One overlay doc at a time still: a doc this canvas has open goes.
+    try { document.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { cardId: card.id } })); } catch (_) {}
+    beside({ cardId: card.id });
+  };
 
   // Public single-click-to-open. Mirrors the board-cover pattern in
   // CanvasSurface's read-only branch: a release within 4px is a click and
@@ -215,7 +231,9 @@ export function RichDocCard({
       if (pageId) {
         try { localStorage.setItem(`soleil.boards.docActivePage.${card.id}`, pageId); } catch (_) {}
       }
-      setPendingScroll({ boardId: card.id, pageId: pageId || null, scrollTop: scrollTop || 0 });
+      // Beside the docked doc, the workspace hosts it: the page above is where
+      // it opens, and this card's own overlay has nothing to scroll.
+      if (!onOpenBesideRef.current) setPendingScroll({ boardId: card.id, pageId: pageId || null, scrollTop: scrollTop || 0 });
       openRemembered();
     };
     document.addEventListener('soleil-open-doc-card', onOpen);
@@ -423,6 +441,9 @@ export function DockedDocPane({
   boards = {}, wsPeers = [], onJumpToPeer, canEdit = true,
   onUpdate, onClose, full = false, onSetFull,
   hostBoardId = null, // the cluster the card lives on — see RichDocCard
+  // Which pane of the workspace it takes (lib/docPanes.js): 'split' docked,
+  // 'beside' opened next to the docked one, in the board's place.
+  pane = 'split',
 }) {
   if (cardYMap) initCardDocStore(ydoc, cardYMap);
   const scope = useMemo(
@@ -451,7 +472,7 @@ export function DockedDocPane({
       peersOnCard={peersOnCard}
       onJumpToPeer={onJumpToPeer}
       canEdit={canEdit}
-      pane={full ? null : 'split'} />
+      pane={full ? null : pane} />
   );
   // Fullscreen still portals to <body> so it clears the pane and the topbar;
   // the pane variant renders in flow, sized by the split divider.

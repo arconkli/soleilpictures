@@ -26,6 +26,7 @@ import * as screenplayPdf from '../lib/screenplayPdf.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { RichDocCard } from '../components/DocCard.jsx';
 import { setDocImageUploader } from '../components/docExtensions/ImageUpload.js';
+import { DocPanesQa } from './DocPanesQa.jsx';
 
 const CARD_ID = 'docqa-card';
 
@@ -75,7 +76,14 @@ function createDocStore() {
   return { ydoc, cardYMap, scope };
 }
 
+// ?docqa=1&panes=1: two docs side by side, docked and beside (DocPanesQa).
+const PANES = new URLSearchParams(window.location.search).get('panes') === '1';
+
 export function DocQaHarness() {
+  return PANES ? <DocPanesQa /> : <OneDocQa />;
+}
+
+function OneDocQa() {
   // Create the store exactly once for this instance.
   const [{ ydoc, cardYMap, scope }] = useState(createDocStore);
   // ?docqa=1&presence=1 gives the card a real Awareness so DocPresence mounts;

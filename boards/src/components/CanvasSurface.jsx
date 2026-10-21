@@ -613,8 +613,9 @@ export function CanvasSurface({
   canEditBoard = null,
   // Doc-card dock handoff — passed straight through to RichDocCard. See its
   // `onDock` prop: the workspace hosts the docked doc so it survives
-  // navigating to another cluster.
-  onDockDoc = null, dockedDocCardId = null,
+  // navigating to another cluster. With a doc docked, any other doc opens
+  // beside it (onOpenBesideDoc; lib/docPanes.js).
+  onDockDoc = null, dockedDocCardId = null, onOpenBesideDoc = null,
   // A template that just landed in the library (from /templates, a share link or
   // the public gallery) plus the way to let it go. The canvas owns the prompt
   // because placing is a canvas verb and pickTemplate already does exactly the
@@ -11135,6 +11136,7 @@ export function CanvasSurface({
                      isPublic={isPublic}
                      onDock={onDockDoc}
                      isDocked={dockedDocCardId === c.id}
+                     onOpenBeside={onOpenBesideDoc && dockedDocCardId && dockedDocCardId !== c.id ? onOpenBesideDoc : null}
                      hostBoardId={board.id}
                      autoFocus={af}
                      onUpdate={onUpdate} />
