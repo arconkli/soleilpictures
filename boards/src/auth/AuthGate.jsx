@@ -47,6 +47,7 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
 import { bootMark } from '../lib/bootMarks.js';
 import { preloadSignedInApp } from '../lib/preloadApp.js';
+import { startBootPrefetch, clearBootPrefetch } from '../lib/bootPrefetch.js';
 
 // Localstorage key holding an in-flight invite token between the
 // pre-signup landing (?invite=…) and the post-signup claim hook.
@@ -599,6 +600,10 @@ export function AuthGate({ children, signedOut = null }) {
             if (ws && !cancelled) setWsJoinAsk(ws);
           }
         }
+        // The reads the app opens with start now, while it downloads, and
+        // after the claims above: they rewrite the keys that say which
+        // workspace and cluster it opens (lib/bootPrefetch.js).
+        if (data.session?.user?.id && !cancelled) startBootPrefetch(data.session.user.id);
         if (data.session) bootMark('session', { refreshed: !callbackSession && refreshDue === true });
         if (data.session) hadSession.current = true;
         if (!cancelled) setSession(data.session);
@@ -619,7 +624,9 @@ export function AuthGate({ children, signedOut = null }) {
         if (!cancelled) setLoading(false);
       }
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      // What was prefetched belonged to the account that just left.
+      if (event === 'SIGNED_OUT') clearBootPrefetch();
       // Same as above — also handle the post-OTP sign-in path where the
       // session arrives after initial mount via this listener. Defer
       // setSession until consumePendingInvite has written the redirect
@@ -640,6 +647,7 @@ export function AuthGate({ children, signedOut = null }) {
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
         }
+        if (sess?.user?.id && !cancelled) startBootPrefetch(sess.user.id);
         if (sess) bootMark('session', { refreshed: false });
         if (sess) hadSession.current = true;
         if (!cancelled) setSession(sess);

@@ -62,6 +62,7 @@ import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
 import { bootMark, bootAt, bootDetail, onBootMark } from './lib/bootMarks.js';
+import { takeBootRoot, bootPrefetchLanding } from './lib/bootPrefetch.js';
 import { conversationKind } from './lib/messageEvents.js';
 import { isDefaultClusterName } from './lib/hints.js';
 import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
@@ -501,7 +502,9 @@ export function App() {
     let cancelled = false;
     (async () => {
       try {
-        let r = await getRootBoard(activeWorkspace.id);
+        // Started at sign-in when this device remembered the workspace.
+        let r = await takeBootRoot(user.id, activeWorkspace.id);
+        if (r === undefined) r = await getRootBoard(activeWorkspace.id);
         // null is not an error from the query's point of view — it means the
         // workspace has no live root cluster. Left alone, activeRoot stays
         // null and the LoadingShell gate below never opens, which is exactly
@@ -512,6 +515,7 @@ export function App() {
         }
         if (cancelled) return;
         if (!r) throw new Error('This workspace has no clusters and could not be repaired.');
+        bootPrefetchLanding(user, activeWorkspace.id, r.id);
         setActiveRoot(r);
         setActiveRootError(null);
       } catch (e) {
@@ -589,7 +593,7 @@ let boardReadySent = false;
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
   perf.usePerfRenderTime('Workspace');
   bootMark('workspace');
-  const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
+  const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id, user.id);
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
   // section in the sidebar reads from the same source.

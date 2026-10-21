@@ -11,6 +11,9 @@ import { isAbandonedUpload } from './abandonedUploads.js';
 import { fitByCost } from './demoCardCap.js';
 import { docPagesText, docSignature } from './docText.js';
 import { createStateWriteGate } from './boardStateGate.js';
+import {
+  personalWorkspaceQuery, rootBoardQuery, boardListQuery, sharedBoardsQuery, boardStateQuery,
+} from './bootQueries.js';
 
 
 // ── Workspaces ──────────────────────────────────────────────────────────────
@@ -44,8 +47,7 @@ export async function getMyFirstWorkspace() {
 // clearer for first-time users; pre-existing workspaces keep whatever
 // name they already have.
 export async function getOrCreatePersonalWorkspace({ userId, name = 'Personal Workspace' }) {
-  const { data, error } = await supabase
-    .rpc('get_or_create_personal_workspace', { p_user_id: userId, p_name: name });
+  const { data, error } = await personalWorkspaceQuery(supabase, userId, name);
   if (error) throw error;
   return data;
 }
@@ -411,7 +413,7 @@ export async function listInheritedBoardShares(boardId) {
 //     source_workspace_name, parent_board_id, board_view, board_cover,
 //     created_at }
 export async function listSharedBoards() {
-  const { data, error } = await supabase.rpc('list_shared_boards');
+  const { data, error } = await sharedBoardsQuery(supabase);
   if (error) throw error;
   return data || [];
 }
@@ -759,13 +761,11 @@ export async function adminPreviewPublicBoard(boardId) {
 
 // ── Boards ─────────────────────────────────────────────────────────────────
 
+// The boot reads (this, getRootBoard, loadBoardSnapshot, the personal RPC and
+// listSharedBoards) are built in lib/bootQueries.js, which bootPrefetch also
+// builds them from: a read started at sign-in is the one the app would make.
 export async function listBoards(workspaceId) {
-  const { data, error } = await supabase
-    .from('boards')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
+  const { data, error } = await boardListQuery(supabase, workspaceId);
   if (error) throw error;
   return data || [];
 }
@@ -782,14 +782,7 @@ export async function listDeletedBoards(workspaceId) {
 }
 
 export async function getRootBoard(workspaceId) {
-  const { data, error } = await supabase
-    .from('boards')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .is('parent_board_id', null)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-    .limit(1);
+  const { data, error } = await rootBoardQuery(supabase, workspaceId);
   if (error) throw error;
   return (data && data[0]) || null;
 }
@@ -1094,11 +1087,7 @@ export async function hardDeleteBoard(boardId) {
 // ── Board state (Y.Doc snapshot, base64-encoded text) ───────────────────────
 
 export async function loadBoardSnapshot(boardId) {
-  const { data, error } = await supabase
-    .from('board_state')
-    .select('doc')
-    .eq('board_id', boardId)
-    .maybeSingle();
+  const { data, error } = await boardStateQuery(supabase, boardId);
   if (error) throw error;
   return data?.doc || null; // base64 string or null
 }

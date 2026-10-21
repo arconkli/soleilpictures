@@ -3,7 +3,7 @@
 // Returned shape:
 //   { tier, demoCardCount, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd,
 //     grantActive, grantExpiresAt, banned, bonusCardCredits, effectiveCardLimit,
-//     loading, error, refetch, notePlaced }
+//     loading, error, refetch, notePlaced, tierFetchMs }
 //
 // grantActive/grantExpiresAt describe an admin-issued complimentary paid grant
 // (expiry null = no end date); banned is true for a suspended account.
@@ -40,6 +40,8 @@ import { supabase } from '../lib/supabase.js';
 import { qaTierOverride } from '../lib/localMode.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 import { bootMark } from '../lib/bootMarks.js';
+import { takeBoot } from '../lib/bootStore.js';
+import { tierQuery } from '../lib/bootQueries.js';
 
 const EMPTY = Object.freeze({
   tier: null,
@@ -77,6 +79,9 @@ const _store = {
   // When a read from anywhere but the index-sync path (mount, focus, the
   // pricing modal's open) last started — see _onIndexSynced.
   lastReadAt: 0,
+  // How long the first read took, from when it started. That can be before
+  // this hook mounted: bootPrefetch starts it at sign-in.
+  firstFetchMs: null,
 };
 
 function _emit() { for (const fn of _store.subs) fn(); }
@@ -89,6 +94,7 @@ function _reset(userId) {
   _store.error = null;
   _store.refetchQueued = false;
   _store.lastReadAt = 0;
+  _store.firstFetchMs = null;
   // an in-flight fetch for the previous user resolves into a store that has
   // moved on; its writes are discarded by the userId check in _fetchTier.
   _emit();
@@ -109,9 +115,15 @@ async function _fetchTier({ fromIndexSync = false } = {}) {
   // reconciliation — the RPC counts card_index, which the throttled sync
   // populates seconds later, so a mid-flight card is in neither number yet.
   const settled = _store.placedDelta;
+  // The first read of this account takes the one bootPrefetch started at
+  // sign-in, if there is one. Only the first: a refetch, a focus or an
+  // index sync must read the server as it is now.
+  const first = _store.data === EMPTY;
+  const boot = first ? takeBoot('tier', forUser) : null;
+  const startedAt = boot ? boot.startedAt : Date.now();
   _store.inflight = (async () => {
     try {
-      const { data: rows, error } = await supabase.rpc('get_my_tier');
+      const { data: rows, error } = await (boot ? boot.promise : tierQuery(supabase));
       if (error) throw error;
       if (_store.userId !== forUser) return;   // user switched mid-flight
       const row = Array.isArray(rows) ? rows[0] : rows;
@@ -133,6 +145,7 @@ async function _fetchTier({ fromIndexSync = false } = {}) {
         creatorTrialStartedAt: row?.creator_trial_started_at || null,
       };
       bootMark('tier');
+      if (first && _store.firstFetchMs == null) _store.firstFetchMs = Math.max(0, Date.now() - startedAt);
       _store.placedDelta -= settled;
       _store.error = null;
     } catch (e) {
@@ -264,5 +277,7 @@ export function useMyTier({ userId } = {}) {
   // card placed a second ago is in the delta but not yet in card_index.
   const serverCardCount = Math.max(0, Number(base.demoCardCount || 0));
 
-  return { ...base, demoCardCount, serverCardCount, loading, error, refetch, notePlaced: _notePlaced };
+  const tierFetchMs = override ? null : _store.firstFetchMs;
+
+  return { ...base, demoCardCount, serverCardCount, loading, error, refetch, notePlaced: _notePlaced, tierFetchMs };
 }

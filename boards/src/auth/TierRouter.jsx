@@ -43,7 +43,7 @@ import { SoleilMark } from '../components/primitives.jsx';
 
 export function TierRouter({ children }) {
   const { user, signOut } = useAuth();
-  const { tier, loading, banned, adOfferPending, refetch, onboarding } = useMyTier({ userId: user?.id });
+  const { tier, loading, banned, adOfferPending, refetch, onboarding, tierFetchMs } = useMyTier({ userId: user?.id });
   const [hasEntry, setHasEntry] = useState(null);
   const path = window.location.pathname;
 
@@ -110,7 +110,11 @@ export function TierRouter({ children }) {
       onb_seeded: onboarding?.seeded === true, onb_done: onboarding?.done === true,
       route: window.location.pathname,
     });
-    journey(EV.PS_TIER_RESOLVED, { tier, dur_ms: Math.max(0, Date.now() - tierLoadStartRef.current), ad_pending: !!adOfferPending });
+    // dur_ms is how long get_my_tier took. It used to be counted from this
+    // mount, which was when the read started; bootPrefetch now starts it at
+    // sign-in, before this chunk has even arrived, so the store times it.
+    const durMs = tierFetchMs ?? Math.max(0, Date.now() - tierLoadStartRef.current);
+    journey(EV.PS_TIER_RESOLVED, { tier, dur_ms: durMs, ad_pending: !!adOfferPending });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, tier, adOfferPending, user?.id]);
   // Advance the phase as the resolved branch renders (no new events — the branch's

@@ -2,10 +2,18 @@
 // Atomic via the get_or_create_personal_workspace RPC — that takes a
 // per-user advisory lock so duplicate StrictMode / concurrent-mount
 // effect fires can't create duplicate "Soleil" workspaces.
+//
+// On a device that has opened this account before, the RPC and the root were
+// started at sign-in (lib/bootPrefetch.js) and are taken here, once. For a
+// device that has not, the list and the landing cluster's snapshot start as
+// soon as this knows the workspace and its root, beside the reads that follow.
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { getOrCreatePersonalWorkspace, getRootBoard, ensureWorkspaceRoot } from '../lib/boardsApi.js';
+import {
+  takeBootPersonal, takeBootRoot, bootPrefetchPersonalList, bootPrefetchLanding, rememberPersonalWorkspace,
+} from '../lib/bootPrefetch.js';
 
 export function useWorkspace() {
   const { user } = useAuth();
@@ -21,9 +29,11 @@ export function useWorkspace() {
       try {
         // The RPC ensures a root board exists internally (security
         // definer transaction), so we just hydrate it after.
-        const ws = await getOrCreatePersonalWorkspace({ userId: user.id });
+        const ws = (await takeBootPersonal(user.id)) || await getOrCreatePersonalWorkspace({ userId: user.id });
         if (!ws?.id) throw new Error('personal workspace bootstrap returned nothing');
-        let root = await getRootBoard(ws.id);
+        bootPrefetchPersonalList(user, ws.id);
+        let root = await takeBootRoot(user.id, ws.id);
+        if (root === undefined) root = await getRootBoard(ws.id);
         // A null root is not an error to the query, but it is to us: App.jsx
         // renders a bare spinner until a root exists, so storing null here
         // used to mean a permanent, unrecoverable loading screen. Repair and
@@ -34,6 +44,8 @@ export function useWorkspace() {
         }
         if (cancelled) return;
         if (!root) throw new Error('your workspace has no clusters and could not be repaired');
+        bootPrefetchLanding(user, ws.id, root.id, { personal: true });
+        rememberPersonalWorkspace(user.id, ws.id);
         setState({ loading: false, workspace: ws, rootBoard: root, error: null });
       } catch (error) {
         console.error('useWorkspace', error);
