@@ -14973,9 +14973,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   .tt-img-resize { width: 22px; height: 22px; }
 }
 .tt-img-wrap.is-selected .tt-img-resize { opacity: 1; }
+/* Above the image; below it, or inside its visible top (an inline top), when
+   the view has no room above (ImageResizable's placeBar sets data-place). */
 .tt-img-tb {
   position: absolute;
-  top: -36px; left: 50%; transform: translateX(-50%);
+  bottom: 100%; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 2px;
   padding: 4px;
   background: var(--bg-1);
@@ -14986,6 +14988,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: opacity var(--dur-fast) var(--ease);
   z-index: 5;
 }
+.tt-img-tb[data-place="below"] { bottom: auto; top: 100%; }
+.tt-img-tb[data-place="inside"] { bottom: auto; }
 .tt-img-wrap.is-selected .tt-img-tb { opacity: 1; pointer-events: auto; }
 .tt-img-tb-btn {
   appearance: none; border: 0; background: transparent;
