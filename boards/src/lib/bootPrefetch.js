@@ -8,7 +8,9 @@
 // while AppShell is still arriving, and each hook takes its answer from
 // lib/bootStore.js on its first call. What it cannot name yet starts as soon as
 // it can: useWorkspace calls bootPrefetchLanding() once the RPC and the root
-// answer, and App.jsx does for a team workspace's root.
+// answer, App.jsx does for a team workspace's root, and the first-run setup's
+// last step starts the lot for the workspace it had them name
+// (bootPrefetchSetupDone).
 //
 // The landing snapshot goes through prefetch.js under `board:<id>`, the key
 // yboard's cold open already shares an in-flight read on, so the canvas picks
@@ -159,6 +161,30 @@ export function bootPrefetchPersonal(user) {
       if (root?.id) bootPrefetchLanding(user, ws.id, root.id, { personal: true });
     }, () => {});
   }, () => {});
+}
+
+// The first-run setup's last step (components/setup/WorkspaceSetup.jsx), for
+// someone who lands in the workspace it had them name: what the app opens
+// with, so "Open {ws}" lands on a painted canvas rather than on one read after
+// another. The name step made the workspace, so the RPC is a read by now. The
+// memberships go too: App waits on them for an account with no workspace
+// remembered. Fresh reads, not the sign-in's, which the steps outlast; called
+// again at "Open", it starts only what has gone stale since.
+export function bootPrefetchSetupDone(user, workspaceId) {
+  const uid = user?.id;
+  if (!supabase || !uid || startedFor !== uid || !workspaceId) return;
+  const fresh = (key, build) => { if (!hasBoot(key, uid)) start(key, uid, build); };
+  fresh('personal', () => personalWorkspaceQuery(supabase, uid));
+  fresh('members', () => membershipsQuery(supabase, uid));
+  fresh(`list:${workspaceId}`, () => boardListQuery(supabase, workspaceId));
+  const rootId = peekBootSettled(`root:${workspaceId}`, uid)?.value?.data?.[0]?.id;
+  if (rootId) bootPrefetchLanding(user, workspaceId, rootId);
+  else if (!hasBoot(`root:${workspaceId}`, uid)) {
+    start(`root:${workspaceId}`, uid, () => rootBoardQuery(supabase, workspaceId)).then(({ data, error }) => {
+      const root = !error && data && data[0];
+      if (root?.id) bootPrefetchLanding(user, workspaceId, root.id);
+    }, () => {});
+  }
 }
 
 // useWorkspace's note of which workspace is this account's own, so the next

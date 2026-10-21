@@ -123,3 +123,26 @@ test("a new account's workspace starts at sign-in, never where the setup may ope
   // Nothing in TierRouter starts it any more: AppShell arrives too late.
   assert.ok(!read('auth/TierRouter.jsx').includes('bootPrefetchPersonal'));
 });
+
+test("the setup's last step starts what the app opens with, for someone landing in the workspace it named", () => {
+  const setup = read('components/setup/WorkspaceSetup.jsx');
+  assert.match(setup, /import \{ bootPrefetchSetupDone \} from '\.\.\/\.\.\/lib\/bootPrefetch\.js';/);
+  // As the invite step shows, and again at "Open", beside the save; never for
+  // someone joining another workspace, who lands there.
+  assert.match(setup, /if \(step === 'invite' && !invitee && ws\?\.id\) bootPrefetchSetupDone\(user, ws\.id\);/);
+  assert.match(setup, /if \(!invitee && ws\?\.id\) bootPrefetchSetupDone\(user, ws\.id\);\s*await Promise\.race\(\[persist\(next\), wait\(1500\)\]\);/);
+  const s = read('lib/bootPrefetch.js');
+  const fn = s.slice(s.indexOf('export function bootPrefetchSetupDone('), s.indexOf("// useWorkspace's note of which workspace"));
+  assert.ok(fn.length > 1);
+  // Only what is not live already, so the call at "Open" starts only what the
+  // step outlasted.
+  assert.match(fn, /const fresh = \(key, build\) => \{ if \(!hasBoot\(key, uid\)\) start\(key, uid, build\); \};/);
+  assert.ok(fn.includes("fresh('personal', () => personalWorkspaceQuery(supabase, uid));"));
+  assert.ok(fn.includes("fresh('members', () => membershipsQuery(supabase, uid));"));
+  assert.ok(fn.includes('fresh(`list:${workspaceId}`, () => boardListQuery(supabase, workspaceId));'));
+  assert.match(fn, /bootPrefetchLanding\(user, workspaceId, root\.id\)/);
+  // Under the keys the app's first reads take.
+  assert.ok(read('hooks/useAllWorkspaces.js').includes("takeBootResponse('members', user.id)"));
+  assert.ok(read('hooks/useBoardList.js').includes('takeBootResponse(`list:${workspaceId}`, userId)'));
+  assert.ok(read('hooks/useWorkspace.js').includes('await takeBootPersonal(user.id)'));
+});

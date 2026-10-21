@@ -19,6 +19,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { logEvent, logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { getOrCreatePersonalWorkspace, renameWorkspace, updateOwnSettings } from '../../lib/boardsApi.js';
+import { bootPrefetchSetupDone } from '../../lib/bootPrefetch.js';
 import {
   NAME_MAX, TEAM_OPTIONS, WORK_OPTIONS, SETUP_STEPS, validateWorkspaceName, inviteCopyFor, nextSetupState,
   workToFirstBoardKind,
@@ -128,6 +129,15 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
     return () => cancelAnimationFrame(raf);
   }, [out]);
 
+  // The app opens after the invite step, so what it opens with starts as the
+  // step shows (lib/bootPrefetch.js bootPrefetchSetupDone), and "Open {ws}"
+  // lands on a painted canvas. Not for someone joining another workspace,
+  // which is where they land.
+  useEffect(() => {
+    if (step === 'invite' && !invitee && ws?.id) bootPrefetchSetupDone(user, ws.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, invitee, ws?.id]);
+
   const persist = useCallback((next) => {
     const write = updateOwnSettings({ welcome: next }).catch((e) => {
       try { logEvent(EV.SETUP_ERROR, { op: 'settings', reason: String(e?.message || e).slice(0, 80) }); } catch (_) {}
@@ -161,9 +171,11 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
       });
     } catch (_) {}
     setBusy(true);
+    // Whatever went stale while the step was open starts again beside the save.
+    if (!invitee && ws?.id) bootPrefetchSetupDone(user, ws.id);
     await Promise.race([persist(next), wait(1500)]);
     onDone?.(next);
-  }, [move, persist, onDone, invitee, invited.length, links, isPhone]);
+  }, [move, persist, onDone, invitee, invited.length, links, isPhone, user, ws]);
 
   // ── Step 1: the name ──────────────────────────────────────────────────────
   const submitName = async (e) => {
