@@ -32,6 +32,7 @@ import { addRecentFont } from '../lib/customFonts.js';
 import { getActiveNoteEditor, getActiveNoteActions, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
 import { noteFontSizePatch } from '../lib/noteFontSize.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
 // NoteTiptapSurface while a note is being edited). When present, the note
@@ -1181,6 +1182,7 @@ function LineAngleInput({ angle, onCommit }) {
       onChange={(e) => { const v = e.target.value; if (v === '' || /^-?\d*\.?\d*$/.test(v)) setDraft(v); }}
       onBlur={commit}
       onKeyDown={(e) => {
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
@@ -1222,6 +1224,7 @@ function LinePxInput({ value, onCommit }) {
       onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setDraft(v); }}
       onBlur={commit}
       onKeyDown={(e) => {
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}

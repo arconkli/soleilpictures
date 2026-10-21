@@ -226,6 +226,7 @@ import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layou
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // The cluster glyph. Once the cluster nudges ship it is the folder a cluster
 // already wears in Files, list rows and the cluster browser (cards.jsx
@@ -285,6 +286,9 @@ function ProjectNameField({ board, onRename }) {
            onChange={(e) => setDraft(e.target.value)}
            onKeyDown={(e) => {
              e.stopPropagation();
+             // Mid-syllable, Enter picks the syllable: blurring then landed it
+             // twice (봄 광고고). The Enter after it names the project.
+             if (isComposingKey(e)) return;
              if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
              if (e.key === 'Escape') { e.preventDefault(); setDraft(named); e.currentTarget.blur(); }
            }}
@@ -587,7 +591,10 @@ function GridMatrixControl({ onGenerate }) {
     if (c * r <= 1) return;
     onGenerate(c, r);
   };
-  const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+  const onKey = (e) => {
+    if (isComposingKey(e)) return;
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  };
   return (
     <div className="grid-matrix-ctl" onPointerDown={(e) => e.stopPropagation()}>
       <input type="number" min="1" max="50" value={cols} aria-label="Columns"

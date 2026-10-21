@@ -11,6 +11,7 @@ import { Icon } from '../Icon.jsx';
 import { SpeakerHigh, SpeakerLow, SpeakerSlash, CornersOut, CornersIn, Repeat, X, ChevronDown } from '../../lib/icons.js';
 import { PlayGlyph, PauseGlyph, FrameBack, FrameFwd, MarkIn, MarkOut, GuidesGlyph } from './glyphs.jsx';
 import { formatFps } from '../../lib/cardInfo.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 // Mouse clicks don't take focus (keys keep going to the player); keyboard
 // focus still lands with :focus-visible.
@@ -63,6 +64,7 @@ function TcReadout({ ctl }) {
                aria-label="Go to a timecode, frame number or seconds" spellCheck={false} autoComplete="off"
                onKeyDown={(e) => {
                  e.stopPropagation();
+                 if (isComposingKey(e)) return;
                  if (e.key === 'Enter') { e.preventDefault(); ctl.commitTc(e.currentTarget.value); }
                  if (e.key === 'Escape') { e.preventDefault(); ctl.closeTc(); }
                }}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Dismiss a popover / menu / dropdown when the user interacts OUTSIDE it.
 //
@@ -38,7 +39,9 @@ export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
       if (ignore && e.target?.closest?.(ignore)) return;
       onCloseRef.current?.();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.(); };
+    // An Escape mid-syllable is the input method's: it drops the syllable,
+    // and the popover stays (lib/modalGuard.js stands down the same way).
+    const onKey = (e) => { if (e.key === 'Escape' && !isComposingKey(e)) onCloseRef.current?.(); };
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('mousedown', onDocDown, true);
     if (escape) window.addEventListener('keydown', onKey, escapeCapture);

@@ -19,6 +19,7 @@ import { cardHeightForBody } from '../lib/noteMeasure.js';
 import { surfaceTone } from '../lib/paletteLayout.js';
 import { readableOn } from '../lib/readableColor.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Tags kept when pasting rich content into a note. Everything else is unwrapped
 // (children preserved) and every attribute is stripped except a safe href on
@@ -329,6 +330,9 @@ export function RichNoteEditor({
   };
 
   const onKey = (e) => {
+    // Mid-syllable, a key is the input method's: its Escape would cancel the
+    // whole edit, and its Enter or Backspace reach the checklist rules.
+    if (isComposingKey(e)) return;
     // Format parity with docs: Cmd/Ctrl+B/I/U apply inline formatting to the
     // live selection. Notes previously had NO keyboard formatting at all even
     // though the toolbar advertises "Bold (⌘B)" — the classic "⌘B works in

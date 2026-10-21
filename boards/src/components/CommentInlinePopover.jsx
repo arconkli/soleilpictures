@@ -10,6 +10,7 @@ import { EntityPicker } from './EntityPicker.jsx';
 import { caretRect } from '../lib/caretRect.js';
 import { placeCommentPopover } from '../lib/commentPopoverPlace.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Keep only the people whose @name still appears in the final text — a user can
 // pick someone from the picker and then delete the mention again.
@@ -230,7 +231,10 @@ export function CommentInlinePopover({
                    const tok = detectMentionToken(next, e.target.selectionStart ?? next.length);
                    setReplyMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
                  }}
-                 onKeyDown={(e) => { if (e.key === 'Enter' && replyMention) e.preventDefault(); }}
+                 onKeyDown={(e) => {
+                   if (isComposingKey(e)) return;
+                   if (e.key === 'Enter' && replyMention) e.preventDefault();
+                 }}
                  placeholder={workspaceId ? 'Reply… (@ to mention)' : 'Reply…'} />
         </form>
       )}

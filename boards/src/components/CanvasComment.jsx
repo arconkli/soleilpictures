@@ -21,6 +21,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export function CanvasCommentLayer({
   comments, boardId, workspaceId, userId, wsPeers = [],
@@ -197,6 +198,8 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
                   placeholder="Add a comment…"
                   onChange={(e) => setBody(e.target.value)}
                   onKeyDown={(e) => {
+                    // Mid-syllable, Enter picks the syllable; the next one posts.
+                    if (isComposingKey(e)) return;
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       post();

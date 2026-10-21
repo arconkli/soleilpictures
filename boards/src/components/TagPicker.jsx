@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const POP_W = 280;
 
@@ -45,6 +46,8 @@ export function TagPicker({
              value={query}
              onChange={(e) => { setQuery(e.target.value); setHover(0); }}
              onKeyDown={(e) => {
+               // Mid-syllable, Enter picks the syllable, not a tag (lib/composerKeys.js).
+               if (isComposingKey(e)) return;
                // The conditional "Create" row renders at index matches.length,
                // so ArrowDown must be allowed to reach it (was capped one short).
                const hasCreateRow = !!q && !hasExact;

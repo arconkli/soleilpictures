@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Compact editable font-size combobox shared by the note (ToolOptionsBar) and
 // doc (DocToolbar) toolbars. The user can type an EXACT px size, or pick a
@@ -106,6 +107,7 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
         onChange={(e) => { const v = e.target.value; if (/^\d{0,3}$/.test(v)) setDraft(v); }}
         onBlur={commitDraft}
         onKeyDown={(e) => {
+          if (isComposingKey(e)) return;
           if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
           else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             e.preventDefault();
