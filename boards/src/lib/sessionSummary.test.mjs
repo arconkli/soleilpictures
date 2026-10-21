@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createSummary, noteCounter, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
-import { WORK_EVENTS } from './analyticsEvents.js';
+import { WORK_EVENTS, isWorkEvent } from './analyticsEvents.js';
 
 const S = { id: 'sess-1', seq: 3, startedAt: 1000 };
 
@@ -54,6 +54,27 @@ test('the work set does not drift from WORK_EVENTS', () => {
     noteEvent(a, ev, {}, 1);
   }
   assert.equal(summaryProps(a, 'x').wrote, true);
+});
+
+test('a sent message is work, and a work event that reports it failed is not', () => {
+  const sent = createSummary(S, 0);
+  noteEvent(sent, 'msg_send', { ok: true, attempt: 1 }, 1);
+  assert.equal(summaryProps(sent, 'x').wrote, true, 'a day spent messaging is a working day');
+
+  const failed = createSummary(S, 0);
+  noteEvent(failed, 'msg_send', { ok: false, attempt: 1, code: 'network' }, 1);
+  assert.equal(summaryProps(failed, 'x').wrote, false, 'a message that never arrived is not work');
+
+  // The same rule here and in isWorkEvent, for every work event.
+  for (const ev of WORK_EVENTS) {
+    const one = createSummary(S, 0);
+    noteEvent(one, ev, { ok: false }, 1);
+    assert.equal(summaryProps(one, 'x').wrote, false, ev);
+    assert.equal(isWorkEvent(ev, { ok: false }), false, ev);
+    assert.equal(isWorkEvent(ev, {}), true, ev);
+  }
+  assert.equal(isWorkEvent('board_open', {}), false);
+  assert.equal(isWorkEvent('msg_send', undefined), true, 'no props is not a failure');
 });
 
 test('errors are counted by name shape, so new ones need no edit here', () => {

@@ -161,6 +161,17 @@ address it is: a personal email service, a school or university, or an
 organization's own domain, and for a school or university, which one. It reads
 this from the address it already has and stores nothing new.
 
+### Private links
+
+The address of a shared cluster, file or template, an invitation, or a sign-in
+link from an email holds a private key that opens what it points to. Clusters
+keeps that key out of its record of how the app is used and out of error
+reports: it records that you arrived through a shared link, and nothing that
+would open it. If you sign up after opening one, the link stays with your
+account so the person who shared it is credited. Meta's pixel is not loaded on
+a page opened from one of these links, or on the next page you open from it,
+so the address never reaches Meta.
+
 ### Global Privacy Control
 
 If your browser sends **Global Privacy Control**, Clusters treats it as a

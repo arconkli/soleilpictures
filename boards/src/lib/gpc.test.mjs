@@ -87,7 +87,9 @@ test('a checkout made under GPC says so to the senders that read it later', () =
 test('index.html loads the pixel only without GPC', () => {
   const html = read(path.join(boards, 'index.html'));
   assert.equal(html.split('fbevents.js').length - 1, 1, 'exactly one pixel loader');
-  const guard = html.indexOf('if (navigator.globalPrivacyControl !== true) {');
+  // More conditions may join the guard with && (the link-token one has,
+  // linkTokens.test.mjs): each can only keep the pixel off in more places.
+  const guard = html.search(/if \(navigator\.globalPrivacyControl !== true(?: && !?[A-Za-z_$][\w$]*)*\) \{/);
   const loader = html.indexOf('connect.facebook.net/en_US/fbevents.js');
   const pageView = html.indexOf("fbq('track', 'PageView');");
   assert.ok(guard > 0, 'the pixel snippet lost its GPC guard');

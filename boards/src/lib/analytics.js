@@ -35,8 +35,9 @@ import { getWebviewInfo } from './webview.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
 // otherwise and used a raw literal to avoid one that doesn't exist.)
-import { EV, WORK_EVENTS } from './analyticsEvents.js';
+import { EV, isWorkEvent } from './analyticsEvents.js';
 import { noteWorkOp } from './workSignal.js';
+import { redactLinkTokens, redactLinkText } from './linkTokens.js';
 import {
   FLUSH_INTERVAL_MS, MAX_QUEUE, MAX_BATCH, MAX_BEACON_BYTES, MAX_ROW_AGE_MS,
   beaconChunks, backoffFor, pruneStale, capQueue, partitionRetries, wireRow,
@@ -600,8 +601,11 @@ function buildRow(name, props) {
     app_session_id: sess.id,
     user_id:     cachedUserId,   // best-effort; backfilled at flush if it resolves late
     event:       name,
-    props:       merged,
-    path:        typeof window !== 'undefined' ? window.location.pathname : null,
+    // A share, file or template link's token opens what it points at, and the
+    // bags above carry it on every row of a visit that came through one. It is
+    // a key, not a measurement: dropped here, and again by the database (0474).
+    props:       redactLinkTokens(merged),
+    path:        typeof window !== 'undefined' ? redactLinkText(window.location.pathname) : null,
     // Client-stamped so a batched/beaconed row keeps its TRUE event time (the
     // column defaults to now() = insert time, which can be seconds later).
     occurred_at: new Date().toISOString(),
@@ -637,8 +641,9 @@ function sendContextIfDue(row) {
   } catch (_) { /* context must never cost the row that called for it */ }
 }
 
-// `/` is answered by the static assets before the Worker runs, so a session
-// that starts there has no soleil-ctx tag. Ask the Worker for the same codes and
+// A page the Worker did not answer has no soleil-ctx tag. `/` was one until
+// run_worker_first (wrangler.toml) sent it through the Worker; anything the
+// static assets serve directly still is. Ask the Worker for the same codes and
 // fill them into the row while it waits in the queue (the flush is 5s off). A
 // row already beaconed by then goes without, as it would have anyway.
 function fillEdgeContext(ctxRow) {
@@ -754,7 +759,7 @@ export function logEvent(name, props = {}) {
   // work/presence distinction stays correct as events are added, instead of
   // depending on someone remembering a second call. WORK_EVENTS is the
   // definition; see analyticsEvents.js for where the bar is drawn.
-  try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
+  try { if (isWorkEvent(name, props)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); } catch (_) {}
   // AFTER buildRow, never inside it: buildRow advances the session clock and can
   // therefore rotate, which fires the summary handler. Folding the event in
@@ -775,7 +780,7 @@ export function logEventOnce(key, name, props = {}) {
 // survives the navigation even though we don't await it.
 export function logEventNow(name, props = {}) {
   if (!supabase || !name) return;
-  try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
+  try { if (isWorkEvent(name, props)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); } catch (_) {}
   try { noteEvent(ensureSummary(), name, props); } catch (_) {}
   try { flushBeacon(); } catch (_) {}

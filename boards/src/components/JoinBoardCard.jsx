@@ -20,7 +20,7 @@ export function JoinBoardCard({ role, boardName, href, token, onJoinClick }) {
   const roleLabel = role === 'editor' ? 'edit' : 'view';
 
   useEffect(() => {
-    logEventOnce(`invite-link-view-${token}`, EV.INVITE_LINK_VIEW, { share_token: token, role });
+    logEventOnce(`invite-link-view-${token}`, EV.INVITE_LINK_VIEW, { role });
   }, [token, role]);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function JoinBoardCard({ role, boardName, href, token, onJoinClick }) {
       <a className="public-cta share-prompt-cta"
          href={href}
          onClick={() => {
-           logEventNow(EV.INVITE_LINK_JOIN_CLICK, { share_token: token, role });
+           logEventNow(EV.INVITE_LINK_JOIN_CLICK, { role });
            onJoinClick?.();
          }}>
         Join as {role === 'editor' ? 'editor' : 'viewer'}

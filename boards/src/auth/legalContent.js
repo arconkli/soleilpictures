@@ -99,6 +99,7 @@ const privacy = {
       blocks: [
         'We use the Meta Pixel and the Meta Conversions API to measure the effectiveness of our advertising and to understand how visitors arrive at and use the Service. This can involve sharing limited event data — such as page views, sign-ups, and purchases, along with identifiers like a hashed email or an ad click ID — with Meta.',
         'If your browser sends the Global Privacy Control signal, we treat it as a request to opt out of this sharing, wherever you are: we do not load the Meta Pixel, and we do not send your sign-ups, checkouts or purchases to the Meta Conversions API.',
+        'We also do not load the Meta Pixel on a page whose address holds a private link — a shared cluster, file or template, an invitation, or a sign-in link we emailed you — or on the next page you open from it, so that address is never shared with Meta.',
         'When you reach the Service from other advertising networks (for example Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, or Snapchat), we may receive and record the ad-click identifier from that link so we can attribute the visit and measure how our campaigns perform.',
         'We also use Cloudflare Web Analytics, which is designed to measure traffic without using cookies to track individuals across sites. See our Cookie Policy and the “Your Rights and Choices” section below for how to limit this.',
       ],
@@ -287,7 +288,7 @@ const cookies = {
             'Strictly necessary. Required for the Service to function — for example, keeping you securely signed in. Our authentication provider (Supabase) stores your session in your browser’s local storage. The Service will not work properly without these.',
             'Functional. Remember your choices to improve your experience — for example, feature preferences and recently used fonts stored locally in your browser.',
             'Analytics. Help us understand how the Service is used so we can improve it. We use Cloudflare Web Analytics, which is designed to measure traffic without using cookies to track you across other websites.',
-            'Advertising and measurement. Help us measure and optimize our marketing. We use the Meta Pixel, which may set cookies such as _fbp and store an ad click identifier (_fbc) from ad links, and we send related events to Meta through the Meta Conversions API. We also store ad-click identifiers and campaign parameters from other advertising networks (such as Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat) in your browser’s local storage to attribute visits and measure our campaigns.',
+            'Advertising and measurement. Help us measure and optimize our marketing. We use the Meta Pixel, which may set cookies such as _fbp and store an ad click identifier (_fbc) from ad links, and we send related events to Meta through the Meta Conversions API. The Meta Pixel is not loaded on a page opened from a private link, such as a shared cluster or an invitation. We also store ad-click identifiers and campaign parameters from other advertising networks (such as Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat) in your browser’s local storage to attribute visits and measure our campaigns.',
           ],
         },
       ],

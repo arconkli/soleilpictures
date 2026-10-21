@@ -39777,6 +39777,27 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
+   "text": "Private links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Private links"
+    }
+   ],
+   "id": "private-links"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The address of a shared cluster, file or template, an invitation, or a sign-in link from an email holds a private key that opens what it points to. Clusters keeps that key out of its record of how the app is used and out of error reports: it records that you arrived through a shared link, and nothing that would open it. If you sign up after opening one, the link stays with your account so the person who shared it is credited. Meta's pixel is not loaded on a page opened from one of these links, or on the next page you open from it, so the address never reaches Meta."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
    "text": "Global Privacy Control",
    "inline": [
     {

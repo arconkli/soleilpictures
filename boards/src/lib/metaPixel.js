@@ -19,6 +19,8 @@
 //
 // Everything is best-effort and never throws into the UI.
 
+import { urlCarriesLinkToken } from './linkTokens.js';
+
 const TRACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/track-conversion';
 
 function fbqReady() {
@@ -80,8 +82,9 @@ export function getFbCookies() {
 }
 
 // Fire a SPA route-change PageView. The base snippet already fired the cold load.
+// Never for an address holding a link's token: the pixel reports the full URL.
 export function trackPageView() {
-  if (!fbqReady()) return;
+  if (!fbqReady() || urlCarriesLinkToken(window.location)) return;
   try { window.fbq('track', 'PageView'); } catch (_) {}
 }
 

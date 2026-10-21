@@ -61,7 +61,13 @@ test('topbar CTA logs share_cta_click and lands on / with share utm params', asy
   await expect.poll(() => rows.map((r) => r.event), { timeout: 10_000 }).toContain('share_cta_click');
   const cta = rows.find((r) => r.event === 'share_cta_click');
   expect(cta.props.surface).toBe('remix');
-  expect(cta.props.share_token).toBe(TOKEN);
+  // The token opens the board, so it never rides an event (0474,
+  // lib/linkTokens.js): the source stays share_link, the paths say :token, and
+  // the token itself reaches only profiles.first_source, at sign-up.
+  expect(cta.props.share_token).toBeUndefined();
+  expect(cta.props.landing_path).toBe('/share/:token');
+  expect(cta.path).toBe('/share/:token');
+  expect(JSON.stringify(rows)).not.toContain(TOKEN);
 
   const view = rows.find((r) => r.event === 'share_view');
   expect(view.props.valid).toBe(true);

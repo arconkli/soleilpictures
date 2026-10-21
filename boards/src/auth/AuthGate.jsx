@@ -203,7 +203,7 @@ function consumeShareReturn() {
   const token = readShareReturn();
   if (!token) return false;
   clearShareReturn();
-  try { logEventNow(EV.SHARE_RETURN_LANDED, { share_token: token }); } catch (_) {}
+  try { logEventNow(EV.SHARE_RETURN_LANDED); } catch (_) {}
   window.location.replace(shareReturnHref(token));
   return true;
 }
@@ -224,7 +224,7 @@ function consumeFileReturn() {
   const token = readFileReturn();
   if (!token) return false;
   clearFileReturn();
-  try { logEventNow(EV.FILE_SHARE_RETURN_LANDED, { file_token: token }); } catch (_) {}
+  try { logEventNow(EV.FILE_SHARE_RETURN_LANDED); } catch (_) {}
   window.location.replace(fileReturnHref(token));
   return true;
 }

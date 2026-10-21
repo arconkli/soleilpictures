@@ -96,6 +96,16 @@ test('the reader takes back exactly what the writer can write', () => {
   }
 });
 
+test('the home page goes through the Worker, so it carries the tag too', () => {
+  // `/` is a static asset (index.html), and the assets layer answers an asset
+  // without running the Worker: the home page had no tag, no nonce CSP and no
+  // soleil-ctx, and analytics fell back to /api/ctx for every session that
+  // began there. run_worker_first sends it through the Worker first.
+  const toml = readFileSync(new URL('../../wrangler.toml', import.meta.url), 'utf8');
+  const assets = toml.slice(toml.indexOf('[assets]'), toml.indexOf('\n[', toml.indexOf('[assets]') + 1));
+  assert.match(assets, /^run_worker_first = \[\s*"\/"\s*\]$/m, 'wrangler.toml [assets] must route "/" through the Worker');
+});
+
 test('the Worker hands request.cf to edgeContext and to nothing else', () => {
   const src = readFileSync(new URL('../worker.js', import.meta.url), 'utf8');
   assert.match(src, /edgeContextMeta\(request\.cf\)/, 'the wrapper builds the tag from request.cf');

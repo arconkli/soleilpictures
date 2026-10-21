@@ -390,21 +390,21 @@ export const EV = Object.freeze({
   FILE_DOWNLOAD:           'file_download',               // a single asset was downloaded {kind:'image',adjusted,is_public} — is_public marks a download taken by an anonymous visitor on /share or /c, which is currently unrestricted
 
   // ── Public share viewer (/share/<token>, anonymous) ──
-  SHARE_VIEW:              'share_view',                  // public viewer mounted {share_token,board_id,root_id,include_subboards,valid}
-  SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {share_token,board_id,from_board_id,depth,cached}
-  SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin'|'remix',share_token} (must-land)
+  SHARE_VIEW:              'share_view',                  // public viewer mounted {board_id,root_id,include_subboards,valid} (never the link's token — linkTokens.js)
+  SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {board_id,from_board_id,depth,cached}
+  SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin'|'remix'} (must-land)
   FILE_SHARE_OPEN:         'file_share_open',             // the owner's Share file dialog opened {kind,surface:'canvas'|'list'|'player'|'quicklook'}
   FILE_SHARE_ACCESS_SET:   'file_share_access_set',       // a file share's general access or download switch changed {link_access:'none'|'view'|'comment'|'edit',allow_download,kind} — a file's link is view | comment, a doc's view | edit (anyone signed in can edit it); kind is FILE_SHARE_OPEN's, 'doc' for a doc
   FILE_SHARE_PEOPLE_ADD:   'file_share_people_add',       // people added to a file share by email {n,role:'view'|'comment'|'edit',skipped,kind} — role 'edit' is a doc's Can edit; kind as FILE_SHARE_ACCESS_SET
   FILE_SHARE_LINK_COPY:    'file_share_link_copy',        // a file share's /f/ link was put on the clipboard {link_access,kind}
   FILE_SHARE_PERSON_SET:   'file_share_person_set',       // one person's access on a file share changed {role:'view'|'comment'|'edit'|null,undo,kind} — null = removed; undo: Remove's Undo put them back. With the adds, every confirmed write the Share dialog makes has its row, so FILE_SHARE_FAIL has a denominator
   FILE_SHARE_FAIL:         'file_share_fail',             // the Share dialog's read or a write failed, and it showed the error {action:'load'|'access'|'add'|'role'|'remove'|'undo_remove'|'link'|'clipboard',code,kind} — code: the server's error code (42501 = not allowed), null when there was none (a network failure; the clipboard). Never the message, which can carry an address
-  SHARE_RETURN_LANDED:     'share_return_landed',         // {share_token} — a sign-up/sign-in that began on a /share page was sent back to that page once a session existed, instead of to the root of an empty workspace. Before this, no share-token signup ever first-opened the board they came for
+  SHARE_RETURN_LANDED:     'share_return_landed',         // {} — a sign-up/sign-in that began on a /share page was sent back to that page once a session existed, instead of to the root of an empty workspace. Before this, no share-token signup ever first-opened the board they came for
   FILE_SHARE_VIEW:         'file_share_view',             // the /f/<token> page loaded a state {status:'ok'|'gone'|'sign_in'|'no_access'|'error',access,kind,signed_in,risky} — once per load
   FILE_SHARE_DOWNLOAD:     'file_share_download',         // Download clicked on /f/<token> {kind,access}
   FILE_SHARE_SIGNIN_CLICK: 'file_share_signin_click',     // a sign-in link on /f/<token> {surface:'gate'|'comments'|'switch_account'} (must-land)
   FILE_SHARE_CTA_CLICK:    'file_share_cta_click',        // the signed-out "Try Clusters free" footer on /f/<token> {surface:'footer'} (must-land)
-  FILE_SHARE_RETURN_LANDED: 'file_share_return_landed',   // {file_token} — a sign-in that began on /f/<token> was sent back to that file once a session existed
+  FILE_SHARE_RETURN_LANDED: 'file_share_return_landed',   // {} — a sign-in that began on /f/<token> was sent back to that file once a session existed
   SHARED_PAGE_VIEW:        'shared_page_view',            // the Shared page opened {tab:'with_me'|'by_me',n,unread} — once per open
   SHARED_FILE_OPEN:        'shared_file_open',            // a file shared with you opened inside the app {via:'shared_page'|'bell'|'toast'|'shortcut'|'link'}
   SHARED_FILE_SAVE:        'shared_file_save',            // Save a copy of a file shared with you {kind,ok,reason}
@@ -415,7 +415,7 @@ export const EV = Object.freeze({
   FILM_PLAY:               'film_play',                   // a clip started playing in the film player, once per viewing {surface:'card'|'quicklook'|'review'|'file_share'|'shared_file',auto,compare,muted} — file_share is the /f/ page, shared_file the same file opened inside the app — auto: it started as the player opened (a card's play button, Quick look, the review player) rather than from its own transport; compare: an A/B pair was loaded. lib/filmWatch.js
   FILM_WATCH:              'film_watch',                  // that viewing, summed up when the player let go of the clip or the page went away {surface,played_s,pct,dur_s} — played_s: seconds actually playing; pct: the furthest point reached while playing, in buckets 0|10|25|50|75|90|100 (within half a second of the end is 100), null when the length never became known
   FILM_FAIL:               'film_fail',                   // the film player showed it couldn't play a clip {surface,reason:'decode'|'no_picture'|'stalled'|'sign',codec} — decode: the browser can't decode it (ProRes off a Mac); no_picture: sound but no picture; stalled: no frame after 8s (15s on a card); sign: no link to the file could be made. codec: the clip's four-character code when known. Once per clip and reason a page load
-  SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,share_token,board_id,boards_opened}
+  SHARE_DWELL:             'share_dwell',                 // time on the public viewer {ms,board_id,boards_opened}
   SHARE_PROMPT_VIEW:       'share_prompt_view',           // engagement prompt shown {trigger:'dwell'|'subboard'}
   SHARE_PROMPT_DISMISS:    'share_prompt_dismiss',        // prompt dismissed {trigger,visible_ms}
 
@@ -448,8 +448,8 @@ export const EV = Object.freeze({
 
   // ── Invite links ("anyone with this link joins as editor/viewer", 0189) ──
   INVITE_LINK_CREATED:     'invite_link_created',         // link minted/reused in ShareModal {role,expiry,board_id,surface} (must-land)
-  INVITE_LINK_VIEW:        'invite_link_view',            // join confirm card rendered on /share {share_token,role} (once per token/session)
-  INVITE_LINK_JOIN_CLICK:  'invite_link_join_click',      // "Join as …" clicked {share_token,role} (must-land)
+  INVITE_LINK_VIEW:        'invite_link_view',            // join confirm card rendered on /share {role} (once per token/session)
+  INVITE_LINK_JOIN_CLICK:  'invite_link_join_click',      // "Join as …" clicked {role} (must-land)
   INVITE_LINK_CLAIMED:     'invite_link_claimed',         // SERVER: claim_collab_link granted access {board_id,role,status}
   INVITE_LINK_CLAIM_FAILED:'invite_link_claim_failed',    // claim_collab_link raised after signup/click {reason}
   // Client-side outcome for EVERY claim, not just the granting one. The server
@@ -552,10 +552,11 @@ export const EV = Object.freeze({
 // This set is the client half, and its job is the work that never does:
 // document edits, comments, tags, arrows.
 //
-// The bar is deliberately "the user changed the contents of a cluster". Opening
-// a board, running a search, or sharing a link are all meaningful — but they
-// are things you do to look at work, not to make it, and a definition that
-// admits them drifts straight back into measuring presence.
+// The bar is deliberately "the user changed the contents of a cluster, or wrote
+// to the people they work with". Opening a board, running a search, or sharing
+// a link are all meaningful — but they are things you do to look at work, not
+// to make it, and a definition that admits them drifts straight back into
+// measuring presence.
 export const WORK_EVENTS = Object.freeze(new Set([
   EV.CARD_PLACED,
   EV.CARD_EDIT,
@@ -572,7 +573,19 @@ export const WORK_EVENTS = Object.freeze(new Set([
   // of work, and counting it as presence would systematically under-report the
   // collaborators.
   EV.COMMENT_CREATE,
+  // A day spent writing to the people you work with is a working day too (the
+  // owner's call, 2026-10-20). The server stamps it from the messages table
+  // (0473, messages_active_day); this keeps the session summary and the
+  // engaged-visit read agreeing with it.
+  EV.MSG_SEND,
 ]));
+
+// A work event that reports it failed did not happen: a msg_send with ok:false
+// is a message that never arrived. Every reader of WORK_EVENTS applies this one
+// rule — logEvent here, sessionSummary.js, and _admin_engaged_visits in SQL.
+export function isWorkEvent(name, props) {
+  return WORK_EVENTS.has(name) && !(props && props.ok === false);
+}
 
 // Canonical, ORDERED phases of the post-signup journey (lib/journey.js stamps the
 // current one onto every ps_* event as props.phase). The order is the happy path;

@@ -24,14 +24,15 @@
 // Pure: an accumulator plus functions over it, no timers, no DOM, no imports —
 // same shape as upsellSlot.js and depthDock.js, and unit-testable under node.
 
-// Events that mean the person changed the contents of a cluster, mirroring
-// WORK_EVENTS in analyticsEvents.js. Kept as a literal set rather than imported
-// so this module stays dependency-free and node-testable on its own; the test
-// asserts the two do not drift.
+// Events that mean the person did work — changed the contents of a cluster, or
+// sent a message — mirroring WORK_EVENTS in analyticsEvents.js. Kept as a
+// literal set rather than imported so this module stays dependency-free and
+// node-testable on its own; the test asserts the two do not drift. One that
+// reports ok:false failed and is not work (isWorkEvent's rule).
 const WROTE = new Set([
   'card_placed', 'card_edit', 'doc_edit', 'arrow_created', 'comment_create',
   'remix_clone', 'tag_manual_apply', 'tag_confirm', 'tag_merge',
-  'tag_candidate_promote', 'tag_set_type',
+  'tag_candidate_promote', 'tag_set_type', 'msg_send',
 ]);
 
 // Anything whose name marks a failure the user could feel. Suffix match rather
@@ -126,7 +127,7 @@ export function noteEvent(acc, name, props, now = Date.now()) {
   if (name === 'card_create_intent') acc.intents += 1;
   if (props?.board_id) acc.boards.add(String(props.board_id));
   if (props?.surface) acc.surfaces.add(String(props.surface));
-  if (WROTE.has(name)) acc.wrote = true;
+  if (WROTE.has(name) && props?.ok !== false) acc.wrote = true;
   if (isError(name)) acc.errors += 1;
 
   return acc;

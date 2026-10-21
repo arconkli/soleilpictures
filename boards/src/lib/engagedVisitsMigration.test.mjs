@@ -1,5 +1,5 @@
-// engagedVisitsMigration.test.mjs — 0347's engaged-visit read must count the
-// same work the client counts, and must stay internal.
+// engagedVisitsMigration.test.mjs — 0347's engaged-visit read (msg_send added
+// by 0473) must count the same work the client counts, and must stay internal.
 //
 //   node --test src/lib/engagedVisitsMigration.test.mjs
 //
@@ -25,6 +25,10 @@ test('the engaged-visit work list is exactly WORK_EVENTS', () => {
   const sql = new Set([...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]));
   assert.deepEqual([...sql].sort(), [...WORK_EVENTS].sort(),
     'a WORK_EVENTS event missing here would make visits holding only it read as un-engaged');
+  // isWorkEvent's rule, in SQL: a work event that reported ok:false (a message
+  // that never arrived) is not work. 0473 added it with msg_send.
+  assert.match(def.body, /and coalesce\(e\.props->>'ok', ''\) <> 'false'/,
+    'a work event that reports it failed must not make a visit worked');
 });
 
 test('the did_work trigger ignores a no-op re-sync and credits the actor', () => {

@@ -133,9 +133,11 @@ function remixHref(ctx) {
 // bar on /c/<slug> — it never synthesizes a token.
 export function PublicBoardView({ token, slug }) {
   // Stable identity helpers for the two modes. ctx drives URL/CTA building;
-  // attrib is spread into every analytics event; linkKey de-dupes once-events.
+  // attrib is spread into every analytics event — a public board's slug, never
+  // a share link's token, which opens the board (linkTokens.js); linkKey
+  // de-dupes once-events.
   const ctx = useMemo(() => ({ token, slug }), [token, slug]);
-  const attrib = useMemo(() => (slug ? { public_slug: slug } : { share_token: token }), [slug, token]);
+  const attrib = useMemo(() => (slug ? { public_slug: slug } : {}), [slug]);
   const linkKey = slug || token;
 
   // Does this viewer already have a session? /share bypasses AuthGate, so the
@@ -224,8 +226,9 @@ export function PublicBoardView({ token, slug }) {
   }));
 
   // Seed share attribution into the session first-touch source BEFORE the
-  // first event of this pageload, so share_token (+ utm_source=share_link)
-  // rides on every row and lands in profiles.first_source at signup.
+  // first event of this pageload, so utm_source=share_link rides on every row
+  // and share_token lands in profiles.first_source at signup — the one place
+  // the token is kept (buildRow drops it from the rows).
   useEffect(() => {
     if (slug) seedPublicBoardFirstSource(slug);
     else seedShareFirstSource(token);

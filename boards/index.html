@@ -204,9 +204,23 @@
   <!-- Meta Pixel Code. Not loaded at all when the browser sends Global Privacy
        Control (2026-10-20): window.fbq then never exists, so every caller in
        src/lib/metaPixel.js no-ops through fbqReady(), and the server senders
-       withhold the same events (supabase/functions/_shared/meta-capi.ts). -->
+       withhold the same events (supabase/functions/_shared/meta-capi.ts).
+       Nor when this page's address, or the page before it, holds a token — a
+       share, file or template link's page, an invite or remix link, the resume
+       link — because the pixel reports both addresses and the token opens
+       what it points at. Same test as urlCarriesLinkToken in
+       src/lib/linkTokens.js; linkTokens.test.mjs runs both on the same cases. -->
   <script>
-    if (navigator.globalPrivacyControl !== true) {
+    function soleilLinkToken(p, q) {
+      return /^\/(?:share|f|t)\/[0-9a-f]{8}-|^\/resume\/?$/i.test(p)
+        || /[?&](?:share_token|file_token|join|wsjoin|invite|remix|shared|rt)=/i.test(q)
+        || /[?&]utm_campaign=[^&#]*[0-9a-f]{8}-[0-9a-f]{4}-/i.test(q);
+    }
+    var soleilRef = null;
+    try { soleilRef = document.referrer ? new URL(document.referrer) : null; } catch (_) {}
+    var linkToken = soleilLinkToken(location.pathname, location.search)
+      || (soleilRef !== null && soleilLinkToken(soleilRef.pathname, soleilRef.search));
+    if (navigator.globalPrivacyControl !== true && !linkToken) {
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
