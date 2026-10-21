@@ -3810,7 +3810,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is already the pan modifier there and arrows already move cards. In "
+     "v": " is already the pan modifier there. In "
     },
     {
      "t": "link",
@@ -3825,7 +3825,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " neither is taken, so auditioning a pack is "
+     "v": " it isn't, so auditioning a pack is "
     },
     {
      "t": "code",
@@ -4906,6 +4906,189 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Toolbars",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Toolbars"
+    }
+   ],
+   "id": "toolbars"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every toolbar is one "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " stop, and the arrow keys move inside it: the tool rail, the bar a note, a drawing or a shape brings up, a document's toolbar, and the bar over selected files."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Tab"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "To the next toolbar — each is one stop"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The previous · next control in it — "
+      },
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      },
+      {
+       "t": "text",
+       "v": " on the tool rail"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Home"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "End"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its first · last control"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "←"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Open · close the tool rail's "
+      },
+      {
+       "t": "strong",
+       "v": "+",
+       "children": [
+        {
+         "t": "text",
+         "v": "+"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " menu"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In a field inside a toolbar, like a font size, "
+    },
+    {
+     "t": "code",
+     "v": "←"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "→"
+    },
+    {
+     "t": "text",
+     "v": " move the caret, and step out of the field at either end. A screen reader hears each control by its name, whether a toggle is on, and the shortcut it has, if any."
+    }
    ]
   },
   {

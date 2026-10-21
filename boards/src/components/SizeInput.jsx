@@ -61,7 +61,10 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
       return;
     }
     const n = parseInt(draft, 10);
-    if (Number.isFinite(n) && n > 0) commitPx(n);
+    // Only a size that was changed: arrowing through the bar passes through
+    // this field, and setting the size it already shows marked the selection
+    // with it and took the focus back into the editor.
+    if (Number.isFinite(n) && n > 0 && n !== value) commitPx(n);
     else setDraft(value ? String(value) : '');
   };
 

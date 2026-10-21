@@ -90,8 +90,8 @@ test('typing a speech redraws neither the scene list nor the toolbar; renaming a
 test('the toolbar lights what is under the caret, and what the next key will type', async ({ page }) => {
   await openDoc(page, '<h2>A heading</h2><p>Plain <strong>bold</strong> plain.</p><ul><li><p>An item</p></li></ul>');
   const bar = page.locator('.doc-card-modal .doc-tb');
-  const bold = bar.getByRole('button', { name: 'Bold (⌘B)' });
-  const bullets = bar.getByRole('button', { name: 'Bulleted list (⌘⇧8)' });
+  const bold = bar.getByRole('button', { name: 'Bold', exact: true });
+  const bullets = bar.getByRole('button', { name: 'Bulleted list', exact: true });
   const style = bar.locator('.doc-tb-select');
 
   await caretAt(page, 'A heading', 3);
@@ -116,10 +116,13 @@ test('the toolbar lights what is under the caret, and what the next key will typ
   await expect(bullets).toHaveClass(/is-active/);
   await expect(style).toHaveValue('');
 
-  // Link needs a selection: off at a caret, on with text selected.
-  await expect(bar.getByRole('button', { name: 'Select text to link' })).toBeDisabled();
+  // Link needs a selection: off at a caret (its tooltip says why), on with
+  // text selected. Its name stays Add link either way.
+  const link = bar.getByRole('button', { name: 'Add link', exact: true });
+  await expect(link).toBeDisabled();
+  await expect(link).toHaveAttribute('title', 'Select text to link');
   await page.keyboard.press('Shift+ArrowRight');
-  await expect(bar.getByRole('button', { name: 'Add link (⌘K)' })).toBeEnabled();
+  await expect(link).toBeEnabled();
 });
 
 test('a screenplay\'s element picker follows the caret', async ({ page }) => {

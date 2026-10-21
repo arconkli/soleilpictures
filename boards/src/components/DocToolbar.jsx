@@ -11,6 +11,7 @@ import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
 import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
+import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
 import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
@@ -22,6 +23,7 @@ import {
 import { Icon as Glyph } from './Icon.jsx';
 import { ELEMENTS as SP_ELEMENTS, ELEMENT_LABELS as SP_LABELS } from './docExtensions/screenplay/screenplayFlow.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
+import { ariaKeys } from '../lib/ariaKeys.js';
 
 const HEADING_OPTIONS = [
   { value: 'p', label: 'Body' },
@@ -71,6 +73,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
   // these Find, Export, Zoom, Undo and Redo sat off-screen with the bar
   // appearing to end at the bookmark icon.
   const barRef = useRef(null);
+  const onBarKeys = useToolbarRoving(barRef);
   useEffect(() => {
     const bar = barRef.current;
     if (!bar) return undefined;
@@ -186,7 +189,8 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
   const isScreenplay = docMode === 'screenplay';
 
   return (
-    <div className="doc-tb" ref={barRef} role="toolbar" aria-label="Document formatting" aria-orientation="horizontal">
+    <div className="doc-tb" ref={barRef} role="toolbar" aria-label="Document formatting" aria-orientation="horizontal"
+         onKeyDown={onBarKeys}>
       {canEdit && (<>
       {/* Click-to-open insert menu — only the things with no other toolbar home
           (image, table, divider, code, embed). Doc mode only: in screenplay mode
@@ -258,7 +262,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
       )}
 
       {isScreenplay && (
-        <Btn title="Dual dialogue — pair this speech with the one above"
+        <Btn title="Dual dialogue — pair this speech with the one above" label="Dual dialogue"
              active={lit.dual}
              disabled={disabled || !lit.spElement}
              onClick={() => editor.chain().focus().toggleDualDialogue().run()}>
@@ -288,19 +292,19 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
         <span className="doc-tb-sep" aria-hidden="true" />
 
-        <Btn title="Bold (⌘B)" active={lit.bold} disabled={disabled}
+        <Btn title="Bold (⌘B)" label="Bold" keys="Mod+B" active={lit.bold} disabled={disabled}
              onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></Btn>
-        <Btn title="Italic (⌘I)" active={lit.italic} disabled={disabled}
+        <Btn title="Italic (⌘I)" label="Italic" keys="Mod+I" active={lit.italic} disabled={disabled}
              onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></Btn>
-        <Btn title="Underline (⌘U)" active={lit.underline} disabled={disabled}
+        <Btn title="Underline (⌘U)" label="Underline" keys="Mod+U" active={lit.underline} disabled={disabled}
              onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></Btn>
         <Btn title="Strike" active={lit.strike} disabled={disabled}
              onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></Btn>
         <Btn title="Inline code" active={lit.code} disabled={disabled}
              onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
-        <Btn title="Highlight (⌘⇧H)" active={lit.highlight} disabled={disabled}
+        <Btn title="Highlight (⌘⇧H)" label="Highlight" keys="Mod+Shift+H" active={lit.highlight} disabled={disabled}
              onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
-        <Btn title="Clear formatting (⌘\)" disabled={disabled}
+        <Btn title="Clear formatting (⌘\)" label="Clear formatting" keys="Mod+\" disabled={disabled}
              onClick={() => editor.chain().focus().clearFormatting().run()}><span className="tb-clear-fmt">T<sub>x</sub></span></Btn>
 
         <span className="doc-tb-sep" aria-hidden="true" />
@@ -310,11 +314,11 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
         <span className="doc-tb-sep" aria-hidden="true" />
 
-        <Btn title="Bulleted list (⌘⇧8)" active={lit.bulletList} disabled={disabled}
+        <Btn title="Bulleted list (⌘⇧8)" label="Bulleted list" keys="Mod+Shift+8" active={lit.bulletList} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleBulletList(), 'doc-list:ul')}><Glyph as={List} size={14} /></Btn>
-        <Btn title="Numbered list (⌘⇧7)" active={lit.orderedList} disabled={disabled}
+        <Btn title="Numbered list (⌘⇧7)" label="Numbered list" keys="Mod+Shift+7" active={lit.orderedList} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleOrderedList(), 'doc-list:ol')}><Glyph as={ListOrdered} size={14} /></Btn>
-        <Btn title="Task list (⌘⇧9)" active={lit.taskList} disabled={disabled}
+        <Btn title="Task list (⌘⇧9)" label="Task list" keys="Mod+Shift+9" active={lit.taskList} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleTaskList(), 'doc-list:task')}><Glyph as={ListChecks} size={14} /></Btn>
         <Btn title="Quote" active={lit.blockquote} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleBlockquote(), 'doc-blockquote')}><Glyph as={Quote} size={14} /></Btn>
@@ -332,38 +336,44 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
       <span className="doc-tb-sep" aria-hidden="true" />
 
       <Btn title={(!disabled && lit.hasSelection) ? 'Add link (⌘K)' : 'Select text to link'}
+           label="Add link" keys="Mod+K"
            disabled={disabled || !lit.hasSelection}
            onClick={() => onOpenLink?.(editor)}><Glyph as={LinkPh} size={14} /></Btn>
       <Btn title="Bookmark this spot" disabled={disabled}
            onClick={() => onInsertBookmark?.(editor)}><Glyph as={Bookmark} size={14} /></Btn>
       <Btn title={(!disabled && lit.hasSelection) ? 'Add comment (⌘⌥M)' : 'Select text to comment on'}
+           label="Add comment" keys="Mod+Alt+M"
            disabled={disabled || !lit.hasSelection}
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       </>)}
-      <Btn title="Find (⌘F)" disabled={disabled}
+      <Btn title="Find (⌘F)" label="Find" keys="Mod+F" disabled={disabled}
            onClick={() => onOpenFind?.()}><Glyph as={Search} size={14} /></Btn>
       {canExport && <DocExportMenu editor={editor} docName={docName} ydoc={ydoc} scope={scope} docMode={docMode} canEdit={canEdit} />}
 
       <span className="doc-tb-spacer" />
 
       {onZoomIn && (
-        <span className="doc-tb-zoom" title="Zoom (⌘+ / ⌘− / ⌘0)">
-          <button className="doc-tb-btn" onClick={onZoomOut} title="Zoom out (⌘−)" aria-label="Zoom out">−</button>
+        <span className="doc-tb-zoom" title="Zoom (⌘+ / ⌘− / ⌘0)" role="group" aria-label="Zoom">
+          <button className="doc-tb-btn" onClick={onZoomOut} title="Zoom out (⌘−)" aria-label="Zoom out"
+                  aria-keyshortcuts={ariaKeys('Mod+-')}>−</button>
           {/* In fit-to-width the percentage is an implementation detail (it
               tracks the viewport), so name the MODE instead. Tapping it from a
               manual zoom returns to fit. */}
           <button className={`doc-tb-btn doc-tb-zoom-label${fitMode ? ' is-active' : ''}`}
                   onClick={onZoomReset}
                   title={fitMode ? `Fit to width (${Math.round((zoom || 1) * 100)}%)` : 'Reset zoom (⌘0)'}
-                  aria-label={fitMode ? 'Fit to width' : 'Reset zoom'}>{fitMode ? 'Fit' : `${Math.round((zoom || 1) * 100)}%`}</button>
-          <button className="doc-tb-btn" onClick={onZoomIn} title="Zoom in (⌘+)" aria-label="Zoom in">+</button>
+                  // What it shows, then what it does.
+                  aria-label={fitMode ? 'Fit to width' : `${Math.round((zoom || 1) * 100)}% — reset zoom`}
+                  aria-keyshortcuts={ariaKeys('Mod+0')}>{fitMode ? 'Fit' : `${Math.round((zoom || 1) * 100)}%`}</button>
+          <button className="doc-tb-btn" onClick={onZoomIn} title="Zoom in (⌘+)" aria-label="Zoom in"
+                  aria-keyshortcuts={ariaKeys('Mod+=')}>+</button>
         </span>
       )}
 
       {canEdit && (<>
-      <Btn title="Undo (⌘Z)" disabled={disabled}
+      <Btn title="Undo (⌘Z)" label="Undo" keys="Mod+Z" disabled={disabled}
            onClick={() => editor.chain().focus().undo().run()}><Glyph as={Undo} size={14} /></Btn>
-      <Btn title="Redo (⌘⇧Z)" disabled={disabled}
+      <Btn title="Redo (⌘⇧Z)" label="Redo" keys="Mod+Shift+Z" disabled={disabled}
            onClick={() => editor.chain().focus().redo().run()}><Glyph as={Redo} size={14} /></Btn>
       </>)}
 
@@ -416,13 +426,17 @@ function readBar(editor) {
   };
 }
 
-function Btn({ children, active, disabled, onClick, title }) {
+// `title` is the tooltip, with the shortcut in it for the eye. A screen reader
+// says `label` (the title, when there's no other) and hears the shortcut from
+// aria-keyshortcuts. A toggle, one given `active`, says whether it's on.
+function Btn({ children, active, disabled, onClick, title, label = title, keys }) {
   return (
     <button className={`doc-tb-btn ${active ? 'is-active' : ''}`}
             disabled={disabled}
             title={title}
-            aria-label={title}
-            aria-pressed={active ? true : undefined}
+            aria-label={label}
+            aria-keyshortcuts={keys ? ariaKeys(keys) : undefined}
+            aria-pressed={active === undefined ? undefined : !!active}
             onMouseDown={(e) => e.preventDefault()}
             onClick={onClick}>
       {children}

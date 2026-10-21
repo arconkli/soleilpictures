@@ -4662,6 +4662,15 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   user-select: none;
 }
 .cnv-zoom-val:hover { color: var(--ink-0); }
+/* The readout is a button (Enter on it is ⌘0), drawn as the text it was:
+   none of .cnv-zoom button's box, type or hover reaches it. */
+.cnv-zoom .cnv-zoom-val {
+  width: auto; height: auto; min-width: 44px; min-height: 0;
+  border-radius: 0;
+  font-size: 10.5px; color: var(--ink-2);
+  font-weight: inherit; line-height: inherit; letter-spacing: inherit;
+}
+.cnv-zoom .cnv-zoom-val:hover { background: transparent; color: var(--ink-0); }
 .cnv-zoom-slider {
   appearance: none;
   width: 96px; height: 24px;

@@ -41,6 +41,7 @@ import { ThumbnailCropModal } from '../ThumbnailCropModal.jsx';
 import { anyModalOpen } from '../../lib/modalGuard.js';
 import { useMatchMedia } from '../../hooks/useMatchMedia.js';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
+import { useToolbarRoving } from '../../hooks/useToolbarRoving.js';
 import './clustersHome.css';
 
 const cardsOf = (b) => Number(b?.card_count) || 0;
@@ -213,6 +214,7 @@ export function ClustersHome({
   const coverRef = useRef(null);
   const rootRef = useRef(null);
   const barRef = useRef(null);
+  const barKeys = useToolbarRoving(barRef);
   // A new cover: the picked file goes through the crop window the sidebar's
   // tree uses, which hands back the WebP the thumbnail upload expects.
   const [thumbCrop, setThumbCrop] = useState(null);   // { boardId, file }
@@ -422,7 +424,7 @@ export function ClustersHome({
         {naming && namingForm}
 
         {!onlyStudio && (
-          <div className="ch-bar" ref={barRef} role="toolbar" aria-label="Your clusters">
+          <div className="ch-bar" ref={barRef} role="toolbar" aria-label="Your clusters" onKeyDown={barKeys}>
             <label className="ch-find">
               <Icon as={Search} size={15} weight="regular" />
               <input ref={findRef} type="search" placeholder="Find a cluster" aria-label="Find a cluster"

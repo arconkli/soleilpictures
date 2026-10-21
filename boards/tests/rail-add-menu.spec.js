@@ -2,7 +2,8 @@
 // anywhere outside it closes it (it used to stay open over the sidebar, the top
 // bar and the cards, closing only on the canvas's bare ground, Escape or an
 // item), and the keys walk it: focus starts on its first item, ↑ ↓ Home End
-// move through them, Esc and Tab close it and hand focus back to +.
+// move through them, Esc, Tab and ← close it and hand focus back to +. → opens
+// it, toward where it opens: ↓ on + is the rail's (tests/toolbar-keys.spec.js).
 import { expect, test } from '@playwright/test';
 
 const plus = (page) => page.locator('.cnv-tools').getByRole('button', { name: 'Add menu', exact: true });
@@ -61,8 +62,8 @@ test('the keys walk the add menu, and Esc or Tab hands focus back to +', async (
   await page.keyboard.press('Escape');
   await expect(menu(page)).toHaveCount(0);
   await expect(plus(page)).toBeFocused();
-  // ↓ on + opens it on its first item, as Enter does.
-  await page.keyboard.press('ArrowDown');
+  // → on + opens it on its first item, as Enter does.
+  await page.keyboard.press('ArrowRight');
   await expect(menu(page)).toBeVisible();
   await expect.poll(() => focusedItem(page)).toBe(names[0]);
   await page.keyboard.press('Tab');

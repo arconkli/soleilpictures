@@ -31,6 +31,8 @@ import { applyCards } from '../lib/tagsClient.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { makeTagRangePlugin, TAG_RANGE_KEY } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
+import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
+import { ariaKeys } from '../lib/ariaKeys.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
@@ -1555,24 +1557,31 @@ function DocSelectionBubble({ editor, at, onLink }) {
       highlight: editor.isActive('highlight'),
     }),
   });
+  const barRef = useRef(null);
+  const onBarKeys = useToolbarRoving(barRef);
   return (
     <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
+         ref={barRef} onKeyDown={onBarKeys}
          style={{ position: 'fixed', top: Math.max(8, at.top - 46),
                   left: Math.max(8, Math.min(at.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
                   zIndex: 2147483647 }}>
-      <button className={lit.bold ? 'is-active' : ''} aria-label="Bold"
+      <button className={lit.bold ? 'is-active' : ''} aria-label="Bold" aria-pressed={lit.bold}
+              aria-keyshortcuts={ariaKeys('Mod+B')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
-      <button className={lit.italic ? 'is-active' : ''} aria-label="Italic"
+      <button className={lit.italic ? 'is-active' : ''} aria-label="Italic" aria-pressed={lit.italic}
+              aria-keyshortcuts={ariaKeys('Mod+I')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
-      <button className={lit.underline ? 'is-active' : ''} aria-label="Underline"
+      <button className={lit.underline ? 'is-active' : ''} aria-label="Underline" aria-pressed={lit.underline}
+              aria-keyshortcuts={ariaKeys('Mod+U')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
-      <button className={lit.highlight ? 'is-active' : ''} aria-label="Highlight"
+      <button className={lit.highlight ? 'is-active' : ''} aria-label="Highlight" aria-pressed={lit.highlight}
+              aria-keyshortcuts={ariaKeys('Mod+Shift+H')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
-      <button aria-label="Link"
+      <button aria-label="Link" aria-keyshortcuts={ariaKeys('Mod+K')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={onLink}><LinkIcon /></button>
     </div>

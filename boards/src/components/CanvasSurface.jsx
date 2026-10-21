@@ -84,6 +84,8 @@ import {
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
+import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
+import { ariaKeys } from '../lib/ariaKeys.js';
 import { Sheet } from './shell/Sheet.jsx';
 import { sanitizeLayout } from '../lib/gridLayout.js';
 import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
@@ -1948,7 +1950,8 @@ export function CanvasSurface({
     return () => cancelAnimationFrame(raf);
   }, [addMenuOpen]);
   const onAddMenuKeyDown = (e) => {
-    if (e.key === 'Escape' || e.key === 'Tab') {
+    // ← too: the menu opens to the right of the rail, on →.
+    if (e.key === 'Escape' || e.key === 'Tab' || e.key === 'ArrowLeft') {
       e.preventDefault();
       e.stopPropagation();
       setAddMenuOpen(false);
@@ -1973,6 +1976,9 @@ export function CanvasSurface({
   // still acts on the press. `mouse`: the press acted already, so the click
   // that follows it doesn't again; `scrolled`: the finger scrolled the rail.
   const railPressRef = useRef({ mouse: false, scrolled: false });
+  // The rail is a toolbar down the canvas's edge: one Tab stop, walked by ↑ ↓.
+  const railRef = useRef(null);
+  const railKeys = useToolbarRoving(railRef, { orientation: 'vertical' });
   const onRailControlPress = (e, act) => {
     railPressRef.current.mouse = e.pointerType === 'mouse';
     if (e.pointerType !== 'mouse') return;   // the rail's scroll gets the press
@@ -12467,19 +12473,21 @@ export function CanvasSurface({
 
   // ── Toolbar ───────────────────────────────────────────────────────────────
   const tools = [
-    { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2 },
-    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
+    // `keys`: what picks it from the keyboard (the shortcut handler above),
+    // for aria-keyshortcuts. With W A S D movement on, A and D move instead.
+    { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2, keys: 'V' },
+    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand, keys: 'H' },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
+    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil, keys: 'N' },
     { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
-    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: clusterGlyph() },
-    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
-    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
+    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: clusterGlyph(), keys: clusterNudgesAllowed() ? 'C' : undefined },
+    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine, keys: 'G' },
+    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
     // Draw was moved off the rail deliberately — on a desktop D reaches it
     // instantly and the rail stays uncluttered. A touch device has no keyboard
     // and no right-click, which left the rail "+" submenu as the only way in,
     // for the tool people most want on a tablet. Put it back, on touch only.
-    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', label: 'Free-draw tool', icon: Scribble }] : []),
+    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
   ];
 
   // The rail "+" holds only the SECONDARY creators — anything already on the
@@ -13945,6 +13953,8 @@ export function CanvasSurface({
           will not finger-scroll it. Drive it ourselves. Tapping a tool still
           works — the gesture only engages past the movement threshold. */}
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail"
+           ref={railRef} role="toolbar" aria-label="Tools" aria-orientation="vertical"
+           onKeyDown={railKeys}
            onPointerDown={(e) => {
              railPressRef.current.scrolled = false;
              startTouchScrollGesture(e, { onEngage: () => { railPressRef.current.scrolled = true; } });
@@ -13960,10 +13970,11 @@ export function CanvasSurface({
             aria-haspopup="menu"
             aria-expanded={addMenuOpen}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ' || (e.key === 'ArrowDown' && !addMenuOpen)) {
+              // → opens it, toward where it opens; ↓ is the rail's.
+              if (e.key === 'Enter' || e.key === ' ' || (e.key === 'ArrowRight' && !addMenuOpen)) {
                 e.preventDefault();
                 addByKeyRef.current = true;
-                setAddMenuOpen(open => (e.key === 'ArrowDown' ? true : !open));
+                setAddMenuOpen(open => (e.key === 'ArrowRight' ? true : !open));
               } else if (e.key === 'Escape' && addMenuOpen) {
                 // Not the canvas's ladder too: it would take the next rung.
                 e.preventDefault();
@@ -14052,6 +14063,7 @@ export function CanvasSurface({
                  role="button"
                  tabIndex={0}
                  aria-label={t.label}
+                 aria-keyshortcuts={t.keys}
                  aria-pressed={active}
                  aria-expanded={isTpl ? tplPanelOpen : undefined}
                  onKeyDown={(e) => {
@@ -14430,11 +14442,12 @@ export function CanvasSurface({
         }} />
       )}
 
-      <div className="cnv-zoom">
+      <div className="cnv-zoom" role="group" aria-label="Zoom">
         {/* −, + and 100% keep the view's centre where it is, like ⌘−/⌘=. A bare
             setZoom scales around the board origin (transform-origin 0 0), so
             what you were looking at slid away with every click. */}
-        <button onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>−</button>
+        <button aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')}
+                onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>−</button>
         <input
           className="cnv-zoom-slider"
           type="range"
@@ -14457,14 +14470,21 @@ export function CanvasSurface({
             setPan({ x: newPanX, y: newPanY });
           }}
           title="Drag to zoom"
+          aria-label="Zoom"
+          aria-valuetext={`${Math.round(zoom * 100)}%`}
         />
-        <span className="cnv-zoom-val"
+        {/* What it shows, then what it does: Enter on it is ⌘0. (Double-click
+            fits the cluster; the keyboard has ⇧1 for that.) */}
+        <button type="button" className="cnv-zoom-val"
               title="Click: 100% · Double-click: Full Cluster"
+              aria-label={`${Math.round(zoom * 100)}% — reset to 100%`}
+              aria-keyshortcuts={ariaKeys('Mod+0')}
               onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
               onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
           {Math.round(zoom * 100)}%
-        </span>
-        <button onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>+</button>
+        </button>
+        <button aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')}
+                onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>+</button>
       </div>
 
       {/* Master comments-visibility toggle. Always rendered — left-click

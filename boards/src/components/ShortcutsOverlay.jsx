@@ -162,6 +162,16 @@ const SECTIONS = [
       [['Tab', '⇧Tab'], 'Indent · outdent (screenplay: cycle element)'],
     ],
   },
+  {
+    // Every role="toolbar" (hooks/useToolbarRoving), and the rail's +.
+    title: 'Toolbars',
+    rows: [
+      [['Tab'], 'To the next toolbar: each is one stop'],
+      [['←', '→'], 'The previous · next control in it (↑ ↓ on the tool rail)'],
+      [['Home', 'End'], 'Its first · last control'],
+      [['→', '←'], 'Open · close the tool rail’s + menu'],
+    ],
+  },
 ];
 
 const TIPS = [

@@ -75,6 +75,9 @@ export function FontPickerDropdown({
         type="button"
         className="doc-tb-pill"
         title="Font family"
+        // The font it shows is in its name: "Font: Inter", not "Inter".
+        aria-label={currentLabel && currentLabel !== 'Font' ? `Font: ${currentLabel}` : 'Font'}
+        aria-expanded={open}
         disabled={disabled}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen(o => !o)}

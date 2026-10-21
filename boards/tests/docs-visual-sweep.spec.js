@@ -153,7 +153,7 @@ for (const vp of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
       await openDoc(page);
       await expect(page.locator('.doc-card-modal .doc-rail-left')).toBeVisible();
       expect(await offBarControls(page)).toEqual([]);
-      for (const name of ['Find (⌘F)', 'Zoom in', 'Undo (⌘Z)', 'Redo (⌘⇧Z)']) {
+      for (const name of ['Find', 'Zoom in', 'Undo', 'Redo']) {
         await expect(page.locator(`.doc-card-modal .doc-tb [aria-label="${name}"]`)).toBeInViewport();
       }
       // The find bar hangs below the (now taller) toolbar, not over its last row.

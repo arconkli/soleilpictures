@@ -26,3 +26,16 @@ test('touch: selection bubble appears and formats', async ({ page }) => {
   const html = await page.evaluate(() => window.__soleilDocTest.editor.getHTML());
   expect(html).toContain('<strong>');
 });
+
+// A screen reader hears which of them are on, not just their names.
+test('touch: the bubble says which formats are on', async ({ page }) => {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('bubble target').selectAll().run());
+  const bubble = page.locator('.doc-bubble');
+  await expect(bubble).toBeVisible({ timeout: 5000 });
+  for (const name of ['Bold', 'Italic', 'Underline', 'Highlight']) {
+    await expect(bubble.getByRole('button', { name, exact: true }), name).toHaveAttribute('aria-pressed', 'false');
+  }
+  await bubble.getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect(bubble.getByRole('button', { name: 'Bold', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});

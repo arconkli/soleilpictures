@@ -147,9 +147,9 @@ On the [full Files page](/docs/clusters/list-view).
 | `Space` | Audition the highlighted row (Files, list layout) |
 
 `Enter` rather than `Space` on the canvas, because `Space` is already the pan
-modifier there and arrows already move cards. In [Files](/docs/clusters/list-view)
-neither is taken, so auditioning a pack is `↓` and `Space` — and when a clip
-finishes, the next one starts on its own.
+modifier there. In [Files](/docs/clusters/list-view) it isn't, so auditioning a
+pack is `↓` and `Space` — and when a clip finishes, the next one starts on its
+own.
 
 Both canvas keys only fire when exactly one audio card is selected; otherwise
 they fall through to whatever else is listening.
@@ -233,6 +233,23 @@ These apply inside a [document](/docs/documents), not on the canvas.
 | `⌘F` | Find and replace |
 | `⌘=` / `⌘−` / `⌘0` | Zoom in · out · back to 100% — a screenplay too wide for its space goes back to fitting it |
 | `Esc` | Close a full-screen document, when you aren't typing in it |
+
+## Toolbars
+
+Every toolbar is one `Tab` stop, and the arrow keys move inside it: the tool
+rail, the bar a note, a drawing or a shape brings up, a document's toolbar, and
+the bar over selected files.
+
+| Key | Action |
+|---|---|
+| `Tab` | To the next toolbar — each is one stop |
+| `←` / `→` | The previous · next control in it — `↑` / `↓` on the tool rail |
+| `Home` / `End` | Its first · last control |
+| `→` / `←` | Open · close the tool rail's **+** menu |
+
+In a field inside a toolbar, like a font size, `←` and `→` move the caret, and
+step out of the field at either end. A screen reader hears each control by its
+name, whether a toggle is on, and the shortcut it has, if any.
 
 ## Gestures
 

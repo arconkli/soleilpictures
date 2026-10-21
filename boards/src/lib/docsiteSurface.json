@@ -400,6 +400,10 @@
     {
       "title": "Document",
       "rows": 8
+    },
+    {
+      "title": "Toolbars",
+      "rows": 4
     }
   ],
   "publicRoutes": {

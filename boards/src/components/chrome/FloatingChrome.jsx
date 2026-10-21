@@ -20,6 +20,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
 import { MoreHorizontal } from '../../lib/icons.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { useToolbarRoving } from '../../hooks/useToolbarRoving.js';
 import './floatingChrome.css';
 
 // items: [{ id, label, icon?, run, hint? } | { sep: true }]
@@ -99,6 +100,7 @@ export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
   const layerRef = useRef(null);
   const leftRef = useRef(null);
   const rightRef = useRef(null);
+  const rightKeys = useToolbarRoving(rightRef);
   const roomRef = useRef(null);
   const [tight, setTight] = useState(0);   // 0, 1 (words gone), 2 (and Back, Forward)
   useLayoutEffect(() => {
@@ -143,7 +145,8 @@ export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
     <div className={`chrome-layer${tight ? ' is-tight' : ''}${tight > 1 ? ' is-tighter' : ''}`} ref={layerRef}>
       <div className="chrome-room" ref={roomRef} aria-hidden="true" />
       <nav className="chrome-island chrome-left" aria-label="Where you are" ref={leftRef}>{left}</nav>
-      <div className="chrome-island chrome-right" role="toolbar" aria-label="This cluster" ref={rightRef}>
+      <div className="chrome-island chrome-right" role="toolbar" aria-label="This cluster" ref={rightRef}
+           onKeyDown={rightKeys}>
         {right}
         {menuItems.length > 0 && <MoreMenu items={menuItems} />}
       </div>

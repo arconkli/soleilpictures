@@ -58,6 +58,7 @@ import { SidebarHandles, sizeAtOnce } from './SidebarHandles.jsx';
 import { DragLabel, BLANK_DRAG_IMAGE } from './DragLabel.jsx';
 import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { useToolbarRoving } from '../../hooks/useToolbarRoving.js';
 import { SORT_LABELS } from '../../lib/filesView.js';
 import { FilesShowMenu } from './FilesShowMenu.jsx';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
@@ -429,6 +430,8 @@ export function ClusterSidebar({
   const [selected, setSelected] = useState(() => new Map());   // key → item
   const [selecting, setSelecting] = useState(false);
   const anchorRef = useRef(null);
+  const bulkRef = useRef(null);
+  const bulkKeys = useToolbarRoving(bulkRef);
   const clearSelection = useCallback(() => { setSelected(new Map()); setSelecting(false); anchorRef.current = null; }, []);
   useEffect(() => { clearSelection(); }, [workspaceId, clearSelection]);
   const isSelected = useCallback((item) => selected.has(item.key), [selected]);
@@ -1189,7 +1192,7 @@ export function ClusterSidebar({
         </div>
 
         {(selected.size > 0 || selecting) && (
-          <div className="sbf-bulk" role="toolbar" aria-label="Selected files">
+          <div className="sbf-bulk" role="toolbar" aria-label="Selected files" ref={bulkRef} onKeyDown={bulkKeys}>
             <span className="sbf-bulk-count">{selected.size || !selecting ? `${selected.size} selected` : 'Select files'}</span>
             {selecting
               ? <button type="button" className="sbf-bulk-btn is-done" onClick={clearSelection}>Done</button>

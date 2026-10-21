@@ -285,6 +285,10 @@ export const DOCS_PAGES = [
         "text": "Document"
       },
       {
+        "id": "toolbars",
+        "text": "Toolbars"
+      },
+      {
         "id": "gestures",
         "text": "Gestures"
       }
