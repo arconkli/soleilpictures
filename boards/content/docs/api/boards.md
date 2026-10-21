@@ -5,7 +5,7 @@ h1: Boards API
 navLabel: Boards
 section: developers
 order: 3
-updated: 2026-08-08
+updated: 2026-10-20
 answer: Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.
 faq:
   - q: What is the difference between a board and a cluster?
@@ -33,13 +33,7 @@ two words.
   "parent_board_id": null,
   "view": "canvas",
   "created_at": "2026-08-01T09:12:44.000Z",
-  "updated_at": "2026-08-03T14:02:10.000Z",
-  "scheduled_date": null,
-  "scheduled_end": null,
-  "day_label": null,
-  "sched_status": "draft",
-  "sched_version": 0,
-  "sched_published_at": null
+  "updated_at": "2026-08-03T14:02:10.000Z"
 }
 ```
 
@@ -50,33 +44,10 @@ two words.
 | `workspace_id` | UUID |
 | `parent_board_id` | UUID, or `null` at the top level |
 | `view` | `"canvas"` or `"list"` |
-| `scheduled_date` | `YYYY-MM-DD`, or `null`. Puts the board on a calendar |
-| `scheduled_end` | `YYYY-MM-DD`, or `null`. Inclusive end of a multi-day block |
-| `day_label` | The durable half of a scheduled day's name, e.g. `"Day 12"` |
-| `sched_status` | `"draft"`, `"published"` or `"cancelled"` — read-only |
-| `sched_version` | Call-sheet version, bumped on publish — read-only |
-| `sched_published_at` | ISO timestamp, or `null` — read-only |
 
-### Scheduling a board
-
-`scheduled_date`, `scheduled_end` and `day_label` are writable on `POST /boards`
-and `PATCH /boards/:id`. They do not go straight to the column: like
-`parent_board_id`, they are routed through a server function, because moving a
-day is a thing other people need to hear about.
-
-A board is `draft` until it is published in the app. Drafts are silent, so an
-import that creates sixty dated days notifies nobody. Once a day is published,
-changing its date notifies everyone who can read it. Pass `"notify": false` to
-move a published day quietly.
-
-`sched_status`, `sched_version` and `sched_published_at` are read-only over the
-API — publishing is a deliberate act with an audience, not a field write. See
-[Production schedules](/docs/clusters/production-schedule).
-
-```json
-PATCH /boards/9f1c…
-{ "scheduled_date": "2026-09-14", "day_label": "Day 12" }
-```
+A board no longer takes a date. `scheduled_date`, `scheduled_end` and
+`day_label` went when schedules were retired, and a `POST` or `PATCH` that sets
+one is refused with `400 bad_request` rather than accepted and dropped.
 
 ## `GET /workspaces`
 

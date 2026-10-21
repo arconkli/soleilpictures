@@ -122,6 +122,10 @@ const RETIRED_PAGES = new Map([
   ['/vs/storyboarder', '/best/storyboard-software'],
   ['/vs/boords', '/best/storyboard-software'],
   ['/vs/studiobinder', '/best/storyboard-software'],
+  // Schedules were retired (owner, 2026-10-20), and their two docs pages with
+  // them; each lands on the page that covers what is left.
+  ['/docs/canvas/schedule', '/docs/canvas/cards'],
+  ['/docs/clusters/production-schedule', '/docs/clusters'],
 ]);
 
 // META PRE-REGISTERED 2026-10-20 (the CLAUDE.md ritual). The homepage

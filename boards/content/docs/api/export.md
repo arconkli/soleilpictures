@@ -5,7 +5,7 @@ h1: Export
 navLabel: Export
 section: developers
 order: 10
-updated: 2026-08-09
+updated: 2026-10-20
 answer: GET /boards/:id/export returns a whole board in one call. The default format is complete JSON, including the internal form of every card, so nothing is lost for kinds the API does not otherwise describe. Pass format=omc for MovieLabs OMC-JSON, which models the board as an ordered assetGroup of assets using the film industry's own controlled vocabulary for creative reference material.
 faq:
   - q: How do I take a full backup of a board?
@@ -13,7 +13,7 @@ faq:
   - q: What is OMC-JSON?
     a: The MovieLabs Ontology for Media Creation, the film industry's own standard for describing production material. A board maps onto it as an ordered assetGroup, which is how MovieLabs' own examples model a storyboard.
   - q: Why does the default card read lose information?
-    a: It is a deliberate twelve-field projection, so kinds with structured interiors — grids, palettes, schedules — do not round-trip through it. Export, and include=raw on card reads, both give you the untruncated form.
+    a: It is a deliberate twelve-field projection, so kinds with structured interiors, like grids and palettes, do not round-trip through it. Export, and include=raw on card reads, both give you the untruncated form.
   - q: Can I say what kind of material a board represents?
     a: Set omc.functionalType in the board's properties. Values outside the OMC controlled vocabulary are refused rather than passed through.
 related:
@@ -51,7 +51,7 @@ The default. Every card **exactly as stored**, alongside the normal
 
 `raw` is there because the ordinary card read is a deliberately narrow
 twelve-field projection, and the app has kinds it does not describe — a grid
-carries its cells and template, a palette its swatches, a schedule its rows.
+carries its cells and template and a palette its swatches.
 Those read back through the projection with their interiors missing, which for
 anyone taking a backup is data loss that looks like success.
 

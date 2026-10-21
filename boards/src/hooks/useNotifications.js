@@ -1,18 +1,18 @@
-// The bell: persistent notifications + the caller's upcoming schedule.
+// The bell: persistent notifications.
 //
 // Reads public.notifications (0242), which unlike share_notifications and
-// mention_notifications is NOT a toast queue — rows survive until read, so a
-// crew member who missed the 21:40 call-sheet toast still finds it at 06:00.
+// mention_notifications is NOT a toast queue — rows survive until read, so
+// someone who missed the toast for a file shared with them still finds it
+// later. It also read the caller's upcoming schedule until schedules were
+// retired (owner, 2026-10-20).
 //
 // Live updates arrive through notificationBus rather than a Supabase channel of
-// our own: schedule pings share the `user:{uid}` topic useInboxLive already
+// our own: notification pings share the `user:{uid}` topic useInboxLive already
 // owns, and opening a second channel on that topic would throw (v2 dedupes by
 // topic and .on() after subscribe is an error).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  listNotifications, markNotificationsRead, listMySchedule,
-} from '../lib/boardsApi.js';
+import { listNotifications, markNotificationsRead } from '../lib/boardsApi.js';
 import { subscribeNotifications } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
 import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
@@ -20,7 +20,6 @@ import { openSharedFile } from '../lib/sharedFileBus.js';
 
 export function useNotifications({ userId, feedback = null, onOpenBoard = null } = {}) {
   const [items, setItems] = useState([]);
-  const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const onOpenRef = useRef(onOpenBoard);
@@ -29,16 +28,12 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null }
   useEffect(() => { feedbackRef.current = feedback; }, [feedback]);
 
   const refresh = useCallback(async () => {
-    if (!userId) { setItems([]); setSchedule([]); return; }
+    if (!userId) { setItems([]); return; }
     setLoading(true);
     try {
-      // Independent: an unreachable schedule must not blank the notification
-      // list, and vice versa.
-      const [n, s] = await Promise.allSettled([listNotifications({ limit: 50 }), listMySchedule(null, 90)]);
-      if (n.status === 'fulfilled') setItems(n.value);
-      else console.warn('[notifications] list failed', n.reason);
-      if (s.status === 'fulfilled') setSchedule(s.value);
-      else console.warn('[notifications] schedule failed', s.reason);
+      setItems(await listNotifications({ limit: 50 }));
+    } catch (e) {
+      console.warn('[notifications] list failed', e);
     } finally {
       setLoading(false);
     }
@@ -46,9 +41,7 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null }
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Live pings: prepend optimistically so the badge moves on the same frame,
-  // then reconcile the schedule (a move changes a date the list is showing).
-  const scheduleTimer = useRef(null);
+  // Live pings: prepend optimistically so the badge moves on the same frame.
   useEffect(() => {
     if (!userId) return undefined;
     return subscribeNotifications(userId, (payload) => {
@@ -71,14 +64,9 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null }
         });
       } catch (_) {}
       // Only fires when the tab is hidden/unfocused and permission was granted.
-      maybeShowNotification({ title: payload.title, body: payload.body || '', tag: `sched:${payload.board_id}`, onClick: openIt });
-      clearTimeout(scheduleTimer.current);
-      scheduleTimer.current = setTimeout(() => {
-        listMySchedule(null, 90).then(setSchedule).catch(() => {});
-      }, 400);
+      maybeShowNotification({ title: payload.title, body: payload.body || '', tag: `ntf:${payload.id}`, onClick: openIt });
     });
   }, [userId]);
-  useEffect(() => () => clearTimeout(scheduleTimer.current), []);
 
   const unread = items.reduce((n, x) => n + (x.read_at ? 0 : 1), 0);
 
@@ -92,5 +80,5 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null }
     try { await markNotificationsRead(ids); } catch (e) { console.warn('[notifications] mark read failed', e); }
   }, []);
 
-  return { items, schedule, unread, loading, refresh, markRead };
+  return { items, unread, loading, refresh, markRead };
 }

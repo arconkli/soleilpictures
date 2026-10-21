@@ -5,7 +5,7 @@ h1: Files view
 navLabel: Files view
 section: clusters
 order: 1
-updated: 2026-10-11
+updated: 2026-10-20
 answer: Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
   - q: Does opening Files change my board?
@@ -279,7 +279,7 @@ everything that could be read, and says how many could not.
 
 Everything gets a real preview, not a generic icon. Images and video show
 themselves; [grids](/docs/canvas/grids), [docs](/docs/documents),
-[schedules](/docs/canvas/schedule), shapes, notes and links get schematic marks
+shapes, notes and links get schematic marks
 that indicate their shape and content.
 
 ## Quick look

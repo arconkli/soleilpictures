@@ -363,7 +363,7 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     expect(read('src/components/SketchPadOverlay.jsx')).toMatch(/registerModalOpen\(\)/);
   });
 
-  test('schedule moves are discrete undo steps + revertible history', () => {
+  test('schedule moves are discrete undo steps; history no longer reverts dates', () => {
     const app = read('src/App.jsx');
     // Calendar drag-drops break the merge window like every other discrete op.
     expect(app).toMatch(/breakUndo\(\); \/\/ each drag-drop is its own ⌘Z step/);
@@ -371,10 +371,11 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     // The day-tile date move carries its closure undo (the schedule session's
     // own toast — keep it wired).
     expect(app).toMatch(/setBoardSchedule\(bId, prevDate, prevEnd\)/);
-    // Version history can revert schedule fields through the sanctioned RPC.
+    // Schedules are retired (owner, 2026-10-20): Version history reverts name,
+    // colour, cover and view only, so no shoot-day date comes back through it.
     const vh = read('src/components/VersionHistoryModal.jsx');
-    expect(vh).toMatch(/'scheduled_date', 'scheduled_end', 'day_label'/);
-    expect(vh).toMatch(/setBoardSchedule\(boardId, next\.date, next\.end, next\.label\)/);
+    expect(vh).toMatch(/const REVERTIBLE = new Set\(\['name', 'bg_color', 'cover', 'view'\]\);/);
+    expect(vh).not.toMatch(/setBoardSchedule/);
   });
 
   test('art-card stroke commits are their own undo steps', () => {

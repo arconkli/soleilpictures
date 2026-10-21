@@ -66,11 +66,11 @@
     },
     {
       "name": "create_board",
-      "schema": "9c0a2049a6a2"
+      "schema": "732f33f976a7"
     },
     {
       "name": "create_boards",
-      "schema": "5247fe40b723"
+      "schema": "88c69d2a239f"
     },
     {
       "name": "create_group",
@@ -142,7 +142,7 @@
     },
     {
       "name": "rename_board",
-      "schema": "c3c8999756e8"
+      "schema": "0a21becb78ba"
     },
     {
       "name": "resolve_identifier",

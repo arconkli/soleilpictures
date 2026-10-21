@@ -161,7 +161,7 @@ A: Only if you invite them as an editor. A public link is view-only. Editors do 
 ========================================================================
 # Core concepts
 URL: https://clusters.soleilpictures.com/docs/concepts
-Updated: 2026-10-08
+Updated: 2026-10-20
 
 Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.
 
@@ -187,7 +187,7 @@ Nesting is cycle-safe. Dragging a cluster into one of its own descendants is ref
 
 Card
 
-A card is one thing on a board. Images, notes, links, documents, PDFs, video, audio, colour palettes, shapes, grids, schedules, votes, and other clusters are all cards.
+A card is one thing on a board. Images, notes, links, documents, PDFs, video, audio, colour palettes, shapes, grids, votes, and other clusters are all cards.
 
 Cards carry a position, a size and a stacking order, which is what makes the canvas a canvas rather than a list. Everything else about a card depends on what kind it is — see Cards.
 
@@ -436,7 +436,7 @@ A: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app 
 ========================================================================
 # Coming from another tool
 URL: https://clusters.soleilpictures.com/docs/migrating
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 
@@ -480,7 +480,7 @@ Storyflow — boards map to clusters and the references come across as files. Wh
 
 Boords, Storyboarder and the other storyboard tools — panels become grid cells, and the script side becomes a screenplay document on the same board.
 
-StudioBinder — production management. Clusters covers the visual and document side; it is not a call-sheet-and-crew-management system, and its schedule cards are being rebuilt. The storyboard software roundup compares the two directly.
+StudioBinder — production management. Clusters covers the visual and document side; it is not a call-sheet-and-crew-management system. The storyboard software roundup compares the two directly.
 
 Comparisons and alternatives
 
@@ -520,7 +520,7 @@ A: Files, and screenplays. Everything else is a rebuild — which is why this pa
 ========================================================================
 # The canvas
 URL: https://clusters.soleilpictures.com/docs/canvas
-Updated: 2026-10-19
+Updated: 2026-10-20
 
 A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 
@@ -561,8 +561,6 @@ The + at the end of the rail opens the rest, grouped:
 Tools — Draw (D), Shape, Palette
 Create — File, Folder (on a desktop browser), Link, Linked cluster
 Annotate — Comment, Vote
-
-Schedule cards are being rebuilt and are not in the menu meanwhile — see Schedule.
 
 Right-click
 
@@ -621,7 +619,7 @@ A: Yes. Touch gestures pan and zoom, long-press opens the context menu, and the 
 URL: https://clusters.soleilpictures.com/docs/canvas/cards
 Updated: 2026-10-20
 
-A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
+A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
 Everything on a canvas is a card. They differ in what they hold and nothing else — position, size, stacking order, selection, grouping, tagging, commenting and duplication work identically on all of them.
 
@@ -640,7 +638,6 @@ Palette | A set of colours you can pull from
 Shape | Rectangle, ellipse, line, arrow, diamond, triangle, hexagon, star
 Art canvas | A bounded drawing surface that lives as a card
 Grid | A split-cell layout — storyboards, contact sheets
-Schedule | A real-date calendar you can drop things into
 Vote | An up/down poll anchored anywhere
 Cluster | A nested board, opening into its own canvas
 Linked cluster | A reference to a cluster that lives elsewhere
@@ -1132,7 +1129,7 @@ A: Nothing. They stay exactly where they are and keep everything else about them
 ========================================================================
 # Grids
 URL: https://clusters.soleilpictures.com/docs/canvas/grids
-Updated: 2026-10-04
+Updated: 2026-10-20
 
 A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.
 
@@ -1174,15 +1171,6 @@ Discovering grids
 
 Put four or more images on a board and the app suggests a grid, once. That suggestion is a power reveal: it fires a single time, ever, and never again.
 
-Grids versus schedules
-
-They look similar and are not the same thing:
-
-A grid is a spatial layout. Cells mean position.
-A schedule is a calendar. Cells mean dates — real ones, with month, week, day and hour views.
-
-If the cells represent time, you want a schedule.
-
 Building a storyboard specifically? The storyboard maker guide covers the whole workflow.
 
 ## Frequently asked questions
@@ -1195,141 +1183,6 @@ A: Drag the dividers between cells. Cells split and merge as you go, and the res
 
 Q: Can several grids share a layout?
 A: Yes. Right-click a grid and choose Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Unlink layout takes a grid back out.
-
-
-========================================================================
-# Schedules
-URL: https://clusters.soleilpictures.com/docs/canvas/schedule
-Updated: 2026-09-01
-
-A schedule card is a real calendar on your canvas. It shows a month as day tiles, as a list, or as a grid, with a wall chart above it spanning the whole production. Each date can hold notes, images and files, and whole clusters that carry a date. A day opens as a running order — every item has a length, and the start times cascade.
-
-Being rebuilt. Schedule cards are temporarily off the Add menu while the calendar and the day view are reworked. Existing cards keep rendering and keep their content — nothing has been removed. This page describes what those cards do today; it will grow again as the rebuild lands.
-
-A schedule card is a calendar with real dates, sitting on the canvas next to everything it refers to. Shooting days beside the location photos; a release plan beside the assets.
-
-Three densities, one control
-
-The same calendar, shown three ways. Pick with the control in the header.
-
- | What you get | Good for
-Tiles | Weeks as rows, each day a tile showing that day's cluster — its own thumbnail and name | A production, where nearly every day is a board
-List | Day rows with a small preview and the name | Running the week; a fortnight at a glance
-Grid | The classic month grid | A release plan or a prep calendar — anything sparse
-
-Tiles is the default because in a production nearly every day is a board: a cluster holding that day's call sheet, shot list, script pages and running order. A calendar's job there is not to show events, it is to be the way into those boards — and a coloured bar with a date on it cannot carry a board's identity, but a picture of the day can.
-
-Grid is kept rather than traded away. A month grid is built for a sparse calendar, most cells empty, and that is exactly what a release plan is.
-
-The wall chart
-
-Above Tiles and List sits a strip: one row per month, one thin column per day. It spans the whole production, not the month you happen to be looking at, because its only job is the shape of the schedule — ten weeks of prep, eight of production, two of wrap, in about a hundred pixels. Click any day to jump the surface below to it.
-
-It does not try to be readable up close. It navigates; the surface below details.
-
-Full screen (the ⤢ in the header) gives the whole window over. A production calendar is a wall chart, and on a canvas it is always negotiating for width with everything around it.
-
-Views
-
-Three ways into the same schedule:
-
-View | Shows
-Month | A whole month — or three, or six
-Week | Seven days side by side
-Day | The day's running order — see below
-
-In month view, the 1 / 3 / 6 control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot without paging. Asking for more months grows the card to fit them — three readable months need the room, and silently shrinking each one into a grid of dots would defeat the point.
-
-A prep week can sit at month view while the shoot day sits at day view in the same board.
-
-The day is a running order
-
-Day view is not a column of hours. It is a list of items, each with a length, and the start times work themselves out from the top down.
-
-07:00  ◆ Crew call                  0:30
-07:30    Breakfast                  0:30
-08:00    Rehearse — sc 14A          0:45
-08:45    Shoot 14A                  2:15
-11:00    Company move → Ext. Dock   0:45
-
-Change one length and everything below it moves. That is the whole point: when rehearsal runs twenty-five minutes long you edit one number, not twelve.
-
-Three things to do here, and nothing else:
-
-Type a length. 2:15, 2h15 and 135 all mean the same thing.
-Drag a row to move it. The times stay put and re-cascade around it.
-Pin a row to lock it to a time of day. A pinned row shows its time as an editable field; everything else is calculated and cannot be typed into.
-
-Pins, and what they cost
-
-A crew call and a meal break happen at a time, not "whenever we get to them". Pin them, and the pin holds — what moves is the report:
-
-runs 12m past the pin — the item above overruns it. The pin does not slide; the day after it stays on schedule and you are told what has to give.
-20m spare before the pin — dead air you can fill.
-
-The header carries the day's start and its estimated wrap.
-
-A day can also cross midnight: an 18:00 start wrapping at 04:00 accumulates past midnight rather than reading as time travel.
-
-A row can also be a cluster — the setup's own board, with its shot list, references and pages inside — opened straight from the row.
-
-Adding a day with Set up this day seeds three rows: the call, a first setup, and a meal break six hours after the call. An empty list is a blank page.
-
-Navigation is yours
-
-Stepping through months, jumping to a date, and Go to today only move your view. The card remembers the date it opens on, but a schedule shared with fifty people does not jerk under everyone else when you page forward.
-
-Two things live on a date
-
-Loose content — a note, an image, a file, a link — dropped straight onto a date. This is the quick kind: a reminder on a Tuesday, a reference photo on the day it is needed.
-
-Days — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shot list, the running order. See Production schedules.
-
-Reading it
-
-The month grid has no vertical rules — just a line between weeks, and space. Dates you can act on are bright; days from the neighbouring month and weekend dates step back. Today is a filled circle.
-
-Where a month is too narrow for a word — a three-month strip, say — a day renders as a bar rather than a truncated name. Switch to List for names at a size you can read.
-
-The day panel
-
-For loose content, the month and week grids are read-only. A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it.
-
-Clicking a date selects it. Double-clicking a tile opens that day's cluster (on a touch screen, tap the selected tile again); double-clicking a cell in Grid density opens the day panel, where loose content is edited at a comfortable size whatever the card's size on the canvas. The day's running order lives in Day view, not here.
-
-What a schedule is for
-
-Anything where the cells mean time:
-
-Shoot days and unit moves
-Call sheets, with the location photo attached to the day
-Delivery and release timelines
-A prep calendar with references attached to the day they are needed
-
-If the cells mean position rather than time — a storyboard, a contact sheet, a comparison — you want a grid.
-
-## Frequently asked questions
-
-Q: Can I add a schedule card right now?
-A: Not at the moment. Schedule cards are being rebuilt, so the Schedule entry is off the Add menu. Cards you already have keep working, and everything on this page still describes them.
-
-Q: Can I drop images and notes into a schedule?
-A: Yes. Any card can go into a date, not just text. A location photo attached to the day it is needed works exactly as you would expect.
-
-Q: If I change one item's length, what moves?
-A: Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds.
-
-Q: Why do the days show pictures?
-A: Because each one is a cluster, and every cluster already renders a thumbnail of its own canvas. In a production nearly every day is a board full of that day's material, so the calendar shows you the actual day rather than an icon standing in for one.
-
-Q: Can I still have a plain month grid?
-A: Yes — it is the third density in the header control. A month grid is built for a sparse calendar, which is exactly what a release plan or a prep calendar is, so it is kept rather than traded away.
-
-Q: Why can I not type directly into the calendar grid?
-A: Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it; double-clicking a grid cell opens the day panel.
-
-Q: Does paging to next month move it for everyone?
-A: No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and "Go to today" are all local to you.
 
 
 ========================================================================
@@ -1446,7 +1299,7 @@ A: Copy the palette card and paste it into another cluster. Its swatches then fe
 ========================================================================
 # Snapping and alignment
 URL: https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.
 
@@ -1504,7 +1357,6 @@ Where snapping does not apply
 
 Free-draw strokes — freehand marks are freehand.
 Inside a grid — cells are defined by dividers, and dragging a divider resizes rather than snapping.
-Schedule slots — a slot is a date, and dropping into it is exact by definition.
 
 ## Frequently asked questions
 
@@ -1993,7 +1845,7 @@ A: To the trash, for 30 days, from which they can be restored. See Trash and rec
 ========================================================================
 # Files view
 URL: https://clusters.soleilpictures.com/docs/clusters/list-view
-Updated: 2026-10-11
+Updated: 2026-10-20
 
 Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
 
@@ -2127,7 +1979,7 @@ Anything in the selection with no file behind it — a note, a link — is skipp
 
 Previews
 
-Everything gets a real preview, not a generic icon. Images and video show themselves; grids, docs, schedules, shapes, notes and links get schematic marks that indicate their shape and content.
+Everything gets a real preview, not a generic icon. Images and video show themselves; grids, docs, shapes, notes and links get schematic marks that indicate their shape and content.
 
 Quick look
 
@@ -2298,70 +2150,9 @@ A: A 2D fallback renders automatically. The graph and its interactions are the s
 
 
 ========================================================================
-# Production schedules
-URL: https://clusters.soleilpictures.com/docs/clusters/production-schedule
-Updated: 2026-09-01
-
-A production schedule is one cluster holding a multi-month calendar, with each day as a child cluster that carries a date. Open a day and you get its script pages, call sheet, shot list and running order — every item with a length, so the day re-times itself when one runs long. Share the production once and every day inside it comes with it.
-
-Being rebuilt. The schedule card is temporarily off the Add menu, and with it the "Add days" flow that lays a production out. Productions you already built keep working. Publishing a day and notifying the crew is part of the rebuild and is not available yet — this page no longer describes it.
-
-A production runs on two questions: what are we shooting, and when. This is how Clusters answers both in one place.
-
-The shape
-
-One cluster is the production. On its canvas sits a schedule card set to 3 months — a block of principal photography you can see at once.
-
-Each day is a child cluster with a date. It appears as a tile on its day in the calendar. Open it and you are inside a normal canvas holding whatever the day needs:
-
-the day's script pages (a PDF or a document)
-the call sheet
-the shot list
-the day's running order — every item with a length, so the day re-times itself when one runs long
-
-Share the production cluster with the crew once. Everything inside it — every day, every call sheet — comes with it.
-
-Laying it out
-
-Add days takes a date range, optionally skips weekends, and creates a numbered day for each date. The days arrive empty; open one and set up this day fills it with the four cards above.
-
-They are created empty on purpose. Each day is a cluster, every cluster sits on its parent's canvas as a card, and cards are capped on the free plan — so scaffolding sixty days up front, with cards inside them, would spend the whole allowance before anyone had opened one.
-
-The date is never written into a day's name. Day 12 stays Day 12; the date is rendered from the calendar every time it is shown, so a day that moves twice still reads correctly everywhere.
-
-The running order
-
-The part of a day that changes most during the day itself is its schedule, and it lives in the day's own schedule card, in Day view. Each item carries a length; start times cascade from the one above; a crew call or a meal break can be pinned to a wall-clock time, and the pin holds while the report of what overran it moves. An overnight day is fine: start at 18:00, wrap at 04:00.
-
-Full detail is on the schedule card page.
-
-Driving it from another system
-
-Boards carry scheduled_date, scheduled_end and day_label over the API and MCP, so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app.
-
-A note on timezones
-
-Dates are plain calendar dates, with no timezone attached — a production shoots in one place, and 2026-08-18 means the same day to everyone on it. If your unit is split across a date line, that assumption is the one to watch.
-
-## Frequently asked questions
-
-Q: Can I start a production schedule right now?
-A: Not at the moment. The schedule card is being rebuilt, so it is off the Add menu and new shoot days cannot be laid out. Productions you already built keep working and keep their days.
-
-Q: Does everyone need an account on my plan?
-A: Editors you share with are free. Capacity is charged to whoever owns the boards, not per seat. See Sharing and roles.
-
-Q: What happens to the running order when a day moves?
-A: It follows. The schedule card inside a day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync.
-
-Q: Can another system push the schedule in?
-A: Yes. Boards carry scheduled_date over the API and MCP, so a stripboard or scheduling tool can create and move days programmatically.
-
-
-========================================================================
 # Trash and recovery
 URL: https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery
-Updated: 2026-10-11
+Updated: 2026-10-20
 
 Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 
@@ -2395,7 +2186,7 @@ Boards keep snapshots over time. You can list them, look through them, and roll 
 
 Snapshots are written automatically while you work, before risky operations (bulk deletes, pastes, cross-cluster drags), and before anything the API or an AI agent deletes or moves — so an integration's mistake is recoverable from the same list as a human one. Rows are grouped by work session; selecting one previews what it contains before you commit.
 
-Restoring always snapshots the current state first, so a restore is itself restorable. A second tab lists name, colour, cover, view and shoot-day date changes, each with a one-click revert — reverting a published day's date goes through the same path as moving it, so the crew is notified.
+Restoring always snapshots the current state first, so a restore is itself restorable. A second tab lists name, colour, cover and view changes, each with a one-click revert.
 
 This is the tool for "the board was right yesterday and is wrong now", including when the change was someone else's.
 
@@ -2563,7 +2354,7 @@ A: Yes. Insert a board embed and the cluster renders inside the document.
 ========================================================================
 # Screenplay mode
 URL: https://clusters.soleilpictures.com/docs/documents/screenplay
-Updated: 2026-10-01
+Updated: 2026-10-20
 
 Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.
 
@@ -2608,7 +2399,7 @@ PDF export is real vector output in Courier — selectable, searchable text at t
 
 Alongside the board
 
-The reason to write a script here rather than in dedicated software is what surrounds it: the references, the storyboard grid, the shot list and the schedule are all on the same board, and the document can be docked beside the canvas while you work.
+The reason to write a script here rather than in dedicated software is what surrounds it: the references, the storyboard grid and the shot list are all on the same board, and the document can be docked beside the canvas while you work.
 
 Scene headings can be tagged and locations mentioned, which connects a scene in the script to the reference wall for that location.
 
@@ -2844,7 +2635,7 @@ A: A tag can be typed as a character, setting, organization, concept or thing. T
 ========================================================================
 # Links and mentions
 URL: https://clusters.soleilpictures.com/docs/organize/links-and-mentions
-Updated: 2026-08-08
+Updated: 2026-10-20
 
 Type @ anywhere you can write to mention a cluster, document, card, tag or person. Mentions become real links with hover previews, and they register as backlinks so the thing you mentioned can show everywhere it is referenced from. URLs and names of things you already created are detected and linked automatically.
 
@@ -2872,7 +2663,7 @@ The reverse direction, and the reason mentions are worth the keystroke.
 
 Anything that gets mentioned can show a Referenced by panel listing everywhere it was mentioned from — documents, notes, cards, messages, boards.
 
-A location entity ends up listing the script scene, the reference wall, the schedule entry and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally.
+A location entity ends up listing the script scene, the reference wall and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally.
 
 Deep links
 
@@ -3437,11 +3228,11 @@ A: Unread count. An @ prefix means at least one of them mentions you directly.
 ========================================================================
 # Notifications
 URL: https://clusters.soleilpictures.com/docs/collaborate/notifications
-Updated: 2026-10-07
+Updated: 2026-10-20
 
-Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
-Seven categories, seven independent switches, in Settings → Notifications.
+Six categories, six independent switches, in Settings → Notifications.
 
 Category | Fires when
 @-mentions | Someone mentions you in a note, comment, document or message
@@ -3449,16 +3240,15 @@ Comment replies | Someone replies in a thread you are part of
 Workspace invites | You are added to a workspace
 Board shares | A cluster is shared with you
 Invite accepted | Someone you invited opens your link and joins
-Schedule changes | A shoot day you can see moves (being rebuilt — quiet for now)
 Product tips and check-ins | Occasional messages about the product
 
-The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you.
+The last one is the one to switch off if you only want to hear about your own work. The other five are all consequences of something a person did that involves you.
 
 Where they appear
 
-In the app — unread indicators on the sidebar, and in the browser tab title for messages. Schedule notifications collect under Schedule in the sidebar and stay there until read, rather than vanishing with the toast that announced them.
+In the app — unread indicators on the sidebar, and in the browser tab title for messages. A file shared with you, a comment on it and notices about your account collect under Notifications in the sidebar and stay there until read, rather than vanishing with the toast that announced them.
 
-Email only when you are away — a schedule email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise.
+Email only when you are away — an accepted-invite email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise.
 
 Browser notifications — only if you grant permission. Nothing is requested until there is an actual reason to ask.
 
@@ -3474,7 +3264,7 @@ It only signs you in when you press the button. Loading the page does nothing �
 
 Unsubscribing
 
-Product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate.
+Product tips, mentions and replies carry a one-click unsubscribe that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate.
 
 Mentions
 
@@ -3482,25 +3272,19 @@ The mention notification is the important one. When someone @s you, the notifica
 
 A busy thread cannot flood your inbox: one person's mentions reach you by email at most 5 times a day, and the same goes for their replies to your comments. Every one of them still shows up in the app.
 
-Schedule changes
-
-The schedule card is being rebuilt, and publishing a shoot day is part of that rebuild. The switch is here and the sidebar section is here; nothing is sent yet.
-
-When it returns, this is the one that matters on a production schedule: a shoot day moving, or a call sheet being published, tells everyone who can read it what changed. Nothing is sent while a schedule is being built — a day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody.
-
 ## Frequently asked questions
 
 Q: Can I turn off product emails but keep mentions?
-A: Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
+A: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
 
-Q: Where do schedule notifications appear?
-A: Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them. The schedule card that produces them is being rebuilt, so this switch is quiet for now.
+Q: Where do notifications appear in the app?
+A: A file shared with you, a comment on it and notices about your account collect under Notifications in the sidebar, which appears with an unread count once there is something to read. Unlike a toast, they stay until you read them.
 
 Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.
 
 Q: How do I unsubscribe without logging in?
-A: Product tips, mentions, replies and schedule emails have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications.
+A: Product tips, mentions and replies have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications.
 
 Q: Do I need to sign in again when I click a link in an email?
 A: No. The button in a product email opens a resume link that signs you in on one press and takes you to the board it mentions. It works once and expires after seven days; after that you sign in normally.
@@ -3729,7 +3513,7 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-10-19
+Updated: 2026-10-20
 
 Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
@@ -3759,7 +3543,7 @@ Canvas — whether a plain scroll wheel pans the canvas or zooms it (pinching a 
 
 Notifications
 
-Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, accepted invites, schedule changes, and product tips. Anything you turn off still reaches you in-app. See Notifications.
+Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, accepted invites and product tips. Anything you turn off still reaches you in-app. See Notifications.
 
 Connections
 
@@ -4781,7 +4565,7 @@ A: Up to 20 active at once. Revoked ones do not count.
 ========================================================================
 # Boards API
 URL: https://clusters.soleilpictures.com/docs/api/boards
-Updated: 2026-08-08
+Updated: 2026-10-20
 
 Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.
 
@@ -4796,13 +4580,7 @@ The board object
   "parent_board_id": null,
   "view": "canvas",
   "created_at": "2026-08-01T09:12:44.000Z",
-  "updated_at": "2026-08-03T14:02:10.000Z",
-  "scheduled_date": null,
-  "scheduled_end": null,
-  "day_label": null,
-  "sched_status": "draft",
-  "sched_version": 0,
-  "sched_published_at": null
+  "updated_at": "2026-08-03T14:02:10.000Z"
 }
 
 Field | Notes
@@ -4811,23 +4589,8 @@ name | Up to 200 characters; trimmed
 workspace_id | UUID
 parent_board_id | UUID, or null at the top level
 view | "canvas" or "list"
-scheduled_date | YYYY-MM-DD, or null. Puts the board on a calendar
-scheduled_end | YYYY-MM-DD, or null. Inclusive end of a multi-day block
-day_label | The durable half of a scheduled day's name, e.g. "Day 12"
-sched_status | "draft", "published" or "cancelled" — read-only
-sched_version | Call-sheet version, bumped on publish — read-only
-sched_published_at | ISO timestamp, or null — read-only
 
-Scheduling a board
-
-scheduled_date, scheduled_end and day_label are writable on POST /boards and PATCH /boards/:id. They do not go straight to the column: like parent_board_id, they are routed through a server function, because moving a day is a thing other people need to hear about.
-
-A board is draft until it is published in the app. Drafts are silent, so an import that creates sixty dated days notifies nobody. Once a day is published, changing its date notifies everyone who can read it. Pass "notify": false to move a published day quietly.
-
-sched_status, sched_version and sched_published_at are read-only over the API — publishing is a deliberate act with an audience, not a field write. See Production schedules.
-
-PATCH /boards/9f1c…
-{ "scheduled_date": "2026-09-14", "day_label": "Day 12" }
+A board no longer takes a date. scheduled_date, scheduled_end and day_label went when schedules were retired, and a POST or PATCH that sets one is refused with 400 bad_request rather than accepted and dropped.
 
 GET /workspaces
 
@@ -5178,7 +4941,7 @@ A: Yes. Nothing about tokens has changed. OAuth is for applications that other p
 ========================================================================
 # Cards API
 URL: https://clusters.soleilpictures.com/docs/api/cards
-Updated: 2026-08-10
+Updated: 2026-10-20
 
 Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
@@ -5225,7 +4988,7 @@ An audio card's body is its transcript where one exists, which is what makes a s
 
 An unrecognised kind gets a 400 naming the valid ones. It is not coerced — silently turning an unknown kind into a note produced boards full of notes that were meant to be links.
 
-This is still narrower than what the canvas supports. Grids, schedules, palettes and shapes are created in the app; you can read them here, and ?include=raw gives you their full contents.
+This is still narrower than what the canvas supports. Grids, palettes and shapes are created in the app; you can read them here, and ?include=raw gives you their full contents.
 
 Writable fields
 
@@ -5286,7 +5049,7 @@ props | The card's properties
 identifiers | Its foreign identifiers
 raw | The card exactly as the canvas stores it
 
-raw exists because the card object above is a deliberately narrow projection, and the app has kinds it does not describe — a grid carries its cells and template, a palette its swatches, a schedule its rows. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success.
+raw exists because the card object above is a deliberately narrow projection, and the app has kinds it does not describe — a grid carries its cells and template and a palette its swatches. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success.
 
 raw is the card's internal shape: field names in it are not part of this API's contract and can change with the app. Use it to preserve or reconstruct, not to build logic on. /export includes it always.
 
@@ -5386,7 +5149,7 @@ Requires the delete scope — see Authentication.
 
 The response body is the undo. There is no undo toast on an HTTP call, so the card comes back — POST it to the cards endpoint to restore it. It returns with a new id, and its identifiers and properties are not restored with it, so send those again in the same POST if you use them.
 
-Some cards cannot come back this way: any card kind this API does not create (grids, palettes, schedules, cluster cards and the like), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in not_restorable, with a recover sentence. They are not lost: every delete saves the board to its Version history first, and they can be restored from there in the app.
+Some cards cannot come back this way: any card kind this API does not create (grids, palettes, cluster cards and the like), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in not_restorable, with a recover sentence. They are not lost: every delete saves the board to its Version history first, and they can be restored from there in the app.
 
 const { card } = await soleil(`/boards/${board}/cards/${id}`, { method: "DELETE" });
 // …later, if that turns out to have been wrong:
@@ -5961,7 +5724,7 @@ A: Only ones shared with you. Search runs under your permissions like every othe
 ========================================================================
 # Export
 URL: https://clusters.soleilpictures.com/docs/api/export
-Updated: 2026-08-09
+Updated: 2026-10-20
 
 GET /boards/:id/export returns a whole board in one call. The default format is complete JSON, including the internal form of every card, so nothing is lost for kinds the API does not otherwise describe. Pass format=omc for MovieLabs OMC-JSON, which models the board as an ordered assetGroup of assets using the film industry's own controlled vocabulary for creative reference material.
 
@@ -5986,7 +5749,7 @@ The default. Every card exactly as stored, alongside the normal card projection,
   "count": 128
 }
 
-raw is there because the ordinary card read is a deliberately narrow twelve-field projection, and the app has kinds it does not describe — a grid carries its cells and template, a palette its swatches, a schedule its rows. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success.
+raw is there because the ordinary card read is a deliberately narrow twelve-field projection, and the app has kinds it does not describe — a grid carries its cells and template and a palette its swatches. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success.
 
 raw is the card's internal shape. Field names in it are not part of this API's contract and can change with the app. Use it to preserve or reconstruct; do not build logic on it.
 
@@ -6064,7 +5827,7 @@ Q: What is OMC-JSON?
 A: The MovieLabs Ontology for Media Creation, the film industry's own standard for describing production material. A board maps onto it as an ordered assetGroup, which is how MovieLabs' own examples model a storyboard.
 
 Q: Why does the default card read lose information?
-A: It is a deliberate twelve-field projection, so kinds with structured interiors — grids, palettes, schedules — do not round-trip through it. Export, and include=raw on card reads, both give you the untruncated form.
+A: It is a deliberate twelve-field projection, so kinds with structured interiors, like grids and palettes, do not round-trip through it. Export, and include=raw on card reads, both give you the untruncated form.
 
 Q: Can I say what kind of material a board represents?
 A: Set omc.functionalType in the board's properties. Values outside the OMC controlled vocabulary are refused rather than passed through.
@@ -6073,7 +5836,7 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 ========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
-Updated: 2026-10-02
+Updated: 2026-10-20
 
 Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
@@ -6198,15 +5961,15 @@ list_audit | since?, cursor? — recent writes and image fetches
 Writing
 
 Tool | Input
-create_board | name, workspace_id?, parent_board_id?, scheduled_date?, scheduled_end?, day_label?, identifiers?, props?
-create_boards | boards[], on_conflict? — build a structure in one call; each entry takes the same schedule fields
+create_board | name, workspace_id?, parent_board_id?, identifiers?, props?
+create_boards | boards[], on_conflict? — build a structure in one call; each entry takes the same fields as create_board
 add_cards | board_id, cards[] — up to 1000, on_conflict?
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
 import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
 arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
 create_group | board_id, name, color?, shape? — say a set of cards is one thing
-rename_board | board_id, name?, view?, parent_board_id?, scheduled_date?, scheduled_end?, day_label?, notify?
+rename_board | board_id, name?, view?, parent_board_id?
 move_boards | board_ids[], parent_board_id
 update_card | board_id, card_id, plus any field add_cards takes — group_id (empty to ungroup), z, rotation, section_header, and any of the eight kinds
 update_cards | board_id, cards[] — many at once
@@ -6249,7 +6012,7 @@ What agents should know
 
 read_board truncates by default. Pass full: true for untruncated bodies, and expect it to be large. Both read_board and list_boards paginate — check for more rather than assuming one page is everything.
 
-Deleting returns the card. delete_card responds with the card it removed. That object is the undo — pass it back to add_cards to restore it. Worth keeping in context before destructive work. Card kinds add_cards does not create (grids, palettes, schedules, cluster cards and the like) and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
+Deleting returns the card. delete_card responds with the card it removed. That object is the undo — pass it back to add_cards to restore it. Worth keeping in context before destructive work. Card kinds add_cards does not create (grids, palettes, cluster cards and the like) and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
 
 Deleting a board is destructive and confirmable. delete_board removes a whole board; the tool description says to confirm with the user first, and restore_board exists because that is not always heeded.
 

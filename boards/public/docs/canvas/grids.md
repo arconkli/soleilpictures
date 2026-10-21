@@ -2,7 +2,7 @@
 
 > A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-10-04_
+_Source: https://clusters.soleilpictures.com/docs/canvas/grids · Updated 2026-10-20_
 
 A grid is a card that is divided up. Every cell holds real content, and the
 divisions are yours to move.
@@ -62,15 +62,6 @@ grid and choose **Share layout** to start one, **Unlink layout** to leave.
 Put four or more images on a board and the app suggests a grid, once. That
 suggestion is a [power reveal](/docs/canvas): it fires a single time, ever, and
 never again.
-
-## Grids versus schedules
-
-They look similar and are not the same thing:
-
-- A **grid** is a spatial layout. Cells mean position.
-- A **[schedule](/docs/canvas/schedule)** is a calendar. Cells mean *dates* — real ones, with month, week, day and hour views.
-
-If the cells represent time, you want a schedule.
 
 ---
 

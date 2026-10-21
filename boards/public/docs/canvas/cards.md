@@ -1,6 +1,6 @@
 # Cards
 
-> A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
+> A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
 _Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-20_
 
@@ -24,7 +24,6 @@ and duplication work identically on all of them.
 | **Shape** | [Rectangle, ellipse, line, arrow, diamond, triangle, hexagon, star](/docs/canvas/shapes-and-drawing) |
 | **Art canvas** | A bounded drawing surface that lives as a card |
 | **Grid** | A [split-cell layout](/docs/canvas/grids) — storyboards, contact sheets |
-| **Schedule** | A [real-date calendar](/docs/canvas/schedule) you can drop things into |
 | **Vote** | An [up/down poll](/docs/canvas/vote-cards) anchored anywhere |
 | **Cluster** | A [nested board](/docs/clusters), opening into its own canvas |
 | **Linked cluster** | A reference to a cluster that lives elsewhere |

@@ -2,7 +2,7 @@
 
 > Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.
 
-_Source: https://clusters.soleilpictures.com/docs/concepts · Updated 2026-10-08_
+_Source: https://clusters.soleilpictures.com/docs/concepts · Updated 2026-10-20_
 
 Four ideas, nested inside each other. Once these are straight, the rest of the
 product is discoverable.
@@ -39,7 +39,7 @@ becomes a folder tree without anybody deciding to build a folder tree.
 ## Card
 
 A card is one thing on a board. Images, notes, links, documents, PDFs, video,
-audio, colour palettes, shapes, grids, schedules, votes, and other clusters are
+audio, colour palettes, shapes, grids, votes, and other clusters are
 all cards.
 
 Cards carry a position, a size and a stacking order, which is what makes the

@@ -213,7 +213,7 @@ test('VS-PANELS-06: a sheet with a pinned footer keeps the toast off its buttons
   expect((await rect(toast)).t).toBeLessThan(120);
 });
 
-test('VS-PANELS-07: on a phone the Schedule panel is a full-width sheet that stops at the bottom nav', async ({ page }) => {
+test('VS-PANELS-07: on a phone the Notifications panel is a full-width sheet that stops at the bottom nav', async ({ page }) => {
   await page.setViewportSize(PHONE);
   const nav = page.locator('.mb-nav');
   await expect(nav).toBeVisible();

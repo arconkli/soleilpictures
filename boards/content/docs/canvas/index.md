@@ -5,7 +5,7 @@ h1: The canvas
 navLabel: Overview
 section: canvas
 order: 0
-updated: 2026-10-19
+updated: 2026-10-20
 answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 faq:
   - q: How big is the canvas?
@@ -69,9 +69,6 @@ The **+** at the end of the rail opens the rest, grouped:
 - *Tools* — Draw (`D`), Shape, Palette
 - *Create* — File, Folder (on a desktop browser), Link, Linked cluster
 - *Annotate* — Comment, Vote
-
-Schedule cards are being rebuilt and are not in the menu meanwhile — see
-[Schedule](/docs/canvas/schedule).
 
 ## Right-click
 

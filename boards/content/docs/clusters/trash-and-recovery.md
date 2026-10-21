@@ -5,7 +5,7 @@ h1: Trash and recovery
 navLabel: Trash and recovery
 section: clusters
 order: 3
-updated: 2026-10-11
+updated: 2026-10-20
 answer: Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 faq:
   - q: How long do I have to restore a deleted cluster?
@@ -81,9 +81,8 @@ the same list as a human one. Rows are grouped by work session; selecting one
 previews what it contains before you commit.
 
 Restoring always snapshots the **current** state first, so a restore is itself
-restorable. A second tab lists name, colour, cover, view and shoot-day date
-changes, each with a one-click revert — reverting a published day's date goes
-through the same path as moving it, so the crew is notified.
+restorable. A second tab lists name, colour, cover and view changes, each with
+a one-click revert.
 
 This is the tool for "the board was right yesterday and is wrong now", including
 when the change was someone else's.

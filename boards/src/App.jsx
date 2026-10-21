@@ -10236,10 +10236,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
       )}
     </div>
-    {/* The bell only when it has something to show. Its one producer is the
-        schedule, so for nearly everyone it was an empty panel labelled
-        "Schedule" in every sidebar — and people opened it and found nothing. */}
-    {((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) && (
+    {/* The bell only when it has something to show: for nearly everyone it
+        was an empty panel in every sidebar, and people opened it and found
+        nothing. It was labelled "Schedule" until schedules were retired
+        (owner, 2026-10-20); it holds notifications only now. */}
+    {((notifications.items?.length || 0) > 0 || notifOpen) && (
     <div className={`sb-row ${notifOpen ? 'active' : ''}`}
          {...rowButtonProps(() => {
            // Only the open is worth a row; the close tells us nothing.
@@ -10251,9 +10252,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
            }
            setNotifOpen(v => !v);
          })}
-         title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
+         title={notifOpen ? 'Hide notifications' : 'Show notifications'}>
       <Icon as={Bell} size={14} />
-      <span className="sb-row-label">Schedule</span>
+      <span className="sb-row-label">Notifications</span>
       {notifications.unread > 0 && (
         <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
       )}
@@ -11205,7 +11206,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {notifOpen && createPortal((
         <NotificationsPanel
           items={notifications.items}
-          schedule={notifications.schedule}
           unread={notifications.unread}
           loading={notifications.loading}
           onMarkRead={notifications.markRead}

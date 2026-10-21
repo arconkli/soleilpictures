@@ -1,4 +1,5 @@
-// scheduleRetired.test.mjs — nothing on production makes a schedule card.
+// scheduleRetired.test.mjs — nothing on production makes a schedule card or
+// puts a date on a board.
 //
 //   node --test src/lib/scheduleRetired.test.mjs
 //
@@ -85,4 +86,18 @@ test('every way to make a schedule card asks the hold first', () => {
   const app = outsideTheHold(files.find((f) => f.rel === 'App.jsx').code);
   assert.equal((app.match(/\bhandleAddShootDay\b/g) || []).length, 1,
     `${RETIRED}. App.jsx uses handleAddShootDay somewhere other than its definition and the held onAddShootDay prop`);
+});
+
+test('no public API or MCP tool puts a date on a board', () => {
+  // /api/v1 refuses a date on all three board writes (the bulk POST, POST and
+  // PATCH) rather than dropping it, and neither MCP server nor the OpenAPI
+  // document offers one.
+  const api = files.find((f) => f.rel === 'worker-api.js').code;
+  assert.equal((api.match(/refuseScheduleFields\((b|body)\);/g) || []).length, 3,
+    `${RETIRED}. A board write in worker-api.js stopped refusing scheduled_date, scheduled_end and day_label`);
+  for (const rel of ['lib/mcpTools.js', 'lib/apiOpenapi.js', '../../mcp/src/tools.js']) {
+    const code = readFileSync(path.join(src, rel), 'utf8');
+    assert.doesNotMatch(code, /scheduled_date|scheduled_end|day_label/,
+      `${RETIRED}. ${rel} offers a board a date again`);
+  }
 });

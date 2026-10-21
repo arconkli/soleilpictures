@@ -35,9 +35,9 @@ test('a press outside the panel is not the panel\'s', () => {
   assert.equal(escapeClosesPanel({ key: 'Enter', target: target() }, '.msg-panel'), false);
 });
 
-// COMMS-22: "Close (Esc)" was advertised on the Schedule panel and the
+// COMMS-22: "Close (Esc)" was advertised on the Notifications panel and the
 // Messages list, and Escape did nothing on either.
-test('the Schedule panel and the Messages list close on Escape, and take focus to receive it', () => {
+test('the Notifications panel and the Messages list close on Escape, and take focus to receive it', () => {
   const ntf = read('../components/NotificationsPanel.jsx');
   assert.match(ntf, /escapeClosesPanel\(e, '\.ntf-panel'\)\) onCloseRef\.current\?\.\(\)/);
   assert.match(ntf, /<div className="ntf-panel" ref=\{rootRef\} tabIndex=\{-1\}>/);

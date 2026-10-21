@@ -185,7 +185,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.",
     "section": "start",
     "order": 2,
-    "updated": "2026-10-08",
+    "updated": "2026-10-20",
     "navLabel": "Core concepts",
     "headings": [
       {
@@ -316,7 +316,7 @@ export const DOCS_PAGES = [
     "answer": "There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
     "section": "start",
     "order": 4,
-    "updated": "2026-10-02",
+    "updated": "2026-10-20",
     "navLabel": "Coming from another tool",
     "headings": [
       {
@@ -372,7 +372,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-10-19",
+    "updated": "2026-10-20",
     "navLabel": "Overview",
     "headings": [
       {
@@ -427,9 +427,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/cards",
     "title": "Cards — Soleil Clusters",
-    "metaDescription": "Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, schedules, votes and nested clusters.",
+    "metaDescription": "Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, votes and nested clusters.",
     "h1": "Cards",
-    "answer": "A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
+    "answer": "A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
     "section": "canvas",
     "order": 1,
     "updated": "2026-10-20",
@@ -784,7 +784,7 @@ export const DOCS_PAGES = [
     "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.",
     "section": "canvas",
     "order": 7,
-    "updated": "2026-10-04",
+    "updated": "2026-10-20",
     "navLabel": "Grids",
     "headings": [
       {
@@ -810,16 +810,11 @@ export const DOCS_PAGES = [
       {
         "id": "discovering-grids",
         "text": "Discovering grids"
-      },
-      {
-        "id": "grids-versus-schedules",
-        "text": "Grids versus schedules"
       }
     ],
     "related": [
       "/docs/canvas/cards",
-      "/docs/canvas/images",
-      "/docs/canvas/schedule"
+      "/docs/canvas/images"
     ],
     "faq": [
       {
@@ -833,82 +828,6 @@ export const DOCS_PAGES = [
       {
         "q": "Can several grids share a layout?",
         "a": "Yes. Right-click a grid and choose Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Unlink layout takes a grid back out."
-      }
-    ]
-  },
-  {
-    "path": "/docs/canvas/schedule",
-    "title": "Schedule Cards — Soleil Clusters",
-    "metaDescription": "Real-date calendar cards on the Soleil Clusters canvas — day tiles, a list, a month grid, and days that run as a timed running order.",
-    "h1": "Schedules",
-    "answer": "A schedule card is a real calendar on your canvas. It shows a month as day tiles, as a list, or as a grid, with a wall chart above it spanning the whole production. Each date can hold notes, images and files, and whole clusters that carry a date. A day opens as a running order — every item has a length, and the start times cascade.",
-    "section": "canvas",
-    "order": 8,
-    "updated": "2026-09-01",
-    "navLabel": "Schedules",
-    "headings": [
-      {
-        "id": "three-densities-one-control",
-        "text": "Three densities, one control"
-      },
-      {
-        "id": "views",
-        "text": "Views"
-      },
-      {
-        "id": "the-day-is-a-running-order",
-        "text": "The day is a running order"
-      },
-      {
-        "id": "two-things-live-on-a-date",
-        "text": "Two things live on a date"
-      },
-      {
-        "id": "reading-it",
-        "text": "Reading it"
-      },
-      {
-        "id": "the-day-panel",
-        "text": "The day panel"
-      },
-      {
-        "id": "what-a-schedule-is-for",
-        "text": "What a schedule is for"
-      }
-    ],
-    "related": [
-      "/docs/canvas/grids",
-      "/docs/clusters",
-      "/docs/clusters/production-schedule"
-    ],
-    "faq": [
-      {
-        "q": "Can I add a schedule card right now?",
-        "a": "Not at the moment. Schedule cards are being rebuilt, so the Schedule entry is off the Add menu. Cards you already have keep working, and everything on this page still describes them."
-      },
-      {
-        "q": "Can I drop images and notes into a schedule?",
-        "a": "Yes. Any card can go into a date, not just text. A location photo attached to the day it is needed works exactly as you would expect."
-      },
-      {
-        "q": "If I change one item's length, what moves?",
-        "a": "Everything below it, and the estimated wrap. Nothing above it moves, and nothing after a pinned row moves — a pin is a fixed time of day and it holds."
-      },
-      {
-        "q": "Why do the days show pictures?",
-        "a": "Because each one is a cluster, and every cluster already renders a thumbnail of its own canvas. In a production nearly every day is a board full of that day's material, so the calendar shows you the actual day rather than an icon standing in for one."
-      },
-      {
-        "q": "Can I still have a plain month grid?",
-        "a": "Yes — it is the third density in the header control. A month grid is built for a sparse calendar, which is exactly what a release plan or a prep calendar is, so it is kept rather than traded away."
-      },
-      {
-        "q": "Why can I not type directly into the calendar grid?",
-        "a": "Loose content in the month and week grids is deliberately read-only, because inline editing in a dense calendar produced constant mis-clicks. Clicking a date selects it; double-clicking a grid cell opens the day panel."
-      },
-      {
-        "q": "Does paging to next month move it for everyone?",
-        "a": "No. Navigation is yours alone. The card remembers where it opens, but stepping through months, jumping to a date and \"Go to today\" are all local to you."
       }
     ]
   },
@@ -1020,7 +939,7 @@ export const DOCS_PAGES = [
     "answer": "As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.",
     "section": "canvas",
     "order": 11,
-    "updated": "2026-10-02",
+    "updated": "2026-10-20",
     "navLabel": "Snapping and alignment",
     "headings": [
       {
@@ -1384,7 +1303,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-11",
+    "updated": "2026-10-20",
     "navLabel": "Files view",
     "headings": [
       {
@@ -1561,62 +1480,6 @@ export const DOCS_PAGES = [
     ]
   },
   {
-    "path": "/docs/clusters/production-schedule",
-    "title": "Production Schedules — Soleil Clusters",
-    "metaDescription": "Run a production schedule in Soleil Clusters — a multi-month calendar shared with the crew, each day its own cluster holding that day's material.",
-    "h1": "Production schedules",
-    "answer": "A production schedule is one cluster holding a multi-month calendar, with each day as a child cluster that carries a date. Open a day and you get its script pages, call sheet, shot list and running order — every item with a length, so the day re-times itself when one runs long. Share the production once and every day inside it comes with it.",
-    "section": "clusters",
-    "order": 3,
-    "updated": "2026-09-01",
-    "navLabel": "Production schedules",
-    "headings": [
-      {
-        "id": "the-shape",
-        "text": "The shape"
-      },
-      {
-        "id": "laying-it-out",
-        "text": "Laying it out"
-      },
-      {
-        "id": "the-running-order",
-        "text": "The running order"
-      },
-      {
-        "id": "driving-it-from-another-system",
-        "text": "Driving it from another system"
-      },
-      {
-        "id": "a-note-on-timezones",
-        "text": "A note on timezones"
-      }
-    ],
-    "related": [
-      "/docs/canvas/schedule",
-      "/docs/clusters",
-      "/docs/collaborate/sharing"
-    ],
-    "faq": [
-      {
-        "q": "Can I start a production schedule right now?",
-        "a": "Not at the moment. The schedule card is being rebuilt, so it is off the Add menu and new shoot days cannot be laid out. Productions you already built keep working and keep their days."
-      },
-      {
-        "q": "Does everyone need an account on my plan?",
-        "a": "Editors you share with are free. Capacity is charged to whoever owns the boards, not per seat. See Sharing and roles."
-      },
-      {
-        "q": "What happens to the running order when a day moves?",
-        "a": "It follows. The schedule card inside a day reads its date from the cluster, so it re-anchors itself and there is nothing to keep in sync."
-      },
-      {
-        "q": "Can another system push the schedule in?",
-        "a": "Yes. Boards carry scheduled_date over the API and MCP, so a stripboard or scheduling tool can create and move days programmatically."
-      }
-    ]
-  },
-  {
     "path": "/docs/clusters/trash-and-recovery",
     "title": "Trash, Versions and Recovery — Soleil Clusters",
     "metaDescription": "Restore deleted clusters from a 30-day trash, roll a board back through version history, or rewind an entire workspace to a point in time.",
@@ -1624,7 +1487,7 @@ export const DOCS_PAGES = [
     "answer": "Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.",
     "section": "clusters",
     "order": 3,
-    "updated": "2026-10-11",
+    "updated": "2026-10-20",
     "navLabel": "Trash and recovery",
     "headings": [
       {
@@ -1760,7 +1623,7 @@ export const DOCS_PAGES = [
     "answer": "Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.",
     "section": "documents",
     "order": 1,
-    "updated": "2026-10-01",
+    "updated": "2026-10-20",
     "navLabel": "Screenplays",
     "headings": [
       {
@@ -1996,7 +1859,7 @@ export const DOCS_PAGES = [
     "answer": "Type @ anywhere you can write to mention a cluster, document, card, tag or person. Mentions become real links with hover previews, and they register as backlinks so the thing you mentioned can show everywhere it is referenced from. URLs and names of things you already created are detected and linked automatically.",
     "section": "organize",
     "order": 1,
-    "updated": "2026-08-08",
+    "updated": "2026-10-20",
     "navLabel": "Links and mentions",
     "headings": [
       {
@@ -2399,12 +2262,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/collaborate/notifications",
     "title": "Notifications — Soleil Clusters",
-    "metaDescription": "Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, schedule changes and product tips — in Settings.",
+    "metaDescription": "Control what Soleil Clusters notifies you about — mentions, comment replies, workspace invites, board shares, accepted invites and product tips — in Settings.",
     "h1": "Notifications",
-    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
+    "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
     "section": "collaborate",
     "order": 5,
-    "updated": "2026-10-07",
+    "updated": "2026-10-20",
     "navLabel": "Notifications",
     "headings": [
       {
@@ -2422,10 +2285,6 @@ export const DOCS_PAGES = [
       {
         "id": "mentions",
         "text": "Mentions"
-      },
-      {
-        "id": "schedule-changes",
-        "text": "Schedule changes"
       }
     ],
     "related": [
@@ -2436,11 +2295,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Can I turn off product emails but keep mentions?",
-        "a": "Yes. The seven categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work."
+        "a": "Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work."
       },
       {
-        "q": "Where do schedule notifications appear?",
-        "a": "Under Schedule in the sidebar, which carries an unread count. Unlike a toast, they persist until you read them. The schedule card that produces them is being rebuilt, so this switch is quiet for now."
+        "q": "Where do notifications appear in the app?",
+        "a": "A file shared with you, a comment on it and notices about your account collect under Notifications in the sidebar, which appears with an unread count once there is something to read. Unlike a toast, they stay until you read them."
       },
       {
         "q": "Do I get browser notifications?",
@@ -2448,7 +2307,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I unsubscribe without logging in?",
-        "a": "Product tips, mentions, replies and schedule emails have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications."
+        "a": "Product tips, mentions and replies have a one-click unsubscribe link that works logged out. Invitation, share and accepted-invite emails are sent once, for one thing someone did, and are switched off in Settings under Notifications."
       },
       {
         "q": "Do I need to sign in again when I click a link in an email?",
@@ -2616,7 +2475,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-10-19",
+    "updated": "2026-10-20",
     "navLabel": "Settings",
     "headings": [
       {
@@ -3226,7 +3085,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.",
     "section": "developers",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-10-20",
     "navLabel": "Boards",
     "headings": [
       {
@@ -3378,7 +3237,7 @@ export const DOCS_PAGES = [
     "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
     "section": "developers",
     "order": 4,
-    "updated": "2026-08-10",
+    "updated": "2026-10-20",
     "navLabel": "Cards",
     "headings": [
       {
@@ -3738,7 +3597,7 @@ export const DOCS_PAGES = [
     "answer": "GET /boards/:id/export returns a whole board in one call. The default format is complete JSON, including the internal form of every card, so nothing is lost for kinds the API does not otherwise describe. Pass format=omc for MovieLabs OMC-JSON, which models the board as an ordered assetGroup of assets using the film industry's own controlled vocabulary for creative reference material.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-08-09",
+    "updated": "2026-10-20",
     "navLabel": "Export",
     "headings": [
       {
@@ -3770,7 +3629,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Why does the default card read lose information?",
-        "a": "It is a deliberate twelve-field projection, so kinds with structured interiors — grids, palettes, schedules — do not round-trip through it. Export, and include=raw on card reads, both give you the untruncated form."
+        "a": "It is a deliberate twelve-field projection, so kinds with structured interiors, like grids and palettes, do not round-trip through it. Export, and include=raw on card reads, both give you the untruncated form."
       },
       {
         "q": "Can I say what kind of material a board represents?",
@@ -3786,7 +3645,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-10-02",
+    "updated": "2026-10-20",
     "navLabel": "MCP",
     "headings": [
       {

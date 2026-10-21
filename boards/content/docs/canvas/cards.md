@@ -1,12 +1,12 @@
 ---
 title: Cards — Soleil Clusters
-metaDescription: Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, schedules, votes and nested clusters.
+metaDescription: Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, votes and nested clusters.
 h1: Cards
 navLabel: Cards
 section: canvas
 order: 1
 updated: 2026-10-20
-answer: A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
+answer: A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 faq:
   - q: How do I change what kind a card is?
     a: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
@@ -40,7 +40,6 @@ and duplication work identically on all of them.
 | **Shape** | [Rectangle, ellipse, line, arrow, diamond, triangle, hexagon, star](/docs/canvas/shapes-and-drawing) |
 | **Art canvas** | A bounded drawing surface that lives as a card |
 | **Grid** | A [split-cell layout](/docs/canvas/grids) — storyboards, contact sheets |
-| **Schedule** | A [real-date calendar](/docs/canvas/schedule) you can drop things into |
 | **Vote** | An [up/down poll](/docs/canvas/vote-cards) anchored anywhere |
 | **Cluster** | A [nested board](/docs/clusters), opening into its own canvas |
 | **Linked cluster** | A reference to a cluster that lives elsewhere |

@@ -2,7 +2,7 @@
 
 > As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment · Updated 2026-10-20_
 
 Boards look better when things line up, and lining things up by hand is tedious.
 Guides do it while you drag.
@@ -78,4 +78,3 @@ useful signal.
 
 - **[Free-draw](/docs/canvas/shapes-and-drawing) strokes** — freehand marks are freehand.
 - **Inside a [grid](/docs/canvas/grids)** — cells are defined by dividers, and dragging a divider resizes rather than snapping.
-- **[Schedule](/docs/canvas/schedule) slots** — a slot is a date, and dropping into it is exact by definition.

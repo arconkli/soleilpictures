@@ -87,7 +87,6 @@ body[data-doc-overlay='1'] .ntf-panel { z-index: 2147483602; }
   text-transform: uppercase;
   color: var(--ink-3, #5a5a60);
 }
-.ntf-eyebrow-2 { border-top: 1px solid var(--msg-border); margin-top: 8px; padding-top: 12px; }
 
 .ntf-empty {
   padding: 6px 14px 10px;
@@ -135,62 +134,5 @@ body[data-doc-overlay='1'] .ntf-panel { z-index: 2147483602; }
   color: var(--ink-2, #8a8a92);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ntf-row-meta { font-size: 10px; color: var(--ink-3, #5a5a60); }
 .ntf-row-ago { flex: 0 0 auto; margin-top: 1px; font-size: 10px; color: var(--ink-3, #5a5a60); }
 
-/* Schedule */
-.ntf-sched { list-style: none; margin: 0; padding: 0; }
-.ntf-day { padding: 2px 0 4px; }
-.ntf-day-head {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px 2px;
-  color: var(--ink-3, #5a5a60);
-}
-.ntf-day-date { font-size: 11px; font-weight: 600; color: var(--ink-2, #8a8a92); }
-.ntf-day-when { margin-left: auto; font-size: 10px; }
-.ntf-day.is-today .ntf-day-date { color: var(--soleil, #ffa500); }
-
-.ntf-sched-row {
-  width: 100%;
-  display: flex; align-items: center; gap: 6px;
-  padding: 5px 14px 5px 30px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--dur-fast, 120ms) var(--ease, ease);
-}
-.ntf-sched-row:hover { background: var(--bg-hov, #1a1a1e); }
-.ntf-sched-label {
-  flex: 0 1 auto;
-  min-width: 0;
-  font-size: 12px; font-weight: 550;
-  color: var(--ink-1, #d0d0d4);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ntf-sched-row.is-cancelled .ntf-sched-label { text-decoration: line-through; color: var(--ink-3, #5a5a60); }
-.ntf-sched-span, .ntf-sched-v { flex: 0 0 auto; font-size: 10px; color: var(--ink-3, #5a5a60); }
-.ntf-sched-tag {
-  flex: 0 0 auto;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--ink-0, #f5f5f7) 8%, transparent);
-  font-size: 9px; font-weight: 600; letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--ink-3, #5a5a60);
-}
-/* "Something about this day changed and you haven't looked yet." */
-.ntf-sched-dot {
-  flex: 0 0 auto;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--ink-0, #f5f5f7);
-}
-.ntf-sched-prod {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: right;
-  font-size: 10px;
-  color: var(--ink-4, #3a3a40);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}

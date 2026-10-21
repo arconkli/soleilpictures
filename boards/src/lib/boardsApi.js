@@ -2300,16 +2300,6 @@ export async function cancelScheduleDay(boardId, reason = null) {
   return data || { ok: false, error: 'no_response' };
 }
 
-// Every dated cluster the caller can reach, across every production — the read
-// behind "in your schedule".
-export async function listMySchedule(fromDate = null, days = 60) {
-  const { data, error } = await supabase.rpc('list_my_schedule', {
-    p_from: fromDate || null, p_days: days,
-  });
-  if (error) throw error;
-  return data || [];
-}
-
 // ── Notifications ────────────────────────────────────────────────────────────
 
 export async function listNotifications({ limit = 50, before = null } = {}) {

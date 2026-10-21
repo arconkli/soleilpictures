@@ -5,7 +5,7 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-10-19
+updated: 2026-10-20
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
@@ -71,8 +71,8 @@ How Clusters looks and how the canvas answers your hands, in three sections:
 ### Notifications
 
 Independent switches for the emails Clusters sends you — mentions, comment
-replies, workspace invites, cluster shares, accepted invites, schedule changes,
-and product tips. Anything you turn off still reaches you in-app. See
+replies, workspace invites, cluster shares, accepted invites and product
+tips. Anything you turn off still reaches you in-app. See
 [Notifications](/docs/collaborate/notifications).
 
 ### Connections

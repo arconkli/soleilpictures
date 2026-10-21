@@ -2,7 +2,7 @@
 
 > There is no importer. Moving to Soleil Clusters means dragging your files in, which for a reference board is usually one drag: drop the folder, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 
-_Source: https://clusters.soleilpictures.com/docs/migrating · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/migrating · Updated 2026-10-20_
 
 There is no import button. For a reference board that is less of a problem than
 it sounds — dropping a folder takes about as long as an importer would, its
@@ -64,8 +64,7 @@ tools](/best/storyboard-software)** — panels become
 [screenplay document](/docs/documents/screenplay) on the same board.
 
 **StudioBinder** — production management. Clusters covers the visual and
-document side; it is not a call-sheet-and-crew-management system, and its
-[schedule cards](/docs/canvas/schedule) are being rebuilt. The
+document side; it is not a call-sheet-and-crew-management system. The
 [storyboard software roundup](/best/storyboard-software) compares the two
 directly.
 
