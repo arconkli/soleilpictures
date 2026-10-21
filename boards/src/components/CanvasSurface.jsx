@@ -43,7 +43,7 @@ function boardKeysBlocked() {
 }
 import { getDocUndoTarget } from '../lib/overlayRouting.js';
 import { undoToast } from '../lib/undoToast.js';
-import { tapIsDouble } from '../lib/doubleTap.js';
+import { swallowGhostClick, tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard as ScheduleTableCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
@@ -10549,6 +10549,19 @@ export function CanvasSurface({
       if (!c.fileSrc || c.pending) return;
       e.stopPropagation();
       setFileView({ cardId: c.id });
+      return;
+    }
+    // A doc opens on two taps, as on a double-click. A mouse never gets here
+    // (RichDocCard answers its dblclick); a finger does, from the double tap
+    // onCardPointerUp makes, because WebKit never turns two taps into a
+    // dblclick. Only from the card itself: the open doc is portaled out of this
+    // wrapper, and React bubbles the doc's own taps back through it. The tap's
+    // click still owes the page, and it would land in the doc it just opened.
+    if (c.kind === 'doc') {
+      if (!e.target.closest?.('.doc-card')) return;
+      e.stopPropagation?.();
+      if (e.pointerType === 'touch') swallowGhostClick({ x: e.clientX, y: e.clientY });
+      document.dispatchEvent(new CustomEvent('soleil-open-doc-card', { detail: { cardId: c.id } }));
       return;
     }
     // image / note / link / etc — defer to inner editors so dbl-click

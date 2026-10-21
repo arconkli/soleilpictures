@@ -267,11 +267,24 @@ export function RichDocCard({
     window.addEventListener('pointerup', onUp);
   };
 
+  // A dblclick a finger made is the canvas's to answer (CanvasSurface
+  // onCardDoubleClick, from its own double tap): it waits for both taps on this
+  // card, where the browser pairs a tap anywhere with the next one — the tap
+  // that placed the doc and the first tap on it read as a double-click.
+  const lastPointerRef = useRef('mouse');
+
   return (
     <>
       <div className="doc-card"
-           onDoubleClick={(e) => { e.stopPropagation(); openRemembered(); }}
-           onPointerDown={isPublic ? onPublicPointerDown : undefined}>
+           onDoubleClick={(e) => {
+             e.stopPropagation();
+             if (lastPointerRef.current === 'touch') return;
+             openRemembered();
+           }}
+           onPointerDown={(e) => {
+             lastPointerRef.current = e.pointerType || 'mouse';
+             if (isPublic) onPublicPointerDown(e);
+           }}>
         {/* Peer-presence dots — shown on the card preview when peers are
             inside this doc card. Same visual + interaction model as the
             BoardCard presence stack so the breadcrumb trail (canvas →

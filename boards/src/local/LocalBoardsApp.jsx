@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as Y from 'yjs';
 import { CanvasSurface } from '../components/CanvasSurface.jsx';
+import { initCardDocStore } from '../lib/docState.js';
 import { ListSurface } from '../components/ListSurface.jsx';
 import { CommandPalette } from '../components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
@@ -185,6 +187,17 @@ const ONBOARD_PREVIEW = typeof window !== 'undefined'
 // demo card and places nothing. See createInitialState() below.
 const BLANK_SEED = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('blank') === '1';
+
+// Dev/test-only: ?local=1&richdocs=1 gives the doc tool's cards the real doc
+// store, as App's addDocCard does: an in-memory Y.Doc holding each new doc
+// card's Y.Map, handed to CanvasSurface. The canvas then renders RichDocCard on
+// its own card wrapper and the editor opens, so a spec can open a doc from the
+// canvas the way someone does, not only from the ?docqa harness's bare card.
+// Off, the doc tool keeps placing the static stand-in and the canvas gets no
+// ydoc, exactly as before. DEV-gated from the outside, as MIX_QA_COUNT is.
+const RICH_DOCS_QA = typeof window !== 'undefined' && import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('richdocs') === '1'
+  : false;
 
 // Dev/test-only: ?local=1&reset=1&mixqa=4 boots a Studio root holding N image
 // cards and NOTHING else — the day-one photo dump. That board shape is the one
@@ -465,6 +478,8 @@ export function LocalBoardsApp({ user, signOut }) {
   useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
+  // ?richdocs=1: where the doc tool's cards keep their doc store (RICH_DOCS_QA).
+  const [docYdoc] = useState(() => (RICH_DOCS_QA ? new Y.Doc() : null));
   const [currentSurface, setCurrentSurface] = useState('board');
   const [homeExploring, setHomeExploring] = useState(false);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
@@ -964,7 +979,8 @@ export function LocalBoardsApp({ user, signOut }) {
   // Minimal doc card for the local QA harness — enough for the rail "Doc"
   // tool + the + / right-click Doc entries to place a card. There's no
   // ydoc-backed doc store here, so CanvasSurface renders the static
-  // <DocCard> fallback (kind:'doc' without docPages). Not a full editor.
+  // <DocCard> fallback (kind:'doc' without docPages). Not a full editor —
+  // unless ?richdocs=1, which gives the card its doc store (RICH_DOCS_QA).
   const addDocCard = (clickPos = null) => {
     const id = createId('doc');
     const w = 320;
@@ -979,6 +995,15 @@ export function LocalBoardsApp({ user, signOut }) {
       w,
       h,
     });
+    if (docYdoc) {
+      const cardYMap = new Y.Map();
+      docYdoc.transact(() => {
+        cardYMap.set('id', id);
+        cardYMap.set('kind', 'doc');
+        docYdoc.getMap('cards').set(id, cardYMap);
+      }, 'local');
+      initCardDocStore(docYdoc, cardYMap);
+    }
     setAutoFocusId(id);
   };
 
@@ -2117,6 +2142,8 @@ export function LocalBoardsApp({ user, signOut }) {
                 })}
                 workspaceId="local-workspace"
                 userId={user?.id ?? 'local-user'}
+                /* ?richdocs=1 — see RICH_DOCS_QA. Absent otherwise, as before. */
+                {...(docYdoc ? { ydoc: docYdoc, currentUser: { id: user?.id ?? 'local-user', name: 'Local Tester', color: '#d98c2b' } } : null)}
                 personalWorkspaceId="local-workspace"
                 selectedTool={selectedTool}
                 setSelectedTool={setSelectedTool}

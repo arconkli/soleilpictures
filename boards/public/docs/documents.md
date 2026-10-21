@@ -33,8 +33,9 @@ Two modes:
 - **Side** — docked beside the canvas, resizable, so you can write while looking at the board
 
 Double-clicking a document card opens it in **whichever mode you used last**, so
-if you work docked you stay docked. The dock and full screen swap either way from
-the buttons in the document's header.
+if you work docked you stay docked. On a phone or a tablet, tap the card twice.
+The dock and full screen swap either way from the buttons in the document's
+header.
 
 A docked document is held by the workspace, not by the canvas underneath it. You
 can open other clusters, drill into nested ones, and move around the sidebar with

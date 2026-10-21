@@ -23593,7 +23593,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", so if you work docked you stay docked. The dock and full screen swap either way from the buttons in the document's header."
+     "v": ", so if you work docked you stay docked. On a phone or a tablet, tap the card twice. The dock and full screen swap either way from the buttons in the document's header."
     }
    ]
   },
