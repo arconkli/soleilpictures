@@ -1,6 +1,9 @@
 import { useEffect, useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { commentsMap, addCommentReply, deleteCommentThread, resolveComment, getDocUndoManager, DOC_ORIGIN } from '../lib/docState.js';
+import {
+  commentsMap, addCommentReply, deleteCommentThread, resolveComment, getDocUndoManager,
+  readThread, snapshotThread, restoreThread,
+} from '../lib/docState.js';
 import { undoToast } from '../lib/undoToast.js';
 import { notifyCommentMentions } from '../lib/commentMentions.js';
 import { EntityPicker } from './EntityPicker.jsx';
@@ -73,21 +76,9 @@ export function CommentInlinePopover({
     if (!ydoc || !threadId) return;
     const cm = commentsMap(ydoc, scope);
     if (!cm) return;
-    const refresh = () => {
-      const v = cm.get(threadId);
-      if (!v) { setThread(null); return; }
-      const get = (k) => v?.get?.(k) ?? v?.[k];
-      const repliesY = get('replies');
-      setThread({
-        id: threadId,
-        body: get('body'),
-        author: get('author'),
-        authorColor: get('authorColor'),
-        ts: get('ts'),
-        resolved: get('resolved') || false,
-        replies: repliesY?.toArray ? repliesY.toArray() : (Array.isArray(repliesY) ? repliesY : []),
-      });
-    };
+    // Its replies are filed beside it as well as in it (lib/commentKeys.js):
+    // readThread puts them together.
+    const refresh = () => setThread(readThread(ydoc, threadId, scope));
     refresh();
     cm.observeDeep(refresh);
     return () => cm.unobserveDeep(refresh);
@@ -137,7 +128,7 @@ export function CommentInlinePopover({
         <button
           className="comment-inline-x"
           title={thread.resolved ? 'Reopen' : 'Resolve'}
-          onClick={() => resolveComment(ydoc, threadId, !thread.resolved, scope)}
+          onClick={() => resolveComment(ydoc, threadId, !thread.resolved, scope, { by: currentUser?.id || null })}
         >{thread.resolved ? '↺' : '✓'}</button>
         <button
           className="comment-inline-x"
@@ -173,21 +164,17 @@ export function CommentInlinePopover({
               return;
             }
             // Notes (comments-only scope — no structural UndoManager): the
-            // thread value is a plain object in a Y.Map, so a closure restore
-            // IS the engine — capture it before deleting, re-set it on Undo.
-            // Same deferred mark-strip as the doc branch, so an undo restores
-            // a still-anchored thread. No confirm: delete → Undo toast.
-            const saved = commentsMap(ydoc, scope)?.get(threadId) || null;
+            // thread and what is filed under it are plain objects in a Y.Map,
+            // so a closure restore IS the engine — snapshot them before
+            // deleting, put them back on Undo. Same deferred mark-strip as the
+            // doc branch, so an undo restores a still-anchored thread. No
+            // confirm: delete → Undo toast.
+            const saved = snapshotThread(ydoc, threadId, scope);
             deleteCommentThread(ydoc, threadId, scope);
             undoToast(feedback, {
               message: 'Comment thread deleted',
               onUndo: () => {
-                try {
-                  const map = commentsMap(ydoc, scope);
-                  if (saved && map && !map.get(threadId)) {
-                    ydoc.transact(() => { map.set(threadId, saved); }, DOC_ORIGIN);
-                  }
-                } catch (_) {}
+                try { restoreThread(ydoc, saved, scope); } catch (_) {}
               },
             });
             setTimeout(() => {

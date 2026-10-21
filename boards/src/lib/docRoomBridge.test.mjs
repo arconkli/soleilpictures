@@ -5,10 +5,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import * as Y from 'yjs';
+import * as encoding from 'lib0/encoding';
 import {
   extractDocSubtree, filterTransaction, validateGuestUpdate, placeOf, r2KeysIn,
   DOC_KEYS, CARD_FIELDS, YJS_SERIES,
 } from './docRoomBridge.js';
+import * as docState from './docState.js';
 
 const require = createRequire(import.meta.url);
 const CARD = 'doc-1700000000000';
@@ -270,6 +272,120 @@ test('a guest can reply to a thread and resolve it, but not rewrite or remove so
   const g5 = guestOf(room);
   const remove = editAs(g5, () => cardMapOf(g5).get('docComments').delete('t1'));
   assert.equal(validateGuestUpdate(room, remove, ctxFor(g5)).reason, 'comment_author');
+});
+
+// Replies and resolves filed beside their thread (docState.js, "Comments").
+const AS_GUEST = { author: 'Guest', authorId: 'u-guest', authorColor: '#4f8df8' };
+const scopeIn = (d) => docState.cardScope(cardMapOf(d));
+// A member's reply and resolve on Rae's thread, already in the cluster.
+function boardWithEntries() {
+  const board = makeBoard();
+  board.transact(() => {
+    const c = cardMapOf(board).get('docComments');
+    c.set('t1~r~cr_rae1', { kind: 'reply', threadId: 't1', id: 'cr_rae1', ts: 2, author: 'Rae', authorId: 'u-rae', authorColor: '#e5484d', body: 'mine', mentions: [] });
+    c.set('t1~s', { kind: 'state', threadId: 't1', resolved: false, by: 'u-rae', ts: 3, headerSeen: false });
+  });
+  return board;
+}
+
+test('a guest’s reply and resolve, filed beside the thread, pass, and so does a reopen', () => {
+  const board = boardWithEntries();
+  const { room } = mirrorOf(board);
+  const g = guestOf(room);
+  const u1 = editAs(g, () => docState.addCommentReply(g, 't1', { body: 'agreed', ...AS_GUEST, scope: scopeIn(g), log: true }));
+  const v1 = validateGuestUpdate(room, u1, ctxFor(g));
+  assert.equal(v1.ok, true, v1.reason);
+  Y.applyUpdate(room, u1);
+  const g2 = guestOf(room);
+  const u2 = editAs(g2, () => docState.resolveComment(g2, 't1', true, scopeIn(g2), { by: 'u-guest', log: true }));
+  const v2 = validateGuestUpdate(room, u2, ctxFor(g2));
+  assert.equal(v2.ok, true, v2.reason);
+  Y.applyUpdate(room, u2);
+  const g3 = guestOf(room);
+  const u3 = editAs(g3, () => docState.resolveComment(g3, 't1', false, scopeIn(g3), { by: 'u-guest', log: true }));
+  const v3 = validateGuestUpdate(room, u3, ctxFor(g3));
+  assert.equal(v3.ok, true, v3.reason);
+  Y.applyUpdate(room, u3);
+  const th = docState.readThread(room, 't1', scopeIn(room));
+  assert.deepEqual(th.replies.map((r) => r.body), ['mine', 'agreed']);
+  assert.equal(th.resolved, false);
+  // And their own reply is theirs to take back (an undo).
+  const g4 = guestOf(room);
+  const mineKey = [...cardMapOf(g4).get('docComments').keys()].find((k) => k.startsWith('t1~r~') && k !== 't1~r~cr_rae1');
+  const u4 = editAs(g4, () => cardMapOf(g4).get('docComments').delete(mineKey));
+  const v4 = validateGuestUpdate(room, u4, ctxFor(g4));
+  assert.equal(v4.ok, true, v4.reason);
+});
+
+test('a guest can’t forge, rewrite or misfile a reply or a resolve', () => {
+  const board = boardWithEntries();
+  const { room } = mirrorOf(board);
+  const reply = (extra = {}) => ({ kind: 'reply', threadId: 't1', id: 'cr_g1', ts: 9, ...AS_GUEST, body: 'ok', mentions: [], ...extra });
+  const state = (extra = {}) => ({ kind: 'state', threadId: 't1', resolved: true, by: 'u-guest', ts: 9, headerSeen: false, ...extra });
+  const header = { pageId: 'p1', ts: 9, ...AS_GUEST, body: 'hi', replies: [], resolved: false };
+  const cases = [
+    ['a reply as someone else', (c) => c.set('t1~r~cr_g1', reply({ author: 'Rae', authorId: 'u-rae' })), 'comment_author'],
+    ['rewriting someone’s reply', (c) => c.set('t1~r~cr_rae1', { ...c.get('t1~r~cr_rae1'), body: 'EDITED' }), 'comment_author'],
+    ['rewriting it under one’s own name', (c) => c.set('t1~r~cr_rae1', reply({ id: 'cr_rae1' })), 'comment_author'],
+    ['removing someone’s reply', (c) => c.delete('t1~r~cr_rae1'), 'comment_author'],
+    ['a reply naming another thread', (c) => c.set('t1~r~cr_g1', reply({ threadId: 't9' })), 'comment_shape'],
+    ['a reply under another id', (c) => c.set('t1~r~cr_g1', reply({ id: 'cr_g2' })), 'comment_shape'],
+    ['a reply that is not one', (c) => c.set('t1~r~cr_g1', reply({ kind: 'state' })), 'comment_shape'],
+    ['a reply too long', (c) => c.set('t1~r~cr_g1', reply({ body: 'x'.repeat(4001) })), 'comment_shape'],
+    ['a resolve in someone else’s name', (c) => c.set('t1~s', state({ by: 'u-rae' })), 'comment_author'],
+    ['a resolve that is neither yes nor no', (c) => c.set('t1~s', state({ resolved: 'yes' })), 'comment_shape'],
+    ['a resolve naming another thread', (c) => c.set('t1~s', state({ threadId: 't9' })), 'comment_shape'],
+    ['a key that is no thread’s', (c) => c.set('t1~x', header), 'comment_shape'],
+    ['a new thread under a key with ~ in it', (c) => c.set('a~b', header), 'comment_shape'],
+  ];
+  for (const [what, fn, reason] of cases) {
+    const g = guestOf(room);
+    const u = editAs(g, () => fn(cardMapOf(g).get('docComments')));
+    assert.equal(validateGuestUpdate(room, u, ctxFor(g)).reason, reason, what);
+  }
+});
+
+test('a guest’s own thread goes with everything filed under it; someone else’s stays', () => {
+  const board = boardWithEntries();
+  board.transact(() => {
+    const c = cardMapOf(board).get('docComments');
+    c.set('tg', { pageId: 'p1', ts: 4, ...AS_GUEST, body: 'mine', replies: [], resolved: false });
+    c.set('tg~r~cr_rae2', { kind: 'reply', threadId: 'tg', id: 'cr_rae2', ts: 5, author: 'Rae', authorId: 'u-rae', authorColor: '#e5484d', body: 'a reply', mentions: [] });
+    c.set('tg~s', { kind: 'state', threadId: 'tg', resolved: true, by: 'u-rae', ts: 6, headerSeen: false });
+  });
+  const { room } = mirrorOf(board);
+  const g = guestOf(room);
+  const own = editAs(g, () => docState.deleteCommentThread(g, 'tg', scopeIn(g)));
+  const v = validateGuestUpdate(room, own, ctxFor(g));
+  assert.equal(v.ok, true, v.reason);
+  Y.applyUpdate(room, own);
+  assert.deepEqual([...cardMapOf(room).get('docComments').keys()].filter((k) => k.startsWith('tg')), []);
+  const g2 = guestOf(room);
+  const theirs = editAs(g2, () => docState.deleteCommentThread(g2, 't1', scopeIn(g2)));
+  assert.equal(validateGuestUpdate(room, theirs, ctxFor(g2)).reason, 'comment_author');
+});
+
+test('docComments holds plain entries only: no Y type in it, and nothing inside one', () => {
+  const board = makeBoard();
+  const { room } = mirrorOf(board);
+  const cases = [
+    ['a thread made of a Y.Map', (c) => {
+      const m = new Y.Map();
+      c.set('tm', m);
+      m.set('author', 'Rae');
+      m.set('authorId', 'u-rae');
+      m.set('body', 'pay me');
+    }],
+    ['an empty Y.Map in place of a thread', (c) => c.set('tm', new Y.Map())],
+    ['a Y.Text', (c) => c.set('tm', new Y.Text('x'))],
+  ];
+  for (const [what, fn] of cases) {
+    const g = guestOf(room);
+    const u = editAs(g, () => fn(cardMapOf(g).get('docComments')));
+    assert.equal(validateGuestUpdate(room, u, ctxFor(g)).reason, 'comment_shape', what);
+    // The board's own look at it, too.
+    assert.equal(validateGuestUpdate(board, u, { cardKey: CARD, structureOnly: true }).reason, 'comment_shape', `${what}, on the board`);
+  }
 });
 
 test('a guest write that reaches past the doc is refused', () => {
@@ -545,6 +661,10 @@ test('review: attributes that could run or load something are refused, on old no
       el.setAttribute('poster', 'https://tracker.example/x');
       cardMapOf(g).get('docPageContent').get('p1').insert(0, [el]);
     }, 'attribute'],
+    // A type where a value goes reads as the type, and its text as the value.
+    ['a Y type as an image source', (g) => cardMapOf(g).get('docPageContent').get('p1').get(1).setAttribute('src', new Y.Text('https://tracker.example/p.gif')), 'attribute'],
+    ['a Y type as a source anywhere', (g) => cardMapOf(g).get('docMeta').set('src', new Y.Text('https://tracker.example/p.gif')), 'untrusted_src'],
+    ['a Y type as a link anywhere', (g) => cardMapOf(g).get('docMeta').set('href', new Y.Text('javascript:alert(1)')), 'unsafe_link'],
   ];
   for (const [what, fn, reason] of cases) {
     const g = guestOf(room);
@@ -560,6 +680,54 @@ test('review: attributes that could run or load something are refused, on old no
     cardMapOf(g).get('docPageContent').get('p1').insert(0, [h]);
   });
   assert.equal(validateGuestUpdate(room, ok, ctxFor(g)).ok, true);
+});
+
+// A frame by hand: one client's structs from `clock`, and no deletions.
+function frameOf(client, clock, structs) {
+  const enc = new Y.UpdateEncoderV1();
+  encoding.writeVarUint(enc.restEncoder, 1);
+  encoding.writeVarUint(enc.restEncoder, structs.length);
+  enc.writeClient(client);
+  encoding.writeVarUint(enc.restEncoder, clock);
+  for (const s of structs) s.write(enc, 0);
+  encoding.writeVarUint(enc.restEncoder, 0);
+  return enc.toUint8Array();
+}
+// The one item an honest edit wrote, carrying `values` instead: a frame can
+// hold several values in one map item, and a read returns the last.
+function withValues(update, values) {
+  const { structs } = Y.decodeUpdate(update);
+  assert.equal(structs.length, 1, 'one item');
+  const s = structs[0];
+  const item = new Y.Item(s.id, null, s.origin, null, s.rightOrigin, s.parent, s.parentSub, new Y.ContentAny(values));
+  return frameOf(s.id.client, s.id.clock, [item]);
+}
+
+test('review: a map entry reads as the last value its item holds, so every value is checked', () => {
+  const board = makeBoard();
+  const { room } = mirrorOf(board);
+  const image = (d) => cardMapOf(d).get('docPageContent').get('p1').get(1);
+  const cases = [
+    ['an image source', (d) => image(d).setAttribute('src', `r2:${KEY}`), [`r2:${KEY}`, 'https://tracker.example/p.gif'], 'untrusted_src', (d) => image(d).getAttribute('src')],
+    ['a link', (d) => image(d).setAttribute('href', 'https://example.com'), ['https://example.com', 'javascript:alert(1)'], 'unsafe_link', (d) => image(d).getAttribute('href')],
+    ['an attribute', (d) => image(d).setAttribute('title', 'Fine'), ['Fine', 'javascript:alert(1)'], 'unsafe_link', (d) => image(d).getAttribute('title')],
+    ['a comment thread', (d) => cardMapOf(d).get('docComments').set('tg', { pageId: 'p1', ts: 2, ...AS_GUEST, body: 'hi', replies: [], resolved: false }),
+      [{ pageId: 'p1', ts: 2, ...AS_GUEST, body: 'hi', replies: [], resolved: false }, { pageId: 'p1', ts: 2, author: 'Rae', authorId: 'u-rae', body: 'pay me', replies: [], resolved: false }],
+      'comment_author', (d) => cardMapOf(d).get('docComments').get('tg')?.authorId],
+  ];
+  for (const [what, edit, values, reason, read] of cases) {
+    const g = guestOf(room);
+    const honest = editAs(g, () => edit(g));
+    assert.equal(validateGuestUpdate(room, honest, ctxFor(g)).ok, true, `${what}: the honest edit passes`);
+    const crafted = withValues(honest, values);
+    // What the doc would show for it: the last value.
+    const copy = new Y.Doc();
+    Y.applyUpdate(copy, Y.encodeStateAsUpdate(room));
+    Y.applyUpdate(copy, crafted);
+    const last = values[values.length - 1];
+    assert.equal(read(copy), typeof last === 'object' ? last.authorId : last, `${what}: a read returns the last value`);
+    assert.equal(validateGuestUpdate(room, crafted, ctxFor(g)).reason, reason, what);
+  }
 });
 
 test('the board’s own look at a doc room’s write: inside that doc only', () => {

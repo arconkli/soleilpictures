@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { commentsMap } from '../lib/docState.js';
+import { commentsMap, readComments } from '../lib/docState.js';
 
 // Right-margin layer that draws a soleil-gold dot per unresolved comment
 // thread on the active page. Click → opens the inline thread popover via
@@ -17,23 +17,10 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
     if (!ydoc) return;
     const cm = commentsMap(ydoc, scope);
     if (!cm) return;
+    // A thread's resolve can be filed beside it (lib/commentKeys.js), so
+    // whether it is open is readComments' to say, not the thread's own flag.
     const refresh = () => {
-      const out = [];
-      cm.forEach((v, id) => {
-        if (!v) return;
-        const get = (k) => v?.get?.(k) ?? v?.[k];
-        const t = {
-          id,
-          pageId: get('pageId'),
-          body: get('body'),
-          author: get('author'),
-          authorColor: get('authorColor'),
-          ts: get('ts'),
-          resolved: get('resolved') || false,
-        };
-        if (t.pageId === pageId && !t.resolved) out.push(t);
-      });
-      setThreads(out);
+      setThreads(readComments(ydoc, scope).filter((t) => t.pageId === pageId && !t.resolved));
     };
     refresh();
     cm.observeDeep(refresh);

@@ -26,13 +26,15 @@
 //     (never the root, the card map or a card field), every reference resolves
 //     to a live part of the doc or to the frame itself, the clients are the
 //     connection's own, the content kinds are plain, image sources are files
-//     already in the doc, links are http(s) or mailto, comment threads carry
-//     the connection's own author, and deletions stay inside the doc.
+//     already in the doc, links are http(s) or mailto, comments are plain
+//     entries filed as lib/commentKeys.js says and carry the connection's own
+//     author, and deletions stay inside the doc.
 //
 // It relies on yjs struct internals (Item, GC, the V1 encoder): yjs is pinned
 // to 13.6.x and docRoomBridge.test.mjs is the property suite that holds it.
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
+import { parseCommentKey, isPlainEntry, isFiledReply, isFiledState } from './commentKeys.js';
 
 export const YJS_SERIES = '13.6.';
 export const DOC_KEYS = Object.freeze([
@@ -248,20 +250,23 @@ const ATTR_DENY = /^(on|style$|srcset$|poster$|background$|formaction$|xlink|dat
 const UNSAFE_VALUE = /(javascript|vbscript|livescript)\s*:|data\s*:\s*text\/html|url\s*\(/i;
 
 function isAllowedContent(c) {
-  if (c instanceof Y.ContentString || c instanceof Y.ContentFormat || c instanceof Y.ContentAny
-      || c instanceof Y.ContentDeleted) return true;
+  if (c instanceof Y.ContentAny) return c.arr.length > 0;
+  if (c instanceof Y.ContentString || c instanceof Y.ContentFormat || c instanceof Y.ContentDeleted) return true;
   if (c instanceof Y.ContentType) return ALLOWED_TYPES.has(c.type.constructor);
   return false;   // ContentDoc, ContentBinary, ContentEmbed, ContentJSON
 }
 
 const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const COMMENT_MAX = 4000;   // docState's addCommentReply cuts a reply there
+
+const byGuest = (x, ctx) => !!x && typeof x === 'object' && x.authorId === ctx.userId
+  && (ctx.displayName == null || x.author === ctx.displayName);
 
 // A comment thread written by a guest: a new one must be theirs; an existing
 // one may only gain their own replies, or be resolved / reopened.
 function threadChangeOk(prev, next, ctx) {
   if (!next || typeof next !== 'object' || Array.isArray(next)) return false;
-  const mine = (x) => x && typeof x === 'object' && x.authorId === ctx.userId
-    && (ctx.displayName == null || x.author === ctx.displayName);
+  const mine = (x) => byGuest(x, ctx);
   if (prev == null) return mine(next) && (!Array.isArray(next.replies) || next.replies.every(mine));
   if (typeof prev !== 'object') return false;
   const { replies: pr = [], resolved: pRes, ...pRest } = prev;
@@ -274,9 +279,32 @@ function threadChangeOk(prev, next, ctx) {
   return true;
 }
 
-function firstValue(content) {
-  return content instanceof Y.ContentAny ? content.arr[0] : undefined;
+// One value a guest writes into docComments under `key` (lib/commentKeys.js):
+// a thread as threadChangeOk allows, a reply of their own written once, or a
+// resolve in their own name (resolving or reopening is any editor's to do).
+// → null, or the reason it is refused.
+function commentEntryRefusal(key, prev, next, ctx) {
+  const p = parseCommentKey(key);
+  if (!p) return 'comment_shape';
+  if (p.kind === 'thread') return threadChangeOk(prev, next, ctx) ? null : 'comment_author';
+  if (p.kind === 'reply') {
+    if (!isFiledReply(key, next) || typeof next.body !== 'string' || next.body.length > COMMENT_MAX) return 'comment_shape';
+    if (prev !== undefined) return 'comment_author';
+    return byGuest(next, ctx) ? null : 'comment_author';
+  }
+  if (!isFiledState(key, next)) return 'comment_shape';
+  return next.by === ctx.userId ? null : 'comment_author';
 }
+
+// The values one item holds. An item can hold several (a frame may write a
+// run of them as one), and a map entry reads as the LAST: every one is
+// checked, and what the room reads of an item it already has is the last.
+const valuesOf = (content) => (content instanceof Y.ContentAny ? content.arr : []);
+const lastValue = (content) => {
+  const v = valuesOf(content);
+  return v.length ? v[v.length - 1] : undefined;
+};
+const isValueContent = (c) => c instanceof Y.ContentAny || c instanceof Y.ContentDeleted;
 
 // ctx: { cardKey, claims: Set<client> (this connection's own clients),
 //        userId, displayName, trustedKeys: Set<'<key>'>, maxBytes,
@@ -411,6 +439,11 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
       }
       const sub = s.parentSub || originSub || null;
       fresh.set(keyOf(s.id), { s, place: `in:${key}`, parentObj, sub });
+      // docComments holds plain values, each straight under it: never a type,
+      // and nothing inside one. Readers have never been written for anything
+      // else, and a type under a thread's key once read as a thread.
+      if (commentsType && key === 'docComments'
+          && (parentObj !== commentsType || !isValueContent(s.content))) return fail('comment_shape');
       if (ctx.structureOnly) continue;
 
       // What it says.
@@ -418,27 +451,31 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
         const href = s.content.value && typeof s.content.value === 'object' ? s.content.value.href : null;
         if (href != null && !SAFE_HREF.test(String(href))) return fail('unsafe_link');
       }
-      // An attribute of a node (an entry of an XmlElement): its name and value.
+      // An attribute of a node (an entry of an XmlElement): its name and value,
+      // and a value, never a type that a read would hand on as one.
       if (sub && parentObj instanceof Y.XmlElement) {
-        if (!ATTR_NAME.test(sub) || ATTR_DENY.test(sub)) return fail('attribute');
-        const v = firstValue(s.content);
-        if (typeof v === 'string' && UNSAFE_VALUE.test(v)) return fail('unsafe_link');
+        if (!ATTR_NAME.test(sub) || ATTR_DENY.test(sub) || !isValueContent(s.content)) return fail('attribute');
+        for (const v of valuesOf(s.content)) if (typeof v === 'string' && UNSAFE_VALUE.test(v)) return fail('unsafe_link');
       }
       if (sub === 'src') {
-        const v = firstValue(s.content);
-        if (v != null) {
+        if (!isValueContent(s.content)) return fail('untrusted_src');
+        for (const v of valuesOf(s.content)) {
+          if (v == null) continue;
           const m = /^r2:(.+)$/.exec(String(v));
           if (!m || !(ctx.trustedKeys && ctx.trustedKeys.has(m[1]))) return fail('untrusted_src');
         }
       }
       if (sub === 'href') {
-        const v = firstValue(s.content);
-        if (v != null && !SAFE_HREF.test(String(v))) return fail('unsafe_link');
+        if (!isValueContent(s.content)) return fail('unsafe_link');
+        for (const v of valuesOf(s.content)) if (v != null && !SAFE_HREF.test(String(v))) return fail('unsafe_link');
       }
-      // A comment thread: docComments[<id>] = { …thread }.
+      // A comment entry: docComments[<key>] = { … } (lib/commentKeys.js).
       if (commentsType && parentObj === commentsType && sub && s.content instanceof Y.ContentAny) {
         const prev = commentsType.get(sub);
-        if (!threadChangeOk(prev, firstValue(s.content), ctx)) return fail('comment_author');
+        for (const v of valuesOf(s.content)) {
+          const why = commentEntryRefusal(sub, prev, v, ctx);
+          if (why) return fail(why);
+        }
         // This key's old value may go: it was replaced by one that passed.
         replacedThreads.add(sub);
       }
@@ -448,7 +485,13 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
   }
   if (pending.length) return fail('missing_ref');
 
-  // Deletions: only inside the doc, and a comment thread only by its author.
+  // Deletions: only inside the doc. In docComments, a value this frame put a
+  // valid new one in place of may go; otherwise a thread goes only when its
+  // author removes it, a reply when its author does or its thread goes in the
+  // same frame (or is gone already), and a resolve with any editor. Taking
+  // away what is already gone changes nothing.
+  const goneThreads = new Set();
+  const repliesOf = [];   // threads whose replies (not the guest's) this frame removes
   for (const [client, list] of ds.clients) {
     for (const { clock, len } of list) {
       for (let c = clock; c < clock + len;) {
@@ -463,16 +506,24 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
         if (it instanceof Y.Item) {
           const p = placeOf(it, cardsRoot, ctx.cardKey);
           if (!p || !p.startsWith('in:') || !writable.has(keyOfPlace(p))) return fail('outside_doc');
-          if (!ctx.structureOnly && commentsType && it.parent === commentsType && it.parentSub) {
-            // A thread goes only when its author removes it, or when this frame
-            // put a valid new value under the same key of docComments itself.
-            const prev = firstValue(it.content);
-            if (!replacedThreads.has(it.parentSub) && !(prev && prev.authorId === ctx.userId)) return fail('comment_author');
+          if (!ctx.structureOnly && commentsType && it.parent === commentsType && it.parentSub
+              && !it.deleted && !replacedThreads.has(it.parentSub)) {
+            const ck = parseCommentKey(it.parentSub);
+            const prev = lastValue(it.content);
+            const theirs = !!prev && typeof prev === 'object' && prev.authorId === ctx.userId;
+            if (!ck) return fail('comment_shape');
+            if (ck.kind === 'thread') {
+              if (!theirs) return fail('comment_author');
+              goneThreads.add(ck.threadId);
+            } else if (ck.kind === 'reply' && !theirs) repliesOf.push(ck.threadId);
           }
         }
         c = next;
       }
     }
+  }
+  for (const id of repliesOf) {
+    if (!goneThreads.has(id) && isPlainEntry(commentsType.get(id))) return fail('comment_author');
   }
   return { ok: true, clients: [...firstClock.keys()], empty: structs.length === 0 && ds.clients.size === 0 };
 }

@@ -14,6 +14,9 @@
 import * as Y from 'yjs';
 import { cloneYXmlNode } from './yhelpers.js';
 import { fragmentText } from './docText.js';
+import {
+  commentReplyKey, commentStateKey, parseCommentKey, isPlainEntry, isFiledReply, isFiledState,
+} from './commentKeys.js';
 import { convertFragmentDocMode } from '../components/docExtensions/screenplay/screenplayModeSwitch.js';
 
 // Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
@@ -333,13 +336,69 @@ export function readBookmarks(ydoc, scope) {
   return out;
 }
 
+// Every thread as people should see it (see readThread), newest first.
 export function readComments(ydoc, scope) {
-  const out = [];
   const map = commentsMap(ydoc, scope);
-  if (!map) return out;
-  map.forEach((v, k) => { out.push({ id: k, ...v }); });
-  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  if (!map) return [];
+  return gatherThreads(map).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+}
+
+// One thread as people should see it: as it was started, with its replies —
+// the ones written into it by builds from before and the ones filed beside
+// it, each once, oldest first — and whether it is resolved. Null when there
+// is no such thread (or what is there is not one).
+export function readThread(ydoc, threadId, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !threadId) return null;
+  return gatherThreads(map, threadId)[0] || null;
+}
+
+// One pass over the map: the threads (or the one asked for), each with what
+// is filed under it. An entry whose thread is gone is left alone, unread: an
+// undo of that delete brings the thread back and the entry with it.
+function gatherThreads(map, only = null) {
+  const heads = new Map();
+  const replies = new Map();
+  const states = new Map();
+  map.forEach((v, k) => {
+    const p = parseCommentKey(k);
+    if (!p || (only && p.threadId !== only)) return;
+    if (p.kind === 'thread') { if (isPlainEntry(v)) heads.set(k, v); }
+    else if (p.kind === 'reply') {
+      if (isFiledReply(k, v)) {
+        if (!replies.has(p.threadId)) replies.set(p.threadId, []);
+        replies.get(p.threadId).push(v);
+      }
+    } else if (isFiledState(k, v)) states.set(p.threadId, v);
+  });
+  const out = [];
+  heads.forEach((head, id) => out.push(composeThread(id, head, replies.get(id) || [], states.get(id) || null)));
   return out;
+}
+
+function composeThread(id, head, filed, state) {
+  const { replies: written, resolved: headResolved, ...rest } = head;
+  const seen = new Set();
+  const replies = [];
+  for (const r of [...(Array.isArray(written) ? written : []), ...filed]) {
+    if (!isPlainEntry(r)) continue;
+    if (r.id) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+    }
+    const { kind, threadId, ...reply } = r;
+    replies.push(reply);
+  }
+  const order = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+  replies.sort((a, b) => (a.ts || 0) - (b.ts || 0) || order(String(a.id || ''), String(b.id || '')));
+  // The state entry speaks for the thread unless a build that writes resolves
+  // into the thread changed it after that entry was written (it records the
+  // thread's own flag as it saw it). A tab on such a build that toggles twice
+  // in a row ends where the entry saw it and loses the second toggle; those
+  // tabs are made to reload before entries are written (COMMENT_LOG_WRITES).
+  const own = !!headResolved;
+  const resolved = state && own === !!state.headerSeen ? state.resolved : own;
+  return { id, ...rest, replies, resolved };
 }
 
 // Extract plain text of a single page's Y.XmlFragment. Used by the
@@ -567,8 +626,13 @@ export function deletePage(ydoc, id, scope) {
       sheets?.delete(pid);
     });
     bookmarks.forEach((v, k) => { if (toRemove.has(v.pageId)) bookmarks.delete(k); });
-    // Drop comment threads anchored to removed pages so they don't orphan.
-    comments?.forEach((v, k) => { if (toRemove.has(v.pageId)) comments.delete(k); });
+    // Drop comment threads anchored to removed pages, and what is filed under
+    // them, so they don't orphan.
+    if (comments) {
+      const threads = new Set();
+      comments.forEach((v, k) => { if (parseCommentKey(k)?.kind === 'thread' && toRemove.has(v?.pageId)) threads.add(k); });
+      for (const k of [...comments.keys()]) if (threads.has(parseCommentKey(k)?.threadId)) comments.delete(k);
+    }
   }, DOC_ORIGIN);
 }
 
@@ -605,6 +669,18 @@ export function movePage(ydoc, id, newParentId, newIndex, scope) {
 // peers whose profile hasn't resolved yet — never drop it. `mentions` is the
 // set of user ids @-named in the body; notification is the caller's job (see
 // lib/commentMentions.js), this only records who was named.
+//
+// How they are filed is lib/commentKeys.js: a reply and a resolve are each an
+// entry beside the thread, so two people writing at once both keep theirs.
+// Every build since these readers reads both that and the old shape (a reply
+// or a resolve rewriting the whole thread), but builds from before read only
+// the old one, and preview and production tabs share every room. So filing
+// beside the thread ships in two promotes: these readers first, writing the
+// old way; then this flag on, with the Worker's MIN_CLIENT_BUILD raised past
+// the readers' production build so no tab without them is still open
+// (docState.concurrency.test holds the two together).
+export const COMMENT_LOG_WRITES = false;
+
 export function addCommentThread(ydoc, opts) {
   const { pageId, body, author, authorId, authorColor, mentions, scope } = opts;
   const id = 'cm_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
@@ -623,12 +699,14 @@ export function addCommentThread(ydoc, opts) {
   return id;
 }
 
+// `log` is how it is written: filed beside the thread, or into it the old way
+// (see COMMENT_LOG_WRITES). Returns the reply's id.
 export function addCommentReply(ydoc, id, opts) {
-  const { body, author, authorId, authorColor, mentions, scope } = opts;
+  const { body, author, authorId, authorColor, mentions, scope, log = COMMENT_LOG_WRITES } = opts;
   const map = commentsMap(ydoc, scope);
-  const cur = map?.get(id); if (!cur) return;
+  const cur = map?.get(id); if (!isPlainEntry(cur)) return null;
   const reply = {
-    id: 'cr_' + Math.random().toString(36).slice(2, 8),
+    id: 'cr_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3),
     ts: Date.now(),
     author: author || 'Someone',
     authorId: authorId || null,
@@ -636,18 +714,52 @@ export function addCommentReply(ydoc, id, opts) {
     body: String(body || '').slice(0, 4000),
     mentions: Array.isArray(mentions) ? mentions : [],
   };
-  ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, DOC_ORIGIN);
+  ydoc.transact(() => {
+    if (log) map.set(commentReplyKey(id, reply.id), { kind: 'reply', threadId: id, ...reply });
+    else map.set(id, { ...cur, replies: [...(cur.replies || []), reply] });
+  }, DOC_ORIGIN);
+  return reply.id;
 }
 
-export function resolveComment(ydoc, id, resolved = true, scope) {
+// `by` is who resolved or reopened it (their auth.users id).
+export function resolveComment(ydoc, id, resolved = true, scope, { by = null, log = COMMENT_LOG_WRITES } = {}) {
   const map = commentsMap(ydoc, scope);
-  const cur = map?.get(id); if (!cur) return;
-  ydoc.transact(() => { map.set(id, { ...cur, resolved }); }, DOC_ORIGIN);
+  const cur = map?.get(id); if (!isPlainEntry(cur)) return;
+  const key = commentStateKey(id);
+  const file = (headerSeen) => map.set(key, { kind: 'state', threadId: id, resolved: !!resolved, by, ts: Date.now(), headerSeen });
+  ydoc.transact(() => {
+    if (log) { file(!!cur.resolved); return; }
+    map.set(id, { ...cur, resolved });
+    // A newer build may have filed a state for it already, which would
+    // outrank the thread's own flag: say the same there.
+    if (map.has(key)) file(!!resolved);
+  }, DOC_ORIGIN);
 }
 
+// The thread and everything filed under it, in one step (one undo).
 export function deleteCommentThread(ydoc, id, scope) {
-  const map = commentsMap(ydoc, scope); if (!map) return;
-  ydoc.transact(() => { map.delete(id); }, DOC_ORIGIN);
+  const map = commentsMap(ydoc, scope); if (!map || !id) return;
+  ydoc.transact(() => { for (const k of threadKeys(map, id)) map.delete(k); }, DOC_ORIGIN);
+}
+
+function threadKeys(map, id) {
+  return [...map.keys()].filter((k) => parseCommentKey(k)?.threadId === id);
+}
+
+// For a scope with no structural undo (a note's comments): what a delete's
+// Undo puts back. restoreThread puts back every entry that isn't there.
+export function snapshotThread(ydoc, id, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !id) return null;
+  return { id, entries: threadKeys(map, id).map((k) => [k, map.get(k)]) };
+}
+
+export function restoreThread(ydoc, snapshot, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !snapshot?.entries?.length) return;
+  ydoc.transact(() => {
+    for (const [k, v] of snapshot.entries) if (!map.has(k)) map.set(k, v);
+  }, DOC_ORIGIN);
 }
 
 // Bookmarks ─────────────────────────────────────────────────────────────────
