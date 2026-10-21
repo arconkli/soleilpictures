@@ -72,3 +72,73 @@ test.describe('one Files at a time', () => {
     await expect(page.locator('.app')).not.toHaveClass(/is-files-page/);
   });
 });
+
+const sheet = (page) => page.locator('.list-wrap');
+
+test.describe('the head', () => {
+  test('the title is the cluster, and pressing it opens the cluster switch', async ({ page }) => {
+    await open(page);
+    const title = page.locator('.fp-title-btn');
+    await expect(title).toContainText('Feature film');
+    await expect(page.locator('.fp-meta')).toContainText('files');
+    await title.click();
+    const sw = page.locator('.sbf-switch');
+    await expect(sw).toBeVisible();
+    await sw.getByText('Locations', { exact: true }).click();
+    await expect(page.locator('.fp-title-btn')).toContainText('Locations');
+  });
+
+  test('Shrink is a word at the right and goes back to the board', async ({ page }) => {
+    await open(page);
+    const shrink = sheet(page).getByRole('button', { name: 'Shrink back to the sidebar' });
+    await expect(shrink).toContainText('Shrink');
+    await shrink.click();
+    await expect(page.locator('[data-sidebarqa-surface="board"]')).toBeVisible();
+  });
+
+  test('the card controls: search, All files with Show/Sort/Size, Grid | List, Add files', async ({ page }) => {
+    await open(page);
+    const search = page.locator('.fp-search input');
+    await expect(search).toHaveAttribute('placeholder', 'Search Feature film');
+    await search.fill('still-01');
+    await expect(page.locator('.fp-found')).toContainText(/of \d+/);
+    await search.fill('');
+    await page.locator('.fp-tools .sbf-filter-btn').click();
+    const menu = page.getByRole('menu', { name: 'Show and sort' });
+    await expect(menu.locator('.sbf-menu-label')).toHaveText(['Show', 'Sort']);
+    await expect(menu.getByRole('menuitemradio', { name: 'Large' })).toBeVisible();
+    await menu.getByRole('menuitemradio', { name: /^Photos/ }).click();
+    await expect(page.locator('.fp-tools .sbf-filter-btn')).toContainText('Photos');
+    await expect(page.locator('.fp-tools .sbf-filter-btn')).toHaveClass(/is-on/);
+    await page.locator('.fp-tools').getByRole('radio', { name: 'List' }).click();
+    await expect(sheet(page).locator('.ct-table')).toBeVisible();
+    await expect(page.locator('.fp-add')).toContainText('Add files');
+  });
+
+  test('a selection turns the controls into what to do with it, Delete with an undo', async ({ page }) => {
+    await open(page);
+    await sheet(page).locator('[data-item-id="film-img-3"]').click();
+    await sheet(page).locator('[data-item-id="film-img-5"]').click({ modifiers: ['ControlOrMeta'] });
+    const bar = page.locator('.fp-head > .list-selbar');
+    await expect(bar).toBeVisible();
+    await expect(page.locator('.fp-tools')).toHaveCount(0);
+    await expect(bar.locator('.list-selbar-count')).toHaveText('2 selected');
+    const del = bar.getByRole('button', { name: 'Delete' });
+    await expect(del).toHaveClass(/is-danger/);
+    await del.click();
+    // Production's own confirm, then its undo toast.
+    await page.getByRole('dialog', { name: 'Delete selection' }).getByRole('button', { name: 'Delete' }).click();
+    await expect(sheet(page).locator('[data-item-id="film-img-3"]')).toHaveCount(0);
+    await page.locator('.toast', { hasText: '2 cards deleted' }).getByRole('button', { name: 'Undo' }).click();
+    await expect(sheet(page).locator('[data-item-id="film-img-3"]')).toHaveCount(1);
+  });
+
+  test('files dragged over the page: the line says what a drop does', async ({ page }) => {
+    await open(page);
+    const dt = await page.evaluateHandle(() => { const d = new DataTransfer(); d.items.add(new File(['x'], 'a.jpg', { type: 'image/jpeg' })); return d; });
+    await sheet(page).dispatchEvent('dragenter', { dataTransfer: dt });
+    await sheet(page).dispatchEvent('dragover', { dataTransfer: dt });
+    await expect(page.locator('.fp-drop')).toContainText('Drop to add to Feature film');
+    await expect(sheet(page)).toHaveClass(/is-drop-target/);
+  });
+});

@@ -31,7 +31,7 @@ import { formatDuration } from '../lib/loopMeta.js';
 import { searchEntities } from '../lib/entitySearch.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import { usePeerSelections } from '../hooks/usePeerSelections.js';
-import { ClusterBrowserToolbar } from './clusterBrowser/ClusterBrowserToolbar.jsx';
+import { ClusterBrowserToolbar, StorageUpsell } from './clusterBrowser/ClusterBrowserToolbar.jsx';
 import { FolderTile } from './clusterBrowser/FolderTiles.jsx';
 import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
@@ -75,7 +75,11 @@ import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { useFilesLook } from './clusterBrowser/filesLook.js';
-import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy } from '../lib/icons.js';
+import { FilesPageHead, FilesPageTools } from './clusterBrowser/FilesPageHead.jsx';
+import { SORT_TO_PAGE, SORT_LABELS, sidebarSortOf, sortLabelOf, chipToFilter, filterToChip, chipCountsOf, pageChipsOf, chipLabelOf } from '../lib/filesView.js';
+import { SORTS } from '../lib/sidebarSort.js';
+import { shellOf } from '../lib/deviceShell.js';
+import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy, DownloadSimple, UploadSimple, FolderSimplePlus } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError, isPublicSurface,
@@ -321,8 +325,11 @@ export function ListSurface({
   const [layoutChoice, setLayoutChoice] = useState({});
   const [query, setQuery] = useState('');
   // Board order (the canvas, read like a page) until someone picks a sort.
-  const [sortKey, setSortKey] = useState(prefs0.sortKey || 'board');
-  const [sortDir, setSortDir] = useState(prefs0.sortKey ? (prefs0.sortDir || 'desc') : 'asc');
+  // The page in the files sidebar's look sorts as the sidebar's card does
+  // until then: newest first.
+  const sort0 = sb ? SORT_TO_PAGE.newest : { key: 'board', dir: 'asc' };
+  const [sortKey, setSortKey] = useState(prefs0.sortKey || sort0.key);
+  const [sortDir, setSortDir] = useState(prefs0.sortKey ? (prefs0.sortDir || 'desc') : sort0.dir);
   const [filters, setFilters] = useState(() => new Set());
   // A search or filter belongs to the cluster it was typed in — stepping into a
   // folder used to carry it along and could hide every file there.
@@ -412,6 +419,14 @@ export function ListSurface({
   const unplacedTotal = useMemo(
     () => (markUnplaced ? items.filter((it) => it.unplaced).length : 0), [items, markUnplaced]);
   useEffect(() => { if (unplacedOnly && !unplacedTotal) setUnplacedOnly(false); }, [unplacedOnly, unplacedTotal]);
+  // The page in the files sidebar's look opens the card's "All files ⌄"
+  // (FilesShowMenu): the card's chips and sorts over this page's filters and
+  // sort keys (lib/filesView.js).
+  const pageChip = filterToChip(filters, unplacedOnly);
+  const chipCounts = useMemo(
+    () => (sb ? chipCountsOf(items, { placement: markUnplaced }) : null), [sb, items, markUnplaced]);
+  const pickChip = (id) => { const f = chipToFilter(id); setFilters(new Set(f.buckets)); setUnplacedOnly(f.unplacedOnly); };
+  const setPageSort = ({ key, dir }) => { setSortKey(key); setSortDir(dir); writeBrowserPrefs({ sortKey: key, sortDir: dir }); };
 
   // Collapse linked-grid families into expandable group nodes (tens of grids →
   // a few rows). Pure; members render only when their family is expanded.
@@ -450,11 +465,11 @@ export function ListSurface({
   useEffect(() => {
     if (loading || !visibleItems.length) return;
     if (!audioMode && ['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
-      setSortKey('board');
-      setSortDir('asc');
-      writeBrowserPrefs({ sortKey: 'board', sortDir: 'asc' });
+      setSortKey(sort0.key);
+      setSortDir(sort0.dir);
+      writeBrowserPrefs({ sortKey: sort0.key, sortDir: sort0.dir });
     }
-  }, [audioMode, sortKey, loading, visibleItems.length]);
+  }, [audioMode, sortKey, loading, visibleItems.length, sb]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // A one-line read on the pack, assembled from the rows already on screen:
   // how many, what tempo range, how much material. It follows the search and
@@ -823,7 +838,9 @@ export function ListSurface({
   // everything, so taps pick several for the bar below to act on. Read per
   // input, not per device: an iPad's trackpad clicks the way a mouse does.
   const touchPass = useMemo(() => touchPassAllowed(), []);
-  const { isTouch } = useBreakpoint();
+  const bp = useBreakpoint();
+  const { isTouch } = bp;
+  const phoneShell = shellOf(bp).mobileShell;
   const lastPtrRef = useRef('mouse');
   const [selecting, setSelecting] = useState(false);
   const touchTap = (e) => touchPass && e?.type === 'click' && e.detail > 0 && lastPtrRef.current === 'touch';
@@ -1259,7 +1276,7 @@ export function ListSurface({
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
       // So does an open menu — right-click, View, the path ▾, sort: Escape
       // closes the menu alone and arrows stay in it.
-      if (document.querySelector('.ctx-menu, .cbt-menu')) return;
+      if (document.querySelector('.ctx-menu, .cbt-menu, .sbf-menu, .sbf-switch')) return;
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       // Keys typed in the Info drawer are its own (lib/infoBus.inInfoDrawer) —
@@ -1700,7 +1717,7 @@ export function ListSurface({
     const ro = new ResizeObserver(set);
     ro.observe(head);
     return () => { ro.disconnect(); wrap.style.removeProperty('--lp-head-h'); };
-  }, [isPanel, filesBlockShown]);
+  }, [isPanel, filesBlockShown, sb]);
   useEffect(() => {
     const el = headSentinelRef.current;
     const root = el?.closest?.('.list-wrap');
@@ -1708,7 +1725,7 @@ export function ListSurface({
     const io = new IntersectionObserver(([e]) => setHeadStuck(!e.isIntersecting), { root, threshold: 0 });
     io.observe(el);
     return () => io.disconnect();
-  }, [isPanel, filesBlockShown]);
+  }, [isPanel, filesBlockShown, sb]);
 
   // Files → board. A tile or row drags the selection it belongs to (or just
   // itself); the board it lands on decides what the drop means (lib/filesDrag).
@@ -2076,6 +2093,24 @@ export function ListSurface({
     );
   };
 
+  // While files are dragged over Files: what a drop does, said in the header
+  // in place of the search row.
+  const dropLine = dragNote === 'move'
+    ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
+    : dragNote === 'copy'
+    ? { text: `Drop to copy to ${board?.name || 'this cluster'}` }
+    : dragNote === 'version'
+    ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
+    : dragNote === 'files'
+    ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
+    : dragNote === 'blocked'
+      ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
+      : null;
+  const onUpsell = () => {
+    try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
+    onStorageUpsell?.();
+  };
+
   // One toolbar, two placements: in full Files it sits under the page's title;
   // beside the board it is the panel's header — compact, always present (it
   // carries the dock's ⤢ and ×), and first in the panel.
@@ -2092,27 +2127,14 @@ export function ListSurface({
       onToggleUnplaced={() => setUnplacedOnly((v) => !v)}
       onAddFiles={openAddPicker} canEdit={canEdit}
       showUpsell={!isPanel && showStorageUpsell && !!onStorageUpsell}
-      onUpsell={() => {
-        try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
-        onStorageUpsell?.();
-      }}
+      onUpsell={onUpsell}
       facePeers={isPanel ? [] : facePeers}
       searchRef={searchRef}
       compact={isPanel}
       clusterName={board?.name}
       pathBar={isPanel ? pathBar : null}
       readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
-      dropBanner={dragNote === 'move'
-        ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
-        : dragNote === 'copy'
-        ? { text: `Drop to copy to ${board?.name || 'this cluster'}` }
-        : dragNote === 'version'
-        ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
-        : dragNote === 'files'
-        ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
-        : dragNote === 'blocked'
-          ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
-          : null}
+      dropBanner={dropLine}
       dockControls={dockControls ? { ...dockControls, mode } : null}
     />
   );
@@ -2245,6 +2267,124 @@ export function ListSurface({
     ? (cards || []).find((c) => c.id === [...selectedCards][0] && c.kind !== 'boardlink') || null
     : null;
 
+  // The selection's actions. Production floats them at the foot of the list,
+  // in this order; the page in the files sidebar's look sets them in its head
+  // in the controls' place: Clear first, then the count, Delete in red, Info
+  // last.
+  const renderSelbar = () => {
+    const count = (
+      <span className="list-selbar-count" aria-live="polite"
+            title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel || !selecting ? `${totalSel} selected` : 'Select items'}</span>
+    );
+    const download = downloadableSelected.length > 0 && (
+      <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
+              title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
+              aria-label={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
+        <Icon as={sb ? DownloadSimple : Download} size={14} weight="light" />
+        <span>{zipping ? 'Preparing…'
+             : downloadableSelected.length === 1 ? 'Download'
+             : `Download ${downloadableSelected.length}`}</span>
+      </button>
+    );
+    // A visitor on a shared link can't move or delete, so those aren't offered.
+    const put = canEdit && selectedUnplaced.length > 0 && (
+      <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
+              title="Put on the board" aria-label="Put on board">
+        <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
+      </button>
+    );
+    const move = canEdit && onPickCluster && movableSel > 0 && (
+      <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
+        <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
+      </button>
+    );
+    // With no right-click to find it, a finger gets Copy to… here.
+    const copy = touchPass && (selecting || isTouch) && canCopyTo && (
+      <button type="button" className="list-selbar-act" onClick={copySelection} title="Copy to…" aria-label="Copy to…">
+        <Icon as={Copy} size={14} weight="light" /><span>Copy to…</span>
+      </button>
+    );
+    const newCluster = canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
+      <button type="button" className="list-selbar-act" onClick={() => newClusterFromSelection()}
+              title="Move them into a new cluster" aria-label="New cluster">
+        <Icon as={sb ? FolderSimplePlus : Folder} size={14} weight="light" /><span>New cluster</span>
+      </button>
+    );
+    const del = canEdit && totalSel > 0 && (
+      <button type="button" className={`list-selbar-act${sb ? ' is-danger' : ''}`} onClick={deleteSelection} title="Delete" aria-label="Delete">
+        <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
+      </button>
+    );
+    const info = totalSel > 0 && (
+      <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
+              aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`} aria-label="Info">
+        <Icon as={Info} size={14} weight="light" /><span>Info</span>
+      </button>
+    );
+    const done = selecting ? (
+      <button type="button" className="list-selbar-act list-selbar-done"
+              onClick={() => { setSelecting(false); setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
+        Done
+      </button>
+    ) : (
+      <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
+              onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
+        <Icon as={X} size={14} weight="light" />
+      </button>
+    );
+    // Keys to teach a keyboard; a finger has none of them.
+    const hint = !isPanel && !multiHintSeen && !isTouch && (
+      <span className="list-selbar-hint">
+        <kbd>{isMac ? '⌘A' : 'Ctrl+A'}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{isMac ? '⇧' : 'Shift'}</kbd>-click range
+      </span>
+    );
+    return (
+      <div className="list-selbar" ref={selbarRef}>
+        {sb ? (
+          <>{done}{count}<span className="list-selbar-sep" aria-hidden="true" />{download}{put}{move}{copy}{newCluster}{del}<span className="list-selbar-spacer" />{hint}{info}</>
+        ) : (
+          <>{count}{download}{put}{move}{copy}{newCluster}{del}{info}{done}{hint}</>
+        )}
+      </div>
+    );
+  };
+  const selbarJsx = totalSel > 0 || selecting ? renderSelbar() : null;
+
+  // The card's "All files ⌄" as the page's (FilesShowMenu): Show and Sort in
+  // the card's words, and in Grid the tile Size, which leaves it open.
+  const pageSort = sidebarSortOf(sortKey, sortDir);
+  const menuLabel = chipLabelOf(pageChip);
+  const pageMenu = sb ? {
+    label: menuLabel, on: pageChip !== 'all', ariaLabel: 'Show and sort',
+    title: `Showing ${menuLabel.toLowerCase()} · sorted by ${(pageSort ? SORT_LABELS[pageSort] : sortLabelOf(sortKey, sortDir)).toLowerCase()}`,
+    sections: [
+      { id: 'show', label: 'Show', items: pageChipsOf(chipCounts, pageChip).map((c) => ({
+        key: c.id, label: c.id === 'all' ? 'All files' : c.label, count: chipCounts?.[c.id] || 0,
+        checked: pageChip === c.id, onPick: () => pickChip(c.id) })) },
+      { id: 'sort', label: 'Sort', items: [
+        ...SORTS.map((so) => ({ key: so, label: SORT_LABELS[so], checked: pageSort === so, onPick: () => setPageSort(SORT_TO_PAGE[so]) })),
+        // A column head's sort the menu has no word for: shown, in force.
+        ...(pageSort ? [] : [{ key: 'custom', label: sortLabelOf(sortKey, sortDir), checked: true, onPick: () => {} }]),
+      ] },
+    ],
+    extra: viewMode === 'gallery' ? (
+      <>
+        <div className="sbf-menu-sep" role="separator" />
+        <div className="fp-size-row" role="group" aria-label="Tile size">
+          <span className="fp-size-label">Size</span>
+          <div className="sbf-tabs">
+            {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
+              <button type="button" key={k} role="menuitemradio" aria-checked={tileSize === k} aria-label={label}
+                      className={`sbf-tab${tileSize === k ? ' is-on' : ''}`} onClick={() => onTileSize(k)}>
+                {k.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      </>
+    ) : null,
+  } : null;
+
   return (
     <IconWeightContext.Provider value={sb ? 'regular' : null}>
     <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}${selecting ? ' is-selecting' : ''}${noTouchDrag ? ' is-touch' : ''}`} ref={listWrapRef}
@@ -2266,9 +2406,42 @@ export function ListSurface({
       <div className="list-inner" ref={listInnerRef} onContextMenu={onListContextMenu}>
         {isPanel && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
         {isPanel && <div className={`lp-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
+        {/* The page in the files sidebar's look: the card's head grown, sticky
+            in the sheet — the cluster's name, then the card's controls, or the
+            selection's actions, or what a drop does. */}
+        {sb && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {sb && (
+          <div className={`fp-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>
+            <FilesPageHead board={board} boards={boards} phone={phoneShell}
+              meta={phoneShell ? '' : pageMeta}
+              download={canDownloadAll && !phoneShell ? {
+                label: zipping ? 'Preparing…' : narrowed ? `Download ${downloadableVisible.length}` : 'Download all',
+                busy: zipping, onClick: downloadAll } : null}
+              shrink={dockControls?.canShrink && dockControls?.onShrink ? {
+                label: dockControls.shrinkLabel || 'Beside board', title: dockControls.shrinkTitle, onClick: dockControls.onShrink } : null}
+              trail={hasTrail ? fullPathBar : null}
+              onOpenBoard={onOpenBoard} />
+            {selbarJsx || (dropLine ? (
+              <div className="fp-drop-line">
+                <div className={`fp-drop${dropLine.blocked ? ' is-blocked' : ''}`} role="status">
+                  <Icon as={UploadSimple} size={15} weight="regular" />{dropLine.text}
+                </div>
+              </div>
+            ) : otherCards.length > 0 ? (
+              <FilesPageTools query={query} onQuery={setQuery} searchRef={searchRef}
+                placeholder={`Search ${board?.name || 'this cluster'}`}
+                menu={pageMenu}
+                found={loading ? '' : narrowed ? `${visibleItems.length} of ${otherCards.length}` : (packSummary || '')}
+                faces={phoneShell ? null : facePeers}
+                viewMode={viewMode} onViewMode={onViewMode}
+                upsell={canEdit && showStorageUpsell && onStorageUpsell ? <StorageUpsell onUpsell={onUpsell} /> : null}
+                onAddFiles={canEdit ? openAddPicker : null} />
+            ) : null)}
+          </div>
+        )}
         {/* Full Files opens on the cluster's name and what's in it — then the
             toolbar, sticky, above everything it searches and sorts. */}
-        {!isPanel && (
+        {!isPanel && !sb && (
           <header className={`cb-pagehead${hasTrail ? ' has-trail' : ''}`}>
             {hasTrail && <div className="cb-pagehead-trail"><PathBar {...fullPathBar} /></div>}
             <h1 className="cb-pagehead-title">{board?.name || 'Untitled cluster'}</h1>
@@ -2290,8 +2463,8 @@ export function ListSurface({
             )}
           </header>
         )}
-        {!isPanel && filesBlockShown && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
-        {!isPanel && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
+        {!isPanel && !sb && filesBlockShown && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {!isPanel && !sb && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
         {!isPanel && clusterEmpty && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
@@ -2485,76 +2658,9 @@ export function ListSurface({
                }} />
         {/* Rendered LAST inside .list-inner and stuck to the bottom of the
             scrollport, so the actions for a selection are still on screen once
-            you have scrolled past the rows you made it from. */}
-        {(totalSel > 0 || selecting) && (
-          <div className="list-selbar" ref={selbarRef}>
-            <span className="list-selbar-count" aria-live="polite"
-                  title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel || !selecting ? `${totalSel} selected` : 'Select items'}</span>
-            {downloadableSelected.length > 0 && (
-              <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
-                      title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
-                      aria-label={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
-                <Icon as={Download} size={14} weight="light" />
-                <span>{zipping ? 'Preparing…'
-                     : downloadableSelected.length === 1 ? 'Download'
-                     : `Download ${downloadableSelected.length}`}</span>
-              </button>
-            )}
-            {/* A visitor on a shared link can't move or delete, so those
-                aren't offered. */}
-            {canEdit && selectedUnplaced.length > 0 && (
-              <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
-                      title="Put on the board" aria-label="Put on board">
-                <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
-              </button>
-            )}
-            {canEdit && onPickCluster && movableSel > 0 && (
-              <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
-                <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
-              </button>
-            )}
-            {/* With no right-click to find it, a finger gets Copy to… here. */}
-            {touchPass && (selecting || isTouch) && canCopyTo && (
-              <button type="button" className="list-selbar-act" onClick={copySelection} title="Copy to…" aria-label="Copy to…">
-                <Icon as={Copy} size={14} weight="light" /><span>Copy to…</span>
-              </button>
-            )}
-            {canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
-              <button type="button" className="list-selbar-act" onClick={() => newClusterFromSelection()}
-                      title="Move them into a new cluster" aria-label="New cluster">
-                <Icon as={Folder} size={14} weight="light" /><span>New cluster</span>
-              </button>
-            )}
-            {canEdit && totalSel > 0 && (
-              <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete" aria-label="Delete">
-                <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
-              </button>
-            )}
-            {totalSel > 0 && (
-              <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
-                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`} aria-label="Info">
-                <Icon as={Info} size={14} weight="light" /><span>Info</span>
-              </button>
-            )}
-            {selecting ? (
-              <button type="button" className="list-selbar-act list-selbar-done"
-                      onClick={() => { setSelecting(false); setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
-                Done
-              </button>
-            ) : (
-              <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
-                      onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
-                <Icon as={X} size={14} weight="light" />
-              </button>
-            )}
-            {/* Keys to teach a keyboard; a finger has none of them. */}
-            {!isPanel && !multiHintSeen && !isTouch && (
-              <span className="list-selbar-hint">
-                <kbd>{isMac ? '⌘A' : 'Ctrl+A'}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{isMac ? '⇧' : 'Shift'}</kbd>-click range
-              </span>
-            )}
-          </div>
-        )}
+            you have scrolled past the rows you made it from. The page in the
+            files sidebar's look sets them in its head instead. */}
+        {!sb && selbarJsx}
       </div>
     </div>
     </IconWeightContext.Provider>

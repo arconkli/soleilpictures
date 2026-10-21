@@ -33,16 +33,19 @@ const SHEET_STEP = 18;
 // down to the meter. When it doesn't all fit there and the room under the
 // tabs is short (a tall tree above leaves the Files card low), it opens over
 // the tabs instead if there's more room above, as menus do. A touch keyboard
-// up for the find box is a floor too: the list stops above it.
+// up for the find box is a floor too: the list stops above it. A fixed width
+// (the full Files page's title, which has no card around it) replaces the
+// card's.
 const ROOM = 260;
-function placeSwitch(tabs, card, want) {
+function placeSwitch(tabs, card, want, fixedWidth = null) {
   if (!tabs) return null;
   const t = tabs.getBoundingClientRect();
   const c = card?.getBoundingClientRect() || null;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const inset = c ? Math.max(0, t.left - c.left) : 0;
-  const width = Math.min(vw - 16, Math.max(240, c ? c.width - inset * 2 : t.width));
+  const width = fixedWidth ? Math.min(vw - 16, fixedWidth)
+    : Math.min(vw - 16, Math.max(240, c ? c.width - inset * 2 : t.width));
   const left = Math.max(8, Math.min(t.left, vw - width - 8));
   const meter = card?.querySelector('.sbf-meter');
   const low = vh - keyboardInset(window) - 8;
@@ -64,6 +67,7 @@ export function ClusterSwitch({
   closing = false,
   tabsRef,
   cardRef,
+  width = null,           // a fixed width (the Files page's title), else the card's
   onPick,                 // (boardId) => void
   onClose,
 }) {
@@ -96,7 +100,7 @@ export function ClusterSwitch({
       if (t instanceof Node && popRef.current?.contains(t)) return;
       // All of it: the find line and every row, however much shows now.
       const want = (popRef.current?.querySelector('.sbf-switch-find')?.offsetHeight || 40) + (listRef.current?.scrollHeight || 0);
-      setPos(placeSwitch(tabsRef?.current, cardRef?.current, want));
+      setPos(placeSwitch(tabsRef?.current, cardRef?.current, want, width));
     };
     place();
     const vv = window.visualViewport;
@@ -110,7 +114,7 @@ export function ClusterSwitch({
       vv?.removeEventListener('resize', place);
       vv?.removeEventListener('scroll', place);
     };
-  }, [sheet, tabsRef, cardRef]);
+  }, [sheet, tabsRef, cardRef, width]);
 
   // Open: the find box takes the keys (on a touch screen the list does, so no
   // keyboard comes up over it), and the cluster checked is in view.

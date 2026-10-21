@@ -177,4 +177,11 @@ export {
   Gift,
   // The drag label's "can't go there" (components/sidebar/DragLabel.jsx).
   Prohibit,
+  // The full Files page in the files sidebar's look: the sidebar's simple
+  // glyphs (clusterBrowser/FilesPageHead.jsx, its shelves and Info).
+  DownloadSimple,
+  UploadSimple,
+  FolderSimple,
+  FolderSimplePlus,
+  LinkSimple,
 } from '@phosphor-icons/react';
