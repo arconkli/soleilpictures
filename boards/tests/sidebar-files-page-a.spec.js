@@ -142,3 +142,42 @@ test.describe('the head', () => {
     await expect(sheet(page)).toHaveClass(/is-drop-target/);
   });
 });
+
+test.describe('Grid: the shelves', () => {
+  test('clusters first, then the shelves in the card order; minor shelves closed until opened', async ({ page }) => {
+    await open(page);
+    const heads = sheet(page).locator('.fp-shelf');
+    await expect(heads.first()).toContainText('Clusters');
+    await expect(sheet(page).locator('.fp-cls .ft')).toHaveCount(3);
+    const order = await heads.evaluateAll((els) => els.map((e) => e.getAttribute('data-shelf')));
+    expect(order).toEqual(['clusters', 'photos', 'video', 'audio', 'files', 'writing', 'links', 'more']);
+    await expect(sheet(page).locator('.fp-shelf[data-shelf="writing"]')).toHaveClass(/is-closed/);
+    await expect(sheet(page).locator('[data-item-id="film-note-0"]')).toHaveCount(0);
+    await sheet(page).locator('.fp-shelf[data-shelf="writing"] .sbf-shelf-toggle').click();
+    await expect(sheet(page).locator('[data-item-id="film-note-0"]')).toHaveCount(1);
+  });
+
+  test('photos and video are captionless justified tiles; the rest are rows', async ({ page }) => {
+    await open(page);
+    await expect(sheet(page).locator('[data-item-id="film-img-3"]')).toHaveClass(/is-captionless/);
+    await expect(sheet(page).locator('[data-item-id="film-img-3"] .ct-tile-meta')).toHaveCount(0);
+    await expect(sheet(page).locator('[data-item-id="film-aud-0"]')).toHaveClass(/ct-row/);
+  });
+
+  test('the arrows walk from the last photo into the video shelf', async ({ page }) => {
+    await open(page);
+    const ids = await sheet(page).locator('.fp-shelf[data-shelf="photos"] + .ct-jg [data-item-id]').evaluateAll((els) => els.map((e) => e.getAttribute('data-item-id')));
+    await sheet(page).locator(`[data-item-id="${ids[ids.length - 1]}"]`).click();
+    await page.keyboard.press('ArrowRight');
+    const active = await sheet(page).locator('.ct-tile.is-active, .ct-row.is-active').first().getAttribute('data-item-id');
+    const video = await sheet(page).locator('.fp-shelf[data-shelf="video"] + .ct-jg [data-item-id]').first().getAttribute('data-item-id');
+    expect(active).toBe(video);
+  });
+
+  test('a search shows every shelf with a hit, minor ones open', async ({ page }) => {
+    await open(page);
+    await page.locator('.fp-search input').fill('Call sheet');
+    await expect(sheet(page).locator('[data-item-id="film-note-0"]')).toHaveCount(1);
+    await expect(sheet(page).locator('.fp-shelf[data-shelf="writing"]')).not.toHaveClass(/is-closed/);
+  });
+});

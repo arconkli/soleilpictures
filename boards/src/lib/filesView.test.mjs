@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SORT_TO_PAGE, sidebarSortOf, sortLabelOf, chipToFilter, filterToChip, chipCountsOf, pageChipsOf,
-  chipLabelOf, sectionsOf, shelfClosed, shelfFoldable, screenOrderOf, navStep,
+  chipLabelOf, sectionsOf, shelfClosed, shelfFoldable, screenOrderOf, navStep, kindLabelOf, lengthLabelOf,
 } from './filesView.js';
 import { SORTS } from './sidebarSort.js';
 import { FILTER_CHIPS, SHELF_BUCKETS } from './sidebarShelves.js';
@@ -106,4 +106,23 @@ test('the arrows cross from shelf to shelf', () => {
   assert.equal(navStep(parts, 'y', 'down'), 'y');
   assert.equal(navStep(parts, 'a', 'up'), 'a');
   assert.equal(navStep([], 'a', 'down'), null);
+});
+
+test("a row's Kind: the word and the file's own format", () => {
+  assert.equal(kindLabelOf(it('a', 'image', { typeLabel: 'Image', ext: 'jpg' })), 'Image · JPG');
+  assert.equal(kindLabelOf(it('a', 'audio', { typeLabel: 'Audio', ext: 'wav', format: 'WAV' })), 'Audio · WAV');
+  assert.equal(kindLabelOf(it('a', 'video', { typeLabel: 'Video', ext: '' })), 'Video');
+  assert.equal(kindLabelOf(it('a', 'file', { typeLabel: 'File', ext: 'zip' })), 'ZIP');
+  assert.equal(kindLabelOf(it('a', 'file', { typeLabel: 'File', ext: '' })), 'File');
+  assert.equal(kindLabelOf(it('a', 'pdf', { typeLabel: 'PDF', ext: 'pdf' })), 'PDF');
+  assert.equal(kindLabelOf(it('a', 'note', { typeLabel: 'Note' })), 'Note');
+  assert.equal(kindLabelOf(null), '');
+});
+
+test("a clip's length, and a loop's tempo after it", () => {
+  assert.equal(lengthLabelOf(it('a', 'audio', { durationSec: 8.4, bpm: 90 })), '0:08 · 90 BPM');
+  assert.equal(lengthLabelOf(it('a', 'audio', { durationSec: 12, bpm: null })), '0:12');
+  assert.equal(lengthLabelOf(it('a', 'video', { durationSec: 71, bpm: 90 })), '1:11');
+  assert.equal(lengthLabelOf(it('a', 'audio', { durationSec: null, bpm: 90 })), '');
+  assert.equal(lengthLabelOf(it('a', 'image', { durationSec: 5 })), '');
 });

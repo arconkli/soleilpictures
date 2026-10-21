@@ -13,6 +13,7 @@
 
 import { SHELVES, SHELF_BUCKETS, FILTER_CHIPS, shelfOf } from './sidebarShelves.js';
 import { gridNeighbor } from './justifiedGrid.js';
+import { formatDuration } from './loopMeta.js';
 
 // The card's sorts, as the page sorts (lib/listItem.js sortItems).
 export const SORT_TO_PAGE = Object.freeze({
@@ -116,6 +117,28 @@ export function sectionsOf(items) {
     });
   }
   return out;
+}
+
+// What a row's Kind says: the word, then the file's own format, as Finder's
+// Kind does ("Image · JPG", "Audio · WAV"). A stored file's format is its
+// kind ("ZIP", "XLSX"); a note's, a doc's or a link's is the word alone.
+const FORMATTED = new Set(['image', 'video', 'audio']);
+export function kindLabelOf(item) {
+  if (!item) return '';
+  const fmt = String(item.format || item.ext || '').toUpperCase();
+  if (item.kind === 'file') return fmt || item.typeLabel || 'File';
+  if (FORMATTED.has(item.kind) && fmt) return `${item.typeLabel} · ${fmt}`;
+  return item.typeLabel || '';
+}
+
+// How long a clip runs, as a shelf's row says it where a file's size goes:
+// the length, then a loop's tempo ("0:08 · 90 BPM"). Empty for anything that
+// doesn't play, or a clip whose length isn't known yet.
+export function lengthLabelOf(item) {
+  if (item?.kind !== 'audio' && item?.kind !== 'video') return '';
+  const len = formatDuration(item.durationSec);
+  if (!len) return '';
+  return item.kind === 'audio' && Number.isFinite(item.bpm) ? `${len} · ${item.bpm} BPM` : len;
 }
 
 // Notes, Links and Other start closed, as the card's do, until opened this

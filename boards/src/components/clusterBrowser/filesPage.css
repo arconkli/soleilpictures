@@ -6,7 +6,9 @@
    justified grid on the card's shelves, the rest in rows; List is a classic
    Finder table. Every rule is under [data-look='sb'], which ListSurface and
    Quick look set only with that look (filesLook.js), or under .is-files-page,
-   which App sets only then, so the page production has matches nothing here. */
+   which App sets only then, or names a class only that look's markup carries
+   (fp-*, ct-status, ct-stored, is-glyph), so the page production has matches
+   nothing here. */
 
 /* ── The ground ──────────────────────────────────────────────────────────── */
 /* While the page is open the board's ground runs on behind the sidebar and
@@ -175,3 +177,53 @@
 .fp-drop svg { flex: none; color: var(--soleil); }
 .fp-drop.is-blocked { border-color: var(--line-2); background: var(--sbf-track); color: var(--ink-1); }
 .fp-drop.is-blocked svg { color: var(--ink-2); }
+
+/* ── Grid: the card's shelves, grown ─────────────────────────────────────── */
+.list-wrap[data-look='sb'] .fp-shelf { height: 36px; padding: 0 4px 0 2px; }
+.list-wrap[data-look='sb'] .fp-shelf.is-first { height: 30px; }
+.list-wrap[data-look='sb'] .fp-shelf .sbf-shelf-toggle { flex: 0 1 auto; margin: 0; }
+.list-wrap[data-look='sb'] .fp-shelf .sbf-shelf-caret { opacity: 1; }
+.list-wrap[data-look='sb'] .fp-cls,
+.list-wrap[data-look='sb'] .cb-main .ct-jg,
+.list-wrap[data-look='sb'] .ct-table.is-bare { margin-bottom: 6px; }
+/* Clusters in this one: cards with their covers. */
+.fp-cls { display: flex; flex-wrap: wrap; gap: 8px; }
+.list-wrap[data-look='sb'] .fp-cls .ft {
+  width: 236px; height: 56px; box-sizing: border-box; padding: 0 12px 0 8px; gap: 10px;
+  border: 0; border-radius: 10px; box-shadow: none;
+  background: color-mix(in srgb, var(--ink-0) 4%, transparent);
+}
+[data-theme='light'] .list-wrap[data-look='sb'] .fp-cls .ft { background: rgba(10, 10, 12, .035); }
+.list-wrap[data-look='sb'] .fp-cls .ft:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
+.list-wrap[data-look='sb'] .fp-cls .ft-cover { width: 40px; height: 40px; border-radius: 7px; }
+.list-wrap[data-look='sb'] .fp-cls .ft-name { color: var(--ink-0); font: 500 13px/1.2 var(--font-sans); }
+.list-wrap[data-look='sb'] .fp-cls .ft-meta { color: var(--ink-2); font: 400 12px/1.2 var(--font-sans); font-variant-numeric: tabular-nums; }
+.list-wrap[data-look='sb'] .fp-cls .ft.is-selected {
+  background: var(--bg-act); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent);
+}
+.list-wrap[data-look='sb'] .fp-cls .ft.is-drop-target { box-shadow: inset 0 0 0 2px var(--soleil); }
+/* Rows on a shelf: no box, no header, the columns of the classic table. */
+.list-wrap[data-look='sb'] .ct-table { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.list-wrap[data-look='sb'] .ct-table.is-bare .ct-row {
+  grid-template-columns: minmax(0, 1fr) 120px 112px 96px 190px; column-gap: 12px;
+  height: 36px; padding: 0 8px 0 4px; border: 0; border-radius: 6px; contain-intrinsic-size: auto 36px;
+}
+.list-wrap[data-look='sb'] .ct-table.is-bare .ct-thumb { width: 28px; height: 28px; border-radius: 5px; }
+/* A file with no picture: the card's glyph, unboxed. */
+.list-wrap[data-look='sb'] .ct-thumb.is-glyph { border-color: transparent; outline: 0; background: transparent; color: var(--ink-2); }
+.list-wrap[data-look='sb'] .ct-sub { display: none; }
+.list-wrap[data-look='sb'] .ct-row .ct-name { color: var(--ink-1); font: 500 13px/1.2 var(--font-sans); }
+.list-wrap[data-look='sb'] .ct-cell.ct-c-type,
+.list-wrap[data-look='sb'] .ct-cell.ct-c-size,
+.list-wrap[data-look='sb'] .ct-cell.ct-c-date { color: var(--ink-2); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.list-wrap[data-look='sb'] .ct-cell.ct-c-presence {
+  display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden;
+  color: var(--ink-2); font: 400 12px/1 var(--font-sans); white-space: nowrap;
+}
+.ct-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ct-stored { flex: none; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--ink-3); }
+.list-wrap[data-look='sb'] .ct-row.is-selected,
+.list-wrap[data-look='sb'] .ct-row.is-selected + .ct-row.is-selected {
+  background: var(--bg-act); border-bottom-color: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent);
+}

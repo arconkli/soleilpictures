@@ -9,6 +9,8 @@ import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { InlineRename } from './InlineRename.jsx';
 import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAnalysis.js';
 import { formatDuration, formatKey } from '../../lib/loopMeta.js';
+import { kindLabelOf, lengthLabelOf } from '../../lib/filesView.js';
+import { KindGlyph } from '../sidebar/ClusterShelves.jsx';
 
 // The row's waveform, from the SAME stored peaks the card draws. Every other
 // bucket: at this width 96 bars is a smear.
@@ -64,6 +66,9 @@ export const ClusterRow = memo(function ClusterRow({
   markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
   rowIndex = undefined,   // its place among all rows, when the table mounts only some
   checks = false,   // Select is picking several: a check says which are in
+  // A shelf's row on the Files page in the files sidebar's look: where it
+  // stands is said in the last column, in words, not as a pill by its name.
+  bare = false,
 }) {
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
@@ -74,6 +79,16 @@ export const ClusterRow = memo(function ClusterRow({
   // repeat what the Format column already says — so the transport takes the
   // space instead. See .ct-thumb.is-bare.
   const bareAudio = canAudition && item.preview?.mode === 'icon';
+  // On a shelf a file with no picture of its own is drawn as the sidebar's
+  // card draws it: its quiet glyph, with no box.
+  const glyphOnly = bare && !item.pending && !bareAudio && item.preview?.mode !== 'r2';
+  // On a shelf a row's size says what matters about it: how long a clip
+  // runs, how big a file is, where a link goes.
+  const sizeText = bare
+    ? (lengthLabelOf(item)
+      || (Number.isFinite(item.sizeBytes) && item.sizeBytes > 0 ? humanSize(item.sizeBytes) : '')
+      || (item.kind === 'link' ? (item.sub || '') : ''))
+    : (item.sizeBytes != null ? humanSize(item.sizeBytes) : '');
   return (
     <div
       ref={rowRef}
@@ -87,8 +102,10 @@ export const ClusterRow = memo(function ClusterRow({
     >
       <div role="cell" className="ct-cell ct-c-name">
         {checks && <span className="row-check" aria-hidden="true"><Icon as={Check} size={11} weight="bold" /></span>}
-        <div className={`ct-thumb${canAudition ? ' is-audio' : ''}${bareAudio ? ' is-bare' : ''}`}>
-          <CardPreview item={item} size="row" />
+        <div className={`ct-thumb${canAudition ? ' is-audio' : ''}${bareAudio ? ' is-bare' : ''}${glyphOnly ? ' is-glyph' : ''}`}>
+          {glyphOnly
+            ? <KindGlyph kind={item.kind} ext={item.preview?.ext || item.ext} mime={item.preview?.mime} />
+            : <CardPreview item={item} size="row" />}
           {item.pending && <span className="ct-thumb-spin" aria-hidden="true" />}
           {canAudition && (
             <button type="button" className="ct-play"
@@ -127,8 +144,8 @@ export const ClusterRow = memo(function ClusterRow({
               </div>
             )}
         </div>
-        {onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
-        {markUnplaced && item.unplaced && <span className="ct-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
+        {!bare && onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
+        {!bare && markUnplaced && item.unplaced && <span className="ct-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
         {item.kind === 'audio' && (
           // Scrubbing is live only while THIS row is the one sounding. The
           // waveform is 240px of a 620px name cell, so making it a transport
@@ -151,15 +168,23 @@ export const ClusterRow = memo(function ClusterRow({
         </>
       ) : (
         <>
-          <div role="cell" className="ct-cell ct-c-type">{item.typeLabel}</div>
-          <div role="cell" className="ct-cell ct-c-size">{item.sizeBytes != null ? humanSize(item.sizeBytes) : ''}</div>
+          <div role="cell" className="ct-cell ct-c-type">{bare ? kindLabelOf(item) : item.typeLabel}</div>
+          <div role="cell" className="ct-cell ct-c-size">{sizeText}</div>
         </>
       )}
       <div role="cell" className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
       <div role="cell" className="ct-cell ct-c-presence">
-        {peers && peers.slice(0, 2).map((pp, i) => (
-          <Avatar key={pp.user.id || i} name={pp.user.name} color={pp.user.color} size={18} ring />
-        ))}
+        {bare ? (peer ? (
+          <>
+            <Avatar name={peer.user.name} color={peer.user.color} size={18} ring />
+            <span className="ct-status">{(peer.user.name || '').split(/\s+/)[0] || 'Someone'} has it selected</span>
+          </>
+        ) : markUnplaced && item.unplaced ? (
+          <><span className="ct-stored" aria-hidden="true" /><span className="ct-status">Not on board</span></>
+        ) : onBoard ? <span className="ct-status">On board</span> : null)
+          : peers && peers.slice(0, 2).map((pp, i) => (
+            <Avatar key={pp.user.id || i} name={pp.user.name} color={pp.user.color} size={18} ring />
+          ))}
         {canDownload && !peer && (
           <button type="button" className="ct-dl" title={`Download ${item.name}`}
                   aria-label={`Download ${item.name}`}

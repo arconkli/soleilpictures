@@ -12,7 +12,7 @@
 import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react';
 import { ClusterTile } from './ClusterTile.jsx';
 import { CardPreview } from './CardPreview.jsx';
-import { aspectOfItem, layoutGallery, visibleRange, TILE_SIZES, DEFAULT_TILE_SIZE } from '../../lib/justifiedGrid.js';
+import { aspectOfItem, layoutGallery, visibleRange, TILE_SIZES, DEFAULT_TILE_SIZE, GALLERY_GAP, CAPTION_H } from '../../lib/justifiedGrid.js';
 
 const VIRTUALIZE_ABOVE = 400;
 
@@ -26,6 +26,9 @@ export function JustifiedGallery({
   activeId = null, registerRow = null, onLayout = null,
   renameFor = null,   // (id) => { onCommit, onCancel } for the tile being renamed
   markUnplaced = false,
+  // The Files page in the files sidebar's look (FilesShelves.jsx): its own
+  // gap, no caption under the pictures, and a row height of its own (video).
+  gap = GALLERY_GAP, captionH = CAPTION_H, rowHeight = null,
 }) {
   const ref = useRef(null);
   const [width, setWidth] = useState(0);
@@ -67,8 +70,8 @@ export function JustifiedGallery({
   }, [items, expandedGroups]);
 
   const { tiles, height } = useMemo(
-    () => layoutGallery(entries, { width, rowHeight: TILE_SIZES[tileSize] || TILE_SIZES[DEFAULT_TILE_SIZE] }),
-    [entries, width, tileSize]);
+    () => layoutGallery(entries, { width, rowHeight: rowHeight ?? (TILE_SIZES[tileSize] || TILE_SIZES[DEFAULT_TILE_SIZE]), gap, captionH }),
+    [entries, width, tileSize, rowHeight, gap, captionH]);
 
   useEffect(() => { onLayout?.({ tiles, ids: entries.map((e) => e.id) }); }, [tiles, entries, onLayout]);
 
@@ -144,7 +147,7 @@ export function JustifiedGallery({
           style={style} previewH={t.previewH} px={t.w}
           active={activeId === it.id} tileRef={registerRow ? registerRow(it.id) : null}
           rename={renameFor ? renameFor(it.id) : null}
-          markUnplaced={markUnplaced}
+          markUnplaced={markUnplaced} captionless={captionH === 0}
           selected={selectedCards.has(it.id)}
           isNew={recentlyAddedIds?.has?.(it.id)}
           peers={peerMap?.get(it.id)}

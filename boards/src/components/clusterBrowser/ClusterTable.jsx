@@ -32,6 +32,9 @@ export function ClusterTable({
   onAudition = null, onSeek = null, activeId = null, playingId = null, registerRow = null,
   audioMode = false, draggableItems = false, onBoardIds = null, renameFor = null, markUnplaced = false,
   checks = false,   // Select (a touch screen's hold menu): a check on every row
+  // A shelf's rows on the Files page in the files sidebar's look
+  // (FilesShelves.jsx): no header, and each row says where it stands in words.
+  bare = false,
 }) {
   const dateKey = sortKey === 'created' ? 'created' : 'updated';
   const th = (cls, col, label, note = null) => (
@@ -112,10 +115,12 @@ export function ClusterTable({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
-  // rowIndex: 1 is the header, so the first row is 2 (aria-rowindex).
+  // rowIndex: 1 is the header, so the first row is 2 (aria-rowindex); with
+  // no header (bare) it is 1.
+  const firstRowIndex = bare ? 1 : 2;
   const rowOf = ({ item: it, group, member }, i) => (group ? (
     <GroupRow
-      key={group.id} group={group} rowIndex={virtual ? i + 2 : undefined}
+      key={group.id} group={group} rowIndex={virtual ? i + firstRowIndex : undefined}
       expanded={expandedGroups?.has?.(group.id)}
       selected={selectedGroupId === group.id}
       active={activeId === group.id} registerRow={registerRow}
@@ -134,33 +139,35 @@ export function ClusterTable({
       rowRef={registerRow ? registerRow(it.id) : null}
       audioMode={audioMode} draggable={draggableItems} onBoard={!!onBoardIds?.has?.(it.id)}
       rename={renameFor ? renameFor(it.id) : null} markUnplaced={markUnplaced}
-      checks={checks}
-      rowIndex={virtual ? i + 2 : undefined}
+      checks={checks} bare={bare}
+      rowIndex={virtual ? i + firstRowIndex : undefined}
       onClick={(e) => onRowClick(e, it.id)}
       onDoubleClick={(e) => onRowDoubleClick(e, it.id)}
     />
   ));
   return (
-    <div className={`ct-table${virtual ? ' is-windowed' : ''}`} role="table" aria-label="Files" aria-rowcount={virtual ? rows.length + 1 : undefined}
+    <div className={`ct-table${virtual ? ' is-windowed' : ''}${bare ? ' is-bare' : ''}`} role="table" aria-label="Files" aria-rowcount={virtual ? rows.length + firstRowIndex - 1 : undefined}
          data-cols={audioMode ? 'audio' : undefined}>
-      <div className="ct-head" role="row" aria-rowindex={virtual ? 1 : undefined}>
-        {th('ct-c-name', 'name', 'Name', sortNote)}
-        {audioMode ? (
-          <>
-            {th('ct-c-dur', 'duration', 'Time')}
-            {th('ct-c-bpm', 'bpm', 'BPM')}
-            {th('ct-c-key', 'key', 'Key')}
-            {th('ct-c-fmt', 'format', 'Format')}
-          </>
-        ) : (
-          <>
-            {th('ct-c-type', 'type', 'Type')}
-            {th('ct-c-size', 'size', 'Size')}
-          </>
-        )}
-        {th('ct-c-date', dateKey, dateKey === 'created' ? 'Added' : 'Modified')}
-        <div className="ct-th ct-c-presence" role="columnheader" />
-      </div>
+      {!bare && (
+        <div className="ct-head" role="row" aria-rowindex={virtual ? 1 : undefined}>
+          {th('ct-c-name', 'name', 'Name', sortNote)}
+          {audioMode ? (
+            <>
+              {th('ct-c-dur', 'duration', 'Time')}
+              {th('ct-c-bpm', 'bpm', 'BPM')}
+              {th('ct-c-key', 'key', 'Key')}
+              {th('ct-c-fmt', 'format', 'Format')}
+            </>
+          ) : (
+            <>
+              {th('ct-c-type', 'type', 'Type')}
+              {th('ct-c-size', 'size', 'Size')}
+            </>
+          )}
+          {th('ct-c-date', dateKey, dateKey === 'created' ? 'Added' : 'Modified')}
+          <div className="ct-th ct-c-presence" role="columnheader" />
+        </div>
+      )}
       <div className="ct-body" role="rowgroup" ref={bodyRef}>
         {start > 0 && <div className="ct-spacer" aria-hidden="true" style={{ height: start * rowH }} />}
         {rows.slice(start, end).map((r, k) => rowOf(r, start + k))}

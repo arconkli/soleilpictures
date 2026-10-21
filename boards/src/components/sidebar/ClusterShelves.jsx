@@ -57,20 +57,27 @@ function thumbSrc(item) {
   return null;
 }
 
+// A file's glyph when it has no picture of its own. The full Files page's
+// shelf rows draw the same one (clusterBrowser/ClusterRow.jsx).
+export function KindGlyph({ kind, ext = '', mime = '', size = 16 }) {
+  if (kind === 'file') return <Icon as={iconForFile(ext, mime)} size={size} weight="regular" />;
+  // Two kinds KindIcon draws as a bare circle get the mark the canvas's own
+  // add menu gives them.
+  const own = { grid: GridFour, art: Scribble }[kind];
+  if (own) return <Icon as={own} size={size} weight="regular" />;
+  return <KindIcon kind={kind} size={size} weight="regular" />;
+}
+
 function ItemGlyph({ item }) {
   const src = thumbSrc(item);
   if (src) {
     return <span className="sbf-file-thumb"><R2Image src={src} alt="" /></span>;
   }
-  if (item.kind === 'file') {
-    const IconComp = iconForFile(extOf(item.meta?.fileName, item.meta?.ext), item.meta?.mime);
-    return <span className="sbf-file-icon"><Icon as={IconComp} size={16} weight="regular" /></span>;
-  }
-  // Two kinds KindIcon draws as a bare circle get the mark the canvas's own
-  // add menu gives them.
-  const own = { grid: GridFour, art: Scribble }[item.kind];
-  if (own) return <span className="sbf-file-icon"><Icon as={own} size={16} weight="regular" /></span>;
-  return <span className="sbf-file-icon"><KindIcon kind={item.kind} size={16} weight="regular" /></span>;
+  return (
+    <span className="sbf-file-icon">
+      <KindGlyph kind={item.kind} ext={item.kind === 'file' ? extOf(item.meta?.fileName, item.meta?.ext) : ''} mime={item.meta?.mime} />
+    </span>
+  );
 }
 
 // Touch has no right-click: holding a file opens its menu, and the tap that

@@ -22,6 +22,7 @@ export const ClusterTile = memo(function ClusterTile({
   // Inline rename: when set, the name is a field ({ onCommit, onCancel }).
   rename = null,
   markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
+  captionless = false,    // the Files page in the files sidebar's look: the picture is the name
 }) {
   const peer = peers && peers[0];
   const caption = captionOf(item.name, item.ext);
@@ -37,7 +38,7 @@ export const ClusterTile = memo(function ClusterTile({
   return (
     <div
       ref={tileRef}
-      className={`ct-tile${member ? ' ct-member' : ''}${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}`}
+      className={`ct-tile${member ? ' ct-member' : ''}${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}${captionless ? ' is-captionless' : ''}`}
       style={peer || style || previewH ? { ...(style || {}), ...(previewH ? { '--jg-h': `${previewH}px` } : {}), ...(peer ? { '--peer-color': peer.user.color } : {}) } : undefined}
       data-item-id={item.id}
       draggable={draggable && !item.pending && !rename ? true : undefined}
@@ -96,13 +97,15 @@ export const ClusterTile = memo(function ClusterTile({
           </div>
         )}
       </div>
-      <div className="ct-tile-meta">
-        {flag && !rename && <span className={`ct-tile-flag ${flag.cls}`} role="img" aria-label={flag.label} title={flag.title} />}
-        {rename
-          ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
-          : <div className="ct-tile-name" title={item.name}>{caption}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
-        <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
-      </div>
+      {(!captionless || rename) && (
+        <div className="ct-tile-meta">
+          {flag && !rename && <span className={`ct-tile-flag ${flag.cls}`} role="img" aria-label={flag.label} title={flag.title} />}
+          {rename
+            ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
+            : <div className="ct-tile-name" title={item.name}>{caption}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
+          <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
+        </div>
+      )}
     </div>
   );
 });

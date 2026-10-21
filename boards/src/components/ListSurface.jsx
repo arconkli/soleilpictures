@@ -76,7 +76,11 @@ import { resolveSrc } from '../lib/r2.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { useFilesLook } from './clusterBrowser/filesLook.js';
 import { FilesPageHead, FilesPageTools } from './clusterBrowser/FilesPageHead.jsx';
-import { SORT_TO_PAGE, SORT_LABELS, sidebarSortOf, sortLabelOf, chipToFilter, filterToChip, chipCountsOf, pageChipsOf, chipLabelOf } from '../lib/filesView.js';
+import { FilesShelves } from './clusterBrowser/FilesShelves.jsx';
+import {
+  SORT_TO_PAGE, SORT_LABELS, sidebarSortOf, sortLabelOf, chipToFilter, filterToChip, chipCountsOf, pageChipsOf, chipLabelOf,
+  sectionsOf, shelfClosed, shelfFoldable, screenOrderOf, navStep,
+} from '../lib/filesView.js';
 import { SORTS } from '../lib/sidebarSort.js';
 import { shellOf } from '../lib/deviceShell.js';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy, DownloadSimple, UploadSimple, FolderSimplePlus } from '../lib/icons.js';
@@ -443,6 +447,24 @@ export function ListSurface({
     });
   }, []);
 
+  // The page in the files sidebar's look lays Grid out on the card's shelves
+  // (lib/filesView.js): photos and video in a justified grid, the rest in
+  // rows, Notes, Links and Other closed until opened this session.
+  const shelfGrid = sb && viewMode === 'gallery';
+  const sections = useMemo(() => (shelfGrid ? sectionsOf(displayItems) : []), [shelfGrid, displayItems]);
+  const [openedShelves, setOpenedShelves] = useState(() => new Set());
+  const closedShelves = useMemo(
+    () => new Set(sections.filter((sec) => shelfClosed(sec, { chip: pageChip, query, opened: openedShelves })).map((sec) => sec.id)),
+    [sections, pageChip, query, openedShelves]);
+  const toggleShelf = useCallback((id) => setOpenedShelves((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  }), []);
+  // Each shelf's laid-out tiles, for the arrows (navStep).
+  const shelfNavRef = useRef(new Map());
+  const onShelfLayout = useCallback((id, nav) => { shelfNavRef.current.set(id, nav); }, []);
+
   // Loop-browser columns: Time / BPM / Key / Format in place of Type + Size.
   //
   // A MODE rather than four permanent columns, because a cluster of notes and
@@ -499,13 +521,17 @@ export function ListSurface({
   // group headers plus the members of EXPANDED families, inlined, so index ↔
   // row is 1:1 and a cursor never points at a row that isn't rendered.
   const navItems = useMemo(() => {
+    // On the shelves, shelf by shelf, closed ones skipped.
+    if (shelfGrid) return screenOrderOf(sections, { closed: closedShelves, expandedGroups });
     const out = [];
     for (const it of displayItems) {
       out.push(it);
       if (it.isGroup && expandedGroups.has(it.id)) out.push(...(it.members || []));
     }
     return out;
-  }, [displayItems, expandedGroups]);
+  }, [displayItems, expandedGroups, shelfGrid, sections, closedShelves]);
+  // What a ⇧-click range and ⌘A pick from, in the order on screen.
+  const pickOrder = shelfGrid ? navItems.filter((it) => !it.isGroup) : visibleItems;
 
   // Cursor for ↑/↓ and Space. Separate from SELECTION: moving through a pack
   // auditioning it should not be building a forty-item selection you then have
@@ -942,7 +968,7 @@ export function ListSurface({
       else { setSelectedBoards(new Set([id])); setSelectedCards(new Set()); }
     } else {
       if (ranged) {
-        setSelectedCards(prev => new Set([...prev, ...selectRange(visibleItems.map(it => it.id), anchorRef.current.id, id)]));
+        setSelectedCards(prev => new Set([...prev, ...selectRange(pickOrder.map(it => it.id), anchorRef.current.id, id)]));
         setSelectedBoards(new Set());
         return;
       }
@@ -1318,7 +1344,7 @@ export function ListSurface({
       // ⌘A selects every file showing (search and filters apply).
       if (mod && !e.altKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
-        setSelectedCards(new Set(visibleItems.map((it) => it.id)));
+        setSelectedCards(new Set(pickOrder.map((it) => it.id)));
         setSelectedBoards(new Set());
         setSelectedGroupId(null);
         return;
@@ -1343,10 +1369,29 @@ export function ListSurface({
       const arrow = e.key === 'ArrowDown' ? 'down' : e.key === 'ArrowUp' ? 'up'
         : e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : null;
       if (arrow && !mod && navItems.length) {
+        // On the page in the files sidebar's look the first arrow goes on
+        // from the file last clicked, as Finder's do; elsewhere it starts at
+        // the top.
+        const from = activeId || (sb && anchorRef.current.kind === 'file' ? anchorRef.current.id : null);
+        // On the shelves: one walk across them all, from the last tile of one
+        // into the first of the next (lib/filesView.js navStep).
+        if (shelfGrid) {
+          const parts = sections.filter((sec) => !closedShelves.has(sec.id)).map((sec) => {
+            const nav = shelfNavRef.current.get(sec.id);
+            return sec.layout === 'grid' && nav
+              ? { layout: 'grid', ids: nav.ids, tiles: nav.tiles }
+              : { layout: 'rows', ids: screenOrderOf([sec], { expandedGroups }).map((it) => it.id) };
+          });
+          const next = navStep(parts, from, arrow);
+          if (next == null || next === activeId) return;
+          e.preventDefault();
+          setActiveId(next);
+          return;
+        }
         if (isTable) {
           if (arrow !== 'down' && arrow !== 'up') return;
           e.preventDefault();
-          const i = activeId ? navItems.findIndex(it => it.id === activeId) : -1;
+          const i = from ? navItems.findIndex(it => it.id === from) : -1;
           const step = arrow === 'down' ? 1 : -1;
           const next = i < 0
             ? (step > 0 ? 0 : navItems.length - 1)
@@ -1384,7 +1429,7 @@ export function ListSurface({
         const it = target && navItems.find(n => n.id === target);
         if (!it || it.isGroup || onControl) return;
         e.preventDefault();
-        if (it.kind === 'audio' && isTable) { setActiveId(it.id); auditionCard(it.id); return; }
+        if (it.kind === 'audio' && (isTable || shelfGrid)) { setActiveId(it.id); auditionCard(it.id); return; }
         setQuickId(it.id);
         return;
       }
@@ -1416,7 +1461,7 @@ export function ListSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedBoards, selectedCards, selectedGroupId, mutators, hasSplit, paneId, visibleItems,
       navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo, showInfo,
-      renamable, startRename, selecting]);
+      renamable, startRename, selecting, shelfGrid, sections, closedShelves, expandedGroups, pickOrder, sb]);
 
   // Board order puts a fresh upload last (it waits off the board, after
   // everything on it), so bring the first new row or tile into view rather
@@ -2092,6 +2137,55 @@ export function ListSurface({
                   {...folderKeys('boardlink', c.id)} />
     );
   };
+  // On the page in the files sidebar's look the clusters in this one, and
+  // those linked into it, come first, as one shelf: those whose name matches
+  // a search, none while a chip filters to a kind of file.
+  const shownFolders = !sb || pageChip !== 'all' ? [] : (() => {
+    const q = query.trim().toLowerCase();
+    const all = [
+      ...subBoards.map((b) => ({ kind: 'sub', b, name: b.name || '' })),
+      ...linkedCards.map((c) => ({ kind: 'link', c, name: boards[c.target]?.name || c.name || '' })),
+    ];
+    return q ? all.filter((f) => f.name.toLowerCase().includes(q)) : all;
+  })();
+  const folderShelf = sb
+    ? { count: shownFolders.length, nodes: shownFolders.map((f) => (f.kind === 'sub' ? renderSubFolder(f.b) : renderLinkedFolder(f.c))) }
+    : null;
+
+  // What the grid and the table are given, wherever they're drawn: once in
+  // production, once per shelf on the page in the files sidebar's look.
+  const onAudition = (it) => { setActiveId(it.id); auditionCard(it.id); };
+  const onFileClick = (e, id) => onTileClick(e, 'file', id);
+  const onFileDoubleClick = (e, id) => onTileDoubleClick(e, 'file', id);
+  const galleryProps = {
+    activeId, registerRow, renameFor, markUnplaced,
+    selectedCards, peerMap, recentlyAddedIds,
+    expandedGroups, selectedGroupId, onGroupClick,
+    onDownload: downloadOne, onAudition, playingId,
+    draggableItems: filesDraggable, onBoardIds,
+    onRowClick: onFileClick, onRowDoubleClick: onFileDoubleClick,
+  };
+  const tableProps = {
+    selectedCards, peerMap, sortKey, sortDir, onSort, recentlyAddedIds,
+    expandedGroups, selectedGroupId, onGroupClick,
+    onDownload: downloadOne, onAudition, onSeek: seekCard,
+    activeId, playingId, registerRow, audioMode,
+    draggableItems: filesDraggable, onBoardIds, renameFor,
+    markUnplaced, checks: selecting,
+    onRowClick: onFileClick, onRowDoubleClick: onFileDoubleClick,
+  };
+  const detailJsx = detailTarget && (
+    <DetailPanel
+      target={detailTarget} boards={boards} canEdit={canEdit}
+      selfId={selfId} gridTemplates={gridTemplates}
+      writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
+      versionEnv={canVersionHere ? versionEnv() : null}
+      onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
+      onClose={toggleInfo}
+      onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
+      onPutOnBoard={canEdit && !browsingFrom ? (id) => putOnBoard([id]) : null}
+      onDelete={onDeleteItems} />
+  );
 
   // While files are dragged over Files: what a drop does, said in the header
   // in place of the search row.
@@ -2497,7 +2591,7 @@ export function ListSurface({
             )}
           </>
         )}
-        {!isPanel && subBoards.length > 0 && (
+        {!isPanel && !sb && subBoards.length > 0 && (
           <>
             <div className="list-section">
               <span>Clusters</span><span className="list-section-count">{subBoards.length}</span>
@@ -2505,7 +2599,7 @@ export function ListSurface({
             <div className="ft-grid is-full">{subBoards.map(renderSubFolder)}</div>
           </>
         )}
-        {!isPanel && linkedCards.length > 0 && (
+        {!isPanel && !sb && linkedCards.length > 0 && (
           <>
             <div className="list-section">
               <span>Linked</span><span className="list-section-count">{linkedCards.length}</span>
@@ -2513,7 +2607,31 @@ export function ListSurface({
             <div className="ft-grid is-full">{linkedCards.map(renderLinkedFolder)}</div>
           </>
         )}
-        {filesBlockShown && (
+        {/* The page in the files sidebar's look: the card's shelves in Grid,
+            under the head. */}
+        {sb && (
+          <div className="cluster-browser">
+            <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
+              <div className="cb-main"
+                   onDragStart={filesDraggable ? onFilesDragStart : undefined}
+                   onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
+                {viewMode === 'gallery' ? (
+                  <FilesShelves folders={folderShelf} sections={sections} closedShelves={closedShelves}
+                    foldable={(sec) => shelfFoldable(sec, { chip: pageChip, query })} onToggle={toggleShelf}
+                    galleryProps={galleryProps} tableProps={tableProps} tileSize={tileSize} onShelfLayout={onShelfLayout} />
+                ) : (
+                  <>
+                    <FilesShelves folders={folderShelf} sections={[]} closedShelves={closedShelves}
+                      foldable={() => false} onToggle={toggleShelf} galleryProps={galleryProps} tableProps={tableProps} />
+                    {visibleItems.length > 0 && <ClusterTable {...tableProps} items={displayItems} />}
+                  </>
+                )}
+              </div>
+              {detailJsx}
+            </div>
+          </div>
+        )}
+        {!sb && filesBlockShown && (
           <div className="cluster-browser">
             {(hasFolders || (!isPanel && packSummary)) && (
               <div className="list-section list-section-files">
@@ -2551,35 +2669,9 @@ export function ListSurface({
                     </div>
                   )
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
-                  <JustifiedGallery tileSize={tileSize}
-                    activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
-                    renameFor={renameFor} markUnplaced={markUnplaced}
-                    items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
-                    recentlyAddedIds={recentlyAddedIds}
-                    expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
-                    onGroupClick={onGroupClick}
-                    onDownload={downloadOne}
-                    onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
-                    playingId={playingId}
-                    draggableItems={filesDraggable} onBoardIds={onBoardIds}
-                    onRowClick={(e, id) => onTileClick(e, 'file', id)}
-                    onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+                  <JustifiedGallery {...galleryProps} tileSize={tileSize} onLayout={onGalleryLayout} items={displayItems} />
                 ) : (
-                  <ClusterTable
-                    items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
-                    sortKey={sortKey} sortDir={sortDir} onSort={onSort}
-                    recentlyAddedIds={recentlyAddedIds}
-                    expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
-                    onGroupClick={onGroupClick}
-                    onDownload={downloadOne}
-                    onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
-                    onSeek={seekCard}
-                    activeId={activeId} playingId={playingId} registerRow={registerRow}
-                    audioMode={audioMode}
-                    draggableItems={filesDraggable} onBoardIds={onBoardIds} renameFor={renameFor}
-                    markUnplaced={markUnplaced} checks={selecting}
-                    onRowClick={(e, id) => onTileClick(e, 'file', id)}
-                    onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+                  <ClusterTable {...tableProps} items={displayItems} />
                 )}
                 {descHits.length > 0 && (
                   <div className="cb-descendants">
@@ -2593,18 +2685,7 @@ export function ListSurface({
                   </div>
                 )}
               </div>
-              {detailTarget && (
-                <DetailPanel
-                  target={detailTarget} boards={boards} canEdit={canEdit}
-                  selfId={selfId} gridTemplates={gridTemplates}
-                  writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
-                  versionEnv={canVersionHere ? versionEnv() : null}
-                  onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
-                  onClose={toggleInfo}
-                  onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
-                  onPutOnBoard={canEdit && !browsingFrom ? (id) => putOnBoard([id]) : null}
-                  onDelete={onDeleteItems} />
-              )}
+              {detailJsx}
             </div>
           </div>
         )}
