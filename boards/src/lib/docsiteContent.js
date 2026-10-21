@@ -21999,7 +21999,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A new page is created automatically when the current one fills up, so long-form writing does not stop to manage pagination. On a phone or a touch tablet the tree folds into a drawer: tap "
+     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A page holds as much as you write: set to real pages, its text flows from one sheet onto the next as you type, so long-form writing does not stop to manage pagination. Collapsing a page's sub-pages (the arrow beside it) is yours alone: it is remembered on this device and changes nothing for anyone else in the document. On a phone or a touch tablet the tree folds into a drawer: tap "
     },
     {
      "t": "strong",

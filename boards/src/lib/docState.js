@@ -15,6 +15,9 @@ import * as Y from 'yjs';
 import { cloneYXmlNode } from './yhelpers.js';
 import { fragmentText } from './docText.js';
 import {
+  mergePageEntries, holdsWholePage, pageStamp, pageOrder, byPageOrder, placeStrays,
+} from './docPageEntries.js';
+import {
   commentReplyKey, commentStateKey, parseCommentKey, isPlainEntry, isFiledReply, isFiledState,
 } from './commentKeys.js';
 import { convertFragmentDocMode } from '../components/docExtensions/screenplay/screenplayModeSwitch.js';
@@ -322,10 +325,18 @@ export function setTitlePage(ydoc, scope, patch) {
   }, DOC_ORIGIN);
 }
 
+// An entry may be a Y.Map rather than a plain object.
+const entryOf = (v) => ((v && typeof v.toJSON === 'function') ? v.toJSON() : v);
+
+// The page list as people see it: each page once, however many entries edits
+// that met have left it, and a page whose place is gone where placeStrays puts
+// it (lib/docPageEntries.js). Every reader of docPages goes through this.
 export function readPages(ydoc, scope) {
   const arr = pagesArray(ydoc, scope);
   if (!arr) return [];
-  return arr.toArray().map(p => (p && p.toJSON) ? p.toJSON() : p);
+  const content = pageContentMap(ydoc, scope);
+  return placeStrays(mergePageEntries(arr.toArray().map(entryOf)),
+    content ? (id) => content.has(id) : () => true);
 }
 
 export function readBookmarks(ydoc, scope) {
@@ -431,15 +442,10 @@ export function readPagesWithText(ydoc, scope) {
 // fragment as a DOC_ORIGIN write: an orphan in the doc, and a fresh undo step
 // on top of the delete, so the delete toast's Undo could only report that
 // "the board changed since".
+// Live means listed: what a delete left behind is not, so opening it can't
+// bring it back.
 function pageIsLive(ydoc, pageId, scope) {
-  const arr = pagesArray(ydoc, scope);
-  if (!arr) return false;
-  // Same tolerance as readPages: an entry may be a Y.Map rather than a plain object.
-  for (let i = 0; i < arr.length; i++) {
-    const e = arr.get(i);
-    if ((e && e.toJSON ? e.toJSON() : e)?.id === pageId) return true;
-  }
-  return false;
+  return readPages(ydoc, scope).some((p) => p.id === pageId);
 }
 
 export function getOrCreatePageContent(ydoc, pageId, scope) {
@@ -566,33 +572,40 @@ export function addPage(ydoc, opts = {}) {
   const content = pageContentMap(ydoc, scope);
   if (!arr || !content) return id;
   ydoc.transact(() => {
-    const siblings = arr.toArray().filter(p => p.parent_id === parent_id);
-    const order = siblings.length > 0
-      ? Math.max(...siblings.map(p => p.order ?? 0)) + 1
-      : 0;
+    const siblings = readPages(ydoc, scope).filter(p => (p.parent_id ?? null) === parent_id);
+    const order = siblings.length > 0 ? Math.max(...siblings.map(pageOrder)) + 1 : 0;
+    // `expanded` is only where the page starts out folded or not, for tabs
+    // from before folding stayed on the device (hooks/useDocTreeExpansion).
     arr.push([{ id, name, parent_id, order, expanded: true }]);
     content.set(id, new Y.XmlFragment());
   }, DOC_ORIGIN);
   return id;
 }
 
-export function renamePage(ydoc, id, name, scope) {
-  const arr = pagesArray(ydoc, scope); if (!arr) return;
-  ydoc.transact(() => {
-    for (let i = 0; i < arr.length; i++) {
-      const p = arr.get(i);
-      if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, name }]); return; }
-    }
-  }, DOC_ORIGIN);
+// Every edit to a page goes through here: it takes out every entry the page
+// has and puts back one, the page as it shows with `patch(page)` over it,
+// where its first entry was. So an edit also clears what earlier edits that
+// met left behind, and the stamp an edit bumps (nameV for the name, posV for
+// where it sits) is one past the highest the page has.
+function rewritePage(arr, id, patch) {
+  const at = [];
+  const copies = [];
+  arr.toArray().forEach((v, i) => {
+    const e = entryOf(v);
+    if (e?.id === id) { at.push(i); copies.push(e); }
+  });
+  if (!at.length) return false;
+  const [page] = mergePageEntries(copies);
+  for (let i = at.length - 1; i >= 0; i--) arr.delete(at[i], 1);
+  arr.insert(at[0], [{ ...page, ...patch(page) }]);
+  return true;
 }
 
-export function setPageExpanded(ydoc, id, expanded, scope) {
+export function renamePage(ydoc, id, name, scope) {
   const arr = pagesArray(ydoc, scope); if (!arr) return;
+  if (readPages(ydoc, scope).find(p => p.id === id)?.name === name) return;
   ydoc.transact(() => {
-    for (let i = 0; i < arr.length; i++) {
-      const p = arr.get(i);
-      if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, expanded }]); return; }
-    }
+    rewritePage(arr, id, (page) => ({ name, nameV: pageStamp(page.nameV) + 1 }));
   }, DOC_ORIGIN);
 }
 
@@ -605,15 +618,23 @@ export function deletePage(ydoc, id, scope) {
   const comments = commentsMap(ydoc, scope);
   if (!arr || !content || !bookmarks) return;
   ydoc.transact(() => {
-    const all = arr.toArray();
+    // The page and what shows under it, then every entry any of them has.
+    const kids = new Map();
+    for (const p of readPages(ydoc, scope)) {
+      const k = p.parent_id ?? null;
+      if (!kids.has(k)) kids.set(k, []);
+      kids.get(k).push(p.id);
+    }
     const toRemove = new Set();
-    const collect = (pid) => {
+    for (const stack = [id]; stack.length;) {
+      const pid = stack.pop();
+      if (toRemove.has(pid)) continue;
       toRemove.add(pid);
-      all.forEach(p => { if (p.parent_id === pid) collect(p.id); });
-    };
-    collect(id);
-    for (let i = arr.length - 1; i >= 0; i--) {
-      if (toRemove.has(arr.get(i).id)) arr.delete(i, 1);
+      stack.push(...(kids.get(pid) || []));
+    }
+    const all = arr.toArray().map(entryOf);
+    for (let i = all.length - 1; i >= 0; i--) {
+      if (toRemove.has(all[i]?.id)) arr.delete(i, 1);
     }
     toRemove.forEach(pid => {
       content.delete(pid);
@@ -636,31 +657,79 @@ export function deletePage(ydoc, id, scope) {
   }, DOC_ORIGIN);
 }
 
+// Closer than this, two neighbours leave no room between them, and the row is
+// numbered again.
+const ORDER_ROOM = 1e-9;
+
+// Moves a page to `newIndex` among `newParentId`'s pages (as the list shows
+// them, without the page itself). Only the moved page is written: it takes an
+// order halfway between its new neighbours. Writing every sibling, as this did
+// before, turned two moves at once into copies of whole branches.
 export function movePage(ydoc, id, newParentId, newIndex, scope) {
   const arr = pagesArray(ydoc, scope); if (!arr) return;
+  const parent = newParentId ?? null;
   ydoc.transact(() => {
-    const all = arr.toArray();
-    const moving = all.find(p => p.id === id);
+    const pages = readPages(ydoc, scope);
+    const moving = pages.find(p => p.id === id);
     if (!moving) return;
-    const isDescendantOf = (target, ancestor) => {
-      if (target === ancestor) return true;
-      const t = all.find(p => p.id === target);
-      if (!t || t.parent_id == null) return false;
-      return isDescendantOf(t.parent_id, ancestor);
-    };
-    if (newParentId && isDescendantOf(newParentId, id)) return;
-    const siblings = all
-      .filter(p => p.parent_id === newParentId && p.id !== id)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    siblings.splice(Math.max(0, Math.min(newIndex, siblings.length)), 0, { ...moving, parent_id: newParentId });
-    const renumbered = new Map();
-    siblings.forEach((p, i) => renumbered.set(p.id, { ...p, order: i }));
-    const changedIds = new Set([...renumbered.keys()]);
-    for (let i = arr.length - 1; i >= 0; i--) {
-      if (changedIds.has(arr.get(i).id)) arr.delete(i, 1);
+    if (parent != null) {
+      // Into a page that shows, never into itself or a page under it.
+      if (!pages.some(p => p.id === parent)) return;
+      const up = new Map(pages.map(p => [p.id, p.parent_id ?? null]));
+      for (let at = parent, hops = 0; at != null && hops <= pages.length; at = up.get(at) ?? null, hops++) {
+        if (at === id) return;
+      }
     }
-    renumbered.forEach(p => arr.push([p]));
+    const siblings = pages
+      .filter(p => (p.parent_id ?? null) === parent && p.id !== id)
+      .sort(byPageOrder);
+    const at = Math.max(0, Math.min(newIndex, siblings.length));
+    const lo = at > 0 ? pageOrder(siblings[at - 1]) : null;
+    const hi = at < siblings.length ? pageOrder(siblings[at]) : null;
+    const here = pageOrder(moving);
+    if ((moving.parent_id ?? null) === parent && (lo == null || lo < here) && (hi == null || here < hi)) return;
+    const place = (order) => (page) => ({ parent_id: parent, order, posV: pageStamp(page.posV) + 1 });
+    if (lo != null && hi != null && !(hi - lo > ORDER_ROOM)) {
+      const row = [...siblings];
+      row.splice(at, 0, moving);
+      row.forEach((p, i) => { if (p.id === id || pageOrder(p) !== i) rewritePage(arr, p.id, place(i)); });
+      return;
+    }
+    const order = lo == null && hi == null ? 0 : lo == null ? hi - 1 : hi == null ? lo + 1 : (lo + hi) / 2;
+    rewritePage(arr, id, place(order));
   }, DOC_ORIGIN);
+}
+
+// Clearing the extra entries a page is left with when two edits to it meet,
+// or when tabs from before readPages merged them rewrote it. Out of both undo
+// stacks (neither tracks this origin): it changes nothing anyone sees.
+export const DOC_HEAL_ORIGIN = 'doc-heal';
+
+// Deletes only, and only where a page's LAST entry already holds the whole
+// page as it shows: two devices healing at once, even each with entries the
+// other hasn't seen yet, can never between them delete every entry a page
+// has, because neither ever deletes the last one it sees. Where the last entry
+// doesn't hold the whole page, the entries stay until the page's next edit
+// (rewritePage) folds them into one. Returns how many entries went.
+export function healPages(ydoc, scope) {
+  const arr = pagesArray(ydoc, scope); if (!arr) return 0;
+  const all = arr.toArray().map(entryOf);
+  const at = new Map();
+  all.forEach((e, i) => {
+    if (!e || typeof e !== 'object' || !e.id) return;
+    if (!at.has(e.id)) at.set(e.id, []);
+    at.get(e.id).push(i);
+  });
+  const drop = [];
+  for (const idx of at.values()) {
+    if (idx.length < 2) continue;
+    const [page] = mergePageEntries(idx.map(i => all[i]));
+    if (holdsWholePage(all[idx[idx.length - 1]], page)) drop.push(...idx.slice(0, -1));
+  }
+  if (!drop.length) return 0;
+  drop.sort((a, b) => b - a);
+  ydoc.transact(() => { for (const i of drop) arr.delete(i, 1); }, DOC_HEAL_ORIGIN);
+  return drop.length;
 }
 
 // Comments ──────────────────────────────────────────────────────────────────
@@ -837,7 +906,7 @@ export function pageFragmentToText(fragment, max = 240) {
 }
 
 export function readDocSummary(ydoc, max = 240, scope) {
-  const pages = readPages(ydoc, scope).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const pages = readPages(ydoc, scope).sort(byPageOrder);
   const firstPage = pages.find(p => p.parent_id == null) || pages[0];
   let firstText = '';
   if (firstPage) {
@@ -858,7 +927,7 @@ export function followTitle(ydoc, scope, prevTitle, nextTitle) {
   if (!nextTitle || nextTitle === prevTitle) return false;
   const primary = readPages(ydoc, scope)
     .filter((p) => p.parent_id == null)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+    .sort(byPageOrder)[0];
   if (!primary) return false;
   const tracking = primary.name === prevTitle || TRACKING_DEFAULT_NAMES.has(primary.name || '');
   if (tracking) renamePage(ydoc, primary.id, nextTitle, scope);
@@ -922,7 +991,7 @@ export function buildPageTree(pages) {
     if (!byParent.has(k)) byParent.set(k, []);
     byParent.get(k).push(p);
   }
-  byParent.forEach(arr => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+  byParent.forEach(arr => arr.sort(byPageOrder));
   const attach = (node) => ({ ...node, children: (byParent.get(node.id) || []).map(attach) });
   return (byParent.get(null) || []).map(attach);
 }

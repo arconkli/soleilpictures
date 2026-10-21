@@ -5,7 +5,7 @@ h1: Documents
 navLabel: Overview
 section: documents
 order: 0
-updated: 2026-10-20
+updated: 2026-10-21
 answer: A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.
 faq:
   - q: When should I use a document instead of a note?
@@ -68,11 +68,13 @@ still takes you to where *they* are.
 ## Layout
 
 **Pages** on the left — a hierarchical tree. Documents are genuinely
-multi-page, and pages nest. A new page is created automatically when the current
-one fills up, so long-form writing does not stop to manage pagination. On a
-phone or a touch tablet the tree folds into a drawer: tap **Page list** above
-the toolbar to open it (**Scenes** in a screenplay, where the drawer also lists
-the scenes).
+multi-page, and pages nest. A page holds as much as you write: set to real
+pages, its text flows from one sheet onto the next as you type, so long-form
+writing does not stop to manage pagination. Collapsing a page's sub-pages (the
+arrow beside it) is yours alone: it is remembered on this device and changes
+nothing for anyone else in the document. On a phone or a touch tablet the tree
+folds into a drawer: tap **Page list** above the toolbar to open it (**Scenes**
+in a screenplay, where the drawer also lists the scenes).
 
 **Bookmarks** under the page tree — durable anchors into specific places in the
 text, which survive editing around them. Add one with the bookmark button in the

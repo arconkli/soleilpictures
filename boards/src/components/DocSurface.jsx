@@ -15,7 +15,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages } from '../lib/docState.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -283,6 +283,24 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     if (awareness.clientID !== Math.min(...awareness.getStates().keys())) return;
     try { healDocMode(ydoc, scope); } catch (_) {}
   }, [ydoc, scope, canEdit, awareness, docMode]);
+  // Clear the extra entries a page is left with when two edits to it meet
+  // (docState.healPages). Unlike the mode, any editor may: it only deletes,
+  // never anything the list shows, so two at once agree. A beat after the list
+  // last changed, never mid-drag; it is no undo step. Viewers and guests leave
+  // it to the doc's members, as they do the mode.
+  useEffect(() => {
+    if (!ready || !canEdit || guestMode) return undefined;
+    const arr = pagesArray(ydoc, scope);
+    if (!arr) return undefined;
+    let timer = 0;
+    const soon = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { try { healPages(ydoc, scope); } catch (_) {} }, 2000);
+    };
+    soon();
+    arr.observe(soon);
+    return () => { clearTimeout(timer); arr.unobserve(soon); };
+  }, [ydoc, scope, ready, canEdit, guestMode]);
   // Only an editor converts, and only the one who flipped: switchDocMode
   // rewrites the content in the same transaction as the mode.
   const toggleScreenplay = useCallback(() => {
