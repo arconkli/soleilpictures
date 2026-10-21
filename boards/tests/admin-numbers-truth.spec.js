@@ -18,6 +18,20 @@ async function openAdmin(page, { tab = 'overview', view, theme = 'dark', query =
   await page.goto(`/?adminpreview=1&tab=${tab}${view ? `&view=${view}` : ''}${query}`);
 }
 
+// Records the params of every call to the named RPCs, so a test can see what a
+// toggle actually sends.
+async function recordRpc(page, names) {
+  await page.evaluate(async (watch) => {
+    const { supabase } = await import('/src/lib/supabase.js');
+    const orig = supabase.rpc;
+    window.__rpcSeen = [];
+    supabase.rpc = (name, params) => {
+      if (watch.includes(name)) window.__rpcSeen.push([name, params]);
+      return orig(name, params);
+    };
+  }, names);
+}
+
 // Both universe surfaces boot a WebGL graph of thousands of nodes, which takes
 // ~20s on its own and longer beside other workers.
 const UNIVERSE_TIMEOUT = 60_000;
@@ -128,18 +142,6 @@ test.describe('Users', () => {
 });
 
 test.describe('Analytics › Overview', () => {
-  async function recordRpc(page, names) {
-    await page.evaluate(async (watch) => {
-      const { supabase } = await import('/src/lib/supabase.js');
-      const orig = supabase.rpc;
-      window.__rpcSeen = [];
-      supabase.rpc = (name, params) => {
-        if (watch.includes(name)) window.__rpcSeen.push([name, params]);
-        return orig(name, params);
-      };
-    }, names);
-  }
-
   test('the rail is what exists now, under the toggles, with clusters made apart from the Studios', async ({ page }) => {
     await openAdmin(page, { view: 'overview' });
     const rail = page.locator('.adm-rail .admin-lifetime');
@@ -174,5 +176,36 @@ test.describe('Analytics › Overview', () => {
     await expect(list).toContainText('placed a card, none left');
     await expect(list).toContainText('nothing yet');
     await expect(list.locator('.admin-people-row')).toHaveCount(20);
+  });
+});
+
+test.describe('Analytics › Funnel', () => {
+  test('the money and referral reads follow the code-entry toggle, and what banned accounts did is named', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel' });
+    const paths = page.getByRole('button', { name: /Other paths into the product/ });
+    await expect(paths).toBeVisible({ timeout: 20000 });
+    await recordRpc(page, ['admin_referral_stats', 'admin_paid_reach', 'admin_trial_funnel']);
+    await paths.click();
+    await page.getByRole('button', { name: /Checkout, upsell and the biggest accounts/ }).click();
+
+    // 0490 leaves out what a banned account did and the panel says how much,
+    // so a figure never drops without a word.
+    const referrals = page.locator('.admin-chart-panel', { has: page.locator('.admin-chart-title', { hasText: /^Referrals$/ }) });
+    await expect(referrals.locator('.admin-panel-note'))
+      .toHaveText('Left out: 340 invites, 2 invite links from 1 banned account.', { timeout: 20000 });
+    // 0491: answered emailed invites over the same invites, never every
+    // collaboration referral (links included) over emailed invites alone.
+    const rate = referrals.locator('.admin-stat-card', { has: page.locator('.admin-stat-label', { hasText: /^Invite → signup$/ }) });
+    await expect(rate).toContainText('57.1%');
+    await expect(rate).toContainText('12 of 21 emailed invites');
+
+    const sent = () => page.evaluate(() => window.__rpcSeen.map(([n, p]) => `${n}:${p?.p_verified_only}`));
+    await expect.poll(sent).toEqual(expect.arrayContaining([
+      'admin_referral_stats:true', 'admin_paid_reach:true', 'admin_trial_funnel:true',
+    ]));
+    await page.getByRole('switch', { name: 'Entered the code' }).click();
+    await expect.poll(sent).toEqual(expect.arrayContaining([
+      'admin_referral_stats:false', 'admin_paid_reach:false', 'admin_trial_funnel:false',
+    ]));
   });
 });

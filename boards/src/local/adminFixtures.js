@@ -269,6 +269,22 @@ const RPCS = {
     { ord: 7, step: 'checkout_success', label: 'Completed payment',     branch: 'buy',  sessions: 22,  users: 22 },
   ],
   admin_funnel_segments: funnelSegments,
+  // Referrals, invites and invite links. banned_left_out exercises the
+  // panel's "Left out" note (0490).
+  admin_referral_stats: {
+    days: 30, total: 18, pending: 5, activated: 13, activation_rate: 0.7222, cards_granted: 300,
+    referring_users: 11, paid_conversions: 1, months_granted: 1, k_factor: 1.182, median_days_to_activate: 0.4,
+    by_source: { link: { total: 4, activated: 3 }, collab: { total: 14, activated: 10 } },
+    invites: { sent_total: 52, pending_signup: 21, signed_up: 12, direct_grants: 31, inviting_users: 16 },
+    link_invites: { created: 24, claimed: 13, active_links: 20 },
+    editor_seats: { workspaces_with_editors: 19, max_editors_per_owner: 6 },
+    banned_left_out: { accounts: 1, invites: 340, links: 2, referrals: 0 },
+    top_referrers: [
+      { user_id: 'u3', email: 'mara@lumenworks', friends_joined: 5, friends_activated: 4, friends_paid: 1, cards_earned: 100 },
+      { user_id: 'u5', email: 'theo@northlight', friends_joined: 3, friends_activated: 3, friends_paid: 0, cards_earned: 75 },
+      { user_id: 'u8', email: 'ines@paperplane', friends_joined: 2, friends_activated: 1, friends_paid: 0, cards_earned: 25 },
+    ],
+  },
   admin_acquisition_breakdown: [
     { source: 'google',  signups: 412, converted: 79, conversion: 0.1917 },
     { source: 'reddit',  signups: 233, converted: 28, conversion: 0.1202 },

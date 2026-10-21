@@ -206,12 +206,12 @@ function LazyPaths({ days, f }) {
   const q = useAdminData(async () => {
     const [fb, rf, mp] = await Promise.allSettled([
       supabase.rpc('admin_fb_funnel', { p_days: days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_referral_stats', { p_days: days, p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_referral_stats', { p_days: days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_multiplayer_stats', { p_days: days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     return { fbSteps: val(fb) || [], referrals: val(rf), multiplayer: val(mp) };
-  }, [days, f.excludeInternal]);
+  }, [days, f.excludeInternal, f.verifiedOnly]);
 
   return (
     <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
@@ -258,13 +258,13 @@ function LazyMoney({ days, f }) {
       supabase.rpc('admin_upsell_exposures', { p_days: days, p_limit: 40, p_exclude_internal: f.excludeInternal }),
       // A cohort, not a window: everyone who signed up since the waitlist came
       // off, so the read is "has this person EVER seen a price".
-      supabase.rpc('admin_paid_reach', { p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_paid_reach', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Both of these read the CLEAN epoch only. The price-first ad screen, the
       // waitlist routing and the pre-launch billing tests are archived out of
       // analytics_events by 0326, so nothing below counts a price nobody chose
       // to look at.
       supabase.rpc('admin_conversion_funnel', { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_trial_funnel', { p_exclude_internal: f.excludeInternal }),
+      supabase.rpc('admin_trial_funnel', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     return {

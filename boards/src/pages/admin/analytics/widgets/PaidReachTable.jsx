@@ -66,8 +66,8 @@ export function PaidReachTable({ rows = [] }) {
         </table>
       </div>
       <div className="admin-panel-note">
-        Distinct people per cell, among demo accounts that signed up in the window, banded by their live
-        cards today. "Saw a price" is any pricing view; "Price on a surface" is the once-per-account stamp
+        Distinct people per cell, among demo accounts that signed up since Jun 16 (banned accounts left
+        out), banded by their live cards today. "Saw a price" is any pricing view; "Price on a surface" is the once-per-account stamp
         the pill, banner and toast write, and lags until the base ages past the deploy that added it. The
         top row is relative to each person's own cap. Grade the reach change on the 13+ rows: the goal is
         that someone who reaches thirteen cards sees the price within a week of reaching it.
