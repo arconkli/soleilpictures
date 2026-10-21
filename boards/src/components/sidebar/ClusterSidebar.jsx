@@ -58,6 +58,8 @@ import { SidebarHandles, sizeAtOnce } from './SidebarHandles.jsx';
 import { DragLabel, BLANK_DRAG_IMAGE } from './DragLabel.jsx';
 import { useSidebarFiles } from '../../hooks/useSidebarFiles.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { SORT_LABELS } from '../../lib/filesView.js';
+import { FilesShowMenu } from './FilesShowMenu.jsx';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { useSpring } from '../../hooks/useSpring.js';
 import { beginDragSession, dragSession, onDragSession } from '../../lib/springLoad.js';
@@ -89,7 +91,6 @@ const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
 
 const PREFS_KEY = 'soleil.sidebar.prefs';
 const unfoldedKey = (ws) => `soleil.sidebar.unfolded.${ws}`;
-const SORT_LABELS = { newest: 'Newest first', name: 'Name', size: 'Size', canvas: 'Canvas order' };
 const GROUP_LABELS = { type: 'Type', canvas: 'Canvas groups' };
 
 function readJson(key, fallback) {
@@ -121,25 +122,6 @@ function QuickBtn({ label, active = false, pressed = false, unread = 0, onClick 
       {unread > 0 && <span className="sbf-quick-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
     </button>
   );
-}
-
-// Where the "All files" menu opens: under its button when it fits, else over
-// it; fitting neither, it slides up the window until it all shows (over its
-// button, as menus do), and scrolls only in a window shorter than itself. It
-// is portaled, so the files section's overflow (the divider can make it
-// short) can't cut it off.
-function placeMenu(btn, menu) {
-  if (!btn) return null;
-  const r = btn.getBoundingClientRect();
-  const vh = window.innerHeight;
-  const want = menu ? menu.scrollHeight : 0;
-  const right = Math.max(8, window.innerWidth - r.right);
-  const below = vh - r.bottom - 12;
-  const above = r.top - 12;
-  if (want <= below) return { right, top: r.bottom + 4, maxHeight: below };
-  if (want <= above) return { right, bottom: vh - r.top + 4, maxHeight: above };
-  const room = vh - 16;
-  return { right, top: Math.max(8, vh - 8 - Math.min(want, room)), maxHeight: room };
 }
 
 export function ClusterSidebar({
@@ -202,52 +184,6 @@ export function ClusterSidebar({
     return { sort: SORTS.includes(p.sort) ? p.sort : 'newest', groupBy: p.groupBy === 'canvas' ? 'canvas' : 'type' };
   });
   const setPref = (k, v) => setPrefs((p) => { const next = { ...p, [k]: v }; writeJson(PREFS_KEY, next); return next; });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-  const filterBtnRef = useRef(null);
-  const menuPopRef = useRef(null);
-  const [menuPos, setMenuPos] = useState(null);
-  // Opened from the keyboard (a click with no pointer), the item in force shows
-  // it has focus; opened with a pointer, focus goes there quietly.
-  const menuByKey = useRef(false);
-  // The menu itself is portaled out of menuRef: a click in it isn't outside.
-  useDismissOnOutside(menuRef, menuOpen, () => setMenuOpen(false), { ignore: '.sbf-menu' });
-  useLayoutEffect(() => {
-    if (!menuOpen) { setMenuPos(null); return undefined; }
-    const place = (e) => {
-      const t = e?.target;
-      if (t instanceof Node && menuPopRef.current?.contains(t)) return;   // scrolling the menu itself
-      setMenuPos(placeMenu(filterBtnRef.current, menuPopRef.current));
-    };
-    place();
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [menuOpen]);
-  // Once it's placed (hidden until then, and hidden can't take focus), focus
-  // goes into the menu, on the item in force, so ↑/↓, Tab and Esc work there.
-  const menuPlaced = !!menuPos;
-  useEffect(() => {
-    if (!menuOpen || !menuPlaced) return;
-    const pop = menuPopRef.current;
-    (pop?.querySelector('[aria-checked="true"]') || pop?.querySelector('[role^="menuitem"]'))
-      ?.focus({ preventScroll: true, focusVisible: menuByKey.current });
-  }, [menuOpen, menuPlaced]);
-  // A choice closes the menu and hands focus back to its button, as Esc does.
-  const closeMenu = () => { setMenuOpen(false); filterBtnRef.current?.focus({ preventScroll: true }); };
-  const onMenuKeyDown = (e) => {
-    if (e.key === 'Tab') { e.preventDefault(); closeMenu(); return; }
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
-    e.preventDefault();
-    const items = [...(menuPopRef.current?.querySelectorAll('[role^="menuitem"]') || [])];
-    const i = items.indexOf(document.activeElement);
-    const j = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1
-      : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-    items[j]?.focus();
-  };
 
   const boardList = useMemo(
     () => Object.values(boards || {}).filter((b) => b && b.workspace_id === workspaceId && !b.deleted_at),
@@ -1055,11 +991,11 @@ export function ClusterSidebar({
     },
   } : {};
 
-  // Folded, however it came (Hide, ⌘\, ⌘K): no menu left open over nothing,
-  // no selection waiting to come back with Show.
+  // Folded, however it came (Hide, ⌘\, ⌘K): no menu left open over nothing
+  // (the "All files" menu closes itself: hidden), no selection waiting to
+  // come back with Show.
   useEffect(() => {
     if (!folded) return;
-    setMenuOpen(false);
     dropSwitch();
     setFileMenu(null);
     clearSelection();
@@ -1182,56 +1118,18 @@ export function ClusterSidebar({
               <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} weight="regular" /></button>
             )}
           </div>
-          <div className="sbf-filter" ref={menuRef}
-               onKeyDown={(e) => {
-                 if (e.key !== 'Escape' || !menuOpen) return;
-                 e.preventDefault();
-                 e.stopPropagation();
-                 setMenuOpen(false);
-                 filterBtnRef.current?.focus();
-               }}>
-            <button type="button" ref={filterBtnRef}
-                    className={`sbf-filter-btn${chip !== 'all' ? ' is-on' : ''}${menuOpen ? ' is-open' : ''}`}
-                    aria-haspopup="menu" aria-expanded={menuOpen}
-                    title={`Showing ${chipLabel.toLowerCase()} · sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
-                    onClick={(e) => { menuByKey.current = e.detail === 0; setMenuOpen((o) => !o); }}>
-              {chipLabel}<span className="sbf-filter-caret" aria-hidden="true"><Icon as={ChevronDown} size={10} weight="regular" /></span>
-            </button>
-            {menuOpen && createPortal(
-              <div className="sbf-menu" role="menu" aria-label="Show, sort and group" ref={menuPopRef}
-                   style={menuPos || { top: 0, right: 0, visibility: 'hidden' }}
-                   onKeyDown={onMenuKeyDown}>
-                <div className="sbf-menu-label">Show</div>
-                {chips.map((c) => (
-                  <button type="button" key={c.id} role="menuitemradio" aria-checked={chip === c.id}
-                          className={`sbf-menu-item${chip === c.id ? ' is-on' : ''}`}
-                          onClick={() => { setChip(c.id); closeMenu(); }}>
-                    {c.id === 'all' ? 'All files' : c.label}
-                    {(chipCounts[c.id] || 0) > 0 && <span className="sbf-menu-count">{chipCounts[c.id]}</span>}
-                  </button>
-                ))}
-                <div className="sbf-menu-sep" role="separator" />
-                <div className="sbf-menu-label">Sort</div>
-                {SORTS.map((so) => (
-                  <button type="button" key={so} role="menuitemradio" aria-checked={prefs.sort === so}
-                          className={`sbf-menu-item${prefs.sort === so ? ' is-on' : ''}`}
-                          onClick={() => { setPref('sort', so); closeMenu(); }}>
-                    {SORT_LABELS[so]}
-                  </button>
-                ))}
-                <div className="sbf-menu-sep" role="separator" />
-                <div className="sbf-menu-label">Group by</div>
-                {Object.keys(GROUP_LABELS).map((g) => (
-                  <button type="button" key={g} role="menuitemradio" aria-checked={prefs.groupBy === g}
-                          className={`sbf-menu-item${prefs.groupBy === g ? ' is-on' : ''}`}
-                          onClick={() => { setPref('groupBy', g); closeMenu(); }}>
-                    {GROUP_LABELS[g]}
-                  </button>
-                ))}
-              </div>,
-              document.body,
-            )}
-          </div>
+          <FilesShowMenu
+            label={chipLabel} on={chip !== 'all'} hidden={folded}
+            title={`Showing ${chipLabel.toLowerCase()} · sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
+            sections={[
+              { id: 'show', label: 'Show', items: chips.map((c) => ({
+                key: c.id, label: c.id === 'all' ? 'All files' : c.label, count: chipCounts[c.id] || 0,
+                checked: chip === c.id, onPick: () => setChip(c.id) })) },
+              { id: 'sort', label: 'Sort', items: SORTS.map((so) => ({
+                key: so, label: SORT_LABELS[so], checked: prefs.sort === so, onPick: () => setPref('sort', so) })) },
+              { id: 'group', label: 'Group by', items: Object.keys(GROUP_LABELS).map((g) => ({
+                key: g, label: GROUP_LABELS[g], checked: prefs.groupBy === g, onPick: () => setPref('groupBy', g) })) },
+            ]} />
         </div>
 
         <div className="sbf-files-list" ref={filesListRef} onKeyDown={onListKeyDown}>
