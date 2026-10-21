@@ -181,3 +181,34 @@ test.describe('Grid: the shelves', () => {
     await expect(sheet(page).locator('.fp-shelf[data-shelf="writing"]')).not.toHaveClass(/is-closed/);
   });
 });
+
+test.describe('List: the classic table', () => {
+  test('clusters first, then every file, newest first, sortable heads', async ({ page }) => {
+    await open(page);
+    await page.locator('.fp-tools').getByRole('radio', { name: 'List' }).click();
+    const table = sheet(page).locator('.ct-table.is-classic');
+    await expect(table.locator('.ct-head button.ct-th')).toHaveText([/Name/, /Kind/, /Size/, /Added/]);
+    const rows = table.locator('.ct-row');
+    await expect(rows.nth(0)).toHaveClass(/ct-folder-row/);
+    await expect(rows.nth(0)).toContainText('Locations');
+    await expect(rows.nth(0)).toContainText('Cluster');
+    await expect(rows.nth(2)).toContainText('Linked cluster');
+    await expect(rows.nth(3)).not.toHaveClass(/ct-folder-row/);
+    await expect(table.locator('.ct-row.is-zebra').first()).toBeVisible();
+    await expect(table.locator('[data-item-id="film-img-2"]')).toContainText('has it selected');
+    await expect(table.locator('[data-item-id="film-wait-0"]')).toContainText('Not on board');
+    await expect(table.locator('[data-item-id="film-img-2"]')).toContainText('Image · JPG');
+    await table.locator('.ct-head button.ct-th', { hasText: 'Name' }).click();
+    await expect(page.locator('.fp-tools .sbf-filter-btn')).toHaveAttribute('title', /sorted by name/);
+  });
+
+  test('a cluster row opens it; a file row selects', async ({ page }) => {
+    await open(page);
+    await page.locator('.fp-tools').getByRole('radio', { name: 'List' }).click();
+    const table = sheet(page).locator('.ct-table.is-classic');
+    await table.locator('[data-item-id="film-img-3"]').click();
+    await expect(table.locator('[data-item-id="film-img-3"]')).toHaveClass(/is-selected/);
+    await table.locator('.ct-folder-row', { hasText: 'Locations' }).dblclick();
+    await expect(page.locator('.fp-title-btn')).toContainText('Locations');
+  });
+});

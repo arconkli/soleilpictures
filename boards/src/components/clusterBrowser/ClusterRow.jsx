@@ -69,7 +69,11 @@ export const ClusterRow = memo(function ClusterRow({
   // A shelf's row on the Files page in the files sidebar's look: where it
   // stands is said in the last column, in words, not as a pill by its name.
   bare = false,
+  // A row of that page's List (Finder's table): the same words, a file's
+  // size and never a length, and every other row faintly shaded (zebra).
+  classic = false, zebra = false,
 }) {
+  const words = bare || classic;
   const peer = peers && peers[0];
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
@@ -79,20 +83,19 @@ export const ClusterRow = memo(function ClusterRow({
   // repeat what the Format column already says — so the transport takes the
   // space instead. See .ct-thumb.is-bare.
   const bareAudio = canAudition && item.preview?.mode === 'icon';
-  // On a shelf a file with no picture of its own is drawn as the sidebar's
+  // On that page a file with no picture of its own is drawn as the sidebar's
   // card draws it: its quiet glyph, with no box.
-  const glyphOnly = bare && !item.pending && !bareAudio && item.preview?.mode !== 'r2';
+  const glyphOnly = words && !item.pending && !bareAudio && item.preview?.mode !== 'r2';
   // On a shelf a row's size says what matters about it: how long a clip
-  // runs, how big a file is, where a link goes.
-  const sizeText = bare
-    ? (lengthLabelOf(item)
-      || (Number.isFinite(item.sizeBytes) && item.sizeBytes > 0 ? humanSize(item.sizeBytes) : '')
-      || (item.kind === 'link' ? (item.sub || '') : ''))
+  // runs, how big a file is, where a link goes. In the List it is the size.
+  const bytes = Number.isFinite(item.sizeBytes) && item.sizeBytes > 0 ? humanSize(item.sizeBytes) : '';
+  const sizeText = classic ? bytes
+    : bare ? (lengthLabelOf(item) || bytes || (item.kind === 'link' ? (item.sub || '') : ''))
     : (item.sizeBytes != null ? humanSize(item.sizeBytes) : '');
   return (
     <div
       ref={rowRef}
-      className={`ct-row${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}`}
+      className={`ct-row${member ? ' ct-member' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}${zebra ? ' is-zebra' : ''}`}
       data-item-id={item.id}
       style={peer ? { '--peer-color': peer.user.color } : undefined}
       role="row" aria-rowindex={rowIndex}
@@ -144,8 +147,8 @@ export const ClusterRow = memo(function ClusterRow({
               </div>
             )}
         </div>
-        {!bare && onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
-        {!bare && markUnplaced && item.unplaced && <span className="ct-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
+        {!words && onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
+        {!words && markUnplaced && item.unplaced && <span className="ct-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
         {item.kind === 'audio' && (
           // Scrubbing is live only while THIS row is the one sounding. The
           // waveform is 240px of a 620px name cell, so making it a transport
@@ -168,13 +171,13 @@ export const ClusterRow = memo(function ClusterRow({
         </>
       ) : (
         <>
-          <div role="cell" className="ct-cell ct-c-type">{bare ? kindLabelOf(item) : item.typeLabel}</div>
+          <div role="cell" className="ct-cell ct-c-type">{words ? kindLabelOf(item) : item.typeLabel}</div>
           <div role="cell" className="ct-cell ct-c-size">{sizeText}</div>
         </>
       )}
       <div role="cell" className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
       <div role="cell" className="ct-cell ct-c-presence">
-        {bare ? (peer ? (
+        {words ? (peer ? (
           <>
             <Avatar name={peer.user.name} color={peer.user.color} size={18} ring />
             <span className="ct-status">{(peer.user.name || '').split(/\s+/)[0] || 'Someone'} has it selected</span>

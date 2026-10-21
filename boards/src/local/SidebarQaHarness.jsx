@@ -481,6 +481,9 @@ export function SidebarQaHarness() {
   // does the same here (a new object, the same clusters).
   const [boardsVersion, setBoardsVersion] = useState(0);
   const allBoards = useMemo(() => ({ ...BOARDS }), [boardsVersion]);
+  // The page's clusters say how much is in them, as App's do (card_count).
+  const pageBoards = useMemo(() => Object.fromEntries(Object.entries(allBoards)
+    .map(([id, b]) => [id, { ...b, card_count: (cardsBy[id] || []).length }])), [allBoards, cardsBy]);
   // The shell App would give this screen (lib/deviceShell.js). In the mobile
   // shell — a phone, a portrait tablet — the sidebar is the app's drawer, open
   // as the menu button would leave it, and as in App nothing sets --sb-w: the
@@ -815,7 +818,7 @@ export function SidebarQaHarness() {
             )}
             <FeedbackProvider>
               <FilesPageQa
-                active={active} boards={allBoards}
+                active={active} boards={pageBoards}
                 cardsBy={cardsBy} cardsByRef={cardsByRef} setCardsBy={setCardsBy}
                 filter={filesFilter}
                 onFilterApplied={(token) => setFilesFilter((f) => (f?.token === token ? null : f))}

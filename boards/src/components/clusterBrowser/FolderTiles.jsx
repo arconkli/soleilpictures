@@ -16,11 +16,12 @@ import { memo } from 'react';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { COVER_TINTS, Avatar } from '../primitives.jsx';
-import { Link as LinkIcon, Check } from '../../lib/icons.js';
+import { Link as LinkIcon, Check, FolderSimple, LinkSimple } from '../../lib/icons.js';
 import { InlineRename } from './InlineRename.jsx';
+import { relativeTimeShort } from '../../lib/relativeTime.js';
 
 // Unknown (no card_count yet) says nothing rather than claiming "Empty".
-function countLabel(n) {
+export function countLabel(n) {
   if (!Number.isFinite(n)) return '';
   if (n <= 0) return 'Empty';
   return `${n} item${n === 1 ? '' : 's'}`;
@@ -85,6 +86,72 @@ export const FolderTile = memo(function FolderTile({
           {people.slice(0, 3).map((u) => <Avatar key={u.id} name={u.name} color={u.color} size={16} ring />)}
         </div>
       )}
+    </div>
+  );
+});
+
+// A cluster as a row of the classic List (the full Files page in the files
+// sidebar's look): first in the table, as folders are in Finder. Kind says
+// Cluster or Linked cluster, Size how much is in it, and the last column who
+// is in it now. Interaction is the caller's, as for FolderTile.
+export const FolderRow = memo(function FolderRow({
+  board, name, linked = false, missing = false, peers = null, selected = false, dropTarget = false,
+  springing = false, rename = null, checks = false, zebra = false, audioMode = false, dateKey = 'created',
+  className = '', ...divProps
+}) {
+  const people = [];
+  const seen = new Set();
+  for (const p of peers || []) {
+    const u = p?.user || p;
+    if (!u?.id || seen.has(u.id)) continue;
+    seen.add(u.id);
+    people.push(u);
+  }
+  const label = name || board?.name || (linked ? 'Linked cluster' : 'Untitled cluster');
+  const when = dateKey === 'created' ? board?.created_at : (board?.updated_at || board?.created_at);
+  const first = people[0] ? ((people[0].name || '').split(/\s+/)[0] || 'Someone') : null;
+  const kind = linked ? 'Linked cluster' : 'Cluster';
+  return (
+    <div {...divProps} role="row"
+         draggable={rename ? undefined : divProps.draggable}
+         className={`ct-row ct-folder-row${selected ? ' is-selected' : ''}${dropTarget ? ' is-drop-target' : ''}${springing ? ' is-springing' : ''}${zebra ? ' is-zebra' : ''}${className ? ` ${className}` : ''}`}
+         title={label}>
+      <div role="cell" className="ct-cell ct-c-name">
+        {checks && <span className="row-check" aria-hidden="true"><Icon as={Check} size={11} weight="bold" /></span>}
+        <div className="ct-thumb ct-folder-glyph"><Icon as={FolderSimple} size={14} weight="regular" /></div>
+        <div className="ct-name-wrap">
+          {rename
+            ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" className="ct-row-rename" />
+            : <div className="ct-name">{label}</div>}
+        </div>
+        {linked && (
+          <span className="ct-folder-link" role="img" aria-label="Linked cluster" title="Linked cluster">
+            <Icon as={LinkSimple} size={12} weight="regular" />
+          </span>
+        )}
+      </div>
+      {audioMode ? (
+        <>
+          <div role="cell" className="ct-cell ct-c-dur" />
+          <div role="cell" className="ct-cell ct-c-bpm" />
+          <div role="cell" className="ct-cell ct-c-key" />
+          <div role="cell" className="ct-cell ct-c-fmt">{kind}</div>
+        </>
+      ) : (
+        <>
+          <div role="cell" className="ct-cell ct-c-type">{kind}</div>
+          <div role="cell" className="ct-cell ct-c-size">{missing ? 'Not available' : countLabel(board?.card_count)}</div>
+        </>
+      )}
+      <div role="cell" className="ct-cell ct-c-date">{when ? relativeTimeShort(when) : ''}</div>
+      <div role="cell" className="ct-cell ct-c-presence">
+        {first && (
+          <>
+            <Avatar name={people[0].name} color={people[0].color} size={18} ring />
+            <span className="ct-status">{first} is in it</span>
+          </>
+        )}
+      </div>
     </div>
   );
 });

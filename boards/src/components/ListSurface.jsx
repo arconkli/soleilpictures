@@ -32,7 +32,7 @@ import { searchEntities } from '../lib/entitySearch.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import { usePeerSelections } from '../hooks/usePeerSelections.js';
 import { ClusterBrowserToolbar, StorageUpsell } from './clusterBrowser/ClusterBrowserToolbar.jsx';
-import { FolderTile } from './clusterBrowser/FolderTiles.jsx';
+import { FolderTile, FolderRow } from './clusterBrowser/FolderTiles.jsx';
 import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
 import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
@@ -2107,36 +2107,39 @@ export function ListSurface({
     },
   });
 
-  const renderSubFolder = (b) => (
-    <FolderTile key={b.id} board={b} compact={isPanel}
-                selected={selectedBoards.has(b.id)}
-                dropTarget={dropTileId === b.id}
-                springing={springTimer.armed === `folder:${b.id}`}
-                peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
-                draggable={canEdit && !noTouchDrag}
-                checks={selecting}
-                rename={renameFor(b.id)}
-                {...folderProps(b)} />
-  );
-  const renderLinkedFolder = (c) => {
+  // A folder's props, the same for its tile and, in the classic List, its row.
+  const subFolderProps = (b) => ({
+    board: b,
+    selected: selectedBoards.has(b.id),
+    dropTarget: dropTileId === b.id,
+    springing: springTimer.armed === `folder:${b.id}`,
+    peers: isPanel ? null : (peersHereByBoard?.get?.(b.id) || []),
+    draggable: canEdit && !noTouchDrag,
+    checks: selecting,
+    rename: renameFor(b.id),
+    ...folderProps(b),
+  });
+  const linkedFolderProps = (c) => {
     const t = boards[c.target];
-    return (
-      <FolderTile key={c.id} board={t} linked compact={isPanel}
-                  name={t?.name || c.name}
-                  missing={!t && boardsReady}
-                  selected={selectedCards.has(c.id)}
-                  checks={selecting}
-                  springing={springTimer.armed === `folder:${c.target}`}
-                  // Hold a drag over it and Files opens the cluster it links to.
-                  onDragEnter={t && spring ? () => armFolder(c.target) : undefined}
-                  onDragOver={t && spring ? () => armFolder(c.target) : undefined}
-                  onDragLeave={t && spring ? (e) => springTimer.leave(`folder:${c.target}`, e) : undefined}
-                  data-link-id={c.id}
-                  onClick={(e) => onTileClick(e, 'boardlink', c.id)}
-                  onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)}
-                  {...folderKeys('boardlink', c.id)} />
-    );
+    return {
+      board: t, linked: true,
+      name: t?.name || c.name,
+      missing: !t && boardsReady,
+      selected: selectedCards.has(c.id),
+      checks: selecting,
+      springing: springTimer.armed === `folder:${c.target}`,
+      // Hold a drag over it and Files opens the cluster it links to.
+      onDragEnter: t && spring ? () => armFolder(c.target) : undefined,
+      onDragOver: t && spring ? () => armFolder(c.target) : undefined,
+      onDragLeave: t && spring ? (e) => springTimer.leave(`folder:${c.target}`, e) : undefined,
+      'data-link-id': c.id,
+      onClick: (e) => onTileClick(e, 'boardlink', c.id),
+      onDoubleClick: (e) => onTileDoubleClick(e, 'boardlink', c.id),
+      ...folderKeys('boardlink', c.id),
+    };
   };
+  const renderSubFolder = (b) => <FolderTile key={b.id} compact={isPanel} {...subFolderProps(b)} />;
+  const renderLinkedFolder = (c) => <FolderTile key={c.id} compact={isPanel} {...linkedFolderProps(c)} />;
   // On the page in the files sidebar's look the clusters in this one, and
   // those linked into it, come first, as one shelf: those whose name matches
   // a search, none while a chip filters to a kind of file.
@@ -2150,6 +2153,16 @@ export function ListSurface({
   })();
   const folderShelf = sb
     ? { count: shownFolders.length, nodes: shownFolders.map((f) => (f.kind === 'sub' ? renderSubFolder(f.b) : renderLinkedFolder(f.c))) }
+    : null;
+  // In the List the same clusters are the table's first rows, as folders are
+  // in Finder.
+  const folderRows = sb && viewMode === 'table'
+    ? shownFolders.map((f, i) => {
+      const row = { audioMode, dateKey: sortKey === 'created' ? 'created' : 'updated', zebra: i % 2 === 1 };
+      return f.kind === 'sub'
+        ? <FolderRow key={f.b.id} {...subFolderProps(f.b)} {...row} />
+        : <FolderRow key={f.c.id} {...linkedFolderProps(f.c)} {...row} />;
+    })
     : null;
 
   // What the grid and the table are given, wherever they're drawn: once in
@@ -2607,8 +2620,8 @@ export function ListSurface({
             <div className="ft-grid is-full">{linkedCards.map(renderLinkedFolder)}</div>
           </>
         )}
-        {/* The page in the files sidebar's look: the card's shelves in Grid,
-            under the head. */}
+        {/* The page in the files sidebar's look, under the head: the card's
+            shelves in Grid, Finder's table in List. */}
         {sb && (
           <div className="cluster-browser">
             <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
@@ -2619,12 +2632,8 @@ export function ListSurface({
                   <FilesShelves folders={folderShelf} sections={sections} closedShelves={closedShelves}
                     foldable={(sec) => shelfFoldable(sec, { chip: pageChip, query })} onToggle={toggleShelf}
                     galleryProps={galleryProps} tableProps={tableProps} tileSize={tileSize} onShelfLayout={onShelfLayout} />
-                ) : (
-                  <>
-                    <FilesShelves folders={folderShelf} sections={[]} closedShelves={closedShelves}
-                      foldable={() => false} onToggle={toggleShelf} galleryProps={galleryProps} tableProps={tableProps} />
-                    {visibleItems.length > 0 && <ClusterTable {...tableProps} items={displayItems} />}
-                  </>
+                ) : (visibleItems.length > 0 || folderRows.length > 0) && (
+                  <ClusterTable {...tableProps} items={displayItems} variant="classic" leadRows={folderRows} />
                 )}
               </div>
               {detailJsx}

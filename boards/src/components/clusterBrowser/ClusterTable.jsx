@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { cloneElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ClusterRow } from './ClusterRow.jsx';
 import { CardPreview } from './CardPreview.jsx';
 import { Icon } from '../Icon.jsx';
@@ -35,7 +35,12 @@ export function ClusterTable({
   // A shelf's rows on the Files page in the files sidebar's look
   // (FilesShelves.jsx): no header, and each row says where it stands in words.
   bare = false,
+  // 'classic': that page's List, Finder's table: Kind for Type, a faint zebra,
+  // and leadRows (its clusters, FolderTiles.jsx FolderRow) before the files.
+  variant = null,
+  leadRows = null,
 }) {
+  const classic = variant === 'classic';
   const dateKey = sortKey === 'created' ? 'created' : 'updated';
   const th = (cls, col, label, note = null) => (
     <SortTh cls={cls} col={col} label={label} sortKey={sortKey} sortDir={sortDir} onSort={onSort} note={note} />
@@ -116,11 +121,16 @@ export function ClusterTable({
   }, [activeId]);
 
   // rowIndex: 1 is the header, so the first row is 2 (aria-rowindex); with
-  // no header (bare) it is 1.
-  const firstRowIndex = bare ? 1 : 2;
+  // no header (bare) it is 1. Lead rows come before the files.
+  const leadCount = leadRows?.length || 0;
+  const firstRowIndex = (bare ? 1 : 2) + leadCount;
+  // The zebra goes by a row's place in the whole table, so the window moving
+  // can't shift it.
+  const zebraAt = (i) => classic && (leadCount + i) % 2 === 1;
   const rowOf = ({ item: it, group, member }, i) => (group ? (
     <GroupRow
       key={group.id} group={group} rowIndex={virtual ? i + firstRowIndex : undefined}
+      zebra={zebraAt(i)}
       expanded={expandedGroups?.has?.(group.id)}
       selected={selectedGroupId === group.id}
       active={activeId === group.id} registerRow={registerRow}
@@ -139,14 +149,14 @@ export function ClusterTable({
       rowRef={registerRow ? registerRow(it.id) : null}
       audioMode={audioMode} draggable={draggableItems} onBoard={!!onBoardIds?.has?.(it.id)}
       rename={renameFor ? renameFor(it.id) : null} markUnplaced={markUnplaced}
-      checks={checks} bare={bare}
+      checks={checks} bare={bare} classic={classic} zebra={zebraAt(i)}
       rowIndex={virtual ? i + firstRowIndex : undefined}
       onClick={(e) => onRowClick(e, it.id)}
       onDoubleClick={(e) => onRowDoubleClick(e, it.id)}
     />
   ));
   return (
-    <div className={`ct-table${virtual ? ' is-windowed' : ''}${bare ? ' is-bare' : ''}`} role="table" aria-label="Files" aria-rowcount={virtual ? rows.length + firstRowIndex - 1 : undefined}
+    <div className={`ct-table${virtual ? ' is-windowed' : ''}${classic ? ' is-classic' : ''}${bare ? ' is-bare' : ''}`} role="table" aria-label="Files" aria-rowcount={virtual ? rows.length + firstRowIndex - 1 : undefined}
          data-cols={audioMode ? 'audio' : undefined}>
       {!bare && (
         <div className="ct-head" role="row" aria-rowindex={virtual ? 1 : undefined}>
@@ -160,12 +170,17 @@ export function ClusterTable({
             </>
           ) : (
             <>
-              {th('ct-c-type', 'type', 'Type')}
+              {th('ct-c-type', 'type', classic ? 'Kind' : 'Type')}
               {th('ct-c-size', 'size', 'Size')}
             </>
           )}
           {th('ct-c-date', dateKey, dateKey === 'created' ? 'Added' : 'Modified')}
           <div className="ct-th ct-c-presence" role="columnheader" />
+        </div>
+      )}
+      {leadCount > 0 && (
+        <div className="ct-lead" role="rowgroup">
+          {virtual ? leadRows.map((r, k) => cloneElement(r, { 'aria-rowindex': firstRowIndex - leadCount + k })) : leadRows}
         </div>
       )}
       <div className="ct-body" role="rowgroup" ref={bodyRef}>
@@ -213,9 +228,9 @@ function SortTh({ cls, col, label, sortKey, sortDir, onSort, note = null }) {
 
 // A linked-grid family's header row (caret + representative preview + name +
 // count); it toggles expansion, and when open its member rows follow it.
-function GroupRow({ group, expanded, selected, active, registerRow, onGroupClick, audioMode = false, rowIndex = undefined }) {
+function GroupRow({ group, expanded, selected, active, registerRow, onGroupClick, audioMode = false, rowIndex = undefined, zebra = false }) {
   return (
-    <div className={`ct-row ct-group${selected ? ' is-selected' : ''}${expanded ? ' is-open' : ''}${active ? ' is-active' : ''}`}
+    <div className={`ct-row ct-group${selected ? ' is-selected' : ''}${expanded ? ' is-open' : ''}${active ? ' is-active' : ''}${zebra ? ' is-zebra' : ''}`}
          role="row" aria-rowindex={rowIndex} aria-expanded={!!expanded}
          ref={registerRow ? registerRow(group.id) : null}
          onClick={(e) => onGroupClick(e, group.id)}>
