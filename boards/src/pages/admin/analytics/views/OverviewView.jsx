@@ -28,9 +28,18 @@
 // badge stays, demoted to the sub line. Below the tiles, the long-run band
 // (widgets/GrowthBand.jsx) draws every week since the first account, one small
 // chart per measure, beside what changed along the way.
+//
+// It is live (the owner's ask, 2026-10-21: the page as it is, live in place).
+// The realtime stream the console draws is held here, once, and an event from
+// someone signed in re-reads the figures it can move (useOverviewLive). Those
+// figures roll to their new value, and one that rose says by how much for a
+// few seconds; a new signup slides into Just arrived, a row whose work changed
+// flashes, and this week's bars in the band grow. The five-minute read stays
+// underneath as the backstop, and each figure shows whichever read is newer.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
+import { useAuth } from '../../../../auth/AuthGate.jsx';
 import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
 import { ALPHA_SOLID, DEFAULT_WINDOW, WEEKS_FETCHED, weekDelta, weeklyTrend } from '../../../../lib/trendStats.js';
 import {
@@ -43,9 +52,12 @@ import { undoToast } from '../../../../lib/undoToast.js';
 import { isAdminPreviewMode } from '../../../../lib/localMode.js';
 import { useFeedback } from '../../../../components/AppFeedback.jsx';
 import { useAdminData } from '../../useAdminData.js';
+import { useActivityPulse } from '../../useActivityPulse.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
+import { useOverviewLive, fresher, mergeWeeks } from '../useOverviewLive.js';
 import { Metric, MetricGrid } from '../../viz/Metric.jsx';
+import { Rolling } from '../../viz/Rolling.jsx';
 import { Heatmap } from '../../viz/Heatmap.jsx';
 import { EventConsole } from '../../viz/EventConsole.jsx';
 import { Deck, Well, Plate } from '../../viz/Well.jsx';
@@ -108,18 +120,52 @@ function arrivedWhat(u) {
   return { did: false, text: 'nothing yet' };
 }
 
+/**
+ * Which rows just changed, for the eye. Someone who was not on the list the last
+ * time it was read slides in, and a row whose work changed (a first card, above
+ * all) flashes. Nothing is marked on the first list or after a filter change:
+ * that is a new list, not news. `gen` names the population, as useLiveRise's.
+ */
+function useArrivalMarks(users, gen) {
+  const last = useRef({ gen: null, texts: null });
+  const [marks, setMarks] = useState(() => new Map());
+  useEffect(() => {
+    const texts = new Map(users.map((u) => [u.user_id, arrivedWhat(u).text]));
+    const p = last.current;
+    last.current = { gen, texts };
+    if (p.gen !== gen || !p.texts || p.texts.size === 0) return;
+    const next = new Map();
+    for (const [id, text] of texts) {
+      if (!p.texts.has(id)) next.set(id, 'new');
+      else if (p.texts.get(id) !== text) next.set(id, 'upd');
+    }
+    if (next.size) setMarks(next);
+  }, [users, gen]);
+  // The animations run 2.4s; the marks come off after them, so the next change
+  // can put them back on.
+  useEffect(() => {
+    if (!marks.size) return undefined;
+    const t = setTimeout(() => setMarks(new Map()), 2600);
+    return () => clearTimeout(t);
+  }, [marks]);
+  return marks;
+}
+
 /** Who arrived, and whether they did anything once they got here. */
-function WhoArrived({ users }) {
+function WhoArrived({ users, gen }) {
+  const marks = useArrivalMarks(users, gen);
   if (!users.length) return <div className="admin-empty">No signups yet.</div>;
   return (
     <div className="admin-people-list">
       {users.map((u) => {
         const { did, text } = arrivedWhat(u);
+        const mark = marks.get(u.user_id);
         return (
-          <div className="admin-people-row" key={u.user_id}>
+          <div className={`admin-people-row${mark ? ` is-${mark}` : ''}`} key={u.user_id}>
             <span className={`admin-people-dot ${did ? 'is-did' : ''}`} aria-hidden="true" />
             <span className="admin-people-email" title={u.email}>{u.email}</span>
-            <span className="admin-people-what">{text}</span>
+            {/* Keyed by its words, so a second change restarts the flash. */}
+            <span className="admin-people-what" key={text}>{text}</span>
             <span className="admin-people-when" title={fmtDateTime(u.created_at)}>{relativeTime(u.created_at)}</span>
           </div>
         );
@@ -161,6 +207,17 @@ function WhoStalled({ rows }) {
 export function OverviewView() {
   const f = useAnalyticsFilters();
   const feedback = useFeedback();
+  const { user } = useAuth();
+  // The page's one realtime stream: the console draws it, and the live layer
+  // listens to it. One hook, because Supabase hands two channels on the same
+  // topic the same object (see useActivityPulse).
+  const pulse = useActivityPulse({ minutes: 60 });
+  const live = useOverviewLive({
+    pulse, excludeInternal: f.excludeInternal, verifiedOnly: f.verifiedOnly, viewerId: user?.id ?? null,
+  });
+  // The population every live figure counts. A change of it is a new baseline,
+  // never a rise (Metric's useLiveRise, useArrivalMarks).
+  const liveGen = `${f.excludeInternal ? 'ex' : 'in'}-${f.verifiedOnly ? 'ver' : 'all'}`;
 
   const q = useAdminData(async () => {
     // When this read began: a note change answered after it may be missing from
@@ -234,6 +291,7 @@ export function OverviewView() {
   // and so a failure blanks the band and nothing else. The same population
   // flags as everything on the page.
   const g = useAdminData(async () => {
+    const startedAt = Date.now();
     const [growth, returns] = await Promise.allSettled([
       supabase.rpc('admin_growth_series', { p_weeks: 104, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_return_fixed_horizon', {
@@ -250,11 +308,35 @@ export function OverviewView() {
     }
     // null, not [], when the return read failed: the band then says it did not
     // load instead of drawing every week as nobody.
-    return { growth: growth.value.data, returns: ok(returns) ? returns.value.data : null };
+    return { startedAt, growth: growth.value.data, returns: ok(returns) ? returns.value.data : null };
   }, [f.excludeInternal, f.verifiedOnly],
      { pollIntervalMs: POLL_MS.overview, refetchOnFocus: true });
 
-  const d = q.data;
+  // Each figure from whichever read began later: the backstop's, or the live
+  // one an event set off. The weekly strips, the heatmap, the markers and the
+  // history are the backstop's alone.
+  const d0 = q.data;
+  const d = useMemo(() => {
+    if (!d0) return d0;
+    const at = d0.startedAt;
+    const dorm = live.dormancy;
+    return {
+      ...d0,
+      kpi: fresher(live, 'kpi', d0.kpi, at),
+      lifetime: fresher(live, 'lifetime', d0.lifetime, at),
+      users: fresher(live, 'users', d0.users, at) || [],
+      activeNow: fresher(live, 'activeNow', d0.activeNow, at),
+      stalled: dorm && dorm.value !== undefined && (at == null || dorm.at > at)
+        ? stalledSignups(dorm.value || []) : d0.stalled,
+    };
+  }, [d0, live]);
+  // This week's row of the band, from the live read, while it is the newer one.
+  const growthData = useMemo(() => {
+    const L = live.growth;
+    if (!g.data || !L || L.at <= (g.data.startedAt ?? 0)) return g.data;
+    return { ...g.data, growth: mergeWeeks(g.data.growth, L.value) };
+  }, [g.data, live.growth]);
+  const band = growthData === g.data ? g : { ...g, data: growthData };
   const cur = d?.kpi?.current || {};
   const prev = d?.kpi?.previous || {};
   const life = d?.lifetime || {};
@@ -327,7 +409,9 @@ export function OverviewView() {
   const refreshQ = q.refresh;
   const refreshG = g.refresh;
   const refresh = useCallback(() => { refreshQ(); refreshG(); }, [refreshQ, refreshG]);
-  useRegisterViewRuntime({ refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing || g.refreshing, status });
+  useRegisterViewRuntime({
+    refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing || g.refreshing, status, stream: pulse.status,
+  });
 
   // ── Markers, and the owner's notes ──────────────────────────────────────
   // Notes are local state so an add or a remove shows at once. They are seeded
@@ -520,20 +604,20 @@ export function OverviewView() {
                Clusters are the ones people made; the Studio every workspace is
                born with sits beside them, not inside. */
             <dl className="admin-lifetime">
-              <div><dt>Accounts</dt><dd>{formatCount(lifeN('users'))}</dd></div>
+              <div><dt>Accounts</dt><dd><Rolling text={formatCount(lifeN('users'))} /></dd></div>
               <div>
                 <dt>Clusters made</dt>
                 <dd>
-                  {formatCount(lifeN('clusters_made'))}
+                  <Rolling text={formatCount(lifeN('clusters_made'))} />
                   {lifeN('studios') > 0 && <small>+{formatCount(lifeN('studios'))} Studios</small>}
                 </dd>
               </div>
-              <div><dt>Cards</dt><dd>{formatCount(lifeN('cards'))}</dd></div>
-              <div><dt>Workspaces</dt><dd>{formatCount(lifeN('workspaces'))}</dd></div>
+              <div><dt>Cards</dt><dd><Rolling text={formatCount(lifeN('cards'))} /></dd></div>
+              <div><dt>Workspaces</dt><dd><Rolling text={formatCount(lifeN('workspaces'))} /></dd></div>
               <div>
                 <dt>Time in app</dt>
                 <dd>{lifeN('seconds_in_app') != null
-                  ? `${formatCount(Math.round(lifeN('seconds_in_app') / 3600))}h` : '—'}</dd>
+                  ? <Rolling text={`${formatCount(Math.round(lifeN('seconds_in_app') / 3600))}h`} /> : '—'}</dd>
               </div>
               <div className="admin-lifetime-scope">
                 totals now · {f.excludeInternal ? 'team excluded' : 'incl. team'} · {f.verifiedOnly ? 'entered the code' : 'all accounts'}
@@ -544,6 +628,9 @@ export function OverviewView() {
         <MetricGrid hero>
           <Metric
             hero
+            roll
+            live={num(cur.signups)}
+            liveGen={liveGen}
             label="Signups"
             value={cur.signups != null ? formatCount(cur.signups) : null}
             sub="new accounts"
@@ -557,6 +644,9 @@ export function OverviewView() {
           />
           <Metric
             hero
+            roll
+            live={wau}
+            liveGen={liveGen}
             label="Weekly active"
             value={wau != null ? formatCount(wau) : null}
             sub="opened the app"
@@ -570,6 +660,9 @@ export function OverviewView() {
           />
           <Metric
             hero
+            roll
+            live={workUsers}
+            liveGen={liveGen}
             label="Did real work"
             value={workUsers != null ? formatCount(workUsers) : null}
             sub="placed, edited or shared something"
@@ -588,6 +681,7 @@ export function OverviewView() {
           />
           <Metric
             hero
+            roll
             label="Trials"
             value={formatCount(trialingNow)}
             sub={`${formatCount(payingUsers)} paying · ${formatCount(demosTrialEligible)} eligible`}
@@ -602,6 +696,7 @@ export function OverviewView() {
           />
           <Metric
             hero
+            roll
             label="MRR"
             value={mrrCents == null ? null : formatMoney(mrrCents)}
             sub={payingUsers > 0
@@ -619,6 +714,9 @@ export function OverviewView() {
           />
           <Metric
             hero
+            roll
+            live={num(cur.cards_created)}
+            liveGen={liveGen}
             label="Cards created"
             value={cur.cards_created != null ? formatCompact(cur.cards_created) : null}
             sub="across every cluster"
@@ -640,7 +738,8 @@ export function OverviewView() {
             line needs its explanation within reach. It is also where the owner
             pins a note. */}
         <GrowthBand
-          query={g}
+          query={band}
+          liveGen={liveGen}
           markers={mergedMarkers}
           breaks={DEFINITION_BREAKS}
           cutBreaks={breakList}
@@ -660,13 +759,14 @@ export function OverviewView() {
             foot="Daily totals are too small to have a shape. A month of them stacked on a week is."
           >
             <Heatmap
+              markNow
               cells={d?.heatmap || []}
               formatValue={(v) => `${formatCount(v)} event${v === 1 ? '' : 's'}`}
             />
           </Well>
 
           <Well span={4} flush title="Live" meta="pushed, not polled">
-            <EventConsole activeNow={d?.activeNow} minutes={60} excludeInternal={f.excludeInternal} />
+            <EventConsole pulse={pulse} activeNow={d?.activeNow} minutes={60} excludeInternal={f.excludeInternal} />
           </Well>
         </Deck>
 
@@ -676,7 +776,7 @@ export function OverviewView() {
         </div>
         <Deck>
           <Plate span={6} title="Just arrived" meta={`newest ${d?.users?.length || 0}`}>
-            <WhoArrived users={d?.users || []} />
+            <WhoArrived users={d?.users || []} gen={liveGen} />
           </Plate>
           <Plate span={6} title="Arrived and stalled"
                  meta={`signed up ≤14d ago, no card ever${d?.stalled?.total > (d?.stalled?.rows?.length || 0) ? ` · ${formatCount(d.stalled.rows.length)} of ${formatCount(d.stalled.total)}` : ''}`}>

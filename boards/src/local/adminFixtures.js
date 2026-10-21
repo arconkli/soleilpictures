@@ -1200,6 +1200,10 @@ function timeFloor() {
 const TIME_HOURS = [31, 38, 35, 42, 11]; // WK[WORK_FROM..13], when ?time=1
 
 function growthRows() {
+  return liveWeek(baseGrowthRows());
+}
+
+function baseGrowthRows() {
   const secondsFloor = timeFloor();
   let users = 0;
   let cardsTotal = 0;
@@ -1685,6 +1689,11 @@ function rpcResult(name, params) {
   if (name === 'admin_checkout_reliability' && zeroRevenue()) {
     return { success_views: 2, activated: 1, stalled: 0, verify_retry: 1, missing_session: 0, verify_failed: 0, support_clicks: 0 };
   }
+  // admin_events_by_id(p_ids, …): the rows __adminLive played, with emails.
+  if (name === 'admin_events_by_id') {
+    return (Array.isArray(params?.p_ids) ? params.p_ids : [])
+      .map((id) => LIVE_ROWS.get(id)).filter(Boolean).map((r) => ({ ...r }));
+  }
   if (name === 'admin_recent_signups') {
     const want = Math.max(1, Math.trunc(Number(params?.p_limit) || 20));
     return RPCS.admin_recent_signups.slice(0, want).map((r) => ({ ...r }));
@@ -1888,6 +1897,106 @@ RPCS.admin_second_sitting = fhRows([
   ...fhWeeks(7).map((w, i) => [`week:${w}`, [30, 27, 35, 31, 34, 39, 18][i], [6, 6, 8, 7, 8, 8, 4][i]]),
 ]);
 
+// ── Live, in the harness ────────────────────────────────────────────────────
+// The harness has no realtime server, so nothing is ever pushed and the live
+// layers would sit still in the one place they can be looked at. Two doors in:
+//
+//   window.__adminRealtimeEmit(row, topic = 'admin:activity')
+//     pushes an analytics_events row to every handler on that topic, exactly as
+//     postgres_changes would.
+//   window.__adminLive(kind)   kind: 'card' | 'signup' | 'first_card' | 'here'
+//     moves the fixtures the way that moment moves the database, then pushes
+//     its event, so the Overview's live read finds something new.
+//
+// The Universe picks its own clusters (window.__universeMoment in
+// UniverseGraph), since only it knows which ones the harness drew.
+const LIVE = { signups: 0, cards: 0, active_users: 0, work_users: 0, clusters_made: 0, n: 0 };
+
+/** The week so far, moved by what __adminLive has played. */
+function liveWeek(rows) {
+  if (!LIVE.n) return rows;
+  return rows.map((r) => (r.complete ? r : {
+    ...r,
+    signups: r.signups + LIVE.signups,
+    active_users: r.active_users == null ? r.active_users : r.active_users + LIVE.active_users,
+    work_users: r.work_users == null ? r.work_users : r.work_users + LIVE.work_users,
+    cards: r.cards + LIVE.cards,
+    users_total: r.users_total + LIVE.signups,
+    cards_total: r.cards_total + LIVE.cards,
+    clusters_made: r.clusters_made + LIVE.clusters_made,
+    day_one_n: r.day_one_n + LIVE.signups,
+  }));
+}
+
+const LIVE_HANDLERS = new Map();   // topic -> Set of postgres_changes callbacks
+
+function emitRealtime(row, topic = 'admin:activity') {
+  const hs = LIVE_HANDLERS.get(topic);
+  if (!hs) return 0;
+  for (const cb of hs) { try { cb({ new: row }); } catch (_) { /* a handler's own bug */ } }
+  return hs.size;
+}
+
+// What admin_events_by_id resolves a played row to: the row with its author's
+// email, as 0410 joins it. Played authors are never internal.
+const LIVE_ROWS = new Map();
+
+function liveRow(event, userId, props = {}) {
+  LIVE.n += 1;
+  const row = {
+    id: `00000000-0000-4000-8000-${String(900000000000 + LIVE.n).padStart(12, '0')}`,
+    event, occurred_at: new Date().toISOString(), user_id: userId, props,
+  };
+  const email = RPCS.admin_recent_signups.find((r) => r.user_id === userId)?.email || null;
+  LIVE_ROWS.set(row.id, { id: row.id, event, occurred_at: row.occurred_at, user_id: userId, email, path: '/' });
+  return row;
+}
+
+function playLive(kind) {
+  const kpiNow = RPCS.admin_kpi_summary;
+  const bump = (patch) => { RPCS.admin_kpi_summary = { ...kpiNow, current: { ...kpiNow.current, ...patch(kpiNow.current) } }; };
+  const life = (patch) => { RPCS.admin_lifetime_totals = { ...RPCS.admin_lifetime_totals, ...patch(RPCS.admin_lifetime_totals) }; };
+  const signups = RPCS.admin_recent_signups;
+  if (kind === 'signup') {
+    const id = `rs-live-${LIVE.n + 1}`;
+    RPCS.admin_recent_signups = [{
+      user_id: id, email: `${NAMES[(LIVE.n + 3) % NAMES.length]}.new${LIVE.n + 1}@example.com`,
+      created_at: new Date().toISOString(), acquisition_source: CHANNELS[LIVE.n % CHANNELS.length],
+      first_card_at: null, card_count: 0, guest_cards: 0, clusters_made: 0,
+    }, ...signups];
+    bump((c) => ({ signups: c.signups + 1, wau: c.wau + 1 }));
+    life((t) => ({ users: t.users + 1, workspaces: t.workspaces + 1, studios: t.studios + 1 }));
+    RPCS.admin_active_now += 1;
+    LIVE.signups += 1; LIVE.active_users += 1;
+    return emitRealtime(liveRow('ps_signup', id, { is_new: true }));
+  }
+  if (kind === 'first_card') {
+    const at = signups.findIndex((r) => !r.first_card_at && !r.card_count && !r.guest_cards);
+    if (at < 0) return 0;
+    const who = signups[at];
+    RPCS.admin_recent_signups = signups.map((r, i) => (i === at
+      ? { ...r, first_card_at: new Date().toISOString(), card_count: 1 } : r));
+    bump((c) => ({ cards_created: c.cards_created + 1, work_users: c.work_users + 1 }));
+    life((t) => ({ cards: t.cards + 1 }));
+    LIVE.cards += 1; LIVE.work_users += 1;
+    emitRealtime(liveRow('onboarding_first_card', who.user_id, {}));
+    return emitRealtime(liveRow('card_placed', who.user_id, { n: 1, kind: 'image', board_id: 'qa-live-board' }));
+  }
+  if (kind === 'card') {
+    const who = signups.find((r) => r.card_count > 0) || signups[0];
+    RPCS.admin_recent_signups = signups.map((r) => (r === who ? { ...r, card_count: (r.card_count || 0) + 1 } : r));
+    bump((c) => ({ cards_created: c.cards_created + 1 }));
+    life((t) => ({ cards: t.cards + 1 }));
+    LIVE.cards += 1;
+    return emitRealtime(liveRow('card_placed', who.user_id, { n: 1, kind: 'note', board_id: 'qa-live-board' }));
+  }
+  if (kind === 'here') {
+    RPCS.admin_active_now += 1;
+    return emitRealtime(liveRow('board_open', signups[2]?.user_id || 'rs-2', { board_id: 'qa-live-board' }));
+  }
+  return 0;
+}
+
 // Monkeypatch the shared supabase singleton's data methods. Non-invasive: the
 // admin tabs import this same instance, so no tab / useAdminData / supabase.js
 // edits are needed. Returns false if the client is null (env not configured).
@@ -1914,14 +2023,30 @@ export function installAdminPreviewMocks(supabase) {
   // The subscribe callback IS invoked with 'SUBSCRIBED'. Skipping it leaves
   // those panels stuck reporting a dead socket, which would make the harness
   // exercise the one state it is least able to tell you anything true about.
-  supabase.channel = () => {
+  //
+  // Each channel keeps its postgres_changes handlers by topic, so the live
+  // doors above can push to them (and a test that wraps `on` still sees them).
+  supabase.channel = (topic) => {
+    const mine = new Set();
     const ch = {
-      on: () => ch,
+      on: (type, _filter, cb) => {
+        if (type === 'postgres_changes' && typeof cb === 'function') {
+          mine.add(cb);
+          if (!LIVE_HANDLERS.has(topic)) LIVE_HANDLERS.set(topic, new Set());
+          LIVE_HANDLERS.get(topic).add(cb);
+        }
+        return ch;
+      },
       subscribe: (cb) => { try { cb?.('SUBSCRIBED'); } catch (_) { /* ignore */ } return ch; },
       unsubscribe: () => Promise.resolve('ok'),
+      __drop: () => { for (const cb of mine) LIVE_HANDLERS.get(topic)?.delete(cb); },
     };
     return ch;
   };
-  supabase.removeChannel = () => Promise.resolve('ok');
+  supabase.removeChannel = (ch) => { try { ch?.__drop?.(); } catch (_) { /* ignore */ } return Promise.resolve('ok'); };
+  try {
+    window.__adminRealtimeEmit = emitRealtime;
+    window.__adminLive = playLive;
+  } catch (_) { /* no window */ }
   return true;
 }

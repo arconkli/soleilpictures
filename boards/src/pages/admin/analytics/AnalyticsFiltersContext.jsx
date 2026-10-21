@@ -69,17 +69,22 @@ export function useAnalyticsFilters() {
 // The effect is keyed on those values, never on the object. A caller that
 // builds the object inline hands over a new one every render, and registering it
 // re-renders the provider, which re-renders the caller, without end.
-export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, status }) {
+//
+// `stream` is the state of a realtime stream the view lives on, as
+// useActivityPulse reports it ('connecting' | 'live' | 'error'), or null for a
+// view that only polls. While it is 'live' the toolbar says Live instead of when
+// the last read was, and the status strip names the poll as the backstop.
+export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, status, stream = null }) {
   const { registerRuntime } = useAnalyticsFilters();
   const weeks = status?.weeks ?? null;
   const partialDays = status?.partialDays ?? null;
   const since = status?.since ?? null;
   useEffect(() => {
     registerRuntime({
-      refresh, lastUpdated, refreshing,
+      refresh, lastUpdated, refreshing, stream,
       status: weeks == null && partialDays == null && since == null ? null : { weeks, partialDays, since },
     });
-  }, [registerRuntime, refresh, lastUpdated, refreshing, weeks, partialDays, since]);
+  }, [registerRuntime, refresh, lastUpdated, refreshing, stream, weeks, partialDays, since]);
 }
 
 function getParam(name) {
@@ -163,7 +168,7 @@ export function AnalyticsFiltersProvider({ children }) {
     return sg.error ? [] : (sg.data || []);
   }, [days, excludeInternal]);
 
-  const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false, status: null });
+  const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false, status: null, stream: null });
   const registerRuntime = useCallback((r) => setRuntime(r), []);
 
   const value = useMemo(() => ({

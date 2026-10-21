@@ -46,7 +46,8 @@ test.describe('Universe HUD', () => {
 
     await expect(cell('Clusters')).toBeVisible({ timeout: 20000 });
     await expect(cell('Boards')).toHaveCount(0);
-    await expect(cell('Clusters').locator('.universe-ticker-value')).toHaveText('1.2K');
+    // Exact since the live pass (2026-10-21): one new cluster is a visible change.
+    await expect(cell('Clusters').locator('.universe-ticker-value')).toHaveText('1,170');
     await expect(cell('Clusters')).toHaveAttribute('title', /Plus 640 Studios/);
     await expect(cell('Clusters').locator('.universe-ticker-today')).toHaveText('+9');
     await expect(cell('Cards').locator('.universe-ticker-today')).toHaveText('+72');
@@ -58,6 +59,46 @@ test.describe('Universe HUD', () => {
     // Nothing in the HUD is "since midnight" any more.
     const titles = await page.locator('.universe-ticker [title]').evaluateAll((els) => els.map((e) => e.title).join('\n'));
     expect(titles).not.toMatch(/midnight|today/i);
+  });
+
+  // The owner's pick (2026-10-21): B, the director, over A, every moment lit in
+  // the wide view. The switch takes the director away and leaves exactly A.
+  test('a moment rolls the count, the director says what it was, and switching it off is kept', async ({ page }) => {
+    test.setTimeout(UNIVERSE_TIMEOUT * 2);
+    await openAdmin(page, { tab: 'universe' });
+    const sw = page.getByRole('switch', { name: 'Director' });
+    await expect(sw).toHaveAttribute('aria-checked', 'true', { timeout: 20000 });
+    await expect(page.getByRole('list', { name: 'What the light means' }).getByRole('listitem')).toHaveCount(5);
+    const cards = page.locator('.universe-ticker-cell', { has: page.locator('.universe-ticker-label', { hasText: /^Cards/ }) });
+    await expect(cards.locator('.universe-ticker-value')).toHaveText('18,420');
+
+    // The dev hook feeds synthetic rows through the same ingest the stream uses.
+    await page.waitForFunction(() => window.__universeMoment && window.__universeMoment('here') !== null, null, { timeout: UNIVERSE_TIMEOUT });
+    await page.evaluate(() => window.__universeMoment('import'));
+    await expect(cards.locator('.universe-ticker-value')).toHaveText('18,428');
+    await expect(cards.locator('.universe-ticker-fl')).toHaveText('+8');
+    // The +N is never inside the value (the specs read the value) nor the chip.
+    await expect(cards.locator('.universe-ticker-value .universe-ticker-fl, .universe-ticker-today .universe-ticker-fl')).toHaveCount(0);
+    await expect(page.locator('.universe-cap.is-on')).toContainText('8 images came in at once', { timeout: 10000 });
+    await expect(page.locator('.universe-dir-text')).toHaveText('Director · following an import');
+
+    await sw.click();
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+    await expect(page.locator('.universe-dir-text')).toHaveText('Director off');
+    await expect(page.locator('.universe-cap')).toHaveCount(0);
+    // Off is still live: the key stays, and the light still comes.
+    await expect(page.getByRole('list', { name: 'What the light means' })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('switch', { name: 'Director' })).toHaveAttribute('aria-checked', 'false', { timeout: 20000 });
+  });
+
+  test('under reduced motion the camera stays still and says why', async ({ page }) => {
+    test.setTimeout(UNIVERSE_TIMEOUT);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openAdmin(page, { tab: 'universe' });
+    await expect(page.locator('.universe-dir-text')).toHaveText('Director off · reduced motion', { timeout: 30000 });
+    await expect(page.getByRole('switch', { name: 'Director' })).toBeDisabled();
   });
 });
 

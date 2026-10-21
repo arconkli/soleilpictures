@@ -12,7 +12,7 @@
 // worker layout, disc/halo/sphere rendering) at sizes the live
 // corpus hasn't reached yet.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 // The harness renders the tab components directly rather than through
 // AdminPage, so it has to pull the admin stylesheet in itself.
 import '../pages/admin/admin.css';
@@ -178,9 +178,21 @@ function UniverseQaTab() {
     return source;
   });
   const [picked, setPicked] = useState(null);
+  // A moment fired from the console (window.__universeMoment) moves these the
+  // way the stream would, so the ticker's rolling digits and "+N" can be seen.
+  const [stats, setStats] = useState(FIXTURE_UNIVERSE_STATS);
+  useEffect(() => {
+    const onBump = (e) => setStats((s) => {
+      const next = { ...s };
+      for (const [k, d] of Object.entries(e.detail || {})) next[k] = Math.max(0, (Number(next[k]) || 0) + d);
+      return next;
+    });
+    window.addEventListener('universe-qa-stats', onBump);
+    return () => window.removeEventListener('universe-qa-stats', onBump);
+  }, []);
   return (
     <div className="universe-tab">
-      <UniverseView dataSource={ds} statsOverride={FIXTURE_UNIVERSE_STATS} onPick={setPicked} />
+      <UniverseView dataSource={ds} statsOverride={stats} onPick={setPicked} />
       {picked && (
         <div className="universe-qa-picked" data-testid="universe-qa-picked">
           {picked.kind} · {picked.id}

@@ -51,6 +51,7 @@ import SimWorker from './universeSimWorker.js?worker';
 import { galaxyOrbit, starTemp, starMagnitude } from '../../lib/universeLayout.js';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 import { collectSnapshot } from '../../lib/universePaging.js';
+import { makeMomentEngine } from './universeMomentEngine.js';
 
 // ── Per-kind palette — copied from boards/src/lib/graphData.js
 //    with two admin-only additions (user + ws). User reads as a
@@ -697,11 +698,20 @@ function makeFxPoints(capacity) {
 // hueKind — one kind to render in its TRUE hue instead of starlight, while
 //   its legend row is under the pointer. Kind identity on demand.
 // isolateWorkspaceId — dim everything outside one workspace.
+// moments — the Universe view's live layer (universeMomentEngine.js): `activity`
+//   becomes flares, halos, arcs and comets instead of sparks, and arrivals are
+//   told apart (a new account, a cluster, a card) instead of all ringing gold.
+//   Read once at mount. The Command Center leaves it off.
+// director — with `moments`, a camera that goes to each moment and captions it.
+//   Off, the same moments in the wide view. onDirector gets its status
+//   ({ on, available, mode, label, pausedUntil, caption }) whenever it changes;
+//   bumping resumeSignal hands the camera back to it early.
 export function UniverseGraph({
   onNodeClick, resetSignal, fitAll = false, dataSource = null, onStats = null,
   onStream = null,
   hiddenKinds = null, isolateWorkspaceId = null, selectedId = null, hueKind = null,
   activity = null,
+  moments = false, director = false, onDirector = null, resumeSignal = null,
 }) {
   const containerRef = useRef(null);
 
@@ -763,6 +773,16 @@ export function UniverseGraph({
     sparkCooldown: new Map(),       // node idx → next allowed spark (perf clock)
     onNodeClickFn: onNodeClick,
     onStatsFn: onStats,
+    // The live layer (see the `moments` prop). tickCount is how many nodes the
+    // last worker tick placed: an index at or past it has no position yet.
+    momentsOn: !!moments,
+    directorOn: !!director,
+    onDirectorFn: onDirector,
+    engine: null,
+    tickCount: 0,
+    // The wide view: where the initial fit and Reset view put the camera, and
+    // where the director comes back to. Moments are sized against its distance.
+    wideDist: 0, wideRadius: 0, wideCenter: null,
     // Auto-fit state. didInitialFit gates the first snap-to-fit.
     // fitAnimating drives a smooth pull-back when the universe grows.
     interacting: false,
@@ -776,6 +796,16 @@ export function UniverseGraph({
   // Keep callbacks fresh without re-mounting the whole scene.
   useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
   useEffect(() => { refs.onStatsFn = onStats; }, [onStats, refs]);
+  useEffect(() => { refs.onDirectorFn = onDirector; }, [onDirector, refs]);
+  useEffect(() => {
+    refs.directorOn = !!director;
+    refs.engine?.setOn(!!director, performance.now());
+  }, [director, refs]);
+  useEffect(() => {
+    if (resumeSignal == null) return;
+    refs.engine?.resume(performance.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeSignal]);
 
   // Legend filtering + workspace isolation. Both repaint through the same
   // multiplier pass, so they compose: hide every kind but images, then isolate
@@ -816,6 +846,18 @@ export function UniverseGraph({
   useEffect(() => {
     if (!activity || !activity.length || !refs.snapshotReady) return;
     const now = performance.now();
+    // The Universe view's live layer reads the same rows as moments.
+    if (refs.engine) {
+      const fresh = [];
+      for (const ev of activity) {
+        if (!ev?.id || refs.seenActivity.has(ev.id)) continue;
+        refs.seenActivity.add(ev.id);
+        fresh.push(ev);
+      }
+      if (fresh.length) refs.engine.ingest(fresh, now);
+      if (refs.seenActivity.size > 4000) refs.seenActivity = new Set(activity.map((ev) => ev?.id));
+      return;
+    }
     for (const ev of activity) {
       if (!ev?.id || refs.seenActivity.has(ev.id)) continue;
       refs.seenActivity.add(ev.id);
@@ -845,6 +887,7 @@ export function UniverseGraph({
   // pull-back as the initial fit.
   useEffect(() => {
     if (resetSignal == null) return;
+    refs.engine?.onReset(performance.now());
     requestFit(refs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetSignal]);
@@ -978,6 +1021,23 @@ export function UniverseGraph({
     refs.pendingEdges = [];
     updatePxPerUnit(h);
 
+    // The live layer, for the Universe view only (see the `moments` prop).
+    if (refs.momentsOn) {
+      refs.engine = makeMomentEngine(refs, {
+        wide: () => widePose(refs),
+        hot: (idx) => {
+          const t = performance.now();
+          refs.hotNodes.set(idx, { start: t, until: t + HOT_DURATION_MS });
+        },
+        report: (status) => refs.onDirectorFn?.(status),
+        addNodes: (rawNodes, rawEdges) => {
+          for (const raw of rawNodes) if (!refs.nodeIndex.has(raw.node_id)) refs.pendingNodes.push(toNode(raw));
+          for (const raw of rawEdges) refs.pendingEdges.push({ raw, attempts: 0 });
+        },
+      });
+      refs.engine.setOn(refs.directorOn, performance.now());
+    }
+
     // Worker.
     const worker = new SimWorker();
     refs.worker = worker;
@@ -1012,6 +1072,7 @@ export function UniverseGraph({
             refs.positions = new Float32Array(msg.positions.length);
           }
           refs.positions.set(msg.positions.subarray(0, msg.count * 3));
+          refs.tickCount = msg.count;
           uploadPositions(refs, msg.count);
           // Positions for the newly-arrived nodes exist as of this frame, so
           // their arrival FX can finally be placed where they actually are.
@@ -1117,6 +1178,9 @@ export function UniverseGraph({
       isPointerLocked = document.pointerLockElement === renderer.domElement;
       controls.enabled = !isPointerLocked;  // OrbitControls off while flying
       refs.lookActive  = isPointerLocked;   // pauses idle drift
+      // Flying is steering: the director waits until a minute after it ends.
+      if (isPointerLocked) refs.engine?.hold(performance.now());
+      else refs.engine?.release(performance.now());
     };
     document.addEventListener('pointerlockchange', onPointerLockChange);
 
@@ -1157,7 +1221,11 @@ export function UniverseGraph({
       if (e.metaKey || e.altKey) return;
       if (isTypingTarget(document.activeElement)) return;
       const k = e.key.toLowerCase();
-      if ('wasdqe'.includes(k)) { keys.add(k); e.preventDefault(); }
+      if ('wasdqe'.includes(k)) {
+        keys.add(k);
+        e.preventDefault();
+        refs.engine?.nudge(performance.now());
+      }
     };
     const onKeyUp = (e) => {
       const k = e.key.toLowerCase();
@@ -1188,8 +1256,10 @@ export function UniverseGraph({
     const rotationAxis = new THREE.Vector3(0, 1, 0);
     let last = performance.now();
     let lastFrameTs = -Infinity;   // rAF's timestamp for the last frame drawn
-    controls.addEventListener('start', () => { refs.interacting = true; });
-    controls.addEventListener('end',   () => { refs.interacting = false; });
+    // A drag, a wheel or a click is someone taking the camera: the director
+    // (when on) leaves it to them until a minute after they let go.
+    controls.addEventListener('start', () => { refs.interacting = true; refs.engine?.hold(performance.now()); });
+    controls.addEventListener('end',   () => { refs.interacting = false; refs.engine?.release(performance.now()); });
     const loop = (frameTs) => {
       const now = performance.now();
       // The worker moves the galaxy about sixty times a second, so a 120 Hz
@@ -1198,16 +1268,19 @@ export function UniverseGraph({
       // one drawn is skipped. The gap is read off rAF's timestamps rather than
       // the clock: they are the display's frame times, so a skip falls on the
       // same frames every time instead of on whichever ran a little late.
-      // Dragging, flying and a fit draw every frame. `last` is the last frame
-      // DRAWN, so the drift's dt spans the skips.
+      // Dragging, flying, a fit and the director's camera moves draw every
+      // frame. `last` is the last frame DRAWN, so the drift's dt spans the skips.
       if (frameTs - lastFrameTs < IDLE_FRAME_MS && !refs.interacting && !refs.lookActive
-          && keys.size === 0 && !refs.fitAnimating) {
+          && keys.size === 0 && !refs.fitAnimating && !refs.engine?.flying) {
         refs.rafId = requestAnimationFrame(loop);
         return;
       }
       lastFrameTs = frameTs;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+
+      // The director's clock: what it does next, from what it is doing now.
+      refs.engine?.frame(now);
 
       // Fit animation — interpolate camera position + controls.target
       // from "from" to "to" over fitDuration. Cubic ease-out.
@@ -1247,6 +1320,14 @@ export function UniverseGraph({
         rel.x *= horiz / hNow;
         rel.z *= horiz / hNow;
         rel.y = Math.sin(want) * rad;
+
+        // The director chooses where the view looks and how close; the drift
+        // keeps it turning either way, so a shot is a slow orbit, not a still.
+        const shot = refs.engine?.shot(now);
+        if (shot) {
+          rel.setLength(shot.dist);
+          controls.target.copy(shot.target);
+        }
 
         camera.position.copy(rel.add(controls.target));
       }
@@ -1335,6 +1416,8 @@ export function UniverseGraph({
   // the bright tail still blooms because size carries it.
   refs.haloPoints.material.uniforms.uOpacity.value = 0.33 * haloDensity;
       composer.render();
+      // The moments go over the finished picture (universeMomentFx.js says why).
+      refs.engine?.render(now);
       refs.rafId = requestAnimationFrame(loop);
     };
     refs.rafId = requestAnimationFrame(loop);
@@ -1404,6 +1487,8 @@ export function UniverseGraph({
       edgeLines.material.dispose();
       fxPoints.geometry.dispose();
       fxPoints.material.dispose();
+      refs.engine?.dispose();
+      refs.engine = null;
       composer.dispose();
       renderer.dispose();
       refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
@@ -1464,6 +1549,7 @@ export function UniverseGraph({
         refs.activeFx = [];
         refs.pendingFx = [];
         refs.hotNodes = new Map();
+        refs.tickCount = 0;
         // The delta cursor. Every one of these timestamps was written by
         // Postgres, so starting the stream here cannot be thrown off by a
         // browser clock (see useUniverseDeltas). Edges are scanned too because
@@ -1499,6 +1585,8 @@ export function UniverseGraph({
         ensureEdgeCapacity(refs, resolvedEdges.length);
         refs.edges = resolvedEdges;
         writeEdgeColors(refs);
+        // Who belongs where, for the arcs; every index the layer knew is gone.
+        refs.engine?.reset(resolvedEdges);
 
         // Filters set before the corpus arrived (or surviving a "Try again")
         // apply to the freshly built node list — otherwise a reload silently
@@ -1605,8 +1693,11 @@ export function UniverseGraph({
       }
       refs.pendingEdges = stillPending;
 
+      const flushAt = performance.now();
       if (newNodes.length) {
         ensureNodeCapacity(refs, refs.nodes.length + newNodes.length);
+        // A flush this big is the stream catching up, not a moment.
+        const bulk = newNodes.length > 40;
         for (const n of newNodes) {
           const idx = refs.nodes.length;
           refs.nodes.push(n);
@@ -1615,7 +1706,9 @@ export function UniverseGraph({
           writeNodeAppearance(refs, idx, n);
           // Queue, don't spawn — the worker hasn't placed this index yet, so
           // there is no position to attach the effect to (see refs.pendingFx).
-          refs.pendingFx.push({ idx, color: n.threeColor, val: n.val || 8 });
+          // The live layer tells arrivals apart instead, and waits for the same.
+          if (refs.engine) refs.engine.arrive(n, idx, flushAt, bulk);
+          else refs.pendingFx.push({ idx, color: n.threeColor, val: n.val || 8 });
         }
         refs.worker.postMessage({
           type: 'addNodes',
@@ -1644,13 +1737,17 @@ export function UniverseGraph({
         });
         // Pulse traveling along each newly-formed connection — but
         // not for scaffold edges (memberships/wsroots/shares would
-        // throw bright streaks at scaffolding we just made faint).
+        // throw bright streaks at scaffolding we just made faint). With the
+        // live layer, only for links between things: a card's or a nested
+        // cluster's own edge arrives with it, and its moment already says so.
         for (const e of newEdges) {
-          if (e.kind === 'scaffold') continue;
+          refs.engine?.edge(e);
+          if (e.kind === 'scaffold' || (refs.engine && e.kind !== 'semantic')) continue;
           spawnPulse(refs, e.sourceIdx, e.targetIdx);
         }
       }
       if (newNodes.length || newEdges.length) reportStats(refs);
+      refs.engine?.tick(flushAt);
     }, DELTA_FLUSH_MS);
     return () => clearInterval(id);
   }, [refs]);
@@ -1728,8 +1825,15 @@ export function UniverseGraph({
       }
       return count;
     };
+    // The live layer's moments, one at a time: 'card', 'import', 'delete',
+    // 'here', 'together', 'joined', 'invite', 'share', 'landing', 'first_card',
+    // 'cluster', 'signup', 'invited'. Through the same ingest and the same delta
+    // buffers as the real ones (universeMomentEngine.js, qa).
+    window.__universeMoment = (type, opts) => refs.engine?.qa?.(type, opts) ?? null;
     return () => {
-      try { delete window.__universeInject; delete window.__universeSpark; } catch (_) { /* ignore */ }
+      try {
+        delete window.__universeInject; delete window.__universeSpark; delete window.__universeMoment;
+      } catch (_) { /* ignore */ }
     };
   }, [refs]);
 
@@ -2185,6 +2289,8 @@ function maybeAutoFit(refs, count) {
   refs.controls.target.copy(targetCenter);
   refs.didInitialFit = true;
   refs.lastFitAt = performance.now();
+  noteWide(refs, bs, needed);
+  refs.engine?.onFit(refs.lastFitAt);
 }
 
 // Animated "fit everything" — kicked by the Reset view button. Pulls
@@ -2209,6 +2315,28 @@ function requestFit(refs) {
   refs.fitDuration   = 700;
   refs.fitAnimating  = true;
   refs.lastFitAt     = refs.fitStart;
+  noteWide(refs, bs, needed);
+}
+
+// Where the wide view is, for the live layer: moments are sized against its
+// distance, and arcs and comets bow and fly relative to its middle.
+function noteWide(refs, bs, dist) {
+  refs.wideDist = dist;
+  refs.wideRadius = bs.radius;
+  if (!refs.wideCenter) refs.wideCenter = new THREE.Vector3();
+  refs.wideCenter.set(bs.cx, bs.cy, bs.cz);
+}
+
+// The wide view as it is now, for the director to fly back to: the same
+// framing Reset view gives, along whatever direction the camera faces.
+function widePose(refs) {
+  if (!refs.camera || refs.nodes.length === 0) return null;
+  const count = Math.min(refs.nodes.length, refs.tickCount || refs.nodes.length);
+  const bs = computeBoundingSphere(refs, count);
+  if (!bs || !isFinite(bs.radius)) return null;
+  const dist = fitDistance(bs.radius, refs.camera);
+  noteWide(refs, bs, dist);
+  return { cx: bs.cx, cy: bs.cy, cz: bs.cz, radius: bs.radius, dist };
 }
 
 

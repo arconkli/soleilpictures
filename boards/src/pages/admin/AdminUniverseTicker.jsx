@@ -29,9 +29,14 @@
 // become anything you can see — entity_links are overwhelmingly tag
 // attachments, which the graph renders as nothing at all — so Drawn comes from
 // the renderer itself, and the HUD can only ever claim what is on screen.
+//
+// Live (2026-10-21): the counts are exact and roll as an odometer's digits do,
+// so a single new card is a visible 7,189 → 7,190 where "7.2K" never moved, and
+// a "+1" rises out of the cell and fades. Time reads days, hours and minutes.
 
 import { useEffect, useRef, useState } from 'react';
-import { formatDuration } from '../../lib/formatDuration.js';
+import { Rolling } from './viz/Rolling.jsx';
+import { dhm } from '../../lib/universeMoments.js';
 
 const CELLS = [
   { key: 'total_users', label: 'Users', recentKey: 'users',
@@ -45,7 +50,7 @@ const CELLS = [
     hint: 'Cards on clusters that are not trashed. "+N" counts cards created on them in the last 24 hours.' },
   { key: 'drawn', label: 'Drawn', source: 'graph',
     hint: 'Nodes · connections the renderer actually drew: everyone in a workspace, workspaces, every live cluster (Studios included) and its cards. Tag attachments are not drawn at all.' },
-  { key: 'total_seconds_in_app', label: 'Time', format: 'duration',
+  { key: 'total_seconds_in_app', label: 'Time', format: 'duration', rises: false,
     hint: 'Summed time-in-app across every signed-in user (profiles.seconds_in_app). Signed-out visits are not counted.' },
 ];
 
@@ -70,30 +75,40 @@ function fmtFull(n, format) {
   return v.toLocaleString();
 }
 
-function AnimatedValue({ value, format }) {
-  const [shown, setShown] = useState(Number(value) || 0);
-  const fromRef = useRef(Number(value) || 0);
+// How long a "+N" rises. A second rise inside it adds to the same float and
+// starts it again, so a burst of cards reads "+8", not eight floats on top of
+// one another.
+const RISE_MS = 1700;
 
+// "+N" over a cell whose count went up. Nothing on the first figure (the page
+// loading is not growth), nothing when a count goes down.
+function Rise({ value }) {
+  const prev = useRef(null);
+  const [rise, setRise] = useState(null);
   useEffect(() => {
-    const target = Number(value) || 0;
-    const start = performance.now();
-    const dur = 600;
-    const from = fromRef.current;
-    let raf = 0;
-    const step = (now) => {
-      const t = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const v = from + (target - from) * eased;
-      setShown(v);
-      if (t < 1) raf = requestAnimationFrame(step);
-      else fromRef.current = target;
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    if (value == null) return;
+    const v = Number(value) || 0;
+    const p = prev.current;
+    prev.current = v;
+    if (p == null || !(v > p)) return;
+    const now = performance.now();
+    setRise((r) => ({
+      n: (r && now < r.until ? r.n : 0) + (v - p),
+      key: (r?.key || 0) + 1,
+      until: now + RISE_MS,
+    }));
   }, [value]);
-
-  const text = format === 'duration' ? formatDuration(shown) : fmtCompact(shown);
-  return <>{text}</>;
+  useEffect(() => {
+    if (!rise) return undefined;
+    const id = setTimeout(() => setRise(null), RISE_MS + 100);
+    return () => clearTimeout(id);
+  }, [rise]);
+  if (!rise) return null;
+  return (
+    <span key={rise.key} className="universe-ticker-fl" aria-hidden="true">
+      +{rise.n.toLocaleString()}
+    </span>
+  );
 }
 
 // Stream health is a first-class cell, not a decoration.
@@ -139,14 +154,16 @@ export function AdminUniverseTicker({ stats, graph, error, status = 'live' }) {
         const value = stats?.[c.key] ?? 0;
         const recentValue = c.recentKey ? Number(recent[c.recentKey] || 0) : 0;
         const detail = c.detail ? `\n${c.detail(stats)}` : '';
+        const text = c.format === 'duration' ? dhm(value) : Math.round(Number(value) || 0).toLocaleString();
         return (
           <div
             key={c.key}
             className="universe-ticker-cell"
             title={`${c.hint}\n\n${fmtFull(value, c.format)}${detail}`}
           >
+            {c.rises !== false && <Rise value={stats ? stats[c.key] : null} />}
             <div className="universe-ticker-value">
-              <AnimatedValue value={value} format={c.format} />
+              <Rolling text={text} />
             </div>
             <div className="universe-ticker-label">
               {c.label}

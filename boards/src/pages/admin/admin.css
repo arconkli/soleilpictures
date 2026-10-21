@@ -6937,3 +6937,280 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   .eml-lab { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
   .eml-val { font-size: 15px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * LIVE (2026-10-21)
+ *
+ * The Overview as it was, kept current in place, and the Universe's moments.
+ * Green is "live", always with the word beside it; gold stays the selection's.
+ * Every animation here stops under reduced motion (the block at the end).
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* Rolling figures (viz/Rolling.jsx). The real text holds the place, invisible;
+   the face over it is one column per character, a digit a strip of ten that
+   slides to its place. line-height 1 on both, so a strip's rows are exactly the
+   text's line. Kerning off on both, so the columns add up to the text's width. */
+.adm-roll {
+  position: relative; display: inline-block; line-height: 1;
+  white-space: nowrap; font-kerning: none;
+}
+
+.adm-roll-text { color: transparent; }
+
+.adm-roll-face {
+  position: absolute; left: 0; top: 0; display: flex;
+  pointer-events: none; text-shadow: none;
+}
+
+.adm-roll-d,
+.adm-roll-c { display: block; height: 1em; overflow: hidden; white-space: pre; }
+
+.adm-roll-d::before {
+  content: '0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9';
+  display: block;
+  transform: translateY(calc(var(--d) * -1em));
+  transition: transform .75s cubic-bezier(.2, .9, .25, 1.02);
+}
+
+.adm-roll-c::before { content: attr(data-c); }
+
+/* "+N · just now" over the head's right end of a tile that rose. Out of the
+   flow, so it never moves the figures; ink, not a status colour, because a
+   rise is not good or bad news by itself. */
+.admin-stat-head { position: relative; }
+
+.adm-live-chip {
+  position: absolute; right: 0; top: 50%; margin-top: -8px;
+  padding: 3px 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-0) 10%, transparent);
+  font: 600 10.5px/1 var(--font-mono); color: var(--ink-0);
+  white-space: nowrap; pointer-events: none;
+  animation: adm-live-chip 8s ease forwards;
+}
+
+@keyframes adm-live-chip {
+  0%   { opacity: 0; transform: translateY(5px); }
+  6%   { opacity: 1; transform: none; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Just arrived: a new signup slides in under a green wash that fades; a row
+   whose work changed lifts its words for a moment. */
+.admin-people-row.is-new { animation: adm-row-in 2.4s ease; }
+
+.admin-people-row.is-upd .admin-people-what { animation: adm-what-lift 2.4s ease; }
+
+@keyframes adm-row-in {
+  0%   { opacity: 0; transform: translateY(-8px); background: color-mix(in srgb, var(--adm-good) 16%, transparent); }
+  25%  { opacity: 1; transform: none; }
+  100% { background: transparent; }
+}
+
+@keyframes adm-what-lift {
+  0%, 30% { color: var(--ink-0); }
+  100%    { color: var(--ink-2); }
+}
+
+/* A pushed console row: the seed's slide, held a little longer under a wash. */
+.adm-console-row.is-pushed { animation: adm-console-pushed 1.4s ease both; }
+
+@keyframes adm-console-pushed {
+  0%   { opacity: 0; transform: translateY(-3px); background: color-mix(in srgb, var(--adm-good) 14%, transparent); }
+  30%  { opacity: 1; transform: none; }
+  100% { background: transparent; }
+}
+
+/* This hour, on the heatmap: a gap, then a line. The peak's outline is one
+   line, so the two differ in shape as well as colour. */
+.adm-heat-cell.is-now {
+  position: relative; z-index: 1;
+  box-shadow: 0 0 0 2px var(--adm-plot), 0 0 0 3px var(--adm-good);
+}
+
+/* The toolbar, while the view is on its stream. */
+.admin-toolbar-live { display: inline-flex; align-items: center; gap: 7px; }
+
+.admin-toolbar-live b {
+  font: 600 10.5px/1 var(--font-mono); letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-0);
+}
+
+/* The long-run band's week so far grows into its new height, and its marks
+   light solid for a moment before they settle back to the dashed outline. */
+.adm-gb-bar.is-part { transition: d .7s cubic-bezier(.2, .7, .2, 1); }
+
+.adm-gb.is-lit .adm-gb-bar.is-part { animation: adm-gb-lit 2.5s ease-out; }
+
+.adm-gb.is-lit .adm-gb-dot.is-partial { animation: adm-gb-lit-dot 2.5s ease-out; }
+
+@keyframes adm-gb-lit {
+  0%   { stroke-width: 2.75px; stroke-dasharray: none; filter: drop-shadow(0 0 4px rgba(255, 255, 255, .55)); }
+  100% { stroke-width: 1.25px; filter: none; }
+}
+
+@keyframes adm-gb-lit-dot {
+  0%   { stroke-width: 3px; filter: drop-shadow(0 0 4px rgba(255, 255, 255, .55)); }
+  100% { stroke-width: 1.5px; filter: none; }
+}
+
+/* ── The Universe, live: the ticker's "+N", the director, its caption, and the
+   key to the moments' light (AdminUniverseTab.jsx, universeMomentEngine.js).
+   The tab is dark in both themes, so these are dark-glass literals like the
+   rest of its HUD. No gold: in this scene gold is a new account's star. */
+.universe-ticker-cell { position: relative; }
+
+.universe-ticker-fl {
+  position: absolute; left: 50%; top: -4px;
+  font: 700 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+  color: #fff4d8; text-shadow: 0 0 10px rgba(255, 244, 216, .55);
+  white-space: nowrap; pointer-events: none;
+  animation: universe-fl 1.7s cubic-bezier(.2, .7, .3, 1) forwards;
+}
+
+@keyframes universe-fl {
+  0%   { opacity: 0; transform: translate(-50%, 6px); }
+  18%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+.universe-dir,
+.universe-key,
+.universe-cap {
+  position: absolute; z-index: 3;
+  background: rgba(13, 14, 19, .7);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .085), 0 6px 22px rgba(0, 0, 0, .3);
+}
+
+/* The director's state, top right: what it is doing, Resume while the camera
+   is yours, and the switch that takes it away (exactly the wide view then). */
+.universe-dir {
+  right: 18px; top: 14px;
+  display: flex; align-items: center; gap: 10px;
+  height: 30px; padding: 0 6px 0 13px; border-radius: 999px;
+  font: 500 11px/1 var(--font-sans); color: #a9a9b2; white-space: nowrap;
+}
+
+.universe-dir-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #8b8aa8; flex: 0 0 auto;
+  transition: background .3s ease, box-shadow .3s ease;
+}
+
+.universe-dir-dot.is-on { background: #fff4d8; box-shadow: 0 0 8px rgba(255, 244, 216, .8); }
+
+.universe-dir-resume {
+  height: 22px; padding: 0 10px; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, .1); color: #f5f5f7;
+  font: 600 11px/1 var(--font-sans); cursor: pointer;
+}
+
+.universe-dir-resume:hover { background: rgba(255, 255, 255, .16); }
+
+.universe-dir-switch {
+  position: relative; flex: 0 0 auto;
+  width: 30px; height: 18px; padding: 0; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, .14); cursor: pointer;
+  transition: background .18s ease;
+}
+
+.universe-dir-switch[aria-checked='true'] { background: rgba(255, 244, 216, .88); }
+
+.universe-dir-switch:disabled { cursor: default; opacity: .5; }
+
+.universe-dir-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #8b8aa8; transition: left .18s ease, background .18s ease;
+}
+
+.universe-dir-switch[aria-checked='true'] .universe-dir-knob { left: 15px; background: #0d0e13; }
+
+.universe-dir-resume:focus-visible,
+.universe-dir-switch:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
+/* What the director is looking at, over the key. It keeps its words while it
+   fades, so it never empties before it has gone. */
+.universe-cap {
+  left: 50%; bottom: 70px;
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 360px; max-width: 560px; padding: 13px 20px 14px; border-radius: 12px;
+  text-align: center; pointer-events: none;
+  opacity: 0; transform: translate(-50%, 14px);
+  transition: opacity .6s ease, transform .7s cubic-bezier(.2, .8, .2, 1);
+}
+
+.universe-cap.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+.universe-cap-e {
+  font: 600 9px/1 var(--font-sans); letter-spacing: .2em; text-transform: uppercase; color: #a9a9b2;
+}
+
+.universe-cap-l { margin-top: 7px; font: 600 17px/1.25 var(--font-sans); color: #f5f5f7; }
+
+.universe-cap-m { margin-top: 5px; font: 400 11.5px/1.35 var(--font-sans); color: #8a8a94; }
+
+/* The key to the light, bottom centre, in both modes. */
+.universe-key {
+  left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  height: 40px; padding: 0 8px; border-radius: 999px;
+  white-space: nowrap; pointer-events: none;
+}
+
+.universe-key-item {
+  display: flex; align-items: center; gap: 7px; padding: 0 10px;
+  font: 500 11.5px/1 var(--font-sans); color: #d0d0d4;
+}
+
+.universe-key-item + .universe-key-item { border-left: 1px solid rgba(255, 255, 255, .07); }
+
+.universe-key-item svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+.universe-key-item small { font-size: 10.5px; color: #7d7d86; }
+
+/* The node drawer covers the right 380px: the pill steps clear of it, and the
+   caption and the key centre on what is left. */
+.universe-tab:has(.universe-drawer) .universe-dir { right: calc(min(380px, 86vw) + 18px); }
+
+.universe-tab:has(.universe-drawer) .universe-cap,
+.universe-tab:has(.universe-drawer) .universe-key { left: calc(50% - min(380px, 86vw) / 2); }
+
+/* The exact counts make the ticker wider, so below 1400px the pill drops under
+   it rather than meeting it; the key loses its small words, then itself, before
+   it can reach the legend or the controls. */
+@media (max-width: 1400px) {
+  .universe-dir { top: 66px; }
+}
+
+@media (max-width: 1280px) {
+  .universe-key-item small { display: none; }
+}
+
+@media (max-width: 900px) {
+  .universe-key { display: none; }
+  .universe-cap { bottom: 66px; }
+}
+
+@media (max-width: 720px) {
+  .universe-dir { top: auto; bottom: 62px; right: 12px; }
+  .universe-cap { min-width: 0; width: calc(100% - 32px); bottom: 104px; padding: 11px 14px 12px; }
+  .universe-cap-l { font-size: 15px; }
+}
+
+/* ── Reduced motion: everything in LIVE changes in place ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .adm-roll-d::before { transition: none; }
+  .adm-live-chip,
+  .admin-people-row.is-new,
+  .admin-people-row.is-upd .admin-people-what,
+  .adm-console-row.is-pushed,
+  .adm-gb.is-lit .adm-gb-bar.is-part,
+  .adm-gb.is-lit .adm-gb-dot.is-partial { animation: none; }
+  .adm-gb-bar.is-part { transition: none; }
+  .universe-ticker-fl { animation: none; opacity: 0; }
+  .universe-cap { transition: opacity .2s ease; transform: translate(-50%, 0); }
+  .universe-dir-dot,
+  .universe-dir-switch,
+  .universe-dir-knob { transition: none; }
+}

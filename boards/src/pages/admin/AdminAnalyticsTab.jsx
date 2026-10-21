@@ -143,7 +143,12 @@ function DeckStatus({ view }) {
         : `${f.days}d`],
     ['POP', f.verifiedOnly ? 'entered the code' : 'all accounts'],
     ['INTERNAL', f.excludeInternal ? 'excluded' : 'counted'],
-    ['SYNC', `${Math.round(cadence / 1000)}s`],
+    // A view on a realtime stream is current as things happen, and its poll is
+    // only the backstop under it. Said so, because "300s" alone would read as
+    // five-minute-old figures on a page that is not.
+    ['SYNC', overview && f.runtime.stream === 'live'
+      ? `live · ${Math.round(cadence / 1000)}s backstop`
+      : `${Math.round(cadence / 1000)}s`],
   ];
   if (weekly) items.push(['WEEKS', `${st.weeks} complete`]);
   // Revenue is what Stripe charges every account, the team's included; the
@@ -178,6 +183,9 @@ function AnalyticsToolbar({ view }) {
       refreshing={f.runtime.refreshing}
       lastUpdated={f.runtime.lastUpdated}
       live
+      // Read on Overview only, as DeckStatus does: for the render after a switch
+      // the previous view's runtime is still the registered one.
+      stream={view === 'overview' ? f.runtime.stream : null}
     >
       {showRange && <AdminTimeRange value={f.days} onChange={f.setDays} />}
       {showSegments && (

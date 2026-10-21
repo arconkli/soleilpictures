@@ -9,7 +9,9 @@
 // Costs almost nothing to run. useActivityPulse already holds the realtime
 // subscription open, already backfills the per-minute buckets exactly once, and
 // already accumulates raw rows in `recent`. This component is the display for
-// state that was being computed and thrown away.
+// state that was being computed and thrown away. The Overview holds that hook
+// and hands it in as `pulse`, because its live figures listen to the same
+// stream and two channels on one topic would collide (useActivityPulse says why).
 //
 // The one thing it adds is a seed. `recent` starts empty and fills only as new
 // events arrive, so at roughly one event every two minutes the console would be
@@ -34,9 +36,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabase.js';
 import { useAdminData } from '../useAdminData.js';
-import { useActivityPulse } from '../useActivityPulse.js';
 import { formatCount } from '../../../lib/adminFormat.js';
 import { VAR } from './palette.js';
+import { Rolling } from './Rolling.jsx';
 
 const CAP = 26;
 // How long a pushed row waits so a burst resolves in one call.
@@ -76,8 +78,8 @@ const who = (row) => {
   return 'anon';
 };
 
-export function EventConsole({ activeNow, minutes = 60, excludeInternal = true }) {
-  const pulse = useActivityPulse({ minutes });
+/** `pulse` is useActivityPulse({ minutes }), held by the view. */
+export function EventConsole({ pulse, activeNow, minutes = 60, excludeInternal = true }) {
 
   // Seed only. Not a poll: deps are empty, so this fires once per mount.
   const seed = useAdminData(async () => {
@@ -163,6 +165,7 @@ export function EventConsole({ activeNow, minutes = 60, excludeInternal = true }
     return out;
   }, [pulse.recent, seed.data, resolved, fallback]);
 
+  const seedIds = useMemo(() => new Set((seed.data || []).map((r) => r.id)), [seed.data]);
   const buckets = pulse.buckets || [];
   const peak = Math.max(1, ...buckets.map((b) => b.events || 0));
   const live = pulse.status === 'live';
@@ -176,7 +179,7 @@ export function EventConsole({ activeNow, minutes = 60, excludeInternal = true }
             the exception, and labelled as one. */}
         <span className="adm-console-stat"
               title={`Signed in within the last five minutes, ${excludeInternal ? 'the team left out' : 'the team included'}.`}>
-          <b>{formatCount(activeNow ?? 0)}</b> here now
+          <b><Rolling text={formatCount(activeNow ?? 0)} /></b> here now
         </span>
         {/* The per-minute count comes from admin_activity_pulse and the raw
             push, neither of which knows who is internal, so it is all traffic
@@ -212,8 +215,10 @@ export function EventConsole({ activeNow, minutes = 60, excludeInternal = true }
         )}
         {rows.map((r) => {
           const fam = familyOf(r.event);
+          // A pushed row slides in with a tint that fades; the seed is history.
+          const pushed = !seedIds.has(r.id);
           return (
-            <div className="adm-console-row" key={r.id}>
+            <div className={`adm-console-row${pushed ? ' is-pushed' : ''}`} key={r.id}>
               <span className="adm-console-t">{clock(r.occurred_at)}</span>
               <span className="adm-console-dot" style={{ background: fam.color }} />
               <span className="adm-console-ev" title={r.event}>{r.event}</span>

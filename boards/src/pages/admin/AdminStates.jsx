@@ -95,7 +95,11 @@ function useTick(ms) {
 }
 
 // ── Toolbar: filters on the left, Refresh + "updated …" on the right ──
-export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false, children }) {
+// `stream` is a realtime stream the view lives on ('live' | 'connecting' |
+// 'error'). While it is live, "updated 2m ago" would be the wrong thing to say
+// (it times the backstop read, not what is on screen), so the toolbar says Live,
+// and keeps the last full read in the hover.
+export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false, stream = null, children }) {
   useTick(10_000);
   return (
     <div className={`admin-toolbar ${refreshing ? 'is-working' : ''}`}>
@@ -112,7 +116,15 @@ export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false,
             aria-hidden="true"
           />
         )}
-        {lastUpdated != null && (
+        {stream === 'live' ? (
+          <span
+            className="admin-toolbar-updated admin-toolbar-live t-meta"
+            title={`Figures update as things happen.${lastUpdated != null ? ` Last full read ${fmtDateTime(lastUpdated)}.` : ''}`}
+          >
+            <span className="adm-live-led is-live" aria-hidden="true" />
+            <b>Live</b> as it happens
+          </span>
+        ) : lastUpdated != null && (
           <span className="admin-toolbar-updated t-meta" title={fmtDateTime(lastUpdated)}>
             updated {relativeTime(lastUpdated)}
           </span>

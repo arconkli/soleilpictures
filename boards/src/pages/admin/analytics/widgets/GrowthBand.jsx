@@ -16,6 +16,10 @@
 // admin_return_fixed_horizon. The Overview owns the fetch, so its refresh button
 // and its poll re-read this too, and it owns the notes, so the What-changed list
 // here and the one-line form under it write through the same calls as before.
+//
+// Live: the Overview puts this week's row from its live read over the series
+// (useOverviewLive's mergeWeeks), so the week so far grows while you watch, and
+// its marks light for a moment when it does.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -56,10 +60,33 @@ function keepRange(v) {
  * @param {function} onRemove   MarkersPanel's onRemove
  * @param {boolean}  busy       a note write is in flight
  * @param {string}   todayUtc   today, 'YYYY-MM-DD' UTC
+ * @param {string}   liveGen    the population counted; a change is a new baseline, not growth
  */
-export function GrowthBand({ query, markers, breaks, cutBreaks, onAdd, onRemove, busy, todayUtc }) {
+export function GrowthBand({ query, markers, breaks, cutBreaks, onAdd, onRemove, busy, todayUtc, liveGen }) {
   const [range, setRangeState] = useState(storedRange);
   const setRange = (v) => { setRangeState(v); keepRange(v); };
+
+  // This week so far, lit for a moment when a read moved it. Its row is
+  // compared whole; the first row, and a change of population, are a baseline.
+  const partRow = useMemo(() => {
+    const all = query.data?.growth;
+    if (!Array.isArray(all)) return null;
+    const r = all.filter((x) => x && !x.complete).at(-1);
+    return r ? JSON.stringify(r) : null;
+  }, [query.data]);
+  const lastPart = useRef({ gen: null, row: null });
+  const [lit, setLit] = useState(0);
+  useEffect(() => {
+    const p = lastPart.current;
+    lastPart.current = { gen: liveGen, row: partRow };
+    if (partRow == null || p.row == null || p.gen !== liveGen || p.row === partRow) return;
+    setLit((n) => n + 1);
+  }, [partRow, liveGen]);
+  useEffect(() => {
+    if (!lit) return undefined;
+    const t = setTimeout(() => setLit(0), 2500);
+    return () => clearTimeout(t);
+  }, [lit]);
 
   const growth = useMemo(
     () => buildGrowth(query.data?.growth, query.data?.returns, { today: todayUtc }),
@@ -214,7 +241,7 @@ export function GrowthBand({ query, markers, breaks, cutBreaks, onAdd, onRemove,
             ) : (
               <div
                 ref={bandRef}
-                className="adm-gb"
+                className={`adm-gb${lit ? ' is-lit' : ''}`}
                 // Focusable so the arrow keys can walk the weeks; the readings are
                 // announced from the live region below.
                 tabIndex={0}
