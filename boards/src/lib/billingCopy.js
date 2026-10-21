@@ -108,7 +108,7 @@ export function planBilling(plan) {
 //
 // Say it as SCOPE, never as access or seats. "Full edit access, everywhere
 // you're invited" was the line 0188 made free and this file had to delete, and
-// unlimited free collaborators are free too (collab_free_editor_cap is null) —
+// collaborators are free too (0520's editor_limit is off until Team launches) —
 // so the claim is that your LIMITS carry to the people you invite, not that
 // inviting them is free. Both are true; only one of them is Creator's.
 //
@@ -245,7 +245,8 @@ export const CREATOR_BENEFITS = [
     // subscription raises the ceiling for everyone working in that workspace.
     // Say it as SCOPE — the LIMITS carrying over — never as access or seats:
     // editing is free on every tier (0188) and so are unlimited collaborators
-    // (collab_free_editor_cap is null). Both are true; only one is Creator's.
+    // (0520's editor_limit is off until Team launches). Both are true; only
+    // one is Creator's.
     body: 'Everyone you invite builds at your limits. There are no per-seat charges.',
   },
 ];

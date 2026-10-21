@@ -111,7 +111,7 @@ assert(
 // (0187 keys every gate to workspaces.created_by) and is the only line here a
 // per-seat competitor cannot match. But it sits one word away from the claim
 // this file already had to delete: editing is free for every tier (0188), and
-// so are unlimited collaborators (collab_free_editor_cap is null). Selling
+// so are collaborators (0520's editor_limit is off until Team launches). Selling
 // either of those back as a Creator feature is the exact mistake 'edit access'
 // was, so pin the shape of the line rather than trusting a future editor.
 // Read title AND body: the claim used to live entirely in the bullet, and now

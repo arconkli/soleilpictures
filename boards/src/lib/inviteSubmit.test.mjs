@@ -52,3 +52,24 @@ test('the abuse read is told which budget stopped a send', () => {
   assert.equal(inviteLimitKind('invite limit reached: you can send 40 invitations a day. You can send more tomorrow.'), 'daily');
   assert.equal(inviteLimitKind(null), 'daily');
 });
+
+test('the editor limit stops the run, says whether to ask the owner, and hands back what it never reached', async () => {
+  const sent = [];
+  const r = await runInvites(['a@x.co', 'b@x.co', 'c@x.co'], async (e) => {
+    sent.push(e);
+    if (e === 'b@x.co') {
+      const err = new Error('editor limit reached: this account already has 10 people who can edit');
+      err.hint = 'editor_limit_ask_owner';
+      throw err;
+    }
+    return 'granted';
+  });
+  assert.deepEqual(sent, ['a@x.co', 'b@x.co'], 'nothing is tried after the limit');
+  assert.deepEqual(r.granted, ['a@x.co']);
+  assert.deepEqual(r.fail, []);
+  assert.deepEqual(r.limit, {
+    kind: 'editors', ask: true,
+    reason: 'editor limit reached: this account already has 10 people who can edit',
+    unsent: ['b@x.co', 'c@x.co'],
+  });
+});

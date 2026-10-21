@@ -482,6 +482,7 @@ export const EV = Object.freeze({
   WORKSPACE_LINK_LANDED:   'workspace_link_landed',       // someone opened a ?wsjoin link {status:'live'|'member'|'dead'|'error', signed_in}
   WORKSPACE_LINK_CLAIM_RESULT:'workspace_link_claim_result', // a claim's outcome, every branch {status:'joined'|'member'|'dead'|'error', at:'signup'|'card', reason} (must-land)
   WORKSPACE_LINK_CLAIMED:  'workspace_link_claimed',      // SERVER: claim_workspace_invite_link let someone in {workspace_id, role, status}
+  EDITOR_LIMIT_VIEWER_FALLBACK: 'editor_limit_viewer_fallback', // SERVER: an edit link let someone in as a viewer because the account had 10 people who can edit {via:'collab_link'|'workspace_link', upgrade, workspace_id, board_id}
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}

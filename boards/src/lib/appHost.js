@@ -164,6 +164,23 @@ export function touchPassAllowed() {
 }
 
 // ---------------------------------------------------------------------------
+// The 10-editor limit
+//
+// Free and Creator can have at most 10 people who can edit (owner,
+// 2026-10-20); a group that needs more buys a Team. The real switch is the
+// server's, app_config.editor_limit (0520): off until launch, with a list of
+// test accounts. This hold keeps the app's side of it closed until the Team
+// plan launches with it: the share panel's count, "Ask the owner", the
+// joined-as-viewer toast, and "Join as an editor" no longer saying "free".
+// It stays OFF in the sidebar release. Opt-in on dev with localStorage
+// soleil.dev.editorLimit = '1'.
+export const EDITOR_LIMIT_DEV_FLAG = 'soleil.dev.editorLimit';
+export function editorLimitAllowed() {
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(EDITOR_LIMIT_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
+// ---------------------------------------------------------------------------
 // The full Files page's new look
 //
 // The ⤢ / F page as the sidebar's Files card grown full screen (the owner's
@@ -249,6 +266,7 @@ export function featureFlags() {
     boardGround: boardGroundAllowed,
     clusterNudges: clusterNudgesAllowed,
     touchPass: touchPassAllowed,
+    editorLimit: editorLimitAllowed,
     fileShares: fileSharesAllowed,
     sharedFiles: sharedFilesAllowed,
     docShares: docSharesAllowed,

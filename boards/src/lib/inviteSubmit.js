@@ -3,6 +3,8 @@
 // invite step and its one re-ask. Pure over an injected sender, so it runs in
 // node and the surfaces only differ in what they say about the result.
 
+import { editorLimitRefusal } from './editorLimit.js';
+
 // Addresses out of a free-form field: commas, semicolons, whitespace or
 // newlines between them. Loose on purpose: anything with "@" and a dot in the
 // domain part. Invalid entries come back, so a typo'd address never looks like
@@ -44,7 +46,8 @@ export function inviteLimitKind(msg) {
 // throws on a failure. Stops at the invite limit, returning the addresses it
 // never reached, so a surface can keep them for tomorrow.
 //   → { granted: [email], pending: [email], fail: [{email, reason}],
-//       limit: null | { reason, unsent: [email] } }
+//       limit: null | { reason, unsent: [email] }                        (the invite budget)
+//              | { kind: 'editors', ask, reason, unsent: [email] } }     (the 10-editor limit, 0521)
 export async function runInvites(emails, send) {
   const granted = [];
   const pending = [];
@@ -61,6 +64,10 @@ export async function runInvites(emails, send) {
     } catch (e) {
       const msg = e?.message || String(e);
       if (INVITE_LIMIT_RE.test(msg)) { limit = { reason: inviteLimitReason(msg), unsent: list.slice(i) }; break; }
+      // 0521: the account has no room for another editor. One run sends every
+      // address with the same role, so the rest would be refused the same way.
+      const full = editorLimitRefusal(e);
+      if (full) { limit = { kind: 'editors', ask: full.ask, reason: msg, unsent: list.slice(i) }; break; }
       fail.push({ email, reason: msg });
     }
   }

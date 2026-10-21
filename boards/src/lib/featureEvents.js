@@ -102,6 +102,9 @@ export const FEATURE_EVENTS = Object.freeze({
   scoutConnect: {
     unmeasured: 'Connecting Scout (settings/ConnectionsTab.jsx) records nothing yet, and the bot has never run.',
   },
+  editorLimit: {
+    unmeasured: 'The editor limit has no screens yet: the share panel, Members and the joined-as-viewer toast wait on the owner\'s mockup pick. The server already logs editor_limit_viewer_fallback (0520/0521).',
+  },
 
   // Shipped without a hold.
   messages: {

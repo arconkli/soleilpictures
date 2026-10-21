@@ -12,6 +12,7 @@ import { fitByCost } from './demoCardCap.js';
 import { docPagesText, docSignature } from './docText.js';
 import { createStateWriteGate } from './boardStateGate.js';
 import { shareThisTurn } from './shareThisTurn.js';
+import { normalizeEditorCapacity } from './editorLimit.js';
 import {
   personalWorkspaceQuery, rootBoardQuery, boardListQuery, sharedBoardsQuery, boardStateQuery,
 } from './bootQueries.js';
@@ -349,6 +350,33 @@ export async function inviteWorkspaceMember({ workspaceId, email, role = 'editor
     });
   if (error) throw error;
   return data || 'granted';
+}
+
+// The 10-editor limit (0520). Numbers only: is the limit on for the account
+// that owns this cluster or workspace, how many of its places are taken, and
+// is it full. Pass a boardId (editors of it may ask) or a workspaceId.
+export async function getEditorCapacity({ boardId = null, workspaceId = null } = {}) {
+  const { data, error } = await supabase
+    .rpc('get_editor_capacity', { p_board_id: boardId, p_workspace_id: workspaceId });
+  if (error) throw error;
+  return normalizeEditorCapacity(data);
+}
+
+// Someone the limit turned away asks the account's owner (and co-owners) to
+// make room. 'sent' | 'already_sent' | 'not_full' | 'owner'.
+export async function askOwnerForEditorSlot({ boardId = null, workspaceId = null } = {}) {
+  const { data, error } = await supabase
+    .rpc('ask_owner_for_editor_slot', { p_board_id: boardId, p_workspace_id: workspaceId });
+  if (error) throw error;
+  return data;
+}
+
+// The owner's own list of everyone holding a place, waiting invites included,
+// with the workspaces and clusters each one can edit.
+export async function listMyAccountEditors() {
+  const { data, error } = await supabase.rpc('list_my_account_editors');
+  if (error) throw error;
+  return data || [];
 }
 
 // Pending invites (the rows ShareModal renders as "Pending signup").
