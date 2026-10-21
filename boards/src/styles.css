@@ -13055,6 +13055,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    while the compact editor for this card is open — the popover sits beside the
    image, so the cursor isn't hovering the image to reveal them. */
 .ic.is-editing .ic-actions { opacity: 1; }
+/* The keys reach them too: tabbing onto one gave a button the focus while the
+   strip stayed invisible. It shows while one has the keyboard's focus. */
+.ic-actions:has(.ic-act:focus-visible) { opacity: 1; }
 .ic-actions .ic-act {
   position: static; top: auto; right: auto;
   width: 24px; height: 24px; min-width: 24px; min-height: 24px;
