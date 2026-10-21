@@ -8,7 +8,10 @@
 //   entry CSS — index.html's own stylesheets (Typekit's is not ours to count)
 //   app JS / app CSS — what Vite loads when the entry imports AppShell: the
 //               __vite__mapDeps list on that import() call, minus the entry's
-//               own files. lib/appPreloadList.mjs preloads the same list.
+//               own files. lib/appPreloadList.mjs preloads the same list,
+//               and the run fails when the list it wrote into index.html
+//               is missing or differs: a file only Vite fetches arrives late,
+//               and one only the preload fetches is a wasted download.
 //
 // It also fails when the app closure has pulled in something only a later click
 // needs. Each name in NEVER_IN_APP was split out on purpose, and one static
@@ -80,6 +83,14 @@ export function preloadDepsFor(src, name) {
   return [...new Set([`assets/${own}`, ...deps])];
 }
 
+// The lists the inline script in index.html preloads (vite.config.js
+// appPreload), or null when the build wrote none.
+export function inlinePreloadLists(html) {
+  const m = html.match(/__soleilAppPreload[\s\S]*?\}\)\((\{[\s\S]*?\})\s*,\s*\[/);
+  if (!m) return null;
+  try { return JSON.parse(m[1]); } catch (_) { return null; }
+}
+
 function closure(roots, read) {
   const seen = new Set();
   const stack = [...roots];
@@ -107,6 +118,8 @@ export function measure(dist) {
   for (const e of entry) { appDeps = preloadDepsFor(read(e), 'AppShell'); if (appDeps) break; }
   if (!appDeps) throw new Error('the entry has no import() of AppShell: was the build made without Supabase configured?');
   const app = appDeps.filter((f) => !entryClosure.has(f) && !css.includes(f));
+  const lists = inlinePreloadLists(html);
+  const preloaded = lists?.app ? [...lists.app.js, ...lists.app.css].map((h) => h.replace(/^\//, '')) : null;
 
   const size = (f) => br(readFileSync(join(dist, f)));
   const rows = (list) => list.map((f) => ({ file: f, br: size(f) })).sort((a, b) => b.br - a.br);
@@ -120,6 +133,10 @@ export function measure(dist) {
     appJs: sum(appJsRows), appCss: sum(appCssRows),
     rows: { entryJs: entryJsRows, entryCss: entryCssRows, appJs: appJsRows, appCss: appCssRows },
     forbidden: app.filter((f) => NEVER_IN_APP.includes(chunkName(f))),
+    preload: preloaded && {
+      missing: app.filter((f) => !preloaded.includes(f)),
+      extra: preloaded.filter((f) => !app.includes(f)),
+    },
     files: readdirSync(join(dist, 'assets')).length,
   };
 }
@@ -137,6 +154,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     failed = true;
     console.log(`\nIn the app's critical closure but split out on purpose: ${m.forbidden.join(', ')}`);
     console.log('Something now imports them statically. Find it and make it lazyWithReload().');
+  }
+  if (!m.preload) {
+    failed = true;
+    console.log('\nindex.html has no app preload list: vite.config.js appPreload wrote nothing.');
+  } else if (m.preload.missing.length || m.preload.extra.length) {
+    failed = true;
+    console.log('\nThe preload list in index.html is not what Vite loads for AppShell.');
+    if (m.preload.missing.length) console.log(`  Vite loads, never preloaded: ${m.preload.missing.join(', ')}`);
+    if (m.preload.extra.length) console.log(`  preloaded, never loaded by Vite: ${m.preload.extra.join(', ')}`);
   }
   if (REPORT) {
     for (const k of Object.keys(CEILINGS)) {

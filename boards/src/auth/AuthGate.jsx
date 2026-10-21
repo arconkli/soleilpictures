@@ -46,6 +46,7 @@ import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
 import { bootMark } from '../lib/bootMarks.js';
+import { preloadSignedInApp } from '../lib/preloadApp.js';
 
 // Localstorage key holding an in-flight invite token between the
 // pre-signup landing (?invite=…) and the post-signup claim hook.
@@ -802,6 +803,8 @@ function SignIn() {
   // How often the remembered step actually saves someone a re-send.
   useEffect(() => {
     if (!restored) return;
+    // Back on the code step: the app downloads while the code is typed.
+    preloadSignedInApp({ setup: workspaceSetupAllowed() });
     logEventOnce('auth_code_restored', EV.AUTH_CODE_RESTORED, {
       age_s: Math.max(0, Math.round((Date.now() - restored.sentAt) / 1000)),
     });
@@ -898,6 +901,9 @@ function SignIn() {
       return;
     }
     setBusy(true);
+    // The code takes a while to arrive and to type; the app downloads in the
+    // meantime instead of after it is accepted. Preloaded, never run.
+    if (!resending) preloadSignedInApp({ setup: workspaceSetupAllowed() });
     try {
       // If this visitor arrived via a Facebook/Instagram click, the persisted
       // _fbc ('fb.1.<ms>.<fbclid>') rides along in signup metadata so the

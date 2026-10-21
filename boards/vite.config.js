@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { appPreloadList, withoutList, preloadScript, WORKSPACE_SETUP_MODULE } from './src/lib/appPreloadList.mjs';
 
 // Build-time release tag stamped onto first-party client error logs
 // (public.client_errors via errorReporting.js, which reads VITE_RELEASE). The
@@ -12,8 +13,39 @@ const release = (() => {
   catch (_) { return null; }
 })();
 
+// Writes the signed-in app's file list into index.html, with the script that
+// preloads it while the HTML parses on a signed-in open and that the sign-in
+// form calls when a code is sent (src/lib/appPreloadList.mjs says why, and how
+// the hrefs have to be spelled for Vite's helper to reuse them). `setup` is
+// what the held workspace setup adds on top, for a new account that opens on
+// it. A bundle without AppShell gets nothing, and neither does dev, where
+// nothing is bundled to preload.
+function appPreload() {
+  return {
+    name: 'soleil-app-preload',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!ctx.bundle) return;
+        const app = appPreloadList(ctx.bundle);
+        if (!app) return;
+        const setup = withoutList(appPreloadList(ctx.bundle, WORKSPACE_SETUP_MODULE), app);
+        const script = preloadScript(setup ? { app, setup } : { app });
+        // Right after <meta charset>, which must stay inside the first 1024
+        // bytes, and above every stylesheet: an inline script waits for the
+        // stylesheets before it to load, and this one has to run at once.
+        const charset = /<meta charset=[^>]*>/i.exec(html);
+        if (!charset) return [{ tag: 'script', children: script, injectTo: 'head-prepend' }];
+        const at = charset.index + charset[0].length;
+        return `${html.slice(0, at)}\n  <script>${script}</script>${html.slice(at)}`;
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), appPreload()],
   define: {
     'import.meta.env.VITE_RELEASE': JSON.stringify(release),
   },
