@@ -16,7 +16,7 @@ import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
-import { startCheckout, startPortal } from '../lib/checkout.js';
+import { startCheckout, startPortal, warmCheckout, warmPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { useAuth } from './AuthGate.jsx';
 import { useBfcacheRestore } from './useBfcacheRestore.js';
@@ -74,6 +74,12 @@ export function PricingPage() {
   // the Stripe portal, so the Manage-billing CTA would error. Show a note instead.
   const grantBacked = tier === 'paid' && grantActive && !['active', 'trialing'].includes(subscriptionStatus || '');
   const noPortal = grantBacked || tier === 'admin';
+  // The button's function, booted and its preflight answered while the page
+  // is read (lib/checkout.js), so the click waits on Stripe alone.
+  useEffect(() => {
+    if (!alreadyPaid) warmCheckout();
+    else if (!noPortal) warmPortal();
+  }, [alreadyPaid, noPortal]);
   const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
 
   const onPlanToggle = (p) => {

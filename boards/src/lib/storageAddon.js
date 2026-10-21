@@ -9,7 +9,10 @@
 import { supabase } from './supabase.js';
 import { STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_HELD, STORAGE_ADDON_MAX_BLOCKS } from './billingCopy.js';
 
-const ADDON_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/storage-addon';
+// Run where the database is, as the checkout functions are (lib/checkout.js
+// says why). The sheet's preview on opening also warms the apply: same URL, so
+// the function is up and its preflight remembered when the button is pressed.
+const ADDON_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/storage-addon?forceFunctionRegion=us-west-2';
 
 async function call(body) {
   const { data } = await supabase.auth.getSession();

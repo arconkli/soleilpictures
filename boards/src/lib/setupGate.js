@@ -17,26 +17,9 @@
 
 import { invitedStartWorkspace } from './startWorkspace.js';
 
-export const SETUP_OVERRIDE_PARAM = 'setup';
-export const SETUP_OVERRIDE_KEY = 'soleil.setup.override';
-
-// ?setup=A or ?setup=B picks the arm for QA on dev and the preview deploy
-// (the caller says whether it may), and is remembered for the tab so a reload
-// mid-setup stays in it. An override is never stamped: it is not the test.
-export function readSetupOverride({ search, storage, allowed } = {}) {
-  if (!allowed) return null;
-  let v = null;
-  try { v = new URLSearchParams(search || '').get(SETUP_OVERRIDE_PARAM); } catch (_) { v = null; }
-  v = typeof v === 'string' ? v.trim().toUpperCase() : null;
-  if (v === 'A' || v === 'B') {
-    try { storage?.setItem(SETUP_OVERRIDE_KEY, v); } catch (_) { /* ignore */ }
-    return v;
-  }
-  try {
-    const kept = storage?.getItem(SETUP_OVERRIDE_KEY);
-    return kept === 'A' || kept === 'B' ? kept : null;
-  } catch (_) { return null; }
-}
+// ?setup=A / ?setup=B, the QA override of the arm: setupRule.js, beside the
+// question AuthGate asks at sign-in (setupMayOpenFirst), which reads it too.
+export { SETUP_OVERRIDE_PARAM, SETUP_OVERRIDE_KEY, readSetupOverride } from './setupRule.js';
 
 // Whom a new account is joining, if anyone: the workspace the sign-in claims
 // pointed it at (an email invite, a workspace link or a cluster link all write

@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 // clips or forces horizontal scroll.
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/functions/v1/verify-checkout-session', (route) =>
+  await page.route('**/functions/v1/verify-checkout-session*', (route) =>
     route.fulfill({ json: { activated: false, reason: 'not_paid_yet' } }));
 });
 

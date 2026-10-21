@@ -62,6 +62,8 @@ test('app_open says how long the app took, on a page load\'s first mount only', 
   const app = read('../App.jsx');
   assert.match(app, /^let appOpenTimed = false;$/m);
   const open = app.slice(app.indexOf('let bootMs = null;'), app.indexOf('logEvent(EV.APP_OPEN, {'));
-  assert.match(open, /if \(!appOpenTimed\) \{\s*appOpenTimed = true;\s*const t = performance\.now\(\);\s*if \(Number\.isFinite\(t\) && t > 0 && t < 600_000\) bootMs = Math\.round\(t\);/);
+  // Not after the app opened in place from the checkout success page
+  // (boot:enter): that mount came long after the load.
+  assert.match(open, /if \(!appOpenTimed\) \{\s*appOpenTimed = true;\s*if \(bootAt\('enter'\) == null\) \{\s*const t = performance\.now\(\);\s*if \(Number\.isFinite\(t\) && t > 0 && t < 600_000\) bootMs = Math\.round\(t\);/);
   assert.match(app, /landed_cards: Number\.isFinite\(landedCards\) \? landedCards : null, boot_ms: bootMs,/);
 });

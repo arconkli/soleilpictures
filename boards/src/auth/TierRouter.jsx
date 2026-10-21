@@ -12,7 +12,7 @@
 //
 // Anyone signed in can hit /pricing (e.g. demo upgrading).
 
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
@@ -23,6 +23,7 @@ import { assignArm } from '../lib/experiments.js';
 import { trackAdLead } from '../lib/metaPixel.js';
 import { setJourneySink, beginJourney, setJourneyState, journey } from '../lib/journey.js';
 import { useSetupGate } from '../hooks/useSetupGate.js';
+import { bootMark } from '../lib/bootMarks.js';
 
 // Wire the post-signup journey's emitter at module load (journey.js can't import
 // analytics.js statically — it must stay node-importable for its unit test). This
@@ -56,6 +57,19 @@ export function TierRouter({ children }) {
   // before the canvas. Everyone else resolves to 'off' on the first render
   // without a read, and production stays off through workspaceSetupAllowed.
   const setup = useSetupGate({ user, tier, loading, onboarding });
+
+  // /pricing/success hands over to the app in place (PricingSuccess's
+  // onEnter): the URL becomes / and this renders again, down the app's branch.
+  // App then mounts with the tier the success page read and takes the reads
+  // the sign-in started, where a reload would have started the boot over.
+  // bootMark('enter') tells App this mount is not a page load's boot.
+  const [, setEntered] = useState(0);
+  const enterApp = useCallback(() => {
+    bootMark('enter', { from: 'checkout' });
+    try { window.history.replaceState({}, '', '/'); }
+    catch (_) { window.location.assign('/'); return; }
+    setEntered((n) => n + 1);
+  }, []);
 
   // ── instant_entry: SHIPPED at 100% arm B (decided HERE, before App mounts) ──
   // Every brand-new demo user drops STRAIGHT into their seeded board; the price-first
@@ -183,7 +197,7 @@ export function TierRouter({ children }) {
 
   // Anyone signed in can reach these:
   if (path === '/pricing')           return <Suspense fallback={<Splash />}><PricingPage /></Suspense>;
-  if (path === '/pricing/success')   return <Suspense fallback={<Splash />}><PricingSuccess /></Suspense>;
+  if (path === '/pricing/success')   return <Suspense fallback={<Splash />}><PricingSuccess onEnter={enterApp} /></Suspense>;
 
   // tier='waitlist' is gated to the welcome/waitlist flow. /waitlist is
   // a legacy path that now opens the WaitlistModal inside WelcomePage.

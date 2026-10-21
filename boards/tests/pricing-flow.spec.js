@@ -23,11 +23,11 @@ import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL } from '../src/lib/billingCop
 // edge function's own logic.
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/functions/v1/verify-checkout-session', (route) =>
+  await page.route('**/functions/v1/verify-checkout-session*', (route) =>
     route.fulfill({ json: { activated: false, reason: 'not_paid_yet' } }));
-  await page.route('**/functions/v1/create-checkout-session', (route) =>
+  await page.route('**/functions/v1/create-checkout-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/pricing' } }));
-  await page.route('**/functions/v1/create-portal-session', (route) =>
+  await page.route('**/functions/v1/create-portal-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/settings/billing' } }));
   // /pricing now short-circuits to the SIGNED-OUT public page when no cached
   // Supabase session exists (main.jsx hasCachedSession). These specs exercise
@@ -412,6 +412,17 @@ test('a completed checkout shows a Welcome celebration before entering', async (
 
   // Celebration appears immediately (it redirects to "/" ~2.4s later).
   await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 2000 });
+});
+
+test('after the celebration the app opens in place, not on a second page load', async ({ page }) => {
+  await page.goto('/pricing/success?local=1&tier=paid&session_id=cs_test_in_place');
+  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 10_000 });
+  // A reload would take this with it.
+  await page.evaluate(() => { window.__sameDocument = true; });
+  await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 });
+  expect(await page.evaluate(() => window.__sameDocument === true)).toBe(true);
+  // App was told this mount is not a page load's boot (App.jsx, bootAt('enter')).
+  expect(await page.evaluate(() => performance.getEntriesByName('boot:enter', 'mark').length)).toBe(1);
 });
 
 test('a pending waitlist user sees status + a skip-the-wait price from billingCopy', async ({ page }) => {

@@ -20,7 +20,7 @@ import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
-import { startCheckout, startPortal } from '../lib/checkout.js';
+import { startCheckout, startPortal, warmCheckout, warmPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -197,6 +197,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // "Manage billing" would round-trip to create-portal-session's 404. Show
   // the truth on the button instead of a dead end.
   const grantBacked = alreadyPaid && Boolean(grantActive);
+  // The button's function, booted and its preflight answered while the offer
+  // is read (lib/checkout.js), so the click waits on Stripe alone.
+  useEffect(() => {
+    if (tierPreview || grantBacked) return;
+    if (alreadyPaid) warmPortal(); else warmCheckout();
+  }, [tierPreview, alreadyPaid, grantBacked]);
   const onPlanToggle = (p) => {
     const t = up.planToggle(p);
     logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'modal', header, ...t });

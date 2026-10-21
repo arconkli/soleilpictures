@@ -9,7 +9,7 @@ import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING, CTA, STORAGE_ADDON_HELD, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS } from '../../lib/billingCopy.js';
 import { creatorTrialEligibility } from '../../lib/creatorTrial.js';
-import { startPortal } from '../../lib/checkout.js';
+import { startPortal, warmPortal } from '../../lib/checkout.js';
 import { checkoutErrorMessage } from '../../lib/checkoutErrors.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { useMyTier } from '../../hooks/useMyTier.js';
@@ -50,6 +50,10 @@ export function BillingTab({ user }) {
       .then(({ data }) => { if (!cancelled) setSub(data || null); });
     return () => { cancelled = true; };
   }, [user?.id, storageEpoch]);
+
+  // Manage billing's function, booted and its preflight answered while the tab
+  // is read (lib/checkout.js), so the click waits on Stripe alone.
+  useEffect(() => { if (tier === 'paid') warmPortal(); }, [tier]);
 
   const openPortal = async () => {
     if (busy) return;

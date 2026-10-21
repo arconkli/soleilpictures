@@ -39,6 +39,12 @@ test('it stays light enough for the entry chunk', () => {
   assert.deepEqual(imports('lib/bootStore.js'), []);
   assert.deepEqual(imports('lib/startWorkspace.js'), []);
   assert.deepEqual(imports('lib/prefetch.js'), []);
+  // AuthGate asks the setup's rule before the personal workspace's head start,
+  // from its own module: a module goes whole into one chunk, and setupGate.js
+  // or workspaceSetup.js would bring the whole setup into the entry.
+  assert.ok(!/from '\.\.\/lib\/(setupGate|workspaceSetup)\.js'/.test(read('auth/AuthGate.jsx')));
+  assert.deepEqual(imports('lib/setupRule.js'), ['./experiments.js']);
+  assert.deepEqual(imports('lib/experiments.js'), []);
 });
 
 test('no builder is ever .catch()ed: it is a thenable, and the catch swallows the query', () => {
@@ -80,4 +86,40 @@ test('a reload inside a cluster never opens the root in its place while the list
   const s = read('App.jsx');
   assert.match(s, /const landingPending = boardListsLoading && currentId !== rootBoard\.id && !boards\[currentId\];/);
   assert.match(s, /const yb = useYBoard\(landingPending \? null : currentBoard\.id,/);
+});
+
+test("a new account's workspace starts at sign-in, never where the setup may open first", () => {
+  const gate = read('auth/AuthGate.jsx');
+  // Beside each startBootPrefetch, so after the same claims and returns, and
+  // on the phone long before AppShell (TierRouter) has arrived to ask.
+  assert.match(gate, /startBootPrefetch\(data\.session\.user\.id\);\s*startPersonalPrefetch\(data\.session\.user\);/);
+  assert.match(gate, /startBootPrefetch\(sess\.user\.id\);\s*startPersonalPrefetch\(sess\.user\);/);
+  const call = 'bootPrefetchPersonal(user);';
+  const fn = gate.slice(gate.indexOf('function startPersonalPrefetch('), gate.indexOf(call) + call.length);
+  assert.ok(fn.length > 1, 'AuthGate starts bootPrefetchPersonal behind its guard');
+  // Only where the app is about to open: its page, and the checkout success
+  // page that opens it in place.
+  assert.match(gate, /const OPENS_APP = new Set\(\['\/', '\/pricing\/success'\]\);/);
+  assert.match(fn, /if \(!OPENS_APP\.has\(window\.location\.pathname\)\) return;/);
+  // Held back while the setup may still open: an account new enough for it
+  // (the gate's own rule, before the tier says whether it was ever set up) in
+  // the setup's arm B, or the arm ?setup= picks where the gate takes it.
+  assert.match(fn, /allowed: import\.meta\.env\.DEV \|\| onPreviewHost\(\),/);
+  assert.match(fn, /if \(setupMayOpenFirst\(\{ user, allowed: workspaceSetupAllowed\(\), override \}\)\) return;\s*bootPrefetchPersonal\(user\);/);
+  assert.match(read('lib/setupRule.js'), /if \(!user\?\.id \|\| !isSetupCandidate\(\{ allowed, createdAt: user\.created_at \}\)\) return false;\s*return \(override \|\| assignArm\('workspace_setup', user\.id\)\) === 'B';/);
+  assert.match(read('hooks/useSetupGate.js'), /isSetupCandidate\(\{\s*allowed: workspaceSetupAllowed\(\), createdAt: user\?\.created_at, onboarding,/);
+  // The same arm the setup gate opens on: change one and this test makes you
+  // look at the other.
+  assert.match(read('hooks/useSetupGate.js'), /const arm = candidate \? \(override \|\| assignArm\('workspace_setup', uid\)\) : null;/);
+  assert.match(read('hooks/useSetupGate.js'), /readSetupOverride\(\{[\s\S]{0,160}allowed: import\.meta\.env\.DEV \|\| onPreviewHost\(\),/);
+  const s = read('lib/bootPrefetch.js');
+  const body = s.slice(s.indexOf('export function bootPrefetchPersonal('), s.indexOf('// useWorkspace\'s note of which workspace'));
+  // Once per account per page (the listener hears the hourly token refresh
+  // too), and never a second RPC beside the sign-in one.
+  assert.match(body, /startedFor !== uid \|\| personalFor === uid\) return;\s*personalFor = uid;\s*if \(hasBoot\('personal', uid\)\) return;/);
+  assert.match(s, /export function clearBootPrefetch\(\) \{\s*startedFor = null;\s*personalFor = null;/);
+  assert.match(body, /bootPrefetchPersonalList\(user, ws\.id\);/);
+  assert.match(body, /bootPrefetchLanding\(user, ws\.id, root\.id, \{ personal: true \}\)/);
+  // Nothing in TierRouter starts it any more: AppShell arrives too late.
+  assert.ok(!read('auth/TierRouter.jsx').includes('bootPrefetchPersonal'));
 });

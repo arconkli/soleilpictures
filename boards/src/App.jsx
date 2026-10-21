@@ -1476,6 +1476,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const cards = yb.cards || [];
     const source = yb.paintSource || null;
     bootMark('paint', { source, cards: cards.length });
+    // The paint is still marked, for what waits on it (lib/afterBoot.js), but
+    // after a checkout's in-place entry (boot:enter) it is not a boot's paint.
+    if (bootAt('enter') != null) return;
     const ms = bootAt('paint');
     let sent = false;
     const send = () => {
@@ -7338,14 +7341,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     let bootMs = null;
     // Where the boot spent that time (lib/bootMarks.js), on the same first mount.
     let boot = {};
+    // Not when the app opened in place after a checkout (boot:enter): that
+    // mount came long after the load, as a workspace switch's does.
     if (!appOpenTimed) {
       appOpenTimed = true;
-      const t = performance.now();
-      if (Number.isFinite(t) && t > 0 && t < 600_000) bootMs = Math.round(t);
-      boot = {
-        t_session: bootAt('session'), t_shell: bootAt('shell'), t_tier: bootAt('tier'), t_ws: bootAt('workspace'),
-        shell_cached: bootDetail('shell')?.cached ?? null, refreshed: bootDetail('session')?.refreshed ?? null,
-      };
+      if (bootAt('enter') == null) {
+        const t = performance.now();
+        if (Number.isFinite(t) && t > 0 && t < 600_000) bootMs = Math.round(t);
+        boot = {
+          t_session: bootAt('session'), t_shell: bootAt('shell'), t_tier: bootAt('tier'), t_ws: bootAt('workspace'),
+          shell_cached: bootDetail('shell')?.cached ?? null, refreshed: bootDetail('session')?.refreshed ?? null,
+        };
+      }
     }
     logEvent(EV.APP_OPEN, {
       tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root',

@@ -16,9 +16,9 @@ import { expect, test } from '@playwright/test';
 // Edge-function fetches are stubbed so nothing hits the network.
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/functions/v1/create-checkout-session', (route) =>
+  await page.route('**/functions/v1/create-checkout-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/pricing' } }));
-  await page.route('**/functions/v1/create-portal-session', (route) =>
+  await page.route('**/functions/v1/create-portal-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/settings/billing' } }));
 });
 

@@ -32,7 +32,8 @@ import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCol
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
 import { WSJOIN_PARAM, parseWsJoinParam, stashWsJoin, readWsJoin, clearWsJoin, markJoined } from '../lib/workspaceLink.js';
-import { workspaceSetupAllowed } from '../lib/appHost.js';
+import { onPreviewHost, workspaceSetupAllowed } from '../lib/appHost.js';
+import { readSetupOverride, setupMayOpenFirst } from '../lib/setupRule.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
@@ -47,7 +48,7 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
 import { bootMark } from '../lib/bootMarks.js';
 import { preloadSignedInApp } from '../lib/preloadApp.js';
-import { startBootPrefetch, clearBootPrefetch } from '../lib/bootPrefetch.js';
+import { startBootPrefetch, bootPrefetchPersonal, clearBootPrefetch } from '../lib/bootPrefetch.js';
 
 // Localstorage key holding an in-flight invite token between the
 // pre-signup landing (?invite=…) and the post-signup claim hook.
@@ -545,6 +546,28 @@ function storedSessionNeedsRefresh() {
   return null;
 }
 
+// A new account's workspace, its root, its clusters and the root's snapshot,
+// started with the rest of the boot reads rather than once the app's code has
+// arrived and mounted, which on a phone is most of a second later
+// (lib/bootPrefetch.js bootPrefetchPersonal; a no-op where the sign-in already
+// started the workspace). Only where the app is about to open: its own page,
+// and the checkout's success page, which opens it in place after the
+// celebration. Never where the first-run setup may open first: its name step
+// makes the workspace (lib/setupRule.js setupMayOpenFirst).
+const OPENS_APP = new Set(['/', '/pricing/success']);
+function startPersonalPrefetch(user) {
+  if (!OPENS_APP.has(window.location.pathname)) return;
+  let override = null;
+  try {
+    override = readSetupOverride({
+      search: window.location.search, storage: window.sessionStorage,
+      allowed: import.meta.env.DEV || onPreviewHost(),
+    });
+  } catch (_) { /* no override */ }
+  if (setupMayOpenFirst({ user, allowed: workspaceSetupAllowed(), override })) return;
+  bootPrefetchPersonal(user);
+}
+
 // Only someone already signed in who opens a workspace invite link sees it.
 const WorkspaceJoinCard = lazy(() => import('../components/WorkspaceJoinCard.jsx'));
 
@@ -603,7 +626,10 @@ export function AuthGate({ children, signedOut = null }) {
         // The reads the app opens with start now, while it downloads, and
         // after the claims above: they rewrite the keys that say which
         // workspace and cluster it opens (lib/bootPrefetch.js).
-        if (data.session?.user?.id && !cancelled) startBootPrefetch(data.session.user.id);
+        if (data.session?.user?.id && !cancelled) {
+          startBootPrefetch(data.session.user.id);
+          startPersonalPrefetch(data.session.user);
+        }
         if (data.session) bootMark('session', { refreshed: !callbackSession && refreshDue === true });
         if (data.session) hadSession.current = true;
         if (!cancelled) setSession(data.session);
@@ -647,7 +673,10 @@ export function AuthGate({ children, signedOut = null }) {
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
         }
-        if (sess?.user?.id && !cancelled) startBootPrefetch(sess.user.id);
+        if (sess?.user?.id && !cancelled) {
+          startBootPrefetch(sess.user.id);
+          startPersonalPrefetch(sess.user);
+        }
         if (sess) bootMark('session', { refreshed: false });
         if (sess) hadSession.current = true;
         if (!cancelled) setSession(sess);
@@ -1183,13 +1212,17 @@ function SignIn() {
                 if (error) setError(null);
                 // Auto-submit on the 6th digit — a complete code sitting in
                 // the field with an unexplained "now press the button" step
-                // is pure friction. Brief delay so paste-then-fix still works.
+                // is pure friction. The short wait only gathers a fill that
+                // lands as several input events (a password manager typing
+                // the digits) into one submit of the last value. It was 250 ms,
+                // a quarter second on every sign-in, and nobody fixes a pasted
+                // code inside a quarter second.
                 if (next.length === 6 && !busy) {
                   const form = e.target.closest('form');
                   clearTimeout(autoSubmitRef.current);
                   autoSubmitRef.current = setTimeout(() => {
                     try { form?.requestSubmit?.(); } catch (_) {}
-                  }, 250);
+                  }, 40);
                 }
               }}
               disabled={busy}

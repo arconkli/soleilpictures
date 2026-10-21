@@ -7,6 +7,9 @@
 //   workspace  the workspace and its root are known; Workspace mounts
 //   paint      the board the person landed on painted { source, cards }
 //   image      the first picture on the canvas loaded { tier }
+//   enter      the app opened in place from another page of this load (the
+//              checkout success page) { from }; App mounted then, not at a
+//              boot, so app_open and board_ready time nothing after it
 //
 // They show in DevTools' Timings lane, scripts/perf/bootBench.mjs reads them,
 // and app_open and board_ready carry their times, so a slow open in the field

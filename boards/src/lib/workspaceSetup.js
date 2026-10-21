@@ -17,12 +17,9 @@
 // import.meta.env. The caller passes the host gate's answer in (appHost.js
 // workspaceSetupAllowed) and the clock.
 
-// Accounts created before this never see the steps, wherever the gate is open.
-// A user who already has an `onboarding` record has been in the app either way.
-// It is the sidebar release's instant, so an account made before the release
-// that never opened the app isn't enrolled on its first open after it, with its
-// 7-day window long gone. The test's saved read starts at the same instant.
-export const SETUP_EPOCH = '2026-10-22T19:00:00Z';
+// Who sees the steps at all, and the accounts too old to: setupRule.js, light
+// enough for the entry chunk, which asks before the rest of this has arrived.
+export { SETUP_EPOCH, isSetupCandidate } from './setupRule.js';
 
 export const NAME_MAX = 60;           // the invite emails cut names here too (safeLabel)
 export const REASK_MIN_CARDS = 6;     // where day-one return stops climbing slowly
@@ -56,17 +53,6 @@ export const INVITEE_STEPS = Object.freeze(['invitee']);
 
 export function stepsForSetup({ invitee } = {}) {
   return invitee ? INVITEE_STEPS : SETUP_STEPS;
-}
-
-// Who sees the steps at all. Zero queries: the tier read the app already makes
-// carries `onboarding`, and only someone who passes this pays for the reads
-// that decide where they resume.
-export function isSetupCandidate({ allowed, createdAt, onboarding } = {}) {
-  if (!allowed) return false;
-  const created = Date.parse(createdAt || '');
-  if (!Number.isFinite(created) || created < Date.parse(SETUP_EPOCH)) return false;
-  if (onboarding && (onboarding.seeded || onboarding.done)) return false;
-  return true;
 }
 
 // ── The name ────────────────────────────────────────────────────────────────

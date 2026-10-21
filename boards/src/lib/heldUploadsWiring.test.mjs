@@ -125,10 +125,12 @@ test('Checkout opens in a new tab while files are held, before the first await',
 
 test('the success page asks for the holding tab before it sends this one into the app', () => {
   const effect = region(success, 'if (!celebrating) return undefined;', '}, [celebrating]);');
-  const ask = effect.indexOf('askForHolder()');
-  const redirect = effect.indexOf("window.location.assign('/')");
+  const ask = effect.indexOf('const asked = askForHolder();');
+  // Into the app in place (TierRouter's onEnter), or by a reload without one,
+  // and only once the question has been answered.
+  const redirect = effect.indexOf('asked.then((n) => { if (!cancelled && n === 0) enter(); });');
   assert.ok(ask > 0 && redirect > ask, 'asked first');
-  assert.match(effect, /if \(n > 0\) \{ setHeldElsewhere\(n\); return; \}/);
+  assert.match(effect, /asked\.then\(\(n\) => \{ if \(!cancelled && n > 0\) setHeldElsewhere\(n\); \}\);/);
 });
 
 test('a block added in the sheet tells held drops to look, and a bank page makes them wait', () => {

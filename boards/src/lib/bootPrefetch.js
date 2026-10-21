@@ -14,9 +14,11 @@
 // yboard's cold open already shares an in-flight read on, so the canvas picks
 // it up with no code of its own.
 //
-// Never for a new account's workspace: see bootPlan.js. Every promise here
-// carries a rejection handler, so a read that fails costs a head start and
-// never becomes a client_errors row; the app makes the read again itself.
+// A new account's workspace is not in the plan (see bootPlan.js): AuthGate
+// starts it straight after, where the first-run setup cannot be the one to
+// make it (bootPrefetchPersonal). Every promise here carries a rejection
+// handler, so a read that fails costs a head start and never becomes a
+// client_errors row; the app makes the read again itself.
 //
 // Entry-light on purpose: AuthGate imports this, so it reaches only the
 // Supabase client and the import-free helpers, never boardsApi (yjs) or r2.
@@ -31,6 +33,7 @@ import { putBoot, hasBoot, takeBoot, peekBootSettled, clearBoot } from './bootSt
 import { bootPlan, storedTip, landsInPersonal, personalKey } from './bootPlan.js';
 
 let startedFor = null;
+let personalFor = null;     // bootPrefetchPersonal's account, once per page like startedFor
 const warmed = new Set();   // snapshots put in prefetch.js's cache, dropped on sign-out
 
 function storage() {
@@ -41,6 +44,7 @@ function start(key, uid, build) {
   const promise = Promise.resolve(build());
   promise.then(undefined, () => {});
   putBoot(key, uid, promise);
+  return promise;
 }
 
 function warmSnapshot(boardId) {
@@ -69,6 +73,7 @@ export function startBootPrefetch(uid) {
 
 export function clearBootPrefetch() {
   startedFor = null;
+  personalFor = null;
   clearBoot();
   for (const id of warmed) invalidate(`board:${id}`);
   warmed.clear();
@@ -128,6 +133,32 @@ export function bootPrefetchLanding(user, workspaceId, rootId, { personal = fals
   const tip = storedTip(storage(), uid, workspaceId);
   if (tip && tip !== rootId) return;
   warmSnapshot(rootId);
+}
+
+// AuthGate, straight after startBootPrefetch, for an account this device has
+// not opened before (bootPlan left its RPC out) where the first-run setup will
+// not open first: the personal-workspace RPC beside get_my_tier rather than
+// once the app's code has arrived and mounted, which for a new account makes
+// the workspace and its root. Then, as each answer lands, that root, the
+// cluster list and the root's snapshot, so useWorkspace and the canvas find
+// them all started, or done, when App mounts. The list and the snapshot only
+// where the personal workspace is where this person lands. Once per account
+// per page: AuthGate's listener hears the hourly token refresh too, long after
+// the RPC it started was taken and dropped from the store.
+export function bootPrefetchPersonal(user) {
+  const uid = user?.id;
+  if (!supabase || !uid || startedFor !== uid || personalFor === uid) return;
+  personalFor = uid;
+  if (hasBoot('personal', uid)) return;
+  start('personal', uid, () => personalWorkspaceQuery(supabase, uid)).then(({ data: ws, error }) => {
+    if (error || !ws?.id || startedFor !== uid) return;
+    bootPrefetchPersonalList(user, ws.id);
+    if (hasBoot(`root:${ws.id}`, uid)) return;
+    start(`root:${ws.id}`, uid, () => rootBoardQuery(supabase, ws.id)).then(({ data, error: rootError }) => {
+      const root = !rootError && data && data[0];
+      if (root?.id) bootPrefetchLanding(user, ws.id, root.id, { personal: true });
+    }, () => {});
+  }, () => {});
 }
 
 // useWorkspace's note of which workspace is this account's own, so the next
