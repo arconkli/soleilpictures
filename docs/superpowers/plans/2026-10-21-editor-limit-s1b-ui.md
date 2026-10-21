@@ -2510,6 +2510,7 @@ New:
 **Files:**
 - Modify: `boards/src/local/shareWorkspaceProbe.js`
 - Create: `boards/tests/editor-limit.spec.js`
+- Modify: `boards/tests/share-panel-simplicity.spec.js` (its pin of the Whole-workspace option, locked since Task 3)
 
 - [ ] **Step 1: Add the probe export.**
 
@@ -2531,13 +2532,21 @@ Append:
 
 ```js
 
+// Settings is a layer over the app, so the tab gets one: under it the local-QA
+// canvas takes the pointer and a hover never reaches a row. Below the
+// confirm and the toasts, which portal to <body> on the top tier.
 export function mountMembersTab(props) {
   ReactDOM.createRoot(host()).render(React.createElement(FeedbackProvider, null,
-    React.createElement('div', { style: { width: 680, padding: 16 } },
-      React.createElement(MembersTab, props))));
+    React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 9999, overflow: 'auto', background: 'var(--bg-0)' } },
+      React.createElement('div', { style: { width: 680, padding: 16 } },
+        React.createElement(MembersTab, props)))));
   return true;
 }
 ```
+
+(As first written, the tab sat in the page's flow under the local-QA canvas, whose `.cards-layer` took the pointer: the Members test's `hover()` on a row timed out. The fixed layer is what the build used.)
+
+The share panel's "Whole workspace · can edit" option gained its lock in Task 3, so `tests/share-panel-simplicity.spec.js`'s pin of that line is updated to the locked markup in this task.
 
 - [ ] **Step 2: Write the spec, `boards/tests/editor-limit.spec.js`.**
 
