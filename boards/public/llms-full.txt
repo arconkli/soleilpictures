@@ -2437,6 +2437,8 @@ Zoom runs from 25% to 200%.
 
 On a phone the text stays full size. A document set to real pages shows as one continuous sheet there (its exports and wider screens keep the pages), and a screenplay fits its text column to the screen, with the margins (and the comment dots in them) a swipe away.
 
+The same goes wherever a document is narrower than a page, on any screen: docked beside the board, one of two side by side, or in a small window. A screenplay fits its text column to the width, at full size where there is room, and its lines still break where the printed page breaks them. Prose takes narrower margins on screen. The page list tucks away to the arrow at its edge, which brings it back for as long as the document stays that narrow without changing how it opens anywhere else.
+
 Writing and formatting
 
 The toolbar carries the usual: headings, bold, italic, underline, highlight, lists, task lists, alignment, colour, font and size. Every one has a keyboard shortcut.

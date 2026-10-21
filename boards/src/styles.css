@@ -13854,6 +13854,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (max-width: 640px) {
   .doc-paper:not(.is-fit-width) .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 }
+/* The same relief where the PAPER is narrow, whatever the window: a doc docked
+   beside the board, or one of two side by side (DocSurface sets is-narrow and
+   is-tight from the paper's own width, lib/docRoom.js). Never a script's: its
+   sheet keeps its margins and its column fits the width instead. */
+.doc-paper.is-narrow:not(.is-screenplay) .doc-editor-wrap:not(.doc-flow) { padding: 72px 56px; }
+.doc-paper.is-tight:not(.is-screenplay) .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 
 /* ── Fit-to-width (DocSurface sets --doc-zoom = availableWidth / 576, the
    screenplay text column; see the column-fit note below) ──────────────────
@@ -13962,6 +13968,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   .doc-paper:not(.is-fit-width) .doc-page-sheet { width: 100%; }
   .doc-paper:not(.is-fit-width) .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
 }
+/* And where the paper is narrower than a page in a wide window (is-narrow,
+   as above). */
+.doc-paper.is-narrow:not(.is-screenplay) .doc-editor-wrap.doc-flow { width: 100%; max-width: 100%; }
+.doc-paper.is-narrow:not(.is-screenplay) .doc-page-sheet { width: 100%; }
+.doc-paper.is-narrow:not(.is-screenplay) .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
 
 /* Suppress any browser-injected focus ring on the contenteditable —
    the Tiptap editor already has outline: none, but Chrome can still
@@ -22419,6 +22430,21 @@ button, [role="button"], a {
 .doc-paper.is-screenplay .doc-editor-wrap:not(.sp-title-page) {
   padding: 96px 96px 96px 144px;
 }
+/* And the sheet is never squeezed: a paper narrower than the page pans it
+   rather than wrapping the column short of the 60 characters the paginator
+   and the PDF count (DocSurface fits the column to the width there, which is
+   .is-fit-width). Centred while there is room, and from its left edge once it
+   overflows, where auto margins come to nothing, so none of it is out of
+   reach. */
+.doc-paper.is-screenplay { align-items: flex-start; }
+.doc-paper.is-screenplay > .doc-editor-wrap {
+  width: 816px;
+  max-width: 816px;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+.doc-paper.is-screenplay > .doc-empty { align-self: center; }
 .doc-paper.is-screenplay .ProseMirror {
   font-family: 'Courier Prime', 'Courier New', Courier, monospace;
   font-size: 12pt;

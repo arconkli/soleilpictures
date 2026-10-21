@@ -15,6 +15,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
+import { paperRoom, railRoom } from '../lib/docRoom.js';
 import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages } from '../lib/docState.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
@@ -239,6 +240,18 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
+  // Where the doc is too narrow for the page list beside a page (docked beside
+  // the board, one of two side by side: lib/docRoom.js) the list tucks away to
+  // its toggle, which brings it back for as long as the doc stays narrow and
+  // stores nothing: `rails` is how it opens wherever there is room.
+  const [railFits, setRailFits] = useState(true);
+  const [railAskedBack, setRailAskedBack] = useState(false);
+  useEffect(() => { if (railFits) setRailAskedBack(false); }, [railFits]);
+  const railOpen = railFits ? rails.left : railAskedBack;
+  const toggleRail = () => {
+    if (railFits) setRails(r => ({ ...r, left: !r.left }));
+    else setRailAskedBack(v => !v);
+  };
   // On phone the rail is a slide-over drawer (the desktop rail + its only
   // toggle are display:none at <=640px, which stranded multi-page navigation).
   const [mobileRailOpen, setMobileRailOpen] = useState(false);
@@ -429,10 +442,19 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // content fragment — so on a phone it simply shows continuous (the reader's
   // view only: the doc's Pages setting, exports and wider screens keep real
   // pages). Pageless prose is already fluid and fits a phone on its own.
+  //
+  // Not phones only: a doc docked beside the board, or one of two side by
+  // side, can be as narrow as a phone's on any screen, so the paper's own width
+  // decides (lib/docRoom.js). Narrower than a page, a script fits its column
+  // as on a phone, and prose takes the narrow margins (is-narrow / is-tight)
+  // without leaving its pages; coming into a narrow pane fits the script again,
+  // whatever zoom it was given with room.
   const { isPhone } = useBreakpoint();
   const phoneReflow = isPhone && docMode !== 'screenplay' && !pageless;
   const layoutPageless = pageless || phoneReflow;
-  const fitEligible = isPhone && docMode === 'screenplay';
+  const [room, setRoom] = useState('page');
+  const roomRef = useRef('page');
+  const fitEligible = docMode === 'screenplay' && (isPhone || room !== 'page');
   const [fitWanted, setFitWanted] = useState(true);
   const fitMode = fitEligible && fitWanted;
   const [fitZoom, setFitZoom] = useState(1);
@@ -441,6 +463,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const paper = paperRef.current;
     if (!paper || typeof ResizeObserver === 'undefined') return undefined;
     const measure = () => {
+      const nextRoom = paperRoom(paper.clientWidth, roomRef.current);
+      if (nextRoom !== roomRef.current) {
+        if (roomRef.current === 'page') setFitWanted(true);
+        roomRef.current = nextRoom;
+        setRoom(nextRoom);
+      }
       // clientWidth excludes the scrollbar; subtracting the paper's own
       // horizontal padding is what makes this self-consistent with the
       // .is-fit-width padding overrides in CSS.
@@ -468,7 +496,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   }, [fitMode, docMode, sceneNumbersShow, ready]);
 
   // Column fit: the sheet is now wider than the paper, so open it scrolled to
-  // where the column starts (the left margin is a pan away). Once per fitted
+  // the column, centred in the width (on a phone the column fills it; in a
+  // pane with room to spare, a little of each margin shows). A sheet that fits
+  // whole has nothing to pan to: its auto margins centre it. Once per fitted
   // zoom, so rotation re-centres it but a sheet added while typing doesn't
   // yank a panned view back. It has to wait for the sheet itself: on a cold
   // open (no remembered page) the paper first renders the empty state, and
@@ -479,8 +509,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const paper = paperRef.current;
     if (!fitMode || !paper) return undefined;
     const apply = () => {
+      const cs = getComputedStyle(paper);
+      const avail = paper.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+      if (PAGE_W * fitZoom <= avail) return true;
       if (paper.scrollWidth <= paper.clientWidth) return false;
-      paper.scrollLeft = SP_LEFT_MARGIN * fitZoom;
+      paper.scrollLeft = SP_LEFT_MARGIN * fitZoom - Math.max(0, (avail - SP_COLUMN_W * fitZoom) / 2);
       return true;
     };
     if (apply() || typeof MutationObserver === 'undefined') return undefined;
@@ -533,6 +566,15 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // THIS doc: two can be open at once (docked, and beside it or fullscreen
   // over it), and a check for any doc's surface opened find in both.
   const rootRef = useRef(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => setRailFits((prev) => railRoom(root.clientWidth, prev));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [ready]);
   useEffect(() => {
     const onKey = (e) => {
       const cmd = e.metaKey || e.ctrlKey;
@@ -1041,21 +1083,22 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   }
 
   return (
-    <div ref={rootRef} className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
+    <div ref={rootRef} className={`doc-surface no-right-rail ${railOpen ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
       {/* Phone-only backdrop that closes the page drawer. */}
       {mobileRailOpen && <div className="doc-rail-backdrop" onClick={() => setMobileRailOpen(false)} />}
       {/* Left rail — page tree */}
       <aside className="doc-rail doc-rail-left">
         <button className="doc-rail-toggle"
-                title={rails.left ? 'Hide pages' : 'Show pages'}
-                aria-label={rails.left ? 'Hide pages' : 'Show pages'}
-                aria-expanded={rails.left}
-                onClick={() => setRails(r => ({ ...r, left: !r.left }))}>
+                title={railOpen ? 'Hide pages' : 'Show pages'}
+                aria-label={railOpen ? 'Hide pages' : 'Show pages'}
+                aria-expanded={railOpen}
+                onClick={toggleRail}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d={rails.left ? 'M8 3 L4 7 L8 11' : 'M6 3 L10 7 L6 11'} />
+            <path d={railOpen ? 'M8 3 L4 7 L8 11' : 'M6 3 L10 7 L6 11'} />
           </svg>
         </button>
-        {rails.left && (
+        {/* In the rail, or in the phone and tablet drawer. */}
+        {(railOpen || mobileRailOpen) && (
           <DocPageTree
             ydoc={ydoc}
             scope={scope}
@@ -1077,7 +1120,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             defaultName={titleOverride || board.name || 'Untitled'}
           />
         )}
-        {rails.left && (
+        {(railOpen || mobileRailOpen) && (
           <DocBookmarkList
             ydoc={ydoc}
             scope={scope}
@@ -1087,7 +1130,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             onJump={(id) => { setLocalBookmarkJump({ bookmarkId: id }); setMobileRailOpen(false); }}
           />
         )}
-        {rails.left && docMode === 'screenplay' && (
+        {(railOpen || mobileRailOpen) && docMode === 'screenplay' && (
           <ScreenplaySceneNav
             editor={editorRef.current}
             titlePageEnabled={titlePage.enabled}
@@ -1149,7 +1192,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         open={findOpen}
                         canEdit={canEdit && !isPublic}
                         onClose={() => setFindOpen(false)} />
-        <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && layoutPageless ? ' is-pageless' : ''}`} ref={paperRef}
+        <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${room !== 'page' ? ' is-narrow' : ''}${room === 'tight' ? ' is-tight' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && layoutPageless ? ' is-pageless' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': effectiveZoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the

@@ -24675,6 +24675,30 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same goes wherever a document is narrower than a page, on any screen: docked beside the board, one of "
+    },
+    {
+     "t": "link",
+     "v": "two side by side",
+     "href": "#two-documents-side-by-side",
+     "children": [
+      {
+       "t": "text",
+       "v": "two side by side"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or in a small window. A screenplay fits its text column to the width, at full size where there is room, and its lines still break where the printed page breaks them. Prose takes narrower margins on screen. The page list tucks away to the arrow at its edge, which brings it back for as long as the document stays that narrow without changing how it opens anywhere else."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Writing and formatting",
