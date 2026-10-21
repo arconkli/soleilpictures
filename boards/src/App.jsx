@@ -9657,7 +9657,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
     { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
       run: () => setSidebarOpen(!sidebarOpen) },
-    // The files sidebar's files card (preview only): hidden, it folds to its
+    // The files sidebar's files card: hidden, it folds to its
     // heading under the clusters; ⌘\ does the same (ClusterSidebar).
     { id: 'sidebar-files', label: pageFilesId || sidebarLayout.filesHidden ? 'Show files in the sidebar' : 'Hide files in the sidebar',
       icon: FilesIcon, keywords: ['files', 'sidebar', 'hide', 'show', 'panel'],
@@ -10603,6 +10603,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 setCurrentSurface('board');
                 setFilesFilter({ boardId, buckets: SHELF_BUCKETS[shelfId] || [], token: Date.now() });
                 openInFiles(boardId);
+                // Opening the full Files page from here proves Files was found,
+                // as F does: the list_drive reveal retires and the guided
+                // tour's last step (anchored on this ⤢) completes.
+                markViewSwitched();
+                tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId });
               }}
               onOpenPalette={(q) => { setPaletteQuery(q || ''); setPaletteOpen(true); }}
               feedback={feedback}

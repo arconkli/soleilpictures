@@ -5,13 +5,13 @@ h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-10-20
+updated: 2026-10-21
 answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
     a: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
   - q: Where do notifications appear in the app?
-    a: A file shared with you, a comment on it and notices about your account collect under Notifications in the sidebar, which appears with an unread count once there is something to read. Unlike a toast, they stay until you read them.
+    a: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a shared file; a file shared with you is emailed to you as well.
   - q: Do I get browser notifications?
     a: Only if you grant permission. Nothing is requested until there is a reason.
   - q: How do I unsubscribe without logging in?
@@ -44,8 +44,8 @@ involves you.
 **In the app** — unread indicators on the sidebar, and in the browser tab title
 for [messages](/docs/collaborate/messages). A [file shared with
 you](/docs/collaborate/sharing), a comment on it and notices about your account
-collect under **Notifications** in the sidebar and stay there until read,
-rather than vanishing with the toast that announced them.
+show as a toast when they arrive while you are in the app; a shared file's has
+**Open**. The share itself also reaches you by email.
 
 **Email only when you are away** — an accepted-invite email is sent only if you
 are not currently in the app. If you are, the in-app notification is the whole story and

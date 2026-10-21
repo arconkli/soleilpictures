@@ -14,6 +14,9 @@ import { EV } from '../lib/analyticsEvents.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 const CMD = isMac ? '⌘' : 'Ctrl';
+// The key that turns a files drag into a copy (lib/dropRules.js copyKeyHeld):
+// Option on a Mac; Ctrl elsewhere, where Alt copies too.
+const COPY = isMac ? '⌥' : 'Ctrl';
 
 const SECTIONS = [
   {
@@ -43,6 +46,11 @@ const SECTIONS = [
       [['→', '←'], 'Expand · collapse'],
       [['F2'], 'Rename the cluster'],
       [['⇧F10', 'Menu'], 'The row menu'],
+      [['↑', '↓'], 'Move through the clusters, or the files'],
+      [['Space'], 'Quick look at the focused file'],
+      [['Enter'], 'Go to the focused file: on its board, or in Files'],
+      [[`${CMD}\\`], 'Hide · show Files'],
+      [[`${COPY}-drag`], 'Copy files instead of moving them'],
     ],
   },
   {
@@ -60,7 +68,7 @@ const SECTIONS = [
   {
     title: 'View',
     rows: [
-      [['F'], 'Show or hide Files beside the board'],
+      [['F'], 'Open or close the full Files page'],
       [[`${CMD}I`], 'Info — the selection, or the cluster when nothing is selected'],
       [[`${CMD}0`], 'Reset zoom'],
       [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],

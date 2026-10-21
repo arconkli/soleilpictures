@@ -97,8 +97,9 @@ test('entries are shaped one way or the other', () => {
 });
 
 test('the open check reads a hold the way production does', () => {
-  // fileShares opened by becoming `return true;`; the rest still ask the host.
+  // fileShares and the 10-22 holds opened by becoming `return true;`; templateStore and scheduleCreation still ask the host.
   assert.equal(isOpen('fileSharesAllowed'), true);
-  assert.equal(isOpen('sidebarFilesAllowed'), false);
+  assert.equal(isOpen('sidebarFilesAllowed'), true);
   assert.equal(isOpen('templateStoreAllowed'), false);
+  assert.equal(isOpen('scheduleCreationAllowed'), false);
 });

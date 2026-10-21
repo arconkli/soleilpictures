@@ -2,7 +2,7 @@
 
 > A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-18_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-10-21_
 
 The **Share** panel answers one question — who can open this cluster? — in the
 order you decide it: the invite box first, then **Who has access**, one list of
@@ -248,11 +248,11 @@ Anyone with **Can comment** can leave comments beside the file, up to
 One person can post up to 20 comments every
 10 minutes on a file.
 
-The person who shared the file gets a row in the bell for every comment, and an
-email when they are not in the app — at most one email per file every
+The person who shared the file is told about every comment — a toast when they
+are in the app, and an email when they are not: at most one email per file every
 30 minutes, and only while **Comment replies** is
 on in [Notifications](/docs/collaborate/notifications). Someone whose comment gets a
-reply gets a row in the bell too.
+reply is told in the app too.
 
 ### When the file changes
 

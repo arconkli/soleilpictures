@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-10-19
+updated: 2026-10-21
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -52,7 +52,8 @@ contents, notes, docs and tags, and it also runs commands — "share", "trash",
 
 ## Sidebar
 
-In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused one.
+In the [sidebar](/docs/clusters/sidebar): its cluster tree and its Files.
+`Tab` reaches the rows; these act on the focused one.
 
 | Key | Action |
 |---|---|
@@ -60,6 +61,12 @@ In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused 
 | `→` / `←` | Expand · collapse the clusters inside it |
 | `F2` | Rename the cluster — `Enter` saves, `Esc` cancels |
 | `⇧F10` or `Menu` | The row's menu — the same one right-click opens |
+| `↑` / `↓` | Move through the clusters, or through the files |
+| `Space` | Quick look at the focused file |
+| `Enter` | Go to the focused file — on its board, or in Files when it isn't on the board |
+| `←` / `→` | On the Files tabs: the cluster, Recent, Starred. `↓` on the cluster's tab lists the other clusters |
+| `⌘\` | Hide · show Files — outside a note or a doc, where it clears formatting |
+| `⌥` while dragging files | Copy them instead of moving them — `Ctrl` (or `Alt`) on Windows |
 
 ## Edit
 
@@ -81,7 +88,7 @@ In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused 
 
 | Key | Action |
 |---|---|
-| `F` | Show or hide [Files](/docs/clusters/list-view) beside the board |
+| `F` | Open or close the [full Files page](/docs/clusters/list-view) |
 | `⌘I` | [Info](/docs/canvas/cards#info) — the selection, or the cluster when nothing is selected |
 | `⌘0` | Reset zoom |
 | `⌘+` / `⌘−` | Zoom in · out |
@@ -130,8 +137,7 @@ your account to every device.
 
 ## Files
 
-In [Files](/docs/clusters/list-view), beside the board or full screen. Beside
-the board, these keys go to whichever side the pointer was last over.
+On the [full Files page](/docs/clusters/list-view).
 
 | Key | Action |
 |---|---|
@@ -249,5 +255,6 @@ Not keys, but worth knowing:
 - **Double-click empty canvas** opens an add menu at your cursor.
 - **Right-click** anything for its full menu — cards, groups, and the canvas background each have their own.
 - **Hold `Alt` while dragging** to bypass [snapping](/docs/canvas/snapping-and-alignment).
+- **Hold `⌥` while dragging files** to another cluster to [copy them instead of moving them](/docs/clusters/sidebar#moving-and-copying-files) — `Ctrl` on Windows.
 - **Paste a URL** onto the canvas to create a link card that unfurls its preview.
 - **Drag files from your desktop** straight onto the canvas.

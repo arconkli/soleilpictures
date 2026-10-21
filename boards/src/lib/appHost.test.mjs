@@ -54,10 +54,15 @@ test('file sharing is released, behind its one switch', () => {
   assert.match(SRC, /export function fileSharesAllowed\(\) \{\s*return true;\s*\}/);
 });
 
+test('the files sidebar is released: its hold is open everywhere', () => {
+  assert.match(SRC, /export function sidebarFilesAllowed\(\) \{\s*return true;\s*\}/);
+});
+
 test('first-run setup opens only where the sidebar does, and is opt-in on dev', () => {
-  // Transcribed: sidebar first (its Files are what the tips point at), then the
-  // preview host, then the dev opt-in. Production and the native shells: closed.
-  const sidebar = (h, dev, flags) => onPreviewHost(h) || (dev && flags.sidebarFiles === '1');
+  // Transcribed: sidebar first (its Files are what the tips point at; released,
+  // so open everywhere), then the preview host, then the dev opt-in.
+  // Production and the native shells: closed.
+  const sidebar = () => true;
   const setup = (h, dev, flags) => {
     if (!sidebar(h, dev, flags)) return false;
     if (onPreviewHost(h)) return true;
@@ -67,8 +72,7 @@ test('first-run setup opens only where the sidebar does, and is opt-in on dev', 
   assert.equal(setup('clusters.soleilpictures.com', false, { sidebarFiles: '1', workspaceSetup: '1' }), false, 'production ignores the flags');
   assert.equal(setup('localhost', false, { sidebarFiles: '1', workspaceSetup: '1' }), false, 'native production build');
   assert.equal(setup('localhost', true, {}), false, "other sessions' specs on the dev server");
-  assert.equal(setup('localhost', true, { workspaceSetup: '1' }), false, 'needs the sidebar too');
-  assert.equal(setup('localhost', true, { sidebarFiles: '1', workspaceSetup: '1' }), true, 'its own specs');
+  assert.equal(setup('localhost', true, { workspaceSetup: '1' }), true, 'its own specs (the sidebar needs no flag now)');
 
   const body = SRC.slice(SRC.indexOf('export function workspaceSetupAllowed()'));
   assert.match(body, /^export function workspaceSetupAllowed\(\) \{\s*if \(!sidebarFilesAllowed\(\)\) return false;\s*if \(onPreviewHost\(\)\) return true;\s*if \(!import\.meta\.env\.DEV\) return false;/);

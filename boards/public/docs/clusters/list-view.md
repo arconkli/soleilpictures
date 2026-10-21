@@ -1,67 +1,50 @@
 # Files view
 
-> Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.
+> Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-10-21_
 
 The board is for arranging. Files is for finding.
 
 Same cluster, same contents, different question being asked — and you can ask
 both at once.
 
-## Files beside the board
+## Opening the full Files page
 
-Press `F`, or **Files** in **Board · Files** at the top of the screen, and Files
-opens as a panel on the right of the board. The board stays where it was and
-keeps working: you can pan, select and arrange while the panel is open. The
-Files side of the switch counts the cards inside, not counting nested clusters.
+A cluster's files are always listed in the sidebar's
+[Files card](/docs/clusters/sidebar#files). When you want only files, press
+`F`, or ⤢ at the top right of that card, and they fill the screen. Each
+shelf's ⤢ in the sidebar opens the page on just that kind of file.
 
 | To do this | Do this |
 |---|---|
-| Open or close Files beside the board | `F`, or **Files** / **Board** at the top |
-| Make the panel wider or narrower | Drag its left edge; double-click the edge to reset it |
-| Fill the screen with Files | The expand button in the panel, or drag the edge most of the way across |
-| Put full-screen Files back beside the board | The shrink button at the top right, beside **Download all** |
-| Find a file on the board | Click it in the panel — the board brings it into view and selects it |
-| Put a file somewhere on the board | Drag it from the panel onto the board |
+| Open the full Files page | `F`, or ⤢ on the sidebar's Files card |
+| Go back to the board | `F` again, or the shrink button at the top right, beside **Download all** |
+| Find a file on the board | **Show on board** in its menu, in Quick look or in Info — the board brings it into view and selects it |
+| Put a file somewhere on the board | Drag it from the sidebar's Files onto the board |
 
-`⌘K` → "Show Files" does the same as `F`. Whether the panel is open, and how
-wide, is remembered on your device; it never changes the cluster for anyone
-else. Full-screen Files is the cluster's own view, so a cluster you leave in
-Files opens in Files for everyone, and on shared and published links.
+`⌘K` → "Show Files" does the same as `F`. Opening the page this way is yours
+alone, on this device; it never changes the cluster for anyone else. To make a
+cluster open in Files for everyone, and on shared and published links, choose
+**Always open in Files** from its menu in the sidebar (if you can edit it);
+the same menu turns it back with **Open on the board by default**.
 
-The panel needs room: in a narrow window, and on phones and tablets, Files
-fills the screen instead. In split view, the switch and `F` act on the pane you
-last worked in, and Files there fills that pane.
+In split view, `F` acts on the pane you last worked in, and Files there fills
+that pane.
 
-A cluster remembers which view it was left in. Clusters made from a folder you
-[drop in](/docs/clusters#dropping-a-folder) open in Files for you, because a
-dropped folder is files first; their cards are still laid out on each canvas,
-and on the parent board they keep their thumbnail.
+Clusters made from a folder you [drop in](/docs/clusters#dropping-a-folder)
+open in Files for you, because a dropped folder is files first; their cards are
+still laid out on each canvas, and on the parent board they keep their
+thumbnail.
 
-## Dragging files onto the board
+## Dragging files
 
-Drag anything from the panel onto the board and it lands where you let go.
-Select several first and they travel together.
-
-| Where the file is | What the drop does |
-|---|---|
-| This cluster | Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there |
-| Another cluster | Adds a **linked copy**: a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit |
-| Another cluster, and already copied here | Moves the copy that's already on the board instead of adding a second one. Hold `⌥` (`Alt`) while you drop to add another |
-
-A linked copy is its own card: retitling or captioning it leaves the original
-alone, and deleting either one leaves the other. While you browse another
-cluster in the panel, its files that already have a copy on this board are
-marked **On board**, and clicking one finds that copy.
-
-Notes, docs and grids from another cluster are copied the same way — the copy
-takes their words, cells and pages from the cluster they live in, and the
-original stays where it was. A grid linked to its cluster's shared layout
-arrives as a standalone grid with that layout. The toast that follows offers
-**Move instead**, which takes the copy back off and moves the original here;
-`⌘Z` undoes the copy. Copies count toward your plan's card limit like any
-other card.
+Files dragged from this page onto a folder move into that cluster, as they do
+from the sidebar. Hold `⌥` (`Ctrl` on Windows) as you let go to copy them
+instead: a copy is a new card showing the same stored file, so nothing is
+uploaded again and it takes no extra storage, but it counts toward your plan's
+card limit. The rules, and what a move takes with it, are on the sidebar page
+under [Moving and copying files](/docs/clusters/sidebar#moving-and-copying-files).
 
 ## Not on board
 
@@ -70,7 +53,7 @@ start that way, and so does a card you take off: right-click it on the board
 and choose **Remove from board**. Either way it waits in Files with a **Not on
 board** mark. **Not on board** in the **View** menu shows just those.
 
-To put one on the board, drag it there, or right-click it in Files — or use
+To put one on the board, drag it there from the sidebar, or right-click it in Files — or use
 the selection bar, or Quick look — and choose **Put on board**, which places it
 in the clear space nearest the middle of where the board was last looking. A
 link or search result that points at a file that isn't on the board opens Files
@@ -85,20 +68,9 @@ A cluster's nested clusters are its folders. They sit first, as compact rows —
 the cluster's colour dot (or its cover), its name and how many items are inside —
 with the files after them.
 
-In the panel, **double-click a folder to step into it**. The path bar at the top
-shows where the panel is; click any step to go back up, or use the back arrow
-to retrace where you have been. The ▾ on the current step lists the clusters
-inside it, and its **Go to cluster…** jumps to any cluster in the workspace.
-**The board doesn't move** while you browse — the
-breadcrumb at the top of the screen still says where it is.
-
-Another cluster's files are read-only from the panel: browse, preview and
-download, but edits happen in that cluster. Double-click one of its files and
-the board goes there and flies to it. Expanding the panel while you are
-browsing takes you to that cluster, in Files. In full-screen Files, opening a
-folder goes there and stays in Files, and the cluster above it sits over the
-title as **‹ its name** — click it to go up. The full path is in the
-breadcrumb at the top of the screen.
+**Double-click a folder to open it.** You go there and stay in Files, and the
+cluster above it sits over the title as **‹ its name** — click it to go up.
+The full path is in the breadcrumb at the top of the screen.
 
 ### Springing into folders while you drag
 
@@ -108,8 +80,7 @@ folder with the drag still in your hand; hold it over **Back** or a step of the
 path to go back up. Let go on the folder's files, or on a folder inside it, to
 move what you're dragging there. The folder blinks just before it opens.
 
-Beside the board, the panel stays where you dropped. In full-screen Files you
-land in that cluster once the move is saved. Let go anywhere else, or press
+You land in that cluster once the move is saved. Let go anywhere else, or press
 `Esc`, and Files goes back to where the drag started.
 
 ## Grid and list
@@ -197,7 +168,7 @@ deeper (see [Springing into folders](#springing-into-folders-while-you-drag)).
 
 **Right-click** a file, a folder or a selection for everything you can do
 with it — Quick look, Show on board, Rename, Download, Copy link, Move to…,
-Get info and Delete — or press `⇧F10` to open the same menu from the
+Copy to…, Get info and Delete — or press `⇧F10` to open the same menu from the
 keyboard.
 
 **Rename** a file or folder with `F2`, or Rename in that menu: the name
@@ -281,10 +252,9 @@ look and on the selection bar — describes whatever is selected: a file's
 large preview, its kind and format, size, dimensions, who uploaded it and
 exactly when, and where it lives; a folder's contents; a summary of several
 things; and, with nothing selected, the cluster you're in. The same
-[Info](/docs/canvas/cards#info) opens from the board. In full-screen Files it
-sits beside the list and whether it's open is remembered on your device;
-beside the board, where there's no room for it, it opens as a panel of its
-own. From there:
+[Info](/docs/canvas/cards#info) opens from the board. On the Files page it
+sits beside the list, and whether it's open is remembered on your device.
+From there:
 
 | Action | What it does |
 |---|---|
@@ -311,8 +281,8 @@ version…** too.
 Drag files into Files, or use **Add files** in the toolbar. They join the
 cluster without going on its board: they wait in Files, marked
 [**Not on board**](#not-on-board), until you drag them onto the board or choose
-**Put on board**. That holds beside the board and in full-screen Files alike —
-dropping on the canvas is how you put files straight on the board. An empty
+**Put on board**. The same goes for **Upload** in the sidebar — dropping on the
+canvas is how you put files straight on the board. An empty
 cluster offers **Add files**, **New cluster** and **Link a cluster** right
 where its contents would be.
 

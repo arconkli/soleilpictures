@@ -2,7 +2,7 @@
 
 > Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
 
-_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-21_
 
 Both play in place on the canvas — the clip is a card among the reference
 stills it belongs with, which is what a
@@ -164,7 +164,7 @@ The file comes back under its **original name**, not the card's title. Renaming
 a card to something readable never costs you the extension, which is what makes
 the file openable.
 
-To take several at once, switch to [Files](/docs/clusters/list-view),
+To take several at once, open the [full Files page](/docs/clusters/list-view) (`F`),
 select the ones you want and press **Download** — one zip, original names
 intact. Zips are capped at **500 files** or
 **500 MB**, whichever comes first; past either, download in

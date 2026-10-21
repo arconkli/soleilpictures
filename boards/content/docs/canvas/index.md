@@ -5,7 +5,7 @@ h1: The canvas
 navLabel: Overview
 section: canvas
 order: 0
-updated: 2026-10-20
+updated: 2026-10-21
 answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 faq:
   - q: How big is the canvas?
@@ -25,7 +25,7 @@ position means something here, which is the whole point. Two images side by side
 are being compared; an image with a note under it is being annotated.
 
 If you want the same contents as a sortable file browser instead, every cluster
-also has a [Files view](/docs/clusters/list-view) — press `F` and it opens beside the board.
+also has its files, listed in the [sidebar](/docs/clusters/sidebar) — press `F` and they fill the screen as the [full Files page](/docs/clusters/list-view).
 
 ## Moving around
 

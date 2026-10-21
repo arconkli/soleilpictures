@@ -185,7 +185,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.",
     "section": "start",
     "order": 2,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Core concepts",
     "headings": [
       {
@@ -237,7 +237,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-19",
+    "updated": "2026-10-21",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -372,7 +372,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Overview",
     "headings": [
       {
@@ -432,7 +432,7 @@ export const DOCS_PAGES = [
     "answer": "A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
     "section": "canvas",
     "order": 1,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Cards",
     "headings": [
       {
@@ -1051,7 +1051,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-18",
+    "updated": "2026-10-21",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1179,7 +1179,7 @@ export const DOCS_PAGES = [
     "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.",
     "section": "files",
     "order": 2,
-    "updated": "2026-10-12",
+    "updated": "2026-10-21",
     "navLabel": "Video and audio",
     "headings": [
       {
@@ -1235,7 +1235,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-10-11",
+    "updated": "2026-10-21",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1296,23 +1296,92 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/clusters/sidebar",
+    "title": "The Sidebar and Files — Soleil Clusters",
+    "metaDescription": "The Soleil Clusters sidebar holds Home, Messages, your clusters and every file in them, with Recent, Starred, search, Quick look and moving files.",
+    "h1": "The sidebar",
+    "answer": "The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\\ hides Files, and F opens the full Files page.",
+    "section": "clusters",
+    "order": 0.5,
+    "updated": "2026-10-21",
+    "navLabel": "Sidebar",
+    "headings": [
+      {
+        "id": "what-s-in-it",
+        "text": "What's in it"
+      },
+      {
+        "id": "files",
+        "text": "Files"
+      },
+      {
+        "id": "the-full-files-page",
+        "text": "The full Files page"
+      },
+      {
+        "id": "moving-and-copying-files",
+        "text": "Moving and copying files"
+      },
+      {
+        "id": "upload-and-storage",
+        "text": "Upload and storage"
+      },
+      {
+        "id": "hiding-files-and-sizing-the-cards",
+        "text": "Hiding Files, and sizing the cards"
+      },
+      {
+        "id": "on-a-phone",
+        "text": "On a phone"
+      }
+    ],
+    "related": [
+      "/docs/clusters/list-view",
+      "/docs/clusters",
+      "/docs/clusters/home-graph",
+      "/docs/collaborate/messages"
+    ],
+    "faq": [
+      {
+        "q": "Where are my files?",
+        "a": "In Files, the lower card of the sidebar (or the one beside the clusters). Every file in the cluster you are in is listed there, on the board or not, sorted into Photos, Video, Audio, Files, Notes, Links and Other. Press the cluster's tab to see another cluster's files without leaving the board."
+      },
+      {
+        "q": "How do I move a file to another cluster?",
+        "a": "Drag it onto that cluster's name in the sidebar, or right-click it and choose Move to…. It lands in that cluster's Files, off its board, and the toast that follows offers Put on board and Undo. Hold Option (⌥) on a Mac, or Ctrl on Windows, while you drag to copy it instead."
+      },
+      {
+        "q": "Does copying a file use more storage?",
+        "a": "No. A copy is a new card showing the same stored file, so nothing is uploaded again and no storage is used. It is a card, though, so it counts toward your plan's card limit."
+      },
+      {
+        "q": "How do I hide the files?",
+        "a": "Press Hide on the Files card, or ⌘\\ (Ctrl+\\ on Windows). The card folds to a Files bar under your clusters and the board gets the room; press the bar, or ⌘\\ again, to bring it back. ⌘B hides the whole sidebar."
+      },
+      {
+        "q": "Can I make the sidebar wider?",
+        "a": "Yes. Each card has its own size: drag its right edge, its bottom edge or its corner, and double-click a handle to put that size back. Drag the cards wide enough and Files moves beside the clusters instead of under them. Sizes are remembered on your device."
+      }
+    ]
+  },
+  {
     "path": "/docs/clusters/list-view",
     "title": "Files View — Soleil Clusters",
     "metaDescription": "Every cluster in Soleil Clusters is also a drive. Files shows it as a grid or a list, with search, sort, type filters and a detail panel with previews.",
     "h1": "Files view",
-    "answer": "Every cluster has a board and its files. Press F, or Files at the top of the screen, and Files opens beside the board — a grid of previews or a list, with search, sorting and type filters — and expands to fill the screen when you want only files. Nothing is converted; it is one set of contents with two ways to look at it.",
+    "answer": "Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Files view",
     "headings": [
       {
-        "id": "files-beside-the-board",
-        "text": "Files beside the board"
+        "id": "opening-the-full-files-page",
+        "text": "Opening the full Files page"
       },
       {
-        "id": "dragging-files-onto-the-board",
-        "text": "Dragging files onto the board"
+        "id": "dragging-files",
+        "text": "Dragging files"
       },
       {
         "id": "not-on-board",
@@ -1376,6 +1445,7 @@ export const DOCS_PAGES = [
       }
     ],
     "related": [
+      "/docs/clusters/sidebar",
       "/docs/clusters",
       "/docs/canvas",
       "/docs/organize/search"
@@ -1383,15 +1453,15 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does opening Files change my board?",
-        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched, and opening Files beside the board never changes how anyone else sees the cluster."
+        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched, and opening the full Files page never changes how anyone else sees the cluster — only Always open in Files, in the cluster's menu in the sidebar, does that."
       },
       {
         "q": "Can I see my files and my board at the same time?",
-        "a": "Yes. Files opens as a panel beside the board. Drag its edge to make it wider, or press the expand button to fill the screen with it."
+        "a": "Yes. The sidebar's Files card lists the cluster's files beside the board, all the time. The full Files page is for when you want only files; F brings the board back."
       },
       {
         "q": "Can I drag files from Files onto the board?",
-        "a": "Yes. Open Files beside the board and drag. A file from this cluster moves to where you drop it; a file from another cluster arrives as a linked copy of the same stored file, with nothing uploaded again. A note, doc or grid from another cluster is copied too, and the toast that follows can move it instead."
+        "a": "Yes, from the sidebar's Files card. A file from this cluster that is waiting in Files goes where you drop it; a file from another cluster moves there, and holding Option (Ctrl on Windows) as you let go copies it instead, with nothing uploaded again. See moving and copying files on the sidebar page."
       },
       {
         "q": "Can I upload from Files?",
@@ -1399,7 +1469,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I make Files the default?",
-        "a": "Yes, in Settings under Defaults. A cluster also remembers the view it was last left in, and a dropped folder opens in Files."
+        "a": "Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone. A dropped folder opens in Files."
       },
       {
         "q": "Can I use Clusters like Google Drive?",
@@ -2019,7 +2089,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-10-18",
+    "updated": "2026-10-21",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2267,7 +2337,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
     "section": "collaborate",
     "order": 5,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Notifications",
     "headings": [
       {
@@ -2299,7 +2369,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do notifications appear in the app?",
-        "a": "A file shared with you, a comment on it and notices about your account collect under Notifications in the sidebar, which appears with an unread count once there is something to read. Unlike a toast, they stay until you read them."
+        "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a shared file; a file shared with you is emailed to you as well."
       },
       {
         "q": "Do I get browser notifications?",
@@ -2740,7 +2810,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Mobile and tablet",
     "headings": [
       {

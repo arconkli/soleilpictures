@@ -2,7 +2,7 @@
 
 > Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
-_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-10-21_
 
 Two ways to run it on a phone or tablet: the mobile browser, or the same app
 added to your home screen. They are the same app.
@@ -30,10 +30,12 @@ makes drawing on touch unusable.
 and more.
 
 **The top bar** keeps what you reach for on the board: the cluster's name,
-the Board/Files switch, Undo, Redo, who else is here, and Share.
+Undo, Redo, who else is here, and Share.
 
-**A drawer** holds navigation that does not fit, including the cluster tree,
-Search, Version history, Focus view and Help.
+**A drawer**, behind **Open menu**, holds the [sidebar](/docs/clusters/sidebar#on-a-phone)
+— Home, Messages, the cluster tree and every cluster's Files — with Search,
+Version history, Focus view and Help. ⤢ on its Files opens the full Files
+page.
 Tap a cluster to open it. Hold one to pick it up, then drag it onto another
 cluster to nest it there; hold and let go without moving for its menu —
 rename, colour, delete. A swipe that starts on a row just scrolls the list.

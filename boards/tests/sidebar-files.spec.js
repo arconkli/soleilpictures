@@ -700,13 +700,13 @@ test.describe('sidebar files', () => {
 });
 
 test.describe('sidebar files wiring (App.jsx)', () => {
-  test('the files sidebar is held, and the old sidebar is what everyone else gets', () => {
+  test('the files sidebar is released: everyone gets it, and the hold is still the one switch', () => {
     const app = read('src/App.jsx');
     const host = read('src/lib/appHost.js');
     expect(app).toContain('const filesSidebar = sidebarFilesAllowed();');
     expect(app).toMatch(/\{filesSidebar \? \(\s*<ClusterSidebar/);
-    expect(app).toContain('<div className="sb-list" ref={sidebarScrollRef}>');   // the held-off branch, intact
-    expect(host).toMatch(/export function sidebarFilesAllowed\(\) \{\s*if \(onPreviewHost\(\)\) return true;\s*if \(!import\.meta\.env\.DEV\) return false;/);
+    expect(app).toContain('<div className="sb-list" ref={sidebarScrollRef}>');   // the old branch, intact behind the switch
+    expect(host).toMatch(/export function sidebarFilesAllowed\(\) \{\s*return true;\s*\}/);
   });
 
   test('with the files sidebar, search everywhere is an icon, and Schedule is gone', () => {

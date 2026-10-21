@@ -1077,7 +1077,9 @@ export function ClusterSidebar({
             </button>
           )}
           {onOpenShelf && (view === 'cluster' ? (
+            // The guided tour's last step points here (data-tour, lib/onboardingTour.js).
             <button type="button" className="sbf-iconbtn is-expand" aria-label="Open in the full Files page" title="Open in the full Files page"
+                    data-tour="view-toggle"
                     onClick={() => onOpenShelf(shownId, null)}>
               <Icon as={ArrowsOutSimple} size={14} weight="regular" />
             </button>

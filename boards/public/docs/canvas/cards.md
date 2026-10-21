@@ -2,7 +2,7 @@
 
 > A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-21_
 
 Everything on a canvas is a card. They differ in what they hold and nothing
 else — position, size, stacking order, selection, grouping, tagging, commenting
@@ -39,8 +39,10 @@ Four ways, in rough order of speed:
 
 Cards you add without specifying a position are placed in free space, so a batch
 of twelve images arranges rather than stacking on top of what is already there.
-Files you add in [Files](/docs/clusters/list-view#adding-files-here) are the
+Files you add in [Files](/docs/clusters/list-view#adding-files-here), or with
+**Upload** in the [sidebar](/docs/clusters/sidebar#upload-and-storage), are the
 exception: they join the cluster but wait off the board until you place them.
+Every file in a cluster is listed in the sidebar's Files, on the board or not.
 
 ## What every card does
 
@@ -58,9 +60,11 @@ menu.
 standard clipboard behavior: the cut is undoable on the board it happened on,
 the paste on the board it landed on.
 
-**Move to another cluster** — drag cards onto a cluster card, or right-click →
-**Move to cluster…** to send them to any cluster in the workspace, including one
-that isn't on this canvas. A move is one action: its toast undoes both sides at
+**Move to another cluster** — drag cards onto a cluster card, or onto a
+cluster's name in the [sidebar](/docs/clusters/sidebar#moving-and-copying-files)
+to put them in its Files, off its board, or right-click → **Move to cluster…** to
+send them to any cluster in the workspace, including one that isn't on this
+canvas. A move is one action: its toast undoes both sides at
 once. Moving cards doesn't change how many you have.
 
 **Group** — select several and press `⌘G`. See [Groups](/docs/canvas/groups).

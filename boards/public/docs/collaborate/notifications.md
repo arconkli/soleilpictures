@@ -2,7 +2,7 @@
 
 > Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-10-21_
 
 Six categories, six independent switches, in **Settings → Notifications**.
 
@@ -24,8 +24,8 @@ involves you.
 **In the app** — unread indicators on the sidebar, and in the browser tab title
 for [messages](/docs/collaborate/messages). A [file shared with
 you](/docs/collaborate/sharing), a comment on it and notices about your account
-collect under **Notifications** in the sidebar and stay there until read,
-rather than vanishing with the toast that announced them.
+show as a toast when they arrive while you are in the app; a shared file's has
+**Open**. The share itself also reaches you by email.
 
 **Email only when you are away** — an accepted-invite email is sent only if you
 are not currently in the app. If you are, the in-app notification is the whole story and

@@ -2,7 +2,7 @@
 
 > A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-10-11_
+_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-10-21_
 
 A cluster is the unit of work: a project, a scene, a pitch, a moodboard. The
 code and the [API](/docs/api/boards) call the same object a **board**.
@@ -135,7 +135,7 @@ Every cluster has two views of the same contents:
 - **[Board](/docs/canvas)** — the infinite canvas, where position means something
 - **[Files](/docs/clusters/list-view)** — a sortable, searchable file browser, as a grid or a list
 
-Press `F`, or **Files** at the top of the screen, to open Files beside the board; expand it to fill the screen. Switching
+A cluster's files are always listed in the [sidebar](/docs/clusters/sidebar); press `F`, or ⤢ there, to fill the screen with them. Switching
 does not convert anything. Settings → **Card defaults** sets which view new
 clusters open in; clusters made from a dropped folder open in Files for the
 person who dropped them.
@@ -144,7 +144,7 @@ person who dropped them.
 
 - **[Home](/docs/clusters/home-graph)** lists your projects, newest work first,
   with the clusters you were last in under **Jump back in**
-- **The sidebar tree** opens on your projects, most recently worked on first,
+- **The [sidebar](/docs/clusters/sidebar) tree** opens on your projects, most recently worked on first,
   and expands lazily, so a deep hierarchy stays fast
 - **All clusters** at the bottom of the sidebar's list searches every cluster
   and opens the one you pick

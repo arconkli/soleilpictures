@@ -24,7 +24,7 @@ export const ADD_KINDS = Object.freeze([
   { id: 'media',   title: 'Video & audio',    line: 'Real players on the canvas; audio you can loop and audition from Files.', docs: '/docs/files/video-and-audio' },
   { id: 'pdf',     title: 'PDF',              line: 'A viewer on the canvas, so a deck or a contract is readable where it sits.', docs: '/docs/files/pdf' },
   { id: 'file',    title: 'Any file',         line: 'On Creator, anything at all becomes a file card with a download. Free covers images, video, audio and PDFs within size caps.', docs: '/docs/files' },
-  { id: 'cluster', title: 'Cluster',          line: 'A board inside a board. Drag cards onto it to file them; switch it to Files (F) to browse it like a drive.', docs: '/docs/clusters' },
+  { id: 'cluster', title: 'Cluster',          line: 'A board inside a board. Drag cards onto it to file them; its files are in the sidebar, and F opens them full screen like a drive.', docs: '/docs/clusters' },
   { id: 'grid',    title: 'Grid',             line: 'A resizable frame with cells that snap images into a layout — press G.', docs: '/docs/canvas/grids' },
   { id: 'palette', title: 'Color palette',    line: 'Swatches pulled from an image, or picked by hand.', docs: '/docs/canvas/palettes-and-color' },
   { id: 'draw',    title: 'Shapes & drawing', line: 'Free-draw with D; shapes you can resize and recolor.', docs: '/docs/canvas/shapes-and-drawing' },

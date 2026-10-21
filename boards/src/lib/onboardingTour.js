@@ -96,20 +96,23 @@ export const TOUR_STEPS = [
     accepts: (e) => e?.type === 'content_added',
   },
   {
-    // Final step: flip the cluster into List view — the "every cluster is also
-    // a drive" reveal (browse/upload any file, storage pitch). Completes on the
-    // real switch; `list_ack` is the Got-it fallback when the toggle isn't on
-    // screen (ctaWhenUnanchored — see OnboardingTour), so nobody can strand.
+    // Final step: open the cluster's files full screen — the "every cluster is
+    // also a drive" reveal (browse/upload any file, storage pitch). The anchor
+    // is the Files card's ⤢ in the sidebar (the Board · Files pill went with
+    // the sidebar release), so the pill sits to its right, over the canvas.
+    // Completes on the real switch; `list_ack` is the Got-it fallback when the
+    // button isn't on screen (Files hidden — ctaWhenUnanchored, see
+    // OnboardingTour), so nobody can strand.
     id: 'list',
     anchor: 'view-toggle',
-    placement: 'bottom',
+    placement: 'right',
     cta: 'Got it',
     ctaWhenUnanchored: true,
     ackEvent: { type: 'list_ack' },
     copy: {
       title: 'Every cluster is also a drive',
-      body: 'Switch to Files to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
-      touch: 'Tap Files to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
+      body: 'Every file you add is in Files, in the sidebar. Open it full screen (or press F) to browse this cluster like a drive. Free covers images and small media; Creator stores any file, any size.',
+      touch: 'Every file you add is in Files, in the sidebar. Tap here to browse this cluster full screen, like a drive. Free covers images and small media; Creator stores any file, any size.',
     },
     accepts: (e) => (e?.type === 'view_switched' && e.view === 'list') || e?.type === 'list_ack',
   },

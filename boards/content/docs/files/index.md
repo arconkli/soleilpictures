@@ -5,7 +5,7 @@ h1: Files and uploads
 navLabel: Overview
 section: files
 order: 0
-updated: 2026-10-18
+updated: 2026-10-21
 answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a {{fact:freeStorage}} drive and Creator a {{fact:creatorStorage}} one, and the drive is the only limit.
 faq:
   - q: What file types can I upload on the free plan?
@@ -95,7 +95,7 @@ quota — which is the same rule that governs the [card cap](/docs/canvas/cards)
 
 - **A file counts while a cluster uses it.** Delete its card and the file stops
   counting within a few minutes — unless another cluster still uses the same
-  file, as a [linked copy](/docs/clusters/list-view) does.
+  file, as a [copy](/docs/clusters/sidebar#moving-and-copying-files) does.
 - **Clusters in the trash still count** until the trash is emptied. Emptying
   it frees their space at once.
 - **A deleted [version](#versions) counts** until it leaves Recently deleted.

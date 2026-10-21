@@ -70,22 +70,18 @@ export function scoutConnectAllowed() {
 // ---------------------------------------------------------------------------
 // The sidebar-files hold
 //
-// The sidebar is becoming the home of every file: clusters unfold into shelves
-// of everything in them, and the Board · Files pill goes away. It is built on
-// main in slices, and other sessions promote all of main to production, so
-// every piece of it asks this first. Same allowlist shape as the holds above:
-// the preview deploy sees it, and every other origin, the native shells
-// included, is closed until the release flips it — in the same commit as the
-// docs that describe it. Unlike them it REPLACES what's there (the Search
-// button, the old tree), and other sessions run the real app's specs on the
-// dev server, so on dev it is opt-in: localStorage soleil.dev.sidebarFiles = '1'
-// (the sidebar's own specs set it). DEV is a build-time constant, so the
-// production bundle never reads the flag.
+// The sidebar is the home of every file: Home, Messages and the clusters on
+// one card, the shown cluster's files (and Recent, Starred) on the other, and
+// the Board · Files pill gone. It was built on main in slices behind this hold
+// (DEV opt-in, the preview deploy); the hold was lifted for the sidebar release
+// on 2026-10-21, with the docs that describe it (docs/clusters/sidebar), so it
+// is on everywhere. The function stays because callers, the holds that open
+// only where it does (bulk import, workspace setup) and featureFlags() ask it.
+// SIDEBAR_FILES_DEV_FLAG is no longer read; it stays exported for the dev
+// harnesses and specs that still set it, which is harmless.
 export const SIDEBAR_FILES_DEV_FLAG = 'soleil.dev.sidebarFiles';
 export function sidebarFilesAllowed() {
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(SIDEBAR_FILES_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
 }
 
 // Bulk import (lib/importJob.js): a whole folder tree or zip export becomes

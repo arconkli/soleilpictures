@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-18
+updated: 2026-10-21
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -270,11 +270,11 @@ Anyone with **Can comment** can leave comments beside the file, up to
 One person can post up to {{fact:fileCommentBurst}} comments every
 {{fact:fileCommentBurstMinutes}} minutes on a file.
 
-The person who shared the file gets a row in the bell for every comment, and an
-email when they are not in the app — at most one email per file every
+The person who shared the file is told about every comment — a toast when they
+are in the app, and an email when they are not: at most one email per file every
 {{fact:fileCommentEmailMinutes}} minutes, and only while **Comment replies** is
 on in [Notifications](/docs/collaborate/notifications). Someone whose comment gets a
-reply gets a row in the bell too.
+reply is told in the app too.
 
 ### When the file changes
 
