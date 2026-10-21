@@ -51,10 +51,12 @@ export function useSettingsSaveState() {
       setSavedAt(Date.now());
       return true;
     } catch (err) {
-      feedback.toast({
-        type: 'error',
-        message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')',
-      });
+      // A change the server refused for a reason the tab can say (the editor
+      // limit) carries its sentence in userMessage; anything else is the
+      // connection's.
+      feedback.toast(err?.userMessage
+        ? { type: 'warning', message: err.userMessage, ttl: 9000 }
+        : { type: 'error', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
       return false;
     } finally {
       pending.current = Math.max(0, pending.current - 1);
