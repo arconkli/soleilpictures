@@ -19,7 +19,9 @@
 //
 // A doc (card kind 'doc', 0426) is shared to read or edit together: its roles
 // are Can view / Can edit, a link can let anyone read it and anyone signed in
-// edit it, and "Allow downloading" is "Allow saving a copy". After a confirmed
+// edit it, and "Allow downloading" is "Allow exporting": what it does for a doc
+// is give the people who can edit it Export (viewers have no toolbar), so it
+// says that, not "saving a copy", which is files' Save a copy. After a confirmed
 // write its live rooms ask again who may be in them (api.recheckDocRooms), so a
 // removed person is out within seconds rather than at the room's next minute.
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -498,9 +500,9 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
 
               <div className="fsd-row fsd-toggle-row">
                 <div className="fsd-row-text">
-                  <div className="fsd-row-name" id="fsd-dl-label">{isDoc ? 'Allow saving a copy' : 'Allow downloading'}</div>
+                  <div className="fsd-row-name" id="fsd-dl-label">{isDoc ? 'Allow exporting' : 'Allow downloading'}</div>
                   <div className="fsd-row-sub fsd-wrap">
-                    {isDoc ? 'People you share it with can save a copy of their own.' : 'People you share it with can save the original file.'}
+                    {isDoc ? 'People who can edit it can export a copy.' : 'People you share it with can save the original file.'}
                   </div>
                 </div>
                 <button type="button" role="switch" aria-checked={s.allowDownload}

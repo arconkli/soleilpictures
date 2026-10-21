@@ -51,7 +51,7 @@ test.describe('a doc shared on its own', () => {
     await expect(items.filter({ hasText: 'Image' })).toHaveCount(0);
     await expect(items.filter({ hasText: 'Embed cluster' })).toHaveCount(0);
     await page.keyboard.press('Escape');
-    // Shared without "Allow saving a copy": no Export.
+    // Shared without "Allow exporting": no Export.
     await expect(page.locator('.dsv button[aria-label="Export"]')).toHaveCount(0);
     // Typing lands in the doc.
     await editor(page).click();
@@ -175,7 +175,10 @@ test.describe('the owner shares a doc as view | edit', () => {
     await expect(sam.locator('option')).toHaveText(['Can view', 'Can edit', 'Remove']);
     await expect(dialog.getByLabel('What anyone with the link can do')).toHaveValue('edit');
     await expect(dialog.getByText('Anyone with the link can read it. Signed in, they can edit it too.')).toBeVisible();
-    await expect(dialog.getByText('Allow saving a copy')).toBeVisible();
+    // Its switch says what it does: Export, for the people who can edit it
+    // (viewers have no toolbar). "Saving a copy" promised files' Save a copy.
+    await expect(dialog.getByText('Allow exporting')).toBeVisible();
+    await expect(dialog.getByText('People who can edit it can export a copy.')).toBeVisible();
     await expect(dialog.getByText('Can comment')).toHaveCount(0);
     await sam.selectOption('view');
     await expect.poll(async () => (await calls(page, 'setFileSharePerson')).map((c) => c.args[3])).toEqual(['view']);

@@ -53,7 +53,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
                                // tab (the board room drops them), so the bar keeps only what
                                // reads: Find, Export and zoom.
                                canEdit = true,
-                               // false → no Export (a doc shared without "Allow saving a copy").
+                               // false → no Export (a doc shared without "Allow exporting").
                                canExport = true }) {
   // Subscribe to editor updates so the active-state of buttons stays accurate.
   const [, force] = useState(0);

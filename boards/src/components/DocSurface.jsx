@@ -139,7 +139,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // write outside the doc, and two healers race.
                               guestMode = false,
                               // false → no Export in the toolbar (a doc shared without
-                              // "Allow saving a copy").
+                              // "Allow exporting").
                               allowExport = true,
                               // The pane this doc sits in beside the canvas
                               // (lib/activePane.js): its ⌘Z answers only while

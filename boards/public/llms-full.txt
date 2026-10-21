@@ -3177,7 +3177,7 @@ The dialog is the same as a file's, with Can view and Can edit in place of comme
 Part | What it does
 Add people by email | Each person gets an email with the link. They join as Can edit unless you pick Can view
 General access | Only people added, or Anyone with the link: Can view, or Can edit, which still asks them to sign in before they can type
-Allow saving a copy | Whether the people who can edit it also get Export in the doc's toolbar
+Allow exporting | Whether the people who can edit it also get Export in the doc's toolbar
 
 Whatever the dialog says, anyone who can edit the cluster can always open and manage the doc, and anyone who can only view the cluster can read it.
 
@@ -3194,7 +3194,7 @@ Someone editing through a link is a guest in the doc, so a few things stay with 
 
 They cannot add images or files, embed a cluster, or link to anything in the workspace. A paste keeps its text and formatting and drops the rest; a link that is not a web or email address is dropped.
 They can start a comment, reply to any comment, and resolve or reopen one. They can delete only a comment they started, and cannot rewrite one once it is posted.
-Export (formats) is there only when Allow saving a copy is on. It cannot stop someone copying what they can read, or taking a screenshot.
+Export (formats) is there only when Allow exporting is on. It cannot stop someone copying what they can read, or taking a screenshot.
 Up to 50 people can have one doc open through its link at once. A single change larger than 1 MB is refused, and once a doc is larger than 25 MB the people outside its cluster can read it but not edit it.
 
 When the doc changes

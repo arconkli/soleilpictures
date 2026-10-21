@@ -31831,11 +31831,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Allow saving a copy",
+       "v": "Allow exporting",
        "children": [
         {
          "t": "text",
-         "v": "Allow saving a copy"
+         "v": "Allow exporting"
         }
        ]
       }
@@ -32090,11 +32090,11 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "Allow saving a copy",
+      "v": "Allow exporting",
       "children": [
        {
         "t": "text",
-        "v": "Allow saving a copy"
+        "v": "Allow exporting"
        }
       ]
      },

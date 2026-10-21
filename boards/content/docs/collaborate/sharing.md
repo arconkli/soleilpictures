@@ -340,7 +340,7 @@ of comment roles:
 |---|---|
 | **Add people by email** | Each person gets an email with the link. They join as **Can edit** unless you pick **Can view** |
 | **General access** | **Only people added**, or **Anyone with the link**: **Can view**, or **Can edit**, which still asks them to sign in before they can type |
-| **Allow saving a copy** | Whether the people who can edit it also get **Export** in the doc's toolbar |
+| **Allow exporting** | Whether the people who can edit it also get **Export** in the doc's toolbar |
 
 Whatever the dialog says, anyone who can edit the cluster can always open and
 manage the doc, and anyone who can only view the cluster can read it.
@@ -371,7 +371,7 @@ with the people in its cluster:
   They can delete only a comment they started, and cannot rewrite one once
   it is posted.
 - **Export** ([formats](/docs/documents/export)) is there only when **Allow
-  saving a copy** is on. It cannot stop someone copying what they can read,
+  exporting** is on. It cannot stop someone copying what they can read,
   or taking a screenshot.
 - Up to {{fact:docRoomMaxPeople}} people can have one doc open through its
   link at once. A single change larger than {{fact:docRoomFrameMaxMB}} MB is
