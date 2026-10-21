@@ -220,8 +220,13 @@ test("every reader that took 0149's rule asks the helper, and the proof names ea
   }
   // 0462 moved one more column of admin_list_users onto the helper; 0472 gave
   // admin_event_coverage four more rows, and 0475 counted an import's start
-  // toward first_cluster. Each later body still asks the helper.
-  const LATER = { admin_list_users: FILE_0462, admin_event_coverage: '0475_import_clusters_count_as_imports.sql' };
+  // toward first_cluster; 0495 made admin_first_session_compare read each
+  // signup day once. Each later body still asks the helper.
+  const LATER = {
+    admin_list_users: FILE_0462,
+    admin_event_coverage: '0475_import_clusters_count_as_imports.sql',
+    admin_first_session_compare: '0495_first_session_compare_reads_day_one_once.sql',
+  };
   for (const name of new Set(HERE.map((d) => d.name))) {
     assert.equal(latestDefinition(name).file, LATER[name] ?? FILE, `the live ${name} is ${LATER[name] ?? 'this one'}`);
   }
