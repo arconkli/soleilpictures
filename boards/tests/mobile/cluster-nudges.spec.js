@@ -2,9 +2,9 @@
 //
 // The desktop bar's "+ New cluster" has no room in a phone's bar (SHELL-06),
 // so the sheet the bottom-nav "+" opens carries it as a full-width row above
-// the tiles, and the Cluster tile goes. Behind clusterNudgesAllowed(): on dev
-// it is opt-in through localStorage soleil.dev.clusterNudges, so the held
-// sheet (create-button.spec.js) is untouched. ?mixqa=3 puts three images on a
+// the tiles, and the Cluster tile goes. Behind clusterNudgesAllowed(), whose
+// hold was lifted on 2026-10-21, so create-button.spec.js sees the same sheet;
+// the flag set below is the retired opt-in. ?mixqa=3 puts three images on a
 // bare Studio, so the "+" opens the sheet rather than the photo picker an
 // empty board gets.
 import { expect, test } from '@playwright/test';

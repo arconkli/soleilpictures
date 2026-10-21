@@ -50,5 +50,5 @@ Yes. Nest boards inside boards so each season, campaign, or client has its own s
 
 ### Is it free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards. Creator ($25/mo) adds unlimited cards and a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator ($25/mo) adds unlimited cards and a 1TB drive.
 

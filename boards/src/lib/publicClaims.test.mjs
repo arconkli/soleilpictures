@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { TEMPLATE_STORE_HELD } from './templatePaths.js';
 import { SEO_LANDING_LISTED } from './seoLanding.js';
 import { SEO_LISTICLE_PAGES } from './seoListicles.js';
+import { CLUSTER_CARD_COST } from './gridCount.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '../..');
@@ -165,8 +166,11 @@ const RULES = [
     // uploads — each photo is a card; "uploads never metered" (no SEPARATE
     // budget) is the true form. Nesting really is unlimited, and "unlimited
     // nesting" passes. Scoped like the rest: competitors' unlimited boards are
-    // theirs to claim.
-    name: 'a cluster or a photo costs a card — never sell either as unlimited',
+    // theirs to claim. Since 0429 (2026-10-21) a cluster costs no card, and the
+    // copy says exactly that ("clusters themselves are free") rather than
+    // selling the plan as unlimited clusters; the test below the rules ties
+    // those words to gridCount.CLUSTER_CARD_COST.
+    name: 'a photo costs a card, and a plan is never sold as unlimited clusters',
     scoped: true,
     pattern: /unlimited (boards|clusters|photo uploads)|(clusters|boards) (are|is) unlimited/i,
   },
@@ -355,6 +359,57 @@ const RULES = [
     theirs: ['Type SHOT [#] in a box, then stamp the next shot from the + on the grid’s edge. Each new shot carries the box and numbers itself by where it sits.'],
   },
 ];
+
+// What a cluster costs follows gridCount.CLUSTER_CARD_COST, which the server
+// mirrors (0429's _tg_card_weight_by_kind). From 2026-10-01 a cluster's card
+// weighed 1 and every plan claim said so ("each cluster counts as one card");
+// on 2026-10-21 clusters became free, and a page still saying they cost a card
+// would talk people out of the thing the release exists to get them to do.
+// The guard reads the constant, so it turns round if the cost ever goes back.
+// A linked cluster still weighs 1, but no public copy prices one.
+const CLUSTER_COSTS_CLAIM = /\b(each|every) cluster( you make| it makes| it becomes)?,? (simply |also )?(counts|is|spends|costs)( as)? (one|a card)\b|\b(each|every) cluster( you make)? (counting|is one)|one for each cluster|clusters? — each one (simply )?counts|(each|every) cluster (is|counts as) one of (the|your) cards|cluster[^.!?;]{0,60}\b(counts|counting) (toward|against) (that total|your [^.!?;]{0,30}cards)|\(each cluster is one card\)/i;
+const CLUSTERS_FREE_CLAIM = /clusters (themselves )?(are free|cost (no|none of your) cards)|cluster costs none of your cards|the clusters (it|you) (makes?|becomes?) (cost (nothing|none)|are free)/i;
+
+test('what public copy says a cluster costs matches CLUSTER_CARD_COST', () => {
+  for (const known of [
+    'every cluster counts as one',
+    'each cluster counts as one card',
+    'every cluster you make is one of the cards',
+    'with each cluster you make counting as one',
+    'with each cluster counting as one card, shared by everyone working in it',
+    '(each cluster is one card)',
+    'counts a card for each file and one for each cluster it becomes',
+    'No separate limit on clusters — each one counts as one of your cards',
+    'A cluster sits on its parent\u2019s canvas as a card and counts toward that total',
+  ]) assert.ok(CLUSTER_COSTS_CLAIM.test(known), `the cluster-cost guard no longer recognises: ${known}`);
+  for (const ok of [
+    'Every cluster has two views of the same contents',
+    'A cluster in the trash does not count against your card limit.',
+    'Work inside someone else\u2019s cluster still counts against that cluster\u2019s owner',
+    'Clusters are free — they cost none of your cards',
+  ]) assert.ok(!CLUSTER_COSTS_CLAIM.test(ok), `the cluster-cost guard would flag a true sentence: ${ok}`);
+  for (const free of [
+    'Clusters are free — they cost none of your cards',
+    'the clusters you make cost none of them',
+    '(clusters themselves are free)',
+    'The clusters it makes cost nothing, as no cluster does.',
+  ]) assert.ok(CLUSTERS_FREE_CLAIM.test(free), `the clusters-are-free guard no longer recognises: ${free}`);
+  assert.ok(CLUSTER_CARD_COST === 0 || CLUSTER_CARD_COST === 1, 'CLUSTER_CARD_COST is 0 or 1');
+  const claim = CLUSTER_CARD_COST === 0 ? CLUSTER_COSTS_CLAIM : CLUSTERS_FREE_CLAIM;
+  // An FAQ entry's question and answer share one span (`q: 'Is it free?', a:
+  // \`…`), so the question is cut off rather than the span skipped: the answer
+  // is the claim.
+  const answerOnly = (sent) => sent.replace(/["']?\bq["']?:\s*(['"`])[^'"`]*?\?\1,?\s*/, '');
+  const hits = [];
+  for (const f of FILES) {
+    sentences(f.text).forEach((sent) => {
+      if (claim.test(answerOnly(sent))) hits.push(`${f.rel}: ${sent.trim().slice(0, 160)}`);
+    });
+  }
+  assert.deepEqual(hits, [], CLUSTER_CARD_COST === 0
+    ? `clusters cost no cards (gridCount.CLUSTER_CARD_COST = 0, 0429), so these say otherwise:\n  ${hits.join('\n  ')}`
+    : `a cluster costs a card (gridCount.CLUSTER_CARD_COST = 1), so these call it free:\n  ${hits.join('\n  ')}`);
+});
 
 // Schedule cards have been held off production since 2026-09-01 (owner: "these
 // are so bad, they should NOT be on prod right now"). appHost's

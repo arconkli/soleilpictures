@@ -6,10 +6,10 @@ navLabel: Overview
 section: clusters
 order: 0
 updated: 2026-10-21
-answer: A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
+answer: A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 faq:
   - q: Is there a limit on how many clusters I can make?
-    a: Not separately. Each cluster sits on the canvas that holds it as a card, and on the free Demo plan that card counts toward your {{fact:demoCardLimit}} cards, like any other. Creator removes the card limit.
+    a: No. A cluster sits on the canvas that holds it as a card, but that card is free — it does not count toward the free Demo plan's {{fact:demoCardLimit}} cards. Only what you put inside a cluster counts. Creator removes the card limit.
   - q: How do I move a cluster somewhere else?
     a: Drag it in the sidebar tree, or drag it onto another cluster's card on a canvas. Moves are cycle-safe — you cannot make a cluster its own ancestor.
   - q: Where do deleted clusters go?
@@ -87,8 +87,8 @@ from its first pictures.
 ### When it doesn't all fit
 
 Each file is one [card](/docs/canvas/cards) and takes its size from your
-[storage](/docs/files#storage), and each cluster it makes counts as a card as
-any cluster does. When the whole import won't fit your plan, it says how much
+[storage](/docs/files#storage). The clusters it makes cost nothing, as no
+cluster does. When the whole import won't fit your plan, it says how much
 would come in and how much would wait, and offers:
 
 - **Bring … now** (or **Keep it waiting**, when nothing fits yet) — makes every cluster and fills them in folder order with
@@ -131,13 +131,41 @@ board](/docs/clusters/list-view#not-on-board).
 
 ## Adding a cluster inside one
 
-- The **Add cluster** tool on any canvas creates a cluster nested inside the one
-  you are in
-- Right-click a canvas → Add → Cluster does the same, under your cursor
+- **+ New cluster**, after the cluster's name at the top of the window — name
+  it and press Enter. With nothing picked it goes beside what is already on
+  the canvas and opens; with cards picked, they move into it and you stay
+  where you are, with an undo
+- The **Cluster** tool (the folder) on the left rail, or `C` — then click where
+  it goes
+- Double-click or right-click empty canvas → **Cluster** (or **Add → Cluster**),
+  under your cursor
+- On a phone, **New cluster** at the top of the sheet the **+** opens
 
-There is no separate limit on how many clusters you make. Each one sits on its
-parent's canvas as a card, though, so on the free Demo plan every cluster counts
-as one of your {{fact:demoCardLimit}} [cards](/docs/canvas/cards).
+There is no limit on how many clusters you make, and they cost none of your
+[cards](/docs/canvas/cards): a cluster's card on its parent's canvas is free on
+every plan. Only what is inside it counts toward the free Demo plan's
+{{fact:demoCardLimit}}. A [linked cluster](#nesting) — a reference to a
+cluster that lives elsewhere — counts as a card like any other.
+
+## Making a cluster from cards you already have
+
+Cards that belong together can move into a cluster of their own in one step,
+and one undo puts them back and removes the cluster:
+
+- Pick two or more cards, right-click → **New cluster from N cards**
+- Right-click a card → **Move to cluster…** → **New cluster…** — there even when
+  this is your only cluster
+- Right-click a [group](/docs/canvas/groups) → **Turn into cluster…** — the
+  group moves in whole, and the cluster takes its name
+- In [Files](/docs/clusters/list-view), pick files and press **New cluster** on
+  the selection bar
+
+When Studio has gathered a pile of loose cards, it offers once, on a later
+visit, to move them into a cluster: **Move them into a cluster** names one and
+moves the pile; the × dismisses the offer for good on that device. And when
+you paste or drop new things onto a board that already holds a pile from a few
+hours ago, the toast may ask **New idea?** — **New cluster** gives them a cluster
+of their own. Nothing moves until you ask.
 
 ## Nesting
 

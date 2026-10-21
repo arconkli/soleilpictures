@@ -11,7 +11,7 @@ faq:
   - q: How do I change what kind a card is?
     a: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
   - q: Is there a limit on cards?
-    a: The free Demo plan allows {{fact:demoCardLimit}} cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit.
+    a: The free Demo plan allows {{fact:demoCardLimit}} cards across every cluster you create. A cluster sits on its parent's canvas as a card, but that card is free, and there is no limit on clusters. Creator removes the limit.
   - q: What happens if I delete a card by accident?
     a: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster is a soft delete that stays in the trash for 30 days.
 related:
@@ -152,7 +152,7 @@ Files waiting in Files, not on the board, are still cards and count the same.
 ### Dropping more files than you have room for
 
 If you drag in more files than your remaining allowance — or a folder, which
-counts a card for each file and one for each cluster it becomes — Clusters
+counts a card for each file, while the clusters it becomes are free — Clusters
 asks before it uploads anything. You can add the ones that fit, upgrade to keep
 them all, or cancel — and until you answer, nothing is uploaded and
 nothing on the canvas changes. Choosing to add the ones that fit always gives

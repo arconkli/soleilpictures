@@ -121,22 +121,12 @@ export function boardGroundAllowed() {
 // The cluster-nudges hold
 //
 // Making clusters the obvious way to organize: the "+ New cluster" button after
-// the breadcrumb, the Cluster tool's folder icon and hover card, "New cluster
-// from N cards", the empty-Studio line, the Studio bar and the second-idea
-// offer. Built on main in slices while other sessions promote main to
-// production, so every piece asks this first. The preview deploy sees it; every
-// other origin, the native shells included, is closed until the release flips
-// it in the same commit as the docs (and the migration that makes clusters
-// free). Like the sidebar hold it is opt-in on dev, because other sessions run
-// the real app's specs on the dev server and the button and the bar move
-// things they click: localStorage soleil.dev.clusterNudges = '1' (this
-// feature's own specs set it). DEV is a build-time constant, so the production
-// bundle never reads the flag.
-export const CLUSTER_NUDGES_DEV_FLAG = 'soleil.dev.clusterNudges';
+// the breadcrumb, the Cluster tool's folder icon and hover card, C, "New
+// cluster from N cards", the empty-Studio line, the Studio bar and the
+// second-idea offer. Every piece asks this first.
+// Lifted 2026-10-21 for the sidebar release; kept because callers and the feature-flag list import it.
 export function clusterNudgesAllowed() {
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(CLUSTER_NUDGES_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
 }
 
 // ---------------------------------------------------------------------------

@@ -28,6 +28,7 @@ const SECTIONS = [
       [['D'], 'Free-draw'],
       [['A'], 'Arrow'],
       [['G'], 'Add a grid'],
+      [['C'], 'Add a cluster'],
       [['Esc'], 'Back to select · close what is on top'],
     ],
   },

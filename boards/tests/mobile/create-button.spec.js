@@ -10,9 +10,13 @@ import { expect, test } from '@playwright/test';
 //
 // The "+" is phone-only (it renders inside MobileBottomNav, which only mounts
 // at ≤640px), so skip the desktop + tablet projects.
+//
+// Since the cluster nudges shipped (2026-10-21) the Cluster tile is gone from
+// the grid: "New cluster" leads the sheet as a row above it
+// (mobile/cluster-nudges.spec.js).
 
 const ADD_LABELS = [
-  'Photos', 'Cluster', 'Image', 'File', 'Text note', 'Doc',
+  'Photos', 'Image', 'File', 'Text note', 'Doc',
   'Shape', 'Color palette', 'Comment', 'Vote',
 ];
 
@@ -43,6 +47,8 @@ test('tapping "+" opens the full add sheet with every option, Photos first', asy
     await expect(grid.getByRole('button', { name: label, exact: true })).toBeVisible();
   }
   await expect(grid.locator('.mobile-add-tile').first()).toContainText('Photos');
+  await expect(grid.getByRole('button', { name: 'Cluster', exact: true })).toHaveCount(0);
+  await expect(page.locator('.sheet-panel .mobile-add-cluster')).toBeVisible();
 });
 
 test('picking "Text note" from the sheet creates a focused note', async ({ page }) => {

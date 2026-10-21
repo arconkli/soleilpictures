@@ -74,5 +74,5 @@ No. Clusters plays video; it does not edit it. Trim in your editor and drop in t
 
 ### Is it free?
 
-Yes. The free plan holds 50 cards or 5GB of files, whichever comes first, every cluster counts as one card, and editors you invite are free. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free plan holds 50 cards or 5GB of files, whichever comes first, clusters themselves are free, and editors you invite are free. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 

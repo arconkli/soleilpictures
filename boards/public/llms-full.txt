@@ -6,7 +6,7 @@ Generated from https://clusters.soleilpictures.com/docs. Terminology: a "cluster
 ========================================================================
 # Soleil Clusters documentation
 URL: https://clusters.soleilpictures.com/docs
-Updated: 2026-10-02
+Updated: 2026-10-21
 
 Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.
 
@@ -64,7 +64,7 @@ Screenshots are deliberately sparse. The interface moves faster than screenshots
 ## Frequently asked questions
 
 Q: Is Soleil Clusters free?
-A: Yes. The free Demo plan gives you 50 cards — every cluster counts as one — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size.
+A: Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size.
 
 Q: What is a cluster?
 A: A cluster is a board. The interface says "cluster" everywhere; the API and database call the same object a board. They are the same thing, and the two words are used interchangeably in these docs where the API is involved.
@@ -191,7 +191,7 @@ A card is one thing on a board. Images, notes, links, documents, PDFs, video, au
 
 Cards carry a position, a size and a stacking order, which is what makes the canvas a canvas rather than a list. Everything else about a card depends on what kind it is — see Cards.
 
-The free Demo plan allows 50 cards in total across every cluster you create. There is no separate limit on clusters, but each one sits on its parent's canvas as a card and counts toward that total. Collaborators are unlimited.
+The free Demo plan allows 50 cards in total across every cluster you create. Clusters themselves are free: each one sits on its parent's canvas as a card, but that card does not count toward the total, and there is no limit on how many you make. Collaborators are unlimited.
 
 Two views of the same cluster
 
@@ -242,6 +242,7 @@ N | Add a note
 D | Free-draw — unless W A S D movement is on
 A | Arrow — unless W A S D movement is on
 G | Add a grid
+C | Add a cluster — click where it goes
 Esc | Back to select · close whatever is on top — a menu, a dialog, Settings
 
 Navigate
@@ -738,7 +739,7 @@ Creator removes the limit entirely. See Plans.
 
 Dropping more files than you have room for
 
-If you drag in more files than your remaining allowance — or a folder, which counts a card for each file and one for each cluster it becomes — Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk.
+If you drag in more files than your remaining allowance — or a folder, which counts a card for each file, while the clusters it becomes are free — Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk.
 
 Cards through the API
 
@@ -750,7 +751,7 @@ Q: How do I change what kind a card is?
 A: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
 
 Q: Is there a limit on cards?
-A: The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit.
+A: The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card, but that card is free, and there is no limit on clusters. Creator removes the limit.
 
 Q: What happens if I delete a card by accident?
 A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster is a soft delete that stays in the trash for 30 days.
@@ -1092,7 +1093,7 @@ A: So they stay individually visible instead of overlapping into one thick line.
 ========================================================================
 # Groups
 URL: https://clusters.soleilpictures.com/docs/canvas/groups
-Updated: 2026-08-08
+Updated: 2026-10-21
 
 Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on and tagged as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.
 
@@ -1125,6 +1126,7 @@ Ungroup | Remove the grouping; cards stay put
 Group comment | A comment anchored to the whole group
 Group tag | A tag applied to the group as a unit
 Group info | What is inside it
+Turn into cluster… | Move the group's cards into a new cluster named after it
 
 Moving and selecting
 
@@ -1140,7 +1142,7 @@ A tag on a group means the tag's detail view lists the group as a unit, rather t
 
 When the canvas gets crowded
 
-Grouping is the main tool for keeping a large board readable. The app notices when a board's root canvas is getting crowded and will suggest it once — that prompt is the power reveal for groups, and it appears a single time, ever.
+Grouping is the main tool for keeping a large board readable. When a group has grown into a project of its own, Turn into cluster… moves it into a cluster of its own. And when Studio holds a pile of loose cards, it offers once to move them into a cluster.
 
 ## Frequently asked questions
 
@@ -1762,7 +1764,7 @@ A: Whatever the browser can play — H.264 MP4 and MP3 or WAV are the safe choic
 URL: https://clusters.soleilpictures.com/docs/clusters
 Updated: 2026-10-21
 
-A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
+A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
 A cluster is the unit of work: a project, a scene, a pitch, a moodboard. The code and the API call the same object a board.
 
@@ -1801,7 +1803,7 @@ When it finishes, Open and the cluster's name takes you there, and Remove this i
 
 When it doesn't all fit
 
-Each file is one card and takes its size from your storage, and each cluster it makes counts as a card as any cluster does. When the whole import won't fit your plan, it says how much would come in and how much would wait, and offers:
+Each file is one card and takes its size from your storage. The clusters it makes cost nothing, as no cluster does. When the whole import won't fit your plan, it says how much would come in and how much would wait, and offers:
 
 Bring … now (or Keep it waiting, when nothing fits yet) — makes every cluster and fills them in folder order with what fits. The rest waits in the tray, and comes in by itself as soon as there is room — when you upgrade, add storage, delete files or empty the trash — for as long as the tab stays open. The cluster's Files says how many of its files are waiting for room.
 an upgrade, a trial or extra storage, where one would make room
@@ -1822,10 +1824,27 @@ The things a computer keeps in folders that are not yours to look at — .DS_Sto
 
 Adding a cluster inside one
 
-The Add cluster tool on any canvas creates a cluster nested inside the one you are in
-Right-click a canvas → Add → Cluster does the same, under your cursor
++ New cluster, after the cluster's name at the top of the window — name it and press Enter. With nothing picked it goes beside what is already on the canvas and opens; with cards picked, they move into it and you stay where you are, with an undo
+The Cluster tool (the folder) on the left rail, or C — then click where it goes
+Double-click or right-click empty canvas → Cluster (or Add → Cluster), under your cursor
+On a phone, New cluster at the top of the sheet the + opens
 
-There is no separate limit on how many clusters you make. Each one sits on its parent's canvas as a card, though, so on the free Demo plan every cluster counts as one of your 50 cards.
+There is no limit on how many clusters you make, and they cost none of your cards: a cluster's card on its parent's canvas is free on every plan. Only what is inside it counts toward the free Demo plan's
+
+A linked cluster — a reference to a
+
+cluster that lives elsewhere — counts as a card like any other.
+
+Making a cluster from cards you already have
+
+Cards that belong together can move into a cluster of their own in one step, and one undo puts them back and removes the cluster:
+
+Pick two or more cards, right-click → New cluster from N cards
+Right-click a card → Move to cluster… → New cluster… — there even when this is your only cluster
+Right-click a group → Turn into cluster… — the group moves in whole, and the cluster takes its name
+In Files, pick files and press New cluster on the selection bar
+
+When Studio has gathered a pile of loose cards, it offers once, on a later visit, to move them into a cluster: Move them into a cluster names one and moves the pile; the × dismisses the offer for good on that device. And when you paste or drop new things onto a board that already holds a pile from a few hours ago, the toast may ask New idea? — New cluster gives them a cluster of their own. Nothing moves until you ask.
 
 Nesting
 
@@ -1892,7 +1911,7 @@ Deleting a cluster is a soft delete. It goes to the trash and stays restorable f
 ## Frequently asked questions
 
 Q: Is there a limit on how many clusters I can make?
-A: Not separately. Each cluster sits on the canvas that holds it as a card, and on the free Demo plan that card counts toward your 50 cards, like any other. Creator removes the card limit.
+A: No. A cluster sits on the canvas that holds it as a card, but that card is free — it does not count toward the free Demo plan's 50 cards. Only what you put inside a cluster counts. Creator removes the card limit.
 
 Q: How do I move a cluster somewhere else?
 A: Drag it in the sidebar tree, or drag it onto another cluster's card on a canvas. Moves are cycle-safe — you cannot make a cluster its own ancestor.
@@ -2314,7 +2333,7 @@ A: A 2D fallback renders automatically. The graph and its interactions are the s
 ========================================================================
 # Trash and recovery
 URL: https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery
-Updated: 2026-10-20
+Updated: 2026-10-21
 
 Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 
@@ -2336,7 +2355,7 @@ The trash is workspace-wide — open it from the sidebar or ⌘K → "trash". Fr
 
 A cluster goes to the trash with everything inside it, the clusters nested in it included, and it comes back the same way: restoring it brings them all back in place. The trash lists it once, with a count of what is inside. If you restore a cluster whose parent is still in the trash, it comes back under the nearest cluster that isn't, or at the top of your workspace.
 
-A cluster in the trash does not count against your card limit. Deleting one frees its cards the moment you delete it, so if you cleared a cluster to make room, the room is there immediately.
+A cluster in the trash does not count against your card limit. Deleting one frees the cards inside it the moment you delete it, so if you cleared a cluster to make room, the room is there immediately.
 
 That cuts both ways, and deliberately: a restore has to fit. If you used the space in the meantime, putting the cluster back would take you over your limit, so it is refused and says by how much. Delete some cards, or upgrade, and it will go back. Nothing in the trash is lost while you decide — the 30-day clock is the only thing running.
 
@@ -2382,7 +2401,7 @@ Q: How long do I have to restore a deleted cluster?
 A: 30 days. After that it is purged permanently.
 
 Q: Does a cluster in the trash still use up my card limit?
-A: No. Deleting a cluster releases its cards immediately, so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade.
+A: No. Deleting a cluster releases the cards inside it immediately (the cluster itself never cost one), so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade.
 
 Q: Can I undo a collaborator's changes?
 A: Cmd-Z only undoes your own edits. To reverse someone else's work, use version history on that board or workspace recovery.
@@ -3885,9 +3904,9 @@ A: Under Connections, alongside any apps you have approved. Tokens are shown onc
 ========================================================================
 # Plans and pricing
 URL: https://clusters.soleilpictures.com/docs/account/plans
-Updated: 2026-10-17
+Updated: 2026-10-21
 
-The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — each cluster counts as one card — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
 Two plans. The difference between them is deliberately small and deliberately honest — two enforced limits, listed below, and nothing else. The pricing page puts the two side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
 
@@ -3897,7 +3916,7 @@ Demo — free
 
 50 cards to build with
 A 5GB drive — any file, at any size
-No separate limit on clusters — each one counts as one of your cards
+Clusters are free — they cost none of your cards
 Free collaboration — invite editors to any cluster
 
 The free plan stops at whichever limit you reach first.
@@ -3990,7 +4009,7 @@ More on the free tier specifically: free mood board maker.
 ## Frequently asked questions
 
 Q: What is actually limited on the free plan?
-A: Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+A: Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
 
 Q: Do collaborators need to pay?
 A: No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
@@ -6820,7 +6839,7 @@ It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the
 
 ### Is it free?
 
-Yes, to start. The free tier covers 50 cards or 5GB of files, whichever comes first — each cluster is one — with free collaborators. Creator ($25/mo) lifts the cap and gives you a 1TB drive.
+Yes, to start. The free tier covers 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free collaborators. Creator ($25/mo) lifts the cap and gives you a 1TB drive.
 
 ### Can I use it with a board I already have?
 
@@ -6868,7 +6887,7 @@ Send a board to a client or collaborator with one link — they see a clean, int
 
 ### Is the mood board maker free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with collaborators included. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaboration is free for everyone.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with collaborators included. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaboration is free for everyone.
 
 ### Can I make a mood board with my team?
 
@@ -6971,7 +6990,7 @@ It sees exactly what your account sees — no more. It runs as you, under the sa
 
 ### Is it free?
 
-Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers 50 cards or 5GB of files, whichever comes first, and every cluster counts as one card.
+Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers 50 cards or 5GB of files, whichever comes first, and the clusters it makes cost none of them.
 
 
 
@@ -7031,7 +7050,7 @@ Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on
 
 ### Is it free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaborators edit free.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaborators edit free.
 
 
 
@@ -7103,7 +7122,7 @@ Yes. Share a live link with your crew, or export boards and docs to PDF.
 
 ### Is it free to start?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### How do I make a shot list for a short film?
 
@@ -7175,7 +7194,7 @@ Yes. Nest boards inside boards so each season, campaign, or client has its own s
 
 ### Is it free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards. Creator ($25/mo) adds unlimited cards and a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator ($25/mo) adds unlimited cards and a 1TB drive.
 
 
 
@@ -7219,7 +7238,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### Do I have to download anything?
 
@@ -7285,7 +7304,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 
 ## Free to start, flat when you grow
 
-The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, with each cluster you make counting as one. Invited collaborators edit free on every tier. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
+The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, and the clusters you make cost none of them. Invited collaborators edit free on every tier. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
 
 ## The case for staying on desktop
 
@@ -7311,7 +7330,7 @@ A mood board communicates a direction to other people; a reference board support
 
 ### Is there a free online reference board maker?
 
-Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards or 5GB of files, whichever comes first, with each cluster you make counting as one card. It runs in the browser with nothing to install.
+Yes — Soleil Clusters’ Demo tier is free with no credit card and no trial clock, and covers 50 cards or 5GB of files, whichever comes first, and the clusters you make cost none of them. It runs in the browser with nothing to install.
 
 ### Do I need to install anything to make a reference board?
 
@@ -7419,7 +7438,7 @@ No. Clusters plays video; it does not edit it. Trim in your editor and drop in t
 
 ### Is it free?
 
-Yes. The free plan holds 50 cards or 5GB of files, whichever comes first, every cluster counts as one card, and editors you invite are free. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free plan holds 50 cards or 5GB of files, whichever comes first, clusters themselves are free, and editors you invite are free. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 
 
@@ -7461,7 +7480,7 @@ Nest a cluster per character, environment or shot and the project stays navigabl
 
 ## One plan for the team, not a licence per seat
 
-Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files, with each cluster counting as one card, shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six.
+Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six.
 
 ## Where a desktop app is still the right call
 
@@ -7483,7 +7502,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -7519,7 +7538,7 @@ No. Clusters is a browser workspace and needs a connection. In exchange the boar
 
 ### Is it free?
 
-Free for 50 cards or 5GB of files across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and gives you a 1TB drive; see “What it costs” on this page.
+Free for 50 cards or 5GB of files across the workspace — clusters themselves are free — with free editors. Creator removes the card cap and gives you a 1TB drive; see “What it costs” on this page.
 
 
 
@@ -7582,7 +7601,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -7618,7 +7637,7 @@ The same structure works: concept, world and look, performance and casting, ward
 
 ### Is it free?
 
-Free for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. Image-heavy treatments can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
+Free for 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. Image-heavy treatments can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 
 
 
@@ -7678,7 +7697,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -7710,7 +7729,7 @@ Invite them to comment and vote, free — or send a view-only link that opens wi
 
 ### Is it free?
 
-Free across the workspace for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full art department will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace at once. See “What it costs” on this page.
+Free across the workspace for 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. A full art department will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace at once. See “What it costs” on this page.
 
 
 
@@ -7766,7 +7785,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -7798,7 +7817,7 @@ For the looks, yes: fitting and continuity photos live in the character’s grid
 
 ### Is it free?
 
-Free across the workspace for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full principal cast will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
+Free across the workspace for 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. A full principal cast will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 
 
 
@@ -7858,7 +7877,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -7890,7 +7909,7 @@ Yes, through a view-only link that opens in any browser and can expire after 7 o
 
 ### Is it free?
 
-Free for 50 cards or 5GB of files, whichever comes first — each cluster counts as one card — with free editors. A full lookbook can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
+Free for 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. A full lookbook can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 
 
 
@@ -7962,7 +7981,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -7986,7 +8005,7 @@ Clusters focuses on live team production — multiplayer editing with cursors an
 
 ### Does Clusters have a free tier like Milanote?
 
-Yes. The Demo tier is free with no credit card and covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards. Creator is $25/mo for unlimited cards and a 1TB drive.
+Yes. The Demo tier is free with no credit card and covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator is $25/mo for unlimited cards and a 1TB drive.
 
 ### Can I move my Milanote boards over?
 
@@ -8048,9 +8067,9 @@ A production is not one board. In Clusters the mood board, the storyboard grid, 
 
 ## A free plan you can use today, and a flat price after it
 
-Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 50 cards — each cluster you make is one of them — or 5GB of files, whichever comes first. Creator is a flat $25 a month for unlimited cards, a 1TB drive, and everyone you invite edits free.
+Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 50 cards — the clusters you make cost none of them — or 5GB of files, whichever comes first. Creator is a flat $25 a month for unlimited cards, a 1TB drive, and everyone you invite edits free.
 
-- Free today: 50 cards or 5GB of files (each cluster is one card)
+- Free today: 50 cards or 5GB of files (clusters themselves are free)
 - Creator is $25/mo flat — not per seat, not per AI call
 - Storyflow: paid early access; its Free plan is due before the end of 2026
 
@@ -8095,7 +8114,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -8135,7 +8154,7 @@ Storyflow exports boards as PNG, SVG or PDF. Bring the original images and files
 
 ### Does Clusters have a limit like Storyflow’s upload cap?
 
-Clusters’ free Demo tier caps cards at 50 or storage at 5GB — each cluster you make is one card — and takes files of any size; Creator ($25/mo) removes the card cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.
+Clusters’ free Demo tier caps cards at 50 or storage at 5GB — the clusters you make cost none — and takes files of any size; Creator ($25/mo) removes the card cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.
 
 ### Can I use Clusters on an iPad or a phone?
 
@@ -8206,7 +8225,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -8309,7 +8328,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -8442,7 +8461,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -8579,7 +8598,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -10520,7 +10539,7 @@ No card, no clock, no expiry.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 ## Creator — $25/mo
@@ -10546,7 +10565,7 @@ One Creator plan covers the whole workspace — everyone you invite builds at yo
 
 ### What is actually limited on the free plan?
 
-Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on either plan. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
 
 ### Do the people I invite need to pay?
 

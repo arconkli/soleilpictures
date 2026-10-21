@@ -8549,7 +8549,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const actions = {
       grids: engage(() => mainMutatorsRef.current?.addGrid?.(nearContent(), {})),
-      group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent(), { via: 'power_reveal' })),
       // Room is read when the toast is acted on, not when it was shown.
       list_drive: engage(() => (canDockMainRef.current
         ? applyFilesEventRef.current('files', 'power_reveal')

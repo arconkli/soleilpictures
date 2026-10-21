@@ -24,8 +24,8 @@ const base = {
   totalGenuine: 0,
 };
 
-test('registry: five reveals, wow-first order, each with copy and an action label where promised', () => {
-  assert.deepEqual(POWER_REVEALS.map((r) => r.key), ['grids', 'group', 'list_drive', 'docs', 'palette']);
+test('registry: four reveals, wow-first order, each with copy and an action label where promised', () => {
+  assert.deepEqual(POWER_REVEALS.map((r) => r.key), ['grids', 'list_drive', 'docs', 'palette']);
   for (const r of POWER_REVEALS) {
     assert.equal(typeof r.message, 'string');
     assert.ok(r.message.length > 10);
@@ -47,13 +47,12 @@ test('grids stays quiet when a grid already exists (feature already discovered)'
   assert.notEqual(pickReveal(s, none)?.key, 'grids');
 });
 
-test('group fires on the root at 6 loose cards with no clusters — and only on the root', () => {
-  // files/pdfs, not notes — keeps the docs reveal out of this fixture so the
-  // no-longer-eligible cases fall through to NOTHING rather than a sibling
+test('a crowded root gets no reveal: the group pitch is retired, the Studio bar makes that offer', () => {
+  // files/pdfs, not notes — keeps the docs reveal out of this fixture
   const s = { ...base, isRoot: true, nonBoardCards: 6, totalGenuine: 6 };
-  assert.equal(pickReveal(s, none)?.key, 'group');
-  assert.equal(pickReveal({ ...s, clusterCards: 1 }, none), null);
-  // off the root, the same spread belongs to list_drive, never group
+  assert.equal(pickReveal(s, none), null);
+  assert.equal(POWER_REVEALS.some((r) => r.key === 'group'), false);
+  // off the root, the same spread belongs to list_drive
   assert.equal(pickReveal({ ...s, isRoot: false }, none)?.key, 'list_drive');
 });
 
@@ -77,7 +76,7 @@ test('palette fires on a dense board when everything else is exhausted', () => {
   assert.equal(pickReveal(s, none)?.key, 'palette');
 });
 
-test('priority: grids beats group beats list_drive; seen() advances to the next eligible', () => {
+test('priority: grids first; seen() advances to the next eligible', () => {
   const rich = {
     ...base,
     isRoot: true,
@@ -88,10 +87,8 @@ test('priority: grids beats group beats list_drive; seen() advances to the next 
   };
   assert.equal(pickReveal(rich, none)?.key, 'grids');
   const seenGrids = (k) => k === 'grids';
-  assert.equal(pickReveal(rich, seenGrids)?.key, 'group');
-  const seenBoth = (k) => k === 'grids' || k === 'group';
-  // still root, so list_drive ineligible → docs
-  assert.equal(pickReveal(rich, seenBoth)?.key, 'docs');
+  // root, so list_drive ineligible → docs
+  assert.equal(pickReveal(rich, seenGrids)?.key, 'docs');
 });
 
 test('everything seen → null, even on the richest board', () => {

@@ -62,7 +62,7 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
@@ -86,7 +86,7 @@ Clusters focuses on live team production — multiplayer editing with cursors an
 
 ### Does Clusters have a free tier like Milanote?
 
-Yes. The Demo tier is free with no credit card and covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards. Creator is $25/mo for unlimited cards and a 1TB drive.
+Yes. The Demo tier is free with no credit card and covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator is $25/mo for unlimited cards and a 1TB drive.
 
 ### Can I move my Milanote boards over?
 

@@ -34,7 +34,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### Do I have to download anything?
 

@@ -68,7 +68,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.",
     "section": "start",
     "order": 0,
-    "updated": "2026-10-02",
+    "updated": "2026-10-21",
     "navLabel": "Overview",
     "headings": [
       {
@@ -101,7 +101,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 50 cards — every cluster counts as one — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
+        "a": "Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
       },
       {
         "q": "What is a cluster?",
@@ -488,7 +488,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a limit on cards?",
-        "a": "The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit."
+        "a": "The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card, but that card is free, and there is no limit on clusters. Creator removes the limit."
       },
       {
         "q": "What happens if I delete a card by accident?",
@@ -740,7 +740,7 @@ export const DOCS_PAGES = [
     "answer": "Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on and tagged as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.",
     "section": "canvas",
     "order": 6,
-    "updated": "2026-08-08",
+    "updated": "2026-10-21",
     "navLabel": "Groups",
     "headings": [
       {
@@ -1240,7 +1240,7 @@ export const DOCS_PAGES = [
     "title": "Clusters and Nesting — Soleil Clusters",
     "metaDescription": "Create, nest, rename and organize clusters in Soleil Clusters. Unlimited nesting, cover images, thumbnails, moving boards and the sidebar tree.",
     "h1": "Clusters",
-    "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no separate limit on how many clusters you make, but each one sits on its parent's canvas as a card, so on the free plan it counts as one of your cards. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
+    "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
     "updated": "2026-10-21",
@@ -1257,6 +1257,10 @@ export const DOCS_PAGES = [
       {
         "id": "adding-a-cluster-inside-one",
         "text": "Adding a cluster inside one"
+      },
+      {
+        "id": "making-a-cluster-from-cards-you-already-have",
+        "text": "Making a cluster from cards you already have"
       },
       {
         "id": "nesting",
@@ -1291,7 +1295,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is there a limit on how many clusters I can make?",
-        "a": "Not separately. Each cluster sits on the canvas that holds it as a card, and on the free Demo plan that card counts toward your 50 cards, like any other. Creator removes the card limit."
+        "a": "No. A cluster sits on the canvas that holds it as a card, but that card is free — it does not count toward the free Demo plan's 50 cards. Only what you put inside a cluster counts. Creator removes the card limit."
       },
       {
         "q": "How do I move a cluster somewhere else?",
@@ -1565,7 +1569,7 @@ export const DOCS_PAGES = [
     "answer": "Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.",
     "section": "clusters",
     "order": 3,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Trash and recovery",
     "headings": [
       {
@@ -1605,7 +1609,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does a cluster in the trash still use up my card limit?",
-        "a": "No. Deleting a cluster releases its cards immediately, so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade."
+        "a": "No. Deleting a cluster releases the cards inside it immediately (the cluster itself never cost one), so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade."
       },
       {
         "q": "Can I undo a collaborator's changes?",
@@ -2626,10 +2630,10 @@ export const DOCS_PAGES = [
     "title": "Plans and Pricing — Soleil Clusters",
     "metaDescription": "Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — each cluster counts as one card — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
+    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
     "section": "account",
     "order": 1,
-    "updated": "2026-10-17",
+    "updated": "2026-10-21",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2685,7 +2689,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card."
+        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards."
       },
       {
         "q": "Do collaborators need to pay?",

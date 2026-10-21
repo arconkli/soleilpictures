@@ -34,6 +34,7 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 | `D` | Free-draw — unless [W A S D movement](#moving-with-w-a-s-d) is on |
 | `A` | Arrow — unless [W A S D movement](#moving-with-w-a-s-d) is on |
 | `G` | Add a grid |
+| `C` | Add a cluster — click where it goes |
 | `Esc` | Back to select · close whatever is on top — a menu, a dialog, Settings |
 
 

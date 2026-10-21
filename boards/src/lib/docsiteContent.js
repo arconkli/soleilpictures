@@ -1540,7 +1540,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in total across every cluster you create. There is no separate limit on clusters, but each one sits on its parent's canvas as a card and counts toward that total. Collaborators are unlimited."
+     "v": " in total across every cluster you create. Clusters themselves are free: each one sits on its parent's canvas as a card, but that card does not count toward the total, and there is no limit on how many you make. Collaborators are unlimited."
     }
    ]
   },
@@ -1886,6 +1886,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Add a grid"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "C"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Add a cluster — click where it goes"
       }
      ]
     ],
@@ -8791,7 +8805,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you drag in more files than your remaining allowance — or a folder, which counts a card for each file and one for each cluster it becomes — Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
+     "v": "If you drag in more files than your remaining allowance — or a folder, which counts a card for each file, while the clusters it becomes are free — Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
     }
    ]
   },
@@ -11745,6 +11759,35 @@ export const DOCS_CONTENT = {
        "v": "What is inside it"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Turn into cluster…"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move the group's cards into a new "
+      },
+      {
+       "t": "link",
+       "v": "cluster",
+       "href": "/docs/clusters#making-a-cluster-from-cards-you-already-have",
+       "children": [
+        {
+         "t": "text",
+         "v": "cluster"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " named after it"
+      }
+     ]
     ]
    ]
   },
@@ -11840,22 +11883,36 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Grouping is the main tool for keeping a large board readable. The app notices when a board's root canvas is getting crowded and will suggest it once — that prompt is the "
+     "v": "Grouping is the main tool for keeping a large board readable. When a group has grown into a project of its own, "
     },
     {
-     "t": "link",
-     "v": "power reveal",
-     "href": "/docs/canvas",
+     "t": "strong",
+     "v": "Turn into cluster…",
      "children": [
       {
        "t": "text",
-       "v": "power reveal"
+       "v": "Turn into cluster…"
       }
      ]
     },
     {
      "t": "text",
-     "v": " for groups, and it appears a single time, ever."
+     "v": " moves it into a cluster of its own. And when Studio holds a pile of loose cards, it offers once to "
+    },
+    {
+     "t": "link",
+     "v": "move them into a cluster",
+     "href": "/docs/clusters#making-a-cluster-from-cards-you-already-have",
+     "children": [
+      {
+       "t": "text",
+       "v": "move them into a cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   }
@@ -17906,7 +17963,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and each cluster it makes counts as a card as any cluster does. When the whole import won't fit your plan, it says how much would come in and how much would wait, and offers:"
+     "v": ". The clusters it makes cost nothing, as no cluster does. When the whole import won't fit your plan, it says how much would come in and how much would wait, and offers:"
     }
    ]
   },
@@ -18225,28 +18282,114 @@ export const DOCS_CONTENT = {
    "items": [
     [
      {
-      "t": "text",
-      "v": "The "
-     },
-     {
       "t": "strong",
-      "v": "Add cluster",
+      "v": "+ New cluster",
       "children": [
        {
         "t": "text",
-        "v": "Add cluster"
+        "v": "+ New cluster"
        }
       ]
      },
      {
       "t": "text",
-      "v": " tool on any canvas creates a cluster nested inside the one you are in"
+      "v": ", after the cluster's name at the top of the window — name it and press Enter. With nothing picked it goes beside what is already on the canvas and opens; with cards picked, they move into it and you stay where you are, with an undo"
      }
     ],
     [
      {
       "t": "text",
-      "v": "Right-click a canvas → Add → Cluster does the same, under your cursor"
+      "v": "The "
+     },
+     {
+      "t": "strong",
+      "v": "Cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " tool (the folder) on the left rail, or "
+     },
+     {
+      "t": "code",
+      "v": "C"
+     },
+     {
+      "t": "text",
+      "v": " — then click where it goes"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Double-click or right-click empty canvas → "
+     },
+     {
+      "t": "strong",
+      "v": "Cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (or "
+     },
+     {
+      "t": "strong",
+      "v": "Add → Cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add → Cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), under your cursor"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone, "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the top of the sheet the "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens"
      }
     ]
    ]
@@ -18256,7 +18399,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no separate limit on how many clusters you make. Each one sits on its parent's canvas as a card, though, so on the free Demo plan every cluster counts as one of your 50 "
+     "v": "There is no limit on how many clusters you make, and they cost none of your "
     },
     {
      "t": "link",
@@ -18271,7 +18414,241 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ": a cluster's card on its parent's canvas is free on every plan. Only what is inside it counts toward the free Demo plan's"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A "
+     },
+     {
+      "t": "link",
+      "v": "linked cluster",
+      "href": "#nesting",
+      "children": [
+       {
+        "t": "text",
+        "v": "linked cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — a reference to a"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "cluster that lives elsewhere — counts as a card like any other."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Making a cluster from cards you already have",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Making a cluster from cards you already have"
+    }
+   ],
+   "id": "making-a-cluster-from-cards-you-already-have"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards that belong together can move into a cluster of their own in one step, and one undo puts them back and removes the cluster:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Pick two or more cards, right-click → "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster from N cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster from N cards"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Right-click a card → "
+     },
+     {
+      "t": "strong",
+      "v": "Move to cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move to cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " → "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — there even when this is your only cluster"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Right-click a "
+     },
+     {
+      "t": "link",
+      "v": "group",
+      "href": "/docs/canvas/groups",
+      "children": [
+       {
+        "t": "text",
+        "v": "group"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " → "
+     },
+     {
+      "t": "strong",
+      "v": "Turn into cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Turn into cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the group moves in whole, and the cluster takes its name"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In "
+     },
+     {
+      "t": "link",
+      "v": "Files",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", pick files and press "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on the selection bar"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When Studio has gathered a pile of loose cards, it offers once, on a later visit, to move them into a cluster: "
+    },
+    {
+     "t": "strong",
+     "v": "Move them into a cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move them into a cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " names one and moves the pile; the × dismisses the offer for good on that device. And when you paste or drop new things onto a board that already holds a pile from a few hours ago, the toast may ask "
+    },
+    {
+     "t": "strong",
+     "v": "New idea?",
+     "children": [
+      {
+       "t": "text",
+       "v": "New idea?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "strong",
+     "v": "New cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives them a cluster of their own. Nothing moves until you ask."
     }
    ]
   },
@@ -24019,7 +24396,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Deleting one frees its cards the moment you delete it, so if you cleared a cluster to make room, the room is there immediately."
+     "v": " Deleting one frees the cards inside it the moment you delete it, so if you cleared a cluster to make room, the room is there immediately."
     }
    ]
   },
@@ -38554,7 +38931,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "No separate limit on clusters — each one counts as one of your cards"
+      "v": "Clusters are free — they cost none of your cards"
      }
     ],
     [

@@ -69,13 +69,13 @@ export function cellsWeight(cells) {
 }
 
 // What a cluster's card weighs on the canvas that holds it. Making a cluster
-// should never be the thing that walls someone, so clusters are becoming free;
-// until that ships this stays 1, and the release flips it in the same commit as
-// the migration that teaches the server the same rule (_tg_card_weight_by_kind)
-// and the docs that state it. Every path that charges for a new cluster (the
-// cap pre-checks in App, the folder planner) asks this, never a literal 1.
-// A LINKED cluster (boardlink) is not a cluster of yours and keeps weighing 1.
-export const CLUSTER_CARD_COST = 1;
+// should never be the thing that walls someone, so clusters are free (the
+// cluster-adoption release, 2026-10-21): the server says the same in 0429's
+// _tg_card_weight_by_kind, and the docs state it. Every path that charges for
+// a new cluster (the cap pre-checks in App, the folder planner, bulk import)
+// asks this, never a literal. A LINKED cluster (boardlink) is not a cluster of
+// yours and keeps weighing 1.
+export const CLUSTER_CARD_COST = 0;
 
 // Weight of one card toward the cap.
 //

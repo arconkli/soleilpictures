@@ -293,7 +293,7 @@ test('COVERAGE: every Settings tab is documented', () => {
 test('COVERAGE: every power reveal teaches a documented feature', () => {
   // A reveal is a feature we thought worth interrupting someone to show. If it
   // earns an interruption it earns a paragraph.
-  const NAMES = { grids: 'grid', group: 'group', list_drive: 'list view', docs: 'document', palette: 'palette' };
+  const NAMES = { grids: 'grid', list_drive: 'list view', docs: 'document', palette: 'palette' };
   const missing = surface.powerRevealKeys.filter((k) => !mentions(NAMES[k] || k));
   assert.deepEqual(missing, [], `power reveals with no docs: ${missing.join(', ')}`);
 });

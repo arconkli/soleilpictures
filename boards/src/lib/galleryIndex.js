@@ -169,8 +169,6 @@ export const GALLERY_ENTRIES = Object.freeze([
     keywords: 'toast manage access share link created' },
   { id: 'toast-reveal-grids', label: 'Toast — power reveal, grids', group: 'toasts', kind: 'toast',
     keywords: 'toast power reveal grids tip discover' },
-  { id: 'toast-reveal-group', label: 'Toast — power reveal, group', group: 'toasts', kind: 'toast',
-    keywords: 'toast power reveal group tip discover' },
   { id: 'toast-reveal-list', label: 'Toast — power reveal, list view', group: 'toasts', kind: 'toast',
     keywords: 'toast power reveal list drive view tip discover' },
   { id: 'toast-reveal-docs', label: 'Toast — power reveal, docs', group: 'toasts', kind: 'toast',

@@ -891,12 +891,35 @@ test('the server weighs a card the way cardWeight does, except the grid it canno
   const fn = latestDefinition('_tg_card_weight_by_kind').body;
   assert.match(fn, /if coalesce\(new\.kind, 'note'\) = 'grid' then\s+return new;/);
   assert.match(fn, /elsif new\.kind = 'schedule' then\s+new\.weight := greatest\(1, coalesce\(new\.weight, 1\)\);/);
-  assert.match(fn, /else\s+new\.weight := 1;/);
+  assert.match(fn, /else\s+new\.weight := 1;\s+end if;\s+return new;/);
   assert.ok(latestMatch(/create trigger card_index_weight_by_kind\s+before insert or update of weight, kind on public\.card_index/));
-  // The rule the trigger mirrors: anything but a grid or a schedule weighs 1.
-  const { cardWeight } = await import('./gridCount.js');
-  for (const kind of ['note', 'image', 'video', 'link', 'board', 'doc']) assert.equal(cardWeight(kind, []), 1, kind);
+  // 0429: a cluster's card is free, but only a real cluster of this workspace —
+  // a note relabelled 'board' still weighs 1, and the uuid test guards the cast.
+  assert.match(fn, /elsif new\.kind = 'board' then\s+[^]*?new\.weight := 1;\s+if new\.card_id ~\* '\^\[0-9a-f\]\{8\}-/);
+  assert.match(fn, /where b\.id = new\.card_id::uuid and b\.workspace_id = new\.workspace_id\) then\s+new\.weight := 0;/);
+  assert.match(fn, /security definer/);
+  // The rule the trigger mirrors: anything but a grid, a schedule or a cluster
+  // weighs 1, a cluster CLUSTER_CARD_COST, and a linked cluster 1.
+  const { cardWeight, CLUSTER_CARD_COST } = await import('./gridCount.js');
+  for (const kind of ['note', 'image', 'video', 'link', 'boardlink', 'doc']) assert.equal(cardWeight(kind, []), 1, kind);
   assert.equal(cardWeight('schedule', []), 1);
+  assert.equal(CLUSTER_CARD_COST, 0);
+  assert.equal(cardWeight('board', []), 0);
+});
+
+test('0429 backfills every cluster card to 0 with the triggers off, and proves its grants', () => {
+  const sql = readFileSync(new URL('../../../supabase/migrations/0429_nested_clusters_cost_no_cards.sql', import.meta.url), 'utf8');
+  const off = sql.indexOf('alter table public.card_index disable trigger user;');
+  const upd = sql.indexOf('update public.card_index ci\n   set weight = 0');
+  const on = sql.indexOf('alter table public.card_index enable trigger user;');
+  assert.ok(off > 0 && off < upd && upd < on, 'disable → update → enable');
+  assert.match(sql.slice(upd, on), /where ci\.kind = 'board'[^;]*b\.id::text = ci\.card_id and b\.workspace_id = ci\.workspace_id/);
+  // Refuses to start over a trigger that was already off (enable would wake it).
+  assert.ok(sql.indexOf("already disabled") > 0 && sql.indexOf("already disabled") < off);
+  assert.match(sql, /revoke execute on function public\._tg_card_weight_by_kind\(\) from public, anon, authenticated;/);
+  assert.match(sql, /has_function_privilege\('anon', 'public\._tg_card_weight_by_kind\(\)', 'execute'\)/);
+  assert.match(sql, /has_function_privilege\('authenticated', 'public\._tg_card_weight_by_kind\(\)', 'execute'\)/);
+  assert.match(sql, /the weight trigger does not fire before the cap/);
 });
 
 // ── 0390: an alert reaches the inbox, and one nobody saw is raised ───────────

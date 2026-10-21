@@ -1,9 +1,9 @@
 // cluster-nudges.spec.js — making a cluster from what is already on the canvas.
 //
-// Everything here sits behind clusterNudgesAllowed() (lib/appHost.js): the
-// preview deploy sees it, production doesn't, and on dev it is opt-in through
-// localStorage soleil.dev.clusterNudges, so other sessions' specs never meet it.
-// The first test pins that hold.
+// Everything here sits behind clusterNudgesAllowed() (lib/appHost.js), whose
+// hold was lifted on 2026-10-21 for the sidebar release: it is on everywhere,
+// with no opt-in. The first test pins that. The optIn() the other tests still
+// call sets the retired dev flag, which nothing reads any more.
 //
 // ?mixqa=3 seeds a bare Studio holding three images (mixqa-0..2) and no other
 // cluster — the pile this feature exists for. The move itself is the one
@@ -84,34 +84,33 @@ const dropImages = (page, n) => page.evaluate(async (n) => {
 const secondIdea = (page) => page.locator('.toast', { hasText: 'New idea?' });
 
 test.describe('cluster nudges', () => {
-  test('held: without the opt-in nothing new appears', async ({ page }) => {
+  test('released: with no opt-in, every nudge is there', async ({ page }) => {
+    await page.addInitScript(() => {
+      try { window.localStorage.removeItem('soleil.dev.clusterNudges'); } catch (_) {}
+    });
     await studio(page);
-    // The rail's Cluster tool keeps its plain tip and its old icon.
+    // The rail's Cluster tool teaches: a hover card instead of the plain tip.
     const tool = page.locator('.cnv-tool[data-tour="cluster-tool"]');
-    await expect(tool).toHaveAttribute('data-tip', 'Add cluster');
-    await expect(tool.locator('.cnv-tool-card')).toHaveCount(0);
-    await expect(page.locator('.tb-newcluster')).toHaveCount(0);
+    await expect(tool).not.toHaveAttribute('data-tip', /.*/);
+    await tool.hover();
+    await expect(tool.locator('.cnv-tool-card')).toBeVisible();
+    await page.mouse.move(900, 600);
+    await expect(page.locator('.tb-newcluster')).toBeVisible();
     await card(page, 'mixqa-0').click({ button: 'right' });
     await expect(page.locator('.ctx-menu')).toBeVisible();
-    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'new cluster' })).toHaveCount(0);
+    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to a new cluster…' })).toBeVisible();
     await page.keyboard.press('Escape');
     await card(page, 'mixqa-0').click();
     await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
     await card(page, 'mixqa-1').click({ button: 'right' });
-    await expect(page.locator('.ctx-menu .ctx-item', { hasText: /^New cluster from/ })).toHaveCount(0);
-    // The empty Studio's panel keeps its old ending.
+    await expect(page.locator('.ctx-menu .ctx-item', { hasText: /^New cluster from 2 cards/ })).toBeVisible();
+    await page.keyboard.press('Escape');
+    // The empty Studio's panel ends with the line about clusters.
     await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
-    await expect(page.locator('.cnv-empty-clusters')).toHaveCount(0);
-    // And a pile gets no Studio bar, nor anything new pasted onto it a cluster.
-    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
-    await expect(card(page, 'mixqa-7')).toBeVisible();
-    await expect(page.locator('.cnv-studio-bar')).toHaveCount(0);
-    await pasteText(page, 'Scout the diner on 5th');
-    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
-    await page.waitForTimeout(1500);
-    await expect(secondIdea(page)).toHaveCount(0);
+    await expect(page.locator('.cnv-empty-clusters')).toBeVisible();
   });
+
 
   test('one card with nowhere to go: "Move to a new cluster…" makes the cluster it goes into', async ({ page }) => {
     await optIn(page);

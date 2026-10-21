@@ -5,13 +5,13 @@ h1: Trash and recovery
 navLabel: Trash and recovery
 section: clusters
 order: 3
-updated: 2026-10-20
+updated: 2026-10-21
 answer: Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 faq:
   - q: How long do I have to restore a deleted cluster?
     a: 30 days. After that it is purged permanently.
   - q: Does a cluster in the trash still use up my card limit?
-    a: No. Deleting a cluster releases its cards immediately, so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade.
+    a: No. Deleting a cluster releases the cards inside it immediately (the cluster itself never cost one), so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade.
   - q: Can I undo a collaborator's changes?
     a: Cmd-Z only undoes your own edits. To reverse someone else's work, use version history on that board or workspace recovery.
   - q: What is the alert banner about?
@@ -56,7 +56,7 @@ restore a cluster whose parent is still in the trash, it comes back under the
 nearest cluster that isn't, or at the top of your workspace.
 
 **A cluster in the trash does not count against your card limit.** Deleting one
-frees its cards the moment you delete it, so if you cleared a cluster to make
+frees the cards inside it the moment you delete it, so if you cleared a cluster to make
 room, the room is there immediately.
 
 That cuts both ways, and deliberately: a restore has to fit. If you used the

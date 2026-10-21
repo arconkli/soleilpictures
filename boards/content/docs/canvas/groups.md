@@ -5,7 +5,7 @@ h1: Groups
 navLabel: Groups
 section: canvas
 order: 6
-updated: 2026-08-08
+updated: 2026-10-21
 answer: Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on and tagged as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.
 faq:
   - q: Is a group the same as a nested cluster?
@@ -53,6 +53,7 @@ for colour-coding sections of a big board at a glance.
 | Group comment | A [comment](/docs/collaborate/comments) anchored to the whole group |
 | Group tag | A [tag](/docs/organize/tags) applied to the group as a unit |
 | Group info | What is inside it |
+| Turn into cluster… | Move the group's cards into a new [cluster](/docs/clusters#making-a-cluster-from-cards-you-already-have) named after it |
 
 ## Moving and selecting
 
@@ -73,7 +74,7 @@ group as a unit, rather than listing eight cards individually.
 
 ## When the canvas gets crowded
 
-Grouping is the main tool for keeping a large board readable. The app notices
-when a board's root canvas is getting crowded and will suggest it once — that
-prompt is the [power reveal](/docs/canvas) for groups, and it appears a single
-time, ever.
+Grouping is the main tool for keeping a large board readable. When a group has
+grown into a project of its own, **Turn into cluster…** moves it into a cluster
+of its own. And when Studio holds a pile of loose cards, it offers once to [move them
+into a cluster](/docs/clusters#making-a-cluster-from-cards-you-already-have).

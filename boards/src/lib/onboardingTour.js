@@ -159,8 +159,8 @@ export const MOBILE_TOUR_STEPS = [
     ackEvent: { type: 'mobile_done' },
     copy: {
       title: 'Group them into a cluster',
-      body: 'Tap + then Cluster to group these — drag photos in, name it.',
-      touch: 'Tap + then Cluster to group these — drag photos in, name it.',
+      body: 'Tap + then New cluster to group these — drag photos in, name it.',
+      touch: 'Tap + then New cluster to group these — drag photos in, name it.',
     },
     accepts: (e) => e?.type === 'cluster_created' || e?.type === 'mobile_done',
   },

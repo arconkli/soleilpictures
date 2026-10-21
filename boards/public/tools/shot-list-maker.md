@@ -62,7 +62,7 @@ Yes. Share a live link with your crew, or export boards and docs to PDF.
 
 ### Is it free to start?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### How do I make a shot list for a short film?
 

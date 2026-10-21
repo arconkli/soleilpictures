@@ -239,7 +239,6 @@ export const RENDERERS = {
   'toast-share-ask': (f) => f.toast({ ttl: 60000, message: 'This cluster is looking good — send it to someone?', action: { label: 'Copy link', onClick: NOOP } }),
   'toast-manage-access': (f) => f.toast({ ttl: 60000, message: 'Public link created.', action: { label: 'Manage access', onClick: NOOP } }),
   'toast-reveal-grids': reveal('grids'),
-  'toast-reveal-group': reveal('group'),
   'toast-reveal-list': reveal('list_drive'),
   'toast-reveal-docs': reveal('docs'),
   'toast-reveal-palette': reveal('palette'),

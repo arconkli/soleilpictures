@@ -12,7 +12,7 @@ No card, no clock, no expiry.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 ## Creator — $25/mo
@@ -38,7 +38,7 @@ One Creator plan covers the whole workspace — everyone you invite builds at yo
 
 ### What is actually limited on the free plan?
 
-Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on either plan. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on either plan. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
 
 ### Do the people I invite need to pay?
 

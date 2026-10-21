@@ -63,9 +63,9 @@ canvas a canvas rather than a list. Everything else about a card depends on
 what kind it is — see [Cards](/docs/canvas/cards).
 
 The free Demo plan allows **{{fact:demoCardLimit}} cards** in total across every
-cluster you create. There is no separate limit on clusters, but each one sits on
-its parent's canvas as a card and counts toward that total. Collaborators are
-unlimited.
+cluster you create. Clusters themselves are free: each one sits on its parent's
+canvas as a card, but that card does not count toward the total, and there is
+no limit on how many you make. Collaborators are unlimited.
 
 ## Two views of the same cluster
 
