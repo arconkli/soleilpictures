@@ -76,7 +76,7 @@ export function storageAddonErrorMessage(answer) {
     case 'schedule_attached':
     case 'discounted_subscription':
     case 'not_active':
-      return 'Extra storage can’t be added to this plan here. Write to hello@clusters.soleilpictures.com and we’ll sort it out.';
+      return 'Extra storage can’t be added to this plan here. Write to hello@soleilpictures.com and we’ll sort it out.';
     case 'not_configured':
       return 'Extra storage isn’t available yet.';
     case 'network':

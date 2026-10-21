@@ -69,10 +69,11 @@ async function logEmailSend(opts: {
 
 // Per-template From routing.
 //   • hello@clusters.soleilpictures.com  → onboarding-class (waitlist).
-//     Replies to this inbox are deliberately welcomed.
 //   • noreply@updates.soleilpictures.com → activity-class (invites, shares,
-//     mentions, comment replies). Replies aren't expected; reply_to still
-//     points at hello@ so any stray reply lands somewhere a human reads.
+//     mentions, comment replies). Replies aren't expected.
+// Everything but an alert replies to hello@soleilpictures.com, the inbox the
+// owner reads (owner, 2026-10-21): mail to hello@clusters lands in Resend's
+// inbound, which nothing reads (emailReplyTo.test.mjs).
 const FROM_HELLO   = "Clusters <hello@clusters.soleilpictures.com>";
 const FROM_NOREPLY = "Clusters <noreply@updates.soleilpictures.com>";
 // Lifecycle nudges send from the brand on the bulk subdomain. Note that the
@@ -83,7 +84,7 @@ const FROM_LIFECYCLE = "Clusters <hello@updates.soleilpictures.com>";
 // Security alerts to the owner (0369): never the bulk domain, whose reputation
 // is exactly what an abuse alert is likely to be about.
 const FROM_ALERTS    = "Clusters Alerts <alerts@clusters.soleilpictures.com>";
-const REPLY_TO       = "hello@clusters.soleilpictures.com";
+const REPLY_TO       = "hello@soleilpictures.com";
 
 function fromAddress(template: string): string {
   switch (template) {
