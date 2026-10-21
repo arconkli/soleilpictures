@@ -2133,6 +2133,10 @@ export const DOCS_PAGES = [
         "text": "Sharing a single file"
       },
       {
+        "id": "sharing-a-doc",
+        "text": "Sharing a doc"
+      },
+      {
         "id": "files-shared-with-you",
         "text": "Files shared with you"
       }
@@ -2158,6 +2162,10 @@ export const DOCS_PAGES = [
       {
         "q": "Can I share just one file?",
         "a": "Yes. Right-click a file and choose Share file…, or press Share in its full-screen view. The person you send it to sees only that file, with its player or viewer, and nothing else from the cluster."
+      },
+      {
+        "q": "Can I share one doc for someone else to edit?",
+        "a": "Yes. Press Share at the top of an open doc, or right-click it and choose Share doc…, then give them Can edit. They edit the doc itself, live, without seeing the rest of the cluster; editing needs them to sign in, and reading through a link does not."
       },
       {
         "q": "Does the person I share a file with need an account?",

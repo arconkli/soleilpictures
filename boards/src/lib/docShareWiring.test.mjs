@@ -10,9 +10,13 @@ import { isShareableDoc, docRoomsOf } from './fileShares.js';
 
 const src = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
-test('the hold: preview or dev, and only with the party’s live rooms', () => {
-  assert.match(src('./appHost.js'),
-    /export function docSharesAllowed\(\) \{\s+return \(import\.meta\.env\.DEV \|\| onPreviewHost\(\)\) && import\.meta\.env\.VITE_USE_PARTYKIT === 'true';\s+\}/);
+// Lifted for the sidebar release (2026-10-21), with docs/collaborate/sharing's
+// "Sharing a doc". It stays the one switch, and stays in featureFlags().
+test('the hold is open, and still listed', () => {
+  const host = src('./appHost.js');
+  assert.match(host, /export function docSharesAllowed\(\) \{\n(  \/\/[^\n]*\n)?  return true;\n\}/);
+  assert.match(host, /docShares: docSharesAllowed,/);
+  assert.match(src('../../content/docs/collaborate/sharing.md'), /^## Sharing a doc$/m, 'the docs that ship with it');
 });
 
 test('a doc card is shareable; a pending one or any other kind is not', () => {

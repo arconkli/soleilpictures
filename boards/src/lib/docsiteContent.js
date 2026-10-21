@@ -30746,7 +30746,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Images, video, audio, PDFs and other files can all be shared this way. You need to be able to edit the cluster the file is in."
+     "v": "Images, video, audio, PDFs and other files can all be shared this way. You need to be able to edit the cluster the file is in. A doc is shared to read or edit together instead: see "
+    },
+    {
+     "t": "link",
+     "v": "Sharing a doc",
+     "href": "#sharing-a-doc",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sharing a doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -31529,6 +31544,665 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Sharing a doc",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing a doc"
+    }
+   ],
+   "id": "sharing-a-doc"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "doc",
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can be shared on its own too, to read or to edit together, live. The person you send it to opens a page with just that doc — they never see the cluster it sits in — and what they type lands in the doc itself, which stays in its cluster. Nothing is copied or moved."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Share doc…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share doc…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is in three places, for anyone who can edit the cluster:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button at the top of an open doc, docked or full screen"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "right-click the doc on the canvas"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the doc's row menu in the "
+     },
+     {
+      "t": "link",
+      "v": "list view",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "list view"
+       }
+      ]
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Who can view, who can edit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can view, who can edit"
+    }
+   ],
+   "id": "who-can-view-who-can-edit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The dialog is the same as a file's, with "
+    },
+    {
+     "t": "strong",
+     "v": "Can view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in place of comment roles:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Part"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Add people by email",
+       "children": [
+        {
+         "t": "text",
+         "v": "Add people by email"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Each person gets an email with the link. They join as "
+      },
+      {
+       "t": "strong",
+       "v": "Can edit",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can edit"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " unless you pick "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "General access",
+       "children": [
+        {
+         "t": "text",
+         "v": "General access"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "strong",
+       "v": "Only people added",
+       "children": [
+        {
+         "t": "text",
+         "v": "Only people added"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "strong",
+       "v": "Anyone with the link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Anyone with the link"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ": "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "strong",
+       "v": "Can edit",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can edit"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", which still asks them to sign in before they can type"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Allow saving a copy",
+       "children": [
+        {
+         "t": "text",
+         "v": "Allow saving a copy"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Whether the people who can edit it also get "
+      },
+      {
+       "t": "strong",
+       "v": "Export",
+       "children": [
+        {
+         "t": "text",
+         "v": "Export"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in the doc's toolbar"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Whatever the dialog says, anyone who can edit the cluster can always open and manage the doc, and anyone who can only view the cluster can read it."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Can view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can view"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " reads the doc as it is written, live. A reader sees no comment threads and has no toolbar."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Can edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " types, formats, adds pages, comments, replies and resolves, all landing in the doc in its cluster as they happen."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Anyone with the link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Anyone with the link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens it with no account. On a link that can edit, someone signed out reads it with a "
+     },
+     {
+      "t": "strong",
+      "v": "Sign in to edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sign in to edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button, and lands back on the same doc once they have signed in with a code sent to their email."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Only people added",
+      "children": [
+       {
+        "t": "text",
+        "v": "Only people added"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " asks each person to sign in as the address you added."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What the other person sees",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the other person sees"
+    }
+   ],
+   "id": "what-the-other-person-sees-2"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The doc's name, "
+    },
+    {
+     "t": "strong",
+     "v": "Editing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Editing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "View only",
+     "children": [
+      {
+       "t": "text",
+       "v": "View only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the doc, with its pages and images. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked "
+    },
+    {
+     "t": "strong",
+     "v": "(guest)",
+     "children": [
+      {
+       "t": "text",
+       "v": "(guest)"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". If they are signed in, "
+    },
+    {
+     "t": "strong",
+     "v": "Open in Clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open in Clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top opens it inside the app."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Someone editing through a link is a guest in the doc, so a few things stay with the people in its cluster:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "They cannot add images or files, embed a cluster, or link to anything in the workspace. A paste keeps its text and formatting and drops the rest; a link that is not a web or email address is dropped."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "They can start a comment, reply to any comment, and resolve or reopen one. They can delete only a comment they started, and cannot rewrite one once it is posted."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Export",
+      "children": [
+       {
+        "t": "text",
+        "v": "Export"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " ("
+     },
+     {
+      "t": "link",
+      "v": "formats",
+      "href": "/docs/documents/export",
+      "children": [
+       {
+        "t": "text",
+        "v": "formats"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ") is there only when "
+     },
+     {
+      "t": "strong",
+      "v": "Allow saving a copy",
+      "children": [
+       {
+        "t": "text",
+        "v": "Allow saving a copy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is on. It cannot stop someone copying what they can read, or taking a screenshot."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Up to 50 people can have one doc open through its link at once. A single change larger than 1 MB is refused, and once a doc is larger than 25 MB the people outside its cluster can read it but not edit it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "When the doc changes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When the doc changes"
+    }
+   ],
+   "id": "when-the-doc-changes"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Moving the doc",
+      "children": [
+       {
+        "t": "text",
+        "v": "Moving the doc"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to another cluster in the same workspace keeps the link working. "
+     },
+     {
+      "t": "strong",
+      "v": "Deleting it",
+      "children": [
+       {
+        "t": "text",
+        "v": "Deleting it"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or moving it to another workspace, ends the link."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Restoring a version",
+      "children": [
+       {
+        "t": "text",
+        "v": "Restoring a version"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " of the cluster rolls the shared doc back too. Anyone reading or editing it through the link is moved onto the restored doc in a moment."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Removing someone",
+      "children": [
+       {
+        "t": "text",
+        "v": "Removing someone"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or changing what they can do, applies within seconds, including to a doc they already have open."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Like a file, sharing a doc is free on every plan, and its link is never indexed by search engines."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Files shared with you",
    "inline": [
     {
@@ -31543,7 +32217,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file someone shares with you opens inside Clusters, over whatever you were doing, with the same player or viewer as its page. You get there from:"
+     "v": "A file or doc someone shares with you opens inside Clusters, over whatever you were doing, with the same player, viewer or doc as its page. You get there from:"
     }
    ]
   },
@@ -31665,7 +32339,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " lists the files people added you to, and the files you opened from a link while signed in. Each row shows who shared it and when; a dot marks one you haven't opened yet. Click a row to open the file, or use its "
+     "v": " lists the files and docs people added you to, and the ones you opened from a link while signed in. Each row shows who shared it and when; a dot marks one you haven't opened yet. Click a row to open the file, or use its "
     },
     {
      "t": "strong",
@@ -31942,7 +32616,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " like an upload. It is offered only when the person who shared it allows downloading."
+     "v": " like an upload. It is offered only when the person who shared it allows downloading, and only for files: a doc shared with you has no "
+    },
+    {
+     "t": "strong",
+     "v": "Save a copy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save a copy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -32001,7 +32689,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on the Shared page, puts a card on one of your clusters that opens the shared file instead of copying it. It stays in sync with theirs — a new version they upload shows on it — and it uses no storage, though it counts as a card. Double-click it, or choose "
+     "v": " on the Shared page, puts a card on one of your clusters that opens the shared file or doc instead of copying it. It stays in sync with theirs — a new version they upload shows on it — and it uses no storage, though it counts as a card. Double-click it, or choose "
     },
     {
      "t": "strong",

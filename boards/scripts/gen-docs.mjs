@@ -80,6 +80,9 @@ import {
 import {
   FILE_COMMENT_MAX_CHARS, FILE_COMMENT_BURST, FILE_COMMENT_BURST_MINUTES, FILE_SHARE_PEOPLE_PER_CALL,
 } from '../src/lib/fileShares.js';
+import {
+  DOC_ROOM_MAX_CONNECTIONS, DOC_ROOM_GUEST_DOC_MAX_BYTES, DOC_ROOM_FRAME_MAX_BYTES,
+} from '../src/lib/docRoomLimits.js';
 import { latestDefinition } from '../src/lib/migrationText.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -398,6 +401,13 @@ export const FACTS = {
   fileSharePeoplePerCall: String(FILE_SHARE_PEOPLE_PER_CALL),
   fileCommentEmailMinutes: fileCommentEmailMinutes[1],
   fileShareRiskyNewAccountHours: fileShareRiskyNewAccountHours[1],
+  // Sharing one doc (lib/docRoomLimits.js, which party/doc.ts enforces): how
+  // many people one doc's room holds at once, the size past which people
+  // outside the cluster can only read it, and the largest single change one
+  // of them can send.
+  docRoomMaxPeople: String(DOC_ROOM_MAX_CONNECTIONS),
+  docRoomGuestDocMaxMB: String(DOC_ROOM_GUEST_DOC_MAX_BYTES / (1024 * 1024)),
+  docRoomFrameMaxMB: String(DOC_ROOM_FRAME_MAX_BYTES / (1024 * 1024)),
   // What a referral pays the inviter and how often (0377, 0416), what the
   // friend gets on joining (0163, 0371), the storage each side gets (0416),
   // and the edit-link window for counting as a referral (claim_collab_link).

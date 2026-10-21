@@ -223,10 +223,11 @@ export function sharedFilesAllowed() {
 // One doc shared on its own, to read or edit together (owner, 2026-10-18):
 // the doc's Share button and menu rows, the dialog's view / edit roles, and
 // the shared doc on /f/ and inside the app. It runs on the party's live rooms
-// (party/doc.ts), so it needs VITE_USE_PARTYKIT too. Held to DEV || preview,
-// the allowlist shape above, until the release that ships its docs.
+// (party/doc.ts). It was held to DEV || preview with VITE_USE_PARTYKIT, and
+// was lifted with the docs that describe it (docs/collaborate/sharing#sharing-a-doc).
 export function docSharesAllowed() {
-  return (import.meta.env.DEV || onPreviewHost()) && import.meta.env.VITE_USE_PARTYKIT === 'true';
+  // Lifted 2026-10-21 for the sidebar release; realtime comes from VITE_USE_PARTYKIT, which the promote build gets from .env.local.
+  return true;
 }
 
 // ---------------------------------------------------------------------------

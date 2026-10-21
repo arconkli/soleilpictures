@@ -207,7 +207,8 @@ opens a page with just that file, and never sees the cluster it sits in.
   viewer, the PDF viewer
 
 Images, video, audio, PDFs and other files can all be shared this way. You need
-to be able to edit the cluster the file is in.
+to be able to edit the cluster the file is in. A doc is shared to read or edit
+together instead: see [Sharing a doc](#sharing-a-doc).
 
 ### The dialog
 
@@ -291,10 +292,83 @@ makes no copy.
 To send a copy instead of a live page, see
 [Exporting a board](/docs/canvas/export).
 
+## Sharing a doc
+
+A [doc](/docs/documents) can be shared on its own too, to read or to edit
+together, live. The person you send it to opens a page with just that doc —
+they never see the cluster it sits in — and what they type lands in the doc
+itself, which stays in its cluster. Nothing is copied or moved.
+
+**Share doc…** is in three places, for anyone who can edit the cluster:
+
+- the **Share** button at the top of an open doc, docked or full screen
+- right-click the doc on the canvas
+- the doc's row menu in the [list view](/docs/clusters/list-view)
+
+### Who can view, who can edit
+
+The dialog is the same as a file's, with **Can view** and **Can edit** in place
+of comment roles:
+
+| Part | What it does |
+|---|---|
+| **Add people by email** | Each person gets an email with the link. They join as **Can edit** unless you pick **Can view** |
+| **General access** | **Only people added**, or **Anyone with the link**: **Can view**, or **Can edit**, which still asks them to sign in before they can type |
+| **Allow saving a copy** | Whether the people who can edit it also get **Export** in the doc's toolbar |
+
+Whatever the dialog says, anyone who can edit the cluster can always open and
+manage the doc, and anyone who can only view the cluster can read it.
+
+- **Can view** reads the doc as it is written, live. A reader sees no comment
+  threads and has no toolbar.
+- **Can edit** types, formats, adds pages, comments, replies and resolves,
+  all landing in the doc in its cluster as they happen.
+- **Anyone with the link** opens it with no account. On a link that can edit,
+  someone signed out reads it with a **Sign in to edit** button, and lands back
+  on the same doc once they have signed in with a code sent to their email.
+- **Only people added** asks each person to sign in as the address you added.
+
+### What the other person sees
+
+The doc's name, **Editing** or **View only**, and the doc, with its pages and
+images. Everyone in it sees everyone else's cursor: people from the cluster
+see the others' names marked **(guest)**. If they are signed in, **Open in
+Clusters** at the top opens it inside the app.
+
+Someone editing through a link is a guest in the doc, so a few things stay
+with the people in its cluster:
+
+- They cannot add images or files, embed a cluster, or link to anything in the
+  workspace. A paste keeps its text and formatting and drops the rest; a link
+  that is not a web or email address is dropped.
+- They can start a comment, reply to any comment, and resolve or reopen one.
+  They can delete only a comment they started, and cannot rewrite one once
+  it is posted.
+- **Export** ([formats](/docs/documents/export)) is there only when **Allow
+  saving a copy** is on. It cannot stop someone copying what they can read,
+  or taking a screenshot.
+- Up to 50 people can have one doc open through its
+  link at once. A single change larger than 1 MB is
+  refused, and once a doc is larger than 25 MB the
+  people outside its cluster can read it but not edit it.
+
+### When the doc changes
+
+- **Moving the doc** to another cluster in the same workspace keeps the link
+  working. **Deleting it**, or moving it to another workspace, ends the link.
+- **Restoring a version** of the cluster rolls the shared doc back too. Anyone
+  reading or editing it through the link is moved onto the restored doc in a
+  moment.
+- **Removing someone**, or changing what they can do, applies within seconds,
+  including to a doc they already have open.
+
+Like a file, sharing a doc is free on every plan, and its link is never indexed
+by search engines.
+
 ## Files shared with you
 
-A file someone shares with you opens inside Clusters, over whatever you were
-doing, with the same player or viewer as its page. You get there from:
+A file or doc someone shares with you opens inside Clusters, over whatever you
+were doing, with the same player, viewer or doc as its page. You get there from:
 
 - **Open** on the toast that tells you a file was shared with you, while you
   are in the app
@@ -308,8 +382,8 @@ doing, with the same player or viewer as its page. You get there from:
 
 **Shared files** opens the Shared page, with two tabs.
 
-**With me** lists the files people added you to, and the files you opened from
-a link while signed in. Each row shows who shared it and when; a dot marks one
+**With me** lists the files and docs people added you to, and the ones you
+opened from a link while signed in. Each row shows who shared it and when; a dot marks one
 you haven't opened yet. Click a row to open the file, or use its **⋯** menu:
 
 | Option | What it does |
@@ -334,13 +408,14 @@ file there. The copy is yours: it lands in that cluster's
 [Files](/docs/clusters/list-view), stays even if the person stops sharing, and
 counts toward that cluster's cards and [storage](/docs/files#storage) like an
 upload. It
-is offered only when the person who shared it allows downloading.
+is offered only when the person who shared it allows downloading, and only
+for files: a doc shared with you has no **Save a copy**.
 
 ### Shortcuts
 
 **Add to cluster** → **Add shortcut**, or **Add shortcut…** on the Shared page,
-puts a card on one of your clusters that opens the shared file instead of
-copying it. It stays in sync with theirs — a new version they upload shows on
+puts a card on one of your clusters that opens the shared file or doc instead
+of copying it. It stays in sync with theirs — a new version they upload shows on
 it — and it uses no storage, though it counts as a card. Double-click it, or
 choose **Open** from its menu, to open the file in the app.
 
