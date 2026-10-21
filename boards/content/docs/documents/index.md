@@ -116,7 +116,8 @@ The toolbar carries the usual: headings, bold, italic, underline, highlight,
 lists, task lists, alignment, colour, font and size. Every one has a
 [keyboard shortcut](/docs/keyboard-shortcuts#document).
 
-`⌘F` opens **find and replace**.
+`⌘F` opens **find and replace**. **All** replaces every match on the page and
+says how many; the toast's **Undo** puts them all back, and so does one `⌘Z`.
 
 **Right-click** a selection for cut, copy, paste, formatting, links and
 comments. Right-click a word with nothing selected — or `⇧`-right-click

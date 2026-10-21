@@ -25704,6 +25704,42 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "strong",
+     "v": "All",
+     "children": [
+      {
+       "t": "text",
+       "v": "All"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " replaces every match on the page and says how many; the toast's "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts them all back, and so does one "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
      "v": "."
     }
    ]

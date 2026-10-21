@@ -10,7 +10,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { yUndoPluginKey } from 'y-prosemirror';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { undoToast } from '../lib/undoToast.js';
+import { useFeedback } from './AppFeedback.jsx';
 
 const findKey = new PluginKey('soleilDocFind');
 
@@ -106,8 +109,13 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
   const [showReplace, setShowReplace] = useState(false);
   const [total, setTotal] = useState(0);
   const [current, setCurrent] = useState(0);
+  // What the last Replace All did ({ n, deleted }), said in the count until the
+  // search changes; `rescan` looks again once its toast has undone it.
+  const [replaced, setReplaced] = useState(null);
+  const [rescan, setRescan] = useState(0);
   const inputRef = useRef(null);
   const replaceInputRef = useRef(null);
+  const feedback = useFeedback();
 
   // Search/replace span EVERY mounted sheet of the active page (a prose doc
   // auto-paginates past one page, and find used to see only the focused sheet).
@@ -171,7 +179,8 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
     pushHighlights(all, all.length ? 0 : -1);
     if (all.length) scrollTo(all[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, q, edsKey]);
+  }, [open, q, edsKey, rescan]);
+  useEffect(() => { setReplaced(null); }, [q, r]);
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 0);
@@ -183,6 +192,7 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
     const all = computeAll();
     if (!all.length) { setTotal(0); return; }
     const next = ((idx % all.length) + all.length) % all.length;
+    setReplaced(null);
     setCurrent(next);
     setTotal(all.length);
     pushHighlights(all, next);
@@ -192,6 +202,7 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
   const replaceOne = () => {
     const all = computeAll();
     if (!all.length) return;
+    setReplaced(null);
     const idx = Math.min(current, all.length - 1);
     const m = all[idx];
     const ed = eds[m.ei];
@@ -218,10 +229,18 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
       if (cur >= 0 && a2[cur]) scrollTo(a2[cur]);
     }, 0);
   };
+  // Says what it did, in the count and in a toast whose Undo takes back every
+  // replacement at once, but only while each is still its page's newest step
+  // in ⌘Z: after any edit since, it would take back that edit instead.
   const replaceAll = () => {
+    let n = 0;
+    const steps = [];
     eds.forEach((ed) => {
       const ranges = findMatches(ed.state.doc, q);
       if (!ranges.length) return;
+      // Its own step in ⌘Z, apart from any typing just before or after it.
+      const um = yUndoPluginKey.getState(ed.state)?.undoManager;
+      um?.stopCapturing();
       // End→start so earlier positions don't shift; preserve each match's marks.
       ed.chain().focus().command(({ tr, state }) => {
         [...ranges].reverse().forEach(([from, to]) => {
@@ -231,8 +250,26 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
         });
         return true;
       }).run();
+      um?.stopCapturing();
+      n += ranges.length;
+      if (um) steps.push({ um, item: um.undoStack[um.undoStack.length - 1] });
     });
     setTimeout(() => { clearAll(); setTotal(0); setCurrent(0); }, 0);
+    if (!n) return;
+    const deleted = !r;
+    setReplaced({ n, deleted });
+    undoToast(feedback, {
+      message: `${deleted ? 'Deleted' : 'Replaced'} ${n} ${n === 1 ? 'match' : 'matches'}`,
+      onUndo: () => {
+        if (steps.some(({ um, item }) => um.undoStack[um.undoStack.length - 1] !== item)) {
+          feedback.toast({ type: 'info', message: 'The document changed since — press ⌘Z to step back instead.' });
+          return;
+        }
+        steps.forEach(({ um }) => um.undo());
+        setReplaced(null);
+        setRescan((k) => k + 1);
+      },
+    });
   };
 
   const onKey = (e) => {
@@ -266,7 +303,8 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
              value={q}
              onChange={(e) => setQ(e.target.value)} />
       <span className="doc-find-count" aria-live="polite">
-        {total === 0 ? (q ? '0/0' : '') : `${current + 1}/${total}`}
+        {replaced ? `${replaced.n} ${replaced.deleted ? 'deleted' : 'replaced'}`
+          : total === 0 ? (q ? '0/0' : '') : `${current + 1}/${total}`}
       </span>
       <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title="Previous (⇧⏎)" aria-label="Previous match">↑</button>
       <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title="Next (⏎)" aria-label="Next match">↓</button>
