@@ -50,6 +50,36 @@ let openOverlayCount = 0;
 // doc is open at a time; opening the next hands it the layout.
 const OPEN_EVENT = 'soleil-doccard-open';
 
+const NO_SUMMARY = { pages: [], firstText: '', firstPageName: '' };
+
+// The closed card's preview: the first page's name and opening text, and the
+// page count. It keeps itself fresh, observing this card's own doc store
+// (rAF-coalesced, so a burst of edits refreshes it once) — this used to be
+// state on the card, so every keystroke in the open doc re-rendered the card
+// and, with it, the whole open doc in its overlay. `children` draws it.
+function DocCardSummary({ ydoc, cardYMap, scope, children }) {
+  const [, setRev] = useState(0);
+  useEffect(() => {
+    if (!ydoc || !cardYMap) return;
+    const sc = cardScope(cardYMap);
+    const targets = [sc.content, sc.pages, sc.sheetContent].filter(Boolean);
+    if (!targets.length) return;
+    let raf = 0;
+    const bump = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; setRev((n) => n + 1); });
+    };
+    targets.forEach((t) => t.observeDeep(bump));
+    return () => {
+      targets.forEach((t) => t.unobserveDeep(bump));
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ydoc, cardYMap]);
+  // A generous slice of the first page, so the preview fills the card with
+  // prose (600 chars ≈ a paragraph-and-a-half at the preview's size).
+  return children((ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : NO_SUMMARY);
+}
+
 export function RichDocCard({
   card, ydoc, cardYMap,
   workspaceId, userId, currentUser, getAwareness, boards = {},
@@ -112,7 +142,6 @@ export function RichDocCard({
   // card on the canvas first. The full editor opens on double-click,
   // explicit Open buttons, or peer-jump events.
   const [mode, setMode] = useState('closed'); // 'closed' | 'full' | 'side'
-  const [previewKey, setPreviewKey] = useState(0);
   // Click-to-jump landing target: when App.jumpToPeer dispatches a
   // soleil-open-doc-card event, we self-open and stash the peer's
   // pageId+scrollTop here so DocSurface inside the overlay can consume
@@ -125,33 +154,6 @@ export function RichDocCard({
   useEffect(() => {
     try { localStorage.setItem(RATIO_KEY, String(sideRatio)); } catch (_) {}
   }, [sideRatio]);
-
-  // Pull a generous slice of the first page so the preview fills the blank
-  // area with actual prose (rather than 1-2 lines + empty space). 600 chars
-  // ≈ a paragraph-and-a-half of body copy at the preview's font size.
-  const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : { pages: [], firstText: '', firstPageName: '' };
-  const pageCount = summary.pages.length;
-
-  // Keep the closed-card preview fresh on content edits. This used to ride on
-  // readCards re-hashing the whole doc every board keystroke (a perf cliff now
-  // removed in yhelpers.cardHash) — observe THIS card's own doc store instead,
-  // rAF-coalesced so a burst of edits triggers one refresh.
-  useEffect(() => {
-    if (!ydoc || !cardYMap) return;
-    const sc = cardScope(cardYMap);
-    const targets = [sc.content, sc.pages, sc.sheetContent].filter(Boolean);
-    if (!targets.length) return;
-    let raf = 0;
-    const bump = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => { raf = 0; setPreviewKey((n) => n + 1); });
-    };
-    targets.forEach((t) => t.observeDeep(bump));
-    return () => {
-      targets.forEach((t) => t.unobserveDeep(bump));
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [ydoc, cardYMap]);
 
   // Public viewers can open docs too — read-only, and always FULLSCREEN
   // (side mode's dock layout assumes the workspace topbar, and the dock
@@ -216,7 +218,6 @@ export function RichDocCard({
     // immediately leaving the tab can't drop the tail of an edit.
     try { document.dispatchEvent(new CustomEvent('soleil-doccard-unmount', { detail: { cardId: card.id } })); } catch (_) {}
     setMode('closed');
-    setPreviewKey((n) => n + 1);
   };
 
   // Listen for jump-to-this-doc-card events. App.jumpToPeer fires these
@@ -354,41 +355,45 @@ export function RichDocCard({
             }}
           />
         )}
-        <div className="doc-card-page" key={previewKey}>
-          {summary.firstPageName && summary.firstPageName !== card.title && (
-            <div className="doc-card-h1">{summary.firstPageName}</div>
-          )}
-          <div className="doc-card-rule" />
-          {summary.firstText && (
-            <div className="doc-card-text">{summary.firstText}</div>
-          )}
-        </div>
-        <div className="doc-card-foot">
-          <span className="doc-card-tag">DOC</span>
-          <span className="doc-card-meta">
-            {pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'}` : 'no pages'}
-          </span>
-          {/* Gold marks the active state (house rule) — while this doc holds
-              the side pane, its own button says so. */}
-          <button className={`doc-card-open${isDocked ? ' is-active' : ''}`}
-                  title={isDocked ? 'Docked beside the canvas' : 'Open beside (dock to right)'}
-                  aria-label="Open beside"
-                  aria-pressed={isDocked || undefined}
-                  onClick={(e) => { e.stopPropagation(); open('side'); }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
-              <path d="M8 2 V12" stroke="currentColor" strokeWidth="1.2"/>
-              <rect x="8.5" y="2.5" width="3.5" height="9" fill="currentColor" opacity=".18"/>
-            </svg>
-          </button>
-          <button className="doc-card-open" title="Open fullscreen"
-                  aria-label="Open fullscreen"
-                  onClick={(e) => { e.stopPropagation(); open('full'); }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
-            </svg>
-          </button>
-        </div>
+        <DocCardSummary ydoc={ydoc} cardYMap={cardYMap} scope={scope}>
+          {(summary) => (<>
+            <div className="doc-card-page">
+              {summary.firstPageName && summary.firstPageName !== card.title && (
+                <div className="doc-card-h1">{summary.firstPageName}</div>
+              )}
+              <div className="doc-card-rule" />
+              {summary.firstText && (
+                <div className="doc-card-text">{summary.firstText}</div>
+              )}
+            </div>
+            <div className="doc-card-foot">
+              <span className="doc-card-tag">DOC</span>
+              <span className="doc-card-meta">
+                {summary.pages.length > 0 ? `${summary.pages.length} ${summary.pages.length === 1 ? 'page' : 'pages'}` : 'no pages'}
+              </span>
+              {/* Gold marks the active state (house rule) — while this doc holds
+                  the side pane, its own button says so. */}
+              <button className={`doc-card-open${isDocked ? ' is-active' : ''}`}
+                      title={isDocked ? 'Docked beside the canvas' : 'Open beside (dock to right)'}
+                      aria-label="Open beside"
+                      aria-pressed={isDocked || undefined}
+                      onClick={(e) => { e.stopPropagation(); open('side'); }}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M8 2 V12" stroke="currentColor" strokeWidth="1.2"/>
+                  <rect x="8.5" y="2.5" width="3.5" height="9" fill="currentColor" opacity=".18"/>
+                </svg>
+              </button>
+              <button className="doc-card-open" title="Open fullscreen"
+                      aria-label="Open fullscreen"
+                      onClick={(e) => { e.stopPropagation(); open('full'); }}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
+                </svg>
+              </button>
+            </div>
+          </>)}
+        </DocCardSummary>
       </div>
 
       {mode !== 'closed' && createPortal(

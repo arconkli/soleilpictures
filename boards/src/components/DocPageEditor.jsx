@@ -8,7 +8,7 @@
 
 import { scrubPastedHtml } from '../lib/pasteScrub.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -34,6 +34,7 @@ import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
+import { rangeBoxes } from '../lib/paragraphHash.js';
 import { DocCandidateGutter } from './DocCandidateGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin, AUTO_DETECT_KEY } from './docExtensions/AutoDetectPlugin.js';
@@ -337,31 +338,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     if (doc && key.doc === doc && key.ranges === ranges) return appliedRangeBoxesRef.current;
     appliedBoxesKeyRef.current = { doc: doc || null, ranges };
     if (!doc || ranges.length === 0) { appliedRangeBoxesRef.current = []; return appliedRangeBoxesRef.current; }
-    // Walk the doc, hash each paragraph, look up matching ranges.
-    const byHash = new Map();
-    doc.descendants((node, pos) => {
-      if (node.type?.name !== 'paragraph') return true;
-      const text = (node.textContent || '').trim();
-      if (text.length < 20) return false;
-      // Re-import contentHash here would be heavy; use the same FNV-1a
-      // by reusing what the plugin already does. Cheap to compute.
-      let h = 2166136261;
-      for (let i = 0; i < text.length; i++) {
-        h ^= text.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      const hash = (h >>> 0).toString(16);
-      if (!byHash.has(hash)) byHash.set(hash, pos + 1);
-      return false;
-    });
-    const boxes = [];
-    for (const r of ranges) {
-      const paraFrom = byHash.get(r.pHash);
-      if (paraFrom == null) continue;
-      boxes.push({ from: paraFrom + r.startOffset, to: paraFrom + r.startOffset + r.length });
-    }
-    appliedRangeBoxesRef.current = boxes;
-    return boxes;
+    // Found by the paragraph's hash as its ranges stored it (this hashed
+    // without contentHash's zero padding, so a paragraph in sixteen lost
+    // its box and drew both underlines).
+    appliedRangeBoxesRef.current = rangeBoxes(doc, ranges);
+    return appliedRangeBoxesRef.current;
   };
 
   // Per-doc ignore set: terms the user has marked "don't auto-link
@@ -705,6 +686,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
 
   const editor = useEditor({
+    // Not a re-render of this whole editor (its gutters, menus, popovers) on
+    // every keystroke and caret move — TipTap's legacy default. What shows
+    // the editor's state reads it for itself: the toolbar and the bubble
+    // (useEditorState), the gutters (their own listeners).
+    shouldRerenderOnTransaction: false,
     extensions: [
       ...baseDocExtensions,
       // ⌘K → link picker (URL or entity picker).
@@ -1332,26 +1318,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
       {!isPublic && editable && bubble && (
-        <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
-             style={{ position: 'fixed', top: Math.max(8, bubble.top - 46),
-                      left: Math.max(8, Math.min(bubble.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
-                      zIndex: 2147483647 }}>
-          <button className={editor.isActive('bold') ? 'is-active' : ''} aria-label="Bold"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
-          <button className={editor.isActive('italic') ? 'is-active' : ''} aria-label="Italic"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
-          <button className={editor.isActive('underline') ? 'is-active' : ''} aria-label="Underline"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
-          <button className={editor.isActive('highlight') ? 'is-active' : ''} aria-label="Highlight"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
-          <button aria-label="Link"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => openLinkPicker(editor)}><LinkIcon /></button>
-        </div>
+        <DocSelectionBubble editor={editor} at={bubble} onLink={() => openLinkPicker(editor)} />
       )}
       <DocTagGutter
         editor={editor}
@@ -1552,7 +1519,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         ydoc={ydoc}
         scope={scope}
         pageId={activePageId}
-        editor={editorRef.current}
+        editor={editor}
         onOpenThread={(id) => {
           const dot = document.querySelector(`.comment-gutter-dot[data-thread="${id}"]`);
           setOpenThread({ id, anchor: dot?.getBoundingClientRect() });
@@ -1570,6 +1537,44 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           onClose={() => setOpenThread(null)}
         />
       )}
+    </div>
+  );
+}
+
+// The touch selection bubble. It lights from the editor's state, which it
+// reads for itself (useEditorState): the editor above it no longer re-renders
+// on every transaction, and bolding a selection changes no selection to
+// re-render on.
+function DocSelectionBubble({ editor, at, onLink }) {
+  const lit = useEditorState({
+    editor,
+    selector: () => ({
+      bold: editor.isActive('bold'),
+      italic: editor.isActive('italic'),
+      underline: editor.isActive('underline'),
+      highlight: editor.isActive('highlight'),
+    }),
+  });
+  return (
+    <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
+         style={{ position: 'fixed', top: Math.max(8, at.top - 46),
+                  left: Math.max(8, Math.min(at.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
+                  zIndex: 2147483647 }}>
+      <button className={lit.bold ? 'is-active' : ''} aria-label="Bold"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
+      <button className={lit.italic ? 'is-active' : ''} aria-label="Italic"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
+      <button className={lit.underline ? 'is-active' : ''} aria-label="Underline"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
+      <button className={lit.highlight ? 'is-active' : ''} aria-label="Highlight"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
+      <button aria-label="Link"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={onLink}><LinkIcon /></button>
     </div>
   );
 }

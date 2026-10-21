@@ -2,8 +2,9 @@
 // editor instance the parent passes in; gracefully renders disabled buttons
 // when no editor is mounted (e.g. between page switches).
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useEditorState } from '@tiptap/react';
 import { DocExportMenu } from './DocExportMenu.jsx';
 import { DocInsertMenu } from './DocInsertMenu.jsx';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
@@ -55,18 +56,12 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
                                canEdit = true,
                                // false → no Export (a doc shared without "Allow exporting").
                                canExport = true }) {
-  // Subscribe to editor updates so the active-state of buttons stays accurate.
-  const [, force] = useState(0);
-  useEffect(() => {
-    if (!editor) return;
-    const tick = () => force(n => n + 1);
-    editor.on('selectionUpdate', tick);
-    editor.on('transaction', tick);
-    return () => {
-      editor.off('selectionUpdate', tick);
-      editor.off('transaction', tick);
-    };
-  }, [editor]);
+  // What the bar lights, read on every transaction but re-rendered only when
+  // it changes (useEditorState compares it key by key): this re-rendered the
+  // whole bar on every keystroke and caret move. The editor comes from the
+  // closure, not the snapshot, so a bar handed another sheet's editor reads
+  // that one straight away.
+  const lit = useEditorState({ editor, selector: () => readBar(editor) });
 
   // Wherever the bar still scrolls sideways (touch, and the narrow docked
   // panes — a full-size overlay on a mouse wraps instead, see .doc-tb in
@@ -118,18 +113,10 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
   const disabled = !editor;
   const customFonts = useCustomFonts();
   const recentFonts = useRecentFonts();
-  const allFonts = combineAllFonts(FONTS, customFonts);
+  // The Google catalogue, merged and sorted: built when the custom fonts
+  // change, not on every render (it was most of what a keystroke cost here).
+  const allFonts = useMemo(() => combineAllFonts(FONTS, customFonts), [customFonts]);
   const [fontsModalOpen, setFontsModalOpen] = useState(false);
-  const isActive = (name, attrs) => editor?.isActive(name, attrs) || false;
-
-  const headingValue = (() => {
-    for (let l = 1; l <= 6; l++) if (isActive('heading', { level: l })) return 'h' + l;
-    // Don't claim "Body" when the caret is in a block this control can't
-    // represent (code/quote/lists) — show a neutral placeholder instead.
-    if (isActive('codeBlock') || isActive('blockquote')
-        || isActive('bulletList') || isActive('orderedList') || isActive('taskList')) return '';
-    return 'p';
-  })();
   const setHeading = (val) => {
     if (!editor) return;
     // setParagraph / toggleHeading route through clearNodes → can throw on a
@@ -176,16 +163,11 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
     previewBaseRef.current = null;
     setFont(entry.css, entry.gfName || null, entry.label || entry.name);
   };
-  const currentFontCss = editor?.getAttributes('textStyle')?.fontFamily || '';
   const currentFontLabel = (() => {
     const all = [...recentFonts, ...allFonts];
-    const hit = all.find(f => f.css === currentFontCss);
+    const hit = all.find(f => f.css === lit.fontFamily);
     return hit?.label || hit?.name || 'Font';
   })();
-  // Screenplay element <select> (replaces the block-style picker in script mode).
-  const screenplayElement = editor?.isActive('screenplayBlock')
-    ? (editor.getAttributes('screenplayBlock')?.element || 'action')
-    : '';
   // setScreenplayElement routes through commands.setNode → clearNodes when the
   // block type can't be set directly, which is the same RangeError path the
   // list/heading toggles below are guarded against. This <select> is the last
@@ -226,13 +208,13 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
         </button>
       )}
       {docMode === 'screenplay' ? (
-        <select className="doc-tb-select doc-tb-select--sp" value={screenplayElement || 'action'} disabled={disabled || !editor?.isActive('screenplayBlock')}
+        <select className="doc-tb-select doc-tb-select--sp" value={lit.spElement || 'action'} disabled={disabled || !lit.spElement}
                 onChange={(e) => setScreenplayElement(e.target.value)}
                 title="Screenplay element" aria-label="Screenplay element">
           {SP_ELEMENTS.map(el => <option key={el} value={el}>{SP_LABELS[el] || el}</option>)}
         </select>
       ) : (
-        <select className="doc-tb-select" value={headingValue} disabled={disabled}
+        <select className="doc-tb-select" value={lit.heading} disabled={disabled}
                 onChange={(e) => setHeading(e.target.value)}
                 title="Paragraph style" aria-label="Paragraph style">
           <option value="" disabled hidden>—</option>
@@ -276,8 +258,8 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
       {isScreenplay && (
         <Btn title="Dual dialogue — pair this speech with the one above"
-             active={isActive('screenplayBlock') && !!editor?.getAttributes('screenplayBlock')?.dual}
-             disabled={disabled || !editor?.isActive('screenplayBlock')}
+             active={lit.dual}
+             disabled={disabled || !lit.spElement}
              onClick={() => editor.chain().focus().toggleDualDialogue().run()}>
           <Glyph as={Columns2} size={14} />
         </Btn>
@@ -296,11 +278,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
         />
 
         <SizeInput
-          value={(() => {
-            const fs = editor?.getAttributes('textStyle')?.fontSize;
-            const px = fs ? parseInt(fs, 10) : NaN;
-            return Number.isFinite(px) ? px : null;
-          })()}
+          value={lit.fontSize}
           presets={SIZES}
           className="doc-tb-size-combo"
           disabled={disabled}
@@ -309,17 +287,17 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
         <span className="doc-tb-sep" aria-hidden="true" />
 
-        <Btn title="Bold (⌘B)" active={isActive('bold')} disabled={disabled}
+        <Btn title="Bold (⌘B)" active={lit.bold} disabled={disabled}
              onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></Btn>
-        <Btn title="Italic (⌘I)" active={isActive('italic')} disabled={disabled}
+        <Btn title="Italic (⌘I)" active={lit.italic} disabled={disabled}
              onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></Btn>
-        <Btn title="Underline (⌘U)" active={isActive('underline')} disabled={disabled}
+        <Btn title="Underline (⌘U)" active={lit.underline} disabled={disabled}
              onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></Btn>
-        <Btn title="Strike" active={isActive('strike')} disabled={disabled}
+        <Btn title="Strike" active={lit.strike} disabled={disabled}
              onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></Btn>
-        <Btn title="Inline code" active={isActive('code')} disabled={disabled}
+        <Btn title="Inline code" active={lit.code} disabled={disabled}
              onClick={() => editor.chain().focus().toggleCode().run()}><code style={{ fontSize: 11 }}>{'<>'}</code></Btn>
-        <Btn title="Highlight (⌘⇧H)" active={isActive('highlight')} disabled={disabled}
+        <Btn title="Highlight (⌘⇧H)" active={lit.highlight} disabled={disabled}
              onClick={() => editor.chain().focus().toggleHighlight().run()}><mark style={{ background: '#fff09a', color: '#222', padding: '0 3px', borderRadius: 2, fontSize: 11 }}>H</mark></Btn>
         <Btn title="Clear formatting (⌘\)" disabled={disabled}
              onClick={() => editor.chain().focus().clearFormatting().run()}><span className="tb-clear-fmt">T<sub>x</sub></span></Btn>
@@ -331,34 +309,34 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
         <span className="doc-tb-sep" aria-hidden="true" />
 
-        <Btn title="Bulleted list (⌘⇧8)" active={isActive('bulletList')} disabled={disabled}
+        <Btn title="Bulleted list (⌘⇧8)" active={lit.bulletList} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleBulletList(), 'doc-list:ul')}><Glyph as={List} size={14} /></Btn>
-        <Btn title="Numbered list (⌘⇧7)" active={isActive('orderedList')} disabled={disabled}
+        <Btn title="Numbered list (⌘⇧7)" active={lit.orderedList} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleOrderedList(), 'doc-list:ol')}><Glyph as={ListOrdered} size={14} /></Btn>
-        <Btn title="Task list (⌘⇧9)" active={isActive('taskList')} disabled={disabled}
+        <Btn title="Task list (⌘⇧9)" active={lit.taskList} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleTaskList(), 'doc-list:task')}><Glyph as={ListChecks} size={14} /></Btn>
-        <Btn title="Quote" active={isActive('blockquote')} disabled={disabled}
+        <Btn title="Quote" active={lit.blockquote} disabled={disabled}
              onClick={() => safeRun(editor.chain().focus().toggleBlockquote(), 'doc-blockquote')}><Glyph as={Quote} size={14} /></Btn>
 
         <span className="doc-tb-sep" aria-hidden="true" />
 
-        <Btn title="Align left" active={isActive({ textAlign: 'left' }) || (!isActive({ textAlign: 'center' }) && !isActive({ textAlign: 'right' }) && !isActive({ textAlign: 'justify' }))} disabled={disabled}
+        <Btn title="Align left" active={lit.align === 'left'} disabled={disabled}
              onClick={() => editor.chain().focus().setTextAlign('left').run()}><Glyph as={AlignLeft} size={14} /></Btn>
-        <Btn title="Align center" active={isActive({ textAlign: 'center' })} disabled={disabled}
+        <Btn title="Align center" active={lit.align === 'center'} disabled={disabled}
              onClick={() => editor.chain().focus().setTextAlign('center').run()}><Glyph as={AlignCenter} size={14} /></Btn>
-        <Btn title="Align right" active={isActive({ textAlign: 'right' })} disabled={disabled}
+        <Btn title="Align right" active={lit.align === 'right'} disabled={disabled}
              onClick={() => editor.chain().focus().setTextAlign('right').run()}><Glyph as={AlignRight} size={14} /></Btn>
       </>)}
 
       <span className="doc-tb-sep" aria-hidden="true" />
 
-      <Btn title={(!disabled && editor && !editor.state.selection.empty) ? 'Add link (⌘K)' : 'Select text to link'}
-           disabled={disabled || !editor || editor.state.selection.empty}
+      <Btn title={(!disabled && lit.hasSelection) ? 'Add link (⌘K)' : 'Select text to link'}
+           disabled={disabled || !lit.hasSelection}
            onClick={() => onOpenLink?.(editor)}><Glyph as={LinkPh} size={14} /></Btn>
       <Btn title="Bookmark this spot" disabled={disabled}
            onClick={() => onInsertBookmark?.(editor)}><Glyph as={Bookmark} size={14} /></Btn>
-      <Btn title={(!disabled && editor && !editor.state.selection.empty) ? 'Add comment (⌘⌥M)' : 'Select text to comment on'}
-           disabled={disabled || !editor || editor.state.selection.empty}
+      <Btn title={(!disabled && lit.hasSelection) ? 'Add comment (⌘⌥M)' : 'Select text to comment on'}
+           disabled={disabled || !lit.hasSelection}
            onClick={() => onAddComment?.()}><Glyph as={MessageCircle} size={14} /></Btn>
       </>)}
       <Btn title="Find (⌘F)" disabled={disabled}
@@ -391,6 +369,50 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
       <CustomFontsModal open={fontsModalOpen} onClose={() => setFontsModalOpen(false)} />
     </div>
   );
+}
+
+// Everything the bar lights, as one flat object. `heading` is '' (a neutral
+// placeholder) when the caret is in a block the style picker can't name —
+// code, a quote, a list — rather than claiming "Body".
+const NO_BAR = {
+  heading: 'p', spElement: '', dual: false, fontFamily: '', fontSize: null,
+  bold: false, italic: false, underline: false, strike: false, code: false, highlight: false,
+  bulletList: false, orderedList: false, taskList: false, blockquote: false,
+  align: 'left', hasSelection: false,
+};
+function readBar(editor) {
+  if (!editor || editor.isDestroyed) return NO_BAR;
+  const on = (name, attrs) => editor.isActive(name, attrs) || false;
+  let heading = '';
+  for (let l = 1; l <= 6 && !heading; l++) if (on('heading', { level: l })) heading = 'h' + l;
+  if (!heading) {
+    heading = (on('codeBlock') || on('blockquote') || on('bulletList') || on('orderedList') || on('taskList')) ? '' : 'p';
+  }
+  const inSp = on('screenplayBlock');
+  const sp = inSp ? (editor.getAttributes('screenplayBlock') || {}) : {};
+  const style = editor.getAttributes('textStyle') || {};
+  const px = style.fontSize ? parseInt(style.fontSize, 10) : NaN;
+  return {
+    heading,
+    // Screenplay element <select> (replaces the block-style picker in script mode).
+    spElement: inSp ? (sp.element || 'action') : '',
+    dual: inSp && !!sp.dual,
+    fontFamily: style.fontFamily || '',
+    fontSize: Number.isFinite(px) ? px : null,
+    bold: on('bold'),
+    italic: on('italic'),
+    underline: on('underline'),
+    strike: on('strike'),
+    code: on('code'),
+    highlight: on('highlight'),
+    bulletList: on('bulletList'),
+    orderedList: on('orderedList'),
+    taskList: on('taskList'),
+    blockquote: on('blockquote'),
+    align: on({ textAlign: 'center' }) ? 'center' : on({ textAlign: 'right' }) ? 'right'
+      : on({ textAlign: 'justify' }) ? 'justify' : 'left',
+    hasSelection: !editor.state.selection.empty,
+  };
 }
 
 function Btn({ children, active, disabled, onClick, title }) {

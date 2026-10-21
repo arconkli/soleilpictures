@@ -13,6 +13,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { paginate } from '../../../lib/screenplayPaginate.js';
 import { computeAutoContd, computeSceneNumbers } from './screenplayFlow.js';
+import { changedRange } from '../textblockDecorations.js';
 
 const key = new PluginKey('screenplayPagination');
 const breakKey = new PluginKey('screenplayPageBreaks');
@@ -78,15 +79,22 @@ function readBlocks(doc) {
 
 const flatOf = (blocks) => blocks.map(b => ({ element: b.element, text: b.text, dual: b.dual }));
 
-// Scene numbers + auto (CONT'D).
-function computeMarks(doc) {
+// Scene numbers + auto (CONT'D): which block shows which, by index, and a
+// signature of the lot to tell whether an edit changed any of them.
+function readMarks(doc) {
   const blocks = readBlocks(doc);
+  const sceneNums = computeSceneNumbers(blocks.map(b => ({ element: b.element, sceneNumber: b.sceneNumber })));
+  const contdSet = computeAutoContd(flatOf(blocks));
+  const sig = `${blocks.length}|${[...sceneNums].map(([i, n]) => `${i}=${n}`).join(',')}|${[...contdSet].join(',')}`;
+  return { blocks, sceneNums, contdSet, sig };
+}
+
+function drawMarks(doc, { blocks, sceneNums, contdSet }) {
   if (blocks.length < 1) return DecorationSet.empty;
   const decos = [];
 
   // Scene numbers in the left + right gutters (gated to visible by the
   // `.show-scene-numbers` class on .doc-paper). Auto by order, or locked A/B.
-  const sceneNums = computeSceneNumbers(blocks.map(b => ({ element: b.element, sceneNumber: b.sceneNumber })));
   sceneNums.forEach((num, idx) => {
     const blk = blocks[idx];
     if (!blk) return;
@@ -95,7 +103,6 @@ function computeMarks(doc) {
 
   // Auto (CONT'D) on a character cue resuming the same speaker — render-time
   // suffix, shown even on a single-page script. Never edits the stored text.
-  const contdSet = computeAutoContd(flatOf(blocks));
   contdSet.forEach((idx) => {
     const blk = blocks[idx];
     if (!blk) return;
@@ -103,6 +110,22 @@ function computeMarks(doc) {
     decos.push(Decoration.widget(endPos, makeContdEl, { side: 1, key: `sp-contd-${idx}` }));
   });
   return DecorationSet.create(doc, decos);
+}
+
+function computeMarks(doc) {
+  const marks = readMarks(doc);
+  return { set: drawMarks(doc, marks), sig: marks.sig };
+}
+
+// Whether an edit stayed inside the text of one block and left the block
+// itself (its element, its scene number) alone: then every mark it didn't
+// change sits where it was, moved with the text.
+function insideOneBlock(prev, next, change) {
+  if (prev.childCount !== next.childCount) return false;
+  const ends = [prev.resolve(change.from), prev.resolve(change.toA), next.resolve(change.from), next.resolve(change.to)];
+  if (ends.some(($p) => $p.depth < 1)) return false;
+  const i = ends[0].index(0);
+  return ends.every(($p) => $p.index(0) === i) && prev.child(i).sameMarkup(next.child(i));
 }
 
 // Page-break markers (only when there's more than one page) — the full
@@ -152,10 +175,23 @@ export const ScreenplayPagination = Extension.create({
         key,
         state: {
           init: (_, { doc }) => computeMarks(doc),
-          apply: (tr, old) => (tr.docChanged ? computeMarks(tr.doc) : old),
+          apply: (tr, old, oldState, newState) => {
+            if (!tr.docChanged) return old;
+            // A key typed into a speech changes no number and no CONT'D:
+            // keep the drawn marks and move them, rather than draw a fresh
+            // set (several ms a key on a feature script) for the view to
+            // compare against the old one block by block.
+            const marks = readMarks(newState.doc);
+            const change = changedRange(oldState.doc, newState.doc);
+            if (!change) return old;
+            if (marks.sig === old.sig && insideOneBlock(oldState.doc, newState.doc, change)) {
+              return { set: old.set.map(change.mapping, newState.doc), sig: marks.sig };
+            }
+            return { set: drawMarks(newState.doc, marks), sig: marks.sig };
+          },
         },
         props: {
-          decorations(state) { return key.getState(state); },
+          decorations(state) { return key.getState(state).set; },
         },
       }),
       new Plugin({

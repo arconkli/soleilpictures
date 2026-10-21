@@ -3,50 +3,59 @@
 // .doc-editor-wrap (symmetric to CommentGutter on the right). Each
 // dot is colored by its tag.
 //
-// Positioning: we re-hash the doc on every editor transaction to map
-// each range's pHash back to its current absolute position, then
-// resolve that to pixel coords via editor.view.coordsAtPos(). So as
-// the user types above/below a tagged paragraph, the dot stays
-// pinned to that paragraph's first line.
+// Positioning: after every editor transaction (once a frame at most) we
+// map each range's pHash back to its paragraph's current absolute
+// position, then resolve that to pixel coords via
+// editor.view.coordsAtPos(). So as the user types above/below a tagged
+// paragraph, the dot stays pinned to that paragraph's first line.
+// Nothing tagged → no layout read and no redraw; dots that didn't move
+// aren't set again (a fresh array re-rendered the gutter on every key).
 //
 // Hover/click → opens the TagRangeHoverPopover at the dot's anchor.
 
 import { useEffect, useRef, useState } from 'react';
-import { contentHash } from '../lib/clusterMath.js';
+import { paragraphStarts } from '../lib/paragraphHash.js';
+
+const NONE = [];
+
+const samePlaced = (a, b) => a.length === b.length
+  && a.every((p, i) => p.key === b[i].key && p.top === b[i].top && p.leftStep === b[i].leftStep && p.range === b[i].range);
 
 export function DocTagGutter({ editor, ranges, onOpen, onLeave }) {
   // ranges: [{ pHash, startOffset, length, tagId, tagColor, tagName, source }]
-  const [positioned, setPositioned] = useState([]); // [{ key, top, color, ...range }]
+  const [positioned, setPositioned] = useState(NONE); // [{ key, top, color, ...range }]
+  const shownRef = useRef(NONE);
   const rangesRef = useRef(ranges);
   useEffect(() => { rangesRef.current = ranges || []; }, [ranges]);
 
   useEffect(() => {
     if (!editor) return;
+    const show = (next) => {
+      if (samePlaced(shownRef.current, next)) return;
+      shownRef.current = next;
+      setPositioned(next);
+    };
+    let raf = 0;
     const recompute = () => {
+      raf = 0;
+      if (editor.isDestroyed) return;
+      const rs = rangesRef.current;
+      if (!rs?.length) { show(NONE); return; }
       const wrap = editor.view.dom.closest('.doc-editor-wrap');
       const wrapRect = wrap?.getBoundingClientRect();
-      if (!wrapRect) { setPositioned([]); return; }
+      if (!wrapRect) { show(NONE); return; }
       // Client px → layout px: this gutter lives inside the zoomed wrap, so
       // CSS tops must be un-scaled (see CommentGutter for the full note).
       const z = (wrap.offsetWidth ? wrapRect.width / wrap.offsetWidth : 1) || 1;
-      const rs = rangesRef.current;
-      if (!rs?.length) { setPositioned([]); return; }
-      // Hash each paragraph in the live doc.
-      const paraByHash = new Map();
-      editor.state.doc.descendants((node, pos) => {
-        if (node.type?.name !== 'paragraph') return true;
-        const text = (node.textContent || '').trim();
-        if (text.length < 20) return false;
-        const h = contentHash(text);
-        if (!paraByHash.has(h)) paraByHash.set(h, pos + 1);
-        return false;
-      });
+      // Where each paragraph of the live doc starts, by its hash (worked
+      // out once per paragraph, so a keystroke hashes one, not the doc).
+      const paraByHash = paragraphStarts(editor.state.doc);
       // Group by paragraph so multiple tags on the same paragraph
       // stack visually. Order within a paragraph: by tagId for
       // stable sort.
       const byPara = new Map();
       for (const r of rs) {
-        const start = paraByHash.get(r.pHash);
+        const start = paraByHash.get(r.pHash)?.from;
         if (start == null) continue;
         const absStart = start + Math.max(0, r.startOffset);
         let coords;
@@ -73,14 +82,16 @@ export function DocTagGutter({ editor, ranges, onOpen, onLeave }) {
           });
         });
       }
-      setPositioned(out);
+      show(out);
     };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(recompute); };
     recompute();
-    editor.on('transaction', recompute);
-    window.addEventListener('resize', recompute);
+    editor.on('transaction', schedule);
+    window.addEventListener('resize', schedule);
     return () => {
-      editor.off('transaction', recompute);
-      window.removeEventListener('resize', recompute);
+      cancelAnimationFrame(raf);
+      editor.off('transaction', schedule);
+      window.removeEventListener('resize', schedule);
     };
   }, [editor, ranges]);
 

@@ -13,11 +13,27 @@
 // relative to .doc-editor-wrap, recomputed on every editor transaction +
 // resize. The gutter lives INSIDE the scroll container, so it scrolls with
 // the text and needs no scroll listener. Only renders while editing.
+// Controls that didn't move or change aren't set again: a fresh list every
+// time re-rendered the gutter on every keystroke, suggestions or none.
 
 import { useEffect, useRef, useState } from 'react';
 
+const NONE = [];
+const sameItems = (a, b) => a.length === b.length && a.every((it, i) => {
+  const o = b[i];
+  return it.key === o.key && it.top === o.top && it.name === o.name && it.count === o.count
+    && it.sample === o.sample && it.entityType === o.entityType;
+});
+
 export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
-  const [items, setItems] = useState([]); // [{ key, name, count, sample, top }]
+  const [items, setItems] = useState(NONE); // [{ key, name, count, sample, top }]
+  // What's on screen, so an unchanged recompute sets nothing.
+  const itemsRef = useRef(NONE);
+  const show = (next) => {
+    if (sameItems(itemsRef.current, next)) return;
+    itemsRef.current = next;
+    setItems(next);
+  };
   // Names the user just confirmed/dismissed — hide them optimistically so the
   // control vanishes on click instead of lingering until the async repaint.
   const actedRef = useRef(new Set());
@@ -26,12 +42,12 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
   const elsRef = useRef(new Map());
 
   useEffect(() => {
-    if (!editor || !editable) { setItems([]); return; }
+    if (!editor || !editable) { show(NONE); return; }
     let raf = 0;
     const recompute = () => {
       const wrap = editor.view.dom.closest('.doc-editor-wrap');
       const wrapRect = wrap?.getBoundingClientRect();
-      if (!wrapRect) { setItems([]); return; }
+      if (!wrapRect) { show(NONE); return; }
       // Client px → layout px (this gutter is inside the zoomed wrap; see
       // CommentGutter for the full note).
       const z = (wrap.offsetWidth ? wrapRect.width / wrap.offsetWidth : 1) || 1;
@@ -66,7 +82,7 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
       out.sort((a, b) => a.top - b.top);
       let floor = -Infinity;
       for (const it of out) { if (it.top < floor) it.top = floor; floor = it.top + 24; }
-      setItems(out);
+      show(out);
     };
     const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(recompute); };
     schedule();
@@ -111,7 +127,7 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
           <button className="doc-cand-no" title={`Not a tag — dismiss “${it.name}”`}
                   onClick={() => {
                     actedRef.current.add(it.key);
-                    setItems((prev) => prev.filter((p) => p.key !== it.key));
+                    show(itemsRef.current.filter((p) => p.key !== it.key));
                     hot(it.key, false);
                     onDismiss?.(candFor(it));
                   }}>
