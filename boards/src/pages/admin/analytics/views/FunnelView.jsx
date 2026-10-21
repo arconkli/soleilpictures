@@ -282,16 +282,19 @@ function LazyMoney({ days, f }) {
   const anySubs = Object.values(f.stats?.sub_counts || {}).some((n) => num(n) > 0);
   const comped = num(f.stats?.comped_paid);
   const compedNote = comped > 0 ? ` ${formatCount(comped)} comped account${comped === 1 ? ' is' : 's are'} on the paid tier without paying.` : '';
+  // A trial is a subscription with no money in it yet: named, never counted.
+  const trialing = num(f.stats?.sub_counts?.trialing);
+  const trialNote = trialing > 0 ? ` ${formatCount(trialing)} subscription${trialing === 1 ? ' is a trial' : 's are trials'}, never counted as revenue.` : '';
 
   return (
     <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       {/* Said once, plainly, instead of drawn as three zero-valued tiles. */}
       <p className="admin-section-sub">
         {paying > 0
-          ? `${formatCount(paying)} paying account${paying === 1 ? '' : 's'} (active subscriptions).${compedNote}`
+          ? `${formatCount(paying)} paying account${paying === 1 ? '' : 's'} (active subscriptions).${trialNote}${compedNote}`
           : `${anySubs
-            ? 'No subscription is active right now.'
-            : 'No subscription has ever existed, so every rate below has a zero numerator by absence rather than by measurement.'}${compedNote}`}
+            ? 'Nobody is paying right now.'
+            : 'No subscription has ever existed, so every rate below has a zero numerator by absence rather than by measurement.'}${trialNote}${compedNote}`}
       </p>
       {/* The "Pricing path" funnel that used to sit here rendered the SAME
           `steps` array as the funnel at the top of this view, filtered to the

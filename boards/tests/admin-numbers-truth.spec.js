@@ -208,4 +208,26 @@ test.describe('Analytics › Funnel', () => {
       'admin_referral_stats:false', 'admin_paid_reach:false', 'admin_trial_funnel:false',
     ]));
   });
+
+  test('with one trial and nobody paying, the money line names the trial', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel', query: '&mrr=0' });
+    await page.getByRole('button', { name: /Checkout, upsell and the biggest accounts/ }).click();
+    await expect(page.locator('.adm-detail-body .admin-section-sub').first())
+      .toHaveText('Nobody is paying right now. 1 subscription is a trial, never counted as revenue.', { timeout: 20000 });
+  });
+});
+
+test.describe('Analytics › System', () => {
+  test('a milestone nobody has reached reads "nobody yet", and the caveats say what is true now', async ({ page }) => {
+    await openAdmin(page, { view: 'system', query: '&mrr=0' });
+    const row = page.locator('.adm-bar-row', { hasText: 'joined_by_link' });
+    await expect(row).toContainText('nobody yet', { timeout: 20000 });
+    await expect(row.locator('.adm-bar-value')).toHaveText('—');
+
+    const limits = page.locator('.admin-dq-list');
+    await expect(limits).toContainText('1 subscription is a trial: paid access, no money yet, never counted as revenue.');
+    await expect(limits).not.toContainText('No subscription has ever existed');
+    await expect(limits).toContainText('Universe always counts them');
+    await expect(limits).toContainText('metrics_daily has a row for every day');
+  });
 });

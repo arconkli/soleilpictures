@@ -95,7 +95,7 @@ function RetentionCurvePanel({ rows, windowDays, work }) {
       title="Return curve"
       meta={`n=${formatCount(eligible)} · ${windowDays}d`}
       foot={work
-        ? 'Work-days, not app-open days — user_active_day carries no work event on 54% of its rows. Starts at the first day work was recorded.'
+        ? 'Work-days, not app-open days: many user_active_day rows carry no work event. Starts at the first day work was recorded.'
         : 'App-open days (presence), not work — this database predates the work-gated curve, so it reads higher than the panels beside it.'}
     >
       <TrendLine

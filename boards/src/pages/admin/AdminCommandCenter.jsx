@@ -88,7 +88,7 @@ const PULSE_MINUTES = 60;
 const KIND_ARTICLE = {
   image: 'an image', note: 'a note', link: 'a link', palette: 'a palette',
   doc: 'a doc', url: 'a URL', grid: 'a grid', video: 'a video', pdf: 'a PDF',
-  audio: 'an audio clip', shape: 'a shape', schedule: 'a schedule', file: 'a file',
+  audio: 'an audio clip', shape: 'a shape', file: 'a file',
 };
 function placementText(p) {
   return p.n > 1 ? `placed ${p.n} cards` : `placed ${KIND_ARTICLE[p.kind] || 'a card'}`;

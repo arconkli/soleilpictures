@@ -80,7 +80,7 @@ const COLOR = {
   board_:    '#c4a96b',
   boardlink: '#c4a96b',
   doc_card:  '#e6c98a',
-  card:      '#7c8a98',   // shape / video / schedule / art / pdf / audio / file
+  card:      '#7c8a98',   // shape / video / art / pdf / audio / file, and retired kinds (schedule)
   url:       '#8c7a55',
 };
 

@@ -56,9 +56,9 @@ export function SurfaceTime({ rows = [], days = 28 }) {
               </tbody>
             </table>
             <PanelNote>
-              {formatCount(Math.round(total))} active minutes across {rows.length} surfaces. Schedule
-              cards live on the canvas and count as canvas time; docked panels are excluded on
-              purpose, since a pinned panel would otherwise absorb every subsequent second.
+              {formatCount(Math.round(total))} active minutes across {rows.length} surfaces. Docked
+              panels are excluded on purpose, since a pinned panel would otherwise absorb every
+              subsequent second.
             </PanelNote>
           </>
         )}

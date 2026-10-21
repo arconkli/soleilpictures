@@ -40,7 +40,7 @@ export function UniverseLegend({ graph, hiddenKinds, onToggleKind, onShowAll, on
       {rows.map((r) => {
         const off = !!hidden && hidden.has(r.key);
         const title = r.key === 'card'
-          ? 'Shapes, videos, schedules, PDFs, audio and files — kinds too rare to earn their own hue'
+          ? 'Shapes, videos, PDFs, audio, files, art and retired kinds: too rare to earn their own hue'
           : r.label;
         const rowClass = `universe-legend-row ${off ? 'is-off' : ''} ${interactive ? 'is-clickable' : ''}`.trim();
         const body = (
