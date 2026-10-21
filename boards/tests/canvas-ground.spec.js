@@ -1,16 +1,10 @@
 // The board's ground drawn on a canvas in step with the camera, and a mouse
 // wheel's zoom that glides (lib/canvasGround.js, CanvasSurface drawGround and
-// glideFrame). Held: on for the preview deploy, on dev only behind
-// localStorage soleil.dev.boardGround = '1', which these tests set. Runs on the
+// glideFrame). Always on since the hold was lifted (2026-10-21). Runs on the
 // ?local=1 harness, which mounts the real CanvasSurface.
 import { expect, test } from '@playwright/test';
 
-const FLAG = 'soleil.dev.boardGround';
-
-async function boot(page, { ground = true, blank = false } = {}) {
-  await page.addInitScript(([k, on]) => {
-    try { if (on) localStorage.setItem(k, '1'); else localStorage.removeItem(k); } catch (_) { /* storage off */ }
-  }, [FLAG, ground]);
+async function boot(page, { blank = false } = {}) {
   await page.goto(`/?local=1&reset=1${blank ? '&blank=1' : ''}`);
   await page.waitForSelector('.canvas-wrap');
   if (!blank) await page.waitForSelector('.canvas-wrap .card');
@@ -30,7 +24,6 @@ const nextFrame = (page) => page.evaluate(() => new Promise((r) => requestAnimat
 test('the ground is a canvas under everything, and the box paints only its colour', async ({ page }) => {
   await boot(page);
   const wrap = page.locator('.canvas-wrap');
-  await expect(wrap).toHaveClass(/has-ground/);
   expect(await wrap.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
   const ground = wrap.locator('> canvas.cnv-ground');
   await expect(ground).toHaveCount(1);
@@ -213,20 +206,4 @@ test("an empty board's ground stays put under its panel", async ({ page }) => {
   await boot(page, { blank: true });
   const g = await cameras(page);
   expect([g.ground.x, g.ground.y, g.ground.z]).toEqual([0, 0, 1]);
-});
-
-test('held off, the board keeps the CSS ground and the instant wheel zoom', async ({ page }) => {
-  await boot(page, { ground: false });
-  const wrap = page.locator('.canvas-wrap');
-  await expect(wrap).not.toHaveClass(/has-ground/);
-  await expect(wrap.locator('> canvas.cnv-ground')).toHaveCount(0);
-  expect(await wrap.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain('radial-gradient');
-  const box = await wrap.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  const a = await cameras(page);
-  await page.keyboard.down('Control');
-  await page.mouse.wheel(0, 100);
-  await page.keyboard.up('Control');
-  const b = await cameras(page);
-  expect(b.cards.z).toBeCloseTo(a.cards.z * Math.exp(-100 * 0.0025), 4);
 });

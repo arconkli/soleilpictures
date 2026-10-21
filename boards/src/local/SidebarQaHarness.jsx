@@ -234,6 +234,10 @@ const QA_STYLE = `
 .sbqa-card { position: absolute; border-radius: 4px; overflow: hidden; background: var(--bg-2); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .sbqa-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); z-index: 1; }
+/* The stand-in board's ground is CSS, where App's is drawn on a canvas that
+   widens itself under the sidebar; the strip under the sidebar, which in App
+   only takes the presses, paints this one's ground there instead. */
+.sbqa-canvas::before { background-color: inherit; background-image: inherit; background-size: inherit; background-position: calc(var(--cnv-bg-x, 0px) + 100vw) var(--cnv-bg-y, 0px); }
 .sbqa-tag, .sbqa-faces { color: var(--ink-1); font: 500 12px var(--font-sans); padding: 4px 8px; }
 .sbqa-home-readout { position: fixed; left: 340px; bottom: 6px; z-index: 5; opacity: .6; }
 .sbqa-files-readout { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

@@ -5,7 +5,7 @@ import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, boardGroundAllowed, bulkImportAllowed, touchPassAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, bulkImportAllowed, touchPassAllowed } from '../lib/appHost.js';
 import { isZipFile } from '../lib/importZips.js';
 import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
@@ -877,12 +877,10 @@ export function CanvasSurface({
   // Dots and very faint lines on a canvas under everything, redrawn in the
   // frame the camera moves, from the same refs the transform reads, so they
   // move with the cards instead of waiting for the camera to be committed.
-  // Held (boardGroundAllowed); without the hold the CSS ground in wrapStyle
-  // stands. Two cases take the camera from elsewhere: an empty board's ground
-  // stays put under its panel, as the CSS one did; and while a programmatic
+  // Two cases take the camera from elsewhere: an empty board's ground
+  // stays put under its panel; and while a programmatic
   // move eases on .is-smooth the refs already hold where it will end, so the
   // ground reads the transform the transition is showing, frame by frame.
-  const groundOn = useMemo(() => boardGroundAllowed(), []);
   const groundRef = useRef(null);
   const groundRafRef = useRef(0);
   const groundSmoothUntilRef = useRef(0);
@@ -910,13 +908,12 @@ export function CanvasSurface({
   // From inside an animation frame (a glide, a camera tween), a frame
   // requested now would draw a frame late: draw at once instead.
   const drawGroundNow = () => {
-    if (!groundOn) return;
     if (groundRafRef.current) { cancelAnimationFrame(groundRafRef.current); groundRafRef.current = 0; }
     drawGround();
     if (performance.now() < groundSmoothUntilRef.current) scheduleGroundDraw();
   };
   const scheduleGroundDraw = () => {
-    if (!groundOn || groundRafRef.current) return;
+    if (groundRafRef.current) return;
     groundRafRef.current = requestAnimationFrame(() => {
       groundRafRef.current = 0;
       drawGround();
@@ -1178,7 +1175,6 @@ export function CanvasSurface({
   // The ground's colours follow the theme (<html data-theme>, or the system's
   // when it has none), and a window moved to another screen redraws it sharp.
   useEffect(() => {
-    if (!groundOn) return undefined;
     readGroundInk();
     measureGround();
     const mo = new MutationObserver(readGroundInk);
@@ -5386,9 +5382,9 @@ export function CanvasSurface({
         const sensitivity = isLine ? 0.05 : 0.0025;
         const factor = Math.exp(-e.deltaY * sensitivity);
         // A mouse wheel's click glides to its zoom (glideFrame below) instead
-        // of landing in one jump; a trackpad's stream is smooth already. Held
-        // with the ground; Reduce Motion keeps the jump.
-        if (groundOn && (isWheelClick(e) || glideRef.current) && !reduceMotionMq?.matches) {
+        // of landing in one jump; a trackpad's stream is smooth already.
+        // Reduce Motion keeps the jump.
+        if ((isWheelClick(e) || glideRef.current) && !reduceMotionMq?.matches) {
           // A smaller step arriving mid-glide (a stream that mixes both kinds)
           // joins it rather than fight it frame by frame.
           const base = glideRef.current ? glideRef.current.z : curZoom;
@@ -12786,8 +12782,6 @@ export function CanvasSurface({
   // `× zoom` scaling + pan-follow resumes the moment the first card lands.
   const boardIsEmpty = cards.length === 0 && !(strokes?.length) && !(arrows?.length);
   boardIsEmptyRef.current = boardIsEmpty;
-  const gz = Math.max(8, 80 * (boardIsEmpty ? 1 : zoom));
-  const dz = Math.max(2, 20 * (boardIsEmpty ? 1 : zoom));
   // Size-accurate eraser cursor — the red stroke preview only showed the
   // radius after you'd already erased something.
   const eraserCursor = useMemo(() => {
@@ -12807,18 +12801,8 @@ export function CanvasSurface({
     '--lift-ms': `${TOUCH_LIFT_MS}ms`,
     ...(eraserCursor ? { cursor: eraserCursor } : null),
     backgroundColor: board.bg_color || undefined,
-    // With the ground on a canvas (groundOn), the box paints only its colour.
-    ...(groundOn ? { backgroundImage: 'none' } : {
-      backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
-      backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
-      backgroundPosition: boardIsEmpty
-        ? '0 0, 0 0, 0 0'
-        : `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
-      // The same offset on its own, for ground drawn past this box's edge: the
-      // files sidebar lets the board run on under it (clusterSidebar.css).
-      '--cnv-bg-x': boardIsEmpty ? '0px' : `${pan.x}px`,
-      '--cnv-bg-y': boardIsEmpty ? '0px' : `${pan.y}px`,
-    }),
+    // The ground is a canvas (drawGround), so the box paints only its colour.
+    backgroundImage: 'none',
   };
   // The first card on an empty board sets its ground following the camera.
   useEffect(() => { scheduleGroundDraw(); }, [boardIsEmpty]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -12844,7 +12828,7 @@ export function CanvasSurface({
   };
 
   return (
-    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''} ${canEdit ? '' : 'is-readonly'}${groundOn ? ' has-ground' : ''}`}
+    <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''} ${canEdit ? '' : 'is-readonly'}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
          data-drop-board={!isPublic && onMoveFilesHere ? board.id : undefined}
          data-drop-where={!isPublic && onMoveFilesHere ? 'board' : undefined}
@@ -12861,7 +12845,7 @@ export function CanvasSurface({
          onContextMenu={onBackgroundContextMenu}
          onClickCapture={touchSelecting ? onSelectingClickCapture : undefined}>
       {/* The ground (drawGround): first, so the grain and everything else sit over it. */}
-      {groundOn && <canvas ref={groundRef} className="cnv-ground" aria-hidden="true" />}
+      <canvas ref={groundRef} className="cnv-ground" aria-hidden="true" />
       {/* A finger held on empty canvas (startTouchCanvasPress shows it). */}
       <div ref={holdCueRef} className="cnv-hold-cue" aria-hidden="true" />
       {/* Grain texture — sits behind cards on the canvas surface

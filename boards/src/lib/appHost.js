@@ -117,15 +117,11 @@ export function workspaceSetupAllowed() {
 }
 
 // The board's ground drawn on a canvas in step with the camera, and a mouse
-// wheel's zoom that glides (lib/canvasGround.js). Held like the files sidebar:
-// on for the preview deploy, and on dev only when opted in with localStorage
-// soleil.dev.boardGround = '1' (its own spec sets it), because it changes how
-// every canvas looks and the visual baselines other sessions run would move.
-export const BOARD_GROUND_DEV_FLAG = 'soleil.dev.boardGround';
+// wheel's zoom that glides (lib/canvasGround.js). It was held until the
+// sidebar release; the hold was lifted on 2026-10-21, so it is on everywhere.
+// The function stays because callers and the feature-flag list import it.
 export function boardGroundAllowed() {
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(BOARD_GROUND_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
 }
 
 // ---------------------------------------------------------------------------

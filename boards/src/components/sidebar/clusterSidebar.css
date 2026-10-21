@@ -265,11 +265,10 @@ body.sbf-sizing .app,
    (.is-floating-chrome); the phone drawer is a panel.
    - The sidebar paints nothing of its own (nor its grain) and lets presses
      through; the cards and all that's on them take them back.
-   - The main pane's canvas paints past its left edge (clip-path), and its
-     ground goes on under the sidebar in ::before, from the pattern's offset
-     CanvasSurface publishes as --cnv-bg-x/-y. That strip is what a press in
-     a gap lands on: with the ground drawn on a canvas it paints nothing but
-     stays. The wrappers between it and
+   - The main pane's canvas paints past its left edge (clip-path), where its
+     ground, drawn on a canvas, widens itself under the sidebar. A strip in
+     its ::before is what a press in a gap lands on (a press on a pseudo-
+     element lands on its element); it paints nothing. The wrappers between it and
      .app stop clipping; .app clips instead, so a card far off the board
      can't make the page scroll. */
 .app.is-floating-chrome > .sidebar { pointer-events: none; }
@@ -289,18 +288,12 @@ body.sbf-sizing .app,
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap {
   overflow: visible; clip-path: inset(0 0 0 -100vw);
   /* The ground drawn on a canvas (CanvasSurface measureGround) widens itself
-     under the sidebar when this says so; then the CSS strip below paints
-     nothing, and only takes the presses. CanvasSurface also holds the board
+     under the sidebar when this says so. CanvasSurface also holds the board
      still on screen when this canvas's left edge moves with the sidebar's. */
   --cnv-ground-bleed: 1;
 }
-.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap.has-ground::before {
-  background: none;
-}
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw;
-  background-color: inherit; background-image: inherit; background-size: inherit;
-  background-position: calc(var(--cnv-bg-x, 0px) + 100vw) var(--cnv-bg-y, 0px);
 }
 /* While a cluster loads, its loading screen covers the board; it covers the
    ground under the sidebar too, or the gaps show a board the rest hides. */

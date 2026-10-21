@@ -299,9 +299,10 @@ test.describe('sidebar files', () => {
     await page.evaluate(() => window.__sidebarQa.setWidth(640));
     await expect(page.locator('.sbf-frame')).toHaveClass(/is-side/);
     await expect.poll(() => hit(120, vh - 60), { message: "under the clusters' card" }).toBe('board');
-    // With the ground drawn on a canvas (CanvasSurface's has-ground), the strip under the sidebar
-    // paints nothing, and a press in a gap still lands on the board.
-    await wrap.evaluate((el) => el.classList.add('has-ground'));
+    // App's board paints no ground of its own (it is drawn on a canvas that reaches under the
+    // sidebar by itself), and then the strip under the sidebar paints none either: it only takes
+    // the presses, so one in a gap still lands on the board.
+    await wrap.evaluate((el) => { el.style.backgroundImage = 'none'; });
     expect(await wrap.evaluate((el) => {
       const before = getComputedStyle(el, '::before');
       return [before.content, before.backgroundImage];
