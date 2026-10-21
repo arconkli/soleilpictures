@@ -260,13 +260,17 @@ the bar over selected files.
 | Key | Action |
 |---|---|
 | `Tab` | To the next toolbar — each is one stop |
+| `⌥F10` / `Esc` | From a document's or a note's text to its toolbar · back to the text — `Alt+F10` on Windows |
 | `←` / `→` | The previous · next control in it — `↑` / `↓` on the tool rail |
 | `Home` / `End` | Its first · last control |
 | `→` / `←` | Open · close the tool rail's **+** menu |
 
-In a field inside a toolbar, like a font size, `←` and `→` move the caret, and
-step out of the field at either end. A screen reader hears each control by its
-name, whether a toggle is on, and the shortcut it has, if any.
+In a document or a note, `Tab` belongs to the text (it indents), so `⌥F10` is
+the way from the words to the toolbar, and `Esc` takes you back with the caret
+where you left it. In a field inside a toolbar, like a font size, `←` and `→`
+move the caret, and step out of the field at either end. A screen reader hears
+each control by its name, whether a toggle is on, and the shortcut it has, if
+any.
 
 ## Gestures
 

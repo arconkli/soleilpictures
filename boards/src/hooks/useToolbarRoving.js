@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { fieldKeepsKey, rovingIndex, rovingMove } from '../lib/toolbarRoving.js';
 
@@ -26,6 +26,16 @@ import { fieldKeepsKey, rovingIndex, rovingMove } from '../lib/toolbarRoving.js'
 //    (defaultPrevented) is left alone, and so is one mid-syllable.
 //  - The bar can come and go with what it shows, or be another element (the
 //    tool options bar is one per tool): it is looked for after every render.
+//  - A bar that formats a text (a doc's, a note's) is handed `text`, which
+//    returns what it formats: a Tiptap editor, or a plain contenteditable.
+//    The text keeps Tab (an indent, two spaces, a screenplay's next element),
+//    so the keyboard had no way from the words to their bar: ⌥F10 in the text
+//    goes to the bar's stop, as in other editors, and Escape in the bar goes
+//    back to the text with the caret where it was. Focusing the text isn't
+//    enough for that: a field in the bar takes the page's selection, and the
+//    text then takes the focus with its caret at the start. An editor puts its
+//    own selection back (its focus()); a plain one is given back the range ⌥F10
+//    left it with. The bar says so with aria-keyshortcuts="Alt+F10".
 const CONTROLS = 'button, [role="button"], [role="switch"], input, select, textarea, a[href]';
 const OWN_WIDGET = '[role="menu"], [role="listbox"], [role="dialog"], [role="tooltip"]';
 
@@ -81,8 +91,27 @@ function attach(bar, s) {
   };
 }
 
-export function useToolbarRoving(ref, { orientation = 'horizontal' } = {}) {
-  const live = useRef({ el: null, current: null, moved: false, off: null });
+// What a bar formats, if it's on the page: the element its keys come from,
+// and the editor behind it (none for a plain contenteditable).
+function textOf(getText) {
+  try {
+    const t = getText?.();
+    const el = t?.view?.dom || (t?.nodeType === 1 ? t : null);
+    if (!el || !el.isConnected || t.isDestroyed) return null;
+    return { el, editor: el === t ? null : t };
+  } catch (_) { return null; }
+}
+
+// The page's selection, if it's inside `el`.
+function rangeIn(el) {
+  const sel = window.getSelection?.();
+  if (!sel || !sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  return el.contains(r.startContainer) && el.contains(r.endContainer) ? r.cloneRange() : null;
+}
+
+export function useToolbarRoving(ref, { orientation = 'horizontal', text = null } = {}) {
+  const live = useRef({ el: null, current: null, moved: false, off: null, caret: null });
   useLayoutEffect(() => {
     const s = live.current;
     const el = ref.current || null;
@@ -101,9 +130,51 @@ export function useToolbarRoving(ref, { orientation = 'horizontal' } = {}) {
     s.el = null;
   }, []);
 
+  // ⌥F10 in the text: to the bar's stop.
+  const textRef = useRef(text);
+  useLayoutEffect(() => { textRef.current = text; });
+  const formatsText = !!text;
+  useEffect(() => {
+    if (!formatsText) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'F10' || !e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.defaultPrevented || isComposingKey(e)) return;
+      const s = live.current;
+      const bar = s.el;
+      const home = textOf(textRef.current);
+      if (!bar || !home || !home.el.contains(e.target)) return;
+      const stop = s.current && bar.contains(s.current) && usable(s.current) ? s.current : controlsOf(bar).find(usable);
+      if (!stop) return;
+      e.preventDefault();
+      e.stopPropagation();
+      s.caret = home.editor ? null : rangeIn(home.el);
+      stop.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [formatsText]);
+
   return useCallback((e) => {
     const bar = live.current.el;
-    if (!bar || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || isComposingKey(e)) return;
+    if (!bar || e.defaultPrevented || isComposingKey(e)) return;
+    const mods = e.altKey || e.ctrlKey || e.metaKey || e.shiftKey;
+    // Escape: back to the text, where the caret was.
+    if (e.key === 'Escape' && !mods) {
+      const home = textOf(textRef.current);
+      if (!home || !controlOf(bar, e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (home.editor) { home.editor.commands.focus(); return; }
+      home.el.focus({ preventScroll: true });
+      const r = live.current.caret;
+      if (r && home.el.contains(r.startContainer) && home.el.contains(r.endContainer)) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+      return;
+    }
+    if (mods) return;
     const move = rovingMove(e.key, orientation);
     if (move == null) return;
     const from = controlOf(bar, e.target);

@@ -48,6 +48,13 @@ function useActiveNoteEditor() {
   return editor;
 }
 
+// The text the note bar formats: the collaborative editor, or the plain
+// contenteditable a grid's cells and a canvas with no live room (?local,
+// ?ttnotes=0) draw.
+function noteText() {
+  return getActiveNoteEditor() || document.querySelector('.note-body[contenteditable="true"]');
+}
+
 // One function for the component's whole life, calling the latest `fn` it was
 // handed. The canvas passes the bar fresh callbacks on every card change, and
 // a keystroke in a note is one, so the memoized note bar would redraw for each.
@@ -985,12 +992,14 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, noteLook, onUp
   const currentFore = useNoteForeColor(true, noteBase);
   const fmt = useNoteFormatState(true, noteBase);
   const barRef = useRef(null);
-  const barKeys = useToolbarRoving(barRef);
   // A box that's SELECTED but not being text-edited has no live editor, so the
   // execCommand controls (bold/italic/lists) are hidden and Font/Size/Align show
   // the box's effective style instead of the (empty) selection state. For an
   // image/video/file box, typography doesn't apply → only Box background + scope.
   const selectedBox = cellStyleMode && !cellEditing;
+  // The text keeps Tab (two spaces): ⌥F10 in it comes to the bar, and Escape
+  // here goes back to the caret. A selected box has no text to go back to.
+  const barKeys = useToolbarRoving(barRef, { text: selectedBox ? null : noteText });
   const textish = !cellStyleMode || cellKind == null || cellKind === 'text' || cellKind === 'empty' || cellKind === 'link';
   const showTypography = textish;
   const showEmphasis = !selectedBox;
@@ -1041,6 +1050,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, noteLook, onUp
          ref={barRef}
          role="toolbar"
          aria-label={selectedBox ? 'Box style' : 'Text formatting'}
+         aria-keyshortcuts={selectedBox ? undefined : 'Alt+F10'}
          // Focus can move into the bar without ending the edit (the note
          // counts it as part of the session), and the arrows walk it.
          onKeyDown={barKeys}

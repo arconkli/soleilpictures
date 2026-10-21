@@ -98,7 +98,9 @@ that narrow without changing how it opens anywhere else.
 
 The toolbar carries the usual: headings, bold, italic, underline, highlight,
 lists, task lists, alignment, colour, font and size. Every one has a
-[keyboard shortcut](/docs/keyboard-shortcuts#document).
+[keyboard shortcut](/docs/keyboard-shortcuts#document). To reach the toolbar
+from the keyboard, press `⌥F10` (`Alt+F10` on Windows) in the text; the arrow
+keys move along it, and `Esc` brings you back to where you were typing.
 
 `⌘F` opens **find and replace**. **All** replaces every match on the page and
 says how many; the toast's **Undo** puts them all back, and so does one `⌘Z`.

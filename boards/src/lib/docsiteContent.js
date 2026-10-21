@@ -4972,6 +4972,36 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⌥F10"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "From a document's or a note's text to its toolbar · back to the text — "
+      },
+      {
+       "t": "code",
+       "v": "Alt+F10"
+      },
+      {
+       "t": "text",
+       "v": " on Windows"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "←"
       },
       {
@@ -5071,7 +5101,31 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "In a field inside a toolbar, like a font size, "
+     "v": "In a document or a note, "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " belongs to the text (it indents), so "
+    },
+    {
+     "t": "code",
+     "v": "⌥F10"
+    },
+    {
+     "t": "text",
+     "v": " is the way from the words to the toolbar, and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " takes you back with the caret where you left it. In a field inside a toolbar, like a font size, "
     },
     {
      "t": "code",
@@ -10203,7 +10257,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "), which strips the selection back to the note's own font and size while keeping links and comments."
+     "v": "), which strips the selection back to the note's own font and size while keeping links and comments. "
+    },
+    {
+     "t": "code",
+     "v": "⌥F10"
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "Alt+F10"
+    },
+    {
+     "t": "text",
+     "v": " on Windows) takes you from the note's text to that toolbar, and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " brings you back."
     }
    ]
   },
@@ -25875,7 +25953,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". To reach the toolbar from the keyboard, press "
+    },
+    {
+     "t": "code",
+     "v": "⌥F10"
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "Alt+F10"
+    },
+    {
+     "t": "text",
+     "v": " on Windows) in the text; the arrow keys move along it, and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " brings you back to where you were typing."
     }
    ]
   },

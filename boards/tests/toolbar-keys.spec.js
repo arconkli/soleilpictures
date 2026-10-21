@@ -5,6 +5,8 @@
 // the glyph on them (B, •, ⇤, A, −); a shortcut is the tooltip's and
 // aria-keyshortcuts', not part of the name; a toggle says pressed or not
 // pressed, never neither. And a field you only pass through changes nothing.
+// A doc's and a note's text keep Tab for themselves, so ⌥F10 is the way from
+// the words to their bar, and Esc the way back to the caret.
 import { expect, test } from '@playwright/test';
 
 // Tab stops inside a bar: what Tab can land on, outside a menu of its own.
@@ -148,6 +150,32 @@ test.describe('the doc toolbar', () => {
     await expect(readout).toHaveAccessibleName(shown === 'Fit' ? 'Fit to width' : `${shown} — reset zoom`);
     expect(glyphNamed(await bar.ariaSnapshot())).toEqual([]);
   });
+
+  test('⌥F10 in the text goes to it, and Esc goes back to the caret', async ({ page }) => {
+    await openDoc(page);
+    await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('one two').setTextSelection(4).run());
+    const text = page.locator('.doc-card-modal .tt-editor').first();
+    await expect(text).toBeFocused();
+    const bar = page.locator('.doc-card-modal .doc-tb');
+    // Tab is the text's (it indents), so this is the way from the words to the bar.
+    await page.keyboard.press('Alt+F10');
+    await expect.poll(() => bar.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    expect(await bar.evaluate(() => document.activeElement.tabIndex)).toBe(0);
+    // All the way round, through its fields (one takes the page's selection).
+    await walk(page);
+    await page.keyboard.press('ArrowRight');
+    const there = await focused(page);
+    await page.keyboard.press('Escape');
+    await expect(text).toBeFocused();
+    await expect(page.locator('.doc-card-modal')).toBeVisible();
+    await page.keyboard.type('X');
+    await expect(text).toContainText('oneX two');
+    // And back: where the arrows left it.
+    await page.keyboard.press('Alt+F10');
+    await expect.poll(() => focused(page)).toBe(there);
+    // A screen reader is told the way in.
+    await expect(bar).toHaveAttribute('aria-keyshortcuts', 'Alt+F10');
+  });
 });
 
 // ── The note's bar, against the real collaborative note (?noteqa) ─────────
@@ -208,6 +236,22 @@ test.describe('the note bar', () => {
     await expect(bar).toBeVisible();
     await expect(page.locator(A_EDIT)).toContainText('hello world');
   });
+
+  test('⌥F10 in the note goes to its bar, and Esc goes back to the caret, still editing', async ({ page }) => {
+    await editA(page);
+    const bar = page.locator('.tob');
+    // Tab is the note's (two spaces), so this is the way from the words to the bar.
+    await page.keyboard.press('Alt+F10');
+    await expect.poll(() => bar.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    await expect(page.locator(A_EDIT)).toHaveCount(1);
+    await walk(page);
+    await page.keyboard.press('Escape');
+    await expect(page.locator(A_EDIT)).toBeFocused();
+    await page.keyboard.type('!');
+    await expect(page.locator(A_EDIT)).toContainText('hello world!');
+    await expect(bar).toBeVisible();
+    await expect(bar).toHaveAttribute('aria-keyshortcuts', 'Alt+F10');
+  });
 });
 
 // ── The canvas: the rail, zoom and the tool bars (?local=1) ───────────────
@@ -253,6 +297,25 @@ test.describe('on the canvas', () => {
     for (const [name, key] of [['Select tool', 'V'], ['Pan tool', 'H'], ['Add note tool', 'N'], ['Add grid tool', 'G'], ['Arrow tool', 'A']]) {
       await expect(rail.getByRole('button', { name, exact: true }), name).toHaveAttribute('aria-keyshortcuts', key);
     }
+  });
+
+  test('⌥F10 in a note goes to its bar, and Esc goes back to the caret', async ({ page }) => {
+    // With no live room the canvas draws the plain note editor, which the bar
+    // formats by execCommand rather than through Tiptap.
+    await page.locator('.canvas-wrap .card .note').first().dblclick();
+    const edit = page.locator('.note-body[contenteditable="true"]');
+    await expect(edit).toBeFocused();
+    await page.keyboard.type('zz');
+    const bar = page.locator('.tob');
+    await page.keyboard.press('Alt+F10');
+    await expect.poll(() => bar.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    await expect(edit).toHaveCount(1);
+    await walk(page);
+    await page.keyboard.press('Escape');
+    await expect(edit).toBeFocused();
+    await page.keyboard.type('!');
+    await expect(edit).toContainText('zz!');
+    await expect(bar).toHaveAttribute('aria-keyshortcuts', 'Alt+F10');
   });
 
   test('zoom names its parts, and its readout is a button that goes to 100%', async ({ page }) => {

@@ -439,11 +439,12 @@ Every toolbar is one Tab stop, and the arrow keys move inside it: the tool rail,
 
 Key | Action
 Tab | To the next toolbar — each is one stop
+⌥F10 / Esc | From a document's or a note's text to its toolbar · back to the text — Alt+F10 on Windows
 ← / → | The previous · next control in it — ↑ / ↓ on the tool rail
 Home / End | Its first · last control
 → / ← | Open · close the tool rail's + menu
 
-In a field inside a toolbar, like a font size, ← and → move the caret, and step out of the field at either end. A screen reader hears each control by its name, whether a toggle is on, and the shortcut it has, if any.
+In a document or a note, Tab belongs to the text (it indents), so ⌥F10 is the way from the words to the toolbar, and Esc takes you back with the caret where you left it. In a field inside a toolbar, like a font size, ← and → move the caret, and step out of the field at either end. A screen reader hears each control by its name, whether a toggle is on, and the shortcut it has, if any.
 
 Gestures
 
@@ -877,7 +878,7 @@ A: Yes, including HEIC and HEIF, even when the browser reports no file type at a
 ========================================================================
 # Notes
 URL: https://clusters.soleilpictures.com/docs/canvas/notes
-Updated: 2026-08-08
+Updated: 2026-10-21
 
 A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.
 
@@ -889,7 +890,7 @@ Writing
 
 Double-click a note to start editing. Click away — or press Esc — to finish; your edits are shared live with collaborators as you type, so there is no separate "cancel". ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it.
 
-Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and Tx — clear formatting (⌘\), which strips the selection back to the note's own font and size while keeping links and comments.
+Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and Tx — clear formatting (⌘\), which strips the selection back to the note's own font and size while keeping links and comments. ⌥F10 (Alt+F10 on Windows) takes you from the note's text to that toolbar, and Esc brings you back.
 
 Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note.
 
@@ -2500,7 +2501,7 @@ The same goes wherever a document is narrower than a page, on any screen: docked
 
 Writing and formatting
 
-The toolbar carries the usual: headings, bold, italic, underline, highlight, lists, task lists, alignment, colour, font and size. Every one has a keyboard shortcut.
+The toolbar carries the usual: headings, bold, italic, underline, highlight, lists, task lists, alignment, colour, font and size. Every one has a keyboard shortcut. To reach the toolbar from the keyboard, press ⌥F10 (Alt+F10 on Windows) in the text; the arrow keys move along it, and Esc brings you back to where you were typing.
 
 ⌘F opens find and replace. All replaces every match on the page and says how many; the toast's Undo puts them all back, and so does one ⌘Z.
 

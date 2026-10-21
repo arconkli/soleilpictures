@@ -17,6 +17,8 @@ const CMD = isMac ? '⌘' : 'Ctrl';
 // The key that turns a files drag into a copy (lib/dropRules.js copyKeyHeld):
 // Option on a Mac; Ctrl elsewhere, where Alt copies too.
 const COPY = isMac ? '⌥' : 'Ctrl';
+// From a doc's or a note's text to its toolbar (hooks/useToolbarRoving).
+const TO_BAR = isMac ? '⌥F10' : 'Alt+F10';
 
 const SECTIONS = [
   {
@@ -167,6 +169,7 @@ const SECTIONS = [
     title: 'Toolbars',
     rows: [
       [['Tab'], 'To the next toolbar: each is one stop'],
+      [[TO_BAR, 'Esc'], 'From a doc’s or a note’s text to its toolbar · back to the text'],
       [['←', '→'], 'The previous · next control in it (↑ ↓ on the tool rail)'],
       [['Home', 'End'], 'Its first · last control'],
       [['→', '←'], 'Open · close the tool rail’s + menu'],

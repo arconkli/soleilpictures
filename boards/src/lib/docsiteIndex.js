@@ -576,7 +576,7 @@ export const DOCS_PAGES = [
     "answer": "A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.",
     "section": "canvas",
     "order": 3,
-    "updated": "2026-08-08",
+    "updated": "2026-10-21",
     "navLabel": "Notes",
     "headings": [
       {

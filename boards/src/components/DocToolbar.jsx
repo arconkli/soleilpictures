@@ -73,7 +73,9 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
   // these Find, Export, Zoom, Undo and Redo sat off-screen with the bar
   // appearing to end at the bookmark icon.
   const barRef = useRef(null);
-  const onBarKeys = useToolbarRoving(barRef);
+  // The text keeps Tab (an indent, a screenplay's next element): ⌥F10 in it
+  // comes to the bar, and Escape here goes back to the caret.
+  const onBarKeys = useToolbarRoving(barRef, { text: () => editor });
   useEffect(() => {
     const bar = barRef.current;
     if (!bar) return undefined;
@@ -190,7 +192,7 @@ export function DocToolbar({ editor, onInsertBookmark, onInsertImage, onInsertBo
 
   return (
     <div className="doc-tb" ref={barRef} role="toolbar" aria-label="Document formatting" aria-orientation="horizontal"
-         onKeyDown={onBarKeys}>
+         aria-keyshortcuts="Alt+F10" onKeyDown={onBarKeys}>
       {canEdit && (<>
       {/* Click-to-open insert menu — only the things with no other toolbar home
           (image, table, divider, code, embed). Doc mode only: in screenplay mode

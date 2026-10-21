@@ -5,7 +5,7 @@ h1: Notes
 navLabel: Notes
 section: canvas
 order: 3
-updated: 2026-08-08
+updated: 2026-10-21
 answer: A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.
 faq:
   - q: Can two people edit the same note at once?
@@ -38,7 +38,8 @@ Formatting works as you would expect: `⌘B`, `⌘I`, `⌘U` for bold, italic an
 underline. A toolbar appears at the bottom of the canvas while a note is
 focused, carrying colour, size, font and alignment, and **Tx** — clear
 formatting (`⌘\`), which strips the selection back to the note's own font and
-size while keeping links and comments.
+size while keeping links and comments. `⌥F10` (`Alt+F10` on Windows) takes you
+from the note's text to that toolbar, and `Esc` brings you back.
 
 Pasting from Google Docs, Word or a web page brings the words, structure and
 emphasis but not the source's font, size or background, so pasted text matches
