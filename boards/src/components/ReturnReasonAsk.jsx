@@ -374,7 +374,11 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
       // header — nothing may be STAMPED before this returns true. A deferral is
       // not a decline, and burning the one-shot on one would retire the surface
       // for that account forever.
-      if (!claimUpsellSlot('return-reason')) {
+      //
+      // A dialog already open is the same deferral: checked BEFORE the claim,
+      // so a retry never opens the question on top of one (and never takes the
+      // slot it will not use).
+      if (!quiet() || !claimUpsellSlot('return-reason')) {
         tries += 1;
         if (tries <= RETRIES) {
           timerRef.current = setTimeout(show, RETRY_MS);
