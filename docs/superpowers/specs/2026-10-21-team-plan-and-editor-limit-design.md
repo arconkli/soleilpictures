@@ -115,7 +115,8 @@ Gaps the limit exposes:
 Notices: every `notifications` insert pings `user:{uid}` live (`notifications_broadcast`,
 0242), and `useNotifications` turns the ping into a toast. But the bell row sits inside App's
 `!filesSidebar` block, and the new `ClusterSidebar` offers only Home and Messages, so with the
-new sidebar a notice that arrives while someone is away can't be found again.
+new sidebar a notice that arrives while someone is away can't be found again. The sidebar
+release closes that gap with a bell of its own (2026-10-21).
 
 ## Program
 
@@ -126,7 +127,7 @@ Client holds are `xAllowed()` in `boards/src/lib/appHost.js`. Migrations use the
 
 | Stage | Delivers | Hold |
 |---|---|---|
-| S0 | Mockups, then the owner picks: share panel at the limit, the joined-as-viewer message, the owner's notice and the new sidebar's Notifications entry, `/team`, Team setup, three-card `/pricing`, "Team or Personal" on create | — |
+| S0 | Mockups, then the owner picks: share panel at the limit, the joined-as-viewer message, the owner's notice, `/team`, Team setup, three-card `/pricing`, "Team or Personal" on create | — |
 | **S1** | **The 10-editor limit** for personal accounts, server and client | `app_config.editor_limit`, `editorLimitAllowed()` |
 | S2a | Teams core: `organizations`, `org_members` (role, seat), `org_invites`, `org_domains`, `org_join_requests`, `workspaces.org_id` + `org_visibility`; the org branch in the six access choke points, the four `realtime.messages` policies and the party server's re-auth and kick; the team branch of `_editor_admit`; "Team or Personal" on create | no org row can exist unless `app_config.teams_open` or a test owner |
 | S2b | Re-key who pays: `billing_subject(ws)` + `subject_entitlement`; every card, storage and capacity gate; `storage_usage` gains a subject key; the seat perk on the user subject | parity: identical while `org_id is null` |
@@ -231,8 +232,8 @@ cite `_editor_limit_on() = false` (comments only). The old brake functions and t
   App subscribes, so App also checks once after the first notifications load: an unread
   `editors.joined_as_viewer` row (deduped by id) gets one toast, then is marked read.
 - `NotificationsPanel` renders `editors.limit_reached` and opens Members.
-- A Notifications entry in `ClusterSidebar`'s quick nav (unless the sidebar release adds one
-  first). It shows only when there are notices and opens the existing panel.
+- No Notifications entry of its own. The sidebar release adds a bell to the new sidebar, mocked
+  up first, with the owner picking where it goes. The owner's notice opens from it.
 - Analytics:
   - client events `EDITOR_LIMIT_SEEN`, `EDITOR_LIMIT_REFUSED {door, kind}`,
     `EDITOR_LIMIT_ASK_SENT {result}`, `EDITOR_LIMIT_NOTICE_OPEN`;
