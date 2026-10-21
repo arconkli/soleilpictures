@@ -269,6 +269,32 @@ test('the CTA is tagged, stays on the app’s origin, and an off-origin path fal
   assert.doesNotMatch(home.html + home.text, /evil/);
 });
 
+test('an edition can carry one screenshot from the app’s /email/ folder, under the intro, opening what the button opens', async () => {
+  const { renderTemplate } = await import('../../../supabase/functions/_shared/email/templates.ts');
+  const shot = 'https://clusters.soleilpictures.com/email/2026-10-22-new-look.jpg';
+  const r = renderTemplate('product_update', { ...EDITION, imageUrl: shot, imageAlt: 'The new <look>' });
+  const img = r.html.match(/<a href="([^"]+)"[^>]*><img src="([^"]+)" alt="([^"]*)"/);
+  assert.ok(img, 'one linked picture');
+  assert.equal(img[2], shot);
+  assert.equal(img[3], 'The new &lt;look&gt;', 'its alt is escaped');
+  const cta = r.text.match(/take a <look>: (\S+)\n/)[1];
+  assert.equal(img[1], cta.replace(/&/g, '&amp;'), 'the picture opens what the button opens');
+  const at = (s) => r.html.indexOf(s);
+  assert.ok(at('shipped:') < at(shot) && at(shot) < at('&middot;</span>'), 'the intro, then the picture, then the list');
+  assert.ok(!r.text.includes(shot), 'the text part has no picture');
+  for (const bad of ['https://evil.example/email/x.jpg', 'https://clusters.soleilpictures.com/api/x.jpg',
+    'http://clusters.soleilpictures.com/email/x.jpg', '', null]) {
+    assert.doesNotMatch(renderTemplate('product_update', { ...EDITION, imageUrl: bad }).html, /<img /,
+      `no picture for ${JSON.stringify(bad)}`);
+  }
+  assert.doesNotMatch(renderTemplate('product_update', EDITION).html, /<img /, 'no image_path, no picture');
+});
+
+test('the cron hands over an edition’s image_path only from /email/, as whats_new does', () => {
+  assert.match(cron, /imageUrl: imagePath\.startsWith\("\/email\/"\) \? `\$\{SITE_ORIGIN\}\$\{imagePath\}` : undefined,/);
+  assert.match(cron, /imageAlt: v\.image_alt,/);
+});
+
 test('no subject, no email; and nothing about the product is written in the template', async () => {
   const { renderTemplate } = await import('../../../supabase/functions/_shared/email/templates.ts');
   assert.throws(() => renderTemplate('product_update', { ...EDITION, subject: ' \n ' }), /needs a subject/);

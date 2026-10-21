@@ -149,11 +149,15 @@ async function productUpdateConfig(
   const items = Array.isArray(v.items) ? v.items.filter((i: unknown) => i != null && i !== "") : [];
   const subject = String(v.subject ?? "").trim();
   if (!version || !items.length || !subject) return null;
+  const imagePath = String(v.image_path ?? "").trim();
   return {
     version,
     copy: {
       subject, preheader: v.preheader, greeting: v.greeting, intro: v.intro, items,
       ctaLabel: v.cta_label, ctaPath: v.cta_path, outro: v.outro, signoff: v.signoff,
+      // OPTIONAL, and only from /email/, as whats_new's image_path.
+      imageUrl: imagePath.startsWith("/email/") ? `${SITE_ORIGIN}${imagePath}` : undefined,
+      imageAlt: v.image_alt,
       version,
     },
   };

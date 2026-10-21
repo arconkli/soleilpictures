@@ -1487,6 +1487,8 @@ interface ProductUpdateData {
   items: ProductUpdateItem[];
   ctaLabel?: string;
   ctaPath: string;          // already checked by productUpdatePath
+  imageUrl?: string;        // a screenshot, only from EMAIL_ASSET_PREFIX
+  imageAlt?: string;
   outro?: string;
   signoff?: string;
   version?: string;
@@ -1541,6 +1543,11 @@ function productUpdate(d: ProductUpdateData): RenderedEmail {
   const para = (s?: string) => { if (s) { html.push(noteP(s)); text.push(s); } };
   para(d.greeting);
   para(d.intro);
+  // One screenshot at most, from the app's own /email/ folder as whats_new's,
+  // opening what the button opens. The text part has none.
+  if (d.imageUrl && d.imageUrl.startsWith(EMAIL_ASSET_PREFIX)) {
+    html.push(noteImg(d.imageUrl, d.imageAlt || "What's new in Clusters", url));
+  }
   if (items.length) {
     html.push(`<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">${items.map(productUpdateItemHtml).join("")}</table>`);
     text.push(items.map(productUpdateItemText).join("\n"));
@@ -1947,6 +1954,8 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         items,
         ctaLabel:    line(data.ctaLabel, 40) || undefined,
         ctaPath:     productUpdatePath(data.ctaPath),
+        imageUrl:    data.imageUrl != null ? String(data.imageUrl).trim() : undefined,
+        imageAlt:    line(data.imageAlt, 160) || undefined,
         outro:       line(data.outro, 600) || undefined,
         signoff:     line(data.signoff, 120) || undefined,
         version:     data.version != null ? String(data.version).replace(/[^A-Za-z0-9._-]/g, "").slice(0, 32) : undefined,
