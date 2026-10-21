@@ -1687,7 +1687,7 @@ Speed from a quarter to double, from its button or ⇧< and ⇧>. The speed is r
 Framing guides for 2.39, 2.00, 1.90, 1.85, 16:9, 4:3, 1:1 and 9:16, action and title safe, thirds and a centre cross. G steps through them.
 Look closer. Z zooms the picture from fit to 100% (one pixel of the file per pixel of your screen) to 200%; drag to look around. Z again fits it.
 Share a frame. ⇧⌘C, or Copy link to this frame in the picture's right-click menu, copies a link that opens this player paused on this frame, for anyone who can open the cluster.
-Versions. A clip with versions shows them along the top. Switching keeps the frame, in, out and loop. Compare puts a second version behind the one on show: \ or the A | B buttons flip between the two on the same frame.
+Versions. A clip with versions shows them along the top, in a menu there past four or on a narrow screen. Switching keeps the frame, in, out and loop. Compare puts a second version behind the one on show: \ or the A | B buttons flip between the two on the same frame.
 
 Esc closes it. ? lists every key, and so does Player.
 

@@ -92,7 +92,8 @@ Under the picture, the timeline fills the width. Below it, from left to right:
   right-click menu, copies a link that opens this player paused on this frame,
   for anyone who can open the cluster.
 - **Versions.** A clip with [versions](/docs/files#versions) shows them along
-  the top. Switching keeps the frame, in, out and loop. **Compare** puts a second
+  the top, in a menu there past four or on a narrow screen. Switching keeps the
+  frame, in, out and loop. **Compare** puts a second
   version behind the one on show: `\` or the **A | B** buttons flip between the
   two on the same frame.
 

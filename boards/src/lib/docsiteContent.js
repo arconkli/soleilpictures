@@ -16973,7 +16973,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " shows them along the top. Switching keeps the frame, in, out and loop. "
+      "v": " shows them along the top, in a menu there past four or on a narrow screen. Switching keeps the frame, in, out and loop. "
      },
      {
       "t": "strong",

@@ -1,8 +1,9 @@
 // The review player: the clip, full size, in a dark room —
 //
 //   header  title · facts (version, label, fps, size, length); the versions
-//           as pills; Compare (pick a second version — \ flips between them
-//           on the same frame); shortcuts; close
+//           as pills (a menu past four, or in a narrow header); Compare (pick
+//           a second version — \ flips between them on the same frame);
+//           shortcuts; close
 //   stage   FilmPlayer mode="full" with its dock
 //   rail    an optional column beside it for what's said about the clip
 //           (frame comments come in through `rail`)
@@ -82,7 +83,9 @@ export function FilmReview({
     rootRef.current?.focus({ preventScroll: true });
     const onKey = (e) => {
       if (e.key !== 'Tab' || !modalGuard.isTopModal?.(modalRef.current)) return;
-      const els = [...(rootRef.current?.querySelectorAll(FOCUSABLE) || [])];
+      // Only what's drawn: a narrow header hides the pills, a wide one the
+      // menu that stands in for them.
+      const els = [...(rootRef.current?.querySelectorAll(FOCUSABLE) || [])].filter((el) => el.getClientRects().length > 0);
       if (!els.length) { e.preventDefault(); return; }
       const first = els[0], last = els[els.length - 1];
       if (e.shiftKey && (document.activeElement === first || document.activeElement === rootRef.current)) { e.preventDefault(); last.focus(); }
@@ -168,24 +171,26 @@ export function FilmReview({
           <span className="frv-title" title={title}>{title}</span>
           {facts && <span className="frv-sub">{facts}</span>}
         </div>
+        {many && versions.length <= 4 && (
+          <div className="frv-pills" role="radiogroup" aria-label="Version">
+            {versions.map((x) => (
+              <button key={x.id} type="button" onPointerDown={noFocus} role="radio" aria-checked={x.id === v?.id}
+                      className={`frv-pill${x.id === v?.id ? ' is-shown' : ''}${x.id === current?.id ? ' is-current' : ''}`}
+                      title={`${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}${x.id === current?.id ? ' (current)' : ''}`}
+                      onClick={() => showVersion(x.id)}>
+                {versionLabel(x)}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* More versions than pills hold: a menu; and a narrow header, which
+            has no room for the pills, shows it in their place. */}
         {many && (
-          versions.length <= 4 ? (
-            <div className="frv-pills" role="radiogroup" aria-label="Version">
-              {versions.map((x) => (
-                <button key={x.id} type="button" onPointerDown={noFocus} role="radio" aria-checked={x.id === v?.id}
-                        className={`frv-pill${x.id === v?.id ? ' is-shown' : ''}${x.id === current?.id ? ' is-current' : ''}`}
-                        title={`${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}${x.id === current?.id ? ' (current)' : ''}`}
-                        onClick={() => showVersion(x.id)}>
-                  {versionLabel(x)}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <button type="button" onPointerDown={noFocus} className="frv-pill frv-pill--menu is-shown" aria-haspopup="menu"
-                    onClick={(e) => openMenu('versions', e.currentTarget, 'center')}>
-              {versionLabel(v)} <Icon as={ChevronDown} size={10} weight="bold" />
-            </button>
-          )
+          <button type="button" onPointerDown={noFocus} aria-haspopup="menu" aria-label={`Version ${versionLabel(v)}`}
+                  className={`frv-pill frv-pill--menu is-shown${versions.length <= 4 ? ' frv-pill--narrow' : ''}`}
+                  onClick={(e) => openMenu('versions', e.currentTarget, 'center')}>
+            {versionLabel(v)} <Icon as={ChevronDown} size={10} weight="bold" />
+          </button>
         )}
         <div className="frv-actions">
           {many && (

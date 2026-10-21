@@ -197,13 +197,15 @@ const PAGES = [
       await page.locator('.sketchpad-frame').waitFor();
       return true;
     }, scope: '.sketchpad-frame' },
+  // Two versions, so its header carries the version pills (on a phone, their menu).
   { name: 'review player', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await page.evaluate((data) => {
         const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
         const url = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
-        window.__soleilVideoLive.addVideo({ id: 'vid-1', src: url, fileName: 'frames.mp4', x: 700, y: 500, w: 480, h: 270,
-          media: { fps: [24, 1], frames: 48, dur: 2, w: 64, h: 36, probed: 1 } });
+        const media = { fps: [24, 1], frames: 48, dur: 2, w: 64, h: 36, probed: 1 };
+        window.__soleilVideoLive.addVideo({ id: 'vid-1', src: url, fileName: 'frames.mp4', x: 700, y: 500, w: 480, h: 270, media,
+          versions: [{ src: url, id: 'v1', n: 1, media }, { src: url, id: 'v2', n: 2, media }] });
       }, CLIP);
       // The card's own bar shows on a hover, or not at all on a phone's card,
       // a few pixels wide at the board's zoom: its button is pressed directly.

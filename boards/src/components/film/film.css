@@ -578,7 +578,9 @@
 .frv-pill.is-shown { background: var(--film-raise); color: var(--film-ink-0); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
 .frv-pill.is-current::after { content: ''; width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: 0.7; }
 .frv-pill--menu { background: var(--film-raise); }
-.frv-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.frv-pill--narrow { display: none; }
+/* The last column, with versions in the middle or none. */
+.frv-actions { grid-column: 3; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .frv-iconbtn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-width: 36px; height: 36px; padding: 0 8px;
@@ -638,8 +640,9 @@
   .film-guides-btn { display: none; }
 }
 @container frv (max-width: 700px) {
-  .frv-head { grid-template-columns: minmax(0, 1fr) auto; height: 48px; padding-left: 12px; }
+  .frv-head { grid-template-columns: minmax(0, 1fr) auto auto; height: 48px; padding-left: 12px; }
   .frv-pills { display: none; }
+  .frv-pill--narrow { display: inline-flex; }
   .frv-iconbtn span { display: none; }
 }
 @media (max-width: 900px) {
@@ -651,7 +654,7 @@
   .film--full .ft-track { height: 44px; }
   /* The rest of the review view, a finger's 40px each; the timecode's chip
      keeps its look and reaches out for the finger. */
-  .frv-iconbtn, .ft-zoom-chip { min-width: 40px; height: 40px; }
+  .frv-iconbtn, .ft-zoom-chip, .frv-pill { min-width: 40px; height: 40px; }
   .film-pill { height: 40px; }
   .film-dock .film-tc, .film-dock .film-dur { height: 40px; line-height: 40px; }
   .film-chip--btn { position: relative; }
