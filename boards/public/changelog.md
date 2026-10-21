@@ -99,6 +99,12 @@ A new sidebar keeps your clusters on one card and every file on the other, whole
 - A doc that hits a problem stays open, and replying to or resolving a comment
   never wipes out someone else's.
 - ⌘Z on the board undoes the board while a doc is docked beside it.
+- Typing in a long doc keeps up, in pages and in screenplays too.
+- In find and replace, **All** says how many it replaced, and **Undo** puts
+  them all back.
+- If the cluster is restored to an earlier version while you have a doc open,
+  the doc reopens where you were and says what happened, and if that took
+  anything off your page, it offers the page as you had it.
 
 ### Phones and tablets
 
@@ -109,6 +115,18 @@ A new sidebar keeps your clusters on one card and every file on the other, whole
   makes iOS zoom in.
 - On a phone the sidebar is the drawer; on a tablet held sideways, clusters
   and files sit side by side. See [phones and tablets](/docs/account/mobile).
+- The tool rail's **+** menu fits on a phone and an upright iPad, and a swipe
+  along the rail scrolls it instead of picking a tool. On a phone, a menu in
+  the review player switches between a clip's versions.
+
+### Keyboard
+
+- Every toolbar is one Tab stop, and the arrow keys move along it. `⌥F10`
+  (`Alt+F10` on Windows) takes you from a doc's or a note's text to its
+  toolbar, and Esc brings you back. See
+  [keyboard shortcuts](/docs/keyboard-shortcuts#toolbars).
+- Typing with an input method, such as Korean, no longer posts a comment, ends
+  a rename or closes the tag picker on the Enter that picks a character.
 
 ### Faster
 

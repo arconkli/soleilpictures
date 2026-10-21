@@ -739,6 +739,52 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": "⌘Z on the board undoes the board while a doc is docked beside it."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Typing in a long doc keeps up, in pages and in screenplays too."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In find and replace, "
+     },
+     {
+      "t": "strong",
+      "v": "All",
+      "children": [
+       {
+        "t": "text",
+        "v": "All"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " says how many it replaced, and "
+     },
+     {
+      "t": "strong",
+      "v": "Undo",
+      "children": [
+       {
+        "t": "text",
+        "v": "Undo"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts them all back."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "If the cluster is restored to an earlier version while you have a doc open, the doc reopens where you were and says what happened, and if that took anything off your page, it offers the page as you had it."
+     }
     ]
    ]
   },
@@ -795,6 +841,87 @@ export const CHANGELOG_CONTENT = {
      {
       "t": "text",
       "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The tool rail's "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu fits on a phone and an upright iPad, and a swipe along the rail scrolls it instead of picking a tool. On a phone, a menu in the review player switches between a clip's versions."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Keyboard",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keyboard"
+    }
+   ],
+   "id": "2026-10-22-keyboard"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Every toolbar is one Tab stop, and the arrow keys move along it. "
+     },
+     {
+      "t": "code",
+      "v": "⌥F10"
+     },
+     {
+      "t": "text",
+      "v": " ("
+     },
+     {
+      "t": "code",
+      "v": "Alt+F10"
+     },
+     {
+      "t": "text",
+      "v": " on Windows) takes you from a doc's or a note's text to its toolbar, and Esc brings you back. See "
+     },
+     {
+      "t": "link",
+      "v": "keyboard shortcuts",
+      "href": "/docs/keyboard-shortcuts#toolbars",
+      "children": [
+       {
+        "t": "text",
+        "v": "keyboard shortcuts"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Typing with an input method, such as Korean, no longer posts a comment, ends a rename or closes the tag picker on the Enter that picks a character."
      }
     ]
    ]
