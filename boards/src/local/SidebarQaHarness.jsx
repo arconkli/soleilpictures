@@ -49,11 +49,27 @@ import { GraphFixtureContext } from '../lib/graphFixture.js';
 import { graphFromRows } from '../lib/graphData.js';
 import { SELF, PEOPLE, PEERS, messagesFixture, HOME_COVERS, HOME_PHOTOS } from './sidebarQaFixtures.js';
 import WhatsNewHint from '../components/whatsNew/WhatsNewHint.jsx';
+import { NotificationsBell } from '../components/NotificationsBell.jsx';
+import { NotificationsPanel } from '../components/NotificationsPanel.jsx';
 import { whatsNewFlagKey } from '../lib/whatsNew.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
 const QS = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+
+// The bell's rows (the mockup's five), aged from now so the times read as they
+// did there.
+function notifFixture() {
+  const ago = (ms) => new Date(Date.now() - ms).toISOString();
+  const M = 60_000; const H = 60 * M;
+  return [
+    { id: 'n1', kind: 'file.shared', title: 'Maya Ortiz shared “Casting notes.pdf” with you', created_at: ago(4 * M), read_at: null, board_id: null, data: {} },
+    { id: 'n2', kind: 'file.commented', title: 'Jon Park commented on “film-still-003.jpg”', created_at: ago(26 * M), read_at: null, board_id: 'film', data: {} },
+    { id: 'n3', kind: 'file.replied', title: 'Maya Ortiz replied on “Shot list”', created_at: ago(H), read_at: null, board_id: 'film', data: {} },
+    { id: 'n4', kind: 'share.viewed', title: '3 people opened “Feature film”', created_at: ago(5 * H), read_at: ago(4 * H), board_id: 'film' },
+    { id: 'n5', kind: 'workspace.ownership_received', title: 'You now own “Ortiz Studio”', body: 'Its cards, files and storage now count toward your plan.', created_at: ago(48 * H), read_at: ago(40 * H), board_id: null },
+  ];
+}
 
 // Real photographs (small crops of the app's own landing and sign-in images),
 // not coloured squares: a screenshot of this harness is judged as the product,
@@ -509,6 +525,16 @@ export function SidebarQaHarness() {
   const [toast, setToast] = useState(null);
   const listRef = useRef(null);
   const [msgsOpen, setMsgsOpen] = useState(MSG_QA);
+  // The bell, as App draws it (placement C): the real button and panel over
+  // the mockup's five rows, three unread. Mark read is local.
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifItems, setNotifItems] = useState(notifFixture);
+  const notifBellRef = useRef(null);
+  const notifUnread = notifItems.filter((n) => !n.read_at).length;
+  const notifBell = (
+    <NotificationsBell ref={notifBellRef} unread={notifUnread} open={notifOpen}
+      onToggle={() => { say(notifOpen ? 'bell close' : 'bell open'); setNotifOpen((o) => !o); }} />
+  );
   const [openConv, setOpenConv] = useState(QS.get('conv') || null);
   const fixture = useMemo(() => messagesFixture(), []);
   const homeBoards = useMemo(() => Object.fromEntries(Object.entries(allBoards)
@@ -730,7 +756,12 @@ export function SidebarQaHarness() {
                 <button className="tb-icon" aria-label="Undo"><Icon as={Undo} size={16} /></button>
                 <button className="tb-icon" aria-label="Redo" disabled><Icon as={Redo} size={16} /></button>
                 <button className="tb-icon" aria-label="Search"><Icon as={Search} size={16} /></button>
-                {!coarse && <button className="tb-icon" aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>}
+                {!coarse ? (
+                  <>
+                    <button className="tb-icon" aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>
+                    {notifBell}
+                  </>
+                ) : notifBell}
                 <span className="chrome-sep" aria-hidden="true" />
                 <span className="sbqa-faces" aria-label="2 people here">AC · JR</span>
                 {coarse && (
@@ -810,6 +841,7 @@ export function SidebarQaHarness() {
                 <div className="tb-right">
                   <button className="tb-icon" aria-label="Undo"><Icon as={Undo} size={16} /></button>
                   <button className="tb-icon" aria-label="Redo" disabled><Icon as={Redo} size={16} /></button>
+                  {notifBell}
                   <button className="tb-btn tb-share" aria-label="Share this cluster" onClick={() => say('share')}>
                     <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
                   </button>
@@ -915,6 +947,18 @@ export function SidebarQaHarness() {
       )}
     </div>
     </FilesLookContext.Provider>
+    {notifOpen && createPortal((
+      <NotificationsPanel
+        items={notifItems} unread={notifUnread} loading={false}
+        onMarkRead={(ids) => setNotifItems((prev) => prev.map((n) => (
+          (!ids || ids.includes(n.id)) && !n.read_at ? { ...n, read_at: new Date().toISOString() } : n)))}
+        onOpenBoard={(id) => { say(`notif board ${id}`); setNotifOpen(false); }}
+        onOpenSettings={(tab, ws) => say(`notif settings ${tab} ${ws}`)}
+        onClose={() => setNotifOpen(false)}
+        anchorRef={notifBellRef}
+        mobileShell={mobileShell}
+      />
+    ), document.body)}
     {msgsOpen && createPortal((
       <FeedbackProvider>
         <MessagesFixtureContext.Provider value={fixture}>

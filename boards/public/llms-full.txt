@@ -3210,6 +3210,7 @@ Files shared with you
 A file or doc someone shares with you opens inside Clusters, over whatever you were doing, with the same player, viewer or doc as its page. You get there from:
 
 Open on the toast that tells you a file was shared with you, while you are in the app
+its row in the list under the bell at the top right of the board (on a phone, in the top bar before Share), which keeps every notification until you read it; see Notifications
 the Shared files row under Shared with me in the sidebar, which appears once anything has been shared with you or by you, with a count of the ones you haven't opened yet
 Open in Clusters at the top of a file's page, when you open the link while signed in
 
@@ -3503,6 +3504,8 @@ Where they appear
 
 In the app — unread indicators on the sidebar, and in the browser tab title for messages. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app; for a file, Open opens it in the app. The share itself also reaches you by email, and every file shared with you is listed under Shared files in the sidebar.
 
+The bell — at the top right of the board, right after the theme switch; on a phone it is in the top bar, just before Share. Its number counts the notifications you haven't read. Press it and the list opens under it, newest first, with the unread ones marked; Mark all read clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app. Esc, a click outside the list or the bell again closes it; on a phone the list fills the screen and × closes it.
+
 Email only when you are away — an accepted-invite email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise.
 
 Browser notifications — only if you grant permission. Nothing is requested until there is an actual reason to ask.
@@ -3533,7 +3536,7 @@ Q: Can I turn off product emails but keep mentions?
 A: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
 
 Q: Where do notifications appear in the app?
-A: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app; a file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar).
+A: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar).
 
 Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.

@@ -158,6 +158,7 @@ import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx'
 import { MessagesPresence } from './components/MessagesPresence.jsx';
 import { MessagesLookContext, MessagesBoardsContext } from './components/messagesLook.js';
 import { NotificationsPanel } from './components/NotificationsPanel.jsx';
+import { NotificationsBell } from './components/NotificationsBell.jsx';
 import { addShootDays, scaffoldShootDay, nextDayNumber } from './lib/productionDay.js';
 import { useNotifications } from './hooks/useNotifications.js';
 // Lazy: the ?local=1 / no-Supabase QA harness (and its deps — demo data,
@@ -1414,6 +1415,36 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (notifOpen && tweak.showMessages) setTweak('showMessages', false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifOpen]);
+
+  // The bell (placement C, owner's pick, 2026-10-21): the new sidebar has no
+  // Notifications row, so the list opens from a button in the board's right
+  // island (after the theme switch) or, on a phone, the top bar (before
+  // Share). One element, rendered in whichever bar is showing; the panel
+  // hangs from it (notifBellRef).
+  const notifBellRef = useRef(null);
+  const notifBell = (
+    <NotificationsBell ref={notifBellRef} unread={notifications.unread} open={notifOpen}
+      onToggle={() => {
+        // Only the open is worth a row; the close tells us nothing. This is
+        // the denominator notif_click needs — a notification nobody clicked
+        // and a bell nobody opened are different failures.
+        if (!notifOpen) {
+          try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
+        }
+        setNotifOpen(v => !v);
+      }} />
+  );
+  // An editor-limit row opens Settings at Members in the row's workspace:
+  // here, or after switching to it, the way the workspace menu's Settings
+  // does (the remount would throw an open panel away, so a note opens it).
+  const openNotificationSettings = (tab, workspaceId) => {
+    if (workspaceId && workspaceId !== workspace?.id) {
+      markSettingsAfterSwitch(workspaceId, tab);
+      onSwitchWorkspace?.(workspaceId);
+      return;
+    }
+    openSettings(tab);
+  };
 
   // "hasThumb" = has a CURRENT-version stored thumbnail. A stale version
   // (pre-rework render) counts as missing so the on-open backfill in
@@ -10911,12 +10942,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <button className="tb-icon" title="Search (⌘K)" aria-label="Search" onClick={() => setPaletteOpen(true)}>
                   <Icon as={Search} size={16} />
                 </button>
-                {!isTouch && (
-                  <button className="tb-icon tb-icon-theme" title="Toggle theme" aria-label="Toggle theme"
-                          onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
-                    <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
-                  </button>
-                )}
+                {/* The bell follows the theme switch, or Search where the
+                    theme waits in ⋯ (under a finger). */}
+                {!isTouch ? (
+                  <>
+                    <button className="tb-icon tb-icon-theme" title="Toggle theme" aria-label="Toggle theme"
+                            onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
+                      <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
+                    </button>
+                    {notifBell}
+                  </>
+                ) : notifBell}
                 <span className="chrome-sep" aria-hidden="true" />
                 <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
                                         workspaceId={workspace.id} max={4} onJumpTo={jumpToPeer} />
@@ -11094,6 +11130,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 circle on a phone where the label is hidden. Grey text among grey
                 icons was easy to miss, and it is the way people reach
                 invitations. */}
+            {notifBell}
             <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
               <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
             </button>
@@ -11480,7 +11517,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           loading={notifications.loading}
           onMarkRead={notifications.markRead}
           onOpenBoard={(id) => { openBoardAnywhere(id); setCurrentSurface('board'); setNotifOpen(false); }}
+          onOpenSettings={openNotificationSettings}
           onClose={() => setNotifOpen(false)}
+          anchorRef={notifBellRef}
+          mobileShell={mobileShell}
         />
       ), document.body)}
       {/* Kept for its exit while it closes (MessagesPresence). */}

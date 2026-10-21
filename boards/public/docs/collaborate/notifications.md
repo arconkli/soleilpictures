@@ -28,6 +28,14 @@ show as a toast when they arrive while you are in the app; for a file, **Open**
 opens it in the app. The share itself also reaches you by email, and every file
 shared with you is listed under **Shared files** in the sidebar.
 
+**The bell** — at the top right of the board, right after the theme switch; on
+a phone it is in the top bar, just before **Share**. Its number counts the
+notifications you haven't read. Press it and the list opens under it, newest
+first, with the unread ones marked; **Mark all read** clears the number. Press
+a row to go to what it is about: a row for a file shared with you, or a comment
+on one, opens the file in the app. **Esc**, a click outside the list or the
+bell again closes it; on a phone the list fills the screen and **×** closes it.
+
 **Email only when you are away** — an accepted-invite email is sent only if you
 are not currently in the app. If you are, the in-app notification is the whole story and
 a second copy in your inbox is just noise.

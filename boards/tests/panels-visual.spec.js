@@ -213,26 +213,39 @@ test('VS-PANELS-06: a sheet with a pinned footer keeps the toast off its buttons
   expect((await rect(toast)).t).toBeLessThan(120);
 });
 
-test('VS-PANELS-07: on a phone the Notifications panel is a full-width sheet that stops at the bottom nav', async ({ page }) => {
+// The bell's list on a phone is a full-screen sheet over the top bar and the
+// bottom nav, with its own × (placement C, 2026-10-21). It used to be a
+// sheet that stopped at the nav; the floating desktop card had run 41px down
+// over the nav, whose labels showed through its translucent bottom edge.
+test('VS-PANELS-07: on a phone the Notifications panel is a full-screen sheet over the bottom nav', async ({ page }) => {
   await page.setViewportSize(PHONE);
-  const nav = page.locator('.mb-nav');
-  await expect(nav).toBeVisible();
-  await probe(page, 'mountNotifications');
-  const panel = page.locator('.ntf-panel');
+  await probe(page, 'mountNotifications', { mobileShell: true });
+  const panel = page.locator('.ntf-shell');
   await expect(panel).toBeVisible();
-  await page.waitForTimeout(400);   // the entrance animation scales the box
   const p = await rect(panel);
-  const n = await rect(nav);
   expect(p.l).toBe(0);
+  expect(p.t).toBe(0);
   expect(p.r).toBe(PHONE.width);
-  // The nav's 1px top border sits inside its 56px row, as for Messages.
-  expect(p.b, 'the panel must not run over the nav').toBeLessThanOrEqual(n.t + 1.5);
+  expect(p.b).toBe(PHONE.height);
+  // Over the bottom nav (z-index 90) and the top bar (40). The local shell
+  // no longer draws the nav (VS-PANELS-08 fails on it too), so the levels
+  // are compared rather than the pixels.
+  expect(Number(await panel.evaluate((el) => getComputedStyle(el).zIndex))).toBeGreaterThan(90);
+  await expect(panel.locator('.ntf-x')).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('ntf-390-dark.png') });
   await setTheme(page, 'light');
   await page.screenshot({ path: test.info().outputPath('ntf-390-light.png') });
-  // Desktop keeps the floating card.
+});
+
+test('VS-PANELS-07: on a desktop the Notifications panel is the 340px card', async ({ page }) => {
   await page.setViewportSize(DESKTOP);
-  expect((await rect(panel)).w).toBe(360);
+  await probe(page, 'mountNotifications');
+  const panel = page.locator('.ntf-shell');
+  await expect(panel).toBeVisible();
+  await expect(panel).not.toHaveClass(/is-sheet/);
+  await page.waitForTimeout(400);   // the entrance animation scales the box
+  expect((await rect(panel)).w).toBe(340);
+  await expect(panel.locator('.ntf-x')).toHaveCount(0);
 });
 
 test('VS-PANELS-08: the phone "Add your photos" card keeps a margin on the right', async ({ page }) => {

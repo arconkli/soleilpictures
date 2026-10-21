@@ -32244,6 +32244,37 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
+      "v": "its row in the list under the bell at the top right of the board (on a phone, in the top bar before "
+     },
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), which keeps every notification until you read it; see "
+     },
+     {
+      "t": "link",
+      "v": "Notifications",
+      "href": "/docs/collaborate/notifications",
+      "children": [
+       {
+        "t": "text",
+        "v": "Notifications"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
       "v": "the "
      },
      {
@@ -34920,6 +34951,81 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " in the sidebar."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "The bell",
+     "children": [
+      {
+       "t": "text",
+       "v": "The bell"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — at the top right of the board, right after the theme switch; on a phone it is in the top bar, just before "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Its number counts the notifications you haven't read. Press it and the list opens under it, newest first, with the unread ones marked; "
+    },
+    {
+     "t": "strong",
+     "v": "Mark all read",
+     "children": [
+      {
+       "t": "text",
+       "v": "Mark all read"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app. "
+    },
+    {
+     "t": "strong",
+     "v": "Esc",
+     "children": [
+      {
+       "t": "text",
+       "v": "Esc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a click outside the list or the bell again closes it; on a phone the list fills the screen and "
+    },
+    {
+     "t": "strong",
+     "v": "×",
+     "children": [
+      {
+       "t": "text",
+       "v": "×"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " closes it."
     }
    ]
   },

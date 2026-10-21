@@ -372,6 +372,9 @@ were doing, with the same player, viewer or doc as its page. You get there from:
 
 - **Open** on the toast that tells you a file was shared with you, while you
   are in the app
+- its row in the list under the bell at the top right of the board (on a
+  phone, in the top bar before **Share**), which keeps every notification until
+  you read it; see [Notifications](/docs/collaborate/notifications)
 - the **Shared files** row under **Shared with me** in the sidebar, which
   appears once anything has been shared with you or by you, with a count of
   the ones you haven't opened yet

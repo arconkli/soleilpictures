@@ -98,12 +98,13 @@ export function mountShare({ onlinePeerName } = {}) {
   }));
 }
 
-export function mountNotifications() {
+// `mobileShell`: what App passes on a phone, where the list is a sheet.
+export function mountNotifications({ mobileShell = false } = {}) {
   const now = new Date().toISOString();
-  mountInto(h(NotificationsPanel, {
+  return mountInto(h(NotificationsPanel, {
     items: [
       { id: 'n1', kind: 'file.shared', title: 'Maya shared a file with you', body: 'Lookbook.pdf', created_at: now, read_at: null },
     ],
-    unread: 1, loading: false, onClose: () => {},
+    unread: 1, loading: false, onClose: () => {}, mobileShell,
   }));
 }

@@ -2393,7 +2393,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do notifications appear in the app?",
-        "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app; a file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar)."
+        "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar)."
       },
       {
         "q": "Do I get browser notifications?",

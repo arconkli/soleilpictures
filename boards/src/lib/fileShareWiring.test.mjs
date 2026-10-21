@@ -101,10 +101,12 @@ test('the Shared page hold is open, so file.* notifications open in the app', ()
 
 test('NotificationsPanel opens file.* kinds in the app, else /f/<token>', () => {
   const s = src('../components/NotificationsPanel.jsx');
-  assert.match(s, /startsWith\('file\.'\)/);
   assert.match(s, /import \{ fileSharesAllowed, sharedFilesAllowed \} from '\.\.\/lib\/appHost\.js'/);
-  assert.match(s, /startsWith\('file\.'\) && n\.data\?\.token && fileSharesAllowed\(\)/);
-  assert.match(s, /if \(sharedFilesAllowed\(\)\) openSharedFile\(\{ token: n\.data\.token, via: 'bell' \}\);\s+else window\.open\('\/f\/' \+ encodeURIComponent\(n\.data\.token\)/);
+  // The rule moved into lib/notificationsBell.js's notificationTarget (pinned
+  // by notificationsBell.test.mjs): file.* with a token, behind the holds.
+  assert.match(src('./notificationsBell.js'), /kind\.startsWith\('file\.'\) && n\.data\?\.token && fileShares\)/);
+  assert.match(s, /notificationTarget\(n, \{ fileShares: fileSharesAllowed\(\), sharedFiles: sharedFilesAllowed\(\) \}\)/);
+  assert.match(s, /if \(target\.inApp\) openSharedFile\(\{ token: target\.token, via: 'bell' \}\);\s+else window\.open\('\/f\/' \+ encodeURIComponent\(target\.token\)/);
 });
 
 test('the live notification toast opens a file.* share in the app, else /f/', () => {
