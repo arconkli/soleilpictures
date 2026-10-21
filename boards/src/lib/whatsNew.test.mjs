@@ -41,17 +41,19 @@ test('a record on the profile or a mark on this device means it has been shown',
   assert.equal(whatsNewEligible({}), false);
 });
 
-test('the words say what the card is, naming the cluster it is showing', () => {
+// The owner, 2026-10-21: it says there has been a visual refresh, and that
+// any file can be uploaded and kept in Files.
+test('the words say the look is new and Files keeps any file, naming the cluster it is showing', () => {
   assert.deepEqual(whatsNewCopy({ phone: false, cluster: 'Feature film' }), {
     eyebrow: 'New',
-    title: 'All your files, in one list',
-    body: 'This lists every file in Feature film, from photos and video to audio and PDFs. Search it, or open it as a full page.',
+    title: 'A visual refresh, and a home for your files',
+    body: 'Upload any file and it stays here in Files, whether it’s on a board or not. This lists every file in Feature film. Search it, or open it as a full page.',
     link: 'What else is new',
     ok: 'Got it',
   });
   assert.equal(whatsNewCopy({ phone: true, cluster: 'Feature film' }).body,
-    'This lists every file in Feature film. Search it, or open it as a full page.');
-  assert.match(whatsNewCopy({ cluster: '   ' }).body, /^This lists every file in Untitled, /);
+    'Upload any file and it stays here in Files. Search it, or open it as a full page.');
+  assert.match(whatsNewCopy({ cluster: '   ' }).body, / This lists every file in Untitled\. /);
   assert.equal(CHANGELOG_PATH, '/changelog');
 });
 

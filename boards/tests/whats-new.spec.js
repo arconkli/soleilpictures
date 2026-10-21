@@ -26,8 +26,8 @@ test.describe('on a computer', () => {
     await open(page);
     await expect(hint(page)).toHaveCount(0);
     await up(page);
-    await expect(hint(page).getByRole('heading', { name: 'All your files, in one list' })).toBeVisible();
-    await expect(hint(page)).toContainText('This lists every file in Feature film, from photos and video to audio and PDFs.');
+    await expect(hint(page).getByRole('heading', { name: 'A visual refresh, and a home for your files' })).toBeVisible();
+    await expect(hint(page)).toContainText('Upload any file and it stays here in Files, whether it’s on a board or not. This lists every file in Feature film.');
     const at = await page.evaluate(() => {
       const box = (s) => document.querySelector(s).getBoundingClientRect();
       const h = box('.wn-hint'); const t = box('.wn-tail'); const f = box('.sbf-frame'); const l = box('.sbf-files-heading-label');
@@ -106,7 +106,7 @@ test.describe('on a phone', () => {
   test('it hangs under the cluster’s tab in the open drawer, with a finger’s room on both ways out', async ({ page }) => {
     await open(page);
     await up(page);
-    await expect(hint(page)).toContainText('This lists every file in Feature film. Search it, or open it as a full page.');
+    await expect(hint(page)).toContainText('Upload any file and it stays here in Files. Search it, or open it as a full page.');
     const at = await page.evaluate(() => {
       const box = (s) => document.querySelector(s).getBoundingClientRect();
       const h = box('.wn-hint'); const t = box('.wn-tail');

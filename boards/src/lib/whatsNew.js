@@ -56,16 +56,17 @@ export function whatsNewEligible({ createdAt, record = null, seenHere = false } 
   return predatesFilesSidebar(createdAt);
 }
 
-// The words, for the cluster the card is showing. The phone's bubble sits over
-// the drawer's own list, so it says less.
+// The words, for the cluster the card is showing: the look is new, and Files
+// keeps any file uploaded to it (the owner, 2026-10-21). The phone's bubble
+// sits over the drawer's own list, so it says less.
 export function whatsNewCopy({ phone = false, cluster = '' } = {}) {
   const name = String(cluster ?? '').trim() || 'Untitled';
   return {
     eyebrow: 'New',
-    title: 'All your files, in one list',
+    title: 'A visual refresh, and a home for your files',
     body: phone
-      ? `This lists every file in ${name}. Search it, or open it as a full page.`
-      : `This lists every file in ${name}, from photos and video to audio and PDFs. Search it, or open it as a full page.`,
+      ? 'Upload any file and it stays here in Files. Search it, or open it as a full page.'
+      : `Upload any file and it stays here in Files, whether it’s on a board or not. This lists every file in ${name}. Search it, or open it as a full page.`,
     link: 'What else is new',
     ok: 'Got it',
   };

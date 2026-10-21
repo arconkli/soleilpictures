@@ -15,7 +15,7 @@
 .wn-tail.is-up{top:-7.5px;width:16px;height:8px}
 .wn-tail.is-down{bottom:-7.5px;width:16px;height:8px}
 .wn-eyebrow{color:var(--ink-2);font:600 10.5px/1.2 var(--font-sans);letter-spacing:.08em;text-transform:uppercase}
-.wn-h{margin-top:6px;color:var(--ink-0);font:600 15px/1.3 var(--font-sans);letter-spacing:-.005em}
+.wn-h{margin-top:6px;color:var(--ink-0);font:600 15px/1.3 var(--font-sans);letter-spacing:-.005em;text-wrap:balance}
 .wn-p{margin-top:5px;color:var(--ink-1);font:400 13px/1.45 var(--font-sans);text-wrap:pretty}
 .wn-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
 .wn-link{display:inline-flex;align-items:center;gap:5px;min-height:28px;color:var(--ink-1);font:400 12.5px/1 var(--font-sans);text-decoration:none;white-space:nowrap}
