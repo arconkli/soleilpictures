@@ -2123,6 +2123,10 @@ export const DOCS_PAGES = [
       {
         "id": "sharing-a-single-file",
         "text": "Sharing a single file"
+      },
+      {
+        "id": "files-shared-with-you",
+        "text": "Files shared with you"
       }
     ],
     "related": [
@@ -2150,6 +2154,10 @@ export const DOCS_PAGES = [
       {
         "q": "Does the person I share a file with need an account?",
         "a": "Not to view it, or to download it when downloading is allowed, if the file is shared with anyone who has the link. They sign in with a code sent to their email to comment, or to open a file shared only with people you added."
+      },
+      {
+        "q": "Where do I find files people have shared with me?",
+        "a": "In the Shared page — the Shared files row under Shared with me in the sidebar. Its With me tab lists every file shared with you, where you can open it in the app, save a copy into one of your clusters when downloading is allowed, or add a live shortcut to it on a cluster."
       },
       {
         "q": "Can I stop someone downloading a shared file?",
@@ -2369,7 +2377,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do notifications appear in the app?",
-        "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a shared file; a file shared with you is emailed to you as well."
+        "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app; a file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar)."
       },
       {
         "q": "Do I get browser notifications?",

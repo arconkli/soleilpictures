@@ -91,8 +91,14 @@ test('the dialog never toasts, and tells the bus after a write', () => {
   assert.match(s, /notifyFileShareChanged\(\{ boardId, cardId \}\)/);
 });
 
-// A file.* notification opens the file inside the app (over what you were
-// doing) once the Shared page ships; behind its hold, the /f/ page in a tab.
+// A file.* notification opens the file inside the app, over what you were
+// doing: the Shared page's hold (sharedFilesAllowed) is open since the sidebar
+// release (2026-10-21). The /f/ page in a tab is what the bell falls back to
+// only if that hold is ever closed again.
+test('the Shared page hold is open, so file.* notifications open in the app', () => {
+  assert.match(src('./appHost.js'), /export function sharedFilesAllowed\(\) \{\n  return true;\n\}/);
+});
+
 test('NotificationsPanel opens file.* kinds in the app, else /f/<token>', () => {
   const s = src('../components/NotificationsPanel.jsx');
   assert.match(s, /startsWith\('file\.'\)/);

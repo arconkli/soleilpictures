@@ -3102,6 +3102,38 @@ Sharing a file is free on every plan. The file stays where it is and counts towa
 
 To send a copy instead of a live page, see Exporting a board.
 
+Files shared with you
+
+A file someone shares with you opens inside Clusters, over whatever you were doing, with the same player or viewer as its page. You get there from:
+
+Open on the toast that tells you a file was shared with you, while you are in the app
+the Shared files row under Shared with me in the sidebar, which appears once anything has been shared with you or by you, with a count of the ones you haven't opened yet
+Open in Clusters at the top of a file's page, when you open the link while signed in
+
+The Shared page
+
+Shared files opens the Shared page, with two tabs.
+
+With me lists the files people added you to, and the files you opened from a link while signed in. Each row shows who shared it and when; a dot marks one you haven't opened yet. Click a row to open the file, or use its ⋯ menu:
+
+Option | What it does
+Open | Opens the file in the app
+Save a copy… | Copies the file into one of your clusters — only when downloading is allowed
+Add shortcut… | Puts a live shortcut to the file on one of your clusters
+Remove from Shared with me | Takes it off your list, with an undo. It changes nothing for the person who shared it
+
+By me lists what you have shared that is still shared, with the cluster each file is in and who can open it. Click a row to open its sharing dialog, or use its ⋯ menu: Manage sharing…, Copy link, or Stop sharing, which turns the link off and removes everyone you added, at once. Stopping has an undo that brings back the link and exactly the people it removed, and emails nobody again.
+
+Save a copy
+
+Add to cluster → Save a copy in the viewer, or Save a copy… on the Shared page, asks which of your clusters to put it in, then copies the original file there. The copy is yours: it lands in that cluster's Files, stays even if the person stops sharing, and counts toward that cluster's cards and storage like an upload. It is offered only when the person who shared it allows downloading.
+
+Shortcuts
+
+Add to cluster → Add shortcut, or Add shortcut… on the Shared page, puts a card on one of your clusters that opens the shared file instead of copying it. It stays in sync with theirs — a new version they upload shows on it — and it uses no storage, though it counts as a card. Double-click it, or choose Open from its menu, to open the file in the app.
+
+A shortcut carries no copy of the file and nothing that names it: it shows the file only to someone who can open it. Anyone else sees Shared file, and if the person stops sharing it reads No longer shared, with a Remove button. On a public link a shortcut opens nothing.
+
 ## Frequently asked questions
 
 Q: Does someone need an account to open a shared link?
@@ -3118,6 +3150,9 @@ A: Yes. Right-click a file and choose Share file…, or press Share in its full-
 
 Q: Does the person I share a file with need an account?
 A: Not to view it, or to download it when downloading is allowed, if the file is shared with anyone who has the link. They sign in with a code sent to their email to comment, or to open a file shared only with people you added.
+
+Q: Where do I find files people have shared with me?
+A: In the Shared page — the Shared files row under Shared with me in the sidebar. Its With me tab lists every file shared with you, where you can open it in the app, save a copy into one of your clusters when downloading is allowed, or add a live shortcut to it on a cluster.
 
 Q: Can I stop someone downloading a shared file?
 A: Turning off Allow downloading removes the Download button and the original file from the page. It cannot stop someone saving what they can see, such as a screenshot or a screen recording.
@@ -3360,7 +3395,7 @@ The last one is the one to switch off if you only want to hear about your own wo
 
 Where they appear
 
-In the app — unread indicators on the sidebar, and in the browser tab title for messages. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app; a shared file's has Open. The share itself also reaches you by email.
+In the app — unread indicators on the sidebar, and in the browser tab title for messages. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app; for a file, Open opens it in the app. The share itself also reaches you by email, and every file shared with you is listed under Shared files in the sidebar.
 
 Email only when you are away — an accepted-invite email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise.
 
@@ -3392,7 +3427,7 @@ Q: Can I turn off product emails but keep mentions?
 A: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
 
 Q: Where do notifications appear in the app?
-A: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a shared file; a file shared with you is emailed to you as well.
+A: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app; a file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar).
 
 Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.

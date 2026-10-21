@@ -30547,6 +30547,565 @@ export const DOCS_CONTENT = {
      "v": "."
     }
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Files shared with you",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files shared with you"
+    }
+   ],
+   "id": "files-shared-with-you"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file someone shares with you opens inside Clusters, over whatever you were doing, with the same player or viewer as its page. You get there from:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on the toast that tells you a file was shared with you, while you are in the app"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "Shared files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " row under "
+     },
+     {
+      "t": "strong",
+      "v": "Shared with me",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared with me"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the sidebar, which appears once anything has been shared with you or by you, with a count of the ones you haven't opened yet"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Open in Clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open in Clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the top of a file's page, when you open the link while signed in"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The Shared page",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The Shared page"
+    }
+   ],
+   "id": "the-shared-page"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Shared files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the Shared page, with two tabs."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "With me",
+     "children": [
+      {
+       "t": "text",
+       "v": "With me"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists the files people added you to, and the files you opened from a link while signed in. Each row shows who shared it and when; a dot marks one you haven't opened yet. Click a row to open the file, or use its "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Option"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Open",
+       "children": [
+        {
+         "t": "text",
+         "v": "Open"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Opens the file in the app"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Save a copy…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Save a copy…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copies the file into one of your clusters — only when downloading is allowed"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Add shortcut…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Add shortcut…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Puts a live shortcut to the file on one of your clusters"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Remove from Shared with me",
+       "children": [
+        {
+         "t": "text",
+         "v": "Remove from Shared with me"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Takes it off your list, with an undo. It changes nothing for the person who shared it"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "By me",
+     "children": [
+      {
+       "t": "text",
+       "v": "By me"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists what you have shared that is still shared, with the cluster each file is in and who can open it. Click a row to open its sharing dialog, or use its "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu: "
+    },
+    {
+     "t": "strong",
+     "v": "Manage sharing…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage sharing…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Stop sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Stop sharing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which turns the link off and removes everyone you added, at once. Stopping has an undo that brings back the link and exactly the people it removed, and emails nobody again."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Save a copy",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Save a copy"
+    }
+   ],
+   "id": "save-a-copy"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Add to cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add to cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " → "
+    },
+    {
+     "t": "strong",
+     "v": "Save a copy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save a copy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the viewer, or "
+    },
+    {
+     "t": "strong",
+     "v": "Save a copy…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save a copy…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the Shared page, asks which of your clusters to put it in, then copies the original file there. The copy is yours: it lands in that cluster's "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", stays even if the person stops sharing, and counts toward that cluster's cards and "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "/docs/files#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " like an upload. It is offered only when the person who shared it allows downloading."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Shortcuts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Shortcuts"
+    }
+   ],
+   "id": "shortcuts"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Add to cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add to cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " → "
+    },
+    {
+     "t": "strong",
+     "v": "Add shortcut",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add shortcut"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Add shortcut…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add shortcut…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the Shared page, puts a card on one of your clusters that opens the shared file instead of copying it. It stays in sync with theirs — a new version they upload shows on it — and it uses no storage, though it counts as a card. Double-click it, or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " from its menu, to open the file in the app."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A shortcut carries no copy of the file and nothing that names it: it shows the file only to someone who can open it. Anyone else sees "
+    },
+    {
+     "t": "strong",
+     "v": "Shared file",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and if the person stops sharing it reads "
+    },
+    {
+     "t": "strong",
+     "v": "No longer shared",
+     "children": [
+      {
+       "t": "text",
+       "v": "No longer shared"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with a "
+    },
+    {
+     "t": "strong",
+     "v": "Remove",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button. On a "
+    },
+    {
+     "t": "link",
+     "v": "public link",
+     "href": "#the-link-what-it-grants",
+     "children": [
+      {
+       "t": "text",
+       "v": "public link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a shortcut opens nothing."
+    }
+   ]
   }
  ],
  "/docs/collaborate/presence": [
@@ -32666,7 +33225,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", a comment on it and notices about your account show as a toast when they arrive while you are in the app; a shared file's has "
+     "v": ", a comment on it and notices about your account show as a toast when they arrive while you are in the app; for a file, "
     },
     {
      "t": "strong",
@@ -32680,7 +33239,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". The share itself also reaches you by email."
+     "v": " opens it in the app. The share itself also reaches you by email, and every file shared with you is listed under "
+    },
+    {
+     "t": "strong",
+     "v": "Shared files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the sidebar."
     }
    ]
   },

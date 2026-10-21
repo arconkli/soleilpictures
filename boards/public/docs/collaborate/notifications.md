@@ -24,8 +24,9 @@ involves you.
 **In the app** — unread indicators on the sidebar, and in the browser tab title
 for [messages](/docs/collaborate/messages). A [file shared with
 you](/docs/collaborate/sharing), a comment on it and notices about your account
-show as a toast when they arrive while you are in the app; a shared file's has
-**Open**. The share itself also reaches you by email.
+show as a toast when they arrive while you are in the app; for a file, **Open**
+opens it in the app. The share itself also reaches you by email, and every file
+shared with you is listed under **Shared files** in the sidebar.
 
 **Email only when you are away** — an accepted-invite email is sent only if you
 are not currently in the app. If you are, the in-app notification is the whole story and

@@ -212,10 +212,12 @@ export function fileSharesAllowed() {
 //
 // What happens to a file once it is shared (owner, 2026-10-18): the Shared
 // page (with me / by me), the viewer the bell opens inside the app, Save a
-// copy and shortcuts. Held to DEV || preview, the allowlist shape above, until
-// the release that ships its docs.
+// copy and shortcuts. It was held to DEV || preview, the allowlist shape
+// above, and was lifted for the sidebar release on 2026-10-21 with the docs
+// that describe it (docs/collaborate/sharing). It stays the one switch: hold
+// it again here, and every entry point closes together.
 export function sharedFilesAllowed() {
-  return import.meta.env.DEV || onPreviewHost();
+  return true;
 }
 
 // ---------------------------------------------------------------------------

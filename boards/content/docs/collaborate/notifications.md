@@ -11,7 +11,7 @@ faq:
   - q: Can I turn off product emails but keep mentions?
     a: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
   - q: Where do notifications appear in the app?
-    a: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a shared file; a file shared with you is emailed to you as well.
+    a: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app; a file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar).
   - q: Do I get browser notifications?
     a: Only if you grant permission. Nothing is requested until there is a reason.
   - q: How do I unsubscribe without logging in?
@@ -44,8 +44,9 @@ involves you.
 **In the app** — unread indicators on the sidebar, and in the browser tab title
 for [messages](/docs/collaborate/messages). A [file shared with
 you](/docs/collaborate/sharing), a comment on it and notices about your account
-show as a toast when they arrive while you are in the app; a shared file's has
-**Open**. The share itself also reaches you by email.
+show as a toast when they arrive while you are in the app; for a file, **Open**
+opens it in the app. The share itself also reaches you by email, and every file
+shared with you is listed under **Shared files** in the sidebar.
 
 **Email only when you are away** — an accepted-invite email is sent only if you
 are not currently in the app. If you are, the in-app notification is the whole story and

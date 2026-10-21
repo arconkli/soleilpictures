@@ -60,9 +60,12 @@ test('the /f/ page reads its media through the scoped resolver, not a page-wide 
   assert.match(page, /\{!signedIn && !overlay && \(\s+<footer className="fsp-cta">/);
 });
 
-test('the Shared page, the in-app viewer and the sidebar row sit behind sharedFilesAllowed', () => {
+test('the Shared page, the in-app viewer and the sidebar row all answer to sharedFilesAllowed, which is open', () => {
   const host = src('./appHost.js');
-  assert.match(host, /export function sharedFilesAllowed\(\) \{\n  return import\.meta\.env\.DEV \|\| onPreviewHost\(\);\n\}/);
+  // Lifted for the sidebar release (2026-10-21): open everywhere, and still the
+  // one switch every entry point below asks.
+  assert.match(host, /export function sharedFilesAllowed\(\) \{\n  return true;\n\}/);
+  assert.match(host, /sharedFiles: sharedFilesAllowed,/, 'still reported in featureFlags()');
   const app = src('../App.jsx');
   assert.match(app, /\{sharedFilesAllowed\(\) && <SharedFileHost onSaveCopy=\{saveSharedCopy\} onAddShortcut=\{addSharedShortcut\} \/>\}/);
   assert.match(app, /\) : currentSurface === 'shared' && sharedFilesAllowed\(\) \? \(/);

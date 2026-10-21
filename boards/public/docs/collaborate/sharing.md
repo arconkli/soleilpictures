@@ -290,3 +290,61 @@ makes no copy.
 
 To send a copy instead of a live page, see
 [Exporting a board](/docs/canvas/export).
+
+## Files shared with you
+
+A file someone shares with you opens inside Clusters, over whatever you were
+doing, with the same player or viewer as its page. You get there from:
+
+- **Open** on the toast that tells you a file was shared with you, while you
+  are in the app
+- the **Shared files** row under **Shared with me** in the sidebar, which
+  appears once anything has been shared with you or by you, with a count of
+  the ones you haven't opened yet
+- **Open in Clusters** at the top of a file's page, when you open the link
+  while signed in
+
+### The Shared page
+
+**Shared files** opens the Shared page, with two tabs.
+
+**With me** lists the files people added you to, and the files you opened from
+a link while signed in. Each row shows who shared it and when; a dot marks one
+you haven't opened yet. Click a row to open the file, or use its **⋯** menu:
+
+| Option | What it does |
+|---|---|
+| **Open** | Opens the file in the app |
+| **Save a copy…** | Copies the file into one of your clusters — only when downloading is allowed |
+| **Add shortcut…** | Puts a live shortcut to the file on one of your clusters |
+| **Remove from Shared with me** | Takes it off your list, with an undo. It changes nothing for the person who shared it |
+
+**By me** lists what you have shared that is still shared, with the cluster
+each file is in and who can open it. Click a row to open its sharing dialog, or
+use its **⋯** menu: **Manage sharing…**, **Copy link**, or **Stop sharing**,
+which turns the link off and removes everyone you added, at once. Stopping
+has an undo that brings back the link and exactly the people it removed, and
+emails nobody again.
+
+### Save a copy
+
+**Add to cluster** → **Save a copy** in the viewer, or **Save a copy…** on the
+Shared page, asks which of your clusters to put it in, then copies the original
+file there. The copy is yours: it lands in that cluster's
+[Files](/docs/clusters/list-view), stays even if the person stops sharing, and
+counts toward that cluster's cards and [storage](/docs/files#storage) like an
+upload. It
+is offered only when the person who shared it allows downloading.
+
+### Shortcuts
+
+**Add to cluster** → **Add shortcut**, or **Add shortcut…** on the Shared page,
+puts a card on one of your clusters that opens the shared file instead of
+copying it. It stays in sync with theirs — a new version they upload shows on
+it — and it uses no storage, though it counts as a card. Double-click it, or
+choose **Open** from its menu, to open the file in the app.
+
+A shortcut carries no copy of the file and nothing that names it: it shows the
+file only to someone who can open it. Anyone else sees **Shared file**, and if
+the person stops sharing it reads **No longer shared**, with a **Remove**
+button. On a [public link](#the-link-what-it-grants) a shortcut opens nothing.
