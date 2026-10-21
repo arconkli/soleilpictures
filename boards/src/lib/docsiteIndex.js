@@ -125,7 +125,7 @@ export const DOCS_PAGES = [
     "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.",
     "section": "start",
     "order": 1,
-    "updated": "2026-10-04",
+    "updated": "2026-10-21",
     "navLabel": "Getting started",
     "headings": [
       {
@@ -170,6 +170,10 @@ export const DOCS_PAGES = [
       {
         "q": "My sign-in code didn't arrive. What now?",
         "a": "Look in Spam or Promotions first. On the code screen, a Gmail, Outlook, Yahoo, iCloud or Proton address gets a button that opens that inbox in a new tab, and for Gmail it searches every folder. Work and school mail servers can hold a code back for a few minutes or quarantine it, so check there too — signing in with a different address creates a separate account. You can ask for a new code once the resend timer runs out. Asking again cancels the code before it, so type the one from the newest email. Reloading the page keeps you on the code step."
+      },
+      {
+        "q": "Do I have to invite anyone during setup?",
+        "a": "No. Every question after the workspace's name can be skipped. If you skip the invite step you may be asked once more, after you have added a few things, and never again. The invite link and the Share panel are there whenever you want them."
       },
       {
         "q": "Can people I share with edit my board?",
@@ -2117,6 +2121,10 @@ export const DOCS_PAGES = [
         "text": "Inviting people"
       },
       {
+        "id": "inviting-a-whole-workspace",
+        "text": "Inviting a whole workspace"
+      },
+      {
         "id": "who-has-access",
         "text": "Who has access"
       },
@@ -2770,10 +2778,10 @@ export const DOCS_PAGES = [
     "title": "Referrals — Invite and Earn — Soleil Clusters",
     "metaDescription": "Invite people to Soleil Clusters. They get bonus cards and storage when they join; you get yours once they get started. Stats live in Settings.",
     "h1": "Referrals",
-    "answer": "Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.",
+    "answer": "Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.",
     "section": "account",
     "order": 3,
-    "updated": "2026-10-17",
+    "updated": "2026-10-21",
     "navLabel": "Referrals",
     "headings": [
       {

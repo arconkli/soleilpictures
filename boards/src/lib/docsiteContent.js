@@ -742,7 +742,267 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "New accounts land on a starter cluster with a few cards already on it, so the canvas is never a blank intimidating rectangle. You can delete all of it."
+     "v": "Some new accounts start with a short setup before the canvas; others go straight to their first cluster."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The setup is three screens:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Name your workspace.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Name your workspace."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " It is where your clusters, files and people live, and you can rename it any time. This is the one step you can't skip."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Tell us about it.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tell us about it."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "em",
+      "v": "Who's working in it?",
+      "children": [
+       {
+        "t": "text",
+        "v": "Who's working in it?"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (Just me, A few people or A team) and "
+     },
+     {
+      "t": "em",
+      "v": "What kind of work?",
+      "children": [
+       {
+        "t": "text",
+        "v": "What kind of work?"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — film and video, photo, design, ads and brand, music, school, personal, or something else. One tap each, or "
+     },
+     {
+      "t": "strong",
+      "v": "Skip",
+      "children": [
+       {
+        "t": "text",
+        "v": "Skip"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". The work answer changes what your first cluster says when it is empty."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Invite people.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Invite people."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " The step leads with an invite link to the whole workspace — "
+     },
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on a computer, "
+     },
+     {
+      "t": "strong",
+      "v": "Share invite link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share invite link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on a phone — and under it, "
+     },
+     {
+      "t": "strong",
+      "v": "or invite by email",
+      "children": [
+       {
+        "t": "text",
+        "v": "or invite by email"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "Inviting a whole workspace",
+      "href": "/docs/collaborate/sharing#inviting-a-whole-workspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "Inviting a whole workspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for what the link does. "
+     },
+     {
+      "t": "strong",
+      "v": "Skip for now",
+      "children": [
+       {
+        "t": "text",
+        "v": "Skip for now"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " goes straight in."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you skip the invite step, you may be asked once more in your first two weeks, after you have put a few things on the board, and never a third time."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Once something is on your board, three short tips point out where your clusters are, that Files takes any file and a pasted link becomes a card, and how to bring a folder over from Google Drive or Dropbox. "
+    },
+    {
+     "t": "strong",
+     "v": "Next",
+     "children": [
+      {
+       "t": "text",
+       "v": "Next"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " moves on, "
+    },
+    {
+     "t": "strong",
+     "v": "Skip",
+     "children": [
+      {
+       "t": "text",
+       "v": "Skip"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ends them, and the last one's "
+    },
+    {
+     "t": "strong",
+     "v": "See how",
+     "children": [
+      {
+       "t": "text",
+       "v": "See how"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the steps for downloading a folder from Google Drive and "
+    },
+    {
+     "t": "link",
+     "v": "bringing it in",
+     "href": "/docs/clusters#importing-folders-and-zips",
+     "children": [
+      {
+       "t": "text",
+       "v": "bringing it in"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". They show once."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Someone who joins your workspace through an invite is asked only what kind of work they do (optional), then opens it. If nothing is in it yet, they see whose workspace it is, so the empty board is not a mystery."
     }
    ]
   },
@@ -1171,6 +1431,22 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " gives a named person Editor or Viewer access. Editors can change the board. This does not require them to pay — collaboration is free on every plan."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "The workspace invite link",
+      "children": [
+       {
+        "t": "text",
+        "v": "The workspace invite link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " from setup brings people into the whole workspace, every cluster and file in it, as editors."
      }
     ],
     [
@@ -30733,6 +31009,339 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Inviting a whole workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Inviting a whole workspace"
+    }
+   ],
+   "id": "inviting-a-whole-workspace"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A new workspace's "
+    },
+    {
+     "t": "link",
+     "v": "setup",
+     "href": "/docs/getting-started#1-sign-in",
+     "children": [
+      {
+       "t": "text",
+       "v": "setup"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " offers one link that brings people into the "
+    },
+    {
+     "t": "strong",
+     "v": "whole workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "whole workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", every cluster and file in it, as editors. It is the setup's invite step, and the one time it asks again, that make it: "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a computer, "
+    },
+    {
+     "t": "strong",
+     "v": "Share invite link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share invite link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a phone. Only the workspace's owner or a co-owner can make one. Making it sends nothing to anyone."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A link lasts"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It lets in"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "An account"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "30 days"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "up to 25 people"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "An account in its first 72 hours"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "7 days"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "up to 5 people"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The line under the link says what that one does, from the link itself: who it lets in, for how long, and how many more people. Asking again for the same workspace gives back the link that is still live rather than a new one. An account makes at most 10 links a day, or 3 in its first 72 hours; past that, invite by email."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Opening one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Opening one"
+    }
+   ],
+   "id": "opening-one"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Signed out, the sign-in screen names the workspace and, if they have set one, the first name of the person who sent it — never an address. Once they sign in or sign up, they are in. Someone already signed in sees "
+    },
+    {
+     "t": "strong",
+     "v": "Join as editor",
+     "children": [
+      {
+       "t": "text",
+       "v": "Join as editor"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Not now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " first, and someone already in the workspace is offered "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it instead. A link that has expired, been used up or stopped working says so and asks them to get a new one from whoever sent it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A link stops working while the account that made it is under review or no longer the workspace's owner or a co-owner, and comes back if that changes. A link passed around far more widely than a team turns itself off for good; the people it already let in stay. There is no button to turn a link off yet: it ends when it expires or is used up. To take someone back out, remove them under "
+    },
+    {
+     "t": "strong",
+     "v": "Who has access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Who has access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When someone joins, you see \""
+    },
+    {
+     "t": "em",
+     "v": "Name",
+     "children": [
+      {
+       "t": "text",
+       "v": "Name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " joined "
+    },
+    {
+     "t": "em",
+     "v": "your workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "your workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — say hi.\" with a "
+    },
+    {
+     "t": "strong",
+     "v": "Message",
+     "children": [
+      {
+       "t": "text",
+       "v": "Message"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button, or, if you are not in the app, an email — the "
+    },
+    {
+     "t": "strong",
+     "v": "Invite accepted",
+     "children": [
+      {
+       "t": "text",
+       "v": "Invite accepted"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " one in "
+    },
+    {
+     "t": "link",
+     "v": "Notifications",
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A new account that joins through your link within 7 days of signing up counts as your "
+    },
+    {
+     "t": "link",
+     "v": "referral",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "referral"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", as on an edit link."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Who has access",
    "inline": [
     {
@@ -40733,7 +41342,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", with one of your edit links, or with your referral link. When they sign up they get "
+     "v": ", with one of your edit links, with your workspace's "
+    },
+    {
+     "t": "link",
+     "v": "invite link",
+     "href": "/docs/collaborate/sharing#inviting-a-whole-workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "invite link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or with your referral link. When they sign up they get "
     },
     {
      "t": "strong",
@@ -41169,7 +41793,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's "
+     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links, or your workspace's invite link, within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's "
     },
     {
      "t": "strong",

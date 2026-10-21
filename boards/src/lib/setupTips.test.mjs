@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { TIP_IDS, TIP_ANCHORS, TIPS_QUIET_MS, tipsFor, tipsEligible, tipsDue, tipsRecord } from './setupTips.js';
 import { SETUP_EPOCH } from './workspaceSetup.js';
 
-const NEW = '2026-10-21T10:00:00Z';
+const NEW = '2026-10-23T10:00:00Z';   // after SETUP_EPOCH (the sidebar release)
 const OLD = '2026-10-01T10:00:00Z';
 
 test('three tips in order, each pointing at the part of the sidebar it names', () => {

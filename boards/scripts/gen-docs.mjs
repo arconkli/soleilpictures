@@ -273,6 +273,24 @@ if (Number(referralCards[1]) !== REFERRAL_REWARD_CARDS
   );
 }
 
+// A whole-workspace invite link (create_workspace_invite_link, migration 0450):
+// how long it lasts and how many people it lets in, the tighter terms for an
+// account in its first hours (_account_is_new), and how many links an account
+// makes a day. The setup's invite step reads the same terms from the link's
+// own row (0451), so the page and the step say the same thing. A new account
+// joining through one counts as a referral in the same window as an edit link.
+const wsLinkSql = latestSqlDefining('create_workspace_invite_link');
+const wsLinkConst = (name) => wsLinkSql?.match(new RegExp(`${name}\\s+constant\\s+integer\\s*:=\\s*(\\d+)`))?.[1];
+const wsLink = {
+  days: wsLinkConst('c_days'), uses: wsLinkConst('c_uses'), perDay: wsLinkConst('c_links_per_day'),
+  newDays: wsLinkConst('c_new_days'), newUses: wsLinkConst('c_new_uses'), newPerDay: wsLinkConst('c_new_links_per_day'),
+};
+const wsLinkReferralDays = latestSqlDefining('claim_workspace_invite_link')
+  ?.match(/created_at > now\(\) - interval '(\d+) days'\) into v_is_new_user/i);
+if (Object.values(wsLink).some((v) => !v) || !wsLinkReferralDays || wsLinkReferralDays[1] !== referralLinkDays[1]) {
+  throw new Error('gen-docs: the workspace invite link terms were not found, or its referral window differs from an edit link\'s — update the extractor');
+}
+
 // How long the hashed origins of requests are kept for abuse prevention
 // (purge_old_request_origins, scheduled by migration 0378).
 const originRetention = latestSqlDefining('purge_old_request_origins')
@@ -418,6 +436,14 @@ export const FACTS = {
   // share panel say the same "0.5GB" from the same code.
   referralBonusStorage: formatBonusBytes(Number(inviteStorage[1])),
   referralLinkJoinDays: referralLinkDays[1],
+  // A whole-workspace invite link's life and joins, for an account and for a
+  // new one, and the links an account makes a day (0450).
+  workspaceLinkDays: wsLink.days,
+  workspaceLinkUses: wsLink.uses,
+  workspaceLinksPerDay: wsLink.perDay,
+  workspaceLinkNewDays: wsLink.newDays,
+  workspaceLinkNewUses: wsLink.newUses,
+  workspaceLinksNewPerDay: wsLink.newPerDay,
   // Days a request's hashed network and browser are kept (0378).
   requestOriginRetentionDays: originRetention[1],
   // Characters of text automatic tagging reads per account per day (0381).

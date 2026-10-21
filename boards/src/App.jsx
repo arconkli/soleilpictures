@@ -5726,8 +5726,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Someone accepted an invite / joined via an invite link (0189) — the
       // inviter's payoff moment. detail carries the joiner's display name.
       // A whole-workspace join names the workspace and offers a hello rather
-      // than the root cluster it anchors on (`scope` comes with the setup's
-      // release migration; until then every row reads as a cluster).
+      // than the root cluster it anchors on (`scope`, 0452).
       if (n.kind === 'joined') {
         const scope = n.scope === 'workspace' ? 'workspace' : 'board';
         try { logEvent(EV.JOINED_TOAST, { action: 'shown', scope }); } catch (_) {}

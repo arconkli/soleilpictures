@@ -1,9 +1,12 @@
 // Unread share notifications for the current user. The recipient
 // shape is:
-//   { id, board_id, role, shared_by, created_at, kind, detail }
+//   { id, board_id, role, shared_by, created_at, kind, detail, scope }
 //
 // kind (migration 0171): 'share' (someone shared a board) | 'explore_approved'
-// (your board went public, detail = slug) | 'explore_rejected' (detail = reason).
+// (your board went public, detail = slug) | 'explore_rejected' (detail = reason)
+// | 'joined' (0189: someone you invited came in, detail = their name).
+// scope (0452): 'board', or 'workspace' when a 'joined' row is a whole-workspace
+// join (board_id is then the workspace's root cluster it anchors on).
 //
 // Fetched once on mount + on userId change. Consumers call dismiss(id)
 // after surfacing a notification (e.g. inside a toast click handler).
@@ -21,7 +24,7 @@ export function useShareNotifications(userId) {
     try {
       const { data, error } = await supabase
         .from('share_notifications')
-        .select('id, board_id, role, shared_by, created_at, kind, detail')
+        .select('id, board_id, role, shared_by, created_at, kind, detail, scope')
         .eq('user_id', userId)
         .is('dismissed_at', null)
         .order('created_at', { ascending: true });

@@ -15,8 +15,13 @@
 //    rows and raises nothing (RLS);
 //  - verifyOtp tells onAuthStateChange listeners SIGNED_IN before it returns.
 
+import { SETUP_EPOCH } from '../../lib/workspaceSetup.js';
+
 const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
 const nowIso = () => new Date().toISOString();
+// An account made "now" is made no earlier than the setup's epoch, so the
+// harness's people are candidates on any day, the days before the release too.
+const signupIso = () => new Date(Math.max(Date.now(), Date.parse(SETUP_EPOCH))).toISOString();
 
 function uuid() {
   const c = globalThis.crypto;
@@ -32,7 +37,7 @@ export const QA_LINK_TOKEN = '6f1c2a9e-3b7d-4c55-9a1e-2d4b8c0f7a31';
 // The people and the workspace someone can be invited into, and the account
 // that signs in (or already is).
 export function buildSetupDb({ signedOut = false, invitee = false, resume = null, linkMode = null, inviteLimitAt = null, deadLink = false, inws = null } = {}) {
-  const me = { id: 'qa-me', email: 'maya@example.com', created_at: nowIso() };
+  const me = { id: 'qa-me', email: 'maya@example.com', created_at: signupIso() };
   const lostTime = { id: 'ws-lost-time', name: 'Lost Time', created_by: 'qa-nora', created_at: '2026-09-01T00:00:00Z' };
   const db = {
     users: [me],
@@ -292,7 +297,7 @@ export function createSetupFake({ db, latency = 0, onWrite } = {}) {
       await wait();
       if (token === '000000') return { data: {}, error: { message: 'Token has expired or is invalid', status: 403 } };
       let user = db.users.find((u) => u.email === email);
-      if (!user) { user = { id: 'qa-new', email, created_at: nowIso() }; db.users.push(user); }
+      if (!user) { user = { id: 'qa-new', email, created_at: signupIso() }; db.users.push(user); }
       db.session = { access_token: 'qa', user };
       written();
       notify('SIGNED_IN');

@@ -97,16 +97,16 @@ export function bulkImportAllowed() {
 
 // First-run setup (lib/workspaceSetup.js): a new signup names their workspace,
 // says who it's for and invites people before the canvas, then gets tips for
-// the sidebar. It launches with the sidebar's release (owner, 2026-10-20), so
-// it opens only where that does; on dev it is opt-in on top, localStorage
-// soleil.dev.workspaceSetup = '1' (its own specs set it), because other
-// sessions' specs sign up fresh users and would land on the setup steps.
+// the sidebar. It launches with the sidebar's release (owner, 2026-10-20); it
+// was held to the preview and a dev opt-in, and the hold was lifted with the
+// docs that describe it (docs/getting-started, docs/sharing). Who sees it is
+// still lib/workspaceSetup.js's to say: accounts made from SETUP_EPOCH on, in
+// arm B of the workspace_setup test. WORKSPACE_SETUP_DEV_FLAG is no longer
+// read; it stays exported for the ?setupqa harness that still sets it.
 export const WORKSPACE_SETUP_DEV_FLAG = 'soleil.dev.workspaceSetup';
+// lifted 2026-10-21 for the sidebar release
 export function workspaceSetupAllowed() {
-  if (!sidebarFilesAllowed()) return false;
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(WORKSPACE_SETUP_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
 }
 
 // The board's ground drawn on a canvas in step with the camera, and a mouse

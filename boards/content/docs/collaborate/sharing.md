@@ -170,6 +170,49 @@ already picked.
 
 Editors are **free on every plan**. See [Collaborating](/docs/collaborate).
 
+## Inviting a whole workspace
+
+A new workspace's [setup](/docs/getting-started#1-sign-in) offers one link that
+brings people into the **whole workspace**, every cluster and file in it, as
+editors. It is the setup's invite step, and the one time it asks again, that
+make it: **Copy link** on a computer, **Share invite link** on a phone. Only the
+workspace's owner or a co-owner can make one. Making it sends nothing to anyone.
+
+| | A link lasts | It lets in |
+|---|---|---|
+| An account | {{fact:workspaceLinkDays}} days | up to {{fact:workspaceLinkUses}} people |
+| An account in its first {{fact:newAccountHours}} hours | {{fact:workspaceLinkNewDays}} days | up to {{fact:workspaceLinkNewUses}} people |
+
+The line under the link says what that one does, from the link itself: who it
+lets in, for how long, and how many more people. Asking again for the same
+workspace gives back the link that is still live rather than a new one. An
+account makes at most {{fact:workspaceLinksPerDay}} links a day, or
+{{fact:workspaceLinksNewPerDay}} in its first {{fact:newAccountHours}} hours;
+past that, invite by email.
+
+### Opening one
+
+Signed out, the sign-in screen names the workspace and, if they have set one,
+the first name of the person who sent it — never an address. Once they sign in
+or sign up, they are in. Someone already signed in sees **Join as editor** or
+**Not now** first, and someone already in the workspace is offered **Open** it
+instead. A link that has expired, been used up or stopped working says so and
+asks them to get a new one from whoever sent it.
+
+A link stops working while the account that made it is under review or no
+longer the workspace's owner or a co-owner, and comes back if that changes. A
+link passed around far more widely than a team turns itself off for good; the
+people it already let in stay. There is no button to turn a link off yet: it
+ends when it expires or is used up. To take someone back out, remove them under
+**Who has access**.
+
+When someone joins, you see "*Name* joined *your workspace* — say hi." with a
+**Message** button, or, if you are not in the app, an email — the **Invite
+accepted** one in [Notifications](/docs/collaborate/notifications). A new
+account that joins through your link within
+{{fact:referralLinkJoinDays}} days of signing up counts as your
+[referral](/docs/account/referrals), as on an edit link.
+
 ## Who has access
 
 One list, covering everyone: workspace members, people added to this cluster

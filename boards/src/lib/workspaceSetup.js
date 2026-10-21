@@ -19,7 +19,10 @@
 
 // Accounts created before this never see the steps, wherever the gate is open.
 // A user who already has an `onboarding` record has been in the app either way.
-export const SETUP_EPOCH = '2026-10-20T00:00:00Z';
+// It is the sidebar release's instant, so an account made before the release
+// that never opened the app isn't enrolled on its first open after it, with its
+// 7-day window long gone. The test's saved read starts at the same instant.
+export const SETUP_EPOCH = '2026-10-22T19:00:00Z';
 
 export const NAME_MAX = 60;           // the invite emails cut names here too (safeLabel)
 export const REASK_MIN_CARDS = 6;     // where day-one return stops climbing slowly
