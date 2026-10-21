@@ -55,6 +55,9 @@
   outline: 1px solid var(--sbf-glass-line);
   outline-offset: -1px;
 }
+/* Paper (a file with no picture, an upload) a shade off the sheet in both
+   themes, as the dark theme's is: the light theme's is white, the sheet's. */
+[data-theme='light'] .list-wrap[data-look='sb'] { --files-paper: color-mix(in srgb, var(--ink-0) 4%, var(--files-floor)); }
 .list-wrap[data-look='sb'] > .list-inner { max-width: none; padding: 0 0 28px; }
 /* Files dragged over the page: the sheet ringed in gold (a drop target is an
    active place) and the line under the head says what a drop does; the
@@ -228,6 +231,15 @@
 .list-wrap[data-look='sb'] .ct-row.is-pending .ct-thumb { outline: 0; background: transparent; }
 .list-wrap[data-look='sb'] .ct-row.is-pending .ct-thumb > :not(.ct-thumb-spin) { display: none; }
 .list-wrap[data-look='sb'] .ct-row.is-pending .ct-thumb-spin { position: static; width: 14px; height: 14px; box-sizing: border-box; }
+/* An audio file with no cover: its note at rest, as the card's rows show
+   it; the play under the pointer, on the keyboard's row and while it plays.
+   (Without hover the play stays, as production's.) */
+@media (hover: hover) {
+  .list-wrap[data-look='sb'] .ct-thumb.is-bare .cbp-glyph { display: grid; }
+  .list-wrap[data-look='sb'] .ct-row:not(:hover):not(.is-active):not(.is-playing) .ct-thumb.is-bare .ct-play:not(:focus-visible) { opacity: 0; }
+  .list-wrap[data-look='sb'] .ct-row:is(:hover, .is-active, .is-playing) .ct-thumb.is-bare .cbp-glyph,
+  .list-wrap[data-look='sb'] .ct-thumb.is-bare:has(.ct-play:focus-visible) .cbp-glyph { visibility: hidden; }
+}
 .list-wrap[data-look='sb'] .ct-row .ct-name { color: var(--ink-1); font: 500 13px/1.2 var(--font-sans); }
 .list-wrap[data-look='sb'] .ct-cell.ct-c-type,
 .list-wrap[data-look='sb'] .ct-cell.ct-c-size,
@@ -499,8 +511,12 @@
 }
 @media (max-width: 720px) {
   .ql[data-look='sb'] .ql-btn { width: 32px; padding: 0; justify-content: center; }
-  .ql[data-look='sb'] .ql-title { max-width: 40%; }
-  .ql[data-look='sb'] .ql-meta { display: none; }
+  /* The name over where it is in the walk, in the room the actions leave. */
+  .ql[data-look='sb'] .ql-title {
+    flex: 1 1 auto; max-width: none; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px;
+  }
+  .ql[data-look='sb'] .ql-name { max-width: 100%; }
+  .ql[data-look='sb'] .ql-meta { font-size: 11px; line-height: 1; }
   .ql[data-look='sb'] .ql-nav { position: absolute; top: 50%; transform: translateY(-50%); }
 }
 @media (pointer: coarse) {

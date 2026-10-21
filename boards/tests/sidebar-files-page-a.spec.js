@@ -231,8 +231,9 @@ test.describe('Grid: the tiles', () => {
     await expect(tile).toHaveClass(/is-selected/);
     const ring = await tile.locator('.ct-tile-preview').evaluate((el) => getComputedStyle(el).outlineStyle);
     expect(ring).toBe('solid');
-    const check = await tile.locator('.ct-tile-check').evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(check).toBe('rgb(255, 255, 255)');
+    // The check eases into white (production's transition): read it settled.
+    await expect.poll(() => tile.locator('.ct-tile-check').evaluate((el) => getComputedStyle(el).backgroundColor))
+      .toBe('rgb(255, 255, 255)');
   });
 
   test('F2 renames in place over the picture', async ({ page }) => {
