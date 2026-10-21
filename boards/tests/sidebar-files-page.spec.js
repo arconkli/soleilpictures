@@ -97,6 +97,29 @@ test.describe('the full Files page', () => {
     await expect(sidebarRow).toHaveCount(1);
   });
 
+  test('in the split pane, the band the islands float in is painted as the Files floor below it', async ({ page }) => {
+    await open(page, '&surface=files&pane=split');
+    const wrap = page.locator('.split-pane .surface-wrap.is-split');
+    const list = wrap.locator('.list-wrap');
+    await expect(list).toBeVisible();
+    const band = await wrap.evaluate((el) => getComputedStyle(el).backgroundColor);
+    const floor = await list.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(band).toBe(floor);
+    // The band is still there: the page starts below the islands.
+    expect(await list.evaluate((el) => Math.round(el.getBoundingClientRect().top))).toBe(50);
+  });
+
+  test('Info’s drawer hangs 8px under the islands and stops 8px above the bottom', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => document.dispatchEvent(new CustomEvent('soleil-open-info', { detail: { boardId: 'film', cardIds: ['film-img-1'] } })));
+    const drawer = page.locator('.cb-detail.is-drawer');
+    await expect(drawer).toBeVisible();
+    const islandBottom = await page.locator('.chrome-island').first().evaluate((el) => el.getBoundingClientRect().bottom);
+    const box = await drawer.boundingBox();
+    expect(Math.round(box.y - islandBottom)).toBe(8);
+    expect(Math.round(page.viewportSize().height - (box.y + box.height))).toBeGreaterThanOrEqual(8);
+  });
+
   test('a cluster with no files says so under its sub-clusters', async ({ page }) => {
     await open(page, '&surface=files&empty=1');
     await expect(filesPage(page).locator('.ft-grid.is-full .ft-name')).toHaveText(['Locations', 'Casting']);

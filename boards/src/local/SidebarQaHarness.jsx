@@ -23,6 +23,7 @@ import { SHELF_BUCKETS, shelfOf } from '../lib/sidebarShelves.js';
 import { SurfaceErrorBoundary } from '../components/SurfaceErrorBoundary.jsx';
 import { FilesDockLayout, FilesPane } from '../components/FilesDock.jsx';
 import { ListSurface } from '../components/ListSurface.jsx';
+import { InfoHost } from '../components/info/InfoHost.jsx';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { PRESETS } from '../lib/gridLayout.js';
 import { readGridModel } from '../lib/gridState.js';
@@ -247,6 +248,9 @@ const WHO = QS.get('who') || 'here';
 // it. The Files page starts with it shut, as App leaves it after ⤢ (&drawer=1
 // opens it over the page).
 const DRAWER = SURFACE === 'files' ? QS.get('drawer') === '1' : QS.get('drawer') !== '0';
+// &pane=split shows the Files page in the split pane, beside an empty main
+// pane, as App mounts it there (.surface-wrap.is-split).
+const PANE = QS.get('pane') === 'split' ? 'split' : 'main';
 // Moving files between clusters: &viewonly=<cluster> is one this person may
 // only look at; &shared=1 adds a cluster shared from another workspace under
 // the tree, where nothing can be dropped.
@@ -368,9 +372,13 @@ function FilesPageQa({ active, boards, cardsBy, cardsByRef, setCardsBy, filter, 
   if (!board) return null;
   return (
     <div className="split-wrap">
+    {PANE === 'split' && (
+      // The main pane beside it, its board left out.
+      <div className="split-pane" style={{ flex: 1 }}><div className="surface-wrap  is-canvas" /></div>
+    )}
     <div className="split-pane" style={{ flex: 1 }}>
-    {/* App's class string, trailing space and all: the main pane, no canvas. */}
-    <div className="surface-wrap ">
+    {/* App's class string, trailing space and all: a pane with no canvas. */}
+    <div className={`surface-wrap ${PANE === 'split' ? 'is-split' : ''}`}>
     <SurfaceErrorBoundary resetKey={active}>
       <FilesDockLayout
         mode="full" width={360} mobileShell={false}
@@ -417,7 +425,7 @@ function FilesPageQa({ active, boards, cardsBy, cardsByRef, setCardsBy, filter, 
                 showStorageUpsell={false}
                 onPickCluster={async () => boards.mood}
                 onMoveFiles={async (req) => { calls.push({ fn: 'list.moveFiles', params: req }); return true; }}
-                paneId="main" hasSplit={false} mode="full"
+                paneId={PANE} hasSplit={PANE === 'split'} mode="full"
                 dockControls={dockControls}
                 filterRequest={filter?.boardId === active ? filter : null}
                 onFilterApplied={onFilterApplied}
@@ -854,6 +862,18 @@ export function SidebarQaHarness() {
           onChange={(k) => say(`tab ${k}`)}
         />
       )}
+      {/* Info from anywhere (lib/infoBus.js), mounted inside .app as App
+          mounts it: the drawer a sidebar file's Info, a right-click on the
+          board or the docked Files panel opens. */}
+      <FeedbackProvider>
+        <InfoHost
+          boards={allBoards} selfId={SELF.id}
+          resolveBoard={(id) => (cardsBy[id]
+            ? { cards: cardsBy[id], groups: [], gridTemplates: QA_TEMPLATES, canEdit: id !== VIEW_ONLY, mutators: null }
+            : null)}
+          onOpenCluster={(id) => setActive(id)}
+        />
+      </FeedbackProvider>
     </div>
     {msgsOpen && createPortal((
       <FeedbackProvider>

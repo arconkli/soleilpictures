@@ -69,3 +69,14 @@ test('a finger sizing the files never stacks them', async ({ page }) => {
   expect(after.width).toBeLessThan(before.width);
   expect(Math.round(after.width)).toBeGreaterThanOrEqual(232);
 });
+
+test('Info’s drawer hangs 8px under the islands, which a finger makes taller', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('soleil-open-info', { detail: { boardId: 'film', cardIds: ['film-img-1'] } })));
+  const drawer = page.locator('.cb-detail.is-drawer');
+  await expect(drawer).toBeVisible();
+  const island = await rectOf(page.locator('.chrome-island').first());
+  expect(Math.round(island.height)).toBe(44);
+  const box = await rectOf(drawer);
+  expect(Math.round(box.top - island.bottom)).toBe(8);
+});

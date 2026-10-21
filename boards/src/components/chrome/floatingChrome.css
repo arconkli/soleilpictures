@@ -82,6 +82,23 @@
 .app.is-floating-chrome .ph-root,
 .app.is-floating-chrome .tag-detail { padding-top: var(--chrome-band); box-sizing: border-box; }
 .app.is-floating-chrome .home-graph-hud { top: calc(var(--chrome-band) + 16px); }
+/* A split pane showing Files: its band is painted as the Files floor below
+   it, grain and all, not as the pane's --bg-1, so the page doesn't start
+   under a lighter strip. */
+.app.is-floating-chrome .surface-wrap.is-split:not(.is-canvas):not(.is-doc-pane) {
+  --files-wash: color-mix(in srgb, var(--files-floor) 97.5%, transparent);
+  background-color: var(--files-floor);
+  background-image: linear-gradient(var(--files-wash), var(--files-wash)), var(--grain-url);
+  background-size: auto, 320px 240px;
+}
+/* Info's drawer hangs 8px under the islands, as the Messages card does; it
+   sat at the old topbar's 56px. A phone keeps its sheet. */
+@media (min-width: 641px) {
+  .app.is-floating-chrome .cb-detail.is-drawer {
+    top: calc(var(--chrome-band) + 2px + env(safe-area-inset-top, 0px));
+    max-height: calc(100dvh - var(--chrome-band) - 10px - env(safe-area-inset-top, 0px));
+  }
+}
 
 /* ── Under a finger (a tablet held sideways) ─────────────────────────────── */
 /* The islands grow to 44px so the 40px buttons a finger gets sit inside them
