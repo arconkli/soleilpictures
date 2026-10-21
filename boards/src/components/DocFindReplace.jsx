@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const findKey = new PluginKey('soleilDocFind');
 
@@ -235,6 +236,9 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
   };
 
   const onKey = (e) => {
+    // A key pressed mid-syllable is the input method's (lib/composerKeys.js):
+    // that Enter commits the syllable, it doesn't jump to the next match.
+    if (isComposingKey(e)) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       // Stop the Escape here — otherwise it also bubbles to the doc card

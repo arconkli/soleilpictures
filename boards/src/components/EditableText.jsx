@@ -12,6 +12,7 @@ import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { scanForAutoLinks } from '../lib/scanForAutoLinks.js';
 import { EntityLink } from './EntityLink.jsx';
 import { tapIsDouble } from '../lib/doubleTap.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export function EditableText({
   value, onChange,
@@ -87,6 +88,9 @@ export function EditableText({
   };
 
   const onKey = (e) => {
+    // Mid-syllable, a key is the input method's: that Enter commits the
+    // syllable, and the Enter after it commits the edit (lib/composerKeys.js).
+    if (isComposingKey(e)) return;
     if (e.key === 'Enter' && !multiline) { e.preventDefault(); commit(); }
     if (e.key === 'Enter' && multiline && e.shiftKey) { e.preventDefault(); commit(); }
     if (e.key === 'Escape') { e.preventDefault(); cancel(); }

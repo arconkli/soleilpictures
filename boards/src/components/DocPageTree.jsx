@@ -21,6 +21,7 @@ import { useDocTreeExpansion } from '../hooks/useDocTreeExpansion.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage, peers = [], onJumpToPeer,
                               // false → a view-only member or the public viewer. Their Y.Doc
@@ -243,6 +244,8 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                    onFocus={(e) => e.target.select()}
                    onBlur={commitRename}
                    onKeyDown={(e) => {
+                     // Mid-syllable, Enter commits the syllable, not the name.
+                     if (isComposingKey(e)) return;
                      if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
                    }}
