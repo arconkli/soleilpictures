@@ -16,7 +16,8 @@ import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
 import { paperRoom, railRoom } from '../lib/docRoom.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages, readPageBlocks } from '../lib/docState.js';
+import { RELOAD_EVENT, noteDocReset, refreshDocReset, settleDocReset } from '../lib/docResets.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -833,6 +834,58 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     }
     exposeEditor(ed);
   };
+
+  // The cluster this doc is on, reloading under it: a restore, cards moved
+  // into it, a repair (lib/docResets.js). It is told before its old copy goes,
+  // so note the page this is and what the page holds, and again as this
+  // surface goes with the cluster's cards, so a key typed in between counts.
+  // The doc that comes back for this card says what happened (below).
+  const reloadSeenRef = useRef({ activePageId, pages, title: titleOverride || '' });
+  reloadSeenRef.current = { activePageId, pages, title: titleOverride || '' };
+  useEffect(() => {
+    const boardId = scope?.boardId;
+    const cardId = scope?.cardId;
+    if (!boardId || !cardId || !ydoc || isPublic || guestMode) return undefined;
+    let noted = false;
+    const held = () => {
+      const { activePageId: pageId = null, pages: list = [] } = reloadSeenRef.current;
+      const eds = [...editorsRef.current.values()].filter((ed) => ed && !ed.isDestroyed);
+      const blocks = (pageId && readPageBlocks(ydoc, pageId, scope)) || [];
+      return {
+        pageId,
+        pageName: list.find((p) => p.id === pageId)?.name || '',
+        blocks,
+        text: eds.length ? eds.map((ed) => ed.getText({ blockSeparator: '\n\n' })).join('\n\n') : blocks.join('\n\n'),
+        html: eds.map((ed) => ed.getHTML()).join(''),
+      };
+    };
+    const onReload = (e) => {
+      if (e.detail?.boardId !== boardId) return;
+      noted = true;
+      try {
+        noteDocReset({
+          boardId, cardId, docGuid: ydoc.guid, title: reloadSeenRef.current.title,
+          reason: e.detail.reason, canEdit, ...held(),
+        }, { feedback });
+      } catch (_) { /* a doc too broken to read still reloads */ }
+    };
+    window.addEventListener(RELOAD_EVENT, onReload);
+    return () => {
+      window.removeEventListener(RELOAD_EVENT, onReload);
+      if (noted) { try { refreshDocReset(cardId, held()); } catch (_) {} }
+    };
+  }, [ydoc, scope, canEdit, isPublic, guestMode, feedback]);
+  // Back after such a reload, on the cluster as it came back: say what
+  // happened, now that the page can be set beside what it held. Once
+  // (StrictMode's second run finds it said).
+  useEffect(() => {
+    if (!ready || !ydoc || !scope?.boardId || !scope?.cardId) return;
+    settleDocReset({
+      boardId: scope.boardId, cardId: scope.cardId, docGuid: ydoc.guid,
+      pageBlocks: (pageId) => readPageBlocks(ydoc, pageId, scope),
+      feedback,
+    });
+  }, [ready, ydoc, scope, feedback]);
 
   // Mobile soft-keyboard: the layout viewport doesn't shrink when the iOS/
   // Android keyboard opens, so the caret + footer can hide behind it. Pad the

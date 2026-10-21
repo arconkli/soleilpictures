@@ -15,6 +15,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary, initCardDocStore, followTitle } from '../lib/docState.js';
 import { readDocOpenMode, writeDocOpenMode } from '../lib/docOpenMode.js';
+import { RELOAD_EVENT, noteReopen, reopenMode, clearReopen } from '../lib/docResets.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
@@ -140,8 +141,12 @@ export function RichDocCard({
   // New docs no longer auto-open their full editor — autoFocus now means
   // "focus the title for renaming," letting the user rename + place the
   // card on the canvas first. The full editor opens on double-click,
-  // explicit Open buttons, or peer-jump events.
-  const [mode, setMode] = useState('closed'); // 'closed' | 'full' | 'side'
+  // explicit Open buttons, or peer-jump events. A card back from its
+  // cluster's reload under it (a restore, cards moved in) opens as it was
+  // before it went: the reload takes the card away, and it comes back closed
+  // (lib/docResets.js; noted below).
+  const [mode, setMode] = useState(() => reopenMode(card.id) || 'closed'); // 'closed' | 'full' | 'side'
+  useEffect(() => { clearReopen(card.id); }, [card.id]);
   // Click-to-jump landing target: when App.jumpToPeer dispatches a
   // soleil-open-doc-card event, we self-open and stash the peer's
   // pageId+scrollTop here so DocSurface inside the overlay can consume
@@ -250,7 +255,16 @@ export function RichDocCard({
   // inside a setMode updater: updaters must be pure, and React invokes them
   // twice under StrictMode — which would have fired two flushes per eviction.
   const modeRef = useRef(mode);
-  useEffect(() => { modeRef.current = mode; }, [mode]);
+  // Closed (or handed to the dock) while its cluster reloads: it stays so.
+  useEffect(() => { modeRef.current = mode; if (mode === 'closed') clearReopen(card.id); }, [mode]);
+  useEffect(() => {
+    if (!hostBoardId) return undefined;
+    const onReload = (e) => {
+      if (e.detail?.boardId === hostBoardId) noteReopen(card.id, modeRef.current);
+    };
+    window.addEventListener(RELOAD_EVENT, onReload);
+    return () => window.removeEventListener(RELOAD_EVENT, onReload);
+  }, [card.id, hostBoardId]);
   useEffect(() => {
     const onOtherOpen = (e) => {
       if (e.detail?.cardId === card.id) return;

@@ -63,8 +63,10 @@ the same list as a human one. Rows are grouped by work session; selecting one
 previews what it contains before you commit.
 
 Restoring always snapshots the **current** state first, so a restore is itself
-restorable. A second tab lists name, colour, cover and view changes, each with
-a one-click revert.
+restorable. Anyone with a [document](/docs/documents) open on the board sees it
+reopen where they were, with a note of what happened, and if the restore
+changed the page they had open, a copy of that page as they had it. A second
+tab lists name, colour, cover and view changes, each with a one-click revert.
 
 This is the tool for "the board was right yesterday and is wrong now", including
 when the change was someone else's.

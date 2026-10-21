@@ -143,6 +143,7 @@ import { invitedStartWorkspace } from './lib/startWorkspace.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
+import { useOrphanedDocResets } from './hooks/useOrphanedDocResets.js';
 import { RENDER_VERSION as THUMB_VERSION, renderMosaicBlob } from './lib/renderThumbnail.js';
 import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
@@ -9679,6 +9680,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     window.addEventListener('soleil-board-selfhealed', onHealed);
     return () => window.removeEventListener('soleil-board-selfhealed', onHealed);
   }, [boards, feedback]);
+  // A doc open on a cluster that reloaded under it (a restore, cards moved in)
+  // and came back without it: no doc is coming back to say so, so this does
+  // (lib/docResets.js). A doc that is still there says so itself.
+  useOrphanedDocResets(yb);
+  useOrphanedDocResets(splitYbOwn);
 
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {

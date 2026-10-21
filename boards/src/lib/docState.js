@@ -424,6 +424,15 @@ export function readPageText(ydoc, pageId, scope) {
   try { return fragmentText(map.get(pageId)); } catch (_) { return ''; }
 }
 
+// The text of each block on a page, in order, or null when the doc has no such
+// page: what lib/docResets.js compares across a reload, to tell whether the
+// reload took anything off the page.
+export function readPageBlocks(ydoc, pageId, scope) {
+  if (!readPages(ydoc, scope).some((p) => p.id === pageId)) return null;
+  const frag = pageContentMap(ydoc, scope)?.get(pageId);
+  try { return frag && typeof frag.toArray === 'function' ? frag.toArray().map(fragmentText) : []; } catch (_) { return []; }
+}
+
 // Read every page (from this scope) along with its plain text body.
 // One call returns the shape syncDocPageIndex expects.
 export function readPagesWithText(ydoc, scope) {

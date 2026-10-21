@@ -138,6 +138,13 @@ cancel it there; if the upload fails, it says so in the same spot, with
 Documents are collaborative in real time, with peer cursors and selections
 visible as people type. Edits merge rather than overwriting.
 
+If the cluster is [restored to an earlier version](/docs/clusters/trash-and-recovery#version-history)
+while you have a document open, or someone moves cards into it, the cluster
+reloads, and the document reopens where you were and says what happened. If
+that took anything off the page you had open (a restore to before you wrote
+it, or your last few words before they were saved), it offers you the page as
+you had it, to copy and paste back what you want to keep.
+
 ## Undo
 
 Two histories, matching how documents are edited:

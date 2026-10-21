@@ -10,6 +10,7 @@ import { createPlacementLedger } from './capRefusal.js';
 import { isAbandonedUpload } from './abandonedUploads.js';
 import { fitByCost } from './demoCardCap.js';
 import { docPagesText, docSignature } from './docText.js';
+import { markLocalReset } from './docResets.js';
 import { createStateWriteGate } from './boardStateGate.js';
 import { shareThisTurn } from './shareThisTurn.js';
 import { normalizeEditorCapacity } from './editorLimit.js';
@@ -1880,6 +1881,9 @@ export async function fetchNextVersion(boardId, currentSnapshotAt) {
 // server to PartyKit's /reset, preserving the Bearer-token auth.
 export async function forceResetBoardRoom(boardId) {
   if (!boardId) throw new Error('forceResetBoardRoom: missing boardId');
+  // This tab is replacing the board (a restore, a move into it): a doc it has
+  // open there speaks only if its page changed (lib/docResets.js).
+  markLocalReset(boardId);
   let accessToken = '';
   try {
     const { data } = await supabase.auth.getSession();
@@ -1933,6 +1937,10 @@ export async function bulletproofRestore(boardId, b64) {
   } catch (e) {
     throw new Error('Version snapshot could not be decoded: ' + (e?.message || e));
   }
+  // This tab is restoring: a doc it has open on the board speaks only if its
+  // page changed (lib/docResets.js). Before the marker below, whose signal can
+  // reach this tab first.
+  markLocalReset(boardId);
   // 1) Save restored bytes to board_state. Use a fresh Y.Doc so the
   //    written update is a clean snapshot (no merge artifacts). Verify
   //    the snapshot actually contains something — if the decoded Y.Doc
@@ -1993,7 +2001,7 @@ export async function bulletproofRestore(boardId, b64) {
   //    tears down + re-cold-loads, picking up the restored state.
   try {
     if (typeof window !== 'undefined' && typeof window.__soleilEmitBoardReset === 'function') {
-      window.__soleilEmitBoardReset(boardId);
+      window.__soleilEmitBoardReset(boardId, 'restore');
     }
   } catch (_) {}
 }

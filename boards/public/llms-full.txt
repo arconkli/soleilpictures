@@ -2393,7 +2393,7 @@ Boards keep snapshots over time. You can list them, look through them, and roll 
 
 Snapshots are written automatically while you work, before risky operations (bulk deletes, pastes, cross-cluster drags), and before anything the API or an AI agent deletes or moves — so an integration's mistake is recoverable from the same list as a human one. Rows are grouped by work session; selecting one previews what it contains before you commit.
 
-Restoring always snapshots the current state first, so a restore is itself restorable. A second tab lists name, colour, cover and view changes, each with a one-click revert.
+Restoring always snapshots the current state first, so a restore is itself restorable. Anyone with a document open on the board sees it reopen where they were, with a note of what happened, and if the restore changed the page they had open, a copy of that page as they had it. A second tab lists name, colour, cover and view changes, each with a one-click revert.
 
 This is the tool for "the board was right yesterday and is wrong now", including when the change was someone else's.
 
@@ -2513,6 +2513,8 @@ You can also paste an image, or drop one in from your computer. While it uploads
 Working together
 
 Documents are collaborative in real time, with peer cursors and selections visible as people type. Edits merge rather than overwriting.
+
+If the cluster is restored to an earlier version while you have a document open, or someone moves cards into it, the cluster reloads, and the document reopens where you were and says what happened. If that took anything off the page you had open (a restore to before you wrote it, or your last few words before they were saved), it offers you the page as you had it, to copy and paste back what you want to keep.
 
 Undo
 
