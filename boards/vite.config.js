@@ -44,8 +44,65 @@ function appPreload() {
   };
 }
 
+// Which Phosphor icons an open of the app draws: the ones the entry and AppShell
+// import, statically, through lib/icons.js or straight from the package. Those
+// stay in vendor-icons, which the app loads at once; manualChunks below sends
+// every other icon to vendor-icons-lazy, which only a lazy chunk (Share,
+// Messages, the doc editor, the admin page…) ever asks for. It only regroups
+// modules, so a use this misses costs bytes, never a missing icon: the closure
+// then imports vendor-icons-lazy too, and scripts/bundleBudget.mjs fails on that.
+let bootIcons = null;   // null: keep every icon in vendor-icons
+function iconSplit() {
+  return {
+    name: 'soleil-icon-split',
+    apply: 'build',
+    async buildEnd() {
+      bootIcons = null;
+      const ids = [...this.getModuleIds()];
+      const find = (suffix) => ids.find((id) => id.endsWith(suffix));
+      const iconsId = find('/src/lib/icons.js');
+      const roots = [find('/src/main.jsx'), find('/src/AppShell.jsx')];
+      if (!iconsId || roots.includes(undefined)) return;
+      const astOf = (id) => { const info = this.getModuleInfo(id); return info.ast || this.parse(info.code); };
+      const alias = new Map();   // the app's name → Phosphor's
+      for (const node of astOf(iconsId).body) {
+        if (node.type === 'ExportNamedDeclaration' && node.source?.value === '@phosphor-icons/react') {
+          for (const s of node.specifiers) alias.set(s.exported.name, s.local.name);
+        }
+      }
+      const ours = (id) => !id.includes('node_modules') && /\.(jsx?|mjs)$/.test(id);
+      const seen = new Set();
+      const stack = [...roots];
+      while (stack.length) {
+        const id = stack.pop();
+        if (seen.has(id) || !ours(id)) continue;
+        seen.add(id);
+        stack.push(...this.getModuleInfo(id).importedIds);
+      }
+      const icons = new Set();
+      for (const id of seen) {
+        if (id === iconsId) continue;
+        for (const node of astOf(id).body) {
+          const from = node.source?.value;
+          if (!from || !/^(Import|ExportNamed|ExportAll)Declaration$/.test(node.type)) continue;
+          const viaIcons = from !== '@phosphor-icons/react' && /(^|\/)icons(\.js)?$/.test(from)
+            && (await this.resolve(from, id))?.id === iconsId;
+          if (!viaIcons && from !== '@phosphor-icons/react') continue;
+          for (const s of node.specifiers || []) {
+            const name = s.type === 'ImportSpecifier' ? s.imported.name : s.type === 'ExportSpecifier' ? s.local.name : null;
+            if (!name) return;   // a namespace import or export *: keep every icon
+            icons.add(viaIcons ? (alias.get(name) || name) : name);
+          }
+          if (node.type === 'ExportAllDeclaration') return;
+        }
+      }
+      bootIcons = icons;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), appPreload()],
+  plugins: [react(), appPreload(), iconSplit()],
   define: {
     'import.meta.env.VITE_RELEASE': JSON.stringify(release),
   },
@@ -74,6 +131,8 @@ export default defineConfig({
         // app-only and only loads behind the lazy AppShell / share / legal.
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
+          const icon = /@phosphor-icons\/react\/dist\/(?:csr|defs)\/([^/.]+)\.es\.js$/.exec(id);
+          if (icon && bootIcons && !bootIcons.has(icon[1])) return 'vendor-icons-lazy';
           // Most specific first.
           if (id.includes('react-force-graph') || id.includes('/three/') || id.includes('three-') || id.includes('d3-force-3d')) return 'vendor-graph3d';
           if (id.includes('@cosmograph')) return 'vendor-cosmograph';

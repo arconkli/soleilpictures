@@ -40,15 +40,16 @@ export const CEILINGS = {
   entryJs: 165_000,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
-  // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS.
-  appJs: 705_000,
+  // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
+  // they draw (vite.config.js iconSplit), from 687 KB.
+  appJs: 685_000,
   appCss: 21_000,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
 // chunk's file name prefix (the part before the content hash).
 export const NEVER_IN_APP = [
-  'vendor-graph3d', 'vendor-cosmograph', 'vendor-charts',
+  'vendor-graph3d', 'vendor-cosmograph', 'vendor-charts', 'vendor-icons-lazy',
   'AdminPage', 'DocsPage', 'jspdf', 'html2canvas', 'pdf',
 ];
 
