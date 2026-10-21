@@ -73,7 +73,8 @@ import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
 import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
-import { Icon } from './Icon.jsx';
+import { Icon, IconWeightContext } from './Icon.jsx';
+import { useFilesLook } from './clusterBrowser/filesLook.js';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
@@ -228,6 +229,10 @@ export function ListSurface({
 }) {
   const feedback = useFeedback();
   const isPanel = mode === 'panel';
+  // Direction A's look (clusterBrowser/filesLook.js): App decides it; the
+  // panel beside the board never wears it.
+  const look = useFilesLook();
+  const sb = look === 'sb' && !isPanel;
   const subBoards = childBoards || [];
   const linkedCards = (cards || []).filter(c => c.kind === 'boardlink');
   const otherCards = (cards || []).filter(c => c.kind !== 'board' && c.kind !== 'boardlink');
@@ -2240,7 +2245,9 @@ export function ListSurface({
     : null;
 
   return (
+    <IconWeightContext.Provider value={sb ? 'regular' : null}>
     <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}${selecting ? ' is-selecting' : ''}${noTouchDrag ? ' is-touch' : ''}`} ref={listWrapRef}
+         data-look={sb ? look : undefined}
          data-drop-board={rulesOn ? board.id : undefined} data-drop-where={rulesOn ? 'files' : undefined}
          data-drop-name={rulesOn ? (board.name || undefined) : undefined}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
@@ -2549,5 +2556,6 @@ export function ListSurface({
         )}
       </div>
     </div>
+    </IconWeightContext.Provider>
   );
 }

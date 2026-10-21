@@ -39,6 +39,7 @@ import { whoLine } from '../lib/sidebarWho.js';
 import { ClustersHome } from '../components/home/ClustersHome.jsx';
 import { MessagesPanel } from '../components/MessagesPanel.jsx';
 import { MessagesLookContext } from '../components/messagesLook.js';
+import { FilesLookContext } from '../components/clusterBrowser/filesLook.js';
 import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
@@ -248,6 +249,10 @@ const QA_STYLE = `
 // conversation, &readonly=1 as a viewer), and the line under the workspace
 // (&who=here|shared|none).
 const SURFACE = ['home', 'files'].includes(QS.get('surface')) ? QS.get('surface') : 'board';
+// The Files page wears direction A's look, as App gives it once its hold is
+// open (clusterBrowser/filesLook.js); &look=today shows the page production
+// has (tests/sidebar-files-page.spec.js runs on it).
+const FILES_LOOK = QS.get('look') === 'today' ? null : 'sb';
 const MSG_QA = QS.has('messages');
 const WHO = QS.get('who') || 'here';
 // &whatsnew=1: the one-time "New" hint on the Files card, as an account from
@@ -602,6 +607,7 @@ export function SidebarQaHarness() {
   return (
     <>
     <style>{QA_STYLE}</style>
+    <FilesLookContext.Provider value={FILES_LOOK}>
     <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${surface === 'home' ? ' is-home' : ''}`}
          style={{ ...(mobileShell ? null : { '--sb-w': `${collapsed ? 0 : sidebarFootprint(layout, { coarse, roomy, snug })}px` }), height: '100vh' }}
          data-sidebarqa-ready="1" data-sidebarqa-surface={surface}>
@@ -894,6 +900,7 @@ export function SidebarQaHarness() {
           phone={mobileShell} save={(rec) => say(`whatsnew ${rec.action}`)} />
       )}
     </div>
+    </FilesLookContext.Provider>
     {msgsOpen && createPortal((
       <FeedbackProvider>
         <MessagesFixtureContext.Provider value={fixture}>

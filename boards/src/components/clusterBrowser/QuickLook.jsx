@@ -21,7 +21,8 @@ import { PdfViewer } from '../PdfViewer.jsx';
 import { CardPreview } from './CardPreview.jsx';
 import { LinkMark } from './marks.jsx';
 import { DetailPanel } from './DetailPanel.jsx';
-import { Icon } from '../Icon.jsx';
+import { Icon, IconWeightContext } from '../Icon.jsx';
+import { useFilesLook } from './filesLook.js';
 import { fileSharesAllowed } from '../../lib/appHost.js';
 import { isShareableCard } from '../../lib/fileShares.js';
 import { FileShareButton } from '../fileShare/FileShareButton.jsx';
@@ -147,6 +148,9 @@ export default function QuickLook({
   // them; `canEdit` is the fallback for a host showing one cluster.
   canEditItem = null,
 }) {
+  // Direction A's look (filesLook.js), handed through the portal by context.
+  const look = useFilesLook();
+  const sb = look === 'sb';
   const rootRef = useRef(null);
   const item = items[index] || null;
   const n = items.length;
@@ -228,7 +232,8 @@ export default function QuickLook({
   // On <body>: the list scrolls in its own stacking context (isolation), so a
   // fixed overlay inside it would sit under the board's toolbars.
   return createPortal(
-    <div className={`ql${infoOpen ? ' has-info' : ''}`} ref={rootRef} tabIndex={-1}
+    <IconWeightContext.Provider value={sb ? 'regular' : null}>
+    <div className={`ql${infoOpen ? ' has-info' : ''}`} ref={rootRef} tabIndex={-1} data-look={sb ? look : undefined}
          role="dialog" aria-modal="true" aria-label={`Quick look: ${item.name}`}
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="ql-bar">
@@ -293,7 +298,8 @@ export default function QuickLook({
                        onDelete={itemCanEdit ? onDelete : null} />
         )}
       </div>
-    </div>,
+    </div>
+    </IconWeightContext.Provider>,
     document.body,
   );
 }

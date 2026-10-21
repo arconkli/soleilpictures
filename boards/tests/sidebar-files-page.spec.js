@@ -2,10 +2,12 @@
 // through its dev-only QA harness (?sidebarqa=1&surface=files): the real
 // FilesDockLayout → FilesPane → ListSurface in App's chain of elements, so a
 // rule that walks the chain is tested against what it walks in the app.
+// It runs on the page production has (&look=today); direction A's look,
+// which the harness wears by default, is tests/sidebar-files-page-a.spec.js.
 import { expect, test } from '@playwright/test';
 
 async function open(page, q = '') {
-  await page.goto(`/?sidebarqa=1${q}`);
+  await page.goto(`/?sidebarqa=1&look=today${q}`);
   await page.waitForSelector('[data-sidebarqa-ready]');
 }
 const surface = (page) => page.locator('[data-sidebarqa-surface]');

@@ -217,7 +217,8 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed } from './lib/appHost.js';
+import { FilesLookContext } from './components/clusterBrowser/filesLook.js';
 import { getSetupOutcome } from './lib/setupGate.js';
 import { workToFirstBoardKind } from './lib/workspaceSetup.js';
 import { WHATS_NEW_KEY, predatesFilesSidebar } from './lib/whatsNew.js';
@@ -882,6 +883,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
   // Read this early: with it, Files has no dock and no pill (see canDockMain).
   const filesSidebar = sidebarFilesAllowed();
+  // The full Files page in the files sidebar's look (direction A; its own hold,
+  // preview only): read once here and handed down (clusterBrowser/filesLook.js).
+  const filesLook = filesSidebar && filesPageLookAllowed() ? 'sb' : null;
   // With the files sidebar the desktop bar floats as two islands over the
   // surface (components/chrome/FloatingChrome.jsx); a phone keeps its bar.
   const floatingChrome = filesSidebar && !mobileShell;
@@ -10388,6 +10392,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <OpenDmContext.Provider value={openDmWith}>
     <MessagesUiContext.Provider value={messagesUi}>
     <AppTrieProvider workspaceId={workspace.id}>
+    <FilesLookContext.Provider value={filesLook}>
     {/* The collapsed-sidebar preference is a desktop layout. In the mobile
         shell the sidebar IS the drawer, and .sb-collapsed hides every row in
         it: a preference set on the desktop (it is saved to the account) left
@@ -11674,6 +11679,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       })()}
 
     </div>
+    </FilesLookContext.Provider>
     </AppTrieProvider>
     </MessagesUiContext.Provider>
     </OpenDmContext.Provider>

@@ -30,6 +30,13 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.FILES_MOVE, EV.FILES_PUT, EV.FILES_OPEN],
     failure: [EV.FILES_MOVE, EV.FILES_DELETE],
   },
+  // The full Files page as the sidebar's Files card grown full screen.
+  filesPageLook: {
+    exposure: [EV.LIST_BROWSER_VIEW],
+    action: [EV.FILES_DOCK, EV.LIST_ADD_FILES],
+    outcome: [EV.LIST_ADD_FILES, EV.VIEW_MODE_SWITCH],
+    failure: [],
+  },
   // A whole folder tree or zip becomes clusters, waiting when it won't fit.
   bulkImport: {
     exposure: [EV.IMPORT_PREFLIGHT],

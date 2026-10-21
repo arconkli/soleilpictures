@@ -164,6 +164,25 @@ export function touchPassAllowed() {
 }
 
 // ---------------------------------------------------------------------------
+// The full Files page's new look
+//
+// The ⤢ / F page as the sidebar's Files card grown full screen (the owner's
+// pick "A", 2026-10-20, with List as a classic Finder table): its head,
+// shelves, table, Info card and Quick look's bar, and the sidebar's Files
+// card folding to its bar while the page is open. The files sidebar ships
+// first with today's page, so this waits behind its own hold until the owner
+// has seen it. Opt-in on dev with localStorage soleil.dev.filesPageLook = '1'
+// (its spec runs on the QA harness, which picks the look itself). Nothing in
+// ListSurface or Quick look asks it: App reads it and hands the look down
+// (components/clusterBrowser/filesLook.js).
+export const FILES_PAGE_LOOK_DEV_FLAG = 'soleil.dev.filesPageLook';
+export function filesPageLookAllowed() {
+  if (!sidebarFilesAllowed()) return false;
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(FILES_PAGE_LOOK_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
+// ---------------------------------------------------------------------------
 // The file-sharing hold
 //
 // Sharing one file on its own (/f/<token>): the share dialog's entry points
@@ -224,6 +243,7 @@ export function templateStoreAllowed() {
 export function featureFlags() {
   const holds = {
     sidebarFiles: sidebarFilesAllowed,
+    filesPageLook: filesPageLookAllowed,
     bulkImport: bulkImportAllowed,
     workspaceSetup: workspaceSetupAllowed,
     boardGround: boardGroundAllowed,
