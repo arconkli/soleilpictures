@@ -37,11 +37,14 @@ export function FilesShelfHead({ id, label, count, closed = false, foldable = fa
 
 // Video lies a little lower than photos (its shapes are wider).
 const VIDEO_ROW = 0.82;
+// A phone's rows lie lower still: three or four pictures across, as Photos
+// shows them, not two.
+const PHONE_ROWS = { s: 76, m: 100, l: 150 };
 
 export function FilesShelves({
   folders = null,           // { count, nodes }: the Clusters shelf, or null
   sections, closedShelves, foldable, onToggle,
-  galleryProps, tableProps, tileSize = DEFAULT_TILE_SIZE,
+  galleryProps, tableProps, tileSize = DEFAULT_TILE_SIZE, phone = false,
   onShelfLayout = null,     // (shelfId, { tiles, ids }) => void, for the arrows
 }) {
   // One layout callback per shelf, kept, so the gallery's effect doesn't see
@@ -52,7 +55,8 @@ export function FilesShelves({
     if (!f) { f = (nav) => onShelfLayout?.(id, nav); fns.current.set(id, f); }
     return f;
   };
-  const rowH = TILE_SIZES[tileSize] || TILE_SIZES[DEFAULT_TILE_SIZE];
+  const sizes = phone ? PHONE_ROWS : TILE_SIZES;
+  const rowH = sizes[tileSize] || sizes[DEFAULT_TILE_SIZE];
   let first = true;
   const head = (props) => { const h = <FilesShelfHead {...props} first={first} />; first = false; return h; };
   return (

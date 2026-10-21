@@ -5,7 +5,8 @@
 // spring) goes before it on the same line, as Finder's and Drive's do; a line
 // says what's in it; Download all and Shrink are words at the right. Under it sit the card's own controls: the search
 // line, "All files ⌄" (FilesShowMenu), who's here, Grid | List as the card's
-// segmented tabs and Add files as its raised chip. A selection turns that
+// segmented tabs and Add files as its raised chip (on a phone, Grid | List
+// goes into the menu and the bottom bar's + adds files). A selection turns that
 // line into what to do with it, and files dragged over the page into what a
 // drop does (ListSurface renders those in its place).
 
@@ -143,14 +144,16 @@ export function FilesPageTools({
           {here.length > 4 && <span className="fp-face-more">+{here.length - 4}</span>}
         </div>
       )}
-      <div className="sbf-tabs fp-seg" role="radiogroup" aria-label="Layout">
-        {[['gallery', 'Grid'], ['table', 'List']].map(([id, label]) => (
-          <button type="button" key={id} role="radio" aria-checked={viewMode === id}
-                  className={`sbf-tab${viewMode === id ? ' is-on' : ''}`} onClick={() => onViewMode(id)}>
-            <span className="sbf-tab-label">{label}</span>
-          </button>
-        ))}
-      </div>
+      {viewMode && (
+        <div className="sbf-tabs fp-seg" role="radiogroup" aria-label="Layout">
+          {[['gallery', 'Grid'], ['table', 'List']].map(([id, label]) => (
+            <button type="button" key={id} role="radio" aria-checked={viewMode === id}
+                    className={`sbf-tab${viewMode === id ? ' is-on' : ''}`} onClick={() => onViewMode(id)}>
+              <span className="sbf-tab-label">{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {upsell}
       {onAddFiles && (
         <button type="button" className="sbf-upload fp-add" onClick={onAddFiles}>

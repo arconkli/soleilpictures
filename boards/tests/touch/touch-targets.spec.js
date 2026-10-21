@@ -38,6 +38,11 @@ const PAGES = [
     open: (page) => tapOn(page, '.sbf-tab.is-cluster'), scope: '.sbf-switch' },
   { name: 'files filter', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
     open: (page) => tapOn(page, '.sbf-filter-btn'), scope: '.sbf-menu' },
+  // The full Files page (the card grown), and its "All files ⌄": on a phone
+  // Grid | List are in it, and in Grid the tile Size.
+  { name: 'files page', url: '/?sidebarqa=1&surface=files&drawer=0', ready: '[data-sidebarqa-ready]' },
+  { name: 'files page menu', url: '/?sidebarqa=1&surface=files&drawer=0', ready: '[data-sidebarqa-ready]',
+    open: (page) => tapOn(page, '.fp-tools .sbf-filter-btn'), scope: '.sbf-menu' },
   { name: 'import tray', url: '/?importqa=1', ready: '#root[data-importqa-ready]' },
   { name: 'import guide', url: '/?importqa=1&guide=1', ready: '#root[data-importqa-ready]' },
   { name: 'import ask', url: '/?importqa=1&dialog=free', ready: '#root[data-importqa-ready]' },

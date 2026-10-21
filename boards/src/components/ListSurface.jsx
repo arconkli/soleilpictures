@@ -2476,20 +2476,36 @@ export function ListSurface({
         ...(pageSort ? [] : [{ key: 'custom', label: sortLabelOf(sortKey, sortDir), checked: true, onPick: () => {} }]),
       ] },
     ],
-    extra: viewMode === 'gallery' ? (
+    extra: phoneShell || viewMode === 'gallery' ? (
       <>
         <div className="sbf-menu-sep" role="separator" />
-        <div className="fp-size-row" role="group" aria-label="Tile size">
-          <span className="fp-size-label">Size</span>
-          <div className="sbf-tabs">
-            {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
-              <button type="button" key={k} role="menuitemradio" aria-checked={tileSize === k} aria-label={label}
-                      className={`sbf-tab${tileSize === k ? ' is-on' : ''}`} onClick={() => onTileSize(k)}>
-                {k.toUpperCase()}
-              </button>
-            ))}
+        {/* A phone's line has no room for Grid | List: it's here. */}
+        {phoneShell && (
+          <div className="fp-size-row" role="group" aria-label="Layout">
+            <span className="fp-size-label">Layout</span>
+            <div className="sbf-tabs">
+              {[['gallery', 'Grid'], ['table', 'List']].map(([id, label]) => (
+                <button type="button" key={id} role="menuitemradio" aria-checked={viewMode === id}
+                        className={`sbf-tab${viewMode === id ? ' is-on' : ''}`} onClick={() => onViewMode(id)}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        {viewMode === 'gallery' && (
+          <div className="fp-size-row" role="group" aria-label="Tile size">
+            <span className="fp-size-label">Size</span>
+            <div className="sbf-tabs">
+              {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
+                <button type="button" key={k} role="menuitemradio" aria-checked={tileSize === k} aria-label={label}
+                        className={`sbf-tab${tileSize === k ? ' is-on' : ''}`} onClick={() => onTileSize(k)}>
+                  {k.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </>
     ) : null,
   } : null;
@@ -2542,9 +2558,11 @@ export function ListSurface({
                 menu={pageMenu}
                 found={loading ? '' : narrowed ? `${visibleItems.length} of ${otherCards.length}` : (packSummary || '')}
                 faces={phoneShell ? null : facePeers}
-                viewMode={viewMode} onViewMode={onViewMode}
+                viewMode={phoneShell ? null : viewMode} onViewMode={onViewMode}
                 upsell={canEdit && showStorageUpsell && onStorageUpsell ? <StorageUpsell onUpsell={onUpsell} /> : null}
-                onAddFiles={canEdit ? openAddPicker : null} />
+                // On a phone the bottom bar's + adds files here (see the
+                // effect on soleil-mobile-add-card): the line keeps the search.
+                onAddFiles={canEdit && !phoneShell ? openAddPicker : null} />
             ) : null)}
           </div>
         )}
@@ -2633,7 +2651,8 @@ export function ListSurface({
                 {viewMode === 'gallery' ? (
                   <FilesShelves folders={folderShelf} sections={sections} closedShelves={closedShelves}
                     foldable={(sec) => shelfFoldable(sec, { chip: pageChip, query })} onToggle={toggleShelf}
-                    galleryProps={galleryProps} tableProps={tableProps} tileSize={tileSize} onShelfLayout={onShelfLayout} />
+                    galleryProps={galleryProps} tableProps={tableProps} tileSize={tileSize} phone={bp.isPhone}
+                    onShelfLayout={onShelfLayout} />
                 ) : (visibleItems.length > 0 || folderRows.length > 0) && (
                   <ClusterTable {...tableProps} items={displayItems} variant="classic" leadRows={folderRows} />
                 )}

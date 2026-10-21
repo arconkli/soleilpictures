@@ -67,6 +67,7 @@
    board is. */
 .app.sb-files:not(.is-floating-chrome) .list-wrap[data-look='sb'] {
   --files-gutter: 12px;
+  --fp-bleed: 8px;   /* rows keep 4px from the screen's edges, as from the sheet's */
   margin: 0; border-radius: 0; box-shadow: none; outline: 0;
 }
 
@@ -507,4 +508,69 @@
   .ql[data-look='sb'] .ql-btn { height: 44px; min-width: 44px; }
   .ql[data-look='sb'] .ql-nav { width: 44px; height: 44px; }
   .ql[data-look='sb'] .ql-body { padding-top: 68px; }
+}
+
+/* ── A phone: the title, the search and All files ────────────────────────── */
+/* The name ⌄ and Shrink as an icon on the first line; the search and All
+   files on the second. Grid | List are in the menu, and the bottom bar's +
+   adds files (ListSurface). */
+.app.sb-files:not(.is-floating-chrome) .fp-titlebar { padding-left: 8px; padding-right: 8px; }
+.app.sb-files:not(.is-floating-chrome) .fp-title-btn { font-size: 18px; }
+.app.sb-files:not(.is-floating-chrome) .fp-shrink { width: 40px; height: 40px; padding: 0; justify-content: center; }
+.app.sb-files:not(.is-floating-chrome) .fp-shrink .fp-word-label { display: none; }
+.app.sb-files:not(.is-floating-chrome) .fp-tools { flex-wrap: wrap; height: auto; padding: 8px 8px 8px 12px; }
+.app.sb-files:not(.is-floating-chrome) .fp-search { flex: 1 1 auto; min-width: 0; }
+.app.sb-files:not(.is-floating-chrome) .fp-found,
+.app.sb-files:not(.is-floating-chrome) .fp-tools > .fp-spacer { display: none; }
+/* The upsell gets a line of its own rather than the search's room. */
+.app.sb-files:not(.is-floating-chrome) .fp-tools .cbt-upsell { order: 1; flex: 1 0 100%; text-align: left; }
+.app.sb-files:not(.is-floating-chrome) .fp-head > .list-selbar { margin: 2px 8px 8px; }
+.app.sb-files:not(.is-floating-chrome) .fp-head .list-selbar-hint { display: none; }
+/* Clusters in one row that scrolls sideways, the next one showing at the
+   edge, as Photos' albums do. */
+.app.sb-files:not(.is-floating-chrome) .fp-cls {
+  flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  scroll-snap-type: x proximity; scroll-padding-inline: 12px;
+  margin-inline: -12px; padding-inline: 12px;
+}
+.app.sb-files:not(.is-floating-chrome) .fp-cls::-webkit-scrollbar { display: none; }
+.app.sb-files:not(.is-floating-chrome) .fp-cls .ft { flex: none; width: 200px; scroll-snap-align: start; }
+
+/* ── Fingers: 40px and up ────────────────────────────────────────────────── */
+/* No downloads on the pictures or the rows: every one would carry it. The
+   selection's actions, Quick look and Info download instead. */
+@media (hover: none) {
+  .list-wrap[data-look='sb'] .ct-tile-dl,
+  .list-wrap[data-look='sb'] .ct-dl { display: none; }
+}
+@media (pointer: coarse) {
+  .list-wrap[data-look='sb'] .fp-titlebar { height: 52px; padding-top: 12px; }
+  .list-wrap[data-look='sb'] .fp-title-btn,
+  .list-wrap[data-look='sb'] .fp-word,
+  .list-wrap[data-look='sb'] .fp-trail .pb-name { height: 40px; }
+  .list-wrap[data-look='sb'] .fp-trail .pb-back { width: 40px; height: 40px; }
+  .list-wrap[data-look='sb'] .fp-tools { height: 58px; }
+  .list-wrap[data-look='sb'] .fp-tools .sbf-filter-btn,
+  .list-wrap[data-look='sb'] .fp-seg .sbf-tab,
+  .list-wrap[data-look='sb'] .fp-add { height: 40px; }
+  .list-wrap[data-look='sb'] .fp-tools .cbt-upsell { min-height: 40px; }
+  .list-wrap[data-look='sb'] .fp-head > .list-selbar { height: 48px; }
+  .list-wrap[data-look='sb'] .fp-head .list-selbar-act { height: 40px; min-width: 40px; justify-content: center; }
+  .list-wrap[data-look='sb'] .fp-head .list-selbar-clear { width: 40px; }
+  .list-wrap[data-look='sb'] .fp-shelf { height: 44px; }
+  .list-wrap[data-look='sb'] .fp-shelf.is-first { height: 40px; }
+  .list-wrap[data-look='sb'] .ct-table.is-bare .ct-row,
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-row { height: 44px; contain-intrinsic-size: auto 44px; }
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-head,
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-th { height: 40px; }
+  .list-wrap[data-look='sb'] .fp-desc-row { height: 44px; }
+  /* An audio row's play is its picture: drawn at the picture's size, taken
+     by a finger at 40. The picture clips itself, so the play can reach out. */
+  .list-wrap[data-look='sb'] .ct-thumb.is-audio { overflow: visible; }
+  .list-wrap[data-look='sb'] .ct-thumb.is-audio > :not(.ct-play) { border-radius: inherit; overflow: hidden; }
+  .list-wrap[data-look='sb'] .ct-table.is-bare .ct-play::after { content: ''; position: absolute; inset: -6px; }
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-play::after { content: ''; position: absolute; inset: -9px; }
+  /* The menu's Layout and Size (portalled, so outside the sheet). */
+  .sbf-menu .fp-size-row { height: 52px; }
+  .sbf-menu .fp-size-row .sbf-tab { height: 40px; min-width: 44px; font-size: 14px; }
 }
