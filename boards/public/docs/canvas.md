@@ -85,6 +85,11 @@ browser, so you can paste a hex code straight into the picker.
 
 Click to select. Shift-click to add. Drag on empty canvas to marquee.
 
+With a finger, touch and hold empty canvas until the ring under it fills, then
+drag the box. A finger has no Shift, so holding and letting go opens the canvas
+menu with **Select…**: until **Done**, each tap adds a card or takes it out.
+See [touch on the canvas](/docs/account/mobile#touch-on-the-canvas).
+
 With several cards selected you can move them as one, align them, delete them
 together, or press `⌘G` to make them a [group](/docs/canvas/groups) — which is a
 selection that persists, gets a name, and can be commented on as a unit.

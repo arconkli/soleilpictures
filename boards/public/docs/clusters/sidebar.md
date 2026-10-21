@@ -162,5 +162,6 @@ On a phone the sidebar is the drawer, behind **Open menu** at the top left.
 It holds the same things — Home, Messages, your clusters and Files, with the
 same tabs, search and menus — at full width, without the sizing handles. The
 list of clusters opens as a sheet from the bottom, with **Done**. Hold a file
-for its menu. Going to a file, or opening the full Files page, closes the
+for its menu; its **Select** puts a check on every file, so taps pick several
+for the bar at the bottom of Files, which ends with **Done**. Going to a file, or opening the full Files page, closes the
 drawer.

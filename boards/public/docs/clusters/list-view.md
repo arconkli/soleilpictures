@@ -165,6 +165,19 @@ Dragging files onto one of the folders above them moves them into that
 cluster too — and holding them over a folder opens it, so you can drop them
 deeper (see [Springing into folders](#springing-into-folders-while-you-drag)).
 
+### With a finger
+
+On a touch screen a tap opens what it lands on, as the iPad's Files app does: a
+folder opens and a file opens in [Quick look](#quick-look). Touch and hold a
+file or a folder for its menu, the same one a right-click opens, with
+**Select** first. **Select** puts a check on every file, and each tap then adds
+one or takes it out; a hold adds the one it is on and opens the menu for them
+all. The bar along the bottom gains **Copy to…**, since there is no right-click
+to find it, and ends with **Done**. A hold opens the menu rather than picking a
+file up, so a finger moves files with **Move to…** or **Put on board**, not by
+dragging. A trackpad or mouse on a tablet still clicks and selects as it does
+on a computer.
+
 **Right-click** a file, a folder or a selection for everything you can do
 with it — Quick look, Show on board, Rename, Download, Copy link, Move to…,
 Copy to…, Get info and Delete — or press `⇧F10` to open the same menu from the

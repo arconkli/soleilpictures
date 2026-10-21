@@ -627,6 +627,8 @@ Selection
 
 Click to select. Shift-click to add. Drag on empty canvas to marquee.
 
+With a finger, touch and hold empty canvas until the ring under it fills, then drag the box. A finger has no Shift, so holding and letting go opens the canvas menu with Select…: until Done, each tap adds a card or takes it out. See touch on the canvas.
+
 With several cards selected you can move them as one, align them, delete them together, or press ⌘G to make them a group — which is a selection that persists, gets a name, and can be commented on as a unit.
 
 Drawing
@@ -656,7 +658,7 @@ Q: Can I change the background?
 A: Yes. Right-click the canvas and pick a background colour — seven presets plus a custom picker. The setting is per cluster.
 
 Q: Does the canvas work on a tablet?
-A: Yes. Touch gestures pan and zoom, long-press opens the context menu, and the tool rail adapts. Drawing works with a stylus or a finger.
+A: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. The tool rail adapts, and drawing works with a stylus or a finger.
 
 
 ========================================================================
@@ -1530,6 +1532,10 @@ Files go directly from your browser into private object storage, and are served 
 
 Files referenced by a board are protected from cleanup for as long as the board references them. Removing the last card that uses a file stops it counting toward your storage within a few minutes; the file itself becomes eligible for deletion later, not immediately, so undo and version history can still bring it back.
 
+On a phone or tablet
+
+With a finger, a tap on a file in Files opens it in Quick look, and touching and holding it opens its menu, whose Select lets each tap pick another file for the bar along the bottom: put them on the board, move, copy or delete them. See Files with a finger.
+
 Versions
 
 A file can have versions. Drop a new file onto a file of the same kind — on the board or in Files — and it becomes that file's next version: the card shows the new one, and the old one is kept. The card lights up and says Drop to add as v2 before you let go. A toast confirms it with Undo, and with Keep as separate file for when you meant it as a file of its own. Hold ⌥ while you drop to skip all of that and add it as a separate file straight away.
@@ -2032,7 +2038,7 @@ Sizes and arrangement are remembered on your device, not your account: they belo
 
 On a phone
 
-On a phone the sidebar is the drawer, behind Open menu at the top left. It holds the same things — Home, Messages, your clusters and Files, with the same tabs, search and menus — at full width, without the sizing handles. The list of clusters opens as a sheet from the bottom, with Done. Hold a file for its menu. Going to a file, or opening the full Files page, closes the drawer.
+On a phone the sidebar is the drawer, behind Open menu at the top left. It holds the same things — Home, Messages, your clusters and Files, with the same tabs, search and menus — at full width, without the sizing handles. The list of clusters opens as a sheet from the bottom, with Done. Hold a file for its menu; its Select puts a check on every file, so taps pick several for the bar at the bottom of Files, which ends with Done. Going to a file, or opening the full Files page, closes the drawer.
 
 ## Frequently asked questions
 
@@ -2149,6 +2155,10 @@ Move to… | Pick another cluster; the cards leave this one and arrive there, wi
 Delete | Removes them, with undo
 
 Dragging files onto one of the folders above them moves them into that cluster too — and holding them over a folder opens it, so you can drop them deeper (see Springing into folders).
+
+With a finger
+
+On a touch screen a tap opens what it lands on, as the iPad's Files app does: a folder opens and a file opens in Quick look. Touch and hold a file or a folder for its menu, the same one a right-click opens, with Select first. Select puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar along the bottom gains Copy to…, since there is no right-click to find it, and ends with Done. A hold opens the menu rather than picking a file up, so a finger moves files with Move to… or Put on board, not by dragging. A trackpad or mouse on a tablet still clicks and selects as it does on a computer.
 
 Right-click a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Copy to…, Get info and Delete — or press ⇧F10 to open the same menu from the keyboard.
 
@@ -4213,7 +4223,7 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 URL: https://clusters.soleilpictures.com/docs/account/mobile
 Updated: 2026-10-21
 
-Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
+Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
 Two ways to run it on a phone or tablet: the mobile browser, or the same app added to your home screen. They are the same app.
 
@@ -4224,9 +4234,15 @@ One finger drag | Pan
 Pinch | Zoom
 Tap | Select a card; on empty canvas, clear the selection
 Double tap | Add menu at that point
+Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws
+Touch and hold empty canvas, then let go | The board's menu, with Select… in it
 Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu)
-Touch and hold anything else | Its menu: the board's, or a group label's, an arrow's, a tag's, the comments button's archive
+Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's, the comments button's archive
 ⋯ on the selection | The menu for every selected card
+
+While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was.
+
+Select… is for picking cards a box can't reach together: until you press Done in the bar that says "Tap cards to select", each tap adds a card or takes it out, and a hold-and-drag box adds to what is picked. Done keeps the selection; a tap on empty canvas drops it.
 
 With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable.
 
@@ -4237,6 +4253,18 @@ Bottom navigation replaces the sidebar — Home, the current board, Messages, an
 The top bar keeps what you reach for on the board: the cluster's name, Undo, Redo, who else is here, and Share.
 
 A drawer, behind Open menu, holds the sidebar — Home, Messages, the cluster tree and every cluster's Files — with Search, Version history, Focus view and Help. ⤢ on its Files opens the full Files page. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list.
+
+Files with a finger
+
+In Files, both the full page and the sidebar's Files card, a finger works the way the iPad's Files app does:
+
+Gesture | Does
+Tap a file | Opens it in Quick look
+Tap a folder | Opens it
+Touch and hold a file or a folder | Its menu, with Select first
+Select | A check on every file: each tap adds one or takes it out
+
+While you are selecting, the bar along the bottom acts on what is checked — put it on the board, move it, copy it to another cluster, delete it — and Done ends it. A hold opens the menu, so on a touch screen a file isn't dragged out of Files; putting it on the board or moving it from the bar or the menu does that instead.
 
 Back — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app.
 
@@ -4281,6 +4309,9 @@ A: Yes, with a stylus or a finger. A stylus gets pressure-sensitive strokes, and
 
 Q: Why did my finger stop drawing?
 A: Because a stylus was used on this device, so the finger became a pan gesture — that is how palm rejection works. Turn "Draw with finger" back on under Brush in the draw options.
+
+Q: How do I select several cards with a finger?
+A: Touch and hold empty canvas until the ring under your finger fills, then drag a box over them. Or hold, let go, and choose Select… — until you press Done, each tap adds a card or takes it out.
 
 Q: Is anything unavailable on mobile?
 A: Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them.

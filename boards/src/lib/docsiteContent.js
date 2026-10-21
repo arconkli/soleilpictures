@@ -7327,6 +7327,58 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "With a finger, touch and hold empty canvas until the ring under it fills, then drag the box. A finger has no Shift, so holding and letting go opens the canvas menu with "
+    },
+    {
+     "t": "strong",
+     "v": "Select…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": until "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", each tap adds a card or takes it out. See "
+    },
+    {
+     "t": "link",
+     "v": "touch on the canvas",
+     "href": "/docs/account/mobile#touch-on-the-canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "touch on the canvas"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "With several cards selected you can move them as one, align them, delete them together, or press "
     },
     {
@@ -15076,6 +15128,56 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "On a phone or tablet",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or tablet"
+    }
+   ],
+   "id": "on-a-phone-or-tablet"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a finger, a tap on a file in Files opens it in Quick look, and touching and holding it opens its menu, whose "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lets each tap pick another file for the bar along the bottom: put them on the board, move, copy or delete them. See "
+    },
+    {
+     "t": "link",
+     "v": "Files with a finger",
+     "href": "/docs/account/mobile#files-with-a-finger",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files with a finger"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Versions",
    "inline": [
     {
@@ -21146,7 +21248,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Hold a file for its menu. Going to a file, or opening the full Files page, closes the drawer."
+     "v": ". Hold a file for its menu; its "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts a check on every file, so taps pick several for the bar at the bottom of Files, which ends with "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Going to a file, or opening the full Files page, closes the drawer."
     }
    ]
   }
@@ -22433,6 +22563,126 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ")."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "With a finger",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a finger"
+    }
+   ],
+   "id": "with-a-finger"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a touch screen a tap opens what it lands on, as the iPad's Files app does: a folder opens and a file opens in "
+    },
+    {
+     "t": "link",
+     "v": "Quick look",
+     "href": "#quick-look",
+     "children": [
+      {
+       "t": "text",
+       "v": "Quick look"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Touch and hold a file or a folder for its menu, the same one a right-click opens, with "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " first. "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar along the bottom gains "
+    },
+    {
+     "t": "strong",
+     "v": "Copy to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", since there is no right-click to find it, and ends with "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A hold opens the menu rather than picking a file up, so a finger moves files with "
+    },
+    {
+     "t": "strong",
+     "v": "Move to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not by dragging. A trackpad or mouse on a tablet still clicks and selects as it does on a computer."
     }
    ]
   },
@@ -41911,6 +42161,48 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Touch and hold empty canvas, then drag"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A selection box, as dragging one with a mouse draws"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold empty canvas, then let go"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The board's menu, with "
+      },
+      {
+       "t": "strong",
+       "v": "Select…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Select…"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Touch and hold a card"
       }
      ],
@@ -41931,7 +42223,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Its menu: the board's, or a group label's, an arrow's, a tag's, the comments button's archive"
+       "v": "Its menu: a group label's, an arrow's, a tag's, the comments button's archive"
       }
      ]
     ],
@@ -41959,6 +42251,62 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Select…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is for picking cards a box can't reach together: until you press "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the bar that says \"Tap cards to select\", each tap adds a card or takes it out, and a hold-and-drag box adds to what is picked. "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps the selection; a tap on empty canvas drops it."
+    }
    ]
   },
   {
@@ -42065,6 +42413,171 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " — Home, Messages, the cluster tree and every cluster's Files — with Search, Version history, Focus view and Help. ⤢ on its Files opens the full Files page. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Files with a finger",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files with a finger"
+    }
+   ],
+   "id": "files-with-a-finger"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", both the full page and the sidebar's Files card, a finger works the way the iPad's Files app does:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Gesture"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Tap a file"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Opens it in "
+      },
+      {
+       "t": "link",
+       "v": "Quick look",
+       "href": "/docs/clusters/list-view#quick-look",
+       "children": [
+        {
+         "t": "text",
+         "v": "Quick look"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Tap a folder"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Opens it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold a file or a folder"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its menu, with "
+      },
+      {
+       "t": "strong",
+       "v": "Select",
+       "children": [
+        {
+         "t": "text",
+         "v": "Select"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " first"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Select",
+       "children": [
+        {
+         "t": "text",
+         "v": "Select"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A check on every file: each tap adds one or takes it out"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While you are selecting, the bar along the bottom acts on what is checked — put it on the board, move it, copy it to another cluster, delete it — and "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ends it. A hold opens the menu, so on a touch screen a file isn't dragged out of Files; putting it on the board or moving it from the bar or the menu does that instead."
     }
    ]
   },

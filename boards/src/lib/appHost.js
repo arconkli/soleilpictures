@@ -134,16 +134,15 @@ export function clusterNudgesAllowed() {
 //
 // New things a finger does (owner, 2026-10-20): hold empty canvas then drag to
 // select cards, "Select…" in the hold menu, and Files that open on a tap and
-// select from a hold. They change what a finger already does on production, so
-// they wait for the owner to try them on a real iPad, then ship in one commit
-// with their docs. Same allowlist shape as the holds above; opt-in on dev,
-// localStorage soleil.dev.touchPass = '1' (the touch specs set it), because
-// other sessions' touch specs pan the canvas with the finger this replaces.
+// select from a hold. They were held to the preview and a dev opt-in; the hold
+// was lifted for the sidebar release with the docs that describe them
+// (docs/account/mobile, docs/canvas, docs/clusters/list-view, docs/files), so
+// they are on everywhere. TOUCH_PASS_DEV_FLAG is no longer read; it stays
+// exported for the touch specs that still set it, which is harmless.
 export const TOUCH_PASS_DEV_FLAG = 'soleil.dev.touchPass';
+// lifted 2026-10-21 for the sidebar release
 export function touchPassAllowed() {
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(TOUCH_PASS_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
 }
 
 // ---------------------------------------------------------------------------

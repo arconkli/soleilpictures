@@ -4,9 +4,10 @@
 // the menu, with Select… in it; and the selection's ⋯ stays a finger's size at
 // every zoom and opens the menu for every selected card at once.
 //
-// The hold gestures are held for the owner's iPad (lib/appHost.js
-// touchPassAllowed, opted into here); the tap, the double tap and the ⋯ are
-// what production already gets. Holds need CDP touch: Chromium only (helpers.js).
+// The hold gestures were released with the sidebar (lib/appHost.js
+// touchPassAllowed is open everywhere); the specs still set its old dev flag,
+// which nothing reads, and `touchPass: false` only leaves it unset. Holds need
+// CDP touch: Chromium only (helpers.js).
 import { expect, test } from '@playwright/test';
 import { canvasZoom, hitBox, hold, holdDrag, needsHold, pinch, swipe, tap, touchDown, touchMove, touchUp } from './helpers.js';
 

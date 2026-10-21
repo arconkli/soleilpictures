@@ -432,7 +432,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does the canvas work on a tablet?",
-        "a": "Yes. Touch gestures pan and zoom, long-press opens the context menu, and the tool rail adapts. Drawing works with a stylus or a finger."
+        "a": "Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. The tool rail adapts, and drawing works with a stylus or a finger."
       }
     ]
   },
@@ -1085,6 +1085,10 @@ export const DOCS_PAGES = [
       {
         "id": "how-files-are-stored",
         "text": "How files are stored"
+      },
+      {
+        "id": "on-a-phone-or-tablet",
+        "text": "On a phone or tablet"
       },
       {
         "id": "versions",
@@ -2843,7 +2847,7 @@ export const DOCS_PAGES = [
     "title": "Mobile and Tablet — Soleil Clusters",
     "metaDescription": "Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.",
     "h1": "Mobile and tablet",
-    "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
+    "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
     "updated": "2026-10-21",
@@ -2856,6 +2860,10 @@ export const DOCS_PAGES = [
       {
         "id": "layout-differences",
         "text": "Layout differences"
+      },
+      {
+        "id": "files-with-a-finger",
+        "text": "Files with a finger"
       },
       {
         "id": "tablets",
@@ -2891,6 +2899,10 @@ export const DOCS_PAGES = [
       {
         "q": "Why did my finger stop drawing?",
         "a": "Because a stylus was used on this device, so the finger became a pan gesture — that is how palm rejection works. Turn \"Draw with finger\" back on under Brush in the draw options."
+      },
+      {
+        "q": "How do I select several cards with a finger?",
+        "a": "Touch and hold empty canvas until the ring under your finger fills, then drag a box over them. Or hold, let go, and choose Select… — until you press Done, each tap adds a card or takes it out."
       },
       {
         "q": "Is anything unavailable on mobile?",

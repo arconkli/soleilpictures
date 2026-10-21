@@ -9157,7 +9157,7 @@ export function CanvasSurface({
     setSelectedArrows(new Set());
   };
 
-  // Held (touchPassAllowed): one press, four ways it can go.
+  // touchPassAllowed (on since the sidebar release): one press, four ways it can go.
   //   • a tap: onTouchTapEmpty.
   //   • a drag: pans, once the finger is past the slop (TOUCH_LIFT_TOLERANCE),
   //     by the whole way it has come, as a card's press does before its lift.
@@ -9754,7 +9754,7 @@ export function CanvasSurface({
     // bail and useGesture's pinch / two-finger pan handler takes over.
     if (e.pointerType === 'touch') {
       if (!e.isPrimary) return;
-      // Held (lib/appHost.js): a hold, then a drag, draws a selection box.
+      // lib/appHost.js touchPassAllowed: a hold, then a drag, draws a selection box.
       if (touchPassAllowed()) { startTouchCanvasPress(e); return; }
       // One finger pans; a tap clears the selection, two open the add menu.
       startPan(e, { onTap: onTouchTapEmpty });

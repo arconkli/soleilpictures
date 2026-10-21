@@ -858,7 +858,7 @@ export function ListSurface({
   }, [isPanel, toggleInfo, board.id, infoFollow, browsedCards]);
   useEffect(() => () => { closeInfo({ follow: infoFollow }); clearSelection(infoFollow); }, [infoFollow]);
 
-  // Touch (held: lib/appHost touchPassAllowed). A tap opens what it lands on,
+  // Touch (lib/appHost touchPassAllowed). A tap opens what it lands on,
   // as the iPad's Files app does: a folder opens, a file opens in Quick look.
   // Holding one opens its menu, and the menu's Select puts a check on
   // everything, so taps pick several for the bar below to act on. Read per

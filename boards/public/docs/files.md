@@ -93,6 +93,13 @@ toward your storage within a few minutes; the file itself becomes eligible for
 deletion later, not immediately, so undo and version history can still bring it
 back.
 
+## On a phone or tablet
+
+With a finger, a tap on a file in Files opens it in Quick look, and touching
+and holding it opens its menu, whose **Select** lets each tap pick another file
+for the bar along the bottom: put them on the board, move, copy or delete them. See
+[Files with a finger](/docs/account/mobile#files-with-a-finger).
+
 ## Versions
 
 A file can have versions. Drop a new file onto a file of the same kind — on

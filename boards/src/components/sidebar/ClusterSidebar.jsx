@@ -423,8 +423,8 @@ export function ClusterSidebar({
 
   // ── Selection: ⌘/Ctrl-click adds one, ⇧-click a run along the shelf ──────
   // A finger has neither key: a hold's menu offers Select, which puts a check
-  // on every file and makes a tap add one or take it out (held to
-  // touchPassAllowed, with the canvas's and Files' own).
+  // on every file and makes a tap add one or take it out (touchPassAllowed,
+  // with the canvas's and Files' own).
   const touchPass = useMemo(() => touchPassAllowed(), []);
   const [selected, setSelected] = useState(() => new Map());   // key → item
   const [selecting, setSelecting] = useState(false);

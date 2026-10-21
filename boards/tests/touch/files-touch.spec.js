@@ -4,9 +4,10 @@
 // pick several for the bar to act on. A finger drags nothing here: a hold is
 // the menu. The sidebar's files work the same way.
 //
-// Held for the owner's iPad (lib/appHost.js touchPassAllowed, opted into
-// here); with it off, a tap selects as it always has. Holds need CDP touch:
-// Chromium only (helpers.js).
+// Released with the sidebar (lib/appHost.js touchPassAllowed is open
+// everywhere); the specs still set its old dev flag, which nothing reads, and
+// one opens Files without it to pin that. Holds need CDP touch: Chromium only
+// (helpers.js).
 import { expect, test } from '@playwright/test';
 import { hold, needsHold, tap } from './helpers.js';
 
@@ -87,11 +88,10 @@ test.describe('Files', () => {
     await expect(files(page).locator('[draggable="true"]')).toHaveCount(0);
   });
 
-  test('with the touch pass off, a tap selects, as it always has', async ({ page }) => {
+  test('released: without the old dev flag, a tap still opens the file', async ({ page }) => {
     await openFiles(page, { touchPass: false });
     await tile(page, 'home-note').tap();
-    await expect(tile(page, 'home-note')).toHaveClass(/is-selected/);
-    await expect(quickLook(page)).toHaveCount(0);
+    await expect(quickLook(page)).toBeVisible();
   });
 
   test('a hold opens the menu at the finger, Select first, and letting go picks nothing from it', async ({ page, browserName }) => {

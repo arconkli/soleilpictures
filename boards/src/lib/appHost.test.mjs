@@ -58,6 +58,12 @@ test('the files sidebar is released: its hold is open everywhere', () => {
   assert.match(SRC, /export function sidebarFilesAllowed\(\) \{\s*return true;\s*\}/);
 });
 
+test('the touch gestures are released: their hold is open everywhere', () => {
+  assert.match(SRC, /\/\/ lifted 2026-10-21 for the sidebar release\nexport function touchPassAllowed\(\) \{\s*return true;\s*\}/);
+  assert.match(SRC, /export const TOUCH_PASS_DEV_FLAG = 'soleil\.dev\.touchPass';/);
+  assert.match(SRC, /touchPass: touchPassAllowed,/, 'still listed in featureFlags()');
+});
+
 test('first-run setup is released: its hold is open everywhere', () => {
   // Who sees the steps is lib/workspaceSetup.js's (SETUP_EPOCH and the
   // workspace_setup arm), never the host.
