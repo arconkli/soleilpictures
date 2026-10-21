@@ -219,6 +219,41 @@ export function filterTransaction(doc, tr, cardKey, { variant = 'edit', sent = n
   return enc.toUint8Array();
 }
 
+// Whether one board transaction put a NEW type in place of the doc, rather
+// than editing the one there: the card's map itself (an undo of its delete, an
+// API update that rewrites the card through cardToYMap, a doc-only restore
+// that clones an old version in), or the type at one of the mirror's doc keys.
+// The mirror would follow it exactly, but a reader bound to the old types
+// (DocShareView, its editor, a guest's pending edits) would go on showing and
+// writing into what the cluster has just thrown away, and the room would keep
+// trusting the image keys the old doc held. So the board sends the room on
+// (4012) instead, and a fresh room is built from the cluster as it now is.
+// A map entry that takes the place of an earlier value has a left: the first
+// value a key ever gets (initCardDocStore, a new card) has none.
+export function replacesDoc(doc, tr, cardKey, { variant = 'edit' } = {}) {
+  const cardsRoot = doc.share.get('cards');
+  if (!cardsRoot) return false;
+  const kept = keptKeys(variant);
+  let hit = false;
+  tr.afterState.forEach((after, client) => {
+    if (hit) return;
+    const before = tr.beforeState.get(client) || 0;
+    if (after <= before) return;
+    const structs = doc.store.clients.get(client);
+    if (!structs) return;
+    for (let i = Y.findIndexSS(structs, before); i < structs.length && structs[i].id.clock < after; i++) {
+      const s = structs[i];
+      if (!(s instanceof Y.Item) || s.left === null || !(s.content instanceof Y.ContentType)) continue;
+      const p = placeOf(s, cardsRoot, cardKey);
+      if (p === 'card' || (p && p.startsWith('entry:') && DOC_KEYS.includes(keyOfPlace(p)) && kept.has(keyOfPlace(p)))) {
+        hit = true;
+        return;
+      }
+    }
+  });
+  return hit;
+}
+
 // The mirror's state vector after it applied `update` from the board: what a
 // caller records as `sent` for a mirror that has just been rebuilt.
 export function stateVectorOf(doc) {

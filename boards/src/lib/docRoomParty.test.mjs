@@ -111,6 +111,33 @@ test('only "no such share" or "no such card" is gone; not being able to ask is t
   assert.match(doc, /const r = asked === FAILED \? null : asked;/);
 });
 
+// C3 (2026-10-21): a doc-only restore never changes the generation (only a
+// whole-board restore bumps board_state_version), and neither does an undo of
+// the card's delete or an API rewrite of the card. Each puts NEW types in the
+// doc's place, so the board sends the room on before it pushes anything, and
+// the room the readers come back to is built from the cluster as it now is.
+test('a doc put back in its place sends the room on, before any push', () => {
+  const at = bridge.indexOf('onTransaction(tr: Y.Transaction) {');
+  const body = bridge.slice(at, bridge.indexOf('private async push(', at));
+  const order = [
+    'void this.close(sub.room, 4410, "gone");',
+    'if (replacesDoc(this.host.document, tr, sub.cardId, { variant: sub.variant })) {\n        void this.close(sub.room, 4012, "rebuild");\n        continue;',
+    'update = filterTransaction(',
+  ];
+  let last = -1;
+  for (const needle of order) {
+    const i = body.indexOf(needle);
+    assert.ok(i > last, `${needle.split('\n')[0]} comes in order`);
+    last = i;
+  }
+  // A closed room throws its copy away, so the same name builds fresh.
+  assert.match(doc, /this\.sendAway\(code, String\(body\?\.reason \|\| "moved"\)\.slice\(0, 60\)\);\s+setTimeout\(\(\) => this\.ctx\.abort\("doc room closed by its board"\), 100\);/);
+  // The reader starts over too, on its own, if a replacement ever reaches it.
+  const view = src('../components/fileShare/DocShareView.jsx');
+  assert.match(view, /if \(found\) \{ if \(c !== found\) startOver\(\); return; \}/);
+  assert.match(view, /if \(DOC_KEYS\.includes\(k\) && e\.changes\.keys\.get\(k\)\?\.action !== 'add'\) \{ startOver\(\); return; \}/);
+});
+
 test('the room is built before a socket is let in, so the doc is sent once', () => {
   assert.match(doc, /async getConnectionTags\(_conn: Connection, _ctx: ConnectionContext\): Promise<string\[\]> \{\s+await this\.ensureReady\(\);\s+return \[\];/);
   assert.match(doc, /this\.ready = this\.prepare\(\)\.catch\(\(e\) => \{/, 'a throw is a 4503, never a rejected room');

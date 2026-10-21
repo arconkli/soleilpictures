@@ -20,7 +20,8 @@
 // The doc-* fixtures open a shared doc (DocShareView) on an in-memory room
 // (fakeDocRoom): the doc as the room would send it, a hello, caught up.
 // window.__fileShareQa.docRooms holds each room, so a spec can refuse a
-// write (refuse(reason)) or close it (end(code)). In an edit room every write
+// write (refuse(reason)), close it (end(code)) or put a new card in the doc's
+// place (restore(lines)). In an edit room every write
 // this tab makes is judged by the real room's rule (validateGuestUpdate) on a
 // copy of the doc written by another client, as its members' would be; what
 // it refuses lands in window.__fileShareQa.refusals.
@@ -293,6 +294,11 @@ const QA_USER_ID = '9a9a9a9a-0000-4000-8000-00000000a11e';
 
 // The doc's live room, in memory (see the header).
 function fakeDocRoom(fx, log) {
+  // What the doc's page says; restore(lines) puts a new card in its place,
+  // as an undo of its delete or a doc-only restore would, and every room
+  // after that starts from it.
+  let lines = ['A quiet street before dawn. A van idles with its lights off.',
+    'MARA checks her watch, then the mirror, then her watch again.'];
   return (ydoc, { room, onHello, onSync, onRefused, onEnd }) => {
     log('attachDocRoom', [room]);
     const share = fx.share || {};
@@ -300,7 +306,7 @@ function fakeDocRoom(fx, log) {
     awareness.setLocalState({});
     // The doc as its members wrote it: another client's.
     const board = new Y.Doc();
-    board.transact(() => {
+    const writeCard = () => board.transact(() => {
       const card = new Y.Map();
       board.getMap('cards').set(DOC_CARD, card);
       card.set('id', DOC_CARD);
@@ -319,10 +325,10 @@ function fakeDocRoom(fx, log) {
       };
       scope.content.get(pageId).insert(0, [
         block('Cold open', 'heading', { level: 2 }),
-        block('A quiet street before dawn. A van idles with its lights off.'),
-        block('MARA checks her watch, then the mirror, then her watch again.'),
+        ...lines.map((t) => block(t)),
       ]);
     });
+    writeCard();
     // The room's copy, which judges this tab's writes as the real room does.
     const roomDoc = new Y.Doc();
     const start = Y.encodeStateAsUpdate(board);
@@ -344,7 +350,14 @@ function fakeDocRoom(fx, log) {
       Y.applyUpdate(roomDoc, update, 'room');
     };
     ydoc.on('update', judge);
-    const handle = { room, refuse: (reason) => onRefused(reason), end: (code) => onEnd({ action: 'reask', code }) };
+    const restore = (next) => {
+      if (Array.isArray(next) && next.length) lines = next.map(String);
+      writeCard();
+      const u = Y.encodeStateAsUpdate(board);
+      Y.applyUpdate(roomDoc, u, 'room');
+      Y.applyUpdate(ydoc, u, 'room');
+    };
+    const handle = { room, refuse: (reason) => onRefused(reason), end: (code) => onEnd({ action: 'reask', code }), restore };
     if (typeof window !== 'undefined' && window.__fileShareQa) (window.__fileShareQa.docRooms ||= []).push(handle);
     const timer = setTimeout(() => {
       onHello({ type: 'hello', me: { name: 'Sam Rivera', color: '#2fb67c' }, access: share.access,

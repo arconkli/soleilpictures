@@ -23,7 +23,10 @@
 // a new room, and FileSharePage remounts this view on it, or the same one, and
 // this starts the room over, or says why not, and the page shows that instead.
 // A refused write means this copy holds something the room never will, so it
-// starts over from the room.
+// starts over from the room. So does a new card under the share's key, or a
+// new type at one of its doc keys (an undo of its delete, a doc-only restore,
+// an API rewrite of the card): none of them changes the room's generation,
+// and the editor would otherwise stay on what the cluster threw away.
 //
 // `api` may carry attachDocRoom / createDocImageResolver / getSessionUserId:
 // the DEV harness passes an in-memory room (local/FileShareQaHarness.jsx).
@@ -31,7 +34,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import * as Y from 'yjs';
 import { attachDocRoom as realAttachDocRoom, DOC_ROOM_CLOSE } from '../../lib/docRoomClient.js';
 import { createDocImageResolver as realImageResolver } from '../../lib/docShareImages.js';
-import { r2KeysIn } from '../../lib/docRoomBridge.js';
+import { r2KeysIn, DOC_KEYS } from '../../lib/docRoomBridge.js';
 import { cardScope } from '../../lib/docState.js';
 import { setKeyResolver, releaseKeyResolver } from '../../lib/r2.js';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
@@ -156,19 +159,36 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
       },
     });
     clientRef.current = client;
-    // The card is found by the key the share named, once it has its doc.
+    // The card is found by the key the share named, once it has its doc. Once
+    // found, a new card under that key or a new type at one of its doc keys
+    // (an undo of its delete, a restore of the doc alone, an API rewrite)
+    // means the doc on screen is one the cluster threw away: start over from
+    // the room, on a fresh copy (the board's room does the same: replacesDoc
+    // in lib/docRoomBridge.js).
     const cards = doc.getMap('cards');
-    let watching = false;
+    let found = null;
+    const startOver = () => { if (!off) { off = true; setAttempt((n) => n + 1); } };
+    const onCard = (e) => {
+      for (const k of e.keysChanged) {
+        if (DOC_KEYS.includes(k) && e.changes.keys.get(k)?.action !== 'add') { startOver(); return; }
+      }
+    };
     const find = () => {
       const c = cards.get(cardKey);
-      if (c instanceof Y.Map && c.get('docPages')) { if (!off) setCard(c); return true; }
-      return false;
+      if (found) { if (c !== found) startOver(); return; }
+      if (c instanceof Y.Map && c.get('docPages')) {
+        found = c;
+        c.observe(onCard);
+        setCard(c);
+      }
     };
-    const onCards = () => { if (find() && watching) { watching = false; cards.unobserve(onCards); } };
-    if (!find()) { watching = true; cards.observe(onCards); }
+    const onCards = (e) => { if (!off && e.keysChanged.has(cardKey)) find(); };
+    find();
+    cards.observe(onCards);
     return () => {
       off = true;
-      if (watching) { watching = false; try { cards.unobserve(onCards); } catch (_) {} }
+      try { cards.unobserve(onCards); } catch (_) {}
+      if (found) { try { found.unobserve(onCard); } catch (_) {} }
       client.destroy();
       if (clientRef.current === client) clientRef.current = null;
       doc.off('update', onUpdate);

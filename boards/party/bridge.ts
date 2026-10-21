@@ -22,7 +22,7 @@
 import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
 import { getServerByName } from "partyserver";
-import { extractDocSubtree, filterTransaction, validateGuestUpdate } from "../src/lib/docRoomBridge.js";
+import { extractDocSubtree, filterTransaction, replacesDoc, validateGuestUpdate } from "../src/lib/docRoomBridge.js";
 import { PRESENCE_FLUSH_MS, decodePresence, docPresenceOf, encodePresence } from "../src/lib/docRoomPresence.js";
 import type { Env } from "./env";
 
@@ -122,6 +122,13 @@ export class BoardBridge {
       if (isDocRoomOrigin(tr.origin) && tr.origin.docRoom === sub.room) continue;
       if (!cards.has(sub.cardId)) {
         void this.close(sub.room, 4410, "gone");
+        continue;
+      }
+      // A new card or a new type at a doc key (an undo of a delete, an API
+      // rewrite, a doc-only restore): the room starts over from the board, so
+      // nobody goes on reading or writing what was replaced.
+      if (replacesDoc(this.host.document, tr, sub.cardId, { variant: sub.variant })) {
+        void this.close(sub.room, 4012, "rebuild");
         continue;
       }
       let update: Uint8Array | null = null;

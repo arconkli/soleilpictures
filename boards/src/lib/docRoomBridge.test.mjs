@@ -7,10 +7,11 @@ import { createRequire } from 'node:module';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import {
-  extractDocSubtree, filterTransaction, validateGuestUpdate, placeOf, r2KeysIn,
+  extractDocSubtree, filterTransaction, validateGuestUpdate, placeOf, r2KeysIn, replacesDoc,
   DOC_KEYS, CARD_FIELDS, YJS_SERIES,
 } from './docRoomBridge.js';
 import * as docState from './docState.js';
+import { cardToYMap, yMapToCard } from './yhelpers.js';
 
 const require = createRequire(import.meta.url);
 const CARD = 'doc-1700000000000';
@@ -748,4 +749,77 @@ test('the board’s own look at a doc room’s write: inside that doc only', () 
   const s3 = spyOf();
   const field = editAs(s3, () => cardMapOf(s3).set('x', 1));
   assert.equal(validateGuestUpdate(board, field, { cardKey: CARD, structureOnly: true }).reason, 'outside_doc');
+});
+
+test('a doc put back in its place (an API rewrite, a doc-only restore) sends the room on; edits do not', () => {
+  const board = makeBoard();
+  const { room, sent } = mirrorOf(board);
+  const seen = [];
+  board.on('afterTransaction', (tr) => {
+    seen.push({ edit: replacesDoc(board, tr, CARD), view: replacesDoc(board, tr, CARD, { variant: 'view' }) });
+  });
+  wire(board, room, { sent });
+  const last = () => seen[seen.length - 1];
+  const card = () => board.getMap('cards').get(CARD);
+  const none = { edit: false, view: false };
+
+  // Ordinary edits: the text, a rename, a move, a comment, a new page.
+  card().get('docPageContent').get('p1').get(0).get(0).insert(0, 'Edited ');
+  assert.deepEqual(last(), none, 'typing');
+  card().set('title', 'Script v2');
+  assert.deepEqual(last(), none, 'a rename');
+  card().set('x', 9);
+  assert.deepEqual(last(), none, 'a move on the canvas');
+  card().get('docComments').set('t2', { pageId: 'p1', ts: 2, author: 'Rae', authorId: 'u-rae', body: 'ok', replies: [], resolved: false });
+  assert.deepEqual(last(), none, 'a comment');
+  card().get('docPageContent').set('p2', new Y.XmlFragment());
+  assert.deepEqual(last(), none, 'a new page');
+  // Another card, replaced: not this doc's business.
+  board.getMap('cards').set('note-1', cardToYMap({ kind: 'note', html: 'x' }));
+  assert.deepEqual(last(), none, 'another card');
+  // A new doc card, its keys set for the first time.
+  board.transact(() => {
+    const fresh = new Y.Map();
+    board.getMap('cards').set('doc-fresh', fresh);
+    docState.initCardDocStore(board, fresh);
+  });
+  let fresh = null;
+  board.once('afterTransaction', (tr) => { fresh = replacesDoc(board, tr, 'doc-fresh'); });
+  board.transact(() => {
+    const m = new Y.Map();
+    board.getMap('cards').set('doc-new', m);
+    docState.initCardDocStore(board, m);
+  });
+  assert.equal(fresh, false, 'a first value is not a replacement');
+
+  // The API's update (scoutBoard's updateCard): the card through cardToYMap,
+  // which copies every doc type under new ids.
+  board.getMap('cards').set(CARD, cardToYMap({ ...yMapToCard(card()), title: 'Via the API' }));
+  assert.deepEqual(last(), { edit: true, view: true }, 'the card rewritten');
+  assert.equal(pageText(room), pageText(board), 'the mirror follows, but a reader bound to the old types would not');
+
+  // A doc-only restore that swaps one doc key's type.
+  card().set('docPageContent', new Y.Map());
+  assert.deepEqual(last(), { edit: true, view: true }, 'a doc key swapped');
+  // The comment threads are only the edit room's.
+  card().set('docComments', new Y.Map());
+  assert.deepEqual(last(), { edit: true, view: false }, 'the view room holds no threads');
+  // A plain card field, overwritten, is still an edit.
+  card().set('title', 'Again');
+  assert.deepEqual(last(), none);
+});
+
+test('an undo of the doc’s delete brings the card back under new ids: a replacement too', () => {
+  const board = makeBoard();
+  const cards = board.getMap('cards');
+  const um = new Y.UndoManager(cards, { trackedOrigins: new Set(['local']) });
+  const before = pageText(board);
+  board.transact(() => cards.delete(CARD), 'local');
+  assert.equal(cards.get(CARD), undefined);
+  let hit = null;
+  board.once('afterTransaction', (tr) => { hit = replacesDoc(board, tr, CARD); });
+  um.undo();
+  assert.ok(cards.get(CARD), 'the card is back');
+  assert.equal(pageText(board), before, 'with its words');
+  assert.equal(hit, true, 'so a room on it starts over');
 });

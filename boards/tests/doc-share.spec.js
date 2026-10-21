@@ -132,6 +132,36 @@ test.describe('a doc shared on its own', () => {
     await expect.poll(async () => (await calls(page, 'attachDocRoom')).length).toBeGreaterThan(attached);
     await expect(view(page)).toHaveAttribute('data-doc-share-phase', 'ready');
   });
+
+  // C3: an undo of the doc's delete, a restore of the doc alone or an API
+  // rewrite puts a new card in its place, under new ids. The reader must not
+  // stay on the old one, showing (and writing into) what the cluster dropped.
+  for (const fixture of ['doc-view', 'doc-edit']) {
+    test(`a doc put back in its place starts the reader over on it (${fixture})`, async ({ page }) => {
+      await open(page, fixture);
+      await expect(view(page)).toHaveAttribute('data-doc-share-phase', 'ready');
+      await expect(editor(page)).toContainText('A quiet street before dawn.');
+      const attached = (await calls(page, 'attachDocRoom')).length;
+      await lastRoom(page, { fn: 'restore', arg: ['The restored opening, as it was on Monday.'] });
+      await expect.poll(async () => (await calls(page, 'attachDocRoom')).length).toBeGreaterThan(attached);
+      await expect(view(page)).toHaveAttribute('data-doc-share-phase', 'ready');
+      await expect(editor(page)).toContainText('The restored opening, as it was on Monday.');
+      await expect(editor(page)).not.toContainText('A quiet street before dawn.');
+      // It started over in place, with no notice. Whatever the old copy's
+      // editor wrote into the types the cluster dropped was refused (the
+      // real room's rule); the fresh copy writes into the doc as it now is.
+      await expect(page.locator('.dsv-notice')).toHaveCount(0);
+      if (fixture === 'doc-edit') {
+        await page.evaluate(() => { window.__fileShareQa.refusals = []; });
+        await editor(page).locator('p').filter({ hasText: 'The restored opening' }).click();
+        await page.keyboard.press('End');
+        await page.keyboard.type(' Kept.');
+        await expect(editor(page)).toContainText('as it was on Monday. Kept.');
+        await page.waitForTimeout(300);
+        expect(await page.evaluate(() => window.__fileShareQa.refusals || [])).toEqual([]);
+      }
+    });
+  }
 });
 
 test.describe('the owner shares a doc as view | edit', () => {
