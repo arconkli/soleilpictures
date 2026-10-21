@@ -1096,12 +1096,13 @@ test('every analytics row is dated on arrival and takes its subject\'s country, 
   assert.match(divert, /exception when others then\s+(?:--[^\n]*\n\s*)*raise warning/, 'a failed archive write is said');
 });
 
-test('an account made on a preview or dev build is internal, and is not sent to the preview', () => {
+test('an account made on a preview, a dev build or a local page is internal, and is not sent to the preview', () => {
   const src = latestDefinition('set_first_source').body;
   assert.match(src, /v_src := v_src - 'env';/, 'the env is never stored');
-  assert.match(src, /if v_env in \('preview', 'dev'\)\s+and exists \(select 1 from auth\.users u\s+where u\.id = v_uid and u\.created_at > now\(\) - interval '1 day'\)/,
-    'only a brand-new account: an old one opening a preview was made somewhere else');
-  assert.match(src, /insert into public\.internal_accounts \(user_id, reason\)\s+values \(v_uid, v_env \|\| '_signup'\)\s+on conflict \(user_id\) do nothing;/);
+  assert.match(src, /if \(v_env in \('preview', 'dev'\) or public\.request_is_local\(\)\)\s+and exists \(select 1 from auth\.users u\s+where u\.id = v_uid and u\.created_at > now\(\) - interval '1 day'\)/,
+    'only a brand-new account: an old one opening a preview or a local page was made somewhere else');
+  assert.match(src, /insert into public\.internal_accounts \(user_id, reason\)\s+values \(v_uid, case when v_env = 'preview' then 'preview' else 'dev' end \|\| '_signup'\)\s+on conflict \(user_id\) do nothing;/,
+    'a local page is a dev build here (0476), so the reason is one the redirect below already knows');
   assert.match(src, /set first_source = v_src\b/, 'what is stored is the source without the env');
   assert.match(latestDefinition('get_staging_redirect').body,
     /coalesce\(ia\.reason, ''\) not in \('preview_signup', 'dev_signup'\)/, 'the redirect stays the team\'s');

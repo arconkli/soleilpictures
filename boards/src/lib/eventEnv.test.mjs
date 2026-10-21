@@ -5,8 +5,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { eventEnv, envMarks, firstSourcePayload, DIVERTED_ENVS } from './eventEnv.js';
-import { latestDefinition } from './migrationText.mjs';
+import { MIGRATIONS_DIR, latestDefinition } from './migrationText.mjs';
 
 function onHost(hostname, fn) {
   const had = 'window' in globalThis;
@@ -21,6 +22,27 @@ test('a dev build is dev wherever it runs, a workers.dev host is preview, anythi
   assert.equal(onHost('clusters.soleilpictures.com', () => eventEnv(false)), 'prod');
   assert.equal(onHost('localhost', () => eventEnv(false)), 'prod', 'the native shell (capacitor://localhost) is production');
   assert.equal(eventEnv(false), 'prod', 'no window at all is production');
+});
+
+test("a production build served locally is marked by the server, from the request's Origin (0476)", () => {
+  const FILE = '0476_local_pages_are_dev.sql';
+  const guard = latestDefinition('_tg_event_caller_guard');
+  assert.equal(guard.file, FILE);
+  const at = guard.body.indexOf("elsif new.props->>'synthetic_reason' is null and public.request_is_local() then");
+  assert.ok(at > guard.body.indexOf("'uid_mismatch'") && at > guard.body.indexOf("'stale'"),
+    'after the sender and clock checks, and only on a row nothing has marked');
+  assert.match(guard.body.slice(at),
+    /^[^\n]*\n(?:\s*--[^\n]*\n)*\s*new\.props := coalesce\(new\.props, '\{\}'::jsonb\) \|\| jsonb_build_object\('synthetic_reason', 'dev'\);/);
+  assert.ok(DIVERTED_ENVS.includes('dev'), 'which the divert takes');
+
+  const local = latestDefinition('request_is_local');
+  assert.equal(local.file, FILE);
+  assert.doesNotMatch(local.body, /security definer/i);
+  assert.match(readFileSync(join(MIGRATIONS_DIR, FILE), 'utf8'),
+    /^grant execute on function public\.request_is_local\(\) to anon, authenticated, service_role;$/m,
+    "the guard runs with the caller's rights, so every client role must be able to call it");
+  // The native app serves itself from localhost with no port, and stays production.
+  assert.match(local.body, /\(\(v_host = 'localhost' or v_host ~ '\\\.localhost\$'\) and v_port is not null\)/);
 });
 
 test('only a preview or dev row is marked, and never as a QA-harness row', () => {

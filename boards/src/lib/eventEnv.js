@@ -15,6 +15,11 @@
 // neither a dev build nor a workers.dev host, so it is prod, as it should be.
 // One caveat: onPreviewHost() also matches production's own *.workers.dev
 // alias, so a visit there reads as preview. Nothing links to it.
+//
+// A production build served from this machine or the local network (`vite
+// preview`, a benchmark, a performance trace) marks nothing here either. The
+// server marks its rows 'dev' from the request's Origin instead
+// (request_is_local(), 0476), which also reaches builds made before that.
 
 import { onPreviewHost } from './appHost.js';
 
