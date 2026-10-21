@@ -64,7 +64,7 @@ Down the left edge:
 - **Add grid** (`G`) — a [grid](/docs/canvas/grids).
 - **Arrow** (`A`) — [connect two things](/docs/canvas/arrows).
 
-The **+** at the end of the rail opens the rest, grouped:
+The **+** at the top of the rail opens the rest, grouped:
 
 - *Tools* — Draw (`D`), Shape, Palette
 - *Create* — File, Folder (on a desktop browser), Link, Linked cluster

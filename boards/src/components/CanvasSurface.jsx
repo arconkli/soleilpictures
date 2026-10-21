@@ -1920,6 +1920,65 @@ export function CanvasSurface({
     useWorkspacePalettes(workspaceId);
   useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  // The rail's + and its menu. A press anywhere outside closes it (the canvas's
+  // own ground already did; the sidebar, the top bar, a card and the other
+  // tools didn't). Esc is the canvas's ladder's, or the menu's own when focus
+  // is in it. Focus goes to its first item as it opens, with a ring only when
+  // a key opened it.
+  const addWrapRef = useRef(null);
+  const addBtnRef = useRef(null);
+  const addByKeyRef = useRef(false);
+  const closeAddMenu = useCallback(() => setAddMenuOpen(false), []);
+  useDismissOnOutside(addWrapRef, addMenuOpen, closeAddMenu, { escape: false });
+  useEffect(() => {
+    if (!addMenuOpen) return undefined;
+    // A frame on: a mouse press focuses what it pressed (the +) once the
+    // press's handlers, this one's opening among them, have run.
+    const raf = requestAnimationFrame(() => {
+      const first = addWrapRef.current?.querySelector('.cnv-add-menu [role="menuitem"]');
+      first?.focus({ preventScroll: true, focusVisible: addByKeyRef.current });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [addMenuOpen]);
+  const onAddMenuKeyDown = (e) => {
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      setAddMenuOpen(false);
+      addBtnRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    // Kept from the canvas, whose arrows would nudge the selection behind it.
+    e.preventDefault();
+    e.stopPropagation();
+    const list = [...e.currentTarget.querySelectorAll('[role="menuitem"]')];
+    const n = list.length;
+    const i = list.indexOf(document.activeElement);
+    const down = e.key === 'ArrowDown';
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? n - 1
+      : i < 0 ? (down ? 0 : n - 1) : (i + (down ? 1 : -1) + n) % n;
+    list[j]?.focus();
+  };
+  // A finger on the rail: its tools and + act on the tap, not the press, so a
+  // swipe that starts on one scrolls the rail (a phone held sideways shows a
+  // short window of it, all tools) instead of arming that tool. The mouse
+  // still acts on the press. `mouse`: the press acted already, so the click
+  // that follows it doesn't again; `scrolled`: the finger scrolled the rail.
+  const railPressRef = useRef({ mouse: false, scrolled: false });
+  const onRailControlPress = (e, act) => {
+    railPressRef.current.mouse = e.pointerType === 'mouse';
+    if (e.pointerType !== 'mouse') return;   // the rail's scroll gets the press
+    e.stopPropagation();
+    act();
+  };
+  const onRailControlClick = (act) => {
+    const press = railPressRef.current;
+    if (press.mouse) { press.mouse = false; return; }
+    if (press.scrolled) return;
+    act();
+  };
+  const openHelp = () => document.dispatchEvent(new CustomEvent('soleil-open-help'));
   // Templates panel (the grid tool's flyout) + the shape it armed. A pending
   // layout rides along with the 'grid' place-tool: the panel picks the shape,
   // the next canvas click decides where. Cleared whenever the tool disarms, so a
@@ -13870,32 +13929,45 @@ export function CanvasSurface({
           will not finger-scroll it. Drive it ourselves. Tapping a tool still
           works — the gesture only engages past the movement threshold. */}
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail"
-           onPointerDown={(e) => { startTouchScrollGesture(e); }}>
-        <div className="cnv-add-wrap">
+           onPointerDown={(e) => {
+             railPressRef.current.scrolled = false;
+             startTouchScrollGesture(e, { onEngage: () => { railPressRef.current.scrolled = true; } });
+           }}>
+        <div className="cnv-add-wrap" ref={addWrapRef}>
           <div
+            ref={addBtnRef}
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
             data-tip="Add"
             role="button"
             tabIndex={0}
             aria-label="Add menu"
+            aria-haspopup="menu"
             aria-expanded={addMenuOpen}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+              if (e.key === 'Enter' || e.key === ' ' || (e.key === 'ArrowDown' && !addMenuOpen)) {
                 e.preventDefault();
-                setAddMenuOpen(open => !open);
-              } else if (e.key === 'Escape') {
+                addByKeyRef.current = true;
+                setAddMenuOpen(open => (e.key === 'ArrowDown' ? true : !open));
+              } else if (e.key === 'Escape' && addMenuOpen) {
+                // Not the canvas's ladder too: it would take the next rung.
+                e.preventDefault();
+                e.stopPropagation();
                 setAddMenuOpen(false);
               }
             }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
+            onPointerDown={(e) => onRailControlPress(e, () => {
+              addByKeyRef.current = false;
               setAddMenuOpen(open => !open);
-            }}
+            })}
+            onClick={() => onRailControlClick(() => {
+              addByKeyRef.current = false;
+              setAddMenuOpen(open => !open);
+            })}
           >
             <Icon as={Plus} size={20} />
           </div>
           {addMenuOpen && (
-            <div className="cnv-add-menu" role="menu" aria-label="Add">
+            <div className="cnv-add-menu" role="menu" aria-label="Add" onKeyDown={onAddMenuKeyDown}>
               {addGroups.map(group => (
                 <Fragment key={group.title}>
                   <div className="cnv-add-group-head" aria-hidden="true">{group.title}</div>
@@ -13904,6 +13976,8 @@ export function CanvasSurface({
                       key={item.id}
                       type="button"
                       role="menuitem"
+                      // The arrows move focus through the items; Tab leaves.
+                      tabIndex={-1}
                       // Explicit label so the accessible name stays exactly the
                       // item label. Without it, Chromium folds the data-tip
                       // ::after tooltip content into the name ("Shape Draw a
@@ -13973,7 +14047,8 @@ export function CanvasSurface({
                    // next rung — closing the panel AND disarming the tool.
                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
                  }}
-                 onPointerDown={(e) => { e.stopPropagation(); activate(); }}
+                 onPointerDown={(e) => onRailControlPress(e, activate)}
+                 onClick={() => onRailControlClick(activate)}
                  onPointerEnter={teaches ? (e) => { if (e.pointerType !== 'touch' && !active) armClusterCard(); } : undefined}
                  onPointerLeave={teaches ? disarmClusterCard : undefined}
                  onFocus={teaches ? (e) => { if (!active && e.currentTarget.matches(':focus-visible')) armClusterCard(); } : undefined}
@@ -14026,10 +14101,8 @@ export function CanvasSurface({
                  document.dispatchEvent(new CustomEvent('soleil-open-help'));
                }
              }}
-             onPointerDown={(e) => {
-               e.stopPropagation();
-               document.dispatchEvent(new CustomEvent('soleil-open-help'));
-             }}>
+             onPointerDown={(e) => onRailControlPress(e, openHelp)}
+             onClick={() => onRailControlClick(openHelp)}>
           <Icon as={Question} size={20} />
         </div>
       </div>

@@ -21414,6 +21414,10 @@ button, [role="button"], a {
   }
   .cnv-tools::-webkit-scrollbar { display: none; }
   .cnv-tool { width: 40px; height: 40px; }
+  /* The strip scrolls; it never squeezes its tools to fit. A flex column
+     shrinks its children to their icons first, which drew a phone held
+     sideways's tools 20px tall. */
+  .cnv-tools > * { flex-shrink: 0; }
   .cnv-tool-sep { margin: 4px 6px; }
 
   /* Canvas zoom controls (bottom-right) — push above the bottom nav

@@ -109,9 +109,11 @@ export function driveTouchScroll(el, dy) {
 //
 // Deliberately does NOT preventDefault at pointerdown: a plain tap must still
 // place the caret / activate the control. The scroll only engages once the
-// finger passes `threshold`, at which point nothing else is watching anyway.
+// finger passes `threshold`, at which point nothing else is watching anyway,
+// and `onEngage` hears it then (a control that acts on the tap uses it to tell
+// a tap from a scroll that started on it).
 // Returns true if a scrollable was found and the gesture is being tracked.
-export function startTouchScrollGesture(e, { threshold = 10 } = {}) {
+export function startTouchScrollGesture(e, { threshold = 10, onEngage = null } = {}) {
   if (e.pointerType !== 'touch' || !e.isPrimary) return false;
   const el = findTouchScrollable(e.target);
   if (!el) return false;
@@ -121,7 +123,7 @@ export function startTouchScrollGesture(e, { threshold = 10 } = {}) {
   trackStroke({
     pointerId: e.pointerId,
     onSample: (ev) => {
-      if (!engaged && Math.abs(ev.clientY - startY) > threshold) engaged = true;
+      if (!engaged && Math.abs(ev.clientY - startY) > threshold) { engaged = true; onEngage?.(); }
       if (engaged) driveTouchScroll(el, ev.clientY - lastY);
       lastY = ev.clientY;
     },

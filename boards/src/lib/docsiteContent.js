@@ -7104,7 +7104,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the end of the rail opens the rest, grouped:"
+     "v": " at the top of the rail opens the rest, grouped:"
     }
    ]
   },
