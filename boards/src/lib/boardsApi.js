@@ -2,7 +2,7 @@
 // tables. Pure functions over the Supabase client — no React.
 
 import * as Y from 'yjs';
-import { supabase } from './supabase.js';
+import { supabase, sessionUserId } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
 import { buildCardIndexRow } from './cardIndexRow.js';
@@ -11,6 +11,7 @@ import { isAbandonedUpload } from './abandonedUploads.js';
 import { fitByCost } from './demoCardCap.js';
 import { docPagesText, docSignature } from './docText.js';
 import { createStateWriteGate } from './boardStateGate.js';
+import { shareThisTurn } from './shareThisTurn.js';
 import {
   personalWorkspaceQuery, rootBoardQuery, boardListQuery, sharedBoardsQuery, boardStateQuery,
 } from './bootQueries.js';
@@ -137,16 +138,17 @@ export async function updateWorkspaceSettings(workspaceId, patch) {
 
 // Caller's role on this workspace. 'editor' | 'owner' | 'viewer' | null
 // (null when not a member). Used by the SettingsPanel to gate the
-// workspace-defaults editor for viewers.
-export async function getMyWorkspaceRole(workspaceId) {
+// workspace-defaults editor for viewers. `userId` is the caller's own id when
+// it has it; otherwise it comes from the session (see sessionUserId).
+export async function getMyWorkspaceRole(workspaceId, userId = null) {
   if (!workspaceId) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const uid = userId || await sessionUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', uid)
     .maybeSingle();
   if (error) throw error;
   return data?.role || null;
@@ -164,9 +166,18 @@ export async function getMyWorkspaceRole(workspaceId) {
 // mate's row as if it were yours, which then propagated into userInfo
 // (name + color) and out through workspace presence — every collaborator
 // ended up sharing the same identity in the UI.
-export async function getOwnProfile() {
-  const { data: userData } = await supabase.auth.getUser();
-  const uid = userData?.user?.id;
+//
+// `userId` is the caller's own id when it has it (App, useResolvedDefaults);
+// otherwise it comes from the session (see sessionUserId). Calls that pass it
+// in the same turn share one request: Workspace's mount asks twice.
+const ownProfileReads = new Map();   // uid → this turn's read
+export function getOwnProfile({ userId = null } = {}) {
+  if (!userId) return readOwnProfile(null);
+  return shareThisTurn(ownProfileReads, userId, () => readOwnProfile(userId));
+}
+
+async function readOwnProfile(userId) {
+  const uid = userId || await sessionUserId();
   if (!uid) return null;
   const { data, error } = await supabase
     .from('profiles')
@@ -1767,8 +1778,7 @@ export async function listWorkspaceAlerts(workspaceId, { limit = 50, onlyOpen = 
 
 // Acknowledge an open alert (set acknowledged_at = now()).
 export async function acknowledgeAlert(alertId) {
-  const { data: u } = await supabase.auth.getUser();
-  const userId = u?.user?.id || null;
+  const userId = await sessionUserId();
   const { error } = await supabase
     .from('workspace_anomaly_alerts')
     .update({ acknowledged_at: new Date().toISOString(), acknowledged_by: userId })
@@ -1939,7 +1949,7 @@ export async function bulletproofRestore(boardId, b64) {
   }
   // 3) Audit row (board_versions) recording the bulletproof restore.
   try {
-    const userId = (await supabase.auth.getUser())?.data?.user?.id || null;
+    const userId = await sessionUserId();
     const seed = decodeSnapshotBytes(b64);
     await saveBoardVersion(boardId, seed, {
       label: 'bulletproof-restore',

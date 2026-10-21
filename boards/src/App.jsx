@@ -1058,7 +1058,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    getOwnProfile()
+    getOwnProfile({ userId: user.id })
       .then(p => { if (!cancelled) setOwnProfile(p || null); })
       .catch(() => {});
     return () => { cancelled = true; };

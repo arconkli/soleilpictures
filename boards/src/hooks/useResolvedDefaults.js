@@ -126,14 +126,14 @@ export function useResolvedDefaults({ workspaceId, userId }) {
     }
     Promise.all([
       getWorkspaceSettings(workspaceId).catch(() => ({})),
-      getMyWorkspaceRole(workspaceId).catch(() => null),
+      getMyWorkspaceRole(workspaceId, userId).catch(() => null),
     ]).then(([ws, r]) => {
       if (cancelled) return;
       setWorkspaceSettings(ws || {});
       setRole(r);
     });
     return () => { cancelled = true; };
-  }, [workspaceId, tick, roleTick]);
+  }, [workspaceId, userId, tick, roleTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,7 +142,7 @@ export function useResolvedDefaults({ workspaceId, userId }) {
       setMySettingsLoaded(false);
       return;
     }
-    getOwnProfile()
+    getOwnProfile({ userId })
       .then(p => { if (!cancelled) setMySettings(p?.settings || {}); })
       .catch(() => { if (!cancelled) setMySettings({}); })
       .finally(() => { if (!cancelled) setMySettingsLoaded(true); });
