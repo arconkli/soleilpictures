@@ -6,6 +6,9 @@
 // the pane claims App makes. The board's Y.Doc is in memory; nothing reaches a
 // backend. For tests/doc-panes.spec.js. DocQaHarness mounts this, and is only
 // ever imported in a DEV build.
+//
+// &cold=1 holds each pane as App draws it while its board's Y.Doc is still on
+// its way: DocOpening, with the pane's close (tests/doc-opening.spec.js).
 
 import { useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
@@ -16,6 +19,7 @@ import { NO_DOC_PANES, openBesideDock, dockDoc, closeDock, closeBeside } from '.
 import { getActivePane, subscribeActivePane } from '../lib/activePane.js';
 import { RichDocCard, DockedDocPane } from '../components/DocCard.jsx';
 import { DocPaneFrame } from '../components/DocPaneFrame.jsx';
+import { DocOpening } from '../components/DocOpening.jsx';
 
 const BOARD_ID = 'docqa-board';
 const DOCS = [
@@ -23,6 +27,7 @@ const DOCS = [
   { id: 'doc-b', title: 'Sundown Highway', left: 400, top: 40 },
   { id: 'doc-c', title: 'Notes', left: 40, top: 320 },
 ];
+const COLD = new URLSearchParams(window.location.search).get('cold') === '1';
 const USER = { id: 'docqa-user', name: 'QA Tester', email: 'qa@soleilpictures.com', color: '#d98c2b' };
 
 function createBoard() {
@@ -83,12 +88,15 @@ export function DocPanesQa() {
   const docPane = (which) => {
     const id = panes[which].cardId;
     const pane = which === 'dock' ? 'split' : 'beside';
+    const onClose = () => move(which === 'dock' ? closeDock(panes) : closeBeside(panes));
     return (
       <DocPaneFrame pane={pane} cardId={id}>
-        <DockedDocPane {...docProps(id)} pane={pane}
-                       onClose={() => move(which === 'dock' ? closeDock(panes) : closeBeside(panes))}
-                       full={full[which]}
-                       onSetFull={(v) => setFull((f) => ({ ...f, [which]: !!v }))} />
+        {COLD ? <DocOpening onClose={onClose} /> : (
+          <DockedDocPane {...docProps(id)} pane={pane}
+                         onClose={onClose}
+                         full={full[which]}
+                         onSetFull={(v) => setFull((f) => ({ ...f, [which]: !!v }))} />
+        )}
       </DocPaneFrame>
     );
   };

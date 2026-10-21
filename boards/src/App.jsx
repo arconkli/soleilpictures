@@ -34,6 +34,7 @@ import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
 import { DocPaneFrame } from './components/DocPaneFrame.jsx';
+import { DocOpening } from './components/DocOpening.jsx';
 import { openBesideDock, mainPaneMoved, sidebarShown, toggleSidebar } from './lib/docPanes.js';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
@@ -10254,7 +10255,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
          and the same × twice over. */
       <DocPaneFrame pane={pane} cardId={cardId}>
         {docCard && cardYMap ? (
-          <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
+          <Suspense fallback={<DocOpening onClose={onClose} />}>
             <DockedDocPane
               card={docCard}
               ydoc={ybh.ydoc}
@@ -10275,7 +10276,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               pane={pane} />
           </Suspense>
         ) : (
-          <div className="doc-surface-skeleton" aria-hidden="true" />
+          /* Its board still loading: no header yet, so the wait offers the close. */
+          <DocOpening onClose={onClose} />
         )}
       </DocPaneFrame>
     );

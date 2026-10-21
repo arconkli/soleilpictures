@@ -19,6 +19,7 @@ import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { SurfaceErrorBoundary } from './SurfaceErrorBoundary.jsx';
+import { DocOpening } from './DocOpening.jsx';
 import { Avatar } from './primitives.jsx';
 import { useMessagesUi } from '../hooks/useOpenDm.js';
 import { EditableText } from './EditableText.jsx';
@@ -686,7 +687,7 @@ export function DocCardOverlay({
           <SurfaceErrorBoundary resetKey={card.id} logKind="doc" retryInPlace
                                 message="This doc hit a problem." retryLabel="Reopen"
                                 fallbackClassName="is-in-doc">
-          <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
+          <Suspense fallback={<DocOpening />}>
           <DocSurface
             board={{ id: card.id, name: card.title || 'Untitled doc' }}
             ydoc={ydoc}

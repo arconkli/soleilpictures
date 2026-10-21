@@ -35,6 +35,7 @@ import { ScreenplayTitlePage } from './ScreenplayTitlePage.jsx';
 import { ScreenplaySceneNav } from './ScreenplaySceneNav.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
+import { DocOpening } from './DocOpening.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
@@ -1070,17 +1071,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     });
   };
 
-  if (!ready) {
-    return (
-      <div className="doc-surface">
-        <div className="doc-loading">
-          <span className="t-eyebrow">Document</span>
-          <div className="doc-state-title">Opening…</div>
-          <div className="doc-state-sub">Syncing the latest changes.</div>
-        </div>
-      </div>
-    );
-  }
+  if (!ready) return <DocOpening />;
 
   return (
     <div ref={rootRef} className={`doc-surface no-right-rail ${railOpen ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>

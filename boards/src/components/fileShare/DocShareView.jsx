@@ -36,6 +36,7 @@ import { cardScope } from '../../lib/docState.js';
 import { setKeyResolver, releaseKeyResolver } from '../../lib/r2.js';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { SurfaceErrorBoundary } from '../SurfaceErrorBoundary.jsx';
+import { DocOpening } from '../DocOpening.jsx';
 import { logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './docShareView.css';
@@ -242,7 +243,7 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
           <SurfaceErrorBoundary resetKey={cardKey} logKind="doc" retryInPlace
                                 message="This doc hit a problem." retryLabel="Reopen"
                                 fallbackClassName="is-in-doc">
-          <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
+          <Suspense fallback={<DocOpening />}>
             <DocSurface
               // The doc's card id, as its members' DocPresence uses: presence
               // crosses the mirror keyed by it (lib/docRoomPresence.js).

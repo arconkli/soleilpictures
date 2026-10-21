@@ -366,6 +366,8 @@ body {
   color: var(--ink-0, #eee); cursor: pointer; font-size: 13px;
 }
 .surface-error-btn:hover { background: var(--bg-hov, #222); }
+/* A finger's size: Reopen in a crashed doc, Reload page and Close in one slow to open. */
+@media (pointer: coarse) { .surface-error-btn { min-height: 44px; } }
 /* Inside an open doc: fills the doc's body under its header, which stays. */
 .surface-error.is-in-doc { position: static; flex: 1 1 auto; }
 
@@ -15749,6 +15751,23 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (prefers-reduced-motion: reduce) {
   .doc-surface-skeleton { animation: none; background: var(--bg-1); }
 }
+/* A doc opening (components/DocOpening.jsx): the shimmer above, and if it is
+   slow, the doc's own empty-state words with a reload. */
+.doc-opening {
+  flex: 1 1 auto; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.doc-opening.is-stalled {
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center;
+  background: var(--bg-1);
+}
+.doc-opening-say {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: var(--ink-3);
+}
+.doc-opening-say .t-eyebrow { color: var(--ink-3); }
+.doc-opening-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 /* Doc editor right-click context menu */
 .doc-ctx {
