@@ -113,7 +113,7 @@ import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
 import { NewClusterButton } from './components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
-import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
+import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen, viewWrite } from './lib/filesDock.js';
 import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX, canStore } from './lib/placement.js';
 import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
@@ -1744,6 +1744,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the engine).
     tourFireRef.current?.({ type: 'view_switched', view: v, boardId });
     logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: boardId, via });
+    // With the files sidebar, looking is this device's alone: only the cluster
+    // menu's "Always open in Files" changes how it opens for everyone.
+    if (viewWrite({ filesSidebar, via }) === 'device') return;
     // Only a real change reaches the board. A cluster opened in Files on this
     // device alone (folder drop, a folder opened from Files) is still stored as
     // canvas, so going back to the board must not write anything.
@@ -1770,8 +1773,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Every way of showing, sizing or putting away Files on the main pane comes
   // through here: the topbar switch, F, ⌘K, the panel's ⤢ ⤡ × buttons and the
-  // divider (lib/filesDock.js planFilesEvent). Full Files is the stored view,
-  // so moving into or out of it goes through setView; the panel itself is this
+  // divider (lib/filesDock.js planFilesEvent). Without the files sidebar, full
+  // Files is the stored view, so moving into or out of it goes through setView;
+  // with it, full is this device's alone (below). The panel itself is this
   // device's preference and never writes to the board.
   const applyFilesEvent = (event, via = 'button') => {
     const plan = planFilesEvent(mainFilesMode, event, { canDock: canDockMain });
@@ -9493,14 +9497,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // F — flip a cluster between Board and Files. App-level rather than in
   // CanvasSurface's keymap because it has to work from the Files view too.
-  // It persists a shared value (boards.view), so it stands down harder than
-  // the canvas tool keys: never while typing, never under anything open on
-  // top of the board — a dialog, a viewer, a menu, Settings, Messages, the
-  // palette, an open doc — and only on a board surface. A doc docked in the
-  // split pane is the exception: with the pointer on the board beside it, F
-  // flips that board. Otherwise it acts on the pane the switch describes.
-  const setViewRef = useRef(setView);
-  setViewRef.current = setView;
+  // Without the files sidebar it persists a shared value (boards.view), so it
+  // stands down harder than the canvas tool keys: never while typing, never
+  // under anything open on top of the board — a dialog, a viewer, a menu,
+  // Settings, Messages, the palette, an open doc — and only on a board
+  // surface. A doc docked in the split pane is the exception: with the pointer
+  // on the board beside it, F flips that board. Otherwise it acts on the pane
+  // the switch describes.
   const applyFilesEventRef = useRef(applyFilesEvent);
   applyFilesEventRef.current = applyFilesEvent;
   useEffect(() => {
