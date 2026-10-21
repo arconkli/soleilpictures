@@ -83,12 +83,20 @@ test('Backspace in a fullscreen doc never deletes the cards behind it', async ({
 });
 
 // One Escape, one layer: a menu inside the doc takes its Escape, and only the
-// next one closes the doc.
-for (const [label, menu] of [['Insert a block', '.doc-insert-menu'], ['Export', '.doc-export-menu']]) {
+// next one closes the doc. The size list missed it and the Escape closed the
+// whole doc.
+for (const [label, menu, trigger] of [
+  ['Insert a block', '.doc-insert-menu'],
+  ['Export', '.doc-export-menu'],
+  ['font', '.font-pop', (doc) => doc.getByTitle('Font family')],
+  ['size', '.size-combo-pop', (doc) => doc.getByRole('button', { name: 'Preset sizes' })],
+  ['colour', '.doc-tb-colorpop', (doc) => doc.getByRole('button', { name: 'Text color', exact: true })],
+]) {
   test(`Escape closes the doc's ${label} menu first, then the doc`, async ({ page }) => {
     await placeDoc(page);
     await openFullscreen(page);
-    await page.locator('.doc-card-modal').getByRole('button', { name: label, exact: true }).click();
+    const doc = page.locator('.doc-card-modal');
+    await (trigger ? trigger(doc) : doc.getByRole('button', { name: label, exact: true })).click();
     await expect(page.locator(menu)).toBeVisible();
     await leaveTheText(page);
     await page.keyboard.press('Escape');

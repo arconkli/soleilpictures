@@ -2,7 +2,7 @@
 // editor instance the parent passes in; gracefully renders disabled buttons
 // when no editor is mounted (e.g. between page switches).
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditorState } from '@tiptap/react';
 import { DocExportMenu } from './DocExportMenu.jsx';
@@ -10,6 +10,7 @@ import { DocInsertMenu } from './DocInsertMenu.jsx';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
@@ -450,51 +451,12 @@ function SceneNumberToggle({ show, onSetShow, disabled }) {
 
 function ColorBtn({ disabled, onPick, onClear, title }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
   const wrapRef = useRef(null);
-  const popRef = useRef(null);
 
   // Same fix as DocExportMenu: the toolbar clips inline absolute popups, so the
-  // swatch grid is portaled to <body> and positioned (fixed) against the button.
-  useLayoutEffect(() => {
-    if (!open || !wrapRef.current) return;
-    const GAP = 6, PAD = 8;
-    const measure = () => {
-      const r = wrapRef.current.getBoundingClientRect();
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const pw = popRef.current?.offsetWidth || 211;
-      const ph = popRef.current?.offsetHeight || 0;
-      const spaceBelow = vh - r.bottom - PAD;
-      const placeAbove = ph > 0 && spaceBelow < ph && (r.top - PAD) > spaceBelow;
-      const top = placeAbove ? Math.max(PAD, r.top - ph - GAP) : r.bottom + GAP;
-      const left = Math.min(Math.max(PAD, r.left), vw - pw - PAD);
-      setPos({ top, left });
-    };
-    measure();
-    const id = requestAnimationFrame(measure);
-    window.addEventListener('resize', measure);
-    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', measure); };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (wrapRef.current?.contains(e.target)) return;
-      if (popRef.current?.contains(e.target)) return;
-      setOpen(false);
-    };
-    // On document, claimed: the open doc is a layer (lib/modalGuard) that
-    // would close on the same Escape at the window.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); setOpen(false); } };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  // swatch grid is portaled to <body> and placed against the button
+  // (hooks/useAnchoredPopover).
+  const pop = useAnchoredPopover({ open, onClose: () => setOpen(false), anchorRef: wrapRef });
 
   return (
     <span className="doc-tb-colorwrap" ref={wrapRef}>
@@ -508,8 +470,7 @@ function ColorBtn({ disabled, onPick, onClear, title }) {
         </svg>
       </button>
       {open && createPortal(
-        <div className="doc-tb-colorpop" ref={popRef}
-             style={{ position: 'fixed', top: pos.top, left: pos.left }}
+        <div className="doc-tb-colorpop" ref={pop.popRef} style={pop.style}
              onMouseDown={(e) => e.preventDefault()}>
           {COLORS.map(c => (
             <button key={c} className="doc-tb-sw" style={{ background: c }}

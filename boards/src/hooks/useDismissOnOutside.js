@@ -24,6 +24,9 @@ import { isComposingKey } from '../lib/composerKeys.js';
 //   useDismissOnOutside(ref, open, onClose);            // open is a boolean
 //   useDismissOnOutside(ref, true, onClose);            // always-on while mounted
 //   useDismissOnOutside(ref, open, onClose, { escapeCapture: true });
+//   useDismissOnOutside(refs, open, onClose);   // [buttonRef, panelRef]: a portaled
+//                                               // panel and the button that opens it
+//                                               // (keep the array stable: useMemo)
 export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
   const { escape = true, escapeCapture = false, ignore = null } = options;
   const onCloseRef = useRef(onClose);
@@ -37,9 +40,9 @@ export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
       if (e.timeStamp && e.timeStamp < since) return;
       if (e.type === 'pointerdown') pressed = true;
       else if (!pressed) return;
-      const el = ref.current;
-      if (!el) return;
-      if (el.contains(e.target)) return;
+      const els = (Array.isArray(ref) ? ref : [ref]).map((r) => r.current).filter(Boolean);
+      if (!els.length) return;
+      if (els.some((el) => el.contains(e.target))) return;
       // Opt-in escape hatch: a portaled control can have an interactive sibling
       // OUTSIDE its ref (e.g. a drag layer over a grid cell) that must NOT count
       // as an outside-tap. Default null → unchanged for every other caller.

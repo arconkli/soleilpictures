@@ -27,6 +27,7 @@ import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
 import { getActiveNoteEditor, getActiveNoteActions, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
@@ -1496,76 +1497,20 @@ function SizePicker({ value = null, onApply }) {
 
 function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, onCustom, glyph = null }) {
   const [open, setOpen] = useState(false);
-  const [popStyle, setPopStyle] = useState(null);
   const wrapRef = useRef(null);
-  const popRef = useRef(null);
   const recentColors = useRecentColors();
   const allSwatches = [...new Set([...recentColors, ...paletteColors, ...swatches])];
 
-  // Position the swatch popover relative to its trigger, clamped to the
-  // viewport so it never clips on the right/top edges of the screen.
-  useLayoutEffect(() => {
-    if (!open || !wrapRef.current || !popRef.current) return;
-    const place = () => {
-      const wrap = wrapRef.current;
-      const pop = popRef.current;
-      if (!wrap || !pop) return;
-      const wr = wrap.getBoundingClientRect();
-      const w = pop.offsetWidth;
-      const h = pop.offsetHeight;
-      const PAD = 8;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const leftAbs = Math.max(PAD, Math.min(vw - w - PAD, wr.left));
-      const preferTopAbs = wr.top - h - 6;
-      const topAbs = preferTopAbs < PAD
-        ? Math.min(vh - h - PAD, wr.bottom + 6)
-        : preferTopAbs;
-      const topClamped = Math.max(PAD, topAbs);
-      setPopStyle(prev => {
-        if (prev && prev.left === leftAbs && prev.top === topClamped) return prev;
-        return {
-          position: 'fixed',
-          left: leftAbs,
-          top: topClamped,
-          bottom: 'auto',
-          right: 'auto',
-        };
-      });
-    };
-    place();
-    const id = requestAnimationFrame(place);
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      cancelAnimationFrame(id);
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [open, allSwatches.length]);
-
-  // Outside click closes.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (popRef.current?.contains(e.target)) return;
-      if (wrapRef.current?.contains(e.target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('mousedown', onDown, true);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('mousedown', onDown, true);
-    };
-  }, [open]);
+  // Over its button (the bar sits at the bottom of the canvas), kept on
+  // screen; a press outside or Escape closes it, and only it: the note being
+  // edited stays in edit (hooks/useAnchoredPopover).
+  const pop = useAnchoredPopover({ open, onClose: () => setOpen(false), anchorRef: wrapRef, side: 'above' });
 
   // The bottom bar (.tob) has a translateX transform, which establishes a
   // containing block for position:fixed descendants. Portal to body so the
   // popover is anchored to the viewport instead of the (transformed) bar.
   const popNode = open && (
-    <span className="tob-pop" ref={popRef}
-          style={popStyle || { position: 'fixed', visibility: 'hidden' }}
+    <span className="tob-pop" ref={pop.popRef} style={pop.style}
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => e.stopPropagation()}>
       {allSwatches.slice(0, 16).map(c => (

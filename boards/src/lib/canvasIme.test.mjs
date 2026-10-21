@@ -42,7 +42,7 @@ test('every text field on the canvas and its bars asks the shared rule first', (
 // the highlighted row in Safari (its composition has ended by the keydown, so
 // only keyCode 229 marks it), and Escape mid-syllable closed the tag picker.
 test('a picker\'s Enter and a popover\'s Escape leave a syllable to the input method', () => {
-  for (const file of ['../hooks/useListboxNav.js', '../hooks/useDismissOnOutside.js']) {
+  for (const file of ['../hooks/useListboxNav.js', '../hooks/useDismissOnOutside.js', '../hooks/useAnchoredPopover.js']) {
     const src = read(file);
     assert.match(src, IMPORTS_RULE, `${file} imports isComposingKey`);
     assert.match(src, /isComposingKey\(e\)/, `${file} asks it`);

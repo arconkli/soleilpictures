@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 
 // Compact editable font-size combobox shared by the note (ToolOptionsBar) and
 // doc (DocToolbar) toolbars. The user can type an EXACT px size, or pick a
@@ -12,9 +13,10 @@ import { isComposingKey } from '../lib/composerKeys.js';
 //
 // Commits ONLY on blur / Enter / preset click / arrow step, never
 // mid-keystroke — so a half-typed "1" never applies font-size:1 to the live
-// selection. Escape reverts to the current value (closing the dropdown
-// first if open) and stops propagation so it doesn't bubble out to the
-// editor's own Escape (which would cancel the whole edit).
+// selection. Escape reverts to the current value and stops propagation so it
+// doesn't bubble out to the editor's own Escape (which would cancel the whole
+// edit). While the dropdown is open, Escape is the dropdown's: it closes it
+// and nothing else, wherever the focus is.
 //
 // Props:
 //   value      — current size (number) or null when the selection is mixed/unknown
@@ -29,28 +31,14 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
-  const popRef = useRef(null);
   // The preset list is portaled to <body> with fixed coordinates: the
   // bottom tool-options bar scrolls sideways (overflow-x) rather than wrap,
-  // and an in-flow absolute list was clipped to nothing inside it.
-  const [popPos, setPopPos] = useState(null);
-  useLayoutEffect(() => {
-    if (!open) { setPopPos(null); return undefined; }
-    const place = () => {
-      const r = wrapRef.current?.getBoundingClientRect();
-      if (!r) return;
-      setPopPos(dropUp
-        ? { left: r.left, top: 'auto', bottom: window.innerHeight - r.top + 4, minWidth: r.width }
-        : { left: r.left, top: r.bottom + 4, bottom: 'auto', minWidth: r.width });
-    };
-    place();
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [open, dropUp]);
+  // and an in-flow absolute list was clipped to nothing inside it. It follows
+  // the field as the bar scrolls (hooks/useAnchoredPopover).
+  const pop = useAnchoredPopover({
+    open, onClose: () => setOpen(false), anchorRef: wrapRef,
+    side: dropUp ? 'above' : 'below', gap: 4, matchWidth: true,
+  });
   // Reflect the caret's current size unless the user is actively editing.
   useEffect(() => { if (!focused) setDraft(value ? String(value) : ''); }, [value, focused]);
 
@@ -76,17 +64,6 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
     if (Number.isFinite(n) && n > 0) commitPx(n);
     else setDraft(value ? String(value) : '');
   };
-
-  // Outside pointerdown closes the dropdown.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (wrapRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [open]);
 
   // preventDefault on press so the editor's focus/selection survives the
   // dropdown interaction (same trick as the toolbar format buttons).
@@ -117,7 +94,6 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
             commitPx(cur + (e.key === 'ArrowUp' ? 1 : -1));
           } else if (e.key === 'Escape') {
             e.stopPropagation();
-            if (open) { setOpen(false); return; }
             cancelRef.current = true;
             e.currentTarget.blur();
           }
@@ -130,8 +106,8 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
                 onMouseDown={pd} onPointerDown={pd}
                 onClick={() => setOpen(o => !o)}>▾</button>
       )}
-      {open && popPos && typeof document !== 'undefined' && createPortal(
-        <span className="size-combo-pop is-portaled" role="listbox" ref={popRef} style={popPos}>
+      {open && typeof document !== 'undefined' && createPortal(
+        <span className="size-combo-pop is-portaled" role="listbox" ref={pop.popRef} style={pop.style}>
           {presets.map(s => (
             <button key={s} type="button" role="option"
                     className={`size-combo-item ${Number(draft) === s ? 'is-current' : ''}`.trim()}
