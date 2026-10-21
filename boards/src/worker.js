@@ -239,10 +239,11 @@ const SECURITY_HEADERS = {
     "form-action 'self' https://checkout.stripe.com",
 };
 // ── Per-request CSP nonce ───────────────────────────────────────────────────
-// Every <script> a browser executes on this site is one of: the two inline
-// blocks in index.html (theme bootstrap, Meta Pixel loader), the three this
-// Worker injects (SHARE_EARLY_FETCH, PUBLIC_EARLY_FETCH, window.__publicPageModel),
-// the Vite module entry, or something one of those creates (fbevents.js, the
+// Every <script> a browser executes on this site is one of: the three inline
+// blocks in index.html (app preload, theme bootstrap, Meta Pixel stub), the
+// three this Worker injects (SHARE_EARLY_FETCH, PUBLIC_EARLY_FETCH,
+// window.__publicPageModel), the Vite module entry, or something one of those
+// creates (fbevents.js, which the stub adds when the entry asks; the
 // diagnostic in main.jsx). All ours. So script-src can be a per-request nonce
 // plus 'strict-dynamic', which extends trust from a nonced script to whatever
 // it loads — and stops trusting the host allowlist, which is the point: an

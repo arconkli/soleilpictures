@@ -27,8 +27,16 @@ test('with Global Privacy Control on, the pixel is never loaded', async ({ page 
   expect(pixel).toEqual([]);
 });
 
-test('without it, the pixel loads as before', async ({ page }) => {
+test('without it, the pixel loads, once the page has', async ({ page }) => {
   const pixel = await open(page, { gpc: false });
   expect(await page.evaluate(() => typeof window.fbq)).toBe('function');
-  expect(pixel.some((u) => u.endsWith('/fbevents.js'))).toBe(true);
+  await expect.poll(() => pixel.some((u) => u.endsWith('/fbevents.js'))).toBe(true);
+  // Signed out, it waits for the load event (src/lib/pixelSchedule.js), so it
+  // never competes with the page's own downloads.
+  const at = await page.evaluate(() => ({
+    load: performance.getEntriesByType('navigation')[0].loadEventEnd,
+    pixel: performance.getEntriesByType('resource').find((r) => r.name.endsWith('/fbevents.js'))?.startTime ?? null,
+  }));
+  expect(at.pixel).not.toBeNull();
+  expect(at.pixel).toBeGreaterThanOrEqual(at.load);
 });

@@ -9,7 +9,7 @@ import { startBuildWatch } from './lib/buildWatch.js';
 import { initCapacitor } from './lib/capacitorInit.js';
 import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
-import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
+import { captureFbclid, installSpaPageViews, loadPixelLater } from './lib/metaPixel.js';
 import { logClientError } from './lib/errorReporting.js';
 import { describeReason } from './lib/describeReason.js';
 import { initPerfReport } from './lib/perfReport.js';
@@ -104,9 +104,11 @@ if (typeof window !== 'undefined') {
 // reads getFbCookies(), so a conversion attributes to the ad even days later.
 // Then fire PageView on SPA route changes too — the base snippet in index.html
 // only fires the cold load. Same rationale as the CWA spa:true beacon below: our
-// hand-rolled router navigates via the History API.
+// hand-rolled router navigates via the History API. The pixel's script itself
+// waits until the page has done what the visit came for (lib/pixelSchedule.js).
 captureFbclid();
 installSpaPageViews();
+loadPixelLater({ signedIn: hasCachedSession() });
 
 // Cloudflare Web Analytics beacon. Lazy-injected when VITE_CF_ANALYTICS_TOKEN
 // is set so dev / unconfigured deploys silently skip it. The `spa: true`

@@ -26,7 +26,7 @@
        time, so it only gets a DNS prefetch.) -->
   <link rel="preconnect" href="https://ehlhlmbpwwalmeisvmdp.supabase.co" crossorigin />
   <link rel="preconnect" href="https://soleil-boards-party.arconkli.workers.dev" crossorigin />
-  <link rel="preconnect" href="https://connect.facebook.net" />
+  <link rel="dns-prefetch" href="https://connect.facebook.net" />
   <link rel="dns-prefetch" href="https://r2.cloudflarestorage.com" />
 
   <link rel="icon" href="/favicon.ico" sizes="32x32" />
@@ -209,7 +209,12 @@
        share, file or template link's page, an invite or remix link, the resume
        link — because the pixel reports both addresses and the token opens
        what it points at. Same test as urlCarriesLinkToken in
-       src/lib/linkTokens.js; linkTokens.test.mjs runs both on the same cases. -->
+       src/lib/linkTokens.js; linkTokens.test.mjs runs both on the same cases.
+       Meta's stub runs here, so init, this PageView and every later fbq() call
+       queue as they always have, but its script is only added when
+       window.__soleilPixel() is called: src/lib/metaPixel.js does that once the
+       page has done what the visit came for (src/lib/pixelSchedule.js), and the
+       address is checked again first, in case the app has moved since. -->
   <script>
     function soleilLinkToken(p, q) {
       return /^\/(?:share|f|t)\/[0-9a-f]{8}-|^\/resume\/?$/i.test(p)
@@ -225,9 +230,11 @@
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
     if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
+    n.queue=[];f.__soleilPixel=function(){
+    if(t||soleilLinkToken(f.location.pathname,f.location.search))return;
+    t=b.createElement(e);t.async=!0;
     t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    s.parentNode.insertBefore(t,s)}}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '1671656413978924');
     fbq('track', 'PageView');

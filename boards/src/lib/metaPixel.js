@@ -1,8 +1,9 @@
 // metaPixel.js — browser-side helpers for the Meta Pixel (window.fbq), plus the
 // bridge to server-side Conversions API (CAPI) for events that must be reliable.
 //
-// The base pixel snippet lives in boards/index.html and fires the initial
-// PageView on cold load. This module adds:
+// The base pixel snippet lives in boards/index.html: it queues init and the
+// cold-load PageView, and its script loads later (loadPixelLater below). This
+// module adds:
 //   • installSpaPageViews() — fire PageView on History API route changes (our
 //     hand-rolled router uses history.replaceState), so /welcome, /pricing, etc.
 //     register as pageviews. Deduped by pathname so frequent replaceState calls
@@ -20,6 +21,8 @@
 // Everything is best-effort and never throws into the UI.
 
 import { urlCarriesLinkToken } from './linkTokens.js';
+import { onBootMark } from './bootMarks.js';
+import { schedulePixel } from './pixelSchedule.js';
 
 const TRACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/track-conversion';
 
@@ -214,6 +217,29 @@ export async function trackAdLead(session) {
   } catch (_) {
     // Never throw into the enter-demo flow.
   }
+}
+
+// Add the pixel's script once the page has done what the visit came for (see
+// lib/pixelSchedule.js). Call once at startup; `signedIn` is main.jsx's
+// stored-session check. A page that skipped the pixel (GPC, a link's token) has
+// no window.__soleilPixel, so nothing loads.
+export function loadPixelLater({ signedIn = false } = {}) {
+  if (typeof window === 'undefined' || typeof window.__soleilPixel !== 'function') return;
+  schedulePixel({
+    signedInApp: signedIn && /^\/?$/.test(window.location.pathname),
+    onPaint: (fn) => onBootMark('paint', fn),
+    onImage: (fn) => onBootMark('image', fn),
+    onLoad: (fn) => {
+      if (document.readyState === 'complete') fn();
+      else window.addEventListener('load', fn, { once: true });
+    },
+    wait: (ms, fn) => setTimeout(fn, ms),
+    idle: (fn) => {
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 2000 });
+      else setTimeout(fn, 200);
+    },
+    load: () => { try { window.__soleilPixel(); } catch (_) {} },
+  });
 }
 
 // Patch the History API so SPA navigations fire PageView. Call once at startup.
