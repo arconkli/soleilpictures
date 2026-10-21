@@ -783,7 +783,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "If the cluster is restored to an earlier version while you have a doc open, the doc reopens where you were and says what happened, and if that took anything off your page, it offers the page as you had it."
+      "v": "If the cluster is restored to an earlier version while you have a doc open, the doc reopens where you were and says what happened. If the restore took away something you'd written, it offers to copy the page as you had it."
      }
     ]
    ]
@@ -819,7 +819,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Controls are at least 40px under a finger, and typing in a field no longer makes iOS zoom in."
+      "v": "Controls are at least 40px under a finger, toolbar buttons included, and tapping into a field, a toolbar's too, no longer zooms the page in on an iPhone or iPad."
      }
     ],
     [
@@ -846,7 +846,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "The tool rail's "
+      "v": "A swipe along the tool rail scrolls the rail instead of picking a tool, and its "
      },
      {
       "t": "strong",
@@ -860,7 +860,7 @@ export const CHANGELOG_CONTENT = {
      },
      {
       "t": "text",
-      "v": " menu fits on a phone and an upright iPad, and a swipe along the rail scrolls it instead of picking a tool. On a phone, a menu in the review player switches between a clip's versions."
+      "v": " menu fits on a phone and an upright iPad. On a phone, a menu in the review player switches between a clip's versions."
      }
     ]
    ]
