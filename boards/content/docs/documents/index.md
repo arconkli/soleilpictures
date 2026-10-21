@@ -130,8 +130,8 @@ copied from another Clusters note or document keeps everything. **Clear
 formatting** (`⌘\`, or the **Tx** button) strips the selection back to plain;
 links and comments stay.
 
-The footer shows a live word and character count, and an honest save status —
-it reports what has actually been persisted rather than an optimistic tick.
+The footer shows a live word and character count, and the document's save
+status.
 
 ## Insert
 
@@ -147,8 +147,6 @@ You can also paste an image, or drop one in from your computer. While it
 uploads it shows in the spot it will land, with how far it has got, and you can
 cancel it there; if the upload fails, it says so in the same spot, with
 **Retry**.
-
-Blocks can be reordered by dragging the handle in the left margin.
 
 ## Working together
 

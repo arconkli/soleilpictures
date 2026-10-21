@@ -230,6 +230,8 @@ These apply inside a [document](/docs/documents), not on the canvas.
 | `⌘⇧L` / `⌘⇧E` / `⌘⇧R` | Align left · center · right |
 | `⌘K` / `⌘⌥M` | Link · comment |
 | `⌘F` | Find and replace |
+| `⌘=` / `⌘−` / `⌘0` | Zoom in · out · back to 100% — a screenplay too wide for its space goes back to fitting it |
+| `Esc` | Close a full-screen document, when you aren't typing in it |
 
 ## Gestures
 

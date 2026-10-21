@@ -4571,6 +4571,50 @@ export const DOCS_CONTENT = {
        "v": "Find and replace"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘="
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘−"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘0"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Zoom in · out · back to 100% — a screenplay too wide for its space goes back to fitting it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Close a full-screen document, when you aren't typing in it"
+      }
+     ]
     ]
    ]
   },
@@ -24838,7 +24882,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The footer shows a live word and character count, and an honest save status — it reports what has actually been persisted rather than an optimistic tick."
+     "v": "The footer shows a live word and character count, and the document's save status."
     }
    ]
   },
@@ -24982,15 +25026,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Blocks can be reordered by dragging the handle in the left margin."
     }
    ]
   },

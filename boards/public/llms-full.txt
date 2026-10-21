@@ -413,6 +413,8 @@ Key | Action
 ⌘⇧L / ⌘⇧E / ⌘⇧R | Align left · center · right
 ⌘K / ⌘⌥M | Link · comment
 ⌘F | Find and replace
+⌘= / ⌘− / ⌘0 | Zoom in · out · back to 100% — a screenplay too wide for its space goes back to fitting it
+Esc | Close a full-screen document, when you aren't typing in it
 
 Gestures
 
@@ -2449,7 +2451,7 @@ Right-click a selection for cut, copy, paste, formatting, links and comments. Ri
 
 Text pasted from Google Docs, Word or a web page keeps its structure and emphasis — headings, lists, links, bold, italic, real colours — but drops the source's font, size, background and default black ink, so it takes on the document's own typography instead of arriving as a patch of 11pt Arial. Text copied from another Clusters note or document keeps everything. Clear formatting (⌘\, or the Tx button) strips the selection back to plain; links and comments stay.
 
-The footer shows a live word and character count, and an honest save status — it reports what has actually been persisted rather than an optimistic tick.
+The footer shows a live word and character count, and the document's save status.
 
 Insert
 
@@ -2462,8 +2464,6 @@ Code block
 Embed board — a whole cluster, rendered inside the document
 
 You can also paste an image, or drop one in from your computer. While it uploads it shows in the spot it will land, with how far it has got, and you can cancel it there; if the upload fails, it says so in the same spot, with Retry.
-
-Blocks can be reordered by dragging the handle in the left margin.
 
 Working together
 
