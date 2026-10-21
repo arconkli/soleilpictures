@@ -84,9 +84,11 @@ const STORAGE_KEY = 'admin.tab';
 // The header shows only the daily/frequent sections as pills; the rarely-touched
 // long tail folds into a single "More" overflow so the bar isn't 11 items wide.
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
-const PRIMARY_IDS = ['overview', 'users', 'approvals', 'waitlist'];
+const PRIMARY_IDS = ['overview', 'users', 'approvals'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
-const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'tagging', 'universe'];
+// The waitlist has been switched off since 2026-06-15, so Waitlist sits with
+// Campaign among the rarely opened rather than in the pills.
+const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'waitlist', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
