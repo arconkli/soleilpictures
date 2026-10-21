@@ -48,8 +48,9 @@ export const CEILINGS = {
 
 // Chunks that must never be in the app's critical closure. Matched against the
 // chunk's file name prefix (the part before the content hash).
+// three.js has its own chunk (vite.config.js), so it is named on its own.
 export const NEVER_IN_APP = [
-  'vendor-graph3d', 'vendor-cosmograph', 'vendor-charts', 'vendor-icons-lazy',
+  'vendor-graph3d', 'vendor-three', 'vendor-cosmograph', 'vendor-charts', 'vendor-icons-lazy',
   'AdminPage', 'DocsPage', 'jspdf', 'html2canvas', 'pdf',
 ];
 

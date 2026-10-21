@@ -20,6 +20,11 @@
 // The team's own and test accounts are in every figure, by the owner's choice
 // (2026-10-20), and the pill says so once rather than seven times.
 //
+// There is no summed "24h" cell any more. It added accounts, workspaces, every
+// cluster made (each new workspace's Studio included) and cards into one
+// figure, so it sat beside the Cards chip as a bigger number for what read as
+// the same thing. Each count carries its own +N.
+//
 // `Drawn` is deliberately NOT one of those counts. Several kinds of row never
 // become anything you can see — entity_links are overwhelmingly tag
 // attachments, which the graph renders as nothing at all — so Drawn comes from
@@ -30,7 +35,7 @@ import { formatDuration } from '../../lib/formatDuration.js';
 
 const CELLS = [
   { key: 'total_users', label: 'Users', recentKey: 'users',
-    hint: 'Accounts that confirmed their email and have signed in at least once. "+N" counts those created in the last 24 hours.' },
+    hint: 'Accounts whose owner entered the emailed sign-in code. "+N" counts those created in the last 24 hours.' },
   { key: 'total_workspaces', label: 'WS', recentKey: 'workspaces',
     hint: 'Workspaces. "+N" counts workspaces created in the last 24 hours.' },
   { key: 'total_clusters_made', label: 'Clusters', recentKey: 'clusters_made',
@@ -40,8 +45,6 @@ const CELLS = [
     hint: 'Cards on clusters that are not trashed. "+N" counts cards created on them in the last 24 hours.' },
   { key: 'drawn', label: 'Drawn', source: 'graph',
     hint: 'Nodes · connections the renderer actually drew: everyone in a workspace, workspaces, every live cluster (Studios included) and its cards. Tag attachments are not drawn at all.' },
-  { key: 'nodes_created_24h', label: '24h', accent: true,
-    hint: 'Accounts, workspaces, clusters (Studios included) and cards created in the last 24 hours.' },
   { key: 'total_seconds_in_app', label: 'Time', format: 'duration',
     hint: 'Summed time-in-app across every signed-in user (profiles.seconds_in_app). Signed-out visits are not counted.' },
 ];
@@ -139,7 +142,7 @@ export function AdminUniverseTicker({ stats, graph, error, status = 'live' }) {
         return (
           <div
             key={c.key}
-            className={`universe-ticker-cell ${c.accent ? 'is-accent' : ''}`}
+            className="universe-ticker-cell"
             title={`${c.hint}\n\n${fmtFull(value, c.format)}${detail}`}
           >
             <div className="universe-ticker-value">

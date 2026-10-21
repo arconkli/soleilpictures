@@ -65,13 +65,13 @@ import { useActivityPulse } from './useActivityPulse.js';
 // wholly inside the post-waitlist era and still covers most of the signups the
 // all-time window did.
 const ACTIVATION_DAYS = 60;
-// Content mix reads as "the corpus", not a window, but 365 is the RPC's clamp,
-// so what it really shows is the last 12 months — and the panel says so.
-const CONTENT_DAYS = 365;
 // Rows past this fold into "Other" (hover it for the breakdown). Five, not
 // seven, because a rail panel is ~110px of body and a sixth row was landing
 // half-clipped at the fold.
 const MIX_ROWS = 5;
+// The database's kind names, in the interface's words where they differ.
+const MIX_LABEL = { board: 'cluster', boardlink: 'linked cluster' };
+const mixLabel = (kind) => MIX_LABEL[kind] || kind;
 
 // Poll tiers. Nothing here is arbitrary: FAST_MS is what "Active now" needs to
 // deserve its name, SLOW_MS is generous for series whose newest point is
@@ -138,9 +138,12 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
       supabase.rpc('admin_activation_funnel', {
         p_days: ACTIVATION_DAYS, p_exclude_internal: true, p_verified_only: true,
       }),
+      // The cards that exist now, by kind: the Cards figure's own population
+      // (0505). It was admin_card_stats over 365 days, which also counts the
+      // cards on trashed clusters, so its total ran ahead of Cards.
+      supabase.rpc('admin_live_card_mix'),
       // The wall is the "everything happening" view → include internal activity
       // so these match the live placement tape beside them.
-      supabase.rpc('admin_card_stats',    { p_days: CONTENT_DAYS, p_exclude_internal: false }),
       supabase.rpc('admin_cards_per_day', { p_days: 30, p_exclude_internal: false }),
       // Weekly active, team included like the rest of the wall. A count of
       // distinct people over seven days moves slowly, so it rides this tier.
@@ -151,7 +154,7 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
       history:     val(r[0]) || [],
       signups:     val(r[1]) || [],
       activation:  val(r[2]),
-      cardStats:   val(r[3]),
+      cardMix:     val(r[3]),
       cardsPerDay: val(r[4]) || [],
       kpi:         val(r[5]),
     };
@@ -215,8 +218,8 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
   // the kind name carries identity in text and magnitude in length, so it
   // needs exactly one colour and stays readable in a 280px rail.
   const contentMix = useMemo(() => {
-    const all = Object.entries((data?.cardStats || {}).by_kind || {})
-      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+    const all = Object.entries((data?.cardMix || {}).by_kind || {})
+      .map(([kind, value]) => ({ name: mixLabel(kind), value: Number(value) || 0 }))
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value);
     if (all.length <= MIX_ROWS + 1) return all;
@@ -227,7 +230,7 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
       value: tail.reduce((a, b) => a + b.value, 0),
       tail: tail.map((t) => `${t.name} ${t.value.toLocaleString()}`).join(' · '),
     }];
-  }, [data?.cardStats]);
+  }, [data?.cardMix]);
   const contentTotal = contentMix.reduce((a, b) => a + b.value, 0);
 
   // Cards CREATED per day. Until migration 0254 this was card_index.updated_at,
@@ -329,9 +332,13 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
                title="Signed-in people seen on any of the last 7 days (UTC), the team included." />
           <Kpi label="Total users" value={formatCompact(stats?.total_users ?? 0)}
                sub={`+${formatCount(stats?.new_users_7d ?? 0)} / 7d`} />
+          {/* The funnel's population, not the wall's: the last 60 days of
+              signups with the team left out. Unlabelled, it read as every
+              account against the Total users beside it. */}
           <Kpi label="Activated"
                value={activated.hide ? '—' : formatPct(activated.rate)}
-               sub={`${formatCount(act.first_card ?? 0)} of ${formatCount(act.signed_up ?? 0)} made a card`} />
+               sub={`${formatCount(act.first_card ?? 0)} of ${formatCount(act.signed_up ?? 0)} made a card · ${ACTIVATION_DAYS}d`}
+               title={`Signups in the last ${ACTIVATION_DAYS} days who made a card, the team left out: the Activation funnel's people, not Total users.`} />
           {/* Already live at 1Hz over SSE — nothing to add on top, and adding
               liveTotal here would double-count within the second. A rolling
               24 hours, not "today": a UTC day ends at 5 pm in California, so
@@ -406,7 +413,7 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
             <div className="cc-bignum-note">summed across signed-in users</div>
           </CcPanel>
 
-          <CcPanel title="Content mix" sub={`${formatCount(contentTotal)} cards · last 12 months`}>
+          <CcPanel title="Content mix" sub={`${formatCount(contentTotal)} cards on live clusters`}>
             <RankBar rows={contentMix} total={contentTotal} />
           </CcPanel>
         </div>
@@ -414,7 +421,7 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
         {/* Right rail — funnels */}
         <div className="cc-rail cc-rail-right">
           <CcPanel title="Signups · 30d"
-                   sub={`${formatCount(signups.reduce((a, b) => a + (b.signups || 0), 0))} total`}>
+                   sub={`${formatCount(signups.reduce((a, b) => a + (b.signups || 0), 0))} total · UTC days`}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={signups} margin={{ top: 6, right: 10, bottom: 0, left: 0 }}>
                 <CartesianGrid {...CHART.grid} />
@@ -460,7 +467,7 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
           </CcPanel>
 
           <CcPanel title="Cards created · 30d"
-                   sub={liveTotal > 0 ? `by creation date · ${formatCount(liveTotal)} since you opened this` : 'by creation date'}>
+                   sub={liveTotal > 0 ? `UTC days · ${formatCount(liveTotal)} since you opened this` : 'by creation date · UTC days'}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cardsDaily} margin={{ top: 6, right: 10, bottom: 0, left: 0 }}>
                 <CartesianGrid {...CHART.grid} />
@@ -485,6 +492,12 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
         {/* Bottom — what is actually on screen + the live tape */}
         <div className="cc-bottom">
           <div className="cc-uni">
+            {/* Every count carries its own +N, and nothing sums them. "New · 24h"
+                did: accounts, workspaces, every cluster (each signup's Studio
+                included) and cards in one figure, so it sat beside Cards · 24h
+                as a bigger number for what read as the same thing. */}
+            <UniCell label="Users"      value={uni?.total_users}      delta={uni?.last_24h?.users}
+                     title="Accounts whose owner entered the emailed sign-in code. +N: created in the last 24 hours." />
             <UniCell label="Workspaces" value={uni?.total_workspaces} delta={uni?.last_24h?.workspaces}
                      title="Workspaces. +N: created in the last 24 hours." />
             {/* Clusters people made. "Boards" counted every workspace's Studio
@@ -502,8 +515,6 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
                      title="Nodes the renderer drew: everyone in a workspace, workspaces, every live cluster (Studios included) and its cards." />
             <UniCell label="Connections" value={graph?.edges}
                      title="Edges the renderer drew — hierarchy, board→card, workspace membership and shares. Tag attachments are not drawn." />
-            <UniCell label="New · 24h"  value={uni?.nodes_created_24h}
-                     title="Accounts, workspaces, clusters (Studios included) and cards created in the last 24 hours." />
           </div>
 
           <div className="cc-ticker">

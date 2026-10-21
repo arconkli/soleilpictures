@@ -7,7 +7,7 @@
 // accepts. No service-role token is ever held server-side.
 //
 // Three HTTP endpoints, all under /parties/universe/main:
-//   GET /stats             SSE  — platform_counters snapshots @ 1Hz
+//   GET /stats             SSE  — admin_universe_stats() @ 1Hz, sent on change
 //   GET /snapshot          JSON — one page of nodes + edges
 //   GET /deltas            SSE  — new nodes + edges since a cursor
 //
@@ -166,8 +166,9 @@ export class UniverseParty extends Server<Env> {
     return new Response("Not found", { status: 404, headers: corsHeaders(req) });
   }
 
-  // GET /stats — SSE of platform_counters snapshots @ 1Hz.
-  // Only emits when the payload changes (cheap diff via JSON string).
+  // GET /stats — SSE of admin_universe_stats() @ 1Hz: exact live counts
+  // since 0460, not platform_counters. Only emits when the payload changes
+  // (cheap diff via JSON string).
   private handleStats(req: Request, token: string): Response {
     return makeSseStream(req, (write, close) => {
       let last = "";

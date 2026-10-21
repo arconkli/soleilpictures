@@ -134,7 +134,13 @@ export default defineConfig({
           const icon = /@phosphor-icons\/react\/dist\/(?:csr|defs)\/([^/.]+)\.es\.js$/.exec(id);
           if (icon && bootIcons && !bootIcons.has(icon[1])) return 'vendor-icons-lazy';
           // Most specific first.
-          if (id.includes('react-force-graph') || id.includes('/three/') || id.includes('three-') || id.includes('d3-force-3d')) return 'vendor-graph3d';
+          // three.js on its own: the admin Universe needs only this, and it
+          // used to arrive with HomeGraph's react-force-graph stack attached.
+          // three/webgpu (and its TSL) stays with that stack: only
+          // three-render-objects imports it, and it is most of three's weight.
+          if (id.includes('/node_modules/three/build/three.webgpu') || id.includes('/node_modules/three/build/three.tsl')) return 'vendor-graph3d';
+          if (id.includes('/node_modules/three/')) return 'vendor-three';
+          if (id.includes('react-force-graph') || id.includes('three-') || id.includes('d3-force-3d')) return 'vendor-graph3d';
           if (id.includes('@cosmograph')) return 'vendor-cosmograph';
           if (id.includes('@tiptap') || id.includes('prosemirror')) return 'vendor-editor';
           if (id.includes('/yjs/') || id.includes('y-partykit') || id.includes('y-protocol') || id.includes('partysocket') || id.includes('/partykit/')) return 'vendor-yjs';

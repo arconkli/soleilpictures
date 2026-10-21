@@ -21,7 +21,7 @@
 // (?tab=) + localStorage, so a reload / back / shared link returns to the
 // operator's tab instead of remounting the heavy WebGL Universe graph.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import './admin/admin.css';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -30,7 +30,7 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { Lock } from '../lib/icons.js';
 import { AdminError } from './admin/AdminStates.jsx';
-import { AdminUniverseTab } from './admin/AdminUniverseTab.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
@@ -52,6 +52,16 @@ import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { adminPublicBoardSubmissionCounts } from '../lib/boardsApi.js';
+
+// The Universe is three.js, bloom and a physics worker: over a megabyte that
+// every other tab downloaded and compiled too, though only this one draws it.
+// It loads when its tab opens, and its menu row starts the download as soon as
+// it is pointed at or focused.
+const loadUniverseTab = () => import('./admin/AdminUniverseTab.jsx');
+const AdminUniverseTab = lazyWithReload(() => loadUniverseTab().then((m) => ({ default: m.AdminUniverseTab })));
+// A failed prefetch is not an error: opening the tab tries again, and that
+// path owns the stale-deploy reload.
+const prefetchUniverseTab = () => { loadUniverseTab().catch(() => {}); };
 
 // Overview and Analytics were two tabs showing the same numbers: both led with
 // total users, signups and MRR, and neither was authoritative. They are one tab
@@ -99,6 +109,7 @@ const OVERFLOW_ITEMS = OVERFLOW_IDS.map((id) => ({
   label: labelOf(id),
   heavy: HEAVY_IDS.has(id),
   sepAfter: id === OVERFLOW_SEP_AFTER,
+  prefetch: id === 'universe' ? prefetchUniverseTab : undefined,
 }));
 
 // Tabs that have been merged away. Old deep links and persisted prefs land on
@@ -285,7 +296,11 @@ export function AdminPage() {
       </header>
 
       <main className={`admin-body ${tab === 'universe' ? 'admin-body-flush' : ''}`}>
-        {tab === 'universe'  && <AdminUniverseTab />}
+        {tab === 'universe'  && (
+          <Suspense fallback={<div className="universe-tab" />}>
+            <AdminUniverseTab />
+          </Suspense>
+        )}
         {tab === 'overview'  && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'grants'    && <AdminGrantsTab />}

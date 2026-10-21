@@ -52,6 +52,8 @@ test.describe('Universe HUD', () => {
     await expect(cell('Cards').locator('.universe-ticker-today')).toHaveText('+72');
     await expect(cell('Users').locator('.universe-ticker-today')).toHaveText('+7');
     await expect(page.locator('.universe-ticker-scope')).toHaveText(/incl\. team/i);
+    // No summed cell beside the counts: it read as a second, bigger card figure.
+    await expect(cell('24h')).toHaveCount(0);
 
     // Nothing in the HUD is "since midnight" any more.
     const titles = await page.locator('.universe-ticker [title]').evaluateAll((els) => els.map((e) => e.title).join('\n'));
@@ -76,13 +78,18 @@ test.describe('Command Center', () => {
     await expect(kpi(page, /^MRR$/).locator('.cc-kpi-sub')).toHaveText('4 trialing · 138 paying · 6 comped');
 
     await expect(page.locator('.cc-panel-head', { hasText: 'Activation funnel' })).toContainText('team excluded');
-    await expect(page.locator('.cc-panel-head', { hasText: 'Content mix' })).toContainText('last 12 months');
+    // 0505: the mix counts the Cards figure's own cards, so its total is that figure.
+    await expect(page.locator('.cc-panel-head', { hasText: 'Content mix' })).toContainText('18,420 cards on live clusters');
+    await expect(page.locator('.cc-rank-label', { hasText: /^cluster$/ })).toBeVisible();
+    await expect(kpi(page, 'Activated').locator('.cc-kpi-sub')).toContainText('made a card · 60d');
     await expect(page.locator('.cc-scope')).toHaveText(/incl\. team/i);
 
     await expect(uni(page, 'Boards')).toHaveCount(0);
     await expect(uni(page, 'Clusters').locator('.cc-uni-num')).toHaveText('1.2K');
     await expect(uni(page, 'Clusters').locator('.cc-uni-delta')).toHaveText('+9 · 24h');
     await expect(uni(page, 'Cards').locator('.cc-uni-delta')).toHaveText('+72 · 24h');
+    await expect(uni(page, 'Users').locator('.cc-uni-delta')).toHaveText('+7 · 24h');
+    await expect(uni(page, 'New · 24h')).toHaveCount(0);
   });
 
   test('before revenue: one trial is a trial, not a subscriber', async ({ page }) => {

@@ -39,13 +39,11 @@ export function UniverseLegend({ graph, hiddenKinds, onToggleKind, onShowAll, on
     <div className="universe-legend surface-frosted" aria-label="Node kinds">
       {rows.map((r) => {
         const off = !!hidden && hidden.has(r.key);
-        const title = r.key === 'card'
-          ? 'Shapes, videos, PDFs, audio, files, art and retired kinds: too rare to earn their own hue'
-          : r.label;
+        const title = r.hint || r.label;
         const rowClass = `universe-legend-row ${off ? 'is-off' : ''} ${interactive ? 'is-clickable' : ''}`.trim();
         const body = (
           <>
-            <span className="universe-legend-dot" style={{ background: KIND_COLORS[r.key] }} />
+            <span className="universe-legend-dot" style={{ background: KIND_COLORS[r.hue || r.key] }} />
             <span className="universe-legend-label">{r.label}</span>
             <span className="universe-legend-n">{r.n.toLocaleString()}</span>
           </>

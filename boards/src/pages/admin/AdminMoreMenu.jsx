@@ -14,7 +14,7 @@ import { ChevronDown, ChevronUp, Check } from '../../lib/icons.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 
 export function AdminMoreMenu({
-  items,              // [{ id, label, heavy?, sepAfter? }] in display order
+  items,              // [{ id, label, heavy?, sepAfter?, prefetch? }] in display order
   activeId,           // current admin tab id
   isActive,           // true when activeId is one of `items` (buried-active)
   activeLabel,        // label to show on the trigger when isActive
@@ -107,6 +107,8 @@ export function AdminMoreMenu({
                   aria-current={rowActive ? 'true' : undefined}
                   onClick={pick(it.id)}
                   onKeyDown={(e) => onRowKey(e, i)}
+                  onPointerEnter={it.prefetch}
+                  onFocus={it.prefetch}
                 >
                   <span className="admin-moremenu-label">{it.label}</span>
                   {it.heavy && <span className="admin-rowmenu-hint">heavy</span>}

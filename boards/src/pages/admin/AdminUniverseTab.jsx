@@ -28,15 +28,26 @@ import { fmtDateTime } from '../../lib/adminFormat.js';
 const KIND_LABELS = {
   user:  'User',
   ws:    'Workspace',
-  board: 'Board',
+  board: 'Cluster',
   doc:   'Doc',
   note:  'Note',
   image: 'Image',
   palette: 'Palette',
   link:  'Link',
+  grid:  'Grid',
+  boardlink: 'Linked cluster',
   card:  'Card',
   url:   'External link',
 };
+
+// What the picked thing is, in the interface's words. A card is named by its
+// own kind (it used to read "Card" whatever it was), a workspace's top-level
+// cluster is its Studio, and a nested cluster's card is not the cluster.
+function kindLabel(node) {
+  if (node.kind === 'board') return node.studio ? 'Studio' : 'Cluster';
+  if (node.cardKind === 'board') return 'Cluster card';
+  return KIND_LABELS[node.cardKind] || KIND_LABELS[node.kind] || node.cardKind || node.kind || 'Node';
+}
 
 // Cards get their created_at from card_index.created_at, added in migration
 // 0254. Rows that predate it were backfilled from updated_at, so anything
@@ -61,7 +72,7 @@ function UniverseDrawer({ node, onClose, isolated, onIsolate }) {
         <div className="universe-drawer-head-info">
           <div className="universe-drawer-eyebrow">
             <span className="universe-drawer-dot" style={{ background: node.color || '#ffa500' }} />
-            <span className="t-eyebrow">{KIND_LABELS[node.kind] || node.kind || 'Node'}</span>
+            <span className="t-eyebrow">{kindLabel(node)}</span>
           </div>
           <div className="universe-drawer-id">{node.id || node.node_id}</div>
         </div>

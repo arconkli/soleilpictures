@@ -30,12 +30,13 @@
 //   { type: 'tick',  positions, count }   — transferred Float32Array
 //   { type: 'error', reason }
 
-import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force-3d';
+import { forceSimulation, forceLink, forceCenter } from 'd3-force-3d';
 import { hash01, orbitJitter, targetId } from '../../lib/hashJitter.js';
+import { forceGridCharge } from '../../lib/universeCharge.js';
 import {
   isAnchorId, parentBoardId, isSimLinkKind, orbitOffset, rogueOffset, galaxySeed,
   moonOffset, systemArchetype, SYSTEM_RING_COUNT,
-  galaxyOrbit, orbitalRate, systemSpin, systemPlane, GALAXY_PATTERN_RATE,
+  galaxyOrbit, galaxyStar, galaxyPlace, orbitalRate, systemSpin, systemPlane, GALAXY_PATTERN_RATE,
 } from '../../lib/universeLayout.js';
 
 const HOT_TICK_MS  = 16;
@@ -131,8 +132,25 @@ let rigidRate  = 0;       // non-zero once we told the main thread to do it
 // rather than pausing, so arrivals still land and the scene simply
 // stops being a motion source.
 let rotSpeed   = 1;
-const leafMat  = new Map();   // board id → 3x3 (spin · galactic carry · scale)
 let systemScale = 1;
+
+// One record per board that has cards: the normal of its orbital plane and its
+// spin, which are hashed from the board id and never change, and the 3x3
+// (spin · galactic carry · scale) that carries its cards, rewritten in place
+// every frame. Each card keeps a reference to its board's record.
+const systems = new Map();   // board id → { id, nx, ny, nz, spin, b, m }
+let leafMatLive = false;     // the matrices hold this rotate run's frame
+
+function systemOf(boardId) {
+  let s = systems.get(boardId);
+  if (!s) {
+    const pl = systemPlane(boardId);
+    s = { id: boardId, nx: pl.n[0], ny: pl.n[1], nz: pl.n[2], spin: systemSpin(boardId),
+          b: null, m: new Float64Array(9) };
+    systems.set(boardId, s);
+  }
+  return s;
+}
 
 function nowMs() {
   return (typeof performance !== 'undefined' && performance.now)
@@ -298,12 +316,17 @@ function seedChildrenNearParents(linksArr) {
 // arm wavelength (1000+). Unbounded n-body charge equalizes bulk
 // density, and the density wave IS bulk density; with the cap, the
 // arms the seeding builds actually survive the settle.
+//
+// The cap is also what makes forceGridCharge exact and cheap: every pair
+// in reach shares a grid cell or neighbours one. d3's forceManyBody built
+// an octree every tick to approximate the same sum, and that was most of
+// each settle tick's cost.
 const CHARGE_REACH = 90;
 
 function buildSim() {
   sim = forceSimulation(anchors, 3)
     .force('link',    forceLink(simLinks).id(d => d.id).distance(linkDistance).strength(linkStrength))
-    .force('charge',  forceManyBody().strength(chargeStrength).distanceMax(CHARGE_REACH))
+    .force('charge',  forceGridCharge().strength(chargeStrength).distanceMax(CHARGE_REACH))
     .force('center',  forceCenter())
     .force('home',    forceHome())
     .alphaDecay(0.04)
@@ -356,21 +379,13 @@ function addNode(n, preCounted = false) {
     } else {
       off = rogueOffset(n.id);
     }
-    order.push({ parentId, off });
+    // p: the board's anchor, resolved on first use (a card can arrive before
+    // its board). sys: the board's leaf system.
+    order.push({ parentId, off, p: null, sys: parentId ? systemOf(parentId) : null });
   }
 }
 
 // ── Rotation engine ──────────────────────────────────────────────
-
-// Rodrigues rotation matrix about a unit axis, row-major 3x3.
-function rodrigues(kx, ky, kz, th) {
-  const c = Math.cos(th), s = Math.sin(th), C = 1 - c;
-  return [
-    c + kx * kx * C,      kx * ky * C - kz * s, kx * kz * C + ky * s,
-    ky * kx * C + kz * s, c + ky * ky * C,      ky * kz * C - kx * s,
-    kz * kx * C - ky * s, kz * ky * C + kx * s, c + kz * kz * C,
-  ];
-}
 
 // Rotation about +Y by th, matching the atan2(z, x) convention used
 // for the guiding centres: (x,z) = r(cos th, sin th).
@@ -382,11 +397,29 @@ function yaw(v0, v2, th) {
 const _rotTmp = new Float32Array(3);
 function diskR() { return DISK_COEFF * Math.sqrt(Math.max(1, wsCount)); }
 
+// A free anchor's orbit is fixed for a given disk radius, and galaxySeed
+// re-derived it (ten hashes of the id) for every free anchor on every frame.
+// It is derived once per radius now, and only the phase advances. galaxySeed
+// IS galaxyPlace(galaxyStar(...)), so the positions are the same numbers.
+function starOf(a, R) {
+  if (a._starR !== R) {
+    a._star = galaxyStar(a.id, R);
+    a._starRate = orbitalRate(a._star.a, R);
+    a._starR = R;
+  }
+  return a._star;
+}
+
 // Angle a free anchor's guiding centre has swept by time t.
 function sweptAngle(a, R, t) {
-  galaxySeed(a.id, R, _rotTmp, orbitalRate(a._ga, R) * t, GALAXY_PATTERN_RATE * t);
+  galaxyPlace(starOf(a, R), _rotTmp, a._starRate * t, GALAXY_PATTERN_RATE * t);
   return Math.atan2(_rotTmp[2], _rotTmp[0]) - a._th0;
 }
+
+// rehomeOrder with both anchors resolved, so a frame does no Map lookups.
+// Rebuilt by every capture, and anything that changes the topology forces
+// a capture before the next rotate run.
+let rehomePairs = [];
 
 // Freeze what the force sim earned, so rotation can carry it rigidly.
 // Offsets and residuals are stored in the LOCAL frame (un-rotated by
@@ -394,6 +427,12 @@ function sweptAngle(a, R, t) {
 // this be re-run after a delta re-settle without the galaxy jumping.
 function captureRotation() {
   const R = diskR();
+  rehomePairs = [];
+  for (const e of rehomeOrder) {
+    const p = anchorById.get(e.parent);
+    const c = anchorById.get(e.child);
+    if (p && c) rehomePairs.push({ p, c });
+  }
   for (const a of anchors) a._rehomed = false;
   for (const e of rehomeOrder) {
     const c = anchorById.get(e.child);
@@ -429,34 +468,35 @@ function captureRotation() {
   rotArmed = true;
 }
 
-// Rebuild every position for time t. No forces run here at all.
+// Rebuild every position for time t. No forces run here at all, and
+// nothing is hashed or allocated: this runs sixty times a second for as
+// long as the Universe is open. The yaws are yaw() written out.
 function applyRotation(t) {
   const R = diskR();
+  const dOmega = GALAXY_PATTERN_RATE * t;
   for (const a of anchors) {
     if (a._rehomed) continue;
-    galaxySeed(a.id, R, _rotTmp, orbitalRate(a._ga, R) * t, GALAXY_PATTERN_RATE * t);
+    galaxyPlace(starOf(a, R), _rotTmp, a._starRate * t, dOmega);
     a._hx = _rotTmp[0];
     a._hy = _rotTmp[1] * (a._d < 1 ? 3 : 1);   // thick-disk drifters, as seedDisk
     a._hz = _rotTmp[2];
     a._dth = Math.atan2(_rotTmp[2], _rotTmp[0]) - a._th0;
   }
-  for (let i = 0; i < rehomeOrder.length; i++) {
-    const p = anchorById.get(rehomeOrder[i].parent);
-    const c = anchorById.get(rehomeOrder[i].child);
-    if (!p || !c) continue;
+  for (let i = 0; i < rehomePairs.length; i++) {
+    const { p, c } = rehomePairs[i];
     const th = p._dth || 0;
-    const o = yaw(c._ox, c._oz, th);
-    c._hx = p._hx + o[0];
+    const cs = Math.cos(th), sn = Math.sin(th);
+    c._hx = p._hx + (c._ox * cs - c._oz * sn);
     c._hy = p._hy + c._oy;
-    c._hz = p._hz + o[1];
+    c._hz = p._hz + (c._ox * sn + c._oz * cs);
     c._dth = th;
   }
   for (const a of anchors) {
     const th = a._dth || 0;
-    const r = yaw(a._rx, a._rz, th);
-    a.x = a._hx + r[0];
+    const cs = Math.cos(th), sn = Math.sin(th);
+    a.x = a._hx + (a._rx * cs - a._rz * sn);
     a.y = a._hy + a._ry;
-    a.z = a._hz + r[1];
+    a.z = a._hz + (a._rx * sn + a._rz * cs);
   }
   buildLeafMatrices(t);
 }
@@ -464,22 +504,27 @@ function applyRotation(t) {
 // One 3x3 per board carries its whole card swarm: the system's own
 // spin in its own tilted plane, the galactic angle its board has
 // swept, and the zoom-driven tightening — folded into a single
-// matrix so a card costs nine multiplies and no trigonometry.
+// matrix so a card costs nine multiplies and no trigonometry. The
+// spin is Rodrigues' rotation about the plane's normal.
 function buildLeafMatrices(t) {
-  leafMat.clear();
-  for (const boardId of leafCounts.keys()) {
-    const b = anchorById.get(boardId);
-    const pl = systemPlane(boardId);
-    const R1 = rodrigues(pl.n[0], pl.n[1], pl.n[2], systemSpin(boardId) * t);
+  const k = systemScale;
+  for (const s of systems.values()) {
+    const b = s.b || (s.b = anchorById.get(s.id) || null);
+    const ang = s.spin * t;
+    const c1 = Math.cos(ang), s1 = Math.sin(ang), C = 1 - c1;
+    const kx = s.nx, ky = s.ny, kz = s.nz;
+    const r0 = c1 + kx * kx * C,      r1 = kx * ky * C - kz * s1, r2 = kx * kz * C + ky * s1;
+    const r3 = ky * kx * C + kz * s1, r4 = c1 + ky * ky * C,      r5 = ky * kz * C - kx * s1;
+    const r6 = kz * kx * C - ky * s1, r7 = kz * ky * C + kx * s1, r8 = c1 + kz * kz * C;
     const th = (b && b._dth) || 0;
-    const c = Math.cos(th), sn = Math.sin(th), k = systemScale;
+    const c = Math.cos(th), sn = Math.sin(th);
+    const m = s.m;
     // Ry(th) · R1 · systemScale
-    leafMat.set(boardId, [
-      (c * R1[0] + sn * R1[6]) * k, (c * R1[1] + sn * R1[7]) * k, (c * R1[2] + sn * R1[8]) * k,
-      R1[3] * k,                    R1[4] * k,                    R1[5] * k,
-      (-sn * R1[0] + c * R1[6]) * k, (-sn * R1[1] + c * R1[7]) * k, (-sn * R1[2] + c * R1[8]) * k,
-    ]);
+    m[0] = (c * r0 + sn * r6) * k;  m[1] = (c * r1 + sn * r7) * k;  m[2] = (c * r2 + sn * r8) * k;
+    m[3] = r3 * k;                  m[4] = r4 * k;                  m[5] = r5 * k;
+    m[6] = (-sn * r0 + c * r6) * k; m[7] = (-sn * r1 + c * r7) * k; m[8] = (-sn * r2 + c * r8) * k;
   }
+  leafMatLive = true;
 }
 
 function rotateLoop() {
@@ -489,6 +534,7 @@ function rotateLoop() {
     postTick();
   } catch (e) {
     rotating = false;
+    leafMatLive = false;
     self.postMessage({ type: 'error', reason: String(e?.message || e) });
     return;
   }
@@ -502,7 +548,7 @@ function exitRotate() {
   if (!rotating) return;
   rotElapsed = rotNow();
   rotating = false;
-  leafMat.clear();
+  leafMatLive = false;
 }
 
 function enterRotate() {
@@ -545,9 +591,9 @@ function fillPositions() {
       // Leaf: parent board position + fixed local orbit. A leaf whose
       // board hasn't arrived yet orbits the origin at rogue distance
       // and snaps into place the moment the board shows up.
-      const p = e.parentId ? anchorById.get(e.parentId) : null;
+      const p = e.p || (e.parentId ? (e.p = anchorById.get(e.parentId) || null) : null);
       const off = e.off;
-      const m = p && leafMat.size ? leafMat.get(e.parentId) : null;
+      const m = p && leafMatLive ? e.sys.m : null;
       if (p && m) {
         positions[base]     = (p.x || 0) + m[0] * off[0] + m[1] * off[1] + m[2] * off[2];
         positions[base + 1] = (p.y || 0) + m[3] * off[0] + m[4] * off[1] + m[5] * off[2];
@@ -602,7 +648,7 @@ function loop() {
 function rebindForces() {
   sim.nodes(anchors);
   sim.force('link', forceLink(simLinks).id(d => d.id).distance(linkDistance).strength(linkStrength));
-  sim.force('charge', forceManyBody().strength(chargeStrength).distanceMax(CHARGE_REACH));
+  sim.force('charge', forceGridCharge().strength(chargeStrength).distanceMax(CHARGE_REACH));
 }
 
 // A sim link with a non-anchor endpoint would make d3's id resolver
@@ -621,7 +667,7 @@ self.onmessage = (ev) => {
     case 'init': {
       order = []; anchors = []; anchorById = new Map();
       simLinks = []; leafCounts = new Map(); leafHosts = new Map();
-      rehomeOrder = []; rehomedIds.clear(); leafMat.clear();
+      rehomeOrder = []; rehomePairs = []; rehomedIds.clear(); systems.clear(); leafMatLive = false;
       rotating = false; rotArmed = false; rotElapsed = 0; rigidRate = 0;
       // Pre-count workspaces so every seed shares one disk scale.
       wsCount = 0;

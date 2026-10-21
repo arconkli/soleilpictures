@@ -328,6 +328,16 @@ const RPCS = {
       url:   { admin: 10, paid: 100, demo: 450, waitlist: 20 },
     },
   },
+  // 0505: the cards on live clusters, by kind. The total is total_cards in
+  // admin_universe_stats below, as it is in production, and the long tail
+  // still exercises the Command Center's fold into "Other".
+  admin_live_card_mix: {
+    total: 18420,
+    by_kind: {
+      image: 7400, note: 3900, link: 2400, palette: 1500, board: 1100, doc: 820, grid: 740,
+      shape: 260, video: 155, boardlink: 88, schedule: 40, art: 9, pdf: 5, audio: 2, file: 1,
+    },
+  },
   admin_tier_usage_compare: [
     { tier: 'admin',    users: 3,   avg_cards: 80.0, avg_boards: 9.1, total_cards: 240,  total_boards: 27 },
     { tier: 'paid',     users: 142, avg_cards: 53.5, avg_boards: 6.4, total_cards: 7600, total_boards: 909 },

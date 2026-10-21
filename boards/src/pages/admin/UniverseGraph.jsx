@@ -86,19 +86,46 @@ const COLOR = {
 
 // Legend rows for the Universe HUD, in the order they should read. `card`
 // is the explicit catch-all so the neutral slate is never unexplained.
+//
+// Three rows share the cluster hue (`hue`) without sharing a count. "Boards"
+// used to be all of them at once: every live cluster, each workspace's Studio
+// and every nested cluster's card, which made the legend's figure far bigger
+// than the ticker's Clusters for what read as the same thing.
+// Clusters is now the ticker's population, the clusters people made.
 export const KIND_LEGEND = [
-  { key: 'board',   label: 'Boards'    },
+  { key: 'board',       label: 'Clusters',
+    hint: 'Clusters people made: the ticker\'s Clusters.' },
+  { key: 'studio',      label: 'Studios',       hue: 'board',
+    hint: 'The top-level cluster every workspace is born with.' },
+  { key: 'clustercard', label: 'Cluster cards', hue: 'board',
+    hint: 'A nested cluster\'s card on the canvas it sits in. The cluster itself is counted under Clusters.' },
   { key: 'image',   label: 'Images'    },
   { key: 'note',    label: 'Notes'     },
   { key: 'grid',    label: 'Grids'     },
   { key: 'link',    label: 'Links'     },
   { key: 'palette', label: 'Palettes'  },
   { key: 'doc',       label: 'Docs'       },
-  { key: 'boardlink', label: 'Board links' },
-  { key: 'card',      label: 'Other'      },
+  { key: 'boardlink', label: 'Linked clusters' },
+  { key: 'card',      label: 'Other',
+    hint: 'Shapes, videos, PDFs, audio, files, art and retired kinds: too rare to earn their own hue' },
   { key: 'ws',        label: 'Workspaces' },
 ];
 export const KIND_COLORS = COLOR;
+
+// The card kinds with a legend row of their own. Any other card counts under
+// 'card', the Other row, so every drawn card lands in exactly one row.
+const LEGEND_CARD_KINDS = new Set(['image', 'note', 'grid', 'link', 'palette', 'doc', 'boardlink']);
+
+// The legend row a node belongs to: what the legend counts, what a row hides,
+// and what pointing at a row lifts back to its true hue. A Studio is known by
+// the wsroot edge that reaches it (see markStudio).
+function legendKeyOf(node) {
+  if (node.kind === 'board') return node.studio ? 'studio' : 'board';
+  const k = node.cardKind;
+  if (!k) return node.kind;
+  if (k === 'board') return 'clustercard';
+  return LEGEND_CARD_KINDS.has(k) ? k : 'card';
+}
 
 // Edge tints — match the per-workspace HomeGraph look exactly.
 // HomeGraph uses rgba(91,87,78,.45) structural + rgba(255,165,0,.55)
@@ -239,6 +266,17 @@ const HOT_DURATION_MS   = 60000;
 const RING_MAX_SCALE    = 26;      // multiples of the node's own radius
 const HOT_HALO_BOOST    = 2.2;     // peak halo multiplier, decaying to 1
 
+// A node's resting halo, in multiples of its radius. One constant because the
+// afterglow restores it: when the two numbers differed (3.7 there, 3.1 here)
+// every arrival kept a halo a fifth too big for the rest of the session.
+//
+// 3.7 was tuned for a categorical palette where washing out did not cost
+// anything. Additive halos of DIFFERENT hues sum toward white, so in a dense
+// card swarm the halos — not the discs — are what decides the colour, and a big
+// one throws the star's hue away. Smaller halo, same glow on the bright tail
+// (their radius is large anyway), far less overlap among the faint many.
+const HALO_SCALE        = 3.1;
+
 // Activity sparks — "somebody is working here right now".
 //
 // The universe is a map of what EXISTS, and creation is rare. But people open
@@ -262,6 +300,13 @@ const SPARK_COLOR       = new THREE.Color('#dfe7f2');
 // start costing frames. Click picking has no ceiling; it stays exact forever.
 const HOVER_THROTTLE_MS = 70;
 const HOVER_MAX_NODES   = 200_000;
+
+// The shortest gap between two drawn frames while nobody is steering (see the
+// render loop), on rAF's own timestamps, which step in whole frames of the
+// display: 8.3 ms at 120 Hz, 10 at 100 Hz, 16.7 at 60. Between 120's step and
+// 100's, so 60, 90 and 100 Hz displays draw every frame, and 120, 144 and
+// 165 Hz every other one.
+const IDLE_FRAME_MS = 9.2;
 
 function nextPow2(n, base) { let c = base; while (c < n) c *= 2; return c; }
 
@@ -413,12 +458,23 @@ function edgeKeyOf(raw) {
   return `${raw.source_id}${UNIT_SEP}${raw.target_id}${UNIT_SEP}${raw.edge_kind}`;
 }
 
-// Legend tallies. Cards count under their card kind when it has its own hue,
-// otherwise under 'card' — which is exactly the bucket the legend labels
-// "Other", so the neutral slate is always accounted for.
+// Legend tallies, one row per node (legendKeyOf).
 function countKind(refs, node) {
-  const key = node.cardKind && COLOR[node.cardKind] ? node.cardKind : node.kind;
+  const key = legendKeyOf(node);
   refs.kindCounts.set(key, (refs.kindCounts.get(key) || 0) + 1);
+}
+
+// A wsroot edge runs from a workspace to its top-level cluster, and the edge
+// RPC draws one exactly where admin_universe_stats counts a Studio (no parent,
+// not trashed). The node row says nothing about it, so the Studio is learned
+// here and its tally moves across. Returns whether anything changed.
+function markStudio(refs, idx) {
+  const n = refs.nodes[idx];
+  if (!n || n.kind !== 'board' || n.studio) return false;
+  refs.kindCounts.set('board', (refs.kindCounts.get('board') || 0) - 1);
+  n.studio = true;
+  refs.kindCounts.set('studio', (refs.kindCounts.get('studio') || 0) + 1);
+  return true;
 }
 
 function reportStats(refs) {
@@ -630,10 +686,9 @@ function makeFxPoints(capacity) {
 // endpoints.
 // onStats — fires with { nodes, edges, byKind } once the snapshot is built and
 // again whenever deltas change the totals. This is the ONLY honest source for
-// "how big is the thing on screen": platform_counters counts rows, several of
-// which never become nodes or edges (tag attachments, cards on soft-deleted
-// boards), so a HUD reading the counters can claim connections the universe
-// does not draw.
+// "how big is the thing on screen": admin_universe_stats counts rows, and
+// some rows never become nodes or edges (tag attachments above all), so a HUD
+// reading the counts could claim connections the universe does not draw.
 // onStream — fires with { status, lastDeltaAt } so a HUD can say whether the
 //   socket is alive. On a universe that is legitimately still for twenty
 //   minutes at a stretch, "nothing is happening" and "nothing is arriving
@@ -813,7 +868,10 @@ export function UniverseGraph({
     // perspective like in the classic milky-way photos.
     camera.position.set(0, 500, 60);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // No antialias: the scene renders into the composer's own targets and
+    // only bloom's full-screen quads ever reach the canvas, so a multisampled
+    // canvas cost memory and a resolve every frame and smoothed nothing.
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
     // ACES filmic tonemap so blown-out bright pixels (the bloomed
@@ -1129,10 +1187,25 @@ export function UniverseGraph({
     // rAF loop — controls + galactic drift + fit animation + render.
     const rotationAxis = new THREE.Vector3(0, 1, 0);
     let last = performance.now();
+    let lastFrameTs = -Infinity;   // rAF's timestamp for the last frame drawn
     controls.addEventListener('start', () => { refs.interacting = true; });
     controls.addEventListener('end',   () => { refs.interacting = false; });
-    const loop = () => {
+    const loop = (frameTs) => {
       const now = performance.now();
+      // The worker moves the galaxy about sixty times a second, so a 120 Hz
+      // display drew every picture twice, bloom and all. While nobody is
+      // steering, a frame that comes sooner than IDLE_FRAME_MS after the last
+      // one drawn is skipped. The gap is read off rAF's timestamps rather than
+      // the clock: they are the display's frame times, so a skip falls on the
+      // same frames every time instead of on whichever ran a little late.
+      // Dragging, flying and a fit draw every frame. `last` is the last frame
+      // DRAWN, so the drift's dt spans the skips.
+      if (frameTs - lastFrameTs < IDLE_FRAME_MS && !refs.interacting && !refs.lookActive
+          && keys.size === 0 && !refs.fitAnimating) {
+        refs.rafId = requestAnimationFrame(loop);
+        return;
+      }
+      lastFrameTs = frameTs;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
@@ -1416,6 +1489,7 @@ export function UniverseGraph({
           const key = edgeKeyOf(raw);
           if (refs.edgeKeys.has(key)) continue;
           refs.edgeKeys.add(key);
+          if (raw.edge_kind === 'wsroot') markStudio(refs, t);
           resolvedEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(raw.edge_kind),   // visual tier (scaffold/structural/semantic)
@@ -1501,6 +1575,7 @@ export function UniverseGraph({
       // without bound and celebrated edits as new links.
       const stillPending = [];
       const newEdges = [];
+      let studiosMarked = false;
       for (const item of refs.pendingEdges) {
         if (refs.edgeKeys.has(edgeKeyOf(item.raw))) continue;
         const s = refs.nodeIndex.get(item.raw.source_id);
@@ -1518,6 +1593,7 @@ export function UniverseGraph({
           // Claim the key now so two identical edges inside ONE flush
           // window can't both get through.
           refs.edgeKeys.add(edgeKeyOf(item.raw));
+          if (item.raw.edge_kind === 'wsroot' && markStudio(refs, t)) studiosMarked = true;
           newEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(item.raw.edge_kind),
@@ -1554,6 +1630,10 @@ export function UniverseGraph({
         ensureEdgeCapacity(refs, refs.edges.length + newEdges.length);
         refs.edges.push(...newEdges);
         writeEdgeColors(refs);
+        // A new workspace's Studio arrives a flush before its wsroot edge, so it
+        // was classified as a cluster; a Studios or Clusters filter has to see
+        // it move.
+        if (studiosMarked && (refs.hiddenKinds || refs.isolateWs)) applyVisualFilters(refs);
         refs.worker.postMessage({
           type: 'addLinks',
           links: newEdges.map(e => ({
@@ -1696,7 +1776,8 @@ export function UniverseGraph({
 // carries identity and never content, and hover is not an exception to it.
 function HoverCard({ hover }) {
   const n = hover.node;
-  const label = KIND_HOVER_LABELS[n.cardKind] || KIND_HOVER_LABELS[n.kind] || n.cardKind || n.kind;
+  const key = legendKeyOf(n);
+  const label = KIND_HOVER_LABELS[key === 'card' ? n.cardKind : key] || KIND_HOVER_LABELS[key] || n.cardKind || n.kind;
   return (
     <div className="universe-hover surface-frosted"
          style={{ left: hover.x, top: hover.y }}
@@ -1709,9 +1790,9 @@ function HoverCard({ hover }) {
 }
 
 const KIND_HOVER_LABELS = {
-  ws: 'Workspace', board: 'Board', doc: 'Doc', note: 'Note', image: 'Image',
-  palette: 'Palette', link: 'Link', grid: 'Grid', url: 'External link',
-  boardlink: 'Board link', card: 'Card',
+  ws: 'Workspace', board: 'Cluster', studio: 'Studio', clustercard: 'Cluster card',
+  doc: 'Doc', note: 'Note', image: 'Image', palette: 'Palette', link: 'Link',
+  grid: 'Grid', url: 'External link', boardlink: 'Linked cluster', card: 'Card',
 };
 
 // Compact relative age. adminFormat's relativeTime is prose ("3 hours ago");
@@ -1851,9 +1932,7 @@ function writeNodeVisual(refs, idx, node) {
   const r = refs.baseScale[idx];
   // Starlight at rest; the true kind hue the moment anyone asks for it
   // — a legend row under the pointer, or this node being the selection.
-  const emph = refs.hueKind
-    ? (node.cardKind && COLOR[node.cardKind] ? node.cardKind : node.kind) === refs.hueKind
-    : false;
+  const emph = refs.hueKind ? legendKeyOf(node) === refs.hueKind : false;
   const sel = refs.selectionFx && refs.selectionFx.nodeIdx === idx;
   const c = (emph || sel) ? node.threeColor : (node.starColor || node.threeColor);
   const cr = c.r * dim, cg = c.g * dim, cb = c.b * dim;
@@ -1863,13 +1942,7 @@ function writeNodeVisual(refs, idx, node) {
   hc.array[idx * 3]     = cr;
   hc.array[idx * 3 + 1] = cg;
   hc.array[idx * 3 + 2] = cb;
-  // 3.7 was tuned for a categorical palette where washing out did not
-  // cost anything. Additive halos of DIFFERENT hues sum toward white,
-  // so in a dense card swarm the halos — not the discs — are what
-  // decides the colour, and a big one throws the star's hue away.
-  // Smaller halo, same glow on the bright tail (their radius is large
-  // anyway), far less overlap among the faint many.
-  hs.array[idx]         = r * 3.1 * vis;
+  hs.array[idx]         = r * HALO_SCALE * vis;
   hc.needsUpdate = true;
   hs.needsUpdate = true;
 
@@ -1905,10 +1978,9 @@ function applyVisualFilters(refs) {
   for (let i = 0; i < refs.nodes.length; i++) {
     const n = refs.nodes[i];
     if (!n) continue;
-    const legendKey = n.cardKind && COLOR[n.cardKind] ? n.cardKind : n.kind;
     // Users are invisible either way; isolating never dims them into a
     // different kind of invisible.
-    const isHidden = hasHidden && hidden.has(legendKey);
+    const isHidden = hasHidden && hidden.has(legendKeyOf(n));
     const isDim    = !!iso && n.kind !== 'user' && n.workspace_id !== iso;
     refs.visMul[i] = isHidden ? 0 : 1;
     refs.dimMul[i] = isDim ? DIM_FACTOR : 1;
@@ -2309,7 +2381,7 @@ function updateHot(refs, now) {
   for (const [idx, h] of refs.hotNodes) {
     // Filtered-out nodes glow at zero: an arrival must never punch through a
     // filter the operator deliberately set.
-    const base = refs.baseScale[idx] * 3.7 * refs.visMul[idx];
+    const base = refs.baseScale[idx] * HALO_SCALE * refs.visMul[idx];
     if (now >= h.until) {
       hs.array[idx] = base;
       refs.hotNodes.delete(idx);
