@@ -35,7 +35,7 @@ test.describe('workspace roles wiring', () => {
     // The Members tab's owner controls come from useResolvedDefaults' role,
     // which only refetched on a workspace id change, so the ex-owner kept them.
     const hook = read('src/hooks/useResolvedDefaults.js');
-    expect(hook).toMatch(/\}, \[workspaceId, tick, roleTick\]\);/);
+    expect(hook).toMatch(/\}, \[workspaceId, userId, tick, roleTick\]\);/);
     expect(hook).toContain('refreshRole, workspaceSettings');
     const app = read('src/App.jsx');
     expect(app).toContain('refreshRole: refreshWorkspaceRole');
@@ -70,7 +70,7 @@ test.describe('workspace roles wiring', () => {
     // Worker's onBeforeConnect (party/index.ts), and the room compares it.
     const entry = read('party/index.ts');
     expect(entry).toMatch(/if \(lobby\.className === "Workspace"\) \{[\s\S]*?req\.headers\.set\("x-user-id", auth\.userId \?\? ""\);/);
-    expect(read('party/workspace.ts')).toContain('String(msg.user.id) !== owner');
+    expect(read('party/workspace.ts')).toContain('String(msg.user.id) !== mine.userId');
   });
 
   test('the upload party reports the object size it measured', () => {
