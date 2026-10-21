@@ -37,7 +37,7 @@ The palette also runs commands. Type the verb rather than the noun:
 | Link a cluster onto canvas | Place a reference to another board |
 | Open split view | [Two boards side by side](/docs/clusters#side-by-side) |
 | Share this cluster | The [share dialog](/docs/collaborate/sharing) |
-| Messages | The [messages drawer](/docs/collaborate/messages) |
+| Messages | Your [conversations](/docs/collaborate/messages) |
 | Toggle theme | Light / dark |
 | Toggle sidebar | |
 | Open trash | [Deleted clusters](/docs/clusters/trash-and-recovery) |

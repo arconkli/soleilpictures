@@ -25748,16 +25748,16 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The "
+       "v": "Your "
       },
       {
        "t": "link",
-       "v": "messages drawer",
+       "v": "conversations",
        "href": "/docs/collaborate/messages",
        "children": [
         {
          "t": "text",
-         "v": "messages drawer"
+         "v": "conversations"
         }
        ]
       }
@@ -29949,6 +29949,52 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "A message's actions",
+      "children": [
+       {
+        "t": "text",
+        "v": "A message's actions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — point at a message and click the "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " beside it, or right-click it: react, reply, copy its text or a link to it, pin it, and edit or delete your own"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Press and hold",
+      "children": [
+       {
+        "t": "text",
+        "v": "Press and hold"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — on a phone or tablet, hold a message for the same actions. Hold a conversation in the list to hide it or leave"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Attachments",
       "children": [
        {
@@ -29959,7 +30005,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — send files, and drag one from a thread straight onto a canvas to make it a card"
+      "v": " — photos, files, links, cards and clusters sit under the words as cards, the way they look on a board. A cluster shows its cover, where it lives and how many cards it holds, and clicking it opens the cluster. Drag any of them from a thread straight onto a canvas to make it a card"
      }
     ],
     [
@@ -30006,7 +30052,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " a person, board, document or card; boards and cards become navigable links"
+      "v": " a person, board, document or card; boards and cards become navigable links, and a cluster's link shows its cover"
      }
     ],
     [
@@ -30022,7 +30068,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — a half-written message waits in its conversation, with its attachments and the message it replies to, when you switch conversations, close the drawer or reload the page"
+      "v": " — a half-written message waits in its conversation, with its attachments and the message it replies to, when you switch conversations, close Messages or reload the page"
      }
     ],
     [
@@ -30038,7 +30084,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — answer one message in particular: it's quoted above your reply, and clicking the quote takes you to it"
+      "v": " — answer one message in particular: it's quoted at the top of your reply, and clicking the quote takes you to it"
      }
     ],
     [
@@ -30060,6 +30106,36 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Pins",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pins"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — once a conversation has pinned messages, the pin count at its top opens them in a list: each one takes you to its message, and "
+     },
+     {
+      "t": "strong",
+      "v": "Unpin",
+      "children": [
+       {
+        "t": "text",
+        "v": "Unpin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " takes it off"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Seen",
       "children": [
        {
@@ -30076,6 +30152,22 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Here now",
+      "children": [
+       {
+        "t": "text",
+        "v": "Here now"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — in a direct message, under the other person's name while they have the workspace open"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Permalinks",
       "children": [
        {
@@ -30087,22 +30179,6 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " — a link to one specific message, which opens the thread scrolled to it"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Press and hold",
-      "children": [
-       {
-        "t": "text",
-        "v": "Press and hold"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — on a phone or tablet, hold a message for its actions: react, reply, copy its text or a link to it, pin it, and edit or delete your own. Hold a conversation in the list to hide it or leave"
      }
     ]
    ]
@@ -30196,7 +30272,21 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Attach files with the paperclip, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; "
+      "v": "Attach files with the "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the start of the box, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; "
      },
      {
       "t": "strong",
@@ -30225,8 +30315,32 @@ export const DOCS_CONTENT = {
     ],
     [
      {
+      "t": "strong",
+      "v": "Edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edit"
+       }
+      ]
+     },
+     {
       "t": "text",
-      "v": "Editing one of your messages works the same way: "
+      "v": " opens your message in this same box, under an "
+     },
+     {
+      "t": "strong",
+      "v": "Editing your message",
+      "children": [
+       {
+        "t": "text",
+        "v": "Editing your message"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " line, and the same keys apply: "
      },
      {
       "t": "strong",
@@ -30240,7 +30354,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " saves, "
+      "v": " saves (on a phone or tablet, the ✓ does) and "
      },
      {
       "t": "strong",
@@ -30254,7 +30368,51 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " cancels"
+      "v": " cancels. Whatever you'd started writing waits until you're done"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A message that can't be sent stays in the conversation marked "
+     },
+     {
+      "t": "strong",
+      "v": "Not sent",
+      "children": [
+       {
+        "t": "text",
+        "v": "Not sent"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", with "
+     },
+     {
+      "t": "strong",
+      "v": "Try again",
+      "children": [
+       {
+        "t": "text",
+        "v": "Try again"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
      }
     ]
    ]
@@ -30369,7 +30527,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Close what's on top — a menu, the edit box, the reply, the search — then the panel, unless there's something typed in the box"
+       "v": "Close what's on top — a menu, an edit, the reply, the search — then the panel, unless there's something typed in the box"
       }
      ]
     ]

@@ -2731,7 +2731,7 @@ Go to Home | Your clusters, over the relationship graph
 Link a cluster onto canvas | Place a reference to another board
 Open split view | Two boards side by side
 Share this cluster | The share dialog
-Messages | The messages drawer
+Messages | Your conversations
 Toggle theme | Light / dark
 Toggle sidebar | 
 Open trash | Deleted clusters
@@ -3145,9 +3145,9 @@ A: They are archived rather than deleted, so the record of a decision survives.
 ========================================================================
 # Messages
 URL: https://clusters.soleilpictures.com/docs/collaborate/messages
-Updated: 2026-10-20
+Updated: 2026-10-21
 
-Messages is a drawer for direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.
+Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.
 
 Messaging exists so that the conversation about a board can happen next to the board.
 
@@ -3163,23 +3163,27 @@ Threads
 
 Direct and group conversations in one list, ordered by recency.
 
-Attachments — send files, and drag one from a thread straight onto a canvas to make it a card
+A message's actions — point at a message and click the ⋯ beside it, or right-click it: react, reply, copy its text or a link to it, pin it, and edit or delete your own
+Press and hold — on a phone or tablet, hold a message for the same actions. Hold a conversation in the list to hide it or leave
+Attachments — photos, files, links, cards and clusters sit under the words as cards, the way they look on a board. A cluster shows its cover, where it lives and how many cards it holds, and clicking it opens the cluster. Drag any of them from a thread straight onto a canvas to make it a card
 Markdown and auto-links — formatting is rendered, URLs unfurl
-Mentions — @ a person, board, document or card; boards and cards become navigable links
-Drafts — a half-written message waits in its conversation, with its attachments and the message it replies to, when you switch conversations, close the drawer or reload the page
-Replies — answer one message in particular: it's quoted above your reply, and clicking the quote takes you to it
+Mentions — @ a person, board, document or card; boards and cards become navigable links, and a cluster's link shows its cover
+Drafts — a half-written message waits in its conversation, with its attachments and the message it replies to, when you switch conversations, close Messages or reload the page
+Replies — answer one message in particular: it's quoted at the top of your reply, and clicking the quote takes you to it
 Edits and deletes — your own messages; a deleted message goes at once, with Undo on the notice that follows
+Pins — once a conversation has pinned messages, the pin count at its top opens them in a list: each one takes you to its message, and Unpin takes it off
 Seen — in a direct message, “Seen” appears under your latest message once the other person has read it
+Here now — in a direct message, under the other person's name while they have the workspace open
 Permalinks — a link to one specific message, which opens the thread scrolled to it
-Press and hold — on a phone or tablet, hold a message for its actions: react, reply, copy its text or a link to it, pin it, and edit or delete your own. Hold a conversation in the list to hide it or leave
 
 Writing
 
 Enter sends and Shift+Enter starts a new line; ⌘/Ctrl+Enter sends too
 On a phone or tablet the return key starts a new line, and the Send button sends
 The box grows as you write, then scrolls once it's tall
-Attach files with the paperclip, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; Send waits until they're all in, and one that fails says so, with Retry
-Editing one of your messages works the same way: Enter saves, Esc cancels
+Attach files with the + at the start of the box, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; Send waits until they're all in, and one that fails says so, with Retry
+Edit opens your message in this same box, under an Editing your message line, and the same keys apply: Enter saves (on a phone or tablet, the ✓ does) and Esc cancels. Whatever you'd started writing waits until you're done
+A message that can't be sent stays in the conversation marked Not sent, with Try again and Delete
 
 Keyboard
 
@@ -3189,7 +3193,7 @@ Key | What it does
 Enter · Shift+Enter | Send · start a new line
 ↑ in an empty box | Edit your last message, up to 15 minutes after you sent it
 ⌘F / Ctrl+F | Search the conversation
-Esc | Close what's on top — a menu, the edit box, the reply, the search — then the panel, unless there's something typed in the box
+Esc | Close what's on top — a menu, an edit, the reply, the search — then the panel, unless there's something typed in the box
 
 Click anywhere in the conversation outside the box, and these move through it:
 

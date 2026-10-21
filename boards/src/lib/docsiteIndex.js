@@ -2208,10 +2208,10 @@ export const DOCS_PAGES = [
     "title": "Messages — Soleil Clusters",
     "metaDescription": "Direct and group messages in Soleil Clusters. Message anyone you share a board with, drag attachments onto the canvas, deep-link to any message.",
     "h1": "Messages",
-    "answer": "Messages is a drawer for direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.",
+    "answer": "Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.",
     "section": "collaborate",
     "order": 4,
-    "updated": "2026-10-20",
+    "updated": "2026-10-21",
     "navLabel": "Messages",
     "headings": [
       {
