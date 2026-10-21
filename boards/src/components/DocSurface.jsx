@@ -139,6 +139,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // false → no Export in the toolbar (a doc shared without
                               // "Allow saving a copy").
                               allowExport = true,
+                              // The pane this doc sits in beside the canvas
+                              // (lib/activePane.js): its ⌘Z answers only while
+                              // the keyboard is there. null covers every pane.
+                              pane = null,
                               onClose }) {
   // ?docqa=1's crash hook: the harness's crash() makes this doc throw the way
   // a real render crash would, so doc-crash.spec can drive the boundary
@@ -163,10 +167,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // separate by design (see docState.js). While this surface is mounted it
   // OWNS Cmd+Z: CanvasSurface stands down (lib/overlayRouting.js) so a
   // shortcut can never silently undo canvas ops hidden behind the overlay.
+  // In a pane, only while the keyboard is in that pane: the canvas beside it
+  // keeps its own.
   const docUndoManager = useMemo(() => (ydoc ? getDocUndoManager(ydoc, scope) : null), [ydoc, scope]);
   useEffect(() => {
     if (!canEdit || !docUndoManager) return undefined;
-    pushDocUndoTarget(docUndoManager);
+    pushDocUndoTarget(docUndoManager, pane);
     const onKey = (e) => {
       const cmd = e.metaKey || e.ctrlKey;
       if (!cmd || (e.key !== 'z' && e.key !== 'y')) return;
@@ -186,7 +192,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       window.removeEventListener('keydown', onKey);
       removeDocUndoTarget(docUndoManager);
     };
-  }, [canEdit, docUndoManager]);
+  }, [canEdit, docUndoManager, pane]);
   // Subscribe to the awareness instance lazily — it's only created after the
   // realtime channel attaches in yboard.js. getAwareness() returns null
   // until then, and yboard doesn't trigger a re-render here when realtime

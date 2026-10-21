@@ -6153,7 +6153,8 @@ export function CanvasSurface({
       if (cmd && e.key === 'z' && !e.shiftKey) {
         // While a doc overlay is open its STRUCTURAL UndoManager owns Cmd+Z
         // (DocSurface registers itself + its own listener) — undoing hidden
-        // canvas ops behind the overlay would be silent data mangling.
+        // canvas ops behind the overlay would be silent data mangling. A doc
+        // docked beside this board owns it only from its own pane.
         if (getDocUndoTarget()) return;
         // In-session UndoManager only — synchronous and CRDT-correct, so it
         // can't network-fail. preventDefault unconditionally so a stray

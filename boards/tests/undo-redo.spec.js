@@ -314,10 +314,12 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     const nds = read('src/lib/noteDocState.js');
     expect(nds).toMatch(/export function getNoteUndoManager/);
     // A STACK since 9df6a83c: a doc pushes its manager on open and removes it
-    // on close, so the surface beneath gets ⌘Z back.
+    // on close, so the surface beneath gets ⌘Z back. It names its pane, so a
+    // docked doc leaves the canvas beside it its own ⌘Z (lib/overlayRouting).
     const ds = read('src/components/DocSurface.jsx');
-    expect(ds).toMatch(/pushDocUndoTarget\(docUndoManager\)/);
+    expect(ds).toMatch(/pushDocUndoTarget\(docUndoManager, pane\)/);
     expect(ds).toMatch(/removeDocUndoTarget\(docUndoManager\)/);
+    expect(read('src/components/DocCard.jsx')).toMatch(/pane=\{full \? null : 'split'\}/);
   });
 
   test('Version history restores through the bulletproof path only', () => {

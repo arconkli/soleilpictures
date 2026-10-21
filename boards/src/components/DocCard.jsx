@@ -450,7 +450,8 @@ export function DockedDocPane({
       onClose={onClose}
       peersOnCard={peersOnCard}
       onJumpToPeer={onJumpToPeer}
-      canEdit={canEdit} />
+      canEdit={canEdit}
+      pane={full ? null : 'split'} />
   );
   // Fullscreen still portals to <body> so it clears the pane and the topbar;
   // the pane variant renders in flow, sized by the split divider.
@@ -472,6 +473,9 @@ export function DocCardOverlay({
   // 'pane'   — rendered in flow inside the split pane, which owns the width
   //   and supplies the resize divider. No inset, no scrim, no divider here.
   variant = 'overlay',
+  // The workspace pane the doc sits in (lib/activePane.js), for its ⌘Z; null
+  // when it covers them all.
+  pane = null,
 }) {
   const inPane = variant === 'pane';
   // Esc closes from either mode — but never while typing: Escape inside the
@@ -681,6 +685,7 @@ export function DocCardOverlay({
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit}
             isPublic={isPublic}
+            pane={pane}
           />
           </Suspense>
           </SurfaceErrorBoundary>
