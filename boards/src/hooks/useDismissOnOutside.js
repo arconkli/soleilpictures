@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { isComposingKey } from '../lib/composerKeys.js';
 
 // Dismiss a popover / menu / dropdown when the user interacts OUTSIDE it.
@@ -10,9 +10,14 @@ import { isComposingKey } from '../lib/composerKeys.js';
 // stuck open on phones. Capturing pointerdown closes them on tap-outside, while
 // mousedown stays as the desktop/compat fallback. Escape also closes by default.
 //
-// The `armed` timeout(0) prevents the very click/tap that opened the popover
-// from immediately closing it again (the opening event can still be in flight
-// when this effect attaches).
+// It listens from a layout effect, so from the moment the popover is on
+// screen, and counts only a press that began after that. The press that
+// opened it can still be on its way: its pointerdown came before this was
+// listening, and the mousedown a browser makes from it follows (after a tap,
+// once the finger lifts, and WebKit stamps it with that later moment). So a
+// mousedown counts only behind a pointerdown this has seen. It used to wait
+// out a timeout(0) instead, and a browser delivers input before timers, so a
+// press soon after the popover appeared went unseen and left it open.
 //
 // Usage:
 //   const ref = useRef(null);
@@ -22,14 +27,16 @@ import { isComposingKey } from '../lib/composerKeys.js';
 export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
   const { escape = true, escapeCapture = false, ignore = null } = options;
   const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useLayoutEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen === false) return undefined;
-    let armed = false;
-    const t = setTimeout(() => { armed = true; }, 0);
+    const since = performance.now();
+    let pressed = typeof window !== 'undefined' && !window.PointerEvent;
     const onDocDown = (e) => {
-      if (!armed) return;
+      if (e.timeStamp && e.timeStamp < since) return;
+      if (e.type === 'pointerdown') pressed = true;
+      else if (!pressed) return;
       const el = ref.current;
       if (!el) return;
       if (el.contains(e.target)) return;
@@ -46,7 +53,6 @@ export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
     document.addEventListener('mousedown', onDocDown, true);
     if (escape) window.addEventListener('keydown', onKey, escapeCapture);
     return () => {
-      clearTimeout(t);
       document.removeEventListener('pointerdown', onDocDown, true);
       document.removeEventListener('mousedown', onDocDown, true);
       if (escape) window.removeEventListener('keydown', onKey, escapeCapture);

@@ -102,6 +102,20 @@ test.describe('a finger on empty canvas', () => {
     await expect(page.locator('.cnv-quick-add')).toHaveCount(1);
   });
 
+  // The taps that opened it are not a tap outside it, though WebKit sends
+  // their mouse events after the finger lifts; the next tap elsewhere is.
+  test('a tap elsewhere closes the add menu two taps opened', async ({ page }) => {
+    await open(page, { touchPass: false });
+    const p = await emptyNear(page, { x: (await rectOf(page, 'home-note')).right + 60, y: (await rectOf(page, 'home-note')).y });
+    await tap(page, p);
+    await page.waitForTimeout(90);
+    await tap(page, p);
+    await expect(page.locator('.cnv-quick-add')).toBeVisible();
+    await page.waitForTimeout(400);
+    await tap(page, await emptyNear(page, { x: p.x - 120, y: p.y - 40 }));
+    await expect(page.locator('.cnv-quick-add')).toHaveCount(0);
+  });
+
   test('the Image tool opens the photo picker where the finger lifts', async ({ page }) => {
     await open(page, { touchPass: false });
     await page.getByRole('button', { name: 'Add image tool', exact: true }).tap();
