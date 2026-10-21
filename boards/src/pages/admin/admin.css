@@ -4531,8 +4531,12 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * `.is-ruled` rather than `.adm-trend-plot` on purpose: the hero rail is full
  * of sparklines, which are trend plots that are deliberately NOT ruled, and
  * matching the element would have quietly stripped the paper off the rail.
+ *
+ * Money's path is left plain on purpose, as its mockup drew it: the hatched
+ * wedges of who stopped are a texture of their own, and paper under them
+ * reads as more hatching.
  */
-.adm-well:not(.adm-gb-well):not(:has(.is-ruled, .adm-heat, .adm-cohort, .adm-gb))::before {
+.adm-well:not(.adm-gb-well, .adm-money-pathwell):not(:has(.is-ruled, .adm-heat, .adm-cohort, .adm-gb))::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -6212,4 +6216,431 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
 @media (min-width: 1401px) {
   .adm-gb-changes { position: sticky; top: 12px; }
   .adm-gb-changes .adm-markers-list { max-height: min(640px, calc(100vh - 250px)); }
+}
+
+/* ── Analytics › Money ──────────────────────────────────────────────────────
+ * The owner's pick of 2026-10-20, "The path to a payment", ported from its
+ * mockup onto these tokens. Inside a well everything is the well's own dark
+ * steps (it re-points --ink-* and --line-*), on a plate the page's. The two
+ * grounds a bar's track sits on are the one thing neither set has, so the
+ * view names them, themed, and the well overrides them.
+ */
+.adm-money {
+  --mny-hov: rgba(245, 245, 247, .045);
+  --mny-act: rgba(245, 245, 247, .085);
+}
+
+[data-theme='light'] .adm-money {
+  --mny-hov: rgba(10, 10, 12, .04);
+  --mny-act: rgba(10, 10, 12, .065);
+}
+
+.adm-money .adm-well {
+  --mny-hov: rgba(255, 255, 255, .05);
+  --mny-act: rgba(255, 255, 255, .07);
+}
+
+/* Each panel stacks its parts with the panel's own gap. */
+.adm-money .adm-well-body { display: flex; flex-direction: column; gap: 10px; }
+
+.adm-money .adm-well-foot {
+  border-top: 1px solid var(--line-1);
+  padding-top: 11px;
+  line-height: 1.45;
+}
+
+.adm-money .adm-well-foot b { font-weight: 500; color: var(--ink-1); }
+.adm-money .adm-well-foot .mny-alarm { font-weight: 600; color: var(--ink-0); }
+
+/* 01 · the six figures */
+.mny-tiles {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.mny-tile {
+  display: flex; flex-direction: column; gap: 7px;
+  min-height: 168px; padding: 4px 16px 8px; min-width: 0;
+  border-left: 1px solid var(--adm-plot-line-major);
+}
+
+.mny-tile:first-child { border-left: 0; padding-left: 2px; }
+.mny-t-label { font: 500 11.5px/1.4 var(--font-sans); color: var(--adm-plot-ink-2); }
+
+.mny-t-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px; min-width: 0;
+}
+
+.mny-t-val {
+  font: 500 36px/1 var(--font-mono); letter-spacing: -.02em;
+  color: var(--adm-plot-ink); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.mny-t-val.is-zero { color: var(--adm-plot-ink-3); }
+
+.mny-t-total {
+  font: 500 11px/1.2 var(--font-mono); color: var(--adm-plot-ink-2);
+  white-space: nowrap; text-align: right;
+}
+
+.mny-t-sub { font: 500 12px/16.8px var(--font-sans); color: var(--adm-plot-ink-3); }
+.mny-t-verdict { font: 600 12px/1.4 var(--font-sans); color: var(--adm-plot-ink); }
+.mny-t-ratio { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+
+.mny-t-ratio .mny-track {
+  height: 6px; border-radius: 3px; background: var(--mny-act); overflow: hidden;
+}
+
+.mny-t-ratio .mny-fill { height: 100%; border-radius: 3px; background: var(--adm-cat-1); }
+.mny-t-ratio > span { font: 500 10.5px/1 var(--font-mono); color: var(--adm-plot-ink-3); }
+
+/* The plan, as billingCopy states it, along the bottom. */
+.mny-life {
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 30px;
+  padding-top: 11px; border-top: 1px solid var(--adm-plot-line-major);
+}
+
+.mny-life dl { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 30px; margin: 0; }
+.mny-life dl > div { display: flex; align-items: baseline; gap: 8px; }
+.mny-life dt { font: 400 11.5px/1.4 var(--font-sans); color: var(--adm-plot-ink-3); }
+.mny-life dd { margin: 0; font: 600 13.5px/1 var(--font-mono); color: var(--adm-plot-ink); }
+.mny-life dd small { margin-left: 6px; font: 500 11px var(--font-sans); color: var(--adm-plot-ink-3); }
+.mny-life .mny-scope { margin-left: auto; font: 500 10.5px/1 var(--font-mono); color: var(--adm-plot-ink-3); }
+
+/* 02 · the path. One box in SVG units, with its words laid over it in HTML
+   at percentages of the same box, so they move with it at any width. */
+.mny-path { position: relative; container-type: inline-size; min-width: 0; border-radius: 4px; }
+.mny-path:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.mny-path > svg { display: block; width: 100%; height: auto; overflow: visible; }
+.mny-path .mny-bar { fill: var(--adm-cat-1); }
+.mny-path .mny-bar.is-dim { fill-opacity: .55; }
+.mny-path .mny-rib { fill: var(--adm-cat-1); fill-opacity: .15; }
+.mny-path .mny-base { stroke: rgba(255, 255, 255, .2); stroke-width: 1; }
+
+.mny-path .mny-zero {
+  fill: none; stroke: var(--adm-plot-ink-2); stroke-width: 1.25; stroke-dasharray: 3 3;
+}
+
+.mny-path .mny-ldr { fill: none; stroke: rgba(255, 255, 255, .4); stroke-width: 1; }
+.mny-path .mny-hl { fill: rgba(255, 255, 255, .035); }
+.mny-path .mny-hit { fill: transparent; }
+.mny-path > span { position: absolute; pointer-events: none; line-height: 1; }
+
+.mny-num {
+  transform: translate(-50%, -100%);
+  font: 500 24px/1 var(--font-mono); letter-spacing: -.02em;
+  color: var(--adm-plot-ink); font-variant-numeric: tabular-nums;
+}
+
+.mny-num.is-zero { color: var(--adm-plot-ink-2); }
+
+.mny-lab {
+  transform: translateX(-50%); text-align: center; white-space: normal;
+  font: 600 12px/1.3 var(--font-sans); color: var(--adm-plot-ink);
+}
+
+.mny-lab small {
+  display: block; margin-top: 4px;
+  font: 500 10.5px/1.3 var(--font-mono); color: var(--adm-plot-ink-3);
+}
+
+.mny-conv {
+  transform: translate(-50%, -50%);
+  padding: 3px 6px; border-radius: 3px;
+  background: var(--adm-plot); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+  font: 500 10.5px/1 var(--font-mono); color: var(--adm-plot-ink-2); white-space: nowrap;
+}
+
+.mny-leak { width: min(330px, 40%); }
+.mny-leak.is-above { transform: translateY(-100%); }
+.mny-leak b { display: block; font: 600 16px/1.25 var(--font-sans); color: var(--adm-plot-ink); }
+
+.mny-leak > span {
+  display: block; margin-top: 6px;
+  font: 400 12.5px/1.5 var(--font-sans); color: var(--adm-plot-ink-2);
+}
+
+.mny-leak-under {
+  display: none; margin: 0;
+  font: 400 12.5px/1.5 var(--font-sans); color: var(--adm-plot-ink-2);
+}
+
+.mny-leak-under b { font-weight: 600; color: var(--adm-plot-ink); }
+.mny-leak-under.is-on { display: block; margin-top: 10px; }
+
+.mny-tip {
+  position: absolute; top: 2%; z-index: 3; pointer-events: none;
+  width: 250px; padding: 9px 11px; border-radius: 6px;
+  background: var(--adm-plot-tip); border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .55);
+  color: var(--adm-plot-ink); line-height: 1.35;
+}
+
+.mny-tip.is-mid { transform: translateX(-50%); }
+.mny-tip.is-end { transform: translateX(-100%); }
+
+.mny-tip-w {
+  font: 500 10.5px/1.3 var(--font-mono); letter-spacing: .06em;
+  text-transform: uppercase; color: var(--adm-plot-ink-2);
+}
+
+.mny-tip-v { margin-top: 3px; font: 500 20px/1.2 var(--font-mono); }
+.mny-tip-v small { margin-left: 7px; font-size: 11px; color: var(--adm-plot-ink-2); }
+
+.mny-tip-m {
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, .1);
+  font: 400 12px/1.45 var(--font-sans); color: #b8bac6;
+}
+
+/* Too narrow to draw: the same steps as a list. */
+.mny-plist { display: none; }
+
+@container (max-width: 640px) {
+  .mny-path > svg,
+  .mny-path > span,
+  .mny-path > .mny-tip { display: none; }
+  .mny-plist { display: grid; gap: 12px; }
+  .mny-leak-under { display: block; margin-top: 14px; }
+}
+
+.mny-pl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; align-items: baseline; }
+.mny-pl .mny-nm { font: 600 12.5px/1.3 var(--font-sans); color: var(--adm-plot-ink); }
+.mny-pl .mny-v { font: 500 14px/1 var(--font-mono); color: var(--adm-plot-ink); }
+
+.mny-pl .mny-tk {
+  grid-column: 1 / -1; height: 6px; border-radius: 3px;
+  background: var(--mny-act); overflow: hidden;
+}
+
+.mny-pl .mny-tk i { display: block; height: 100%; border-radius: 3px; background: var(--adm-cat-1); }
+.mny-pl .mny-cv { grid-column: 1 / -1; font: 500 10.5px/1.2 var(--font-mono); color: var(--adm-plot-ink-3); }
+
+/* How people reached the plans: beside the path, never a step of it. */
+.mny-routes {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; margin: 2px 0 0;
+  font: 500 10.5px/1.45 var(--font-mono); color: var(--adm-plot-ink-3);
+}
+
+.mny-routes-k {
+  font: 600 10px/1 var(--font-sans); letter-spacing: .09em;
+  text-transform: uppercase; color: var(--adm-plot-ink-2);
+}
+
+.mny-route b { font-weight: 500; color: var(--adm-plot-ink); }
+
+/* Bar rows on a plate: what they did with the offer, and why not. */
+.mny-orows { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 11px; }
+
+.mny-orow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px; align-items: baseline;
+}
+
+.mny-orow .mny-nm { min-width: 0; font: 400 12.5px/1.35 var(--font-sans); color: var(--ink-1); }
+.mny-orow .mny-nm small { display: block; margin-top: 2px; font-size: 11px; color: var(--ink-3); }
+.mny-orow .mny-v { font: 500 12.5px/1 var(--font-mono); color: var(--ink-0); white-space: nowrap; }
+.mny-orow .mny-v small { margin-left: 6px; font-size: 10.5px; color: var(--ink-3); }
+
+/* Segments split by a 2px gap of the plate itself, never butted together. */
+.mny-orow .mny-tk {
+  grid-column: 1 / -1; display: flex; gap: 2px; height: 6px;
+  border-radius: 3px; background: var(--mny-act); overflow: hidden;
+}
+
+.mny-orow .mny-tk i { display: block; height: 100%; background: var(--adm-cat-other); }
+.mny-orow .mny-tk i:first-child { border-radius: 3px 0 0 3px; }
+.mny-orow .mny-tk i:last-child { border-radius: 0 3px 3px 0; }
+.mny-orow .mny-tk i:only-child { border-radius: 3px; }
+.mny-orow.is-on .mny-tk i { background: var(--adm-cat-1); }
+.mny-orow .mny-tk i.s2 { opacity: .62; }
+.mny-orow .mny-tk i.s3 { opacity: .42; }
+.mny-orow .mny-tk i.s4 { opacity: .3; }
+.mny-orow .mny-tk i.s5 { opacity: .22; }
+
+.mny-subhead {
+  position: relative; z-index: 1;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-top: 2px; padding-top: 12px; border-top: 1px solid var(--line-1);
+}
+
+.mny-keyline {
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  font: 500 10.5px/1.3 var(--font-mono); color: var(--ink-2);
+}
+
+.mny-keyline > span { display: inline-flex; align-items: center; gap: 6px; }
+.mny-keyline i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--adm-cat-other); }
+
+/* 03 and 04 · the tables */
+.mny-tblbox { position: relative; z-index: 1; overflow-x: auto; }
+.mny-tbl { width: 100%; border-collapse: collapse; }
+
+.mny-tbl th {
+  padding: 6px 10px 8px; border-bottom: 1px solid var(--line-2);
+  font: 500 10px/1.25 var(--font-mono); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-3); text-align: right; white-space: nowrap; vertical-align: bottom;
+}
+
+.mny-tbl td {
+  padding: 8px 10px; border-bottom: 1px solid var(--line-1);
+  font: 500 12px/1.2 var(--font-mono); color: var(--ink-1);
+  text-align: right; white-space: nowrap; vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.mny-tbl th.is-l,
+.mny-tbl td.is-l { text-align: left; }
+.mny-tbl th:first-child,
+.mny-tbl td:first-child { padding-left: 2px; }
+.mny-tbl td.mny-nm { font: 600 12.5px/1.25 var(--font-sans); color: var(--ink-1); }
+.mny-tbl td.mny-nm small { display: block; margin-top: 2px; font-weight: 400; font-size: 11px; color: var(--ink-3); }
+.mny-tbl td.is-dim { color: var(--ink-3); }
+.mny-tbl td.is-yes { color: var(--ink-0); }
+.mny-tbl tbody tr:hover td { background: var(--mny-hov); }
+.mny-tbl tr:last-child td { border-bottom: 0; }
+
+.mny-cb { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+
+.mny-cb .mny-trk,
+.mny-meter .mny-trk {
+  display: block; flex: none; height: 6px; border-radius: 3px;
+  background: var(--mny-act); overflow: hidden;
+}
+
+.mny-cb .mny-trk { width: 64px; }
+.mny-meter .mny-trk { width: 52px; }
+
+.mny-cb .mny-trk i,
+.mny-meter .mny-trk i { display: block; height: 100%; border-radius: 3px; background: var(--adm-cat-other); }
+
+.mny-cb.is-on .mny-trk i,
+.mny-meter.is-over .mny-trk i { background: var(--adm-cat-1); }
+
+.mny-cb .mny-v { min-width: 34px; }
+.mny-meter { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+.mny-mail { font: 500 12px/1.2 var(--font-mono); color: var(--ink-0); }
+
+.mny-mini {
+  display: inline-block; margin-left: 7px; padding: 2px 5px; border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--line-2); vertical-align: 1px;
+  font: 500 10px/1 var(--font-mono); color: var(--ink-3);
+}
+
+/* What happened next. The dot is a kind, the words are the reading. */
+.mny-tag {
+  display: inline-flex; align-items: center; gap: 7px; height: 22px; padding: 0 9px;
+  border-radius: 11px; box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 500 11.5px/1 var(--font-sans); color: var(--ink-1); white-space: nowrap;
+}
+
+.mny-tag i { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.mny-tag.is-pay i { background: var(--adm-cat-1); }
+.mny-tag.is-stay i { background: var(--adm-cat-2); }
+.mny-tag.is-gone i { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.mny-tag.is-early { box-shadow: none; border: 1px dashed var(--line-3); }
+.mny-tag.is-early i { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+
+.mny-morebtn {
+  position: relative; z-index: 1; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px;
+  border: 0; border-radius: 6px; background: none; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 600 12.5px/1 var(--font-sans); color: var(--ink-1);
+}
+
+.mny-morebtn:hover { background: var(--mny-hov); }
+.mny-morebtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+
+/* 03 · a running trial */
+.mny-tr { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
+.mny-tr + .mny-tr { padding-top: 14px; border-top: 1px solid var(--line-1); }
+.mny-tr-who { font: 600 13px/1.2 var(--font-mono); color: var(--ink-0); }
+.mny-tr-plan { margin-top: 4px; font: 400 12px/1.4 var(--font-sans); color: var(--ink-2); }
+.mny-tr-count { display: flex; align-items: baseline; gap: 10px; }
+
+.mny-tr-count b {
+  font: 500 46px/1 var(--font-mono); letter-spacing: -.02em; color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+
+.mny-tr-count > span { font: 400 12.5px/1.35 var(--font-sans); color: var(--ink-2); }
+.mny-tr-track { position: relative; height: 8px; border-radius: 4px; background: var(--mny-act); }
+.mny-tr-track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--adm-cat-1); }
+
+.mny-tr-track em {
+  position: absolute; top: -4px; width: 2px; height: 16px; margin-left: -1px;
+  border-radius: 1px; background: var(--ink-0);
+}
+
+.mny-tr-ends {
+  display: flex; justify-content: space-between; gap: 8px;
+  font: 500 10.5px/1 var(--font-mono); color: var(--ink-3);
+}
+
+.mny-facts {
+  display: flex; flex-direction: column; gap: 8px; margin: 0;
+  padding-top: 12px; border-top: 1px solid var(--line-1); font-size: 12px;
+}
+
+.mny-facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; }
+.mny-facts dt { color: var(--ink-2); }
+.mny-facts dd { margin: 0; text-align: right; font: 500 11.5px/1.35 var(--font-mono); color: var(--ink-1); }
+
+.mny-trail {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  font: 500 10.5px/1 var(--font-mono); color: var(--ink-2);
+}
+
+.mny-trail-step { display: inline-flex; align-items: center; gap: 6px; }
+.mny-trail-name { padding: 4px 7px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line-2); }
+.mny-trail-arrow { color: var(--ink-3); }
+
+/* 05 · Detail, as one ruled list on a plate. */
+.adm-detail-sub {
+  display: block; margin-top: 2px;
+  font: 400 12px/1.35 var(--font-sans); color: var(--ink-3);
+}
+
+.adm-money .adm-money-details .adm-well-body { gap: 0; }
+.adm-money-details .adm-detail { border-top: 0; border-bottom: 1px solid var(--line-1); }
+.adm-money-details .adm-detail:last-child { border-bottom: 0; }
+
+.adm-money-details .adm-detail-trigger {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  min-height: 46px; padding: 6px 4px; border-radius: 4px;
+  font: 600 13px/1.3 var(--font-sans); color: var(--ink-1);
+}
+
+.adm-money-details .adm-detail-trigger:hover { background: var(--mny-hov); color: var(--ink-0); }
+.adm-money-details .adm-detail-trigger:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.adm-money-details .adm-detail-caret { font-size: 12px; text-align: center; }
+.adm-money-details .adm-detail-count { margin-left: 0; font: 500 11px/1.3 var(--font-mono); text-align: right; }
+.adm-money-details .adm-detail-body { padding: 6px 0 16px; }
+
+@media (max-width: 1180px) {
+  .mny-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mny-tile:nth-child(4) { border-left: 0; padding-left: 2px; }
+  .mny-tile:nth-child(n+4) { padding-top: 12px; border-top: 1px solid var(--adm-plot-line-major); }
+}
+
+@media (max-width: 640px) {
+  .mny-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .mny-tile:nth-child(n) {
+    min-height: 0; padding: 12px 10px 10px;
+    border-left: 0; border-top: 1px solid var(--adm-plot-line-major);
+  }
+
+  .mny-tile:nth-child(odd) { padding-left: 2px; }
+  .mny-tile:nth-child(-n+2) { border-top: 0; }
+  .mny-t-val { font-size: 28px; }
+  /* Half a phone is too narrow for a figure and its total side by side: the
+     total goes under the figure rather than into the next tile. */
+  .mny-t-row { flex-wrap: wrap; gap: 4px 8px; }
+  .mny-t-total { white-space: normal; text-align: left; }
+  .mny-life .mny-scope { margin-left: 0; }
 }

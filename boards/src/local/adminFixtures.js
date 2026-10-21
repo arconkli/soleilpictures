@@ -1304,6 +1304,141 @@ function weeksParam() {
   } catch { return null; }
 }
 
+// ── Analytics › Money (0492, 0493) ──────────────────────────────────
+// Invented, like everything here, in the two states the rest of the harness
+// has: the populated product, and ?mrr=0's, one trial running and nobody
+// paying yet. The path is nested in both, so no step is larger than the one
+// before it.
+const agoISO = (days, hour = 9) => {
+  const d = new Date(TODAY.getTime() - days * 86_400_000);
+  d.setUTCHours(hour, 12, 0, 0);
+  return d.toISOString();
+};
+const aheadISO = (days) => new Date(TODAY.getTime() + days * 86_400_000).toISOString();
+
+function moneyPathFixture(zero) {
+  const steps = zero
+    ? { saw: 214, pressed: 3, pressed_trial: 3, checkout: 3, finished: 2, started: 1, started_trial: 1, paid: 0,
+      first_pressed: agoISO(8), first_finished: agoISO(6), first_paid: null,
+      trial_running: 1, trial_cancelling: 0, trial_ends: aheadISO(9.4), trial_ended_unpaid: 0, checkout_error_people: 0 }
+    : { saw: 1240, pressed: 262, pressed_trial: 230, checkout: 236, finished: 171, started: 166, started_trial: 160, paid: 138,
+      first_pressed: agoISO(140), first_finished: agoISO(139), first_paid: agoISO(125),
+      trial_running: 4, trial_cancelling: 1, trial_ends: aheadISO(3.2), trial_ended_unpaid: 18, checkout_error_people: 9 };
+  return {
+    since: agoISO(150, 18),
+    steps,
+    routes: zero
+      ? { wall: { people: 31, pressed: 3 }, button: { people: 88, pressed: 0 }, elsewhere: { people: 108, pressed: 0 }, both: 13 }
+      : { wall: { people: 310, pressed: 141 }, button: { people: 520, pressed: 96 }, elsewhere: { people: 520, pressed: 25 }, both: 110 },
+    offer: {
+      since: agoISO(118),
+      times: zero ? 344 : 2930,
+      people: zero ? 101 : 880,
+      outcomes: zero
+        ? { dismiss: { times: 318, people: 92 }, hidden: { times: 12, people: 10 }, invite_alt: { times: 11, people: 9 }, cta: { times: 3, people: 3 } }
+        : { dismiss: { times: 2440, people: 760 }, hidden: { times: 120, people: 104 }, invite_alt: { times: 96, people: 81 }, cta: { times: 274, people: 262 } },
+      dismiss_methods: zero
+        ? { x: 214, backdrop: 52, maybe_later: 33, nav: 12, esc: 7 }
+        : { x: 1560, backdrop: 430, maybe_later: 300, nav: 98, esc: 52 },
+      trial_on_button: zero
+        ? { since: agoISO(35), times: 52, people: 29, pressed: 3, pressed_first: agoISO(8), pressed_last: agoISO(6) }
+        : { since: agoISO(35), times: 980, people: 410, pressed: 230, pressed_first: agoISO(34), pressed_last: agoISO(0.2) },
+      reasons: {
+        since: agoISO(14),
+        shown: zero ? 16 : 140,
+        answered: zero ? 6 : 61,
+        choices: zero
+          ? [{ choice: 'price', label: 'The price', n: 3 }, { choice: 'enough_room', label: 'The free plan is enough for me', n: 2 },
+            { choice: 'just_trying', label: 'I am just trying it out', n: 1 }]
+          : [{ choice: 'enough_room', label: 'The free plan is enough for me', n: 22 }, { choice: 'price', label: 'The price', n: 17 },
+            { choice: 'unsure_value', label: 'Not sure it is worth it yet', n: 11 }, { choice: 'no_card', label: 'I do not want to add a card', n: 7 },
+            { choice: 'other', label: 'Something else', n: 4 }],
+      },
+    },
+  };
+}
+
+const capHit = (email, o) => ({
+  user_id: `cap-${email}`, email, joined_at: agoISO(o.joined), first_hit: agoISO(o.hit, 14), cap: o.cap ?? 50, cards: o.cards,
+  tier: o.tier || 'demo', sub_status: o.sub ?? null, closed_offer: o.closed ?? 1, pressed: !!o.pressed, checkout: !!o.co,
+  why: o.why ?? null, why_label: o.why === 'enough_room' ? 'The free plan is enough for me' : o.why === 'price' ? 'The price' : null,
+  deleted_after: o.del ?? 0, refused_most: o.refused ?? 1, days_back: o.back ?? 0, last_seen: dayISO(o.last ?? o.hit),
+});
+
+function moneyPeopleFixture(zero) {
+  const trial = (email, o) => ({
+    user_id: `trial-${email}`, email, plan: o.plan || 'monthly', amount_cents: o.amount ?? 2500, cancelling: !!o.cancelling,
+    ends_at: aheadISO(o.left), started_at: aheadISO(o.left - 14), reminder_at: o.reminded ? agoISO(o.reminded) : null,
+    cards: o.cards, cap: o.cap ?? 75, days_back: o.back, last_seen: dayISO(o.last ?? 0),
+    hit_cap_at: o.hit == null ? null : aheadISO(o.left - 14 - o.hit), pressed_at: aheadISO(o.left - 14 - 0.002), checkout_at: aheadISO(o.left - 14 - 0.001),
+  });
+  const trials = zero
+    ? [trial('kit@paperlane.co', { left: 9.4, cards: 212, cap: 100, back: 3, hit: 0.03 })]
+    : [
+      trial('juno@thirdfloor.tv', { left: 3.2, cards: 140, back: 9, hit: 0.2, reminded: 0.5 }),
+      trial('sim@atlas.tv', { left: 6.8, cards: 96, back: 4, cancelling: true, hit: 1 }),
+      trial('rowan@fieldwork.studio', { left: 10.1, cards: 61, cap: 50, back: 2, plan: 'annual', amount: 2000 }),
+      trial('ash@northlight.io', { left: 12.9, cards: 75, back: 1, hit: 0.01 }),
+    ];
+  const hits = [
+    capHit('ines@moodhaus.com', { joined: 1.6, hit: 0.9, cards: 0, refused: 64, back: 0 }),
+    capHit('kit@paperlane.co', { joined: 5.2, hit: 4.6, cards: 212, cap: 100, tier: 'paid', sub: 'trialing', closed: 0, pressed: true, co: true, del: 31, back: 3, last: 0 }),
+    capHit('omar@lumenworks.io', { joined: 6.1, hit: 5.8, cards: 44, closed: 2, del: 6, back: 0 }),
+    capHit('lena@spoolroom.de', { joined: 8.4, hit: 8.1, cards: 9, pressed: true, co: true, del: 41, back: 0 }),
+    capHit('pat@offgrid.film', { joined: 9.0, hit: 8.7, cards: 50, back: 2, last: 1 }),
+    capHit('mira@northfold.co', { joined: 20.3, hit: 12.2, cards: 50, why: 'enough_room', closed: 3, del: 5, back: 4, last: 3 }),
+    capHit('theo@castplan.net', { joined: 15.2, hit: 15.0, cards: 31, refused: 9, del: 19, back: 0 }),
+    capHit('ada@reeltime.io', { joined: 24.6, hit: 21.4, cards: 45, closed: 4, del: 8, back: 0 }),
+    capHit('noor@greyline.studio', { joined: 34.0, hit: 27.5, cards: 70, cap: 75, tier: 'paid', closed: 3, del: 1, back: 7, last: 12 }),
+    capHit('ben@quietcut.tv', { joined: 33.1, hit: 33.0, cards: 0, refused: 38, back: 0 }),
+    capHit('ivy@foldout.co', { joined: 41.8, hit: 41.2, cards: 50, closed: 2, back: 1, last: 39 }),
+    capHit('cal@framehaus.com', { joined: 60.5, hit: 48.0, cards: 100, cap: 100, closed: 7, back: 4, last: 27 }),
+    capHit('rue@stillpoint.io', { joined: 52.3, hit: 52.1, cards: 50, why: 'price', closed: 5, back: 0 }),
+    capHit('dex@lightbox.film', { joined: 70.2, hit: 63.4, cards: 3, cap: 100, closed: 25, back: 0 }),
+  ];
+  return {
+    near_cap: zero ? { people: 34, active_7d: 9 } : { people: 212, active_7d: 61 },
+    paid_plan: zero ? 5 : 147,
+    paying: zero ? 0 : 136,
+    past_due: zero ? 0 : 2,
+    comped: zero ? 4 : 5,
+    paid_ever: zero ? 0 : 154,
+    trials,
+    cap_hits: { since: agoISO(84), rows: hits },
+  };
+}
+
+function trialFunnelFixture(zero) {
+  const rows = zero ? [146, 3, 1, 1, 0, 0] : [410, 260, 166, 4, 138, 18];
+  const STAGES = [
+    ['Eligible for the trial today', 'Demo, never trialed, and holding a real body of work'],
+    ['Asked for it', 'Clicked the trial button'],
+    ['Started one', 'A subscription actually reached trialing'],
+    ['On trial right now', 'Paid access, no money yet, never counted as revenue'],
+    ['Converted to paying', 'Trialed, then a first charge cleared — counted once, forever'],
+    ['Ended without paying', 'Trial is over and no first charge ever cleared'],
+  ];
+  return STAGES.map(([stage, note], i) => ({ stage, sort_order: i + 1, people: rows[i], note }));
+}
+
+function conversionFunnelFixture(zero) {
+  // surface, exposures, people, dwell ms, read a feature, compared plans, pressed, checkouts, trials
+  const rows = zero
+    ? [['Cap wall', 188, 27, 2300, 12, 2, 3, 3, 1], ['Near-cap toast', 3, 2, 5100, 0, 1, 0, 0, 0],
+      ['Upgrade pill', 71, 48, 5600, 16, 5, 0, 0, 0], ['First-value banner', 19, 19, 5400, 4, 3, 0, 0, 0],
+      ['File/size gate', 16, 9, 2400, 2, 0, 0, 0, 0], ['Settings', 27, 21, 9100, 12, 6, 0, 0, 0],
+      ['Pricing page (signed in)', 5, 4, 7200, 1, 0, 0, 0, 0], ['Public pricing page', 119, 0, 6800, 15, 10, 0, 0, 0]]
+    : [['Cap wall', 1460, 290, 2600, 380, 120, 141, 128, 86], ['Near-cap toast', 210, 160, 4800, 40, 22, 18, 16, 12],
+      ['Upgrade pill', 640, 410, 6100, 210, 96, 64, 58, 41], ['First-value banner', 180, 176, 5200, 52, 31, 12, 11, 8],
+      ['File/size gate', 120, 84, 2300, 18, 6, 9, 8, 5], ['Settings', 230, 190, 9800, 120, 64, 14, 13, 8],
+      ['Pricing page (signed in)', 48, 40, 7400, 11, 9, 4, 2, 0], ['Public pricing page', 1350, 0, 7100, 210, 180, 0, 0, 0]];
+  return rows.map(([surface, exposures, people, ms, read, cmp, cta, co, trials], i) => ({
+    surface, sort_order: i + 1, exposures, people, evaluated: read + cmp, read_feature: read, toggled_plan: cmp,
+    cta, intents: cta, checkouts: co, checkout_errors: 0, config_errors: 0, trials, paid: zero ? 0 : Math.round(trials * 0.8),
+    median_dwell_ms: ms,
+  }));
+}
+
 // ── mock supabase shim ──────────────────────────────────────────────
 // A few RPCs return different things for different arguments, and the
 // difference is the reason the panel exists — so the shim has to honour it or
@@ -1338,6 +1473,15 @@ function rpcResult(name, params) {
     return rows.slice(Math.max(0, rows.length - want)).map((r) => ({ ...r, mrr_cents: 0, paid_users: 0 }));
   }
   if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
+  if (name === 'admin_money_path') return moneyPathFixture(zeroRevenue());
+  if (name === 'admin_money_people') return moneyPeopleFixture(zeroRevenue());
+  if (name === 'admin_trial_funnel') return trialFunnelFixture(zeroRevenue());
+  if (name === 'admin_conversion_funnel') return conversionFunnelFixture(zeroRevenue());
+  // Two checkouts finished and one became the trial, so the reliability read
+  // says the same thing as the path beside it.
+  if (name === 'admin_checkout_reliability' && zeroRevenue()) {
+    return { success_views: 2, activated: 1, stalled: 0, verify_retry: 1, missing_session: 0, verify_failed: 0, support_clicks: 0 };
+  }
   if (name === 'admin_recent_signups') {
     const want = Math.max(1, Math.trunc(Number(params?.p_limit) || 20));
     return RPCS.admin_recent_signups.slice(0, want).map((r) => ({ ...r }));

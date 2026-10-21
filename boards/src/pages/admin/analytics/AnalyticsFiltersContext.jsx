@@ -1,5 +1,5 @@
 // AnalyticsFiltersContext — shared state for the merged Analytics tab's five
-// sub-tabs (Overview / Acquisition / Engagement / Revenue / System).
+// sub-tabs (Overview / Funnel / Retention / Money / System).
 //
 // The five views mount lazily and remount by key on switch, so prop-drilling
 // the time range / funnel segment filters / internal-traffic toggle into them
@@ -44,6 +44,9 @@ export const POLL_MS = {
   overview: 300_000,
   funnel: 120_000,
   retention: 120_000,
+  // Money's reads scan every price event since the first one, and what they
+  // count moves a few times a day.
+  money: 300_000,
   system: 180_000,
   shell: 60_000,
 };
@@ -61,20 +64,22 @@ export function useAnalyticsFilters() {
 // toolbar remounting on every sub-tab switch.
 //
 // `status` is what the view knows about its own calendar, for the status strip:
-// { weeks, partialDays } (complete weeks read, and days of this UTC week so far).
-// The effect is keyed on those two numbers, never on the object. A caller that
+// { weeks, partialDays } (complete weeks read, and days of this UTC week so far)
+// on Overview, { since } (the UTC day its window starts) on Money.
+// The effect is keyed on those values, never on the object. A caller that
 // builds the object inline hands over a new one every render, and registering it
 // re-renders the provider, which re-renders the caller, without end.
 export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, status }) {
   const { registerRuntime } = useAnalyticsFilters();
   const weeks = status?.weeks ?? null;
   const partialDays = status?.partialDays ?? null;
+  const since = status?.since ?? null;
   useEffect(() => {
     registerRuntime({
       refresh, lastUpdated, refreshing,
-      status: weeks == null && partialDays == null ? null : { weeks, partialDays },
+      status: weeks == null && partialDays == null && since == null ? null : { weeks, partialDays, since },
     });
-  }, [registerRuntime, refresh, lastUpdated, refreshing, weeks, partialDays]);
+  }, [registerRuntime, refresh, lastUpdated, refreshing, weeks, partialDays, since]);
 }
 
 function getParam(name) {

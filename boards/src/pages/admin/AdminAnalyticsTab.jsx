@@ -1,5 +1,5 @@
-// AdminAnalyticsTab — the merged Analytics tab. Hosts four question-shaped
-// sub-tabs (Overview / Funnel / Retention / System) using the same
+// AdminAnalyticsTab — the merged Analytics tab. Hosts five question-shaped
+// sub-tabs (Overview / Funnel / Retention / Money / System) using the same
 // pattern as AdminUniverseTab (localStorage + ?view= + key-prop remount),
 // generalized to five views with arrow-key nav. The shell owns the shared,
 // persistent toolbar (time range + funnel segment filters + internal-traffic
@@ -18,18 +18,22 @@ import { SegmentSelect } from './analytics/widgets/SegmentSelect.jsx';
 import { OverviewView } from './analytics/views/OverviewView.jsx';
 import { FunnelView } from './analytics/views/FunnelView.jsx';
 import { RetentionView } from './analytics/views/RetentionView.jsx';
+import { MoneyView } from './analytics/views/MoneyView.jsx';
 import { SystemView } from './analytics/views/SystemView.jsx';
+import { md } from '../../lib/moneyView.js';
 
-// Four views, each answering one question, down from five that overlapped.
+// Five views, each answering one question.
 //
-// Money has no view of its own while zero subscriptions have ever existed: a
-// whole screen of structural zeros reads as a measurement rather than as an
-// absence. The pricing path lives inside Funnel, where it is one branch of a
-// real flow. Bring the view back when admin_stats.sub_counts is non-empty.
+// Money came back on 2026-10-20. It had no view while no subscription had ever
+// existed, because a screen of structural zeros reads as a measurement rather
+// than as an absence. The page it came back as is about people first: who sees
+// a price, where they stop, and who hits the cap, which are real counts whatever
+// the revenue is, and its money figures say plainly when they are zero.
 const VIEWS = [
   { id: 'overview',  label: 'Overview' },
   { id: 'funnel',    label: 'Funnel' },
   { id: 'retention', label: 'Retention' },
+  { id: 'money',     label: 'Money' },
   { id: 'system',    label: 'System' },
 ];
 const VIEW_IDS = VIEWS.map((v) => v.id);
@@ -39,12 +43,13 @@ const SUBTAB_KEY = 'admin.analytics.view';
 // than silently resetting to the default: 'today' is what Overview was called
 // until 2026-10-20, and the rest are from when the views were Overview /
 // Acquisition / Engagement / Revenue / System. 'overview' itself went
-// overview → today → overview, and is a real id again.
+// overview → today → overview, and is a real id again. Revenue's link went to
+// Funnel while there was no money view, and goes to Money now.
 const VIEW_ALIASES = {
   today: 'overview',
   acquisition: 'funnel',
   engagement: 'retention',
-  revenue: 'funnel',
+  revenue: 'money',
 };
 
 function resolveView(id) {
@@ -114,9 +119,12 @@ function DeckStatus({ view }) {
   const f = useAnalyticsFilters();
   const cadence = POLL_MS[view] ?? POLL_MS.shell;
   const overview = view === 'overview';
+  const money = view === 'money';
   // What Overview registered about its own calendar. Read on Overview only: for the
   // render after a switch the previous view's runtime is still the registered one.
   const st = overview ? f.runtime.status : null;
+  // Money reads from the first price ever shown, whatever the range control says.
+  const since = money ? f.runtime.status?.since : null;
   // The weeks are claimed only once the weekly read has come back. While it loads,
   // and when it failed, WINDOW is the seven days alone and there is no WEEKS item.
   const weekly = st?.weeks != null;
@@ -128,13 +136,19 @@ function DeckStatus({ view }) {
     ['MODE', view.toUpperCase()],
     // Overview is a fixed seven-day window by definition, plus the complete UTC
     // weeks its trends read and how far into this one we are; the others
-    // follow the range control, which is why the range control is hidden on Overview.
-    ['WINDOW', overview ? `7d${weeksRead}` : `${f.days}d`],
+    // follow the range control, which is why the range control is hidden on
+    // Overview, and on Money, which counts from the first price shown.
+    ['WINDOW', overview ? `7d${weeksRead}`
+      : money ? (since ? `since ${md(since)} · first price shown` : 'since the first price shown')
+        : `${f.days}d`],
     ['POP', f.verifiedOnly ? 'entered the code' : 'all accounts'],
     ['INTERNAL', f.excludeInternal ? 'excluded' : 'counted'],
     ['SYNC', `${Math.round(cadence / 1000)}s`],
   ];
   if (weekly) items.push(['WEEKS', `${st.weeks} complete`]);
+  // Revenue is what Stripe charges every account, the team's included; the
+  // toggles above move only the counts of people.
+  if (money) items.push(['MONEY', 'from Stripe, all accounts']);
 
   return (
     <div className="adm-status" role="note" aria-label="Current measurement conditions">
@@ -152,9 +166,10 @@ function AnalyticsToolbar({ view }) {
   const f = useAnalyticsFilters();
   // Segment dropdowns only mean something where a funnel is on screen.
   const showSegments = view === 'funnel';
-  // Overview is a fixed seven-day window by definition — its own heading says so.
-  // A range selector that silently does nothing is worse than no selector.
-  const showRange = view !== 'overview';
+  // Overview is a fixed seven-day window by definition — its own heading says so —
+  // and Money counts from the first price shown. A range selector that silently
+  // does nothing is worse than no selector.
+  const showRange = view !== 'overview' && view !== 'money';
   const opts = (dim) => f.segments.filter((s) => s.dim === dim);
   const onRefresh = () => { f.runtime.refresh?.(); f.refreshShell?.(); };
   return (
@@ -235,6 +250,7 @@ export function AdminAnalyticsTab() {
         {view === 'overview'  && <OverviewView  key="overview" />}
         {view === 'funnel'    && <FunnelView    key="funnel" />}
         {view === 'retention' && <RetentionView key="retention" />}
+        {view === 'money'     && <MoneyView     key="money" />}
         {view === 'system'    && <SystemView    key="system" />}
       </div>
     </AnalyticsFiltersProvider>

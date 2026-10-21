@@ -172,23 +172,31 @@ test.describe('admin Overview people (ADMIN-6)', () => {
   });
 });
 
-test.describe('admin Funnel money detail (ADMIN-7)', () => {
+// The money detail moved from Funnel to Analytics › Money on 2026-10-20; the
+// rule it pinned moved with it.
+test.describe('admin Money tiles (ADMIN-7)', () => {
   test('comped paid-tier accounts are not called paying', async ({ page }) => {
-    await openAdmin(page, { view: 'funnel' });
-    await expect(page.locator('.admin-hero-funnel').first()).toBeVisible({ timeout: 15000 });
+    await openAdmin(page, { view: 'money' });
+    const tile = (key) => page.locator(`.mny-tile[data-tile="${key}"]`);
+    await expect(tile('paying')).toBeVisible({ timeout: 20000 });
     await patchRpc(page, {
       admin_stats: { error: null, data: {
         tier_counts: { admin: 1, paid: 3, demo: 40 }, sub_counts: {}, comped_paid: 3, subscribed_paid: 0, mrr_cents: 0,
       } },
+      admin_money_people: { error: null, data: {
+        near_cap: { people: 2, active_7d: 1 }, paid_plan: 3, paying: 0, past_due: 0, comped: 3, paid_ever: 0,
+        trials: [], cap_hits: { since: null, rows: [] },
+      } },
     });
     await page.getByRole('button', { name: 'Refresh' }).first().click();
-    await expect.poll(() => page.evaluate(() => window.__patchedRpc.some(([n]) => n === 'admin_stats'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.__patchedRpc.some(([n]) => n === 'admin_money_people'))).toBe(true);
 
-    await page.getByRole('button', { name: /Checkout, upsell/ }).click();
-    const line = page.locator('.adm-detail-body .admin-section-sub').first();
-    await expect(line).toContainText('No subscription has ever existed');
-    await expect(line).toContainText('3 comped accounts are on the paid tier without paying.');
-    await expect(line).not.toContainText('paying account');
+    await expect(tile('paying').locator('.mny-t-val')).toHaveText('0');
+    await expect(tile('paying')).toContainText('Nobody has been charged yet.');
+    await expect(tile('comped').locator('.mny-t-val')).toHaveText('3');
+    await expect(tile('comped')).toContainText('3 on paid plans');
+    await expect(tile('mrr')).toContainText('No paying subscription yet.');
+    await expect(page.locator('.adm-money')).not.toContainText('paying account');
   });
 });
 

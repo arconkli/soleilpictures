@@ -6,15 +6,14 @@
 // rendered SignupFunnelPanel, from the same RPC, four hundred pixels apart in
 // the navigation.
 //
-// Revenue does not get its own view while zero subscriptions have ever existed
-// (AdminCommandCenter's header says it plainly: a structurally empty series
-// reads as a measurement rather than an absence). The pricing branch is one
-// fork of the funnel here, which is what it actually is.
+// The pricing branch is still one fork of the funnel here, which is what it
+// is. What people do once they see a price (the offer, checkout, the trials,
+// the cap, the biggest accounts) moved to Money on 2026-10-20.
 //
 // The hero is the funnel and the biggest leak. Channel mix sits under it.
-// Everything else — device, geography, the FB/IG path, referrals, checkout
-// signals, upsell behaviour — is real but not what you open this view to see,
-// so it lives behind Detail and does not fetch until opened.
+// Everything else — device, geography, the FB/IG path, referrals — is real but
+// not what you open this view to see, so it lives behind Detail and does not
+// fetch until opened.
 
 import { supabase } from '../../../../lib/supabase.js';
 import { useAdminData } from '../../useAdminData.js';
@@ -31,12 +30,6 @@ import { AdminReferralsSection } from '../widgets/AdminReferralsSection.jsx';
 import { AdminMultiplayerSection } from '../widgets/AdminMultiplayerSection.jsx';
 import { GeoBreakdown } from '../widgets/GeoBreakdown.jsx';
 import { DeviceBreakdown } from '../widgets/DeviceBreakdown.jsx';
-import { UpsellBehaviorPanel } from '../widgets/UpsellBehaviorPanel.jsx';
-import { PaidReachTable } from '../widgets/PaidReachTable.jsx';
-import { ConversionFunnel } from '../widgets/ConversionFunnel.jsx';
-import { TrialFunnel } from '../widgets/TrialFunnel.jsx';
-import { AdminEventBreakdown } from '../../AdminEventBreakdown.jsx';
-import { AdminTopUsersList } from '../../AdminTopUsersList.jsx';
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
 
@@ -172,6 +165,7 @@ export function FunnelView() {
         <h2 className="admin-section-title">Detail</h2>
         <div className="admin-section-sub">
           Real, but not what this view is for. Each section fetches only once opened.
+          Checkout, the upsell and the biggest accounts are on Money.
         </div>
         <DetailSections days={f.days} f={f} />
       </div>
@@ -194,9 +188,6 @@ function DetailSections({ days, f }) {
       </Detail>
       <Detail id="funnel.who" label="Device and geography">
         <LazyAudience days={days} f={f} />
-      </Detail>
-      <Detail id="funnel.money" label="Checkout, upsell and the biggest accounts">
-        <LazyMoney days={days} f={f} />
       </Detail>
     </>
   );
@@ -243,78 +234,6 @@ function LazyAudience({ days, f }) {
     <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <DeviceBreakdown data={q.data?.device} days={days} />
       <GeoBreakdown data={q.data?.geo} days={days} />
-    </AdminAsync>
-  );
-}
-
-function LazyMoney({ days, f }) {
-  const q = useAdminData(async () => {
-    const [cr, eb, td, tp, us, ux, pr, cf, tf] = await Promise.allSettled([
-      supabase.rpc('admin_checkout_reliability', { p_days: days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_event_breakdown', { p_days: days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_top_users', { p_tier: 'demo', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_top_users', { p_tier: 'paid', p_limit: 20, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_upsell_scorecard', { p_days: days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_upsell_exposures', { p_days: days, p_limit: 40, p_exclude_internal: f.excludeInternal }),
-      // A cohort, not a window: everyone who signed up since the waitlist came
-      // off, so the read is "has this person EVER seen a price".
-      supabase.rpc('admin_paid_reach', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      // Both of these read the CLEAN epoch only. The price-first ad screen, the
-      // waitlist routing and the pre-launch billing tests are archived out of
-      // analytics_events by 0326, so nothing below counts a price nobody chose
-      // to look at.
-      supabase.rpc('admin_conversion_funnel', { p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_trial_funnel', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-    ]);
-    const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
-    return {
-      reliability: val(cr), eventBreakdown: val(eb) || [],
-      topDemo: val(td) || [], topPaid: val(tp) || [],
-      upsell: val(us), upsellExposures: val(ux) || [],
-      reach: val(pr) || [], conversion: val(cf) || [], trial: val(tf) || [],
-    };
-  }, [days, f.excludeInternal, f.verifiedOnly]);
-
-  // ACTIVE SUBSCRIPTIONS, as Overview's MRR tile counts them. tier_counts.paid also
-  // holds comped accounts, so reading it counted comps as payers. Comped
-  // accounts are named as what they are.
-  const paying = num(f.stats?.sub_counts?.active);
-  const anySubs = Object.values(f.stats?.sub_counts || {}).some((n) => num(n) > 0);
-  const comped = num(f.stats?.comped_paid);
-  const compedNote = comped > 0 ? ` ${formatCount(comped)} comped account${comped === 1 ? ' is' : 's are'} on the paid tier without paying.` : '';
-  // A trial is a subscription with no money in it yet: named, never counted.
-  const trialing = num(f.stats?.sub_counts?.trialing);
-  const trialNote = trialing > 0 ? ` ${formatCount(trialing)} subscription${trialing === 1 ? ' is a trial' : 's are trials'}, never counted as revenue.` : '';
-
-  return (
-    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
-      {/* Said once, plainly, instead of drawn as three zero-valued tiles. */}
-      <p className="admin-section-sub">
-        {paying > 0
-          ? `${formatCount(paying)} paying account${paying === 1 ? '' : 's'} (active subscriptions).${trialNote}${compedNote}`
-          : `${anySubs
-            ? 'Nobody is paying right now.'
-            : 'No subscription has ever existed, so every rate below has a zero numerator by absence rather than by measurement.'}${trialNote}${compedNote}`}
-      </p>
-      {/* The "Pricing path" funnel that used to sit here rendered the SAME
-          `steps` array as the funnel at the top of this view, filtered to the
-          branch that funnel already draws. Two charts, one dataset, one of them
-          redundant. */}
-      {/* The money funnel, per surface, on the clean epoch. First, because it
-          is the question this whole view exists to answer. */}
-      <h3 className="admin-panel-title" style={{ marginTop: 18 }}>Does the offer convert</h3>
-      <ConversionFunnel rows={q.data?.conversion || []} />
-
-      <h3 className="admin-panel-title" style={{ marginTop: 18 }}>The Creator trial</h3>
-      <TrialFunnel rows={q.data?.trial || []} />
-
-      {/* Who has been shown a price, by what they built. The panel the
-          price-visibility change is graded on — see PaidReachTable. */}
-      <h3 className="admin-panel-title" style={{ marginTop: 18 }}>Who has seen the price</h3>
-      <PaidReachTable rows={q.data?.reach || []} />
-      <UpsellBehaviorPanel scorecard={q.data?.upsell} exposures={q.data?.upsellExposures || []} days={days} />
-      <AdminEventBreakdown rows={q.data?.eventBreakdown || []} reliability={q.data?.reliability} days={days} />
-      <AdminTopUsersList topDemo={q.data?.topDemo || []} topPaid={q.data?.topPaid || []} />
     </AdminAsync>
   );
 }

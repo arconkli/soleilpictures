@@ -230,14 +230,28 @@ test('every referral and invite figure leaves out what a banned account did, and
   assert.match(body, /from agg a, inv i, links l, seats s, left_out lo;/);
 });
 
-test('the Funnel passes the toggle to all three, and the referral panel names what it left out', () => {
-  const view = readSrc('../pages/admin/analytics/views/FunnelView.jsx');
+test('the views pass the toggle to all three, and the referral panel names what it left out', () => {
+  // The referral read is on Funnel. The paid reach and the trial funnel moved to
+  // Money on 2026-10-20, with the rest of who sees a price.
+  const funnel = readSrc('../pages/admin/analytics/views/FunnelView.jsx');
+  const money = readSrc('../pages/admin/analytics/views/MoneyView.jsx');
+  const VIEW_OF = { admin_referral_stats: funnel, admin_paid_reach: money, admin_trial_funnel: money };
+  const BOTH = 'p_exclude_internal: f\\.excludeInternal, p_verified_only: f\\.verifiedOnly';
+  // Money's first three reads share one argument object.
+  const sharedArgs = new RegExp(`const args = \\{ ${BOTH} \\};`).test(money);
   for (const fn of Object.keys(FNS)) {
-    assert.match(view, new RegExp(`supabase\\.rpc\\('${fn}', \\{[^}]*p_exclude_internal: f\\.excludeInternal, p_verified_only: f\\.verifiedOnly \\}\\)`),
-      `${fn} follows the deck's code-entry toggle`);
+    const view = VIEW_OF[fn];
+    assert.ok(view, `${fn} is read by a view this test knows`);
+    const literal = new RegExp(`supabase\\.rpc\\('${fn}', \\{[^}]*${BOTH} \\}\\)`).test(view);
+    const viaArgs = sharedArgs && view === money && new RegExp(`supabase\\.rpc\\('${fn}', args\\)`).test(view);
+    assert.ok(literal || viaArgs, `${fn} follows the deck's code-entry toggle`);
   }
-  assert.match(view, /referrals: val\(rf\), multiplayer: val\(mp\) \};\s+\}, \[days, f\.excludeInternal, f\.verifiedOnly\]\);/,
+  assert.match(funnel, /referrals: val\(rf\), multiplayer: val\(mp\) \};\s+\}, \[days, f\.excludeInternal, f\.verifiedOnly\]\);/,
     'and the referral read refetches when it flips');
+  assert.match(money, /\}, \[f\.excludeInternal, f\.verifiedOnly\], \{ pollIntervalMs: POLL_MS\.money/,
+    'and the trial funnel refetches when either flips');
+  assert.match(money, /p_verified_only: f\.verifiedOnly \}\);\s+if \(r\.error\) throw r\.error;\s+return r\.data \|\| \[\];\s+\}, \[f\.excludeInternal, f\.verifiedOnly\]\);/,
+    'and so does the paid reach');
 
   const panel = readSrc('../pages/admin/analytics/widgets/AdminReferralsSection.jsx');
   assert.match(panel, /bannedNote\(d\?\.banned_left_out\)/);

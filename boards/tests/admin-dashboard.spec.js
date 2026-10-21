@@ -173,7 +173,7 @@ test.describe('admin dashboard charts', () => {
     // Checked on every view, because the marks are no longer all in one place —
     // and the panels are wells now, so waiting on `.admin-chart-panel` waits
     // for something Retention no longer contains.
-    for (const view of ['overview', 'retention', 'funnel', 'system']) {
+    for (const view of ['overview', 'retention', 'funnel', 'money', 'system']) {
       await openAdmin(page, { view, theme: 'dark' });
       await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
@@ -193,6 +193,10 @@ test.describe('admin dashboard charts', () => {
           // and glyphs, the hatch, and what pointing at a week draws.
           '.adm-gb-bar', '.adm-gb-line', '.adm-gb-area', '.adm-gb-dot', '.adm-gb-mk',
           '.adm-gb-glyph', '.adm-gb-hatch', '.adm-gb-cross', '.adm-gb-hdot',
+          // Money: the path's bars and ribs, every bar row and track, the
+          // trial's progress, and the dots on what happened next.
+          '.mny-bar', '.mny-rib', '.mny-fill', '.mny-tk i', '.mny-trk i',
+          '.mny-tr-track i', '.mny-tag i',
         ].join(', '));
         // A mark is not only its fill. A glyph is painted in `color`, a marker
         // rule is its dashed left border, and the hollow point for the week so
@@ -651,7 +655,7 @@ test.describe('admin dashboard charts', () => {
     //
     // So the rule is not "no paper", it is "no SECOND grid": a well that
     // contains something which rules itself must not also rule itself.
-    for (const view of ['overview', 'retention', 'funnel', 'system']) {
+    for (const view of ['overview', 'retention', 'funnel', 'money', 'system']) {
       await openAdmin(page, { view, theme: 'dark' });
       await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 

@@ -180,13 +180,14 @@ test.describe('Analytics › Overview', () => {
 });
 
 test.describe('Analytics › Funnel', () => {
-  test('the money and referral reads follow the code-entry toggle, and what banned accounts did is named', async ({ page }) => {
+  // The money reads moved to Money on 2026-10-20 and are pinned there
+  // (admin-money.spec.js).
+  test('the referral reads follow the code-entry toggle, and what banned accounts did is named', async ({ page }) => {
     await openAdmin(page, { view: 'funnel' });
     const paths = page.getByRole('button', { name: /Other paths into the product/ });
     await expect(paths).toBeVisible({ timeout: 20000 });
-    await recordRpc(page, ['admin_referral_stats', 'admin_paid_reach', 'admin_trial_funnel']);
+    await recordRpc(page, ['admin_referral_stats']);
     await paths.click();
-    await page.getByRole('button', { name: /Checkout, upsell and the biggest accounts/ }).click();
 
     // 0490 leaves out what a banned account did and the panel says how much,
     // so a figure never drops without a word.
@@ -200,13 +201,9 @@ test.describe('Analytics › Funnel', () => {
     await expect(rate).toContainText('12 of 21 emailed invites');
 
     const sent = () => page.evaluate(() => window.__rpcSeen.map(([n, p]) => `${n}:${p?.p_verified_only}`));
-    await expect.poll(sent).toEqual(expect.arrayContaining([
-      'admin_referral_stats:true', 'admin_paid_reach:true', 'admin_trial_funnel:true',
-    ]));
+    await expect.poll(sent).toEqual(expect.arrayContaining(['admin_referral_stats:true']));
     await page.getByRole('switch', { name: 'Entered the code' }).click();
-    await expect.poll(sent).toEqual(expect.arrayContaining([
-      'admin_referral_stats:false', 'admin_paid_reach:false', 'admin_trial_funnel:false',
-    ]));
+    await expect.poll(sent).toEqual(expect.arrayContaining(['admin_referral_stats:false']));
   });
 
   test('a shared link\'s campaign is named, never shown as its placeholder, and still filters', async ({ page }) => {
@@ -225,11 +222,12 @@ test.describe('Analytics › Funnel', () => {
       .toContain('admin_signup_funnel::token');
   });
 
-  test('with one trial and nobody paying, the money line names the trial', async ({ page }) => {
-    await openAdmin(page, { view: 'funnel', query: '&mrr=0' });
-    await page.getByRole('button', { name: /Checkout, upsell and the biggest accounts/ }).click();
-    await expect(page.locator('.adm-detail-body .admin-section-sub').first())
-      .toHaveText('Nobody is paying right now. 1 subscription is a trial, never counted as revenue.', { timeout: 20000 });
+  test('what people do once they see a price is on Money now, and Funnel says so', async ({ page }) => {
+    await openAdmin(page, { view: 'funnel' });
+    await expect(page.getByRole('button', { name: /Other paths into the product/ })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('button', { name: /Checkout, upsell/ })).toHaveCount(0);
+    await expect(page.locator('.admin-section-sub', { hasText: 'Each section fetches only once opened.' }))
+      .toContainText('Checkout, the upsell and the biggest accounts are on Money.');
   });
 });
 

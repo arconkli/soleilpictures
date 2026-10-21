@@ -9,8 +9,9 @@ import { TierPill } from './AdminPills.jsx';
 export function AdminTopUsersList({ topDemo, topPaid }) {
   return (
     <div className="admin-charts-row">
-      <TopColumn title="Top 20 Demo by cards" sub="Upgrade-prone — your highest-activity demo users." rows={topDemo} />
-      <TopColumn title="Top 20 Paid by cards" sub="Most engaged — your highest-activity paying customers." rows={topPaid} />
+      <TopColumn title="Top 20 Demo by cards" sub="Upgrade-prone — the most cards on the free plan." rows={topDemo} />
+      {/* The paid TIER, which holds trials and comped accounts as well as payers. */}
+      <TopColumn title="Top 20 Paid by cards" sub="The most cards on the paid tier: trials and comped accounts included." rows={topPaid} />
     </div>
   );
 }
