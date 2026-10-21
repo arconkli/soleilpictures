@@ -366,6 +366,8 @@ body {
   color: var(--ink-0, #eee); cursor: pointer; font-size: 13px;
 }
 .surface-error-btn:hover { background: var(--bg-hov, #222); }
+/* Inside an open doc: fills the doc's body under its header, which stays. */
+.surface-error.is-in-doc { position: static; flex: 1 1 auto; }
 
 /* ─────────────────────────── Type utilities ─────────────────────────────── */
 
@@ -15709,7 +15711,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 
 .doc-card-modal-body { flex: 1 1 auto; min-height: 0; display: flex; }
-.doc-card-modal-body > .doc-surface { flex: 1 1 auto; min-width: 0; }
+/* Through the doc's error boundary (SurfaceErrorBoundary's display:contents root). */
+.doc-card-modal-body > .doc-surface,
+.doc-card-modal-body > .surface-eb-root > .doc-surface { flex: 1 1 auto; min-width: 0; }
 /* Suspense fallback while the lazy DocSurface (TipTap) chunk loads — lives
    inside the already-open modal so the canvas never blanks. */
 .doc-surface-skeleton {

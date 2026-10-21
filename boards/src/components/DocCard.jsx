@@ -18,6 +18,7 @@ import { readDocOpenMode, writeDocOpenMode } from '../lib/docOpenMode.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { SurfaceErrorBoundary } from './SurfaceErrorBoundary.jsx';
 import { Avatar } from './primitives.jsx';
 import { useMessagesUi } from '../hooks/useOpenDm.js';
 import { EditableText } from './EditableText.jsx';
@@ -655,6 +656,11 @@ export function DocCardOverlay({
           </button>
         </div>
         <div className="doc-card-modal-body">
+          {/* A crash stays in here (SurfaceErrorBoundary): the doc puts itself
+              back, its header and the way out stay, and the canvas is left alone. */}
+          <SurfaceErrorBoundary resetKey={card.id} logKind="doc" retryInPlace
+                                message="This doc hit a problem." retryLabel="Reopen"
+                                fallbackClassName="is-in-doc">
           <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
           <DocSurface
             board={{ id: card.id, name: card.title || 'Untitled doc' }}
@@ -677,6 +683,7 @@ export function DocCardOverlay({
             isPublic={isPublic}
           />
           </Suspense>
+          </SurfaceErrorBoundary>
         </div>
       </div>
     </>

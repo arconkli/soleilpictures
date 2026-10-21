@@ -132,6 +132,13 @@ export function DocQaHarness() {
         awarenessProtocol.applyAwarenessUpdate(
           awareness, awarenessProtocol.encodeAwarenessUpdate(peer, [peer.clientID]), 'docqa');
       },
+      // Make the open doc throw as a real render crash would (DocSurface's
+      // DEV-only hook): on its next render, or on every mount while `always`
+      // holds; { stop: true } ends that. For doc-crash.spec.
+      crash: (always = false, { stop = false } = {}) => {
+        window.__soleilDocCrashAlways = !!always && !stop;
+        if (!stop) document.dispatchEvent(new CustomEvent('soleil-docqa-crash'));
+      },
       // Open the live card via the real event path RichDocCard listens for.
       openCard: (pageId = null) =>
         document.dispatchEvent(new CustomEvent('soleil-open-doc-card', {

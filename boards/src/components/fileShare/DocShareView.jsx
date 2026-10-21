@@ -35,6 +35,7 @@ import { r2KeysIn } from '../../lib/docRoomBridge.js';
 import { cardScope } from '../../lib/docState.js';
 import { setKeyResolver, releaseKeyResolver } from '../../lib/r2.js';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
+import { SurfaceErrorBoundary } from '../SurfaceErrorBoundary.jsx';
 import { logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './docShareView.css';
@@ -238,6 +239,9 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
             <span>{phase === 'reasking' ? 'Reconnecting…' : 'Opening the doc…'}</span>
           </div>
         ) : (
+          <SurfaceErrorBoundary resetKey={cardKey} logKind="doc" retryInPlace
+                                message="This doc hit a problem." retryLabel="Reopen"
+                                fallbackClassName="is-in-doc">
           <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
             <DocSurface
               // The doc's card id, as its members' DocPresence uses: presence
@@ -258,6 +262,7 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
               guestMode
               allowExport={!!res.allow_download} />
           </Suspense>
+          </SurfaceErrorBoundary>
         )}
       </div>
     </div>

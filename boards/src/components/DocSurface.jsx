@@ -140,6 +140,21 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // "Allow saving a copy").
                               allowExport = true,
                               onClose }) {
+  // ?docqa=1's crash hook: the harness's crash() makes this doc throw the way
+  // a real render crash would, so doc-crash.spec can drive the boundary
+  // around it. State, not a flag read once, so React's retry of the render
+  // throws too and the error reaches the boundary. The literal
+  // import.meta.env.DEV drops the throw from production builds.
+  const [qaCrash, setQaCrash] = useState(false);
+  useEffect(() => {
+    if (!(import.meta.env.DEV && isDocQaMode())) return undefined;
+    const crash = () => setQaCrash(true);
+    document.addEventListener('soleil-docqa-crash', crash);
+    return () => document.removeEventListener('soleil-docqa-crash', crash);
+  }, []);
+  if (import.meta.env.DEV && isDocQaMode() && (qaCrash || window.__soleilDocCrashAlways)) {
+    throw new Error('docqa: this doc crashed');
+  }
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
 
   // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —

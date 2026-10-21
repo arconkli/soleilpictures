@@ -22,6 +22,13 @@
 // the same instance serves every cluster (App keys it with `resetKey`, the
 // board id), it followed the user to every other cluster until a reload.
 //
+// An open doc has one of its own (DocCard's DocCardOverlay, the shared-doc
+// page), inside the doc's frame, so a crash in the editor puts the doc back
+// rather than closing it and rebuilding the canvas behind it. The props say
+// what it is: `message` for the panel, `retryLabel` for its button, which
+// remounts in place with `retryInPlace` (the page reloads otherwise),
+// `logKind` for the error log, and `fallbackClassName` for the panel.
+//
 // Class component because hooks can't catch errors.
 
 import { Component } from 'react';
@@ -82,7 +89,7 @@ export class SurfaceErrorBoundary extends Component {
 
     console.error('[SurfaceErrorBoundary] caught (canvas kept alive)', error);
     console.error('[SurfaceErrorBoundary] componentStack:', info?.componentStack);
-    logClientError(error, { kind: 'surface', componentStack: info?.componentStack });
+    logClientError(error, { kind: this.props.logKind || 'surface', componentStack: info?.componentStack });
     // Recover in place: bump the remount key so the children mount FRESH on
     // the next render (no stale DOM to trip reconciliation again), unless
     // we've already retried too many times — then hold the fallback so we
@@ -100,9 +107,10 @@ export class SurfaceErrorBoundary extends Component {
     // Stale-deploy chunk failure: a one-shot reload is already in flight (or
     // about to be). Show a neutral, pane-scoped "Updating…" instead of the
     // alarming glitch panel for the brief moment before the page reloads.
+    const panelClass = `surface-error${this.props.fallbackClassName ? ` ${this.props.fallbackClassName}` : ''}`;
     if (this.state.recovering) {
       return (
-        <div className="surface-error" role="status" aria-live="polite">
+        <div className={panelClass} role="status" aria-live="polite">
           <div className="surface-error-text">Updating… a new version is loading.</div>
         </div>
       );
@@ -116,14 +124,19 @@ export class SurfaceErrorBoundary extends Component {
     if (this.state.hasError) {
       // Exhausted auto-remounts — show a quiet, in-place recovery prompt
       // scoped to this pane (Workspace + the other pane stay alive).
+      // Reopen keeps the crash history: one that fails again comes straight
+      // back here instead of spending the remounts.
       return (
-        <div className="surface-error" role="alert">
-          <div className="surface-error-text">This cluster view hit a display glitch.</div>
+        <div className={panelClass} role="alert">
+          <div className="surface-error-text">{this.props.message || 'This cluster view hit a display glitch.'}</div>
           <button
             className="surface-error-btn"
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              if (!this.props.retryInPlace) { window.location.reload(); return; }
+              this.setState((st) => ({ hasError: false, exhausted: false, error: null, remounts: st.remounts + 1 }));
+            }}
           >
-            Reload this view
+            {this.props.retryLabel || 'Reload this view'}
           </button>
         </div>
       );

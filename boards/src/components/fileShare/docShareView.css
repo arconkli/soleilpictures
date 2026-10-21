@@ -36,7 +36,8 @@
   color-scheme: dark;
 }
 [data-theme="light"] .dsv-body { color-scheme: light; }
-.dsv-body > .doc-surface { flex: 1 1 auto; min-height: 0; }
+.dsv-body > .doc-surface,
+.dsv-body > .surface-eb-root > .doc-surface { flex: 1 1 auto; min-height: 0; }
 .dsv-body > .fsp-state { padding-top: 14vh; }
 .dsv-wait {
   margin: auto; display: flex; flex-direction: column; align-items: center; gap: 14px;
