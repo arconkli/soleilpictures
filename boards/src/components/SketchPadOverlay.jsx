@@ -1040,9 +1040,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <span className="sp-sep" />
               <div className="sp-brushes">{brushButtons}</div>
               <span className="sp-sep" />
-              {swatches}
+              <div className="sp-swatches">{swatches}</div>
               <span className="sp-sep" />
-              {widths}
+              <div className="sp-widths">{widths}</div>
               {canPickAspect && (
                 <>
                   <span className="sp-sep" />
