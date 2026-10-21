@@ -226,7 +226,7 @@ import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
-import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, withFilesHidden, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
+import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, withFilesHidden, shownLayout, keepStoredFold, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
 import { whoLine } from './lib/sidebarWho.js';
 import { SidebarWho } from './components/sidebar/SidebarWho.jsx';
 import { useMatchMedia } from './hooks/useMatchMedia.js';
@@ -5642,6 +5642,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setSidebarLayout(next);
     if (commit) writeSidebarLayout(next);
   }, []);
+  // Direction A (preview only): while the full Files page shows this cluster,
+  // the sidebar's Files card folds to its bar, so the files are listed once.
+  // Shown, never kept (lib/sidebarLayout.js shownLayout / keepStoredFold).
+  const pageFilesId = filesLook && !mobileShell && currentSurface === 'board' && mainFilesMode === 'full' ? currentId : null;
+  const shownSidebarLayout = useMemo(() => shownLayout(sidebarLayout, { pageOpen: !!pageFilesId }), [sidebarLayout, pageFilesId]);
+  const onShownSidebarLayout = useCallback((next, opts) => {
+    onSidebarLayout(pageFilesId ? keepStoredFold(sidebarLayout, next) : next, opts);
+  }, [onSidebarLayout, pageFilesId, sidebarLayout]);
+  // The fold bar's Shrink, ⌘\ and ⌘K while the page is open: back to the
+  // board, and the files back in the sidebar even if they were hidden.
+  const shrinkPageToSidebar = (via) => {
+    applyFilesEvent('board', via);
+    if (sidebarLayout.filesHidden) onSidebarLayout(withFilesHidden(sidebarLayout, false), { commit: true });
+  };
+  const shrinkPageRef = useRef(shrinkPageToSidebar);
+  shrinkPageRef.current = shrinkPageToSidebar;
   // A shelf's ⤢ opens its cluster in full Files narrowed to that shelf.
   const [filesFilter, setFilesFilter] = useState(null);   // { boardId, buckets, token }
   const sidebarStorage = useStorageUsage({ enabled: filesSidebar });
@@ -9598,11 +9614,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => setSidebarOpen(!sidebarOpen) },
     // The files sidebar's files card (preview only): hidden, it folds to its
     // heading under the clusters; ⌘\ does the same (ClusterSidebar).
-    { id: 'sidebar-files', label: sidebarLayout.filesHidden ? 'Show files in the sidebar' : 'Hide files in the sidebar',
+    { id: 'sidebar-files', label: pageFilesId || sidebarLayout.filesHidden ? 'Show files in the sidebar' : 'Hide files in the sidebar',
       icon: FilesIcon, keywords: ['files', 'sidebar', 'hide', 'show', 'panel'],
       // Hiding needs the sidebar open to mean anything; Show opens it too.
-      available: filesSidebar && !mobileShell && (sidebarOpen || !!sidebarLayout.filesHidden),
+      // While the full Files page folds the card, Show shrinks the page back.
+      available: filesSidebar && !mobileShell && (sidebarOpen || !!sidebarLayout.filesHidden || !!pageFilesId),
       run: () => {
+        if (pageFilesId) { shrinkPageRef.current('palette'); if (!sidebarOpen) setSidebarOpen(true); return; }
         const hide = !sidebarLayout.filesHidden;
         onSidebarLayout(withFilesHidden(sidebarLayout, hide), { commit: true });
         if (!hide && !sidebarOpen) setSidebarOpen(true);
@@ -9646,7 +9664,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
-      sidebarLayout, onSidebarLayout, filesSidebar, mobileShell,
+      sidebarLayout, onSidebarLayout, filesSidebar, mobileShell, pageFilesId,
       captureAllowed, capture.on, switchMode, switchInSplit, switchView, switchBoardId,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut, feedback]);
 
@@ -10397,8 +10415,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         shell the sidebar IS the drawer, and .sb-collapsed hides every row in
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
-    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}${filesSidebar && currentSurface === 'home' ? ' is-home' : ''}`}
-         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarFootprint(sidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
+    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}${filesSidebar && currentSurface === 'home' ? ' is-home' : ''}${pageFilesId ? ' is-files-page' : ''}`}
+         style={filesSidebar && !mobileShell && sidebarOpen ? { '--sb-w': `${sidebarFootprint(shownSidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -10450,8 +10468,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <ClusterSidebar
               top={sbTop}
               foot={sbFoot}
-              layout={sidebarLayout}
-              onLayout={mobileShell ? null : onSidebarLayout}
+              layout={shownSidebarLayout}
+              onLayout={mobileShell ? null : onShownSidebarLayout}
+              foldedFor={pageFilesId ? 'page' : null}
+              onShrinkPage={shrinkPageToSidebar}
               floating={!mobileShell}
               roomy={sidebarRoomy}
               snug={sidebarSnug}

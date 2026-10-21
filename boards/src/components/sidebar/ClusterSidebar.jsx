@@ -50,7 +50,7 @@ import { createPortal } from 'react-dom';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { Icon } from '../Icon.jsx';
-import { Search, X, Columns2, ArrowsOutSimple, ChevronDown, ChevronLeft } from '../../lib/icons.js';
+import { Search, X, Columns2, ArrowsOutSimple, ArrowsInSimple, ChevronDown, ChevronLeft } from '../../lib/icons.js';
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
 import { ClusterShelves } from './ClusterShelves.jsx';
 import { SidebarMeter } from './SidebarMeter.jsx';
@@ -155,6 +155,8 @@ export function ClusterSidebar({
   coarse = false,
   layout = null,          // App's sidebar layout (lib/sidebarLayout.js): the arrangement and each card's size
   onLayout = null,        // (layout, { commit }) => void — a handle, or the button that switches the arrangement
+  foldedFor = null,       // 'page': folded because the full Files page shows these files (App, direction A)
+  onShrinkPage = null,    // (via) => void — that page's way back into the sidebar
   floating = false,       // the desktop's two floating cards; false in the phone drawer
   roomy = true,           // the window has the room for side by side (SIDE_FITS_QUERY)
   snug = true,            // ... for side by side the button keeps (KEPT_FITS_QUERY)
@@ -401,6 +403,9 @@ export function ClusterSidebar({
   // them (lib/sidebarLayout.js).
   // Hidden, the files fold to their heading under the clusters, in either.
   const folded = floating && !!onLayout && !!layout?.filesHidden;
+  // Folded by the full Files page (⤢, F; direction A): its bar says where
+  // the files are and is the way back.
+  const pageFold = folded && foldedFor === 'page';
   const side = floating && !folded && arrangementOf(layout, { coarse, roomy, snug }) === 'side';
   const kept = side && !coarse && !!layout?.pinned;
   const frameRef = useRef(null);
@@ -418,7 +423,7 @@ export function ClusterSidebar({
   const focusAfter = useRef(null);      // 'show' | 'hide' | null
   const focusInFiles = useRef(false);
   const live = useRef(null);
-  live.current = { layout, onLayout };
+  live.current = { layout, onLayout, pageFold, onShrinkPage };
   const setFilesHidden = useCallback((hidden, focus = null) => {
     const { layout: l, onLayout: set } = live.current;
     if (!set || !!l?.filesHidden === hidden) return;
@@ -429,6 +434,9 @@ export function ClusterSidebar({
   useLayoutEffect(() => {
     const want = focusAfter.current;
     focusAfter.current = null;
+    // Folded by the full Files page: focus stays with the page, never pulled
+    // onto the bar.
+    if (pageFold) { focusInFiles.current = false; return; }
     // ⌘\ from inside the card: focus stays with it (a removed node fires no blur).
     const inFiles = focusInFiles.current || !!filesCardRef.current?.contains(document.activeElement);
     if (want === 'show' || (folded && want == null && inFiles)) showRef.current?.focus();
@@ -440,6 +448,8 @@ export function ClusterSidebar({
       if (e.defaultPrevented || e.repeat || e.shiftKey || !(e.metaKey || e.ctrlKey)) return;
       if (e.key !== '\\' && e.code !== 'Backslash') return;
       e.preventDefault();
+      // Folded by the page: ⌘\ is its way back (the card opens with it).
+      if (live.current.pageFold) { live.current.onShrinkPage?.('sidebar_key'); return; }
       setFilesHidden(!live.current.layout?.filesHidden);
     };
     window.addEventListener('keydown', onKey);
@@ -1072,16 +1082,24 @@ export function ClusterSidebar({
       </div>
       </div>
 
-      <div className={`sbf-card is-files${folded ? ' is-folded' : ''}`} ref={filesCardRef}
+      <div className={`sbf-card is-files${folded ? ' is-folded' : ''}${pageFold ? ' is-page-fold' : ''}`} ref={filesCardRef}
            onFocus={() => { focusInFiles.current = true; }}
            onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) focusInFiles.current = false; }}>
-      {folded && (
+      {folded && (pageFold ? (
+        <button type="button" className="sbf-files-bar is-page" ref={showRef}
+                aria-label="Shrink Files back into the sidebar" title="Shrink Files back into the sidebar (F)"
+                onClick={() => onShrinkPage?.('sidebar_fold')}>
+          <span className="sbf-files-heading-label">Files</span>
+          <span className="sbf-files-note">full screen</span>
+          <span className="sbf-files-show is-shrink" aria-hidden="true"><Icon as={ArrowsInSimple} size={12} weight="regular" />Shrink</span>
+        </button>
+      ) : (
         <button type="button" className="sbf-files-bar" ref={showRef} aria-label="Show files" title="Show files (⌘\)"
                 aria-expanded="false" onClick={() => setFilesHidden(false, 'hide')}>
           <span className="sbf-files-heading-label">Files</span>
           <span className="sbf-files-show" aria-hidden="true">Show</span>
         </button>
-      )}
+      ))}
       <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}
                {...(view === 'cluster' && shownId ? { 'data-drop-board': shownId, 'data-drop-where': 'files' } : {})}>
         {floating && onLayout && (

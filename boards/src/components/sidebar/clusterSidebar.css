@@ -181,7 +181,7 @@
 .sbf-files-hide:focus-visible, .sbf-files-bar:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .app.is-floating-chrome .sbf-card.is-files.is-folded { flex: 0 0 auto; min-height: 0; width: var(--sbf-tw, 312px); }
 .sbf-card.is-files.is-folded > .sbf-files,
-.sbf-card.is-files.is-folded > .sbf-meter { display: none; }
+.sbf-card.is-files.is-folded:not(.is-page-fold) > .sbf-meter { display: none; }
 .sbf-files-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; height: 42px; box-sizing: border-box; margin: 0; padding: 0 9px 0 15px;
@@ -196,6 +196,10 @@
   transition: background-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .sbf-files-bar:hover .sbf-files-show { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
+/* Folded by the full Files page (direction A, preview only): the bar says
+   where the files are and offers the way back; the meter stays under it. */
+.sbf-files-note { margin-right: auto; margin-left: 2px; color: var(--ink-1); font: 500 12px/1 var(--font-sans); }
+.sbf-files-show.is-shrink { gap: 6px; padding: 0 10px 0 8px; }
 @keyframes sbfFold { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .sbf-files-bar { animation: none; } }
 @media (pointer: coarse) {

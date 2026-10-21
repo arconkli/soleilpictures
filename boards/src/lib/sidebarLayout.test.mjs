@@ -4,7 +4,7 @@ import {
   EDGE, SIZES, LAYOUT_DEFAULT, SIDEBAR_LAYOUT_KEY, OLD_SIDEBAR_W_KEY,
   defaultLayout, sanitizeLayout, layoutFromOldWidth, readSidebarLayout, writeSidebarLayout,
   sidebarFootprint, arrangementOf, frameVars, toggledLayout, handleSpecs, dragLayout, resetLayout, resetAllSizes, keyLayout,
-  SIDE_FITS_QUERY, KEPT_FITS_QUERY, shownArrangement, withFilesHidden, handleList,
+  SIDE_FITS_QUERY, KEPT_FITS_QUERY, shownArrangement, withFilesHidden, handleList, shownLayout, keepStoredFold,
 } from './sidebarLayout.js';
 
 const memory = (init = {}) => {
@@ -397,4 +397,19 @@ test('hidden, only the clusters\' width has a handle, and it never changes the a
   assert.deepEqual([r.arr, r.side.tw, r.stack.tw, r.filesHidden], ['side', 270, LAYOUT_DEFAULT.stack.tw, true]);
   assert.equal(keyLayout(sd, 'treeRight', 'v', 'ArrowLeft').side.tw, 224);
   assert.equal(resetLayout({ ...r, side: { ...r.side, tw: 300 } }, 'hidden', 'treeRight', 'side').side.tw, LAYOUT_DEFAULT.side.tw);
+});
+
+test('the full Files page folds the files card in what shows, never in what is kept', () => {
+  const stored = sanitizeLayout({ filesHidden: false });
+  assert.equal(shownLayout(stored, { pageOpen: false }), stored);
+  const shown = shownLayout(stored, { pageOpen: true });
+  assert.equal(shown.filesHidden, true);
+  assert.equal(stored.filesHidden, false);
+  // A handle dragged while the page is open hands back the shown layout,
+  // folded and resized: the size is kept, the fold is the stored one.
+  const dragged = { ...shown, stack: { ...shown.stack, tw: shown.stack.tw + 40 } };
+  const kept = keepStoredFold(stored, dragged);
+  assert.equal(kept.filesHidden, false);
+  assert.equal(kept.stack.tw, sanitizeLayout(dragged).stack.tw);
+  assert.equal(keepStoredFold(sanitizeLayout({ filesHidden: true }), dragged).filesHidden, true);
 });

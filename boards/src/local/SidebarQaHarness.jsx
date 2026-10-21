@@ -15,7 +15,7 @@ import '../styles.css';
 import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
 import { SidebarSharedBoards } from '../components/SidebarSharedBoards.jsx';
-import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout } from '../lib/sidebarLayout.js';
+import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout, shownLayout, keepStoredFold, withFilesHidden } from '../lib/sidebarLayout.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { shellOf } from '../lib/deviceShell.js';
@@ -546,6 +546,15 @@ export function SidebarQaHarness() {
   const moveApi = useMemo(() => makeMoveApi(source.calls), [source]);
   const feedback = useMemo(() => ({ toast: (t) => setToast(t) }), []);
   const say = (msg) => setLog((l) => [...l.slice(-4), msg]);
+  // App's fold for the Files page in direction A: shown, never kept.
+  const pageFold = !!FILES_LOOK && !mobileShell && surface === 'files';
+  const shown = useMemo(() => shownLayout(layout, { pageOpen: pageFold }), [layout, pageFold]);
+  const onShownLayout = (next, opts) => onLayout(pageFold ? keepStoredFold(layoutRef.current, next) : next, opts);
+  const shrinkPage = (via) => {
+    say(`shrink ${via}`);
+    setSurface('board');
+    if (layoutRef.current.filesHidden) onLayout(withFilesHidden(layoutRef.current, false), { commit: true });
+  };
   // Share file… asks the app's FileShareHost through the bus; here it's a call.
   useEffect(() => {
     const onShare = (e) => source.calls.push({ fn: 'openFileShare', params: e.detail });
@@ -608,8 +617,8 @@ export function SidebarQaHarness() {
     <>
     <style>{QA_STYLE}</style>
     <FilesLookContext.Provider value={FILES_LOOK}>
-    <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${surface === 'home' ? ' is-home' : ''}`}
-         style={{ ...(mobileShell ? null : { '--sb-w': `${collapsed ? 0 : sidebarFootprint(layout, { coarse, roomy, snug })}px` }), height: '100vh' }}
+    <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${surface === 'home' ? ' is-home' : ''}${pageFold ? ' is-files-page' : ''}`}
+         style={{ ...(mobileShell ? null : { '--sb-w': `${collapsed ? 0 : sidebarFootprint(shown, { coarse, roomy, snug })}px` }), height: '100vh' }}
          data-sidebarqa-ready="1" data-sidebarqa-surface={surface}>
       <aside className={`sidebar${mobileShell && drawerOpen ? ' is-mobile-open' : ''}`}>
         <div className="sb-mid">
@@ -625,8 +634,10 @@ export function SidebarQaHarness() {
             coarse={coarse}
             top={top}
             foot={foot}
-            layout={layout}
-            onLayout={mobileShell ? null : onLayout}
+            layout={shown}
+            onLayout={mobileShell ? null : onShownLayout}
+            foldedFor={pageFold ? 'page' : null}
+            onShrinkPage={shrinkPage}
             floating={!mobileShell}
             roomy={roomy}
             snug={snug}

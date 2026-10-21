@@ -174,6 +174,13 @@ const sideSizes = (l, fit) => l[sideKey(fit)] || LAYOUT_DEFAULT[sideKey(fit)];
 export const shownArrangement = (layout, fit) => (layout?.filesHidden ? 'hidden' : arrangementOf(layout, fit));
 // The files hidden (Hide, ⌘\) or back (Show); every size stays as it was.
 export const withFilesHidden = (layout, hidden) => ({ ...sanitizeLayout(layout), filesHidden: !!hidden });
+// The full Files page in the files sidebar's look (direction A) folds the
+// files card to its bar while it's open, so the files are listed once. The
+// fold is shown, never kept: the sidebar is handed the stored layout folded,
+// and a handle dragged meanwhile keeps the stored layout's own filesHidden, so
+// closing the page brings the card back as it was.
+export const shownLayout = (stored, { pageOpen = false } = {}) => (pageOpen ? withFilesHidden(stored, true) : stored);
+export const keepStoredFold = (stored, next) => ({ ...sanitizeLayout(next), filesHidden: !!stored?.filesHidden });
 
 // The sidebar's column: the cards and their margin. The window may cut it
 // shorter (clusterSidebar.css keeps SIZES.room for the board).
