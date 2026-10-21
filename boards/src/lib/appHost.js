@@ -22,13 +22,16 @@ export function onPreviewHost() {
 }
 
 // ---------------------------------------------------------------------------
-// The schedule hold
+// The schedule hold: retired, it never opens on production
 //
-// The schedule/calendar card is being rebuilt, and until it lands nobody should
-// be able to create a new one on production. Existing cards keep rendering —
-// this gates CREATION only (buildAddActions, the rail's + menu, and the
-// shoot-day minting path behind onAddShootDay). CanvasSurface's render dispatch
-// is deliberately untouched.
+// Schedule is retired, not being rebuilt (owner, 2026-10-18: "we NO LONGER
+// have the schedule feature"; 2026-10-20: everything related to it stays off
+// production). This hold never lifts, so it is not one of the holds the sidebar
+// release flips. Existing cards keep rendering: this gates CREATION only
+// (buildAddActions, the rail's + menu, and the shoot-day minting path behind
+// onAddShootDay). CanvasSurface's render dispatch is deliberately untouched.
+// scheduleRetired.test.mjs fails if the body below changes, or if any way to
+// make a schedule card stops asking it.
 //
 // ALLOWLIST, NOT DENYLIST. The obvious spelling is `!onProdHost()`, and it
 // leaks: capacitor.config.ts sets `server: undefined` for a production build, so
@@ -41,8 +44,9 @@ export function onPreviewHost() {
 // import.meta.env.DEV is a build-time constant, so the production bundle cannot
 // take that branch at all — the same literal guard the dev-only QA harnesses in
 // main.jsx use. It also keeps local dev and the Playwright suite (which runs on
-// 127.0.0.1 through ?local=1) working with no test changes. onPreviewHost keeps
-// the rebuild reviewable on the preview deploy, which is a production build.
+// 127.0.0.1 through ?local=1) working with no test changes. onPreviewHost was
+// there to keep a rebuild reviewable on the preview deploy; there is no rebuild
+// now, and the body stays as it is because the tests read it as the hold.
 export function scheduleCreationAllowed() {
   return import.meta.env.DEV || onPreviewHost();
 }

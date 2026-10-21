@@ -362,8 +362,9 @@ const RULES = [
 // rebuilt" — and until 2026-10-01 eight SEO pages still told visitors to "add a
 // schedule card to map shots to shoot days" and ranked us first "from mood board
 // to call sheet". A professional who arrived on that promise found no such
-// button. This guard reads the hold out of appHost.js itself, so it lifts on its
-// own the day the gate opens, and the claims can come back with the feature.
+// button. This guard reads the hold out of appHost.js itself. Schedule is now
+// retired (owner, 2026-10-20) and scheduleRetired.test.mjs keeps the gate shut,
+// so these claims don't come back.
 // Marketing surfaces only: the docs DESCRIBE existing schedule cards under a
 // being-rebuilt banner, which is true, and competitors' call sheets and
 // stripboards are real and stay in the listicles.
