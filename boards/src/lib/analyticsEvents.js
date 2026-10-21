@@ -483,6 +483,12 @@ export const EV = Object.freeze({
   WORKSPACE_LINK_CLAIM_RESULT:'workspace_link_claim_result', // a claim's outcome, every branch {status:'joined'|'member'|'dead'|'error', at:'signup'|'card', reason} (must-land)
   WORKSPACE_LINK_CLAIMED:  'workspace_link_claimed',      // SERVER: claim_workspace_invite_link let someone in {workspace_id, role, status}
   EDITOR_LIMIT_VIEWER_FALLBACK: 'editor_limit_viewer_fallback', // SERVER: an edit link let someone in as a viewer because the account had 10 people who can edit {via:'collab_link'|'workspace_link', upgrade, workspace_id, board_id}
+  // The 10-editor limit in the app (held: editorLimitAllowed). Counts and
+  // stages only: no address, name or token rides these.
+  EDITOR_LIMIT_SEEN:       'editor_limit_seen',           // the share panel's note or Members' "People who can edit" showed {surface:'share_modal'|'members', stage:'near'|'full'|'over'|'room', owner}
+  EDITOR_LIMIT_REFUSED:    'editor_limit_refused',        // a door said no for want of room {door:'share'|'workspace_invite'|'member_role'|'share_role'|'restore'|'widen', ask (the caller isn't the owner), surface}
+  EDITOR_LIMIT_ASK_SENT:   'editor_limit_ask_sent',       // "Ask Alex for room" {result:'sent'|'already_sent'|'not_full'|'owner'|'error', surface}
+  EDITOR_LIMIT_SEE_WHO:    'editor_limit_see_who',        // the note's See who opened Members {surface, stage}
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}

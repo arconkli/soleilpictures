@@ -2529,6 +2529,37 @@ body {
 .share-reward-more li + li { margin-top: 3px; }
 .share-reward-more .share-linkish { font: 600 11.5px/1.4 var(--font-sans); }
 
+/* The 10-editor limit's note, at the top of the invite area (the owner's pick
+   B, 2026-10-21): from two places left for the account's owner, and once
+   there are none for anyone who can invite. The reward note's strip on the
+   panel's raised ground; the limit is news, not an action, so nothing in it
+   is gold. */
+.lim-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+.lim-note-icon { flex: 0 0 auto; display: inline-flex; color: var(--ink-1); margin-top: 2px; }
+.lim-note-text { flex: 1 1 auto; min-width: 0; font: 500 12.5px/1.45 var(--font-sans); color: var(--ink-2); }
+.lim-note-lead { font-weight: 600; color: var(--ink-0); }
+.lim-note-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.lim-btn {
+  appearance: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-0);
+  font: 600 12px/1 var(--font-sans);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.lim-btn:hover { background: var(--bg-hov); }
+.lim-btn:disabled { opacity: .6; cursor: default; }
+.lim-line { margin-top: 7px; font: 400 12px/1.5 var(--font-sans); color: var(--ink-2); }
+.lim-done { display: flex; align-items: center; gap: 6px; color: var(--ink-1); }
+
 /* A row of "Who has access": avatar, who, and one control on the right. It
    never wraps — the name truncates instead — so a phone shows one line per
    person rather than a second line of buttons under each. */
@@ -21575,6 +21606,7 @@ button, [role="button"], a {
   .share-access-pick { max-width: 150px; min-height: 36px; }
   .share-scope-btn { padding: 9px 11px; }
   .share-foot-btn { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .lim-btn { min-height: 40px; padding-left: 14px; padding-right: 14px; }
   /* Presence: one face and a "+N" (App.jsx passes max=1), overlapped. */
   .topbar .ws-presence { gap: 0; padding: 0 2px; }
   .topbar .ws-presence-status { margin-right: 4px; }

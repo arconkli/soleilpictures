@@ -11611,6 +11611,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               openInviteFriends('share_modal');
             }}
             onSharesChanged={() => { refreshSharedBoards?.(); }}
+            onSeeEditors={(wsId) => {
+              setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null);
+              openNotificationSettings('members', wsId || workspace.id);
+            }}
             onLinkCreated={() => {
               try {
                 const yd = yb.ready && yb.boardId === shareTarget.id ? yb.ydoc

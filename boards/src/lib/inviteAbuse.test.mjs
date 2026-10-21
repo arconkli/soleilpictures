@@ -173,8 +173,12 @@ test('the share panel stops at the first refusal and keeps what was not sent', (
   assert.match(modal, /if \(\/invite limit reached\/i\.test\(msg\)\) \{ limitMsg = msg; limitIdx = i; break; \}/);
   assert.match(modal, /const unsent = emails\.slice\(limitIdx\);/);
   assert.match(modal, /setInviteEmail\(unsent\.join\(', '\)\)/);
-  // ...and a paste is de-duplicated before anything is sent.
-  assert.match(modal, /const k = s\.toLowerCase\(\);\s*if \(seen\.has\(k\)\) return false;/);
+  // ...and a paste is de-duplicated before anything is sent: the panel parses
+  // with lib/inviteSubmit.js's parseEmails (the editor limit's count reads the
+  // same parse), whose dedupe inviteSubmit.test.mjs pins by behaviour.
+  assert.match(modal, /import \{ parseEmails \} from '\.\.\/lib\/inviteSubmit\.js';/);
+  assert.doesNotMatch(modal, /const parseEmails = /, 'one parser: the panel must not grow its own again');
+  assert.match(read('./inviteSubmit.js'), /const k = s\.toLowerCase\(\);\s*if \(seen\.has\(k\)\) return false;/);
 });
 
 // ── 0360: what the review of 0358/0359 found ────────────────────────────────
