@@ -1007,6 +1007,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
+  // A reload inside a cluster, before the lists have landed: its row isn't in
+  // the map yet, so currentBoard falls back to the root. Opening the root in
+  // its place loaded the root's doc, its snapshot and its party room (Durable
+  // Object time) only to switch away a moment later. Nothing opens until the
+  // cluster is known; if the lists come back without it, the prune effect
+  // below takes the stack back to the root and the root opens then.
+  const landingPending = boardListsLoading && currentId !== rootBoard.id && !boards[currentId];
 
   // Filter the stack down to boards that still exist. Catches cascaded
   // deletes where multiple frames in the stack vanish at once (e.g. you
@@ -1362,7 +1369,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // "hasThumb" = has a CURRENT-version stored thumbnail. A stale version
   // (pre-rework render) counts as missing so the on-open backfill in
   // loadYBoard regenerates it with the new look.
-  const yb = useYBoard(currentBoard.id, user.id, userInfo, workspace.id,
+  const yb = useYBoard(landingPending ? null : currentBoard.id, user.id, userInfo, workspace.id,
     !!currentBoard.thumb_key && currentBoard.thumb_version === THUMB_VERSION);
   // The count on the topbar's Files switch. Only this board's own snapshot —
   // on the navigation commit yb.cards still holds the previous board.

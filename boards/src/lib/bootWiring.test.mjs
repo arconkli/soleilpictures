@@ -75,3 +75,9 @@ test('boardsApi builds its boot reads where bootPrefetch does', () => {
     assert.ok(s.includes(call), call);
   }
 });
+
+test('a reload inside a cluster never opens the root in its place while the lists load', () => {
+  const s = read('App.jsx');
+  assert.match(s, /const landingPending = boardListsLoading && currentId !== rootBoard\.id && !boards\[currentId\];/);
+  assert.match(s, /const yb = useYBoard\(landingPending \? null : currentBoard\.id,/);
+});
