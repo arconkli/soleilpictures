@@ -16,7 +16,8 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { inviteWorkspaceMember } from '../../lib/boardsApi.js';
 import { createWorkspaceInviteLink, getWorkspaceInviteLinkTerms } from '../../lib/inviteApi.js';
 import { workspaceInviteUrl } from '../../lib/workspaceLink.js';
-import { parseEmails, runInvites, inviteLimitKind } from '../../lib/inviteSubmit.js';
+import { parseEmails, runInvitesByRole, inviteLimitKind } from '../../lib/inviteSubmit.js';
+import { editorLimitRefusalMessage } from '../../lib/editorLimit.js';
 import { inviteRewardCopy } from '../../lib/inviteReward.js';
 import { MAX_INVITE_ROWS, linkTermsLine } from '../../lib/workspaceSetup.js';
 
@@ -43,6 +44,7 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState([]);
   const [limit, setLimit] = useState(null);
+  const [editorsFull, setEditorsFull] = useState(null);
   const copiedTimer = useRef(null);
   const url = token ? workspaceInviteUrl(token) : null;
   const canShare = isPhone && typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -111,18 +113,17 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
     if (sending || valid.length === 0 || !workspaceId) return;
     setSending(true);
     setLimit(null);
+    setEditorsFull(null);
     const byRole = { editor: [], viewer: [] };
     for (const r of valid) for (const e of parseEmails(r.email).valid) byRole[r.role === 'viewer' ? 'viewer' : 'editor'].push(e);
     const next = [];
     const sentEmails = [];
-    let stopped = null;
-    for (const role of ['editor', 'viewer']) {
-      const emails = byRole[role];
-      if (emails.length === 0) continue;
-      // Past the limit every address is refused the same way, so a role not
-      // reached yet stays in its rows for tomorrow too.
-      if (stopped) { stopped.unsent.push(...emails); continue; }
-      const r = await runInvites(emails, (email) => inviteWorkspaceMember({ workspaceId, email, role }));
+    // The invite budget stops everything after it; the editor limit (0521)
+    // stops only the editors, so the viewers still go out.
+    const { runs, budget, editors } = await runInvitesByRole(byRole,
+      (role) => (email) => inviteWorkspaceMember({ workspaceId, email, role }));
+    for (const r of runs) {
+      const { role } = r;
       for (const e of r.granted) next.push({ email: e, ok: true, label: 'Added' });
       for (const e of r.pending) next.push({ email: e, ok: true, label: 'Invite sent' });
       for (const f of r.fail) next.push({ email: f.email, ok: false, label: f.reason === 'already a member' ? 'Already in it' : 'Not sent' });
@@ -134,17 +135,20 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
         }
         if (r.pending.length) logEventNow(EV.INVITE_SENT, { role, result: 'pending', n: r.pending.length, surface, method: 'email', reward_note: 'free' });
       } catch (_) { /* analytics never breaks a send */ }
-      if (r.limit) stopped = r.limit;
     }
     setResults((prev) => [...prev, ...next]);
-    if (stopped) {
-      setLimit(sentence(stopped.reason));
+    if (budget) {
+      setLimit(sentence(budget.reason));
       try {
-        logEventNow(EV.INVITE_LIMIT_REACHED, { surface, method: 'email', kind: inviteLimitKind(stopped.reason), unsent: stopped.unsent.length });
+        logEventNow(EV.INVITE_LIMIT_REACHED, { surface, method: 'email', kind: inviteLimitKind(budget.reason), unsent: budget.unsent.length });
       } catch (_) { /* analytics never breaks a send */ }
     }
-    // Sent rows clear; whatever the limit stopped stays, ready for tomorrow.
-    const keep = stopped ? new Set(stopped.unsent.map((e) => e.toLowerCase())) : new Set();
+    if (editors) {
+      setEditorsFull(editorLimitRefusalMessage(editors));
+      try { logEventNow(EV.EDITOR_LIMIT_REFUSED, { door: 'workspace_invite', ask: !!editors.ask, surface }); } catch (_) {}
+    }
+    // Sent rows clear; whatever a limit stopped stays, ready to send again.
+    const keep = new Set([...(budget?.unsent || []), ...(editors?.unsent || [])].map((e) => e.toLowerCase()));
     setRows((rs) => {
       const left = rs.filter((r) => parseEmails(r.email).valid.some((e) => keep.has(e.toLowerCase())));
       return left.length ? left : [newRow()];
@@ -220,6 +224,10 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
       {limit && (
         <p className="su-note" role="status"><Icon as={Info} size={16} weight="regular" />
           <span>{limit} {isPhone ? 'Share' : 'Copy'} the invite link for everyone else.</span></p>
+      )}
+      {editorsFull && (
+        <p className="su-note" role="status"><Icon as={Info} size={16} weight="regular" />
+          <span>{editorsFull}</span></p>
       )}
 
       <p className="su-reward"><Icon as={Gift} size={16} weight="regular" /><span>{reward}</span></p>

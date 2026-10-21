@@ -120,7 +120,9 @@ export function NotificationsPanel({
       return;
     }
     if (target.kind === 'settings') {
-      // An editor-limit row: Members, in that row's workspace.
+      // An editor-limit row: Members, in that row's workspace. Its toast logs
+      // the same event with via 'toast' (useNotifications).
+      try { logEvent(EV.EDITOR_LIMIT_NOTICE_OPEN, { via: 'bell' }); } catch (_) {}
       onOpenSettings?.(target.tab, target.workspaceId);
       onCloseRef.current?.();
       return;

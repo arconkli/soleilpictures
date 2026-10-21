@@ -490,6 +490,7 @@ export const EV = Object.freeze({
   EDITOR_LIMIT_ASK_SENT:   'editor_limit_ask_sent',       // "Ask Alex for room" {result:'sent'|'already_sent'|'not_full'|'owner'|'error', surface}
   EDITOR_LIMIT_SEE_WHO:    'editor_limit_see_who',        // the note's See who opened Members {surface, stage}
   EDITOR_LIMIT_MAKE_ROOM:  'editor_limit_make_room',      // the owner freed a place from "People who can edit" {action:'make_viewer'|'remove'|'revoke', ok, grants}
+  EDITOR_LIMIT_NOTICE_OPEN:'editor_limit_notice_open',    // an editors.limit_reached notice opened Members {via:'toast'|'bell'}
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}

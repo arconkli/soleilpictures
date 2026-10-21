@@ -1347,6 +1347,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     userId: user.id,
     feedback,
     onOpenBoard: (id) => { if (id) { openBoardAnywhere(id); setCurrentSurface('board'); } },
+    // An editor-limit notice's "See who can edit" (openNotificationSettings,
+    // below, is called only once the toast is pressed).
+    onOpenSettings: (tab, wsId) => openNotificationSettings(tab, wsId),
   });
 
   // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +

@@ -73,7 +73,9 @@
 | `boards/src/components/settings/saveState.jsx` | `err.userMessage` | 4 |
 | `boards/src/components/setup/InviteStep.jsx` | viewers still go out when editors are full | 5 |
 | `boards/src/hooks/useNotifications.js` | toast words, "See who can edit", the missed joined-as-viewer notice | 5 |
-| `boards/src/App.jsx` | `onSeeEditors` (Task 3); `onOpenSettings` + bell `NOTICE_OPEN` (Task 5) | 3, 5 |
+| `boards/src/App.jsx` | `onSeeEditors` (Task 3); `onOpenSettings` (Task 5) | 3, 5 |
+| `boards/src/components/NotificationsPanel.jsx` | the bell's `NOTICE_OPEN` | 5 |
+| `boards/src/lib/inviteAbuse.test.mjs` | pins the panel's one, shared parser | 3 |
 | `boards/src/lib/featureEvents.js` | `editorLimit` measured | 5 |
 | `boards/src/components/JoinBoardCard.jsx` | no "free" on the edit link's card under the hold | 5 |
 | `boards/src/local/shareWorkspaceProbe.js` | `mountMembersTab` | 6 |
@@ -1626,6 +1628,9 @@ New:
     - every test passes, including `analyticsEvents.test.mjs` (the four keys are emitted in ShareModal) and `featureEvents.test.mjs` (`editorLimit` is still `unmeasured`);
     - `BUILD_OK`.
   - If a test pins ShareModal source text these edits changed, stop and report it. Don't change that test.
+  - When this task ran, `inviteAbuse.test.mjs` was pinning the dedupe line of ShareModal's own parser. It now pins two things:
+    - the panel imports `lib/inviteSubmit.js`'s `parseEmails` (the same code, kept as one copy);
+    - the shared parser de-duplicates.
 
 - [ ] **Step 8: Report** the files changed. The main session commits them.
 
@@ -2144,9 +2149,8 @@ After `.settings-invite-row input.settings-input { flex: 1; min-width: 180px; }`
 **Files:**
 - Modify: `boards/src/components/setup/InviteStep.jsx`
 - Modify: `boards/src/hooks/useNotifications.js`
-- Modify: `boards/src/App.jsx`:
-  - `useNotifications(…)` (line ~1345);
-  - `NotificationsPanel` `onOpenSettings` (line ~11518).
+- Modify: `boards/src/App.jsx`, the `useNotifications(…)` call (line ~1345).
+- Modify: `boards/src/components/NotificationsPanel.jsx`, its editor-limit (`settings`) branch.
 - Modify: `boards/src/lib/analyticsEvents.js`, adding `EDITOR_LIMIT_NOTICE_OPEN`.
 - Modify: `boards/src/lib/featureEvents.js`, making `editorLimit` measured.
 - Modify: `boards/src/components/JoinBoardCard.jsx`, the editor line.
@@ -2442,19 +2446,22 @@ New:
   });
 ```
 
-Old:
+The bell's own open is logged in `boards/src/components/NotificationsPanel.jsx`, not in App. `notificationsBellWiring.test.mjs` pins App's `onOpenSettings={openNotificationSettings}` as it is; this was found when the task ran. Old:
 
-```jsx
-          onOpenSettings={openNotificationSettings}
+```js
+    if (target.kind === 'settings') {
+      // An editor-limit row: Members, in that row's workspace.
+      onOpenSettings?.(target.tab, target.workspaceId);
 ```
 
 New:
 
-```jsx
-          onOpenSettings={(tab, wsId) => {
-            try { logEvent(EV.EDITOR_LIMIT_NOTICE_OPEN, { via: 'bell' }); } catch (_) {}
-            openNotificationSettings(tab, wsId);
-          }}
+```js
+    if (target.kind === 'settings') {
+      // An editor-limit row: Members, in that row's workspace. Its toast logs
+      // the same event with via 'toast' (useNotifications).
+      try { logEvent(EV.EDITOR_LIMIT_NOTICE_OPEN, { via: 'bell' }); } catch (_) {}
+      onOpenSettings?.(target.tab, target.workspaceId);
 ```
 
 - [ ] **Step 5: The edit link's join card stops promising "free" under the hold.**
