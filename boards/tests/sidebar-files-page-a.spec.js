@@ -293,3 +293,23 @@ test.describe('Info and the states', () => {
     await expect(sheet(page).locator('[data-item-id="film-img-3"]')).toHaveCount(1);
   });
 });
+
+test.describe('Quick look', () => {
+  test('Space opens it over a blurred page; the title and the actions are islands', async ({ page }) => {
+    await open(page);
+    await sheet(page).locator('[data-item-id="film-img-4"]').click();
+    await page.keyboard.press('Space');
+    const ql = page.locator('.ql[data-look="sb"]');
+    await expect(ql).toBeVisible();
+    await expect(ql.locator('.ql-title .ql-name')).toContainText('film-still-005');
+    const acts = ql.locator('.ql-acts');
+    await expect(acts.locator('.ql-btn')).toContainText(['Show on board', 'Download', 'Info']);
+    await expect(acts.locator('.ql-x')).toBeVisible();
+    const blur = await ql.evaluate((el) => getComputedStyle(el).backdropFilter);
+    expect(blur).toContain('blur');
+    await page.keyboard.press('ArrowRight');
+    await expect(ql.locator('.ql-name')).not.toContainText('film-still-005');
+    await page.keyboard.press('Escape');
+    await expect(ql).toHaveCount(0);
+  });
+});

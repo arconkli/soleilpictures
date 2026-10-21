@@ -439,3 +439,72 @@
 .fp-desc-row:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .fp-desc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-1); font: 500 13px/1 var(--font-sans); }
 .fp-desc-where { flex: none; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }
+
+/* ── Quick look (direction A) ────────────────────────────────────────────── */
+/* Still a dark room in both themes (its own tokens, styles.css), now over
+   the page, blurred, rather than a black slab; the bar's two halves float as
+   islands, the chrome's material, with words and regular icons. Only .ql's
+   own tokens here: it's portalled to <body>, whose sidebar materials are the
+   light ones in the light theme. */
+.ql[data-look='sb'] {
+  background: color-mix(in srgb, #08080a 82%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(1.1); backdrop-filter: blur(24px) saturate(1.1);
+}
+/* A light page under it lets more light through: less of it, still dark. */
+[data-theme='light'] .ql[data-look='sb'] { background: color-mix(in srgb, #08080a 90%, transparent); }
+.ql[data-look='sb'] .ql-bar {
+  position: absolute; top: 8px; left: 8px; right: 8px; z-index: 3;
+  height: 36px; padding: 0; gap: 8px; justify-content: space-between;
+  pointer-events: none;
+}
+.ql[data-look='sb'] .ql-title,
+.ql[data-look='sb'] .ql-acts {
+  pointer-events: auto; box-sizing: border-box; height: 36px;
+  display: flex; align-items: center;
+  border: 1px solid var(--line-1); border-radius: 10px;
+  background: color-mix(in oklab, var(--bg-1) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+}
+.ql[data-look='sb'] .ql-title { flex: 0 1 auto; min-width: 0; max-width: 46%; flex-direction: row; gap: 10px; padding: 0 12px; }
+.ql[data-look='sb'] .ql-name { min-width: 0; font: 600 13px/1 var(--font-sans); }
+.ql[data-look='sb'] .ql-meta { flex: none; color: var(--ink-2); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.ql[data-look='sb'] .ql-acts { flex: none; gap: 2px; padding: 0 3px; }
+.ql[data-look='sb'] .ql-btn {
+  height: 28px; padding: 0 9px; gap: 6px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans);
+}
+.ql[data-look='sb'] .ql-btn svg { color: var(--ink-2); }
+.ql[data-look='sb'] .ql-btn:hover { background: rgba(255, 255, 255, .08); color: var(--ink-0); }
+.ql[data-look='sb'] .ql-btn:hover svg { color: var(--ink-1); }
+.ql[data-look='sb'] .ql-btn.is-on { background: var(--bg-4); color: var(--ink-0); }
+.ql[data-look='sb'] .ql-acts-sep { flex: none; width: 1px; height: 18px; margin: 0 4px; background: var(--line-2); }
+.ql[data-look='sb'] .ql-x { width: 28px; padding: 0; justify-content: center; }
+/* The stage under the islands; the arrows are glass circles at its edges. */
+.ql[data-look='sb'] .ql-body { padding: 56px 12px 12px; }
+.ql[data-look='sb'] .ql-nav {
+  align-self: center; flex: none; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--line-1); background: color-mix(in oklab, var(--bg-1) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: var(--ink-1);
+}
+.ql[data-look='sb'] .ql-nav:hover { background: var(--bg-4); color: var(--ink-0); }
+.ql[data-look='sb'] .lightbox-stage img,
+.ql[data-look='sb'] .ql-video { border-radius: 8px; }
+/* Info inside Quick look: the card beside the stage, in the islands' glass. */
+.ql[data-look='sb'] .cb-detail.is-inline {
+  align-self: flex-start; max-height: 100%; border: 1px solid var(--line-1); border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-1) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+}
+@media (max-width: 720px) {
+  .ql[data-look='sb'] .ql-btn { width: 32px; padding: 0; justify-content: center; }
+  .ql[data-look='sb'] .ql-title { max-width: 40%; }
+  .ql[data-look='sb'] .ql-meta { display: none; }
+  .ql[data-look='sb'] .ql-nav { position: absolute; top: 50%; transform: translateY(-50%); }
+}
+@media (pointer: coarse) {
+  .ql[data-look='sb'] .ql-bar, .ql[data-look='sb'] .ql-title, .ql[data-look='sb'] .ql-acts { height: 48px; }
+  .ql[data-look='sb'] .ql-btn { height: 44px; min-width: 44px; }
+  .ql[data-look='sb'] .ql-nav { width: 44px; height: 44px; }
+  .ql[data-look='sb'] .ql-body { padding-top: 68px; }
+}
