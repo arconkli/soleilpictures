@@ -108,7 +108,8 @@ test('the app can read the numbers, never who; only the owner gets the list', ()
 test('0520: helpers are revoked, the three calls are signed-in only, and the file proves it', () => {
   const sql = fileText(CORE);
   for (const h of [
-    '_editor_limit()', '_editor_limit_on(uuid)', '_account_editor_grants(uuid)', '_account_editor_slots(uuid)',
+    '_editor_limit()', '_editor_limit_on(uuid)', '_editor_limit_owner_first_name(uuid)',
+    '_account_editor_grants(uuid)', '_account_editor_slots(uuid)',
     '_account_editor_count(uuid)', '_editor_admit(uuid, uuid, text)', '_editor_refuse(uuid)',
     '_notify_editor_limit(uuid, uuid, uuid, text)', '_notify_joined_as_viewer(uuid, uuid, uuid)',
     '_editor_limit_fallback(uuid, uuid, uuid, text, boolean)',
@@ -122,6 +123,32 @@ test('0520: helpers are revoked, the three calls are signed-in only, and the fil
   assert.match(sql, /commit;\s*$/);
   for (const fn of ['get_editor_capacity', 'ask_owner_for_editor_slot', 'list_my_account_editors', '_editor_admit', '_account_editor_slots'])
     assert.equal(definitionsOf(fn).length, 1, `${fn} is defined once (no overloads)`);
+});
+
+test('the notices are worded as the owner picked (B): whose plan, curly quotes, names', () => {
+  const n = def('_notify_editor_limit').body;
+  assert.ok(n.includes("'%s has %s people who can edit, the most it allows.'"));
+  assert.ok(n.includes("'%s already has %s people who can edit.'"));
+  assert.ok(n.includes("'Your plan'"), 'the owner hears "Your plan"');
+  assert.ok(n.includes("'’s plan'") && n.includes("'The owner’s plan'"), 'a co-owner hears whose plan');
+  assert.ok(n.includes("'“' || coalesce(v_board, v_ws) || '”'"), 'the place sits in curly quotes');
+  const j = def('_notify_joined_as_viewer').body;
+  assert.ok(j.includes("'%s already has %s people who can edit, so you can view for now. We told %s.'"));
+  assert.ok(j.includes("'Its owner’s plan'") && j.includes("'the owner'"));
+  for (const b of [n, j]) assert.doesNotMatch(code(b), /'"' \|\|/, 'no straight quotes round a name');
+  assert.match(code(def('_editor_limit_owner_first_name').body), /not like '%@%'/, 'an address is never a name');
+});
+
+test('the owner\'s list says where each place is, so the app can free it', () => {
+  assert.match(def('_account_editor_grants').body,
+    /returns table\s*\(\s*user_id uuid,\s*email text,\s*source text,\s*workspace_id uuid,\s*board_id uuid,\s*role text,\s*invite_id uuid,\s*sent_at timestamptz\s*\)/i);
+  const d = def('list_my_account_editors');
+  assert.match(d.body,
+    /returns table\s*\(\s*slot_key text,\s*user_id uuid,\s*email text,\s*display_name text,\s*source text,\s*grants jsonb\s*\)/i);
+  const l = code(d.body);
+  for (const k of ["'source'", "'role'", "'workspace_id'", "'workspace_name'", "'board_id'", "'board_name'", "'invite_id'", "'sent_at'"])
+    assert.ok(l.includes(k), `a grant lacks ${k}`);
+  assert.match(l, /with g as materialized \(/, 'the grants are read once, not once per row');
 });
 
 const REFUSING = ['share_board', 'invite_workspace_member', 'set_workspace_member_role', 'restore_board_share'];
