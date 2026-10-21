@@ -6,7 +6,7 @@
 // restores the saved selection before each command so the toolbar doesn't
 // lose what the user had highlighted.
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { memo, useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   withSelection, wrapSelectionStyle, toggleList,
@@ -45,6 +45,16 @@ function useActiveNoteEditor() {
   return editor;
 }
 
+// One function for the component's whole life, calling the latest `fn` it was
+// handed. The canvas passes the bar fresh callbacks on every card change, and
+// a keystroke in a note is one, so the memoized note bar would redraw for each.
+function useStableFn(fn) {
+  const ref = useRef(fn);
+  useLayoutEffect(() => { ref.current = fn; });
+  const [stable] = useState(() => (...args) => ref.current?.(...args));
+  return stable;
+}
+
 const STROKE_COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 const FILL_COLORS  = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#0a0a0c'];
 const TEXT_COLORS  = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -61,6 +71,10 @@ const FONTS = [
   { id: 'mono', name: 'Mono', css: 'JetBrains Mono, ui-monospace, monospace' },
 ];
 const SIZES = [11, 13, 15, 18, 24, 32, 48, 64];
+// The fields of a note card that its bar shows or seeds a picker with.
+const NOTE_LOOK = ['fontSize', 'fontSizeV', 'fontFamily', 'textColor', 'bgColor', 'vAlign'];
+const NO_COLORS = [];
+const TOB_PROPS = { className: 'tob' };
 
 
 // Format helpers — operate on the saved selection from RichNoteEditor.
@@ -249,6 +263,23 @@ function editorCaretStyle(editor) {
   } catch (_) { return null; }
 }
 
+// Runs `fn` at most once a frame while a Tiptap editor changes; returns the
+// unsubscribe. Typing fires a transaction and a selection update for every
+// key, and a computed-style read in the middle of one makes the browser
+// restyle the page there and then, where the next frame does it anyway.
+function onEditorChangeEachFrame(editor, fn) {
+  let raf = 0;
+  const run = () => { raf = 0; if (!editor.isDestroyed) fn(); };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(run); };
+  editor.on('selectionUpdate', schedule);
+  editor.on('transaction', schedule);
+  return () => {
+    editor.off('selectionUpdate', schedule);
+    editor.off('transaction', schedule);
+    if (raf) cancelAnimationFrame(raf);
+  };
+}
+
 // `noteBase` changes when the note's card-level look does (a caret-only pick
 // sets it), which moves the computed style without any editor transaction —
 // so it is an effect dependency, to re-sample.
@@ -261,15 +292,13 @@ function useNoteForeColor(active, noteBase = '') {
     // colour the text there actually renders in. Reading only the mark kept
     // showing the last coloured span after the caret left it (NOTES-15).
     if (editor) {
-      const update = () => {
+      const sample = () => {
         const c = editor.getAttributes('textStyle')?.color;
         const hex = c ? (rgbToHex(c) || c) : rgbToHex(editorCaretStyle(editor)?.color);
         if (hex) setColor(prev => (prev === hex ? prev : hex));
       };
-      update();
-      editor.on('selectionUpdate', update);
-      editor.on('transaction', update);
-      return () => { editor.off('selectionUpdate', update); editor.off('transaction', update); };
+      sample();
+      return onEditorChangeEachFrame(editor, sample);
     }
     // Legacy contenteditable: read the computed color at the caret.
     let raf = null;
@@ -312,7 +341,7 @@ function useNoteFormatState(active, noteBase = '') {
     if (!active) { setState(EMPTY_FMT); return undefined; }
     // Collaborative editor: derive the active state from Tiptap.
     if (editor) {
-      const update = () => {
+      const sample = () => {
         const ts = editor.getAttributes('textStyle') || {};
         const align = ['left', 'center', 'right'].find(a => editor.isActive({ textAlign: a })) || null;
         let listType = null;
@@ -352,10 +381,8 @@ function useNoteFormatState(active, noteBase = '') {
           prev.fontFamily === next.fontFamily && prev.align === next.align ? prev : next
         ));
       };
-      update();
-      editor.on('selectionUpdate', update);
-      editor.on('transaction', update);
-      return () => { editor.off('selectionUpdate', update); editor.off('transaction', update); };
+      sample();
+      return onEditorChangeEachFrame(editor, sample);
     }
     let raf = null;
     const update = () => {
@@ -434,7 +461,7 @@ export function ToolOptionsBar({
   onUpdateEditingShape,
   editingLineArrow,       // { idx, arrow } when a single line-arrow is selected
   onUpdateEditingLineArrow, // (patch) => updates that arrow
-  paletteColors = [],
+  paletteColors = NO_COLORS,
   openColorPicker,
   onOpenSketchpad,      // launch the fullscreen sketch pad from inside Draw tool
   onUndo,               // global Yjs undo — surfaced as a toolbar button on Draw
@@ -448,7 +475,7 @@ export function ToolOptionsBar({
   // could see, and an iPad held sideways is still narrower than the full bar.
   const compactBar = isPhone || isTouchDevice;
   const [drawSheet, setDrawSheet] = useState(false);
-  const openPickerAt = (e, opts) => {
+  const openPickerAt = useStableFn((e, opts) => {
     if (!openColorPicker) return;
     const r = e.currentTarget.getBoundingClientRect();
     openColorPicker({
@@ -457,33 +484,47 @@ export function ToolOptionsBar({
       y: r.top,
       paletteColors,
     });
-  };
+  });
 
   // Always render at the canvas bottom-center (CSS default in `.tob`).
   // Earlier the bar floated above the selected card; that constant
   // repositioning made the UI feel jumpy, so the bar stays put and any
   // contextual buttons swap in inline.
-  const tobProps = { className: 'tob' };
+  const tobProps = TOB_PROPS;
+
+  // The canvas re-renders this bar on every card change, and a keystroke in a
+  // note is one: a new card object, palette list, cell style and callbacks
+  // each time. The note bar is memoized and keeps the same ones until what
+  // they hold changes, so it draws only when what it shows does.
+  const noteLookKey = editingNoteCard ? JSON.stringify(NOTE_LOOK.map((k) => editingNoteCard[k] ?? null)) : '';
+  const noteLook = useMemo(() => (editingNoteCard
+    ? Object.fromEntries(NOTE_LOOK.map((k) => [k, editingNoteCard[k]]))
+    : null), [noteLookKey]);
+  const notePalette = useMemo(() => paletteColors, [paletteColors.join('|')]);
+  const cellStyle = useMemo(() => editingCellStyle, [JSON.stringify(editingCellStyle)]);
+  const updateNote = useStableFn(onUpdateEditingNote);
+  const styleCell = useStableFn(onCellStyle);
+  const scopeCell = useStableFn(onCellScope);
 
   // ── Note rich text bar ──────────────────────────────────────────────────
   // Also shown for a grid TEXT cell (editingCellText) — same inline formatting,
   // driven against the focused contenteditable. With no backing note card the
   // two card-level controls (card background, vertical balance) are hidden.
   if (editingNoteCard || editingCellText || selectedCellStyle) {
-    return <NoteRichTextBar
+    return <MemoNoteRichTextBar
       tobProps={tobProps}
-      paletteColors={paletteColors}
+      paletteColors={notePalette}
       openPickerAt={openPickerAt}
-      editingNoteCard={editingNoteCard}
-      onUpdateEditingNote={onUpdateEditingNote}
+      noteLook={noteLook}
+      onUpdateEditingNote={onUpdateEditingNote ? updateNote : null}
       cardLevel={!!editingNoteCard}
       cellStyleMode={!editingNoteCard && (!!editingCellText || !!selectedCellStyle)}
       cellEditing={!!editingCellText}
       cellKind={cellKind}
       cellPinned={cellPinned}
-      onCellStyle={onCellStyle}
-      onCellScope={onCellScope}
-      editingCellStyle={editingCellStyle}
+      onCellStyle={onCellStyle ? styleCell : null}
+      onCellScope={onCellScope ? scopeCell : null}
+      editingCellStyle={cellStyle}
     />;
   }
 
@@ -917,12 +958,12 @@ export function ToolOptionsBar({
 // selectionchange while the note is being edited). Keeping it inside the
 // main ToolOptionsBar function would mean the hook runs in every render of
 // every tool's bar.
-function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellEditing = false, cellKind = null, cellPinned = false, onCellStyle, onCellScope, editingCellStyle = null }) {
+function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, noteLook, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellEditing = false, cellKind = null, cellPinned = false, onCellStyle, onCellScope, editingCellStyle = null }) {
   // The note's card-level look: when a caret-only pick changes it, the text
   // under the caret re-renders without an editor transaction, so the hooks
   // re-sample on this instead.
-  const noteBase = editingNoteCard
-    ? [editingNoteCard.fontSize, editingNoteCard.fontSizeV, editingNoteCard.fontFamily, editingNoteCard.textColor, editingNoteCard.bgColor].join('|')
+  const noteBase = noteLook
+    ? [noteLook.fontSize, noteLook.fontSizeV, noteLook.fontFamily, noteLook.textColor, noteLook.bgColor].join('|')
     : '';
   const currentFore = useNoteForeColor(true, noteBase);
   const fmt = useNoteFormatState(true, noteBase);
@@ -1040,7 +1081,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
             // as container flex + text-align, so it propagates like the font.
             const balanced = cellStyleMode
               ? (display.align === 'center')
-              : (fmt.align === 'center' && editingNoteCard?.vAlign === 'center');
+              : (fmt.align === 'center' && noteLook?.vAlign === 'center');
             return (
               <button type="button"
                 className={`tob-btn ${balanced ? 'is-active' : ''}`.trim()}
@@ -1090,7 +1131,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
               the 'transparent' swatch maps to bg:null = back to the default cell
               surface (the renderer treats null/'transparent' as unset). */}
           <ColorBtn title={cellStyleMode ? 'Box background' : 'Card background'}
-                defaultColor={(cellStyleMode ? editingCellStyle?.bg : editingNoteCard?.bgColor) || '#1c1c1f'}
+                defaultColor={(cellStyleMode ? editingCellStyle?.bg : noteLook?.bgColor) || '#1c1c1f'}
                 swatches={BG_COLORS}
                 paletteColors={paletteColors}
                 onPick={(c) => cellStyleMode
@@ -1102,7 +1143,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                   // its None button emits it instead) — mirrors shape fills.
                   value: cellStyleMode
                     ? ((editingCellStyle?.bg && editingCellStyle.bg !== 'transparent') ? editingCellStyle.bg : '#1c1c1f')
-                    : ((editingNoteCard?.bgColor && editingNoteCard.bgColor !== 'transparent') ? editingNoteCard.bgColor : '#1c1c1f'),
+                    : ((noteLook?.bgColor && noteLook.bgColor !== 'transparent') ? noteLook.bgColor : '#1c1c1f'),
                   onChange: (c) => cellStyleMode
                     ? onCellStyle?.({ bg: c === 'transparent' ? null : c })
                     : onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
@@ -1134,6 +1175,9 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
     </div>
   );
 }
+// Its own hooks redraw it when the caret's formatting changes; the canvas's
+// re-renders reach it only when its props do (see ToolOptionsBar).
+const MemoNoteRichTextBar = memo(NoteRichTextBar);
 
 // ── Format buttons ────────────────────────────────────────────────────────
 
@@ -1298,17 +1342,16 @@ function NoteCommentBtn() {
   // Enabled-ness tracks the live selection, so subscribe to the editor's own
   // updates — the toolbar's FMT_EVT only fires after a format command runs and
   // would leave this button stale while the user was merely selecting text.
-  const [, bump] = useState(0);
+  // Only whether there is a selection is kept, so typing doesn't redraw it.
+  const [hasSelection, setHasSelection] = useState(() => !!editor && !editor.state.selection.empty);
   useEffect(() => {
     if (!editor) return undefined;
-    const tick = () => bump(n => n + 1);
-    editor.on('selectionUpdate', tick);
-    editor.on('transaction', tick);
-    return () => { editor.off('selectionUpdate', tick); editor.off('transaction', tick); };
+    const sample = () => setHasSelection(!editor.state.selection.empty);
+    sample();
+    return onEditorChangeEachFrame(editor, sample);
   }, [editor]);
   const openAddComment = getActiveNoteActions().openAddComment;
   if (!editor || !openAddComment) return null;
-  const hasSelection = !editor.state.selection.empty;
   return (
     <button className="tob-btn"
             title={hasSelection ? 'Comment on the selection (⌘⌥M)' : 'Select text to comment on'}
