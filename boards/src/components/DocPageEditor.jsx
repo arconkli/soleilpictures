@@ -1646,12 +1646,14 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     const onDown = (e) => {
       if (!e.target?.closest?.('.doc-ctx')) setPos(null);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setPos(null); };
+    // On document, claimed: the open doc is a layer (lib/modalGuard) that
+    // would close on the same Escape at the window.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); setPos(null); } };
     document.addEventListener('pointerdown', onDown, true);
-    window.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
-      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey);
     };
   }, [pos]);
 

@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary, initCardDocStore, followTitle } from '../lib/docState.js';
 import { readDocOpenMode, writeDocOpenMode } from '../lib/docOpenMode.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Avatar } from './primitives.jsx';
 import { useMessagesUi } from '../hooks/useOpenDm.js';
@@ -479,8 +480,29 @@ export function DocCardOverlay({
   // Not in a pane: there the doc is a persistent half of the workspace, like
   // a split cluster, and nothing else in the workspace closes on a stray Esc
   // pressed over the canvas. The × in the pane's bar is the way out.
+  //
+  // Fullscreen covers the canvas, so it is a layer like any dialog
+  // (lib/modalGuard): the canvas's window shortcuts stand down while it is up
+  // (Backspace on a header button deleted the selected cards behind it, this
+  // doc's own card among them), and Escape comes to it through the layer
+  // stack. The canvas's Escape (clear the selection) used to take the key
+  // first, so the doc stayed open. A menu inside the doc claims its own
+  // Escape, so one press closes one layer.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const isFull = mode === 'full';
   useEffect(() => {
-    if (inPane) return;
+    if (inPane || !isFull) return undefined;
+    return registerModalOpen({
+      onEscape: (e) => {
+        if (isEditableTarget(e)) return false;
+        onCloseRef.current?.();
+        return true;
+      },
+    });
+  }, [inPane, isFull]);
+  useEffect(() => {
+    if (inPane || isFull) return;
     const onKey = (e) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (isEditableTarget(e)) return;
@@ -488,7 +510,7 @@ export function DocCardOverlay({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, inPane]);
+  }, [onClose, inPane, isFull]);
 
   // Focus management: when a brand-new (untitled) doc card opens, drop the
   // caret in the title input so the user can name it immediately. Restore

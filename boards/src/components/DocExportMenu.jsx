@@ -80,14 +80,16 @@ export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docM
       if (menuRef.current?.contains(e.target)) return;
       setOpen(false);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    // On document, claimed: the open doc is a layer (lib/modalGuard) that
+    // would close on the same Escape at the window.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); setOpen(false); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
-    window.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('mousedown', onDown, true);
-      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey);
     };
   }, [open]);
 

@@ -142,7 +142,9 @@ export function TagRangeHoverPopover({
         }
         return;
       }
-      if (e.key === 'Escape') onClose?.();
+      // Claimed: the open doc is a layer (lib/modalGuard) that would close
+      // on the same Escape at the window.
+      if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
     };
     const onDown = (e) => {
       if (!popRef.current) return;

@@ -98,7 +98,13 @@ export function CommentInlinePopover({
   }, [anchor, thread]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !confirmingRef.current) requestClose(); };
+    // Claimed: an open doc is a layer (lib/modalGuard) that would close on
+    // the same Escape at the window.
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || confirmingRef.current) return;
+      e.preventDefault();
+      requestClose();
+    };
     const onDown = (e) => {
       // Clicks inside the popover or the discard-confirm dialog don't close.
       if (e.target.closest?.('.feedback-bg')) return;

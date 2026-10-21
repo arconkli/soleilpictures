@@ -96,7 +96,9 @@ export function FontPickerDropdown({
       if (buttonRef.current?.contains(e.target)) return;
       close(false);
     };
-    const onKey = (e) => { if (e.key === 'Escape') close(false); };
+    // Claimed: an open doc is a layer (lib/modalGuard) that would close on
+    // the same Escape at the window.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(false); } };
     // pointerdown (capture) AND mousedown — pointerdown fires first on most
     // platforms and isn't swallowed by inner stopPropagation, matching the
     // dismissal pattern the color picker uses.
