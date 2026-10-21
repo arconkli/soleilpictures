@@ -55,6 +55,18 @@ test('"bring all" only when the drive bought would hold all of it', () => {
   assert.doesNotMatch(upgrade.offer.text, /Card required/);
 });
 
+test('a card-limit stop offers the trial from trialAtWall, a storage stop from trialOffer', () => {
+  const base = { ...NIGHT, fit: { files: 12 }, waiting: { files: 6181 }, plan: 'free', budgets: { bytesUsed: GB } };
+  const yes = askCopy({ ...base, stoppedBy: 'cards', trialOffer: false, trialAtWall: true });
+  assert.match(yes.actions.at(-1).label, /^Try Creator free/);
+  const no = askCopy({ ...base, stoppedBy: 'cards', trialOffer: true, trialAtWall: false });
+  assert.match(no.actions.at(-1).label, /^Upgrade/);
+  assert.equal(offerFor({ own: true, plan: 'free', stoppedBy: 'cards', trialOffer: false, trialAtWall: true }), 'trial');
+  assert.equal(offerFor({ own: true, plan: 'free', stoppedBy: 'cards', trialOffer: true, trialAtWall: false }), 'upgrade');
+  assert.equal(offerFor({ own: true, plan: 'free', stoppedBy: 'storage', trialOffer: false, trialAtWall: true }), 'upgrade');
+  assert.equal(waitRowCopy({ waiting: 5, name: 'A', reason: 'cards', own: true, plan: 'free', trialOffer: false, trialAtWall: true }).action.label, CTA.tryCreatorShort);
+});
+
 test('a paying owner\'s full drive: extra storage, priced from billingCopy', () => {
   const c = askCopy({
     ...NIGHT, fit: { files: 267, bytes: 8 * GB }, waiting: { files: 5926 }, stoppedBy: 'storage',

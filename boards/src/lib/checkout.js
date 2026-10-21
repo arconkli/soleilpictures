@@ -65,7 +65,7 @@ async function authedToken() {
 // the plan lands. The tab is opened before the first await, because a browser
 // lets a page open one only inside the click that asked; where it cannot be
 // opened the files are let go and the return asks for them again.
-export async function startCheckout({ plan, surface, header = null, via = null, trial = false }) {
+export async function startCheckout({ plan, surface, header = null, via = null, trial = false, wallCards = null }) {
   // The one previewable action with a real external consequence. Clicking
   // "Try Creator" inside the admin Surface Gallery would otherwise create a
   // live Stripe Checkout session against the admin's own customer record and
@@ -97,7 +97,7 @@ export async function startCheckout({ plan, surface, header = null, via = null, 
     const res = await fetch(CHECKOUT_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ plan, fbp, fbc, gpc: gpcOn(), ic_event_id: icEventId, trial: Boolean(trial), surface, header, via }),
+      body: JSON.stringify({ plan, fbp, fbc, gpc: gpcOn(), ic_event_id: icEventId, trial: Boolean(trial), surface, header, via, wall_cards: Number.isInteger(wallCards) ? wallCards : undefined }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.url) {

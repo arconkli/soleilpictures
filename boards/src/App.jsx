@@ -179,7 +179,7 @@ import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } fr
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { evaluateDemoCap, fitByCost, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { evaluateDemoCap, fitByCost, rejectedNoun, wallCardsOf, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { CLUSTER_CARD_COST } from './lib/gridCount.js';
 import { planImport, planBytes } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
@@ -628,6 +628,13 @@ let appOpenTimed = false;
 // Whether this page load's board_ready has gone out: once, for the board the
 // load landed on. A board opened later by a click is not a boot.
 let boardReadySent = false;
+
+// The import question's wall: what is already counted plus everything the
+// drop would add; only on the person's own plan and only for the CARD limit
+// (a storage wall uses the trial's storage arm).
+function importWallCards(ask) {
+  return ask && ask.own && (ask.limitKind || 'cards') === 'cards' ? (Number(ask.count) || 0) + (Number(ask.n) || 0) : null;
+}
 
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
   perf.usePerfRenderTime('Workspace');
@@ -6062,7 +6069,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (!ask.hold) notePendingImport({ n: ask.n });
         // A drop the DRIVE stopped opens the storage wall, not the card wall.
         if (ask.limitKind === 'storage') pitchStorageGate({ force: true });
-        else openCapWall();
+        else openCapWall({ wallCards: importWallCards(ask) });
       } else if (ask.own && (action === 'cancel' || action === 'partial')) {
         // Declining the room this drop needed is declining the offer: the one
         // moment to ask why (UpgradeReasonAsk). Only on the person's own plan —
@@ -6071,7 +6078,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
             detail: {
               offer: 'import', surface: 'import_dialog', method: action,
-              trial: Boolean(trialOfferRef.current), dwell_ms: null,
+              trial: ask.limitKind === 'storage' ? Boolean(trialOfferRef.current) : Boolean(wallTrialRef.current(importWallCards(ask))), dwell_ms: null,
               cards: ask.count, cap: ask.limit, tier: 'demo',
             },
           }));
@@ -6104,6 +6111,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   trialOfferRef.current = creatorTrialEligibility({
     tier: myTier.tier, cards: myTier.serverCardCount,
     cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+  }).eligible;
+  // The trial decision at a wall: the server's count, plus the count the wall stopped.
+  const wallTrialRef = useRef(null);
+  wallTrialRef.current = (wallCards) => creatorTrialEligibility({
+    tier: myTier.tier, cards: myTier.serverCardCount,
+    cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt, wallCards,
   }).eligible;
   // Same idea, one beat earlier: the limit we last showed the approaching-cap
   // warning for. Keyed on the limit so raising the cap re-arms the warning.
@@ -6218,6 +6231,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // that value is string-compared at five sites and widening it would touch all
   // of them for a field only one branch reads.
   const [capRejected, setCapRejected] = useState(null);
+  // The count the cap wall stopped (wallCardsOf), for the trial rule; null when unknown.
+  const [capWallCards, setCapWallCards] = useState(null);
   const pitchCapWall = useCallback((cs) => {
     const limit = Number(cs?.limit) || 0;
     // The wall always shows — a refused card is a consequence, not a promotion,
@@ -6230,6 +6245,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // about the thing that just happened to them.
     const rejected = Math.max(0, Number(cs?.rejected) || 0);
     setCapRejected(rejected > 0 ? { n: rejected, noun: rejectedNoun(cs?.kinds, rejected) } : null);
+    const wall = cs?.own === false ? null : wallCardsOf(cs);
     if (capPitchedAtRef.current === limit) {
       // Already explained at this limit. Say what happened, don't re-interrupt.
       const lost = rejected > 0
@@ -6238,7 +6254,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // The second and later refusals used to say "See Creator" even to
       // someone the trial was waiting for; it was the one cap surface that
       // never named it.
-      const trial = trialOfferRef.current;
+      const trial = wallTrialRef.current(wall);
       feedback.toast({
         type: 'warning',
         message: trial
@@ -6248,13 +6264,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           label: trial ? CTA.tryCreatorShort : 'See Creator',
           onClick: () => {
             logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit', rejected });
-            openCapWall();
+            openCapWall({ wallCards: wall });
           },
         },
       });
       return;
     }
     capPitchedAtRef.current = limit;
+    setCapWallCards(wall);
     setUpgradeReason('cap-hit');
   }, [feedback]);
 
@@ -6269,8 +6286,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // pitchCapWall is the INVOLUNTARY twin — a refused card rather than a press —
   // and claims for itself at the top, where it also owns the once-per-ceiling
   // latch and the degraded toast some of this helper's callers sit inside.
-  const openCapWall = useCallback(() => {
+  const openCapWall = useCallback(({ wallCards = null } = {}) => {
     claimUpsellSlot('cap-hit');
+    setCapWallCards(wallCards);
     setUpgradeReason('cap-hit');
   }, []);
 
@@ -6724,6 +6742,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         trialOffer: own && creatorTrialEligibility({
           tier: mt.tier, cards: mt.serverCardCount, cardLimit: mt.effectiveCardLimit, trialStartedAt: mt.creatorTrialStartedAt,
         }).eligible,
+        // The card-limit stop: a person past their free card limit is owed the
+        // trial whatever the server has counted so far.
+        trialAtWall: own && creatorTrialEligibility({
+          tier: mt.tier, cards: mt.serverCardCount, cardLimit: mt.effectiveCardLimit, trialStartedAt: mt.creatorTrialStartedAt,
+          wallCards: (Number(mt.effectiveCardLimit) || 0) + 1,
+        }).eligible,
         addon: own && paid && !trialing && !STORAGE_ADDON_HELD,
         interval: 'month',
         firstPayment: end && Number.isFinite(end.getTime()) ? end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null,
@@ -6743,10 +6767,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     askZip: (model) => new Promise((resolve) => setZipAsk({ model, resolve })),
     // A zip dropped anywhere while the tray's guide is open is what it asked for.
     unpackZips: () => isImportGuideOpen(),
-    upgrade: (offer, { stoppedBy } = {}) => {
+    upgrade: (offer, { stoppedBy, waiting } = {}) => {
       if (offer === 'addon') window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'import' } }));
       else if (stoppedBy === 'storage') pitchStorageGate({ force: true });
-      else openCapWall();
+      else {
+        // Stopped on the person's own card limit: the count they were trying
+        // to hold is what is counted now plus everything still waiting.
+        const mt = myTierRef.current || myTier;
+        const own = workspace?.created_by === user?.id;
+        openCapWall({
+          wallCards: own && stoppedBy === 'cards'
+            ? wallCardsOf({ count: mt.demoCardCount, limit: mt.effectiveCardLimit, rejected: waiting })
+            : null,
+        });
+      }
     },
     // A hold is what opens a checkout in a new tab while files wait here
     // (checkout.js); HeldUploadsBar leaves import holds to the tray.
@@ -11643,7 +11677,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           limitKind={importAsk.limitKind || 'cards'}
           bytesNeeded={importAsk.bytesNeeded ?? null}
           bytesLeft={importAsk.bytesLeft ?? null}
-          canUpgrade={importAsk.limitKind === 'storage' ? (importAsk.own && !importAsk.paid) : true}
+          canUpgrade={importAsk.limitKind === 'storage' ? (importAsk.own && !importAsk.paid) : Boolean(importAsk.own)}
           holds={Boolean(importAsk.hold)}
           // A paying owner's full drive: close the question (nothing has
           // uploaded) and open the extra-storage sheet. The whole drop is
@@ -11654,10 +11688,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'preflight' } }));
               }
             : null}
-          trialOffer={creatorTrialEligibility({
+          trialOffer={importAsk.limitKind === 'storage' ? creatorTrialEligibility({
             tier: myTier.tier, cards: myTier.serverCardCount,
             cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
-          }).eligible}
+          }).eligible : Boolean(wallTrialRef.current(importWallCards(importAsk)))}
           onTakePartial={() => answerImportAsk('partial', importAsk.take)}
           onUpgrade={() => answerImportAsk('upgrade', 0)}
           onCancel={() => answerImportAsk('cancel', 0)}
@@ -11686,8 +11720,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // episode must not surface on the storage or generic pitch, where it
           // would describe something that didn't just happen.
           rejected={upgradeReason === 'cap-hit' ? capRejected : null}
+          wallCards={upgradeReason === 'cap-hit' ? capWallCards : null}
           initialPlan={upgradeReason === 'pricing-intent' ? upgradePlan : null}
-          onClose={() => { setUpgradeReason(null); setCapRejected(null); setUpgradePlan(null); }}
+          onClose={() => { setUpgradeReason(null); setCapRejected(null); setCapWallCards(null); setUpgradePlan(null); }}
         />
       )}
 

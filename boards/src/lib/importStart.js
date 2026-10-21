@@ -13,10 +13,10 @@
 //                                                    tray's guide is open, and
 //                                                    that is what it asked for
 //   who(boardId) → { own, plan, ownerName, workspaceName, targetName,
-//                    trialOffer, addon, interval, firstPayment, tier }
+//                    trialOffer, trialAtWall, addon, interval, firstPayment, tier }
 //   makeDeps({ targetBoardId, canAttemptFiles, source, kind, sourceRef, placeTops })
 //   ask(model) → 'cancel' | 'fit' | 'all'           the question (askCopy)
-//   upgrade(offer, { stoppedBy })                    the cap wall, the storage
+//   upgrade(offer, { stoppedBy, waiting })                    the cap wall, the storage
 //                                                    gate or extra storage
 //   hold({ key, boardId, limit, count, bytes, quota }) → id · unhold(id)
 //   openBoard(id) · removeImport({ topIds, title })
@@ -333,7 +333,7 @@ export async function startBulkImport(input, env) {
       resume: () => job.resume(),
       cancel: () => job.cancel(),
       retry: () => job.retryFailed(),
-      upgrade: () => { hold(job.state.waitingReason); env.upgrade(who.trialOffer ? 'trial' : 'upgrade', { stoppedBy: job.state.waitingReason }); },
+      upgrade: () => { hold(job.state.waitingReason); env.upgrade(who.trialOffer ? 'trial' : 'upgrade', { stoppedBy: job.state.waitingReason, waiting: job.state.waiting?.files }); },
       addon: () => { hold(job.state.waitingReason); env.upgrade('addon', { stoppedBy: 'storage' }); },
       open: () => { const top = job.state.tops.find((t) => t.boardId); if (top) env.openBoard(top.boardId); },
       // Closed when finished: let go of the job (and its files) with the entry.
@@ -369,7 +369,7 @@ export async function startBulkImport(input, env) {
     // then open the offer. What fits comes in meanwhile.
     if (choice === 'all') {
       hold(plan.stoppedBy);
-      env.upgrade(model?.offerKind, { stoppedBy: plan.stoppedBy });
+      env.upgrade(model?.offerKind, { stoppedBy: plan.stoppedBy, waiting: plan.waiting.length });
     }
     logRun(EV.IMPORT_JOB, seed
       ? { ...base, phase: 'restart', how: input.resume ? 'handles' : 'drop', landed: seed.landed.length }

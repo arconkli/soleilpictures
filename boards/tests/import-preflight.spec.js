@@ -46,7 +46,8 @@ test.describe('the question, before the upload', () => {
     // The cards they are entitled to are a real button, not a consolation line
     // of prose — this is exactly what the old path threw away with the overflow.
     await expect(ask.getByRole('button', { name: /Add the first 50 photos/i })).toBeVisible();
-    await expect(ask.getByRole('button', { name: /Upgrade — keep all 76/i })).toBeVisible();
+    // Their own cap, nothing counted yet: the wall itself earns the trial (at_wall).
+    await expect(ask.getByRole('button', { name: /Try Creator free — keep all 76/i })).toBeVisible();
     await expect(ask.getByRole('button', { name: /^Cancel$/ })).toBeVisible();
   });
 

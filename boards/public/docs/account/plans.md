@@ -142,7 +142,8 @@ plan: if Creator is canceled, the extra storage goes with it.
 
 ## Trying Creator first
 
-Once there is a real cluster on your account, Clusters offers you
+Once there is a real cluster on your account, or as soon as a drop or an import
+is more than your free card limit holds, Clusters offers you
 **14 days of Creator** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
 on the prompts that show up as a cluster fills, when the files you drop will not
@@ -152,7 +153,8 @@ A card is required; nothing is charged until the trial ends, and cancelling
 before then costs nothing. About three days before the first charge, Clusters
 emails you the date and the amount, with a link to **Settings → Plan & billing**
 where you can cancel. It is one trial per account, and it is offered in the app
-rather than on this page — it is for people who have built something.
+rather than on this page — it is for people who have built something, or who
+are bringing in more than the free card limit holds.
 
 ## Billing
 

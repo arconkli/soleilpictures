@@ -165,11 +165,11 @@ test('every deliberate cap-wall open takes the moment it asks for', () => {
   // Every PRESS goes through one of the two: the import dialog's Upgrade and
   // the at-the-wall repeat toast (openCapWall), and the 80% warning
   // (openNearCapOffer).
-  const presses = (app.match(/openCapWall\(\)/g) || []).length
+  const presses = (app.match(/openCapWall\(/g) || []).length
     + (app.match(/openNearCapOffer\(\)/g) || []).length;
   assert.ok(presses >= 3,
     `all three deliberate cap-wall opens must go through a claiming helper; found ${presses}`);
-  assert.match(app, /if \(action === 'upgrade'\) \{[\s\S]{0,400}?openCapWall\(\);/,
+  assert.match(app, /if \(action === 'upgrade'\) \{[\s\S]{0,400}?openCapWall\(/,
     "the import dialog's Upgrade");
 
   // The only remaining bare open is pitchCapWall's own — the INVOLUNTARY path,

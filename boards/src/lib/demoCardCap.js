@@ -85,3 +85,10 @@ export function evaluateDemoCap({ tier, demoCardCount, requested, limit = DEMO_C
   if (req > remaining) return { accepted: remaining, capHit: true, remaining };
   return { accepted: req, capHit: false, remaining };
 }
+
+// The count the person was trying to hold when their own cap stopped them:
+// always over the limit. A plausibility value sent to the trial rule
+// (creatorTrialEligibility's wallCards), never shown to anyone.
+export function wallCardsOf({ count, limit, rejected } = {}) {
+  return Math.max(Number(count) || 0, Number(limit) || 0) + Math.max(1, Number(rejected) || 0);
+}

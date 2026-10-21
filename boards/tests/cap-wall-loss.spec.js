@@ -38,7 +38,7 @@ test.describe('the wall names what it cost', () => {
     await expect(wall.getByText(/Your work outgrew the demo/i)).toBeVisible();
     // The whole point: the concrete loss, named.
     await expect(wall.getByText(/28 photos couldn't be added/i)).toBeVisible();
-    await expect(wall.getByRole('button', { name: 'Get Creator' })).toBeVisible();
+    await expect(wall.getByRole('button', { name: /Try Creator|Get Creator/ })).toBeVisible();
   });
 
   test('a single refused card reads as singular, never "1 photos"', async ({ page }) => {

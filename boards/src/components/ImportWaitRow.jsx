@@ -19,7 +19,7 @@ export function ImportWaitRow({ boardId, name = null }) {
   const copy = waitRowCopy({
     waiting: b.waiting, name: name || String(b.path || '').split(' › ').pop(), reason: b.reason,
     offer: entry?.offer, plan: entry?.plan, own: entry?.own, ownerName: entry?.ownerName,
-    trialOffer: entry?.trialOffer, addon: entry?.addon, source: entry?.source, zips: entry?.zips,
+    trialOffer: entry?.trialOffer, trialAtWall: entry?.trialAtWall, addon: entry?.addon, source: entry?.source, zips: entry?.zips,
     tops: (entry?.snap?.tops || []).length,
   });
   if (!copy) return null;

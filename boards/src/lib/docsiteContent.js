@@ -38471,7 +38471,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Once there is a real cluster on your account, Clusters offers you "
+     "v": "Once there is a real cluster on your account, or as soon as a drop or an import is more than your free card limit holds, Clusters offers you "
     },
     {
      "t": "strong",
@@ -38522,7 +38522,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " where you can cancel. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something."
+     "v": " where you can cancel. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something, or who are bringing in more than the free card limit holds."
     }
    ]
   },

@@ -86,10 +86,13 @@ function fitsAfter({ budgets, bytes, offer }) {
 //   plan   'free' | 'trial' | 'paid' — the target owner's plan, as far as known
 //   own    the import goes into the person's own plan
 //   trialOffer  the person is owed the Creator trial (creatorTrialEligibility)
+//   trialAtWall the same, asked at the card limit (a card-limit stop counts the
+//               wall itself); falls back to trialOffer where the caller has none
 //   addon  extra storage can be bought here (not held, under the maximum)
-export function offerFor({ own, plan, stoppedBy, trialOffer = false, addon = false }) {
+export function offerFor({ own, plan, stoppedBy, trialOffer = false, trialAtWall, addon = false }) {
   if (!own) return null;
-  if (plan === 'free') return trialOffer ? 'trial' : 'upgrade';
+  const owed = stoppedBy === 'storage' ? trialOffer : (trialAtWall ?? trialOffer);
+  if (plan === 'free') return owed ? 'trial' : 'upgrade';
   if (plan === 'paid' && stoppedBy === 'storage' && addon) return 'addon';
   return null;
 }
@@ -100,14 +103,14 @@ export function askCopy({
   title, source = 'folder', zips = 0, tops = 1, folders = null, splits = [],
   totals, fit, waiting, stoppedBy = null, budgets = {}, clusterCost = 0,
   plan = 'free', own = true, ownerName = null, workspaceName = null,
-  trialOffer = false, addon = false, interval = 'month', firstPayment = null,
+  trialOffer = false, trialAtWall, addon = false, interval = 'month', firstPayment = null,
 }) {
   const nFolders = folders ?? totals.clusters;
   const thing = thingOf({ source, zips, tops });
   const fitN = countLabel(fit.files);
   const allN = countLabel(totals.files);
   const left = sizeLabel(budgets?.bytesLeft);
-  const offer = offerFor({ own, plan, stoppedBy, trialOffer, addon });
+  const offer = offerFor({ own, plan, stoppedBy, trialOffer, trialAtWall, addon });
   const all = fitsAfter({ budgets, bytes: totals.bytes, offer });
 
   const sub = `${nOf(totals.files, 'file')} in ${nOf(nFolders, 'folder')} · ${sizeLabel(totals.bytes)}${zips > 1 ? ` · ${zips} zips` : ''}`;
@@ -341,7 +344,7 @@ export function trayCopy(entry, { touch = false } = {}) {
         wait: waitBox({
           ...entry, reason: s.waitingReason, thing,
           offer: entry.offer !== undefined ? entry.offer
-            : offerFor({ own: entry.own, plan: entry.plan, stoppedBy: s.waitingReason, trialOffer: entry.trialOffer, addon: entry.addon }),
+            : offerFor({ own: entry.own, plan: entry.plan, stoppedBy: s.waitingReason, trialOffer: entry.trialOffer, trialAtWall: entry.trialAtWall, addon: entry.addon }),
         }),
         foot: { meta: 'They wait in this tab — keep it open.', actions: [{ id: 'cancel', label: 'Stop' }] },
         chip: { kind: 'glyph', icon: 'clock', text: 'Waiting', label: `${title}: ${countLabel(landedN)} in, ${countLabel(s.waiting?.files || 0)} waiting for room. Open the import` },
@@ -413,9 +416,9 @@ function waitBox({ reason, offer, plan, own, ownerName, thing }) {
 // and the tray's one step (waitBox's action, so the two never disagree).
 // name: the cluster's own name; the rest as trayCopy's entry. → null when
 // nothing of it waits.
-export function waitRowCopy({ waiting = 0, name = '', reason = null, offer, plan, own, ownerName, trialOffer, addon, source, zips, tops } = {}) {
+export function waitRowCopy({ waiting = 0, name = '', reason = null, offer, plan, own, ownerName, trialOffer, trialAtWall, addon, source, zips, tops } = {}) {
   if (!(Number(waiting) > 0)) return null;
-  const pick = offer !== undefined ? offer : offerFor({ own, plan, stoppedBy: reason, trialOffer, addon });
+  const pick = offer !== undefined ? offer : offerFor({ own, plan, stoppedBy: reason, trialOffer, trialAtWall, addon });
   const box = waitBox({ reason, offer: pick, plan, own, ownerName, thing: thingOf({ source, zips, tops }) });
   const byItself = (when = 'once there’s room') => `with this tab open they come in by themselves ${when}.`;
   let why;

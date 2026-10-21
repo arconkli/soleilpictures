@@ -372,6 +372,7 @@ export function qaForceCapWall() {
 // ?local=1 (same trust boundary as qaTierOverride). Returns { n, take, count,
 // limit } to render, or null when not forcing:
 //   /?local=1&tier=demo&importask=76,50,0,50      (files, take, count, limit)
+// A fifth value 0 makes it someone else's cluster (a collaborator): own=false.
 //
 // Same reason qaForceCapWall exists: the real path runs through App.jsx's
 // preflightImport, and App.jsx early-returns to LocalBoardsApp in QA mode, so
@@ -385,10 +386,10 @@ export function qaForceImportAsk() {
   const raw = q.get('importask');
   // Bounded like qaForceCapWall: an unbounded digit run is a free integer
   // overflow into whatever renders the number.
-  if (!raw || !/^\d{1,4}(,\d{1,4}){3}$/.test(raw)) return null;
-  const [n, take, count, limit] = raw.split(',').map(Number);
+  if (!raw || !/^\d{1,4}(,\d{1,4}){3}(,[01])?$/.test(raw)) return null;
+  const [n, take, count, limit, ownFlag] = raw.split(',').map(Number);
   if (take > n) return null;
-  return { n, take, over: n - take, count, limit };
+  return { n, take, over: n - take, count, limit, own: ownFlag !== 0 };
 }
 
 // Dev-only waitlist-status override. Active ONLY in a DEV build with ?local=1

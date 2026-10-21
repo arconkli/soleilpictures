@@ -470,6 +470,7 @@ export function UpgradeChip() {
           header="cap-hit"
           via="cap_hit"
           rejected={{ n: capWallQa, noun: rejectedNoun({ image: capWallQa }, capWallQa) }}
+          wallCards={cardLimit + capWallQa}
         />
       )}
       {/* Dev-only render seam for the over-cap import question
@@ -485,6 +486,11 @@ export function UpgradeChip() {
           count={importAskQa.count}
           limit={importAskQa.limit}
           kinds={{ image: importAskQa.n }}
+          canUpgrade={importAskQa.own}
+          trialOffer={importAskQa.own && creatorTrialEligibility({
+            tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
+            wallCards: importAskQa.count + importAskQa.n,
+          }).eligible}
           onTakePartial={() => {}}
           onUpgrade={() => {}}
           onCancel={() => {}}
