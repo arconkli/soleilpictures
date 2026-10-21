@@ -39,10 +39,10 @@ import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 
-// Quick look ships in its own chunk: most visits to Files never open it.
 // Files' scroll position per cluster (and size of Files), for this session.
 const SCROLL_MEMORY = new Map();
 
+// Quick look ships in its own chunk: most visits to Files never open it.
 const QuickLook = lazy(() => import('./clusterBrowser/QuickLook.jsx'));
 
 // Info (the detail panel) is opt-in — ⌘I or Info — and the choice is this
@@ -193,11 +193,14 @@ export function ListSurface({
   // (components/FilesDock.jsx): compact header, folders as compact tiles, no
   // side detail panel, and double-click flies the board to the card.
   mode = 'full',
-  // { canShrink, onExpand, onShrink, onClose } — the ⤢ ⤡ × controls of the
-  // dock, from the shell that owns the mode. Null in the split pane / harness.
+  // { canShrink, onExpand, onShrink, onClose, shrinkLabel, shrinkTitle } — the
+  // ⤢ ⤡ × controls of the dock, from the shell that owns the mode; the label
+  // and title are what ⤡ says ('Beside board' without them). Null in the split
+  // pane without the files sidebar, and in LocalBoardsApp.
   dockControls = null,
   // The panel's path bar (FilesPane): { path, boards, onNavigate, onBack,
-  // canBack, onGoTo }. Absent in full Files, where the topbar breadcrumb rules.
+  // canBack, onGoTo }. Absent in full Files, which draws its own trail above
+  // its title (fullPathBar).
   pathBar = null,
   // Set when the panel is browsing a cluster other than the board's own (a
   // read-only snapshot) — the board it came from.
@@ -2067,7 +2070,7 @@ export function ListSurface({
     );
   };
 
-  // One toolbar, two placements: in full Files it sits under the Files label;
+  // One toolbar, two placements: in full Files it sits under the page's title;
   // beside the board it is the panel's header — compact, always present (it
   // carries the dock's ⤢ and ×), and first in the panel.
   const toolbarJsx = (
