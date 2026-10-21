@@ -30,6 +30,16 @@ test('only the personal workspace remembered: it is the one that opens', () => {
   assert.deepEqual(bootPlan(s, UID), { rpc: true, roots: ['mine'], list: 'mine', tip: 'r' });
 });
 
+test('a new account a claim put in a workspace gets that workspace\'s reads, never the RPC', () => {
+  // An invite, a cluster link or a workspace link writes `.workspace` (and the
+  // stack) before the session is set, for an account that may be minutes old.
+  const s = storage({
+    [key('workspace')]: json({ activeWorkspaceId: 'team' }),
+    [key('team')]: json({ stack: ['shared-cluster'] }),
+  });
+  assert.deepEqual(bootPlan(s, UID), { rpc: false, roots: ['team'], list: 'team', tip: 'shared-cluster' });
+});
+
 test('one root when the open workspace is the personal one; an empty stack names no cluster', () => {
   const s = storage({
     [key('workspace')]: json({ activeWorkspaceId: 'mine' }),

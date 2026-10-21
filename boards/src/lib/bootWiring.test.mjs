@@ -51,7 +51,7 @@ test('no builder is ever .catch()ed: it is a thenable, and the catch swallows th
 test('the personal-workspace RPC starts at sign-in only for an account this device knows', () => {
   const s = read('lib/bootPrefetch.js');
   assert.match(s, /if \(plan\.rpc\) start\('personal'/);
-  assert.match(read('lib/bootPlan.js'), /rpc: !!open,/);
+  assert.match(read('lib/bootPlan.js'), /rpc: !!personalWs,/);
 });
 
 test('only first calls take a prefetched read', () => {

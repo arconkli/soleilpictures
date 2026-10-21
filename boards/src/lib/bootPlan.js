@@ -9,6 +9,8 @@ import { membershipWorkspaces } from './bootQueries.js';
 // App.jsx's keys: `<prefix><uid>.workspace` holds { activeWorkspaceId },
 // `<prefix><uid>.<workspaceId>` holds { stack }, and useWorkspace writes
 // `<prefix><uid>.personal` = { workspaceId } once it has resolved one.
+// AuthGate's sign-in claims (an invite, a cluster link, a workspace link)
+// write the first two as well, for an account that may be minutes old.
 export const SESSION_PREFIX = 'soleil.boards.session.';
 
 function readJson(storage, key) {
@@ -37,9 +39,11 @@ export function storedTip(storage, uid, workspaceId) {
 
 // The reads to start at sign-in, beside the tier, the memberships and the
 // shared clusters, which every open makes:
-//   rpc    the personal-workspace RPC, only for an account this device has
-//          opened before. For a new one it would create the workspace, and the
-//          held setup creates it at its name step, under the name typed there.
+//   rpc    the personal-workspace RPC, only once useWorkspace has run it for
+//          this account on this device (the `.personal` key). For a new account
+//          it would create the workspace, which the held setup creates at its
+//          name step under the name typed there, and someone who joined from a
+//          link never names one. `.workspace` is no proof: the claims write it.
 //   roots  the root of each workspace it knows: the one it will open, and the
 //          personal one, which useWorkspace resolves before anything mounts.
 //   list   the clusters of the workspace it will open.
@@ -48,7 +52,7 @@ export function bootPlan(storage, uid) {
   const { activeWs, personalWs } = rememberedWorkspaces(storage, uid);
   const open = activeWs || personalWs;
   return {
-    rpc: !!open,
+    rpc: !!personalWs,
     roots: [...new Set([open, personalWs].filter(Boolean))],
     list: open,
     tip: open ? storedTip(storage, uid, open) : null,
