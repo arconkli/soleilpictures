@@ -25,8 +25,31 @@ import * as screenplayPrint from '../lib/screenplayPrint.js';
 import * as screenplayPdf from '../lib/screenplayPdf.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { RichDocCard } from '../components/DocCard.jsx';
+import { setDocImageUploader } from '../components/docExtensions/ImageUpload.js';
 
 const CARD_ID = 'docqa-card';
+
+// ?docqa=1&uploads=1 gives the doc a workspace and a host cluster, and puts a
+// stand-in for R2 behind its image uploads: each upload is recorded and then
+// waits until a spec calls progress(p), finish() or fail(message) on
+// window.__soleilDocTest.uploads. Made once, here, so StrictMode's double
+// render can't install one stand-in and publish another.
+const UPLOADS = new URLSearchParams(window.location.search).get('uploads') === '1';
+const uploadStub = UPLOADS ? (() => {
+  const calls = [];
+  let pending = null;
+  setDocImageUploader(({ onProgress, workspaceId, userId, boardId, cardId, originalName }) => {
+    calls.push({ workspaceId, userId, boardId, cardId, originalName });
+    return new Promise((resolve, reject) => { pending = { onProgress, resolve, reject }; });
+  });
+  const settle = () => { const p = pending; pending = null; return p; };
+  return {
+    calls,
+    progress: (p) => pending?.onProgress?.(p),
+    finish: (src = '/src/local/qa-photos/street.jpg') => settle()?.resolve({ src, publicUrl: src }),
+    fail: (message = 'The upload failed.') => settle()?.reject(new Error(message)),
+  };
+})() : null;
 
 const STUB_USER = { id: 'docqa-user', name: 'QA Tester', email: 'qa@soleilpictures.com', color: '#d98c2b' };
 
@@ -94,6 +117,7 @@ export function DocQaHarness() {
       cardYMap,
       getScope: () => scope,
       awareness,
+      uploads: uploadStub,
       // Publish a simulated peer's awareness state (null removes it). Each
       // name gets its own Y.Doc, so its own clientID, like another tab.
       setPeer: (name, state) => {
@@ -144,7 +168,8 @@ export function DocQaHarness() {
           card={card}
           ydoc={ydoc}
           cardYMap={cardYMap}
-          workspaceId={null}
+          workspaceId={UPLOADS ? 'docqa-workspace' : null}
+          hostBoardId={UPLOADS ? 'docqa-board' : null}
           userId={STUB_USER.id}
           currentUser={STUB_USER}
           getAwareness={() => awareness}

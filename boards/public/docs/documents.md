@@ -2,7 +2,7 @@
 
 > A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.
 
-_Source: https://clusters.soleilpictures.com/docs/documents · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/documents · Updated 2026-10-20_
 
 A document is where the writing goes. It lives as a card on a canvas, so a
 treatment sits beside the references it came from rather than in a different
@@ -103,6 +103,11 @@ The **Insert** menu adds:
 - **Divider**
 - **Code block**
 - **Embed board** — a whole [cluster](/docs/clusters), rendered inside the document
+
+You can also paste an image, or drop one in from your computer. While it
+uploads it shows in the spot it will land, with how far it has got, and you can
+cancel it there; if the upload fails, it says so in the same spot, with
+**Retry**.
 
 Blocks can be reordered by dragging the handle in the left margin.
 

@@ -5,7 +5,7 @@ h1: Documents
 navLabel: Overview
 section: documents
 order: 0
-updated: 2026-10-02
+updated: 2026-10-20
 answer: A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.
 faq:
   - q: When should I use a document instead of a note?
@@ -119,6 +119,11 @@ The **Insert** menu adds:
 - **Divider**
 - **Code block**
 - **Embed board** — a whole [cluster](/docs/clusters), rendered inside the document
+
+You can also paste an image, or drop one in from your computer. While it
+uploads it shows in the spot it will land, with how far it has got, and you can
+cancel it there; if the upload fails, it says so in the same spot, with
+**Retry**.
 
 Blocks can be reordered by dragging the handle in the left margin.
 

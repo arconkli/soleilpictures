@@ -24042,6 +24042,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "You can also paste an image, or drop one in from your computer. While it uploads it shows in the spot it will land, with how far it has got, and you can cancel it there; if the upload fails, it says so in the same spot, with "
+    },
+    {
+     "t": "strong",
+     "v": "Retry",
+     "children": [
+      {
+       "t": "text",
+       "v": "Retry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Blocks can be reordered by dragging the handle in the left margin."
     }
    ]

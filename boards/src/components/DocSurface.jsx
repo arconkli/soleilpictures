@@ -20,7 +20,7 @@ import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
-import { uploadImage } from '../lib/uploads.js';
+import { uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -963,22 +963,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, sheetId, anchor, relAnchor, scope });
   };
 
-  // Toolbar "+" insert menu — upload an image from disk into the active editor.
+  // Toolbar "+" insert menu — an image from disk, into the active editor at
+  // its caret (docExtensions/ImageUpload.js, the path a paste or drop takes).
   const pickImageFromDisk = (editor) => {
     if (!editor) return;
     if (!workspaceId || !userId) { feedback.toast({ type: 'error', message: 'Sign in to add images.' }); return; }
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0];
-      if (!file || !file.type?.startsWith('image/')) return;
-      try {
-        const payload = await uploadImage({ file, workspaceId, userId });
-        editor.chain().focus().setImage({ src: payload.publicUrl }).run();
-      } catch (e) {
-        console.error('image upload failed', e);
-        feedback.toast({ type: 'error', message: `Image upload failed: ${e?.message || e}` });
-      }
+      if (file) uploadImageIntoDoc(editor, file, { workspaceId, userId, scope, toast: (t) => feedback.toast(t) });
     };
     input.click();
   };

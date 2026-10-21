@@ -16,8 +16,7 @@ import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
-import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
-import { uploadImage } from '../lib/uploads.js';
+import { ImageUploadPlaceholders, uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
@@ -690,26 +689,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // "See all references" → open the side drawer for the first ref.
   const [backlinksRef, setBacklinksRef] = useState(null);
 
-  // Upload an image File and insert it at `pos` (or current selection if null).
-  const uploadAndInsert = async (editor, file, pos = null) => {
-    if (!file || !file.type?.startsWith('image/')) return;
+  // Upload an image File into the doc at `pos` (the caret when null) — the
+  // drop and paste half of the one path the toolbar uses too
+  // (docExtensions/ImageUpload.js).
+  const uploadAndInsert = (editor, file, pos = null) => {
     if (!workspaceId || !userId) return;
-    // The drop point as a Yjs relative anchor: typing (ours or a
-    // collaborator's) during the upload moves the text, and a raw position
-    // then landed mid-sentence — or past the end ("Position out of range").
-    const anchor = pos != null ? encodeAnchor(editor, pos) : null;
-    try {
-      const payload = await uploadImage({ file, workspaceId, userId });
-      if (pos != null) {
-        const at = Math.max(0, Math.min(resolveAnchor(editor, anchor) ?? pos, editor.state.doc.content.size));
-        editor.chain().focus().insertContentAt(at, { type: 'image', attrs: { src: payload.publicUrl } }).run();
-      } else {
-        editor.chain().focus().setImage({ src: payload.publicUrl }).run();
-      }
-    } catch (e) {
-      console.error('image upload failed', e);
-      feedback.toast({ type: 'error', message: `Image upload failed: ${e?.message || e}` });
-    }
+    uploadImageIntoDoc(editor, file, { pos, workspaceId, userId, scope, toast: (t) => feedback.toast(t) });
   };
 
   // Prose pagination (DocPagination) reports how many 8.5×11 pages the content
@@ -793,6 +778,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // custom DocPresence overlay that uses the same awareness-based
       // cursor system as the canvas (LiveCursor with rAF-lerp).
       FindHighlightExtension,
+      // An image on its way up: where it will land, how far it has got.
+      ImageUploadPlaceholders,
       // BlockHandleExtension removed — per-block drag handles felt
       // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,

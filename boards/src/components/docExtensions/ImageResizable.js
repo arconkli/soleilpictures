@@ -51,7 +51,8 @@ function sizes() {
   } catch (_) {}
   return sizeCache;
 }
-function rememberSize(src, w, h) {
+// Exported for a doc upload, which knows the shape before the image node mounts.
+export function rememberSize(src, w, h) {
   if (!src || !(w > 0) || !(h > 0)) return;
   const m = sizes();
   const prev = m.get(src);

@@ -14843,6 +14843,57 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .tt-embed-title { font-size: 13.5px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.005em; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tt-embed-arrow { color: var(--ink-3); flex-shrink: 0; }
 
+/* An image on its way into a doc (docExtensions/ImageUpload.js): the picture
+   from the file itself, its name and how far it has got, in the spot it will
+   land; a failed one says so there, with Retry and Remove. Neutral, like the
+   embed above — never gold. It sits in the text, so it resets what a
+   screenplay line or a heading would hand down. */
+.doc-upload {
+  display: flex; align-items: center; gap: 12px;
+  width: min(100%, 420px);
+  margin: 1em 0;
+  padding: 10px 12px 10px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  font: 400 13px/1.3 var(--font-sans);
+  letter-spacing: normal; text-transform: none; text-align: left; text-indent: 0;
+  white-space: normal;
+  user-select: none; -webkit-user-select: none;
+}
+.doc-upload [hidden] { display: none; }
+.doc-upload-thumb {
+  width: 56px; height: 56px; flex-shrink: 0;
+  border-radius: 6px; overflow: hidden;
+  background: var(--bg-act);
+}
+.doc-upload-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: .6; }
+.doc-upload-meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.doc-upload-name { font-weight: 600; color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-upload-state { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.doc-upload-bar { display: block; height: 3px; border-radius: 2px; background: var(--line-2); overflow: hidden; }
+.doc-upload-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--ink-2); transition: width var(--dur-base) var(--ease); }
+.doc-upload-error { font-size: 12px; color: var(--ink-error); }
+.doc-upload-actions { display: flex; gap: 6px; }
+.doc-upload-act {
+  appearance: none;
+  height: 26px; padding: 0 10px;
+  border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: transparent; color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.doc-upload-act:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-upload-act:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.doc-upload.is-failed { border-color: color-mix(in srgb, var(--ink-error) 45%, var(--line-2)); }
+.doc-upload.is-failed .doc-upload-thumb img { opacity: .35; }
+@media (pointer: coarse) {
+  .doc-upload-act { height: 40px; padding: 0 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .doc-upload-fill { transition: none; }
+}
+
 /* ─────── Image alignment + resize ─────── */
 .tt-img-wrap {
   position: relative;
