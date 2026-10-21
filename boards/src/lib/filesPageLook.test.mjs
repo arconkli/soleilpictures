@@ -22,6 +22,14 @@ test('the hold needs the files sidebar and is closed on production', () => {
   assert.match(read('lib/appHost.js'), /^\s*filesPageLook: filesPageLookAllowed,$/m);
 });
 
+test('the look opens on the preview host and nowhere else in a build', () => {
+  const body = holdBody('filesPageLookAllowed');
+  assert.match(body, /if \(onPreviewHost\(\)\) return true;/);
+  assert.doesNotMatch(body.trim(), /^return true;$/);
+  // Never ahead of the files sidebar it lives in.
+  assert.ok(body.indexOf('sidebarFilesAllowed()') < body.indexOf('onPreviewHost()'), 'the sidebar check comes first');
+});
+
 test('App alone decides the look, from the hold', () => {
   const app = read('App.jsx');
   assert.match(app, /const filesLook = filesSidebar && filesPageLookAllowed\(\) \? 'sb' : null;/);
