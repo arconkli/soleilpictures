@@ -117,7 +117,12 @@ export function reloadIfStaleChunk(err, componentStack = '') {
 }
 
 export function lazyWithReload(factory) {
-  return lazy(() => factory().catch(recoverFromChunkError));
+  const Lazy = lazy(() => factory().catch(recoverFromChunkError));
+  // Fetch the chunk ahead of its first render (App does after the board has
+  // settled), so that render seldom waits. A failure here is left for the
+  // render, which recovers from it.
+  Lazy.warm = () => { factory().catch(() => {}); };
+  return Lazy;
 }
 
 // One-shot equivalent for a bare dynamic import() that isn't a React.lazy route

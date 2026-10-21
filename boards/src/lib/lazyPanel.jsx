@@ -24,7 +24,6 @@ export function lazyPanel(factory) {
     if (!opened) return null;
     return <Suspense fallback={null}><Panel {...props} /></Suspense>;
   }
-  // A failure is left for the real open, which recovers from it.
-  LazyPanel.warm = () => { factory().catch(() => {}); };
+  LazyPanel.warm = Panel.warm;
   return LazyPanel;
 }

@@ -21,8 +21,7 @@
 // Everything is best-effort and never throws into the UI.
 
 import { urlCarriesLinkToken } from './linkTokens.js';
-import { onBootMark } from './bootMarks.js';
-import { schedulePixel } from './pixelSchedule.js';
+import { afterBoot } from './afterBoot.js';
 
 const TRACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/track-conversion';
 
@@ -220,25 +219,13 @@ export async function trackAdLead(session) {
 }
 
 // Add the pixel's script once the page has done what the visit came for (see
-// lib/pixelSchedule.js). Call once at startup; `signedIn` is main.jsx's
+// lib/afterBoot.js). Call once at startup; `signedIn` is main.jsx's
 // stored-session check. A page that skipped the pixel (GPC, a link's token) has
 // no window.__soleilPixel, so nothing loads.
 export function loadPixelLater({ signedIn = false } = {}) {
   if (typeof window === 'undefined' || typeof window.__soleilPixel !== 'function') return;
-  schedulePixel({
+  afterBoot(() => { try { window.__soleilPixel(); } catch (_) {} }, {
     signedInApp: signedIn && /^\/?$/.test(window.location.pathname),
-    onPaint: (fn) => onBootMark('paint', fn),
-    onImage: (fn) => onBootMark('image', fn),
-    onLoad: (fn) => {
-      if (document.readyState === 'complete') fn();
-      else window.addEventListener('load', fn, { once: true });
-    },
-    wait: (ms, fn) => setTimeout(fn, ms),
-    idle: (fn) => {
-      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 2000 });
-      else setTimeout(fn, 200);
-    },
-    load: () => { try { window.__soleilPixel(); } catch (_) {} },
   });
 }
 

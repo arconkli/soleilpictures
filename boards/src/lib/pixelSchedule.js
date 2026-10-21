@@ -14,7 +14,8 @@
 //     sign-ups, checkouts and purchases reach Meta from the server anyway;
 //   * any other page: its load event.
 //
-// Pure: lib/metaPixel.js hands it the browser. No imports.
+// Pure: lib/afterBoot.js hands it the browser, for the pixel and for the chunks
+// App fetches ahead of a first click. No imports.
 
 export const PIXEL_AFTER_PAINT_MS = 3000;
 export const PIXEL_CAP_MS = 8000;

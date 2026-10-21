@@ -62,6 +62,7 @@ import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
 import { bootMark, bootAt, bootDetail, onBootMark } from './lib/bootMarks.js';
+import { afterBoot } from './lib/afterBoot.js';
 import { takeBootRoot, bootPrefetchLanding } from './lib/bootPrefetch.js';
 import { conversationKind } from './lib/messageEvents.js';
 import { isDefaultClusterName } from './lib/hints.js';
@@ -301,6 +302,21 @@ const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').th
 const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
 const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
 const EntityBacklinksPanel = lazyWithReload(() => import('./components/EntityBacklinksPanel.jsx').then(m => ({ default: m.EntityBacklinksPanel })));
+// What a first click most often opens, fetched once the board has settled
+// (lib/afterBoot.js: its first picture, or a while after its paint) so that
+// click seldom waits on its chunk. Not under Save-Data or on a 2G connection.
+let firstClicksWarmed = false;
+function warmFirstClicks() {
+  if (firstClicksWarmed) return;
+  firstClicksWarmed = true;
+  try {
+    const c = navigator.connection;
+    if (c?.saveData || /2g/.test(c?.effectiveType || '')) return;
+  } catch (_) {}
+  afterBoot(() => {
+    for (const C of [CommandPalette, ShareModal, SettingsPanel, ListSurface, MessagesPanel]) C.warm();
+  }, { signedInApp: true });
+}
 // The bulk import's engine (lib/importStart.js), fetched by the first import or
 // by the offer to resume one a reload stopped: an open of the app never needs
 // it. Until then there is no import for a released hold to wake.
@@ -1437,6 +1453,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     onBootMark('image', send);
     setTimeout(send, 15_000);
   }, [yb.ready, yb.boardId, yb.cards, yb.paintSource, stack]);
+  useEffect(() => { warmFirstClicks(); }, []);
 
   // Avatar-click → open DM with a workspace member. Exposed via context.
   const [pendingDmPeerId, setPendingDmPeerId] = useState(null);
