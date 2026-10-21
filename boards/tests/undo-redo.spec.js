@@ -312,8 +312,11 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     expect(nts).toMatch(/yUndoOptions: \{ undoManager: noteUndoManager \}/);
     const nds = read('src/lib/noteDocState.js');
     expect(nds).toMatch(/export function getNoteUndoManager/);
+    // A STACK since 9df6a83c: a doc pushes its manager on open and removes it
+    // on close, so the surface beneath gets ⌘Z back.
     const ds = read('src/components/DocSurface.jsx');
-    expect(ds).toMatch(/setDocUndoTarget\(docUndoManager\)/);
+    expect(ds).toMatch(/pushDocUndoTarget\(docUndoManager\)/);
+    expect(ds).toMatch(/removeDocUndoTarget\(docUndoManager\)/);
   });
 
   test('Version history restores through the bulletproof path only', () => {
@@ -345,7 +348,8 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     // pad can never act on the board hidden behind it. The pad also
     // registers as the overlay undo owner (CanvasSurface stands down).
     expect(sp).toMatch(/\{ capture: true \}/);
-    expect(sp).toMatch(/setDocUndoTarget\(padTarget\)/);
+    expect(sp).toMatch(/pushDocUndoTarget\(padTarget\)/);
+    expect(sp).toMatch(/removeDocUndoTarget\(padTarget\)/);
   });
 
   test('dialogs shut out the board shortcuts (modalGuard)', () => {
