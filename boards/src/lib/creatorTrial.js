@@ -14,7 +14,7 @@ export const TRIAL_MIN_CARDS = THRESHOLDS.investedMin;
 export const TRIAL_CAP_FRAC = 0.8;
 
 export function creatorTrialEligibility(opts) {
-  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota } = opts || {};
+  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota, wallCards } = opts || {};
   if (tier !== 'demo') return { eligible: false, reason: 'not_demo' };
   if (trialStartedAt) return { eligible: false, reason: 'already_trialed' };
   const n = Number(cards);
@@ -29,8 +29,15 @@ export function creatorTrialEligibility(opts) {
   const quota = Number(storageQuota);
   const byStorage = storageUsed != null && storageQuota != null
     && Number.isFinite(used) && Number.isFinite(quota) && quota > 0 && used >= TRIAL_CAP_FRAC * quota;
-  if (!byCount && !byCap && !byStorage) return { eligible: false, reason: 'too_early' };
-  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : 'near_storage' };
+  // The wall itself is a body of work (owner, 2026-10-21). Someone stopped by
+  // their own card cap, or dropping more than it holds, has brought their work
+  // in even when nothing is placed or counted yet. The count is the client's
+  // word, because the server cannot see a drop that was planned against the cap
+  // before anything uploaded. That is acceptable: the trial still needs a card
+  // and is once per account.
+  const byWall = Number.isFinite(cap) && cap > 0 && Number.isInteger(wallCards) && wallCards > cap;
+  if (!byCount && !byCap && !byStorage && !byWall) return { eligible: false, reason: 'too_early' };
+  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : byStorage ? 'near_storage' : 'at_wall' };
 }
 
 // Is the trial decision still waiting on the server?

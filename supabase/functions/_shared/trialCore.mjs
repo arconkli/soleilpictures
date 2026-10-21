@@ -17,9 +17,10 @@
 //   • a real body of work — the same absolute floor the upgrade chip uses to
 //     decide someone is committed, OR standing at or near their own cap.
 //     The trial is an invitation extended in-product to people who have built
-//     something; it is deliberately not a public offer. Premium professional
-//     tools all run trials (Final Draft, FL Studio, the DAWs, Adobe); what
-//     protects a premium position is who is offered it and where.
+//     something, or who have just hit their own wall; it is deliberately not
+//     a public offer. Premium professional tools all run trials (Final Draft,
+//     FL Studio, the DAWs, Adobe); what protects a premium position is who is
+//     offered it and where.
 
 export const CREATOR_TRIAL_DAYS = 14;
 // Mirrors upsellEligibility.THRESHOLDS.investedMin — the chip and the trial
@@ -27,13 +28,13 @@ export const CREATOR_TRIAL_DAYS = 14;
 export const TRIAL_MIN_CARDS = 13;
 export const TRIAL_CAP_FRAC = 0.8;
 
-// creatorTrialEligibility({ tier, cards, cardLimit, trialStartedAt, storageUsed?, storageQuota? })
+// creatorTrialEligibility({ tier, cards, cardLimit, trialStartedAt, storageUsed?, storageQuota?, wallCards? })
 //   -> { eligible: boolean, reason: string }
 // reason: 'not_demo' | 'already_trialed' | 'cards_unknown' | 'too_early'
-//         | 'body_of_work' | 'near_cap' | 'near_storage'
+//         | 'body_of_work' | 'near_cap' | 'near_storage' | 'at_wall'
 // Fails CLOSED on junk: an unknown tier or count is not eligible.
 export function creatorTrialEligibility(opts) {
-  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota } = opts || {};
+  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota, wallCards } = opts || {};
   if (tier !== 'demo') return { eligible: false, reason: 'not_demo' };
   if (trialStartedAt) return { eligible: false, reason: 'already_trialed' };
   const n = Number(cards);
@@ -48,8 +49,15 @@ export function creatorTrialEligibility(opts) {
   const quota = Number(storageQuota);
   const byStorage = storageUsed != null && storageQuota != null
     && Number.isFinite(used) && Number.isFinite(quota) && quota > 0 && used >= TRIAL_CAP_FRAC * quota;
-  if (!byCount && !byCap && !byStorage) return { eligible: false, reason: 'too_early' };
-  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : 'near_storage' };
+  // The wall itself is a body of work (owner, 2026-10-21). Someone stopped by
+  // their own card cap, or dropping more than it holds, has brought their work
+  // in even when nothing is placed or counted yet. The count is the client's
+  // word, because the server cannot see a drop that was planned against the cap
+  // before anything uploaded. That is acceptable: the trial still needs a card
+  // and is once per account.
+  const byWall = Number.isFinite(cap) && cap > 0 && Number.isInteger(wallCards) && wallCards > cap;
+  if (!byCount && !byCap && !byStorage && !byWall) return { eligible: false, reason: 'too_early' };
+  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : byStorage ? 'near_storage' : 'at_wall' };
 }
 
 // Has this Stripe customer ever held a subscription with a trial? A second

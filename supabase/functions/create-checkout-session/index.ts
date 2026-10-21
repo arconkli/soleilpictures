@@ -80,6 +80,7 @@ Deno.serve(async (req) => {
     let trial = false;
     let gpc = false;
     let surface = "", header = "", via = "";
+    let wallCards: number | null = null;
     try {
       const body = await req.json();
       plan = body.plan;
@@ -89,6 +90,8 @@ Deno.serve(async (req) => {
       // length-clamped at the metadata write and never used for authorization.
       if (typeof body.surface === "string") surface = body.surface;
       if (typeof body.header === "string") header = body.header;
+      // The wall count is honoured only on the cap wall (trialCore's at_wall arm).
+      wallCards = trial && header === "cap-hit" && Number.isInteger(body.wall_cards) && body.wall_cards >= 0 && body.wall_cards <= 100000 ? body.wall_cards : null;
       if (typeof body.via === "string") via = body.via;
       // Meta match params captured client-side so the webhook/verify Purchase
       // (fired later from Stripe's request, where we DON'T have the user's IP/UA)
@@ -234,6 +237,7 @@ Deno.serve(async (req) => {
         trialStartedAt: row?.creator_trial_started_at ?? null,
         storageUsed: s.error ? null : (srow?.used ?? null),
         storageQuota: s.error ? null : (srow?.quota ?? null),
+        wallCards,
       });
       if (t.error || !elig.eligible || everTrialed) {
         return json({

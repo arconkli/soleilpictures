@@ -43,6 +43,20 @@ const CASES = [
   [{ tier: 'demo', cards: 3, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9, storageQuota: 0 }, false, 'too_early'],
   [{ tier: 'demo', cards: 13, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9, storageQuota: 5e9 }, true, 'body_of_work'],
   [{ tier: 'paid', cards: 3, cardLimit: 50, trialStartedAt: null, storageUsed: 4.5e9, storageQuota: 5e9 }, false, 'not_demo'],
+  // The wall (owner, 2026-10-21): a count the client was trying to hold that
+  // is over the cap invites at the lowest priority; anything else never does.
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 68 }, true, 'at_wall'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 50 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: null }, false, 'too_early'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: NaN }, false, 'too_early'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: -1 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 1.5 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: '68' }, false, 'too_early'],
+  [{ tier: 'demo', cards: 0, cardLimit: 0, wallCards: 68 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 13, cardLimit: 50, wallCards: 68 }, true, 'body_of_work'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 68, storageUsed: 4.5e9, storageQuota: 5e9 }, true, 'near_storage'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 68, trialStartedAt: '2026-09-01T00:00:00Z' }, false, 'already_trialed'],
+  [{ tier: 'paid', cards: 0, cardLimit: 50, wallCards: 68 }, false, 'not_demo'],
   [undefined, false, 'not_demo'],
   [null, false, 'not_demo'],
 ];
@@ -196,4 +210,14 @@ test('first_paid_at means money, and the referral reward survives a trial', () =
   const mig = read('../../../supabase/migrations/0327_trial_aware_money.sql');
   assert.match(mig, /after insert or update of status on public\.subscriptions/,
     'the trigger has to see the trial -> active UPDATE');
+});
+
+test('the edge reads wall_cards only when the trial is asked for on the cap wall', () => {
+  const src = read('../../../supabase/functions/create-checkout-session/index.ts');
+  const lines = src.split('\n').filter((l) => l.includes('wall_cards'));
+  assert.ok(lines.length > 0, 'the edge function reads wall_cards');
+  for (const l of lines) {
+    assert.match(l, /trial\s*&&\s*header === "cap-hit"/, 'wall_cards is read only on the trial + cap-hit header');
+  }
+  assert.match(src, /creatorTrialEligibility\(\{[^}]*\bwallCards\b[^}]*\}\)/, 'and it is passed to the rule');
 });
