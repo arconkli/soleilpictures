@@ -31,6 +31,7 @@ import { AdminErrorsTab } from '../pages/admin/AdminErrorsTab.jsx';
 import { AdminApiTab } from '../pages/admin/AdminApiTab.jsx';
 import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
 import { AdminDiscoverTab } from '../pages/admin/AdminDiscoverTab.jsx';
+import { AdminEmailsTab } from '../pages/admin/AdminEmailsTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 
 // Install the fixture shim before any tab mounts + fetches.
@@ -224,6 +225,7 @@ const TABS = [
   { id: 'errors',    label: 'Errors',    Component: AdminErrorsTab },
   { id: 'api',       label: 'API',       Component: AdminApiTab },
   { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
+  { id: 'emails',    label: 'Emails',    Component: AdminEmailsTab },
   { id: 'discover',  label: 'Discover',  Component: DiscoverQaTab },
   { id: 'universe',  label: 'Universe',  Component: UniverseQaTab },
   { id: 'command',   label: 'Command',   Component: CommandCenterQaTab },

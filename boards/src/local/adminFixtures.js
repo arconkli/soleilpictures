@@ -1439,6 +1439,190 @@ function conversionFunnelFixture(zero) {
   }));
 }
 
+// ── Emails › Impact (0494) ──────────────────────────────────────────
+// Invented, in the shape admin_email_impact returns, on a FIXED calendar: the
+// read as it would stand on Wednesday 2026-10-21. Unlike the weekly fixtures
+// above, these weeks do not move with the clock, because what changed
+// (lib/emailChanges.js) is dated: a moving calendar would walk those lines off
+// the left edge within a few months, and the page would stop showing what it
+// is for. Each email starts and stops on the days the registry gives it, so a
+// dated line lands where its bars do. Here two of the four emails that sent
+// across the split day halved and two did not, and no welcome went out in the
+// week of Sep 7.
+const EMAIL_WEEKS = Array.from({ length: 18 }, (_, i) => isoPlus('2026-06-22', i * 7));
+const EMAIL_TODAY = '2026-10-21';
+const EMAIL_AFTER = 13; // EMAIL_WEEKS[13] is the first week after the split day, 2026-09-20
+
+// type, first and last send, sent each week, opened per delivered before and
+// after the split, and the share of sends followed by something made in 3 days
+const EMAIL_SENDS = [
+  ['welcome_board', '2026-07-12T02:00:00Z', '2026-10-20T19:00:00Z',
+    [0, 0, 9, 12, 14, 16, 15, 18, 21, 17, 13, 0, 8, 11, 12, 10, 13, 4], 0.62, 0.27, 0.12],
+  ['activate_nudge_1', '2026-06-28T10:00:00Z', '2026-10-20T21:00:00Z',
+    [5, 22, 14, 19, 16, 24, 21, 13, 17, 15, 20, 16, 21, 23, 27, 25, 31, 8], 0.38, 0.3, 0.06],
+  ['activate_nudge_2', '2026-06-28T06:00:00Z', '2026-10-04T23:00:00Z',
+    [4, 15, 11, 13, 12, 17, 15, 10, 12, 11, 14, 12, 15, 16, 13, 0, 0, 0], 0.33, 0.12, 0.04],
+  ['nudge_dormant_early', '2026-07-20T23:00:00Z', '2026-08-26T02:00:00Z',
+    [0, 0, 0, 0, 11, 14, 12, 9, 13, 10, 0, 0, 0, 0, 0, 0, 0, 0], 0.29, 0, 0.05],
+  ['board_waiting', '2026-07-21T00:00:00Z', '2026-10-21T04:00:00Z',
+    [0, 0, 0, 0, 6, 9, 8, 7, 10, 8, 0, 0, 0, 0, 0, 12, 14, 5], 0.44, 0.31, 0.08],
+  ['whats_new', '2026-08-15T05:00:00Z', '2026-08-26T02:00:00Z',
+    [0, 0, 0, 0, 0, 0, 0, 18, 21, 9, 0, 0, 0, 0, 0, 0, 0, 0], 0.36, 0, 0.03],
+  ['reengage_1', '2026-06-29T18:00:00Z', '2026-08-30T17:00:00Z',
+    [0, 3, 4, 2, 5, 3, 4, 6, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0], 0.25, 0, 0],
+];
+// The group Your cluster is waiting holds back since it came back on Oct 5:
+// { week: [held back, of whom made something anyway] }.
+const EMAIL_HELD = { board_waiting: { 15: [3, 0], 16: [4, 1], 17: [1, 0] } };
+// Sends that never arrived: type, reason, { week: count }.
+const EMAIL_LOST = [
+  ['nudge_dormant_early', 'failed', { 4: 2, 8: 3 }],
+  ['activate_nudge_1', 'bounced', { 3: 1, 9: 1, 15: 1 }],
+  ['activate_nudge_2', 'no_report', { 11: 1, 12: 1 }],
+  ['welcome_board', 'bounced', { 6: 1, 14: 1 }],
+  ['activate_nudge_1', 'no_report', { 13: 1 }],
+  ['whats_new', 'bounced', { 8: 1 }],
+  ['board_waiting', 'bounced', { 5: 1 }],
+  ['reengage_1', 'bounced', { 2: 1 }],
+];
+// Each mailbox's share of what was delivered ('other' takes what the rest
+// leave), and its opened per delivered before and after the split.
+const EMAIL_BOXES = [
+  ['gmail', 0.58, 0.47, 0.19],
+  ['icloud', 0.15, 0.69, 0.63],
+  ['outlook', 0.12, 0.31, 0.14],
+  ['yahoo', 0.06, 0.36, 0.18],
+  ['other', null, 0.4, 0.33],
+];
+// type, factor, arm, share of the email's sends (null: what its other lines
+// leave), how much better or worse than the email it does, and a later start
+const EMAIL_ARMS = [
+  ['welcome_board', 'subject', 's1', 0.52, 1.06], ['welcome_board', 'subject', 's2', null, 0.94],
+  ['welcome_board', 'body', 'b1', 0.5, 1.03], ['welcome_board', 'body', 'b2', null, 0.97],
+  ['activate_nudge_1', 'subject', 's1', 0.36, 1.08], ['activate_nudge_1', 'subject', 's2', 0.34, 1],
+  ['activate_nudge_1', 'subject', 's3', null, 0.9, '2026-08-08'],
+  ['activate_nudge_1', 'body', 'b1', 0.5, 1.02], ['activate_nudge_1', 'body', 'b2', null, 0.98],
+  ['activate_nudge_2', 'subject', 's1', 0.5, 1.1], ['activate_nudge_2', 'subject', 's2', null, 0.9],
+  ['nudge_dormant_early', 'subject', 's1', 0.5, 1.04], ['nudge_dormant_early', 'subject', 's2', null, 0.96],
+  ['board_waiting', 'subject', 's1', 0.5, 1.05], ['board_waiting', 'subject', 's2', null, 0.95],
+  ['whats_new', 'subject', 's1', 1, 1],
+  ['reengage_1', 'subject', 's1', 0.5, 1.1], ['reengage_1', 'subject', 's2', null, 0.9],
+];
+// New accounts by sign-up week, and how many of them got the welcome.
+const EMAIL_SIGNUPS  = [12, 15, 14, 18, 17, 21, 19, 16, 22, 24, 20, 27, 23, 19, 21, 25, 22, 9];
+const EMAIL_WELCOMED = [0, 0, 10, 13, 12, 15, 14, 12, 16, 17, 9, 0, 11, 14, 15, 17, 14, 3];
+
+function emailImpactFixture(split) {
+  const n = EMAIL_WEEKS.length;
+  const total = (a, lo = 0, hi = a.length) => a.slice(lo, hi).reduce((s, v) => s + v, 0);
+  const wiggle = (i, k) => 1 + 0.16 * Math.sin(i * 1.9 + k * 2.3);
+  const sides = (delivered, opened) => ({
+    before: split ? { delivered: total(delivered, 0, EMAIL_AFTER), opened: total(opened, 0, EMAIL_AFTER) } : null,
+    after: split ? { delivered: total(delivered, EMAIL_AFTER), opened: total(opened, EMAIL_AFTER) } : null,
+  });
+  const lostAt = (type, i, reason) => EMAIL_LOST
+    .filter(([t, r]) => t === type && (!reason || r === reason))
+    .reduce((s, [, , w]) => s + (w[i] || 0), 0);
+  const perWeek = (f) => Array.from({ length: n }, (_, i) => f(i));
+
+  const types = EMAIL_SENDS.map(([type, first, last, sent, before, after, makes], k) => {
+    const delivered = sent.map((v, i) => Math.max(0, v - lostAt(type, i)));
+    const opened = delivered.map((d, i) => Math.min(d, Math.round(d * (i < EMAIL_AFTER ? before : after) * wiggle(i, k))));
+    return {
+      type, first_sent: first, last_sent: last,
+      sent: sent.slice(), delivered, opened,
+      failed: perWeek((i) => lostAt(type, i, 'failed')),
+      made: sent.map((v, i) => Math.round(v * makes * wiggle(i, k + 1))),
+      // A send under 3 days old has not had its 3 days yet: this week's, and
+      // last Sunday's share of last week's.
+      young: sent.map((v, i) => (i === n - 1 ? v : i === n - 2 ? Math.round(v / 7) : 0)),
+      held: perWeek((i) => EMAIL_HELD[type]?.[i]?.[0] || 0),
+      held_made: perWeek((i) => EMAIL_HELD[type]?.[i]?.[1] || 0),
+      ...sides(delivered, opened),
+    };
+  });
+
+  // This calendar month and the two before it, a week counted in the month its Thursday is in.
+  const monthOf = (i) => isoPlus(EMAIL_WEEKS[i], 3).slice(0, 7);
+  const months = ['2026-08', '2026-09', '2026-10'].map((mo) => {
+    const at = EMAIL_WEEKS.map((_, i) => i).filter((i) => monthOf(i) === mo);
+    return {
+      month: `${mo}-01`,
+      delivered: total(at.map((i) => total(types.map((t) => t.delivered[i])))),
+      opened: total(at.map((i) => total(types.map((t) => t.opened[i])))),
+    };
+  });
+
+  const left = perWeek((i) => total(types.map((t) => t.delivered[i])));
+  const all = left.slice();
+  const mailbox = EMAIL_BOXES.map(([box, share, before, after], k) => {
+    const delivered = all.map((v, i) => {
+      const d = share == null ? left[i] : Math.min(left[i], Math.round(v * share));
+      left[i] -= d;
+      return d;
+    });
+    const opened = delivered.map((d, i) => Math.min(d, Math.round(d * (i < EMAIL_AFTER ? before : after) * wiggle(i, k + 3))));
+    return { box, delivered, opened, ...sides(delivered, opened) };
+  });
+
+  const lost = EMAIL_LOST.map(([type, reason, w]) => {
+    const byWeek = perWeek((i) => w[i] || 0);
+    return { type, reason, n: total(byWeek), by_week: byWeek };
+  });
+
+  const room = new Map();
+  const arms = EMAIL_ARMS.map(([type, factor, arm, share, lift, from]) => {
+    const t = types.find((x) => x.type === type);
+    const sent = total(t.sent);
+    const key = `${type}:${factor}`;
+    const rest = room.has(key) ? room.get(key) : sent;
+    const sends = share == null ? rest : Math.round(sent * share);
+    room.set(key, rest - sends);
+    const delivered = Math.round((sends * total(t.delivered)) / sent);
+    const opened = Math.min(delivered, Math.round(((delivered * total(t.opened)) / total(t.delivered)) * lift));
+    return {
+      type, factor, arm, sends, delivered, opened,
+      clicked: Math.round(opened * 0.22 * lift),
+      returned: Math.round(sends * 0.14 * lift),
+      made: Math.round(((total(t.made) * sends) / sent) * lift),
+      first: from || t.first_sent.slice(0, 10),
+      last: t.last_sent.slice(0, 10),
+    };
+  });
+
+  return {
+    weeks: EMAIL_WEEKS.slice(),
+    today: EMAIL_TODAY,
+    split: split || null,
+    tracked_from: '2026-06-29T10:00:00Z',
+    types,
+    months,
+    signups: EMAIL_SIGNUPS.slice(),
+    welcomed: EMAIL_WELCOMED.slice(),
+    mailbox,
+    lost,
+    arms,
+  };
+}
+
+// admin_recent_emails (0212), newest first. Every address is example.com.
+RPCS.admin_recent_emails = [
+  ['activate_nudge_1', 'opened', 0, 9, 2], ['welcome_board', 'delivered', 0, 7, 0],
+  ['board_waiting', 'clicked', 1, 21, 1], ['activate_nudge_1', 'bounced', 1, 14, 0],
+  ['otp', 'opened', 2, 10, 1], ['welcome_board', 'sent', 3, 18, 0],
+].map(([template, status, days, hour, opens], i) => ({
+  id: 9100 + i, resend_id: `re_fixture_${i}`, template,
+  category: template === 'otp' ? 'transact' : 'lifecycle',
+  recipient_email: `reader.${i + 1}@example.com`, user_id: null,
+  status: status === 'sent' ? 'sent' : 'delivered', sent_at: agoISO(days, hour),
+  delivered_at: status === 'sent' ? null : agoISO(days, hour),
+  opened_at: opens ? agoISO(days, hour + 1) : null,
+  clicked_at: status === 'clicked' ? agoISO(days, hour + 1) : null,
+  bounced_at: status === 'bounced' ? agoISO(days, hour) : null, complained_at: null,
+  bounce_type: status === 'bounced' ? 'hard' : null, open_count: opens,
+  click_count: status === 'clicked' ? 1 : 0, sending_domain: 'example.com', derived_status: status,
+}));
+
 // ── mock supabase shim ──────────────────────────────────────────────
 // A few RPCs return different things for different arguments, and the
 // difference is the reason the panel exists — so the shim has to honour it or
@@ -1475,6 +1659,15 @@ function rpcResult(name, params) {
   if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
   if (name === 'admin_money_path') return moneyPathFixture(zeroRevenue());
   if (name === 'admin_money_people') return moneyPeopleFixture(zeroRevenue());
+  // Without a split day the read has no before and after, so neither does this.
+  if (name === 'admin_email_impact') return emailImpactFixture(params?.p_split || null);
+  // The stream's filters only mean something against rows they can remove.
+  if (name === 'admin_recent_emails') {
+    const q = String(params?.p_query || '').toLowerCase();
+    return RPCS.admin_recent_emails.filter((r) => (!params?.p_template || r.template === params.p_template)
+      && (!params?.p_status || r.derived_status === params.p_status)
+      && (!q || r.recipient_email.includes(q)));
+  }
   if (name === 'admin_trial_funnel') return trialFunnelFixture(zeroRevenue());
   if (name === 'admin_conversion_funnel') return conversionFunnelFixture(zeroRevenue());
   // Two checkouts finished and one became the trial, so the reliability read

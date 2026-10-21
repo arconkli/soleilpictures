@@ -4534,9 +4534,10 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  *
  * Money's path is left plain on purpose, as its mockup drew it: the hatched
  * wedges of who stopped are a texture of their own, and paper under them
- * reads as more hatching.
+ * reads as more hatching. So are the email rows on Emails › Impact: like the
+ * band's, they rule their own weeks, and a dated line runs through each.
  */
-.adm-well:not(.adm-gb-well, .adm-money-pathwell):not(:has(.is-ruled, .adm-heat, .adm-cohort, .adm-gb))::before {
+.adm-well:not(.adm-gb-well, .adm-money-pathwell, .eml-mult):not(:has(.is-ruled, .adm-heat, .adm-cohort, .adm-gb))::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -6225,31 +6226,37 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
  * grounds a bar's track sits on are the one thing neither set has, so the
  * view names them, themed, and the well overrides them.
  */
-.adm-money {
+.adm-money,
+.adm-emails {
   --mny-hov: rgba(245, 245, 247, .045);
   --mny-act: rgba(245, 245, 247, .085);
 }
 
-[data-theme='light'] .adm-money {
+[data-theme='light'] .adm-money,
+[data-theme='light'] .adm-emails {
   --mny-hov: rgba(10, 10, 12, .04);
   --mny-act: rgba(10, 10, 12, .065);
 }
 
-.adm-money .adm-well {
+.adm-money .adm-well,
+.adm-emails .adm-well {
   --mny-hov: rgba(255, 255, 255, .05);
   --mny-act: rgba(255, 255, 255, .07);
 }
 
 /* Each panel stacks its parts with the panel's own gap. */
-.adm-money .adm-well-body { display: flex; flex-direction: column; gap: 10px; }
+.adm-money .adm-well-body,
+.adm-emails .adm-well-body { display: flex; flex-direction: column; gap: 10px; }
 
-.adm-money .adm-well-foot {
+.adm-money .adm-well-foot,
+.adm-emails .adm-well-foot {
   border-top: 1px solid var(--line-1);
   padding-top: 11px;
   line-height: 1.45;
 }
 
-.adm-money .adm-well-foot b { font-weight: 500; color: var(--ink-1); }
+.adm-money .adm-well-foot b,
+.adm-emails .adm-well-foot b { font-weight: 500; color: var(--ink-1); }
 .adm-money .adm-well-foot .mny-alarm { font-weight: 600; color: var(--ink-0); }
 
 /* 01 · the six figures */
@@ -6605,21 +6612,28 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   font: 400 12px/1.35 var(--font-sans); color: var(--ink-3);
 }
 
-.adm-money .adm-money-details .adm-well-body { gap: 0; }
-.adm-money-details .adm-detail { border-top: 0; border-bottom: 1px solid var(--line-1); }
-.adm-money-details .adm-detail:last-child { border-bottom: 0; }
+.adm-money .adm-money-details .adm-well-body,
+.adm-emails .adm-email-details .adm-well-body { gap: 0; }
+:is(.adm-money-details, .adm-email-details) .adm-detail { border-top: 0; border-bottom: 1px solid var(--line-1); }
+:is(.adm-money-details, .adm-email-details) .adm-detail:last-child { border-bottom: 0; }
 
-.adm-money-details .adm-detail-trigger {
+:is(.adm-money-details, .adm-email-details) .adm-detail-trigger {
   display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 12px; align-items: center;
   min-height: 46px; padding: 6px 4px; border-radius: 4px;
   font: 600 13px/1.3 var(--font-sans); color: var(--ink-1);
 }
 
-.adm-money-details .adm-detail-trigger:hover { background: var(--mny-hov); color: var(--ink-0); }
-.adm-money-details .adm-detail-trigger:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
-.adm-money-details .adm-detail-caret { font-size: 12px; text-align: center; }
-.adm-money-details .adm-detail-count { margin-left: 0; font: 500 11px/1.3 var(--font-mono); text-align: right; }
-.adm-money-details .adm-detail-body { padding: 6px 0 16px; }
+:is(.adm-money-details, .adm-email-details) .adm-detail-trigger:hover { background: var(--mny-hov); color: var(--ink-0); }
+:is(.adm-money-details, .adm-email-details) .adm-detail-trigger:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+:is(.adm-money-details, .adm-email-details) .adm-detail-caret { font-size: 12px; text-align: center; }
+:is(.adm-money-details, .adm-email-details) .adm-detail-count { margin-left: 0; font: 500 11px/1.3 var(--font-mono); text-align: right; }
+:is(.adm-money-details, .adm-email-details) .adm-detail-body { padding: 6px 0 16px; }
+
+/* On a phone a count goes under its label, which keeps the width to wrap in. */
+@media (max-width: 640px) {
+  :is(.adm-money-details, .adm-email-details) .adm-detail-trigger { grid-template-columns: 16px minmax(0, 1fr); row-gap: 4px; }
+  :is(.adm-money-details, .adm-email-details) .adm-detail-count { grid-column: 2; text-align: left; }
+}
 
 @media (max-width: 1180px) {
   .mny-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -6643,4 +6657,285 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   .mny-t-row { flex-wrap: wrap; gap: 4px 8px; }
   .mny-t-total { white-space: normal; text-align: left; }
   .mny-life .mny-scope { margin-left: 0; }
+}
+
+/* ── Emails › Impact ────────────────────────────────────────────────────────
+ * The owner's pick of 2026-10-20, "Over time", ported from its mockup onto these
+ * tokens (pages/admin/emails/EmailImpactView.jsx). The band and the weekly rows
+ * sit in wells and use the well's inks; What changed, the welcome chart and
+ * Detail sit on plates and use the page's. Money's two track grounds, and its
+ * Detail list, are named for this view as well, above.
+ */
+
+/* The band: this month's opens, the three months beside it, and what is due. */
+.eml-ban {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 36px; align-items: center;
+}
+
+.eml-ban-k {
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--adm-plot-ink-2);
+}
+
+.eml-ban-d { margin-top: 8px; font: 500 40px/1 var(--font-mono); letter-spacing: -.02em; color: var(--adm-plot-ink); }
+.eml-ban-d small { margin-left: 12px; font: 500 13px var(--font-sans); letter-spacing: 0; color: var(--adm-plot-ink-2); }
+.eml-ban-mid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; min-width: 0; }
+.eml-mo { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+
+.eml-mo-h {
+  display: flex; justify-content: space-between; gap: 8px;
+  font: 500 11px/1 var(--font-mono); color: var(--adm-plot-ink-2);
+}
+
+.eml-mo-h b { font-weight: 500; color: var(--adm-plot-ink); }
+.eml-mo-t { height: 6px; border-radius: 3px; background: var(--mny-act); overflow: hidden; }
+.eml-mo-t i { display: block; height: 100%; border-radius: 3px; background: var(--adm-cat-1); }
+.eml-mo-s { font: 500 10.5px/1 var(--font-mono); color: var(--adm-plot-ink-3); }
+.eml-ban-now { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.eml-ban-now b { font: 500 22px/1 var(--font-mono); color: var(--adm-plot-ink); }
+.eml-ban-now span { font-size: 11px; color: var(--adm-plot-ink-2); white-space: nowrap; }
+
+/* The weekly rows. A well of them is focusable, so the arrow keys can walk the
+   weeks, and it is laid out by its own width: two thirds of a wide screen, all
+   of a laptop's. */
+.eml-mult .adm-well-body { gap: 4px; container-type: inline-size; }
+.eml-mult:focus-visible,
+.eml-go:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+/* The section captions run the width the mockup gave them. */
+.adm-emails .admin-section-sub { max-width: 880px; }
+
+/* A group is its name and sentence, then its rows, a row's pitch apart. */
+.eml-group { display: flex; flex-direction: column; gap: 4px; }
+
+/* A group opens with its name and its one sentence, under a rule. */
+.eml-grp {
+  position: relative; z-index: 1;
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px;
+  margin-top: 10px; padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, .06);
+  font: 600 10px/1 var(--font-sans);
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--adm-plot-ink-2);
+}
+
+.eml-grp.is-first { margin-top: 4px; padding-top: 0; border-top: 0; }
+
+.eml-grp-head {
+  min-width: 0;
+  font: 400 12.5px/1.3 var(--font-sans);
+  letter-spacing: 0; text-transform: none;
+  color: var(--adm-plot-ink-2);
+}
+
+/* A row is its reading and its chart. The label column is one width, so every
+   plot starts at the same x and a week lines up from the top row to the last. */
+.eml-row,
+.eml-go,
+.eml-xaxis {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: 176px minmax(0, 1fr);
+  gap: 12px; align-items: center;
+}
+
+.eml-lab { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.eml-name {
+  font: 500 10.5px/1.25 var(--font-mono);
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--adm-plot-ink-2);
+}
+
+.eml-val { font: 500 18px/1 var(--font-mono); color: var(--adm-plot-ink); white-space: nowrap; }
+.eml-val small { margin-left: 6px; font-size: 10.5px; color: var(--adm-plot-ink-2); }
+.eml-when { font: 500 10px/1.25 var(--font-mono); color: var(--adm-plot-ink-3); }
+
+/* One chart: the SVG, and the words laid over it at percentages of its box. */
+.eml-chw { position: relative; min-width: 0; container-type: inline-size; }
+.eml-chw > svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.eml-chw > span { position: absolute; white-space: nowrap; pointer-events: none; line-height: 1; }
+
+.eml-rule { stroke: rgba(255, 255, 255, .045); stroke-width: 1; }
+.eml-gl   { stroke: rgba(255, 255, 255, .085); stroke-width: 1; }
+.eml-gl0  { stroke: rgba(255, 255, 255, .2); stroke-width: 1; }
+.eml-pdiv { stroke: rgba(255, 255, 255, .18); stroke-width: 1; }
+.eml-hit  { fill: transparent; cursor: crosshair; }
+.eml-hl   { fill: rgba(255, 255, 255, .04); }
+
+/* Something that changed: a dashed rule, solid and bright while it is pointed
+   at, here or in the list. A span that lasted is shaded in the alert's rose. */
+.eml-mk { stroke: rgba(255, 255, 255, .22); stroke-width: 1; stroke-dasharray: 2 3; }
+.eml-mk.is-on { stroke: rgba(255, 255, 255, .8); stroke-dasharray: none; }
+.eml-gap { fill: color-mix(in srgb, var(--adm-cat-3) 10%, transparent); }
+
+/* Opens: a line of dots, hollow where a week is too thin to read alone, and the
+   two averages either side of the split day dashed across it. */
+.eml-ln { fill: none; stroke: var(--adm-cat-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.eml-dot { fill: var(--adm-cat-1); stroke: var(--adm-plot); stroke-width: 2; }
+.eml-dot.is-thin { fill: var(--adm-plot); stroke: var(--adm-cat-1); stroke-width: 1.5; }
+.eml-dot.is-on { fill: var(--adm-plot-ink); stroke: var(--adm-plot); }
+.eml-mean { stroke: var(--adm-plot-ink); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .75; }
+
+/* Sends: grey for what went out, the green foot for who then made something,
+   the group held back dashed on top, and this week so far hollow. */
+.eml-bar.is-sent { fill: var(--adm-cat-other); }
+.eml-bar.is-part { fill: none; stroke: var(--adm-plot-ink-2); stroke-width: 1.5; }
+.eml-bar.is-made { fill: var(--adm-cat-2); }
+.eml-bar.is-held { fill: none; stroke: var(--adm-plot-ink-2); stroke-width: 1.5; stroke-dasharray: 3 2; }
+
+.eml-y {
+  transform: translate(-100%, -50%); padding-right: 6px;
+  font: 500 10px/1 var(--font-mono); color: var(--adm-plot-ink-3);
+}
+
+.eml-ml {
+  transform: translate(-100%, -130%); padding-right: 2px;
+  font: 500 10px/1 var(--font-mono); color: var(--adm-plot-ink);
+}
+
+.eml-glyph {
+  transform: translate(-50%, -100%); padding-bottom: 1px;
+  font: 10px/1 var(--font-mono); color: var(--adm-plot-ink-2);
+}
+
+.eml-glyph.is-on { color: var(--adm-plot-ink); }
+
+.eml-gap-t {
+  transform: translate(-50%, -50%);
+  font: 500 10.5px/1.2 var(--font-sans); color: var(--adm-cat-3);
+}
+
+/* A chart this narrow has no room for words on it: the readings beside it and
+   the hover card say the same. */
+@container (max-width: 520px) {
+  .eml-chw > .eml-glyph,
+  .eml-chw > .eml-ml,
+  .eml-chw > .eml-gap-t { display: none; }
+}
+
+/* Narrower still, a chart is under 32px tall and its scale's labels would sit
+   on each other. The caption gives the scale, and the card each week's value. */
+@container (max-width: 400px) {
+  .eml-chw > .eml-y { display: none; }
+}
+
+.eml-xaxis .eml-chw { height: 16px; }
+
+.eml-x {
+  transform: translateX(-50%);
+  font: 500 10.5px/1 var(--font-mono); color: var(--adm-plot-ink-3);
+}
+
+.eml-x.is-end { transform: translateX(-100%); }
+
+/* The hover card, over its week, and held inside the chart at either end. */
+.eml-tip {
+  position: absolute; top: 0; z-index: 3; pointer-events: none;
+  min-width: 170px; padding: 7px 10px; border-radius: 6px;
+  background: var(--adm-plot-tip); border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .55);
+  color: var(--adm-plot-ink);
+  transform: translate(-50%, -104%);
+}
+
+.eml-tip.is-start { transform: translate(0, -104%); }
+.eml-tip.is-end { transform: translate(-100%, -104%); }
+.eml-tip-w { font: 500 10.5px/1.3 var(--font-mono); color: var(--adm-plot-ink-2); white-space: nowrap; }
+.eml-tip-v { margin-top: 2px; font: 500 16px/1.2 var(--font-mono); }
+.eml-tip-v small { margin-left: 6px; font-size: 11px; color: var(--adm-plot-ink-2); }
+.eml-tip-m { margin-top: 4px; font: 400 11.5px/1.4 var(--font-sans); color: #b8bac6; white-space: nowrap; }
+
+/* The key, under the last row. Held back and this week so far are both an
+   outline, so held back's swatch is wide enough to show its dashes. */
+.eml-key {
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; gap: 4px 16px; padding-top: 10px;
+  font: 500 10.5px/1.3 var(--font-mono); color: var(--adm-plot-ink-2);
+}
+
+.eml-key > span { display: inline-flex; align-items: center; gap: 6px; }
+.eml-key i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+.eml-key i.is-dot { border-radius: 50%; background: var(--adm-cat-1); }
+.eml-key i.is-ring { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--adm-cat-1); }
+.eml-key i.is-dash { width: 16px; height: 0; border-radius: 0; border-top: 1.5px dashed var(--adm-plot-ink); }
+.eml-key i.is-gap { background: color-mix(in srgb, var(--adm-cat-3) 30%, transparent); }
+.eml-key i.is-sent { background: var(--adm-cat-other); }
+.eml-key i.is-made { background: var(--adm-cat-2); }
+.eml-key i.is-held { width: 15px; box-sizing: border-box; border: 1.5px dashed var(--adm-plot-ink-2); }
+.eml-key i.is-hollow { box-shadow: inset 0 0 0 1.5px var(--adm-plot-ink-2); }
+
+/* What changed, beside the opens: the list's rows are the band's, with a
+   figure or a note under a label, and what is still due set in the quieter ink. */
+.eml-changes .adm-well-body { gap: 8px; }
+.eml-changes .adm-marker-row { padding: 7px 4px; line-height: 1.4; }
+.eml-changes .adm-marker-row:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.eml-chg.is-next { color: var(--ink-2); }
+.eml-chg-sub { display: block; margin-top: 3px; font: 500 10px/1.3 var(--font-mono); color: var(--ink-3); }
+
+/* The welcome chart sits on a plate, so it draws in the page's inks. */
+.eml-go-plate .adm-well-body { gap: 4px; container-type: inline-size; }
+.eml-go { border-radius: 4px; outline: none; }
+.eml-go .eml-name { color: var(--ink-2); }
+.eml-go .eml-val { color: var(--ink-0); }
+.eml-go .eml-val small { color: var(--ink-2); }
+.eml-go .eml-when { color: var(--ink-3); }
+.eml-go .eml-gl { stroke: var(--line-1); }
+.eml-go .eml-gl0 { stroke: var(--line-3); }
+.eml-go .eml-hl { fill: var(--mny-hov); }
+.eml-go .eml-y,
+.eml-go-plate .eml-x { color: var(--ink-3); }
+.eml-wbar.is-bar { fill: var(--adm-cat-other); }
+.eml-wbar.is-part { fill: none; stroke: var(--adm-cat-other); stroke-width: 1.5; }
+.eml-wbar.is-zero { fill: none; stroke: var(--adm-cat-3); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.eml-ref { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 4 4; }
+
+.eml-zl {
+  transform: translate(-50%, -100%); padding-bottom: 4px;
+  font: 600 10.5px/1.2 var(--font-mono); color: var(--adm-cat-3); text-align: center;
+}
+
+.eml-rl {
+  right: 0; transform: translateY(-140%);
+  font: 500 10px/1 var(--font-mono); color: var(--ink-2);
+}
+
+.adm-emails .eml-go-plate .adm-well-foot b { font-weight: 600; color: var(--ink-0); }
+
+/* Detail. A rate's small figure is how many it divides. */
+.mny-tbl td .eml-n { margin-left: 6px; font-size: 10.5px; color: var(--ink-3); }
+.mny-tbl tr.eml-arm-first:not(:first-child) td { border-top: 1px solid var(--line-2); }
+
+.eml-note {
+  margin: 10px 0 0; max-width: 78ch;
+  font: 400 12px/1.45 var(--font-sans); color: var(--ink-3);
+}
+
+.eml-spark { display: block; width: 120px; height: 22px; overflow: visible; }
+.eml-spark-base { stroke: var(--line-2); stroke-width: 1; }
+.eml-spark-ln { fill: none; stroke: var(--adm-cat-1); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.eml-spark-dot { fill: var(--adm-cat-1); }
+.eml-spark-dot.is-thin { fill: var(--adm-plate-bg); stroke: var(--adm-cat-1); stroke-width: 1; }
+.eml-spark-bar { fill: var(--adm-cat-other); }
+
+@media (max-width: 1180px) {
+  .eml-ban { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .eml-ban-now { align-items: flex-start; }
+}
+
+@media (max-width: 640px) {
+  .eml-ban-mid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Narrower than a tablet held upright, a row's reading goes on one line above
+   its chart, and the chart takes the whole width. */
+@container (max-width: 560px) {
+  .eml-row,
+  .eml-go,
+  .eml-xaxis { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .eml-xaxis > div:first-child { display: none; }
+  .eml-lab { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .eml-val { font-size: 15px; }
 }
