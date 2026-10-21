@@ -113,7 +113,7 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
                 {row.source === 'owner' ? (
                   <span className="settings-editor-role">Owner</span>
                 ) : (
-                  <span className="settings-editor-acts">
+                  <span className={`settings-editor-acts${pending ? ' is-pending' : ''}`}>
                     {pending ? (
                       <button type="button" className="settings-link-btn" disabled={!!busy}
                               onClick={() => revoke(row)}>Revoke</button>

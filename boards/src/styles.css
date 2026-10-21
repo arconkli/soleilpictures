@@ -23265,11 +23265,14 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .settings-editor-name { font: 600 12.5px/1.3 var(--font-sans); color: var(--ink-0); }
 .settings-editor-sub { font: 400 11px/1.3 var(--font-sans); color: var(--ink-3); }
 .settings-editor-role { flex: none; font: 400 12.5px/1 var(--font-sans); color: var(--ink-2); }
-.settings-editor-acts { flex: none; display: flex; gap: 4px; }
-/* The actions wait under the pointer, as the pick drew them; the keyboard and
-   a finger always find them. */
+/* The buttons' own 6px reaches past the edge, so the last word lines up with
+   "Owner" and the head's "10 of 10". */
+.settings-editor-acts { flex: none; display: flex; gap: 4px; margin-right: -6px; }
+/* Make viewer and Remove wait under the pointer, as the pick drew them; a
+   waiting invite's Revoke stays, as it drew that; the keyboard and a finger
+   always find them. */
 @media (hover: hover) {
-  .settings-editor-row:not(:hover):not(:focus-within) .settings-editor-acts { opacity: 0; }
+  .settings-editor-row:not(:hover):not(:focus-within) .settings-editor-acts:not(.is-pending) { opacity: 0; }
 }
 /* Settings → Security (admin, 0369). Its rows lead with an address, and on a
    phone the address is the part that must not be squeezed out: wrap instead. */
