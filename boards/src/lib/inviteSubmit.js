@@ -73,3 +73,27 @@ export async function runInvites(emails, send) {
   }
   return { granted, pending, fail, limit };
 }
+
+// Send a list split by role, editors first. The invite budget stops the whole
+// list: past it every address is refused the same way, so whatever it never
+// reached comes back in budget.unsent. The editor limit (0521) stops only the
+// editors: viewers never take a place, so they still go out.
+//   byRole: { editor: [email], viewer: [email] }; sendFor(role) → send(email)
+//   → { runs: [{ role, granted, pending, fail }],
+//       budget: null | { reason, unsent: [email] },
+//       editors: null | { ask, reason, unsent: [email] } }
+export async function runInvitesByRole(byRole, sendFor) {
+  const runs = [];
+  let budget = null;
+  let editors = null;
+  for (const role of ['editor', 'viewer']) {
+    const emails = Array.isArray(byRole?.[role]) ? byRole[role] : [];
+    if (emails.length === 0) continue;
+    if (budget) { budget.unsent.push(...emails); continue; }
+    const r = await runInvites(emails, sendFor(role));
+    runs.push({ role, granted: r.granted, pending: r.pending, fail: r.fail });
+    if (r.limit?.kind === 'editors') editors = { ask: r.limit.ask, reason: r.limit.reason, unsent: [...r.limit.unsent] };
+    else if (r.limit) budget = { reason: r.limit.reason, unsent: [...r.limit.unsent] };
+  }
+  return { runs, budget, editors };
+}

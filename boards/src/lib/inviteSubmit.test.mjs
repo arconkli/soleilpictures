@@ -3,7 +3,7 @@
 //   node --test src/lib/inviteSubmit.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseEmails, runInvites, inviteLimitReason, inviteLimitKind } from './inviteSubmit.js';
+import { parseEmails, runInvites, runInvitesByRole, inviteLimitReason, inviteLimitKind } from './inviteSubmit.js';
 
 test('addresses come out of a free-form field, typos named, repeats once', () => {
   assert.deepEqual(parseEmails('ana@studio.com, Bo@x.io;\n cy@y.co  ana@STUDIO.com'),
@@ -72,4 +72,37 @@ test('the editor limit stops the run, says whether to ask the owner, and hands b
     reason: 'editor limit reached: this account already has 10 people who can edit',
     unsent: ['b@x.co', 'c@x.co'],
   });
+});
+
+test('by role: the editor limit stops the editors, and the viewers still go out', async () => {
+  const sent = [];
+  const why = 'editor limit reached: you have 10 people who can edit across your workspaces, the most a personal plan allows';
+  const sendFor = (role) => async (email) => {
+    sent.push(`${role}:${email}`);
+    if (role === 'editor' && email === 'b@x.io') throw Object.assign(new Error(why), { hint: 'editor_limit' });
+    return 'pending';
+  };
+  const r = await runInvitesByRole({ editor: ['a@x.io', 'b@x.io', 'c@x.io'], viewer: ['v@x.io'] }, sendFor);
+  assert.deepEqual(sent, ['editor:a@x.io', 'editor:b@x.io', 'viewer:v@x.io']);
+  assert.deepEqual(r.runs.map((x) => [x.role, x.pending]), [['editor', ['a@x.io']], ['viewer', ['v@x.io']]]);
+  assert.equal(r.budget, null);
+  assert.deepEqual(r.editors, { ask: false, reason: why, unsent: ['b@x.io', 'c@x.io'] });
+});
+
+test('by role: the invite budget stops everything after it, viewers included', async () => {
+  const sendFor = () => async (email) => {
+    if (email === 'b@x.io') throw new Error('invite limit reached: try tomorrow');
+    return 'granted';
+  };
+  const r = await runInvitesByRole({ editor: ['a@x.io', 'b@x.io'], viewer: ['v@x.io', 'w@x.io'] }, sendFor);
+  assert.deepEqual(r.runs.map((x) => x.role), ['editor']);
+  assert.deepEqual(r.budget, { reason: 'try tomorrow', unsent: ['b@x.io', 'v@x.io', 'w@x.io'] });
+  assert.equal(r.editors, null);
+});
+
+test('by role: an empty role is skipped, and what it was given is left as it was', async () => {
+  const byRole = { editor: [], viewer: ['v@x.io'] };
+  const r = await runInvitesByRole(byRole, () => async () => 'granted');
+  assert.deepEqual(r.runs, [{ role: 'viewer', granted: ['v@x.io'], pending: [], fail: [] }]);
+  assert.deepEqual(byRole, { editor: [], viewer: ['v@x.io'] });
 });
