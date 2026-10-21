@@ -5,6 +5,8 @@
 // be); every other cluster is served by a fake of 0419's RPCs that keeps the
 // same contract (shelf counts, a peek per shelf, offset paging, the four
 // sorts), and every call lands in window.__sidebarQa.calls for the spec.
+// &surface=files (or the Files card's ⤢) shows the full Files page: the real
+// FilesDockLayout → FilesPane → ListSurface in App's chain, beside this sidebar.
 // DEV-only: main.jsx mounts it behind the literal import.meta.env.DEV guard.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -17,11 +19,17 @@ import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { shellOf } from '../lib/deviceShell.js';
-import { shelfOf } from '../lib/sidebarShelves.js';
+import { SHELF_BUCKETS, shelfOf } from '../lib/sidebarShelves.js';
+import { SurfaceErrorBoundary } from '../components/SurfaceErrorBoundary.jsx';
+import { FilesDockLayout, FilesPane } from '../components/FilesDock.jsx';
+import { ListSurface } from '../components/ListSurface.jsx';
+import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
+import { PRESETS } from '../lib/gridLayout.js';
+import { readGridModel } from '../lib/gridState.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Settings, Maximize2, LayoutGrid } from '../lib/icons.js';
+import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Settings, Maximize2, LayoutGrid, Home, MessageSquare, Plus } from '../lib/icons.js';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { NewClusterButton } from '../components/NewClusterButton.jsx';
 import { clusterNudgesAllowed } from '../lib/appHost.js';
@@ -37,10 +45,11 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
 import { GraphFixtureContext } from '../lib/graphFixture.js';
 import { graphFromRows } from '../lib/graphData.js';
-import { SELF, PEERS, messagesFixture, HOME_COVERS, HOME_PHOTOS } from './sidebarQaFixtures.js';
+import { SELF, PEOPLE, PEERS, messagesFixture, HOME_COVERS, HOME_PHOTOS } from './sidebarQaFixtures.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
+const QS = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 
 // Real photographs (small crops of the app's own landing and sign-in images),
 // not coloured squares: a screenshot of this harness is judged as the product,
@@ -89,6 +98,27 @@ const CARDS = {
   mood: cardsFor('mood', { image: 36 }, 600),
   root: cardsFor('root', { note: 1 }, 900),
 };
+
+// The full Files page (&surface=files, or &rich=1 anywhere) gets every kind of
+// row ListSurface draws: a linked cluster, a family of linked grids, a file
+// still uploading, and files waiting off the board, one named like a placed
+// one. &open=<cluster> starts there; with &surface=files, &empty=1 empties it.
+const QA_TEMPLATES = { 'tpl-qa': { name: 'Shot grid', layout: (PRESETS[1] || PRESETS[0]).tree } };
+const OPEN = BOARDS[QS.get('open')] ? QS.get('open') : 'film';
+if (QS.get('surface') === 'files' || QS.has('rich')) {
+  const at = (m) => new Date(T0 + m * 60_000).toISOString();
+  const spot = (k) => ({ x: (k % 8) * 220, y: 1400 + Math.floor(k / 8) * 200, w: 200, h: 160 });
+  CARDS.film.push(
+    { id: 'film-linked-mv', kind: 'boardlink', target: 'mv', createdAt: at(-500), ...spot(0) },
+    ...[1, 2, 3].map((n) => ({ id: `film-shotgrid-${n}`, kind: 'grid', templateId: 'tpl-qa', createdAt: at(-400 - n), ...spot(n) })),
+    // Still uploading: no file behind it yet, and young enough not to read as abandoned.
+    { id: 'film-up-0', kind: 'image', pending: true, fileName: 'set-photo-14.jpg', createdAt: new Date(Date.now() - 20_000).toISOString(), ...spot(5) },
+    { id: 'film-wait-0', kind: 'image', src: swatch(5), fileName: 'barn-wide.jpg', unplaced: true, createdAt: at(-2), ...spot(6) },
+    { id: 'film-wait-1', kind: 'image', src: swatch(8), fileName: 'film-still-001.jpg', unplaced: true, createdAt: at(-3), ...spot(7) },
+    { id: 'film-wait-vid', kind: 'video', src: 'r2:qa', poster: swatch(9), fileName: 'drone-pass.mov', duration: 71, sizeBytes: 412 * 1024 * 1024, unplaced: true, createdAt: at(-4), ...spot(8) },
+  );
+}
+if (QS.get('surface') === 'files' && QS.has('empty')) CARDS[OPEN] = [];
 
 // card_index rows, built by the real projection so the sidebar reads exactly
 // what it would read from the server.
@@ -203,17 +233,20 @@ const QA_STYLE = `
 .sbqa-readout { position: absolute; left: 24px; bottom: 24px; color: var(--ink-2); font: 13px var(--font-sans); z-index: 1; }
 .sbqa-tag, .sbqa-faces { color: var(--ink-1); font: 500 12px var(--font-sans); padding: 4px 8px; }
 .sbqa-home-readout { position: fixed; left: 340px; bottom: 6px; z-index: 5; opacity: .6; }
+.sbqa-files-readout { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 `;
 
-// What the URL asks for: Home instead of the board (&surface=home), Messages
-// open (&messages=1; &conv=<id> opens a conversation, &readonly=1 as a
-// viewer), and the line under the workspace (&who=here|shared|none).
-const QS = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-const SURFACE = QS.get('surface') === 'home' ? 'home' : 'board';
+// What the URL asks for: Home instead of the board (&surface=home), the full
+// Files page (&surface=files), Messages open (&messages=1; &conv=<id> opens a
+// conversation, &readonly=1 as a viewer), and the line under the workspace
+// (&who=here|shared|none).
+const SURFACE = ['home', 'files'].includes(QS.get('surface')) ? QS.get('surface') : 'board';
 const MSG_QA = QS.has('messages');
 const WHO = QS.get('who') || 'here';
-// The mobile shell shows the drawer open unless &drawer=0 asks for what's under it.
-const DRAWER = QS.get('drawer') !== '0';
+// The mobile shell shows the drawer open unless &drawer=0 asks for what's under
+// it. The Files page starts with it shut, as App leaves it after ⤢ (&drawer=1
+// opens it over the page).
+const DRAWER = SURFACE === 'files' ? QS.get('drawer') === '1' : QS.get('drawer') !== '0';
 // Moving files between clusters: &viewonly=<cluster> is one this person may
 // only look at; &shared=1 adds a cluster shared from another workspace under
 // the tree, where nothing can be dropped.
@@ -268,8 +301,154 @@ const GROUND = {
   '--cnv-bg-y': `${PAN.y}px`,
 };
 
+// Who's where for the Files page: its facepile (the open cluster) and the
+// faces on a sub-cluster's folder, shaped as App's peersHereByBoard hands
+// them over, plus one peer's selection on a file, as awareness reports it.
+const PERSON = Object.fromEntries(PEOPLE.map((p) => [p.id, p]));
+const FILES_PEERS = new Map([
+  ['film', [{ user: PERSON.maya, location: { boardId: 'film', isActive: true } }]],
+  ['cast', [{ user: PERSON.jon, location: { boardId: 'cast', isActive: true } }]],
+]);
+const FAKE_AWARENESS = {
+  getStates: () => new Map([[7, { user: PERSON.maya, canvasSelection: { boardId: 'film', cardIds: ['film-img-2'] } }]]),
+  on() {}, off() {},
+};
+// Stable, as App's handle.getAwareness is: usePeerSelections re-subscribes when it changes.
+const GET_AWARENESS = () => FAKE_AWARENESS;
+
+// The full Files page as App mounts it in the main pane: the split wrap and
+// pane, a surface that isn't a canvas (floatingChrome.css makes room for the
+// islands), SurfaceErrorBoundary's display:contents root, FilesDockLayout in
+// full mode, FilesPane, then the real ListSurface, fed as LocalBoardsApp feeds
+// it (plain cards, no Y.Doc). Edits land in the harness's cards, so the
+// sidebar's list moves with them, and Undo puts back what the last edit
+// changed; everything else is a call in window.__sidebarQa.calls.
+function FilesPageQa({ active, boards, cardsBy, cardsByRef, setCardsBy, filter, onFilterApplied, onOpen, onBack, calls }) {
+  const board = boards[active];
+  const cards = cardsBy[active] || [];
+  const canEdit = active !== VIEW_ONLY;
+  const undoRef = useRef([]);
+  const mutators = useMemo(() => {
+    const record = (fn) => (...params) => { calls.push({ fn: `list.${fn}`, params }); };
+    const change = (next) => {
+      const before = cardsByRef.current[active] || [];
+      undoRef.current.push(before);
+      const after = next(before);
+      setCardsBy((all) => ({ ...all, [active]: after }));
+    };
+    const patchAll = (byId) => change((cs) => cs.map((c) => (byId.has(c.id) ? { ...c, ...byId.get(c.id) } : c)));
+    return {
+      updateCard: (id, patch) => patchAll(new Map([[id, patch]])),
+      updateCards: (updates) => patchAll(new Map((updates || []).map((u) => [u.id, u.patch]))),
+      updateCardMeta: (id, patch) => patchAll(new Map([[id, patch]])),
+      deleteCards: (ids) => { const gone = new Set(ids); change((cs) => cs.filter((c) => !gone.has(c.id))); },
+      deleteCardsForMove: (ids) => { const gone = new Set(ids); change((cs) => cs.filter((c) => !gone.has(c.id))); },
+      addCards: (list) => change((cs) => [...cs, ...(list || [])]),
+      undo: () => {
+        const before = undoRef.current.pop();
+        if (before) setCardsBy((all) => ({ ...all, [active]: before }));
+      },
+      redo: record('redo'),
+      breakUndo: () => {},
+      addNewBoard: record('addNewBoard'),
+      renameBoardById: record('renameBoardById'),
+      deleteBoardsById: record('deleteBoardsById'),
+    };
+  }, [active, calls, cardsByRef, setCardsBy]);
+  const record = (fn) => (...params) => { calls.push({ fn: `list.${fn}`, params }); };
+  // App's dockControls for the main pane with the files sidebar, literals and all.
+  const dockControls = {
+    canShrink: true,
+    onExpand: record('expand'),
+    onShrink: () => { calls.push({ fn: 'list.shrink', params: [] }); onBack(); },
+    onClose: record('close'),
+    shrinkLabel: 'Shrink back to the sidebar',
+    shrinkTitle: 'Shrink back to the sidebar (F)',
+  };
+  if (!board) return null;
+  return (
+    <div className="split-wrap">
+    <div className="split-pane" style={{ flex: 1 }}>
+    {/* App's class string, trailing space and all: the main pane, no canvas. */}
+    <div className="surface-wrap ">
+    <SurfaceErrorBoundary resetKey={active}>
+      <FilesDockLayout
+        mode="full" width={360} mobileShell={false}
+        onResize={record('resize')} onExpand={record('dockExpand')} onClose={record('dockClose')}
+        onRoomChange={() => {}}
+        canvas={null}
+        files={(
+          <FilesPane
+            mode="full" home={board} boards={boards}
+            dockControls={dockControls}
+            onOpenInFiles={(id) => onOpen(id)}
+            onPickCluster={async () => boards.mood}
+            onShowInCluster={(id, ids) => { calls.push({ fn: 'list.showInCluster', params: [id, ids] }); onBack(id); }}
+            homeCards={cards.filter((c) => !c.unplaced)}
+            cardsFor={(id) => cardsBy[id] || []}
+            revealRequest={null}
+            onLocate={record('locate')}
+            render={(o) => (
+              <ListSurface
+                board={board} boards={boards} boardsReady cards={cards}
+                childBoards={Object.values(boards).filter((b) => b.parent_board_id === board.id)}
+                onOpenBoard={(id) => onOpen(id)}
+                onOpenPicker={record('openPicker')}
+                onDropInboxItem={record('dropInboxItem')}
+                canEdit={canEdit}
+                canEditBoard={(id) => id !== VIEW_ONLY}
+                peersHereByBoard={FILES_PEERS}
+                peersBelowByBoard={new Map()}
+                onJumpToPeer={record('jumpToPeer')}
+                onDropFilesToCluster={(files) => calls.push({ fn: 'list.dropFiles', params: [...(files || [])].map((f) => f.name) })}
+                onImportTree={async (input, { boardId }) => {
+                  calls.push({ fn: 'list.importTree', params: { boardId, files: (input.files || []).map((f) => f.name) } });
+                  return { loose: [] };
+                }}
+                onRevealDone={() => {}}
+                recentlyAddedIds={null}
+                getAwareness={GET_AWARENESS}
+                // No workspace: search and backlinks stay off Supabase.
+                workspaceId={null}
+                selfId={SELF.id}
+                gridTemplates={QA_TEMPLATES}
+                getGridModel={(card) => readGridModel(card, null, QA_TEMPLATES)}
+                onRevealOnCanvas={(ids) => { calls.push({ fn: 'list.revealOnCanvas', params: ids }); onBack(); }}
+                showStorageUpsell={false}
+                onPickCluster={async () => boards.mood}
+                onMoveFiles={async (req) => { calls.push({ fn: 'list.moveFiles', params: req }); return true; }}
+                paneId="main" hasSplit={false} mode="full"
+                dockControls={dockControls}
+                filterRequest={filter?.boardId === active ? filter : null}
+                onFilterApplied={onFilterApplied}
+                mutators={mutators}
+                homeSrc={{ boardId: active, cards, mutators, canEdit }}
+                {...o}
+              />
+            )}
+          />
+        )}
+      />
+    </SurfaceErrorBoundary>
+    </div>
+    </div>
+    </div>
+  );
+}
+
 export function SidebarQaHarness() {
-  const [active, setActive] = useState('film');
+  const [active, setActive] = useState(OPEN);
+  // What the main pane shows (board, Home or the full Files page), and the
+  // cards as App's docs hold them: a delete on the page shows in the sidebar.
+  const [surface, setSurface] = useState(SURFACE);
+  const [cardsBy, setCardsBy] = useState(() => ({ ...CARDS }));
+  const cardsByRef = useRef(cardsBy);
+  cardsByRef.current = cardsBy;
+  const surfaceRef = useRef(surface);
+  surfaceRef.current = surface;
+  // The sidebar's ⤢ asks for a cluster's files, narrowed to a shelf's kinds.
+  const [filesFilter, setFilesFilter] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(DRAWER);
   // A realtime change to any cluster rebuilds App's boards map; bumpBoards
   // does the same here (a new object, the same clusters).
   const [boardsVersion, setBoardsVersion] = useState(0);
@@ -330,6 +509,9 @@ export function SidebarQaHarness() {
       setLayout: (l) => setLayout(sanitizeLayout(l)),
       layout: () => layoutRef.current,
       setLive: (v) => setLive(!!v),
+      setSurface: (v) => setSurface(v),
+      surface: () => surfaceRef.current,
+      cards: (id) => cardsByRef.current[id] || [],
     };
     return s;
   }, []);
@@ -397,9 +579,10 @@ export function SidebarQaHarness() {
   return (
     <>
     <style>{QA_STYLE}</style>
-    <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${SURFACE === 'home' ? ' is-home' : ''}`}
-         style={{ ...(mobileShell ? null : { '--sb-w': `${collapsed ? 0 : sidebarFootprint(layout, { coarse, roomy, snug })}px` }), height: '100vh' }} data-sidebarqa-ready="1">
-      <aside className={`sidebar${mobileShell && DRAWER ? ' is-mobile-open' : ''}`}>
+    <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${surface === 'home' ? ' is-home' : ''}`}
+         style={{ ...(mobileShell ? null : { '--sb-w': `${collapsed ? 0 : sidebarFootprint(layout, { coarse, roomy, snug })}px` }), height: '100vh' }}
+         data-sidebarqa-ready="1" data-sidebarqa-surface={surface}>
+      <aside className={`sidebar${mobileShell && drawerOpen ? ' is-mobile-open' : ''}`}>
         <div className="sb-mid">
           <ClusterSidebar
             workspaceId={WS}
@@ -407,9 +590,9 @@ export function SidebarQaHarness() {
             boards={BOARDS}
             allBoards={allBoards}
             rootId="root"
-            activeBoardId={SURFACE === 'home' ? null : active}
+            activeBoardId={surface === 'home' ? null : active}
             liveBoardId={live ? active : null}
-            liveCards={live ? (CARDS[active] || []) : null}
+            liveCards={live ? (cardsBy[active] || []) : null}
             coarse={coarse}
             top={top}
             foot={foot}
@@ -420,14 +603,14 @@ export function SidebarQaHarness() {
             snug={snug}
             sizable={!mobileShell && !collapsed}
             quickNav={{
-              home: { active: SURFACE === 'home', onClick: () => say('home') },
+              home: { active: surface === 'home', onClick: () => say('home') },
               messages: { pressed: msgsOpen, unread: 2, onClick: () => { say('messages'); if (MSG_QA) setMsgsOpen((o) => !o); } },
             }}
             listRef={listRef}
             sharedSection={SHARED.length ? <SidebarSharedBoards shared={SHARED} activeBoardId={active} onOpenBoard={(id) => say(`open shared ${id}`)} /> : null}
             source={source}
             boardsSectionProps={{
-              boards: BOARDS, workspaceId: WS, rootId: 'root', activeBoardId: SURFACE === 'home' ? null : active,
+              boards: BOARDS, workspaceId: WS, rootId: 'root', activeBoardId: surface === 'home' ? null : active,
               onOpenBoard: (id) => setActive(id), canEditBoard: (id) => id !== VIEW_ONLY,
               onOpenPicker: () => say('picker'),
             }}
@@ -436,7 +619,15 @@ export function SidebarQaHarness() {
             onUpload={(files) => say(`upload ${files.length}`)}
             onOpenBoard={(id) => setActive(id)}
             onShowFile={(b, c, o) => say(`show ${b}/${c}${o?.unplaced ? ' stored' : ''}`)}
-            onOpenShelf={(b) => say(`files ${b}`)}
+            // App's onOpenShelf: that cluster's full Files page, narrowed to
+            // the shelf's kinds (none for the header's ⤢), the drawer shut.
+            onOpenShelf={(b, shelf) => {
+              say(`files ${b}`);
+              setActive(b);
+              setFilesFilter({ boardId: b, buckets: SHELF_BUCKETS[shelf] || [], token: Date.now() });
+              setSurface('files');
+              if (mobileShell) setDrawerOpen(false);
+            }}
             onOpenPalette={(q) => say(`palette "${q}"`)}
             feedback={feedback}
             moveApi={moveApi}
@@ -484,7 +675,7 @@ export function SidebarQaHarness() {
                     </span>
                   ))}
                 </div>
-                {SURFACE === 'board' && !VIEWER && clusterNudgesAllowed() && (
+                {surface !== 'home' && !VIEWER && active !== VIEW_ONLY && clusterNudgesAllowed() && (
                   <NewClusterButton boardId={active} paneId="main" boardName={BOARDS[active]?.name}
                                     onUnhandled={(name) => say(`new cluster ${name || ''}`)} />
                 )}
@@ -528,7 +719,7 @@ export function SidebarQaHarness() {
             that let the board run under the sidebar walk this chain, and a
             stand-in that skipped a link once let them pass here while they
             matched nothing in the app. */}
-        {SURFACE === 'home' ? (
+        {surface === 'home' ? (
           <>
             <GraphFixtureContext.Provider value={homeGraph}>
             <ClustersHome
@@ -557,6 +748,44 @@ export function SidebarQaHarness() {
             />
             </GraphFixtureContext.Provider>
             <div className="sbqa-readout sbqa-home-readout"><div data-testid="sbqa-log">{log.join(' | ')}</div></div>
+          </>
+        ) : surface === 'files' ? (
+          <>
+            {/* A phone keeps App's topbar over the page (the islands are a
+                desktop thing): menu, the trail, Undo, Redo and Share. */}
+            {mobileShell && (
+              <div className="topbar">
+                <div className="tb-left">
+                  <button className="tb-icon" title="Open menu" aria-label="Open menu" onClick={() => setDrawerOpen(true)}>
+                    <Icon as={PanelLeftOpen} size={16} />
+                  </button>
+                  <div className="crumbs" data-tour="nav">
+                    <span className="crumb here">{BOARDS[active]?.name}</span>
+                  </div>
+                </div>
+                <div className="tb-center" />
+                <div className="tb-right">
+                  <button className="tb-icon" aria-label="Undo"><Icon as={Undo} size={16} /></button>
+                  <button className="tb-icon" aria-label="Redo" disabled><Icon as={Redo} size={16} /></button>
+                  <button className="tb-btn tb-share" aria-label="Share this cluster" onClick={() => say('share')}>
+                    <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            <FeedbackProvider>
+              <FilesPageQa
+                active={active} boards={allBoards}
+                cardsBy={cardsBy} cardsByRef={cardsByRef} setCardsBy={setCardsBy}
+                filter={filesFilter}
+                onFilterApplied={(token) => setFilesFilter((f) => (f?.token === token ? null : f))}
+                onOpen={(id) => { setActive(id); }}
+                onBack={(id) => { if (id) setActive(id); setSurface('board'); say('board'); }}
+                calls={source.calls}
+              />
+            </FeedbackProvider>
+            {/* Read by the specs, kept out of the screenshots. */}
+            <div className="sbqa-files-readout"><div data-testid="sbqa-log">{log.join(' | ')}</div></div>
           </>
         ) : (
         <div className="split-wrap">
@@ -610,6 +839,21 @@ export function SidebarQaHarness() {
         </div>
         )}
       </main>
+      {mobileShell && surface === 'files' && (
+        <MobileBottomNav
+          showCreate={active !== VIEW_ONLY}
+          createIcon={<Icon as={Plus} size={26} />}
+          onCreate={() => say('create')}
+          active={null}
+          tabs={[
+            { key: 'home', label: 'Home', icon: <Icon as={Home} size={20} /> },
+            { key: 'search', label: 'Search', icon: <Icon as={Search} size={20} /> },
+            { key: 'messages', label: 'Messages', icon: <Icon as={MessageSquare} size={20} />, badge: 2 },
+            { key: 'settings', label: 'Settings', icon: <Icon as={Settings} size={20} /> },
+          ]}
+          onChange={(k) => say(`tab ${k}`)}
+        />
+      )}
     </div>
     {msgsOpen && createPortal((
       <FeedbackProvider>

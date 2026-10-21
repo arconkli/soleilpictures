@@ -62,6 +62,13 @@ export function usePeerSelections({ getAwareness, boardId, descendantIds = [], s
     return () => {
       aw.off('change', refresh);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      // A re-run (a new scope, or StrictMode's second mount) starts clean: a
+      // frame cancelled here left rafRef set, so no later change could
+      // schedule one, and fpRef holding a fingerprint never committed, so the
+      // re-run's refresh skipped it, and the map froze where it was.
+      rafRef.current = 0;
+      fpRef.current = '';
+      pendingRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getAwareness, boardId, selfId, scopeKey]);
