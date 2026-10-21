@@ -8,6 +8,10 @@
   <meta name="description" content="Soleil Clusters is a creative workspace and moodboard for film, photo, design and brand teams: references, video, PDFs and any other file on one canvas." />
 
   <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+  <!-- The kit's CSS @imports p.typekit.net/p.css, and its font faces wait for
+       that import. Fetched as a plain stylesheet, so no crossorigin here: a
+       CORS connection would be a different socket. -->
+  <link rel="preconnect" href="https://p.typekit.net" />
   <!-- Load Typekit non-render-blocking: preload as style, then swap to a real
        stylesheet on load so a slow remote CSS round-trip can't hold up first
        paint. <noscript> keeps it working without JS. -->
