@@ -75,7 +75,18 @@ import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { openableUrl } from '../lib/openableUrl.js';
 import { ensureFontsFromHtml, ensureFontForCss } from '../lib/googleFonts.js';
-import { FilmPlayer } from './film/FilmPlayer.jsx';
+import './film/filmFacade.css';
+// Lazy: a clip rests on its poster until it's hovered, selected or played, so
+// a board's first paint never needs the film player. A pointer coming onto a
+// clip starts fetching it, and the poster stands in until it has arrived.
+const FilmPlayer = lazyWithReload(() =>
+  import('./film/FilmPlayer.jsx').then(m => ({ default: m.FilmPlayer })));
+let filmPlayerPrefetched = false;
+function prefetchFilmPlayer() {
+  if (filmPlayerPrefetched) return;
+  filmPlayerPrefetched = true;
+  import('./film/FilmPlayer.jsx').catch(() => { filmPlayerPrefetched = false; });
+}
 import { registerCardPlayer } from '../lib/playerBus.js';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
@@ -890,6 +901,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   useEffect(() => () => { clearTimeout(timers.current.on); clearTimeout(timers.current.off); }, []);
   const onEnter = () => {
     hoverRef.current = true;
+    prefetchFilmPlayer();
     clearTimeout(timers.current.off);
     if (!live) timers.current.on = setTimeout(() => setLive(true), 80);
   };
@@ -902,7 +914,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   // click selects, the next one plays. Where you can't select (a view-only
   // board) a clean tap plays.
   const wasSelected = useRef(false);
-  const onDownCapture = (e) => { wasSelected.current = selected; hoverRef.current = true; if (!live) setLive(true); void e; };
+  const onDownCapture = (e) => { wasSelected.current = selected; hoverRef.current = true; prefetchFilmPlayer(); if (!live) setLive(true); void e; };
   const clickGate = (e) => !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && (wasSelected.current || tapToPlay);
   // The review player closed on another frame: this card follows it there,
   // mounting its player if it was resting on the poster.
@@ -927,6 +939,21 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
 
   const durText = Number.isFinite(media?.dur) && media.dur > 0 ? formatClipLength(media.dur) : '';
   const showTitle = !!title || editingTitle;
+  // The clip at rest, and what shows while the player's chunk is on its way.
+  const facade = posterUrl
+    ? (
+      <div className="vc-facade">
+        <img className="vc-video vc-poster" src={posterUrl} alt="" draggable="false" />
+        {resolvedUrl && (
+          <button type="button" className="film-centre-play" tabIndex={-1} aria-label="Play"
+                  onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                  onClick={(e) => { e.stopPropagation(); setPlayOnMount(true); setLive(true); }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.52.85l10.6-6.8a1 1 0 0 0 0-1.7L9.52 4.35A1 1 0 0 0 8 5.2Z" fill="currentColor" /></svg>
+          </button>
+        )}
+      </div>
+    )
+    : <ImagePlaceholder label="VIDEO" tone="neutral" />;
   return (
     <div className="vc">
       {/* Video had no download affordance ANYWHERE — not on the card, not in
@@ -946,28 +973,19 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
             element. Every other clip gets the film player: frame steps, a
             frame-accurate scrubber, timecode, and ⤢ into the review player. */}
         {resolvedUrl && !autoplay && live
-          ? <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
-                        clickGate={clickGate} autoPlay={playOnMount} initialTime={syncTime}
-                        probe={() => probeCardVideo({ kind: 'video', src })} />
+          ? (
+            <Suspense fallback={facade}>
+              <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
+                          clickGate={clickGate} autoPlay={playOnMount} initialTime={syncTime}
+                          probe={() => probeCardVideo({ kind: 'video', src })} />
+            </Suspense>
+          )
           : resolvedUrl && autoplay
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
                    {...(posterUrl ? { poster: posterUrl } : {})}
                    {...(loop ? { loop: true } : {})}
                    muted controls preload="metadata" playsInline />
-          : (posterUrl
-              ? (
-                <div className="vc-facade">
-                  <img className="vc-video vc-poster" src={posterUrl} alt="" draggable="false" />
-                  {resolvedUrl && (
-                    <button type="button" className="film-centre-play" tabIndex={-1} aria-label="Play"
-                            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                            onClick={(e) => { e.stopPropagation(); setPlayOnMount(true); setLive(true); }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.52.85l10.6-6.8a1 1 0 0 0 0-1.7L9.52 4.35A1 1 0 0 0 8 5.2Z" fill="currentColor" /></svg>
-                    </button>
-                  )}
-                </div>
-              )
-              : <ImagePlaceholder label="VIDEO" tone="neutral" />)}
+          : facade}
         {durText && !autoplay && <span className="vc-dur" aria-hidden="true">{durText}</span>}
         {/* A dropped clip is placed at once and uploads in the background —
             same overlay as a photo's, so it never looks finished early. */}

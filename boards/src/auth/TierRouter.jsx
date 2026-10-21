@@ -29,10 +29,13 @@ import { useSetupGate } from '../hooks/useSetupGate.js';
 // module is the earliest journey user, so wiring here guarantees the sink is set
 // before any journey() call. Idempotent with the matching wire in App.jsx.
 setJourneySink({ logEvent, logEventNow });
-import { WelcomePage } from './WelcomePage.jsx';
-import { WaitlistConfirm } from './WaitlistConfirm.jsx';
-import { PricingPage } from './PricingPage.jsx';
-import { PricingSuccess } from './PricingSuccess.jsx';
+// Lazy: each is its own route's page (/pricing, /pricing/success, and the
+// waitlist's /welcome and /waitlist/status), so an open of the app never
+// downloads them.
+const WelcomePage = lazyWithReload(() => import('./WelcomePage.jsx').then(m => ({ default: m.WelcomePage })));
+const WaitlistConfirm = lazyWithReload(() => import('./WaitlistConfirm.jsx').then(m => ({ default: m.WaitlistConfirm })));
+const PricingPage = lazyWithReload(() => import('./PricingPage.jsx').then(m => ({ default: m.PricingPage })));
+const PricingSuccess = lazyWithReload(() => import('./PricingSuccess.jsx').then(m => ({ default: m.PricingSuccess })));
 // Lazy: AdminPage pulls in recharts (~133KB gz) but only the /admin route (admins
 // only) renders it. Keeping it lazy means no other user downloads the charts lib.
 const AdminPage = lazyWithReload(() => import('../pages/AdminPage.jsx').then(m => ({ default: m.AdminPage })));
@@ -179,14 +182,14 @@ export function TierRouter({ children }) {
   if (banned) return <Suspended onSignOut={signOut} />;
 
   // Anyone signed in can reach these:
-  if (path === '/pricing')           return <PricingPage />;
-  if (path === '/pricing/success')   return <PricingSuccess />;
+  if (path === '/pricing')           return <Suspense fallback={<Splash />}><PricingPage /></Suspense>;
+  if (path === '/pricing/success')   return <Suspense fallback={<Splash />}><PricingSuccess /></Suspense>;
 
   // tier='waitlist' is gated to the welcome/waitlist flow. /waitlist is
   // a legacy path that now opens the WaitlistModal inside WelcomePage.
   if (tier === 'waitlist') {
-    if (path === '/waitlist/status')   return <WaitlistConfirm />;
-    if (path === '/welcome' || path === '/waitlist') return <WelcomePage />;
+    if (path === '/waitlist/status')   return <Suspense fallback={<Splash />}><WaitlistConfirm /></Suspense>;
+    if (path === '/welcome' || path === '/waitlist') return <Suspense fallback={<Splash />}><WelcomePage /></Suspense>;
     // Any other path → bounce them to /welcome or /waitlist/status.
     if (typeof window !== 'undefined') {
       const dest = hasEntry ? '/waitlist/status' : '/welcome';
@@ -194,7 +197,7 @@ export function TierRouter({ children }) {
         window.history.replaceState({}, '', dest);
       }
     }
-    return hasEntry ? <WaitlistConfirm /> : <WelcomePage />;
+    return <Suspense fallback={<Splash />}>{hasEntry ? <WaitlistConfirm /> : <WelcomePage />}</Suspense>;
   }
 
   // AdWelcome itself is gone — instant_entry shipped at 100% arm B, the render

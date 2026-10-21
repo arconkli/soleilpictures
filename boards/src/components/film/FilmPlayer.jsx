@@ -41,6 +41,7 @@ import { FilmHud } from './FilmHud.jsx';
 import { FilmMenu } from './FilmMenu.jsx';
 import { ShortcutSheet } from './ShortcutSheet.jsx';
 import { PlayGlyph, PauseGlyph, FrameBack, FrameFwd, AspectThumb } from './glyphs.jsx';
+import './filmFacade.css';
 import './film.css';
 import { useFilmClock } from './useFilmClock.js';
 import { Icon } from '../Icon.jsx';

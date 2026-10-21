@@ -1,0 +1,14 @@
+/* The play button a video card's poster shows before the film player has
+   loaded (cards.jsx mounts FilmPlayer lazily, on hover, selection or play,
+   and the poster stands in until it arrives), so it can't live in film.css,
+   which comes with the player. FilmPlayer imports this too, for the pages
+   that open it without a card. */
+.film-centre-play {
+  position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  display: grid; place-items: center; padding: 0 0 0 2px;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5); color: #fff; cursor: pointer;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  opacity: 0; transition: opacity var(--dur-fast, 120ms) var(--ease, ease), background var(--dur-fast, 120ms);
+}
+.film-centre-play:hover { background: rgba(0, 0, 0, 0.7); }

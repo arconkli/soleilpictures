@@ -93,7 +93,6 @@ import './lib/entityKinds.js';
 import { SidebarBoardsSection } from './components/SidebarBoardsSection.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { SidebarTags } from './components/SidebarTags.jsx';
-import { TagDetailView } from './components/TagDetailView.jsx';
 // The Shared page (held: sharedFilesAllowed), loaded when it is opened.
 const SharedPage = React.lazy(() => import('./components/shared/SharedPage.jsx').then((m) => ({ default: m.SharedPage })));
 import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
@@ -106,11 +105,7 @@ import {
   markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
   markShareAfterSwitch, shareAfterSwitchFor, clearShareAfterSwitch,
 } from './lib/homeAfterSwitch.js';
-import { SettingsPanel } from './components/SettingsPanel.jsx';
-import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
-import { ListSurface } from './components/ListSurface.jsx';
-import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
 import { NewClusterButton } from './components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
@@ -123,7 +118,6 @@ import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
-import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
 import { probeFile } from './lib/mediaProbe.js';
 import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
@@ -157,7 +151,6 @@ import { useInboxLive } from './hooks/useInboxLive.js';
 import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
-import { MessagesPanel } from './components/MessagesPanel.jsx';
 import { MessagesPresence } from './components/MessagesPresence.jsx';
 import { MessagesLookContext, MessagesBoardsContext } from './components/messagesLook.js';
 import { NotificationsPanel } from './components/NotificationsPanel.jsx';
@@ -246,7 +239,6 @@ import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMet
 import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
 import { runFolderImport, undoFolderImport, countFiles, layoutTops } from './lib/folderImport.js';
-import { startBulkImport, pokeImport, offerStopped } from './lib/importStart.js';
 import { findStoppedImports, loadImportSeed, lockImport, matchStopped } from './lib/importResume.js';
 import { saveImportHandles, loadImportHandles, dropImportHandles, pruneImportHandles } from './lib/importHandles.js';
 import { setCoverMosaics } from './lib/coverMosaic.js';
@@ -258,15 +250,13 @@ import { ImportTray } from './components/ImportTray.jsx';
 import { ImportAskDialog } from './components/ImportAskDialog.jsx';
 import { ImportZipDialog } from './components/ImportZipDialog.jsx';
 import { makeLimiter } from './lib/asyncPool.js';
-import { TrashModal } from './components/TrashModal.jsx';
 import { unopenableClusterNotice, waitUntil } from './lib/clusterOpen.js';
-import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
-import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
 import { ScoutClaimBanner } from './components/ScoutClaimBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
-import { lazyWithReload } from './lib/lazyWithReload.js';
+import { lazyWithReload, importWithReload } from './lib/lazyWithReload.js';
+import { lazyPanel } from './lib/lazyPanel.jsx';
 // Lazy: HomeGraph pulls in three.js + react-force-graph-3d (~365KB gz) but only
 // renders on the Home view. Keeping it out of the eager App bundle means a board
 // canvas no longer downloads the 3D-graph libs.
@@ -295,6 +285,33 @@ const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.js
 // (appHost.js workspaceSetupAllowed), so nobody else downloads it.
 const SetupInWorkspace = lazyWithReload(() => import('./components/setup/SetupInWorkspace.jsx'));
 const WhatsNewHint = lazyWithReload(() => import('./components/whatsNew/WhatsNewHint.jsx'));
+// Files, docked beside the board or as the whole view. It starts shut, so most
+// opens never render it, and one that does paints the board while it arrives.
+const ListSurface = lazyWithReload(() => import('./components/ListSurface.jsx').then(m => ({ default: m.ListSurface })));
+// What only a click opens: none of it is on screen when the app opens, so none
+// of it is downloaded before then. The panels kept mounted behind an `open`
+// prop mount at their first open and stay (lib/lazyPanel.jsx); the rest mount
+// when they're wanted, under their own Suspense.
+const SettingsPanel = lazyPanel(() => import('./components/SettingsPanel.jsx').then(m => ({ default: m.SettingsPanel })));
+const CommandPalette = lazyPanel(() => import('./components/CommandPalette.jsx').then(m => ({ default: m.CommandPalette })));
+const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m => ({ default: m.TrashModal })));
+const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })));
+const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })));
+const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
+const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
+const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
+const EntityBacklinksPanel = lazyWithReload(() => import('./components/EntityBacklinksPanel.jsx').then(m => ({ default: m.EntityBacklinksPanel })));
+// The bulk import's engine (lib/importStart.js), fetched by the first import or
+// by the offer to resume one a reload stopped: an open of the app never needs
+// it. Until then there is no import for a released hold to wake.
+let importStartModule = null;
+function loadImportStart() {
+  if (!importStartModule) {
+    importStartModule = importWithReload(() => import('./lib/importStart.js'));
+    importStartModule.catch(() => { importStartModule = null; });
+  }
+  return importStartModule;
+}
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
@@ -6715,7 +6732,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       tops.forEach((t, i) => muts.addCard({ id: t.id, kind: 'board', ...rects[i] }));
       Promise.resolve(refreshBoards()).catch(() => {});
     } : null;
-    return startBulkImport({ ...args, placeTops }, bulkImportEnv());
+    const env = bulkImportEnv();
+    return loadImportStart().then((m) => m.startBulkImport({ ...args, placeTops }, env));
   }, [bulkImportEnv, refreshBoards]);
   // The sidebar's Upload menu: "A folder…" and "A zip or Google Takeout…",
   // into the open cluster when it can be edited, else one the person picks
@@ -6762,7 +6780,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!bulkImportAllowed() || !user?.id || !workspace?.id || boardsLoading) return undefined;
     const ctl = new AbortController();
     const offered = [];
-    offerStopped(bulkImportEnv(), { signal: ctl.signal, offered });
+    const env = bulkImportEnv();
+    // The engine is fetched only when there is a stopped import to offer, so an
+    // ordinary open never downloads it.
+    env.findStopped().then((jobs) => {
+      if (ctl.signal.aborted || !jobs?.length) return undefined;
+      return loadImportStart().then((m) => {
+        if (!ctl.signal.aborted) m.offerStopped({ ...env, findStopped: async () => jobs }, { signal: ctl.signal, offered });
+      });
+    }).catch(() => {});
     return () => {
       ctl.abort();
       for (const k of offered) if (importJobEntry(k)?.phase === 'stopped') dropImportJob(k);
@@ -6776,7 +6802,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const take = () => {
       const ready = heldEntries().filter((e) => e.via === 'import' && e.ready);
       for (const boardId of new Set(ready.map((e) => e.boardId))) {
-        for (const e of claimReady({ boardId, via: 'import' })) pokeImport(e.folder?.key);
+        for (const e of claimReady({ boardId, via: 'import' })) {
+          importStartModule?.then((m) => m.pokeImport(e.folder?.key), () => {});
+        }
       }
     };
     let queued = false;
@@ -9939,6 +9967,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                    revealRequest={filesReveal?.boardId === board.id && filesReveal.pane === (isMain ? 'main' : 'split') ? filesReveal : null}
                    onLocate={(id) => setFocusRequest({ boardId: board.id, ids: [id], token: Date.now(), mode: 'center' })}
                    render={(o) => (
+          <Suspense fallback={null}>
           <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                        childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
                        onOpenBoard={openInPane}
@@ -9990,6 +10019,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        // that springs into another cluster moves files from here.
                        homeSrc={{ boardId: board.id, cards, mutators: muts, canEdit: paneCanEdit }}
                        {...o} />
+          </Suspense>
                    )} />
       );
     };
@@ -11091,6 +11121,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ) : currentSurface === 'tag' && activeTag ? (
           // Keyed by tag: switching tags must start from empty state, not
           // render the previous tag's items under the new name.
+          <Suspense fallback={<div className="tag-detail tag-profile" />}>
           <TagDetailView
             key={activeTag.id}
             tag={activeTag}
@@ -11119,6 +11150,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               }
             }}
           />
+          </Suspense>
         ) : (
           /* Always render the same outer container so toggling split doesn't
              re-mount the main pane (and any open doc-card modals inside).
@@ -11307,6 +11339,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // With the files sidebar Messages wears its card (messagesLook.js).
         <MessagesLookContext.Provider value={filesSidebar ? 'card' : null}>
         <MessagesBoardsContext.Provider value={msgBoardInfo}>
+        <Suspense fallback={null}>
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
@@ -11331,6 +11364,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onClose={() => setTweak('showMessages', false)}
           presentUserIds={msgPresentIds}
         />
+        </Suspense>
         </MessagesBoardsContext.Provider>
         </MessagesLookContext.Provider>
       ), document.body)}</MessagesPresence>
@@ -11355,6 +11389,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           created_by: null,
         };
         return (
+          <Suspense fallback={null}>
           <ShareModal
             board={shareTarget}
             workspace={shareWs}
@@ -11384,13 +11419,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               } catch (_) {}
             }}
           />
+          </Suspense>
         );
       })()}
       {backlinksRef && (
-        <EntityBacklinksPanel
-          target={backlinksRef}
-          onClose={() => setBacklinksRef(null)}
-        />
+        <Suspense fallback={null}>
+          <EntityBacklinksPanel
+            target={backlinksRef}
+            onClose={() => setBacklinksRef(null)}
+          />
+        </Suspense>
       )}
       {/* Info for anything, from any right-click or ⌘I (lib/infoBus.js). It
           reads the open panes' live cards, so it changes as the file does. */}

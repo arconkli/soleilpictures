@@ -64,7 +64,8 @@ test.describe('History tool removed, Trash kept', () => {
   test('App.jsx swaps History → Trash', () => {
     const app = read('src/App.jsx');
     expect(app).not.toMatch(/TimeTravelModal|historyOpen|setHistoryOpen|tb-icon-history/);
-    expect(app).toMatch(/import \{ TrashModal \}/);
+    // Loaded at its first open (lazyPanel), so it's a dynamic import.
+    expect(app).toMatch(/import\('\.\/components\/TrashModal\.jsx'\)/);
     expect(app).toMatch(/tb-icon-trash/);
     expect(app).toMatch(/setTrashOpen/);
   });

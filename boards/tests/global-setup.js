@@ -22,6 +22,16 @@
 
 import { chromium } from '@playwright/test';
 
+const LAZY_MODULES = [
+  'components/ListSurface.jsx', 'components/MessagesPanel.jsx', 'components/SettingsPanel.jsx',
+  'components/ShareModal.jsx', 'components/CommandPalette.jsx', 'components/TagDetailView.jsx',
+  'components/TrashModal.jsx', 'components/VersionHistoryModal.jsx', 'components/WorkspaceRecoveryModal.jsx',
+  'components/EntityBacklinksPanel.jsx', 'lib/importStart.js',
+  'auth/PricingPage.jsx', 'auth/PricingSuccess.jsx', 'auth/WelcomePage.jsx', 'auth/WaitlistConfirm.jsx',
+  'components/film/FilmPlayer.jsx', 'components/cards/ScheduleCard.jsx', 'components/SketchPadOverlay.jsx',
+  'components/GridTemplatePanel.jsx', 'components/SaveTemplateDialog.jsx', 'components/clusterBrowser/DetailPanel.jsx',
+].map((p) => `/src/${p}`);
+
 export default async function globalSetup(config) {
   const baseURL = config.projects[0]?.use?.baseURL || 'http://127.0.0.1:5174';
 
@@ -52,6 +62,10 @@ export default async function globalSetup(config) {
     // card renderers — which is what the specs actually wait on.
     await page.goto(`${baseURL}/?local=1&reset=1`, { waitUntil: 'domcontentloaded' });
     await page.locator('.canvas-wrap').waitFor({ state: 'visible', timeout: 120_000 });
+    // The panels, pages and players that load at their first open (the
+    // LAZY_IN_APP list in scripts/bundleBudget.mjs) aren't in that graph, so
+    // compile them too, or the first spec to open one races its compile.
+    await page.evaluate((paths) => Promise.allSettled(paths.map((p) => import(p))), LAZY_MODULES);
   } catch (err) {
     // Never fail the run here. If the app genuinely cannot render, the specs
     // themselves should say so with their own assertion and their own message —

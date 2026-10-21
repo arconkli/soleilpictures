@@ -14,8 +14,8 @@
 //               and one only the preload fetches is a wasted download.
 //
 // It also fails when the app closure has pulled in something only a later click
-// needs. Each name in NEVER_IN_APP was split out on purpose, and one static
-// import is enough to put it back on every open.
+// needs. Each name in NEVER_IN_APP and LAZY_IN_APP was split out on purpose,
+// and one static import is enough to put it back on every open.
 //
 // Usage: node scripts/bundleBudget.mjs [distDir] [--report]
 // The build must be one where Supabase is configured (real .env.local, or the
@@ -39,8 +39,10 @@ const REPORT = args.includes('--report');
 export const CEILINGS = {
   entryJs: 165_000,
   entryCss: 96_000,
-  appJs: 890_000,
-  appCss: 44_000,
+  // 2026-10-21: the panels, pages and players only a click opens left the app
+  // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS.
+  appJs: 705_000,
+  appCss: 21_000,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
@@ -50,13 +52,27 @@ export const NEVER_IN_APP = [
   'AdminPage', 'DocsPage', 'jspdf', 'html2canvas', 'pdf',
 ];
 
+// What the app imports lazily, by chunk name: each must be a chunk of its own,
+// outside the closure. A static import anywhere in the app folds the module
+// into a closure chunk instead, so its own chunk disappearing fails too.
+export const LAZY_IN_APP = [
+  // App.jsx
+  'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette', 'TagDetailView',
+  'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart',
+  // TierRouter.jsx: one route's page each
+  'PricingPage', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
+  // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
+  'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel',
+];
+
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;
 
-// "assets/CanvasSurface-DiqxAXy4.js" → "CanvasSurface"
+// "assets/CanvasSurface-DiqxAXy4.js" → "CanvasSurface". The hash is Vite's 8
+// characters, which can hold a "-" themselves ("SaveTemplateDialog-C-QHNrt0").
 export function chunkName(file) {
   const base = file.split('/').pop().replace(/\.(js|css)$/, '');
-  const i = base.lastIndexOf('-');
-  return i > 0 ? base.slice(0, i) : base;
+  const m = /^(.+)-[A-Za-z0-9_-]{8}$/.exec(base);
+  return m ? m[1] : base;
 }
 
 // Static import edges of one minified chunk: `import{a as b}from"./x.js"` and
@@ -105,6 +121,18 @@ function closure(roots, read) {
   return seen;
 }
 
+// LAZY_IN_APP names that are in the closure, or that have no chunk of their own.
+export function lazyMisses(dist, inClosure) {
+  const chunks = readdirSync(join(dist, 'assets')).filter((f) => f.endsWith('.js')).map((f) => `assets/${f}`);
+  const misses = [];
+  for (const name of LAZY_IN_APP) {
+    const own = chunks.filter((f) => chunkName(f) === name);
+    if (!own.length) misses.push(`${name} (no chunk of its own)`);
+    else if (own.some(inClosure)) misses.push(`${name} (in the closure)`);
+  }
+  return misses;
+}
+
 export function measure(dist) {
   const read = (f) => readFileSync(join(dist, f), 'utf8');
   const html = read('index.html');
@@ -133,6 +161,7 @@ export function measure(dist) {
     appJs: sum(appJsRows), appCss: sum(appCssRows),
     rows: { entryJs: entryJsRows, entryCss: entryCssRows, appJs: appJsRows, appCss: appCssRows },
     forbidden: app.filter((f) => NEVER_IN_APP.includes(chunkName(f))),
+    lazy: lazyMisses(dist, (f) => app.includes(f) || entryClosure.has(f)),
     preload: preloaded && {
       missing: app.filter((f) => !preloaded.includes(f)),
       extra: preloaded.filter((f) => !app.includes(f)),
@@ -154,6 +183,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     failed = true;
     console.log(`\nIn the app's critical closure but split out on purpose: ${m.forbidden.join(', ')}`);
     console.log('Something now imports them statically. Find it and make it lazyWithReload().');
+  }
+  if (m.lazy.length) {
+    failed = true;
+    console.log(`\nImported lazily on purpose, but now: ${m.lazy.join(', ')}`);
+    console.log('Something imports them statically. Find it and import them lazily again (LAZY_IN_APP says where they live).');
   }
   if (!m.preload) {
     failed = true;

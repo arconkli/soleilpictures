@@ -49,16 +49,21 @@ import {
   PaletteCard, DocCard, ScheduleCard as ScheduleTableCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
   shallowEqualIgnoreFns,
 } from './cards.jsx';
-import { ScheduleCard } from './cards/ScheduleCard.jsx';
 import { RichDocCard as RichDocCardView } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { lazyPanel } from '../lib/lazyPanel.jsx';
 import { toListItem } from '../lib/listItem.js';
 
 // Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
 const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
 // A file with no viewer of its own opens here (Download + Share).
 const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'));
+// Panels kept mounted behind an `open` prop that only a click opens: each loads
+// at its first open and stays mounted from then on (lib/lazyPanel.jsx).
+const SketchPadOverlay = lazyPanel(() => import('./SketchPadOverlay.jsx').then(m => ({ default: m.SketchPadOverlay })));
+const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then(m => ({ default: m.GridTemplatePanel })));
+const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
@@ -67,7 +72,6 @@ import { CanvasPresence } from './CanvasPresence.jsx';
 import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { EditableText } from './EditableText.jsx';
-import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -82,8 +86,6 @@ import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
 import { sanitizeLayout } from '../lib/gridLayout.js';
-import { GridTemplatePanel } from './GridTemplatePanel.jsx';
-import { SaveTemplateDialog } from './SaveTemplateDialog.jsx';
 import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
 import { layoutById } from '../lib/templateLayouts.js';
 import { TemplateAddedPrompt } from './TemplateAddedPrompt.jsx';
@@ -452,7 +454,10 @@ const SELECTED_MOUNT_CAP = 50;
 // every drag/resize/marquee frame — and the doc card re-walked its text each
 // time. Both self-observe their own Y content, so the cards.jsx comparator
 // (ignore function identity) is safe for them too.
-const MemoScheduleCard = memo(ScheduleCard, shallowEqualIgnoreFns);
+// Schedule is retired, so only a schedule card made before then renders the
+// first one: it's its own chunk, fetched when a board has one.
+const MemoScheduleCard = lazyWithReload(() => import('./cards/ScheduleCard.jsx')
+  .then(m => ({ default: memo(m.ScheduleCard, shallowEqualIgnoreFns) })));
 const RichDocCard = memo(RichDocCardView, shallowEqualIgnoreFns);
 const EMPTY_UPLOADS = Object.freeze({});
 const EMPTY_ITEMS = Object.freeze([]);
@@ -11149,7 +11154,9 @@ export function CanvasSurface({
       // committed zoom changes. The card's level-of-detail tier reads
       // getCanvasScale() on a settle tick, and not every zoom path emits one
       // (keyboard ⌘−/⌘= doesn't), so it used to ride this parent re-render.
-      inner = <MemoScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+      inner = (
+        <Suspense fallback={null}>
+          <MemoScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
                             settledZoom={zoom}
                             canEdit={canEdit} onUpdate={onUpdate}
                             focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
@@ -11157,7 +11164,9 @@ export function CanvasSurface({
                             cellUploads={schedUploads}
                             boards={boards} onOpenBoard={onOpenBoard}
                             onSetSchedule={onSetSchedule} onAddShootDay={onAddShootDay}
-                            gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
+                            gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />
+        </Suspense>
+      );
     }
     else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash}
                                                         label={c.label} onUpdate={onUpdate}
