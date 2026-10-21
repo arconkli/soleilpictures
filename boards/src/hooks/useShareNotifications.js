@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { readUnreadShareNotifications } from '../lib/shareNotificationsRead.js';
 
 export function useShareNotifications(userId) {
   const [unread, setUnread] = useState([]);
@@ -22,12 +23,9 @@ export function useShareNotifications(userId) {
     if (!userId) { setUnread([]); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('share_notifications')
-        .select('id, board_id, role, shared_by, created_at, kind, detail, scope')
-        .eq('user_id', userId)
-        .is('dismissed_at', null)
-        .order('created_at', { ascending: true });
+      // With scope (0452), or without it while that migration isn't applied:
+      // naming the missing column would fail the read and every toast with it.
+      const { data, error } = await readUnreadShareNotifications(supabase, userId);
       if (error) throw error;
       setUnread(data || []);
     } catch (e) {
