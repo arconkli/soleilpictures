@@ -13750,7 +13750,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-tb-sw {
   appearance: none; width: 20px; height: 20px;
   border-radius: var(--radius);
-  border: 1px solid rgba(255,255,255,.08);
+  /* The note bar's edge (.tob-sw): white-on-white it hid the white swatch on
+     the light menu, and the black one barely showed on the dark. */
+  border: 1px solid var(--line-3);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease);
 }
