@@ -1,0 +1,63 @@
+/* The full Files page in the files sidebar's look (direction A, the owner's
+   pick of 2026-10-20; preview only, behind its own hold): the sidebar's Files
+   card grown full screen. A calm sheet on the board's ground holds the files
+   (Apple's HIG keeps glass out of the content layer); its head carries the
+   cluster's name and the card's own controls; photos and video lie in a
+   justified grid on the card's shelves, the rest in rows; List is a classic
+   Finder table. Every rule is under [data-look='sb'], which ListSurface and
+   Quick look set only with that look (filesLook.js), or under .is-files-page,
+   which App sets only then, so the page production has matches nothing here. */
+
+/* ── The ground ──────────────────────────────────────────────────────────── */
+/* While the page is open the board's ground runs on behind the sidebar and
+   around the sheet, as Home's does (clustersHome.css). */
+.app.sb-files.is-files-page {
+  --fp-dot2: rgba(245, 245, 247, .085);
+  background-color: var(--bg-0);
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--fp-dot2) 1.25px, transparent 1.75px),
+    radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1.5px),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 80px 80px, 20px 20px, 80px 80px, 80px 80px;
+}
+[data-theme='light'] .app.sb-files.is-files-page { --fp-dot2: rgba(10, 10, 12, .11); }
+/* What lies between the window and the sheet lets the ground through. */
+.app.sb-files.is-files-page .main,
+.app.sb-files.is-files-page .split-wrap,
+.app.sb-files.is-files-page .split-pane,
+.app.sb-files.is-files-page .surface-wrap:not(.is-canvas),
+.app.sb-files.is-files-page .fdl-files { background: transparent; }
+
+/* ── The sheet ───────────────────────────────────────────────────────────── */
+/* The list's own scroller, inset as the sidebar's cards are (8px), with
+   their radius and hairline. Opaque: the files sit on it, not on glass. The
+   hairline is an outline, drawn over what scrolls under it. */
+.list-wrap[data-look='sb'] {
+  --files-floor: var(--bg-1);
+  --files-gutter: 16px;
+  /* The sheet's top edge in the Files area, which starts under the band:
+     Info's card lines up with it. */
+  --fp-top: 2px;
+  margin: var(--fp-top) 8px 8px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background-color: var(--bg-1);
+  background-image: none;
+  box-shadow: var(--sbf-glass-shadow);
+  outline: 1px solid var(--sbf-glass-line);
+  outline-offset: -1px;
+}
+.list-wrap[data-look='sb'] > .list-inner { max-width: none; padding: 0 0 28px; }
+/* Files dragged over the page: the sheet ringed in gold (a drop target is an
+   active place) and the line under the head says what a drop does; the
+   frame production draws over the whole surface stands down. */
+.list-wrap[data-look='sb'].is-drop-target { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.fdl-files:has(.list-wrap[data-look='sb'].is-drop-target)::after { display: none; }
+
+/* ── A phone ─────────────────────────────────────────────────────────────── */
+/* The sheet is the screen, between App's top bar and its bottom bar, as the
+   board is. */
+.app.sb-files:not(.is-floating-chrome) .list-wrap[data-look='sb'] {
+  margin: 0; padding: 0 12px; border-radius: 0; box-shadow: none; outline: 0;
+}

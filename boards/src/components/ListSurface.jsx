@@ -80,6 +80,7 @@ import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError, isPublicSurface,
 } from '../lib/cardDownload.js';
+import './clusterBrowser/filesPage.css';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 

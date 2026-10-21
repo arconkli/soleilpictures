@@ -30,6 +30,7 @@ import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareO
 import { FilmPlayer } from '../film/FilmPlayer.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
+import './filesPage.css';
 
 // A signed URL for a stored file (r2:…), or the URL itself.
 function useResolved(src) {
