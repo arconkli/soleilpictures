@@ -1072,6 +1072,21 @@ test('time in app credits only the account that is calling', () => {
   assert.match(bump, /seconds\s+= public\.user_active_day\.seconds \+ excluded\.seconds;/, '0460\'s seconds stay');
 });
 
+test('a signed-out caller cannot run the heartbeat, and the client never sends one (0477)', () => {
+  const revoke = latestMatch(/revoke execute on function public\.bump_seconds_in_app\(integer, uuid, uuid, boolean\) from anon;/);
+  assert.equal(revoke?.file, '0477_heartbeat_signed_in_only.sql');
+  const regrant = latestMatch(/grant execute on function public\.bump_seconds_in_app\([^)]*\) to [^;]*\banon\b/);
+  assert.ok(!regrant || regrant.file < revoke.file, `${regrant?.file} gives the heartbeat back to anon`);
+
+  const hb = readFileSync(new URL('./heartbeat.js', import.meta.url), 'utf8');
+  for (const fn of ['async function flush()', 'function flushBeacon()']) {
+    const body = hb.slice(hb.indexOf(fn), hb.indexOf('\n}\n', hb.indexOf(fn)));
+    const gate = body.indexOf('if (!cachedUid) { dropSignedOut(); return; }');
+    assert.ok(gate > 0, `${fn} drops a signed-out flush`);
+    assert.ok(gate < body.indexOf("'bump_seconds_in_app'"), `${fn} returns before it calls the heartbeat`);
+  }
+});
+
 test('every analytics row is dated on arrival and takes its subject\'s country, and the archive keeps the whole row', () => {
   const guard = latestDefinition('_tg_event_caller_guard').body;
   const roleCheck = guard.indexOf("if current_user not in ('anon', 'authenticated') then");

@@ -15,6 +15,7 @@
 // uses auth.uid(), whatever p_user_id says) and never credited a signed-out
 // call (0254 put every write behind the user id), so a signed-out flush drops
 // its time and work ops, as the anon call used to, without making the request.
+// The server refuses a signed-out call outright since 0477.
 
 import { supabase } from './supabase.js';
 import { getAppSessionId } from './appSession.js';
