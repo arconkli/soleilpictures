@@ -123,3 +123,95 @@ test('0520: helpers are revoked, the three calls are signed-in only, and the fil
   for (const fn of ['get_editor_capacity', 'ask_owner_for_editor_slot', 'list_my_account_editors', '_editor_admit', '_account_editor_slots'])
     assert.equal(definitionsOf(fn).length, 1, `${fn} is defined once (no overloads)`);
 });
+
+const REFUSING = ['share_board', 'invite_workspace_member', 'set_workspace_member_role', 'restore_board_share'];
+const CLAIMS = ['claim_collab_link', 'claim_workspace_invite_link'];
+
+test('every door an editor comes in through checks the limit, and 0188\'s brake is gone', () => {
+  for (const fn of [...REFUSING, ...CLAIMS]) {
+    const d = latestDefinition(fn);
+    if (!d || d.file !== DOORS) continue;   // Task 4 adds the claims
+    assert.match(code(d.body), /public\._editor_admit\(/, `${fn} must check the limit`);
+    assert.doesNotMatch(code(d.body), /_collab_editor_cap/, `${fn} still calls 0188's brake`);
+  }
+  for (const fn of REFUSING) assert.equal(def(fn).file, DOORS, `${fn}'s latest definition must be 0521`);
+});
+
+test('the doors that must not check: a claimed invite held its place when sent; a transfer is the freeze', () => {
+  for (const fn of ['claim_pending_invite', '_claim_pending_invites_for_user', 'transfer_workspace_ownership',
+                    'prepare_account_deletion', 'service_account_register', 'create_collab_link',
+                    'create_workspace_invite_link']) {
+    const d = latestDefinition(fn);
+    assert.ok(d, `no definition of ${fn}`);
+    assert.doesNotMatch(code(d.body), /_editor_admit\(/, `${fn} must not check the limit`);
+  }
+});
+
+test('a refusing door checks only for an editor, and before it spends an invite or writes the row that emails', () => {
+  for (const fn of ['share_board', 'invite_workspace_member']) {
+    const b = code(def(fn).body);
+    const pending = b.slice(b.indexOf('if v_user is null then'));
+    assert.ok(pending.indexOf('_editor_admit(') > 0
+      && pending.indexOf('_editor_admit(') < pending.indexOf('_invite_budget_take()'), `${fn}: a waiting invite checks first`);
+    const last = b.lastIndexOf('_editor_admit(');
+    assert.ok(last < b.lastIndexOf('_invite_budget_take()'), `${fn}: an account checks before the budget`);
+    for (const m of b.matchAll(/_editor_admit\(/g)) {
+      const before = b.slice(Math.max(0, m.index - 120), m.index);
+      assert.match(before, /if p_role = 'editor' then\s+if public\.$/, `${fn}: only an editor grant is checked`);
+    }
+  }
+  const share = code(def('share_board').body);
+  const found = share.slice(share.indexOf('if FOUND then'));
+  assert.ok(found.indexOf('you can only change the access of people you invited') < found.indexOf('_editor_admit('),
+    'share_board: the "people you invited" rule still answers first');
+  assert.ok(found.indexOf('_editor_admit(') < found.indexOf('update board_shares'), 'share_board: a viewer → editor change checks');
+  const inv = code(def('invite_workspace_member').body);
+  assert.ok(inv.indexOf("return 'already_member';") < inv.lastIndexOf('_editor_admit('),
+    'invite_workspace_member: an existing member is "already a member", never "full"');
+  const role = code(def('set_workspace_member_role').body);
+  assert.match(role, /if p_role in \('coowner', 'editor'\)\s+and exists \(select 1 from workspace_members m[\s\S]*?m\.role = 'viewer'\) then\s+if public\._editor_admit\(p_workspace_id, p_user_id, null\) = 'full' then/,
+    'set_workspace_member_role: only a viewer made an editor or co-owner is checked');
+  const restore = code(def('restore_board_share').body);
+  assert.match(restore, /if r\.role = 'editor' then\s+if public\._editor_admit\(v_workspace, r\.user_id, null\) = 'full' then/);
+  for (const fn of REFUSING) assert.match(code(def(fn).body), /perform public\._editor_refuse\(/, `${fn} refuses`);
+});
+
+test('an edit link opened when full lets them in as a viewer, tells them and the owner, and never refuses', () => {
+  for (const [fn, via] of [['claim_collab_link', 'collab_link'], ['claim_workspace_invite_link', 'workspace_link']]) {
+    const d = def(fn);
+    assert.equal(d.file, DOORS, `${fn}'s latest definition must be 0521`);
+    const b = code(d.body);
+    assert.match(b, /if v_link\.role = 'editor' then\s+if public\._editor_admit\(/, `${fn}: only an edit link is checked`);
+    assert.match(b, /v_role := 'viewer';\s+v_fallback := true;/, `${fn}: falls back to viewer`);
+    assert.ok(b.includes(`'${via}', false)`), `${fn}: notices and event on a fresh join`);
+    assert.doesNotMatch(b, /_editor_refuse\(/, `${fn}: a link never refuses`);
+    assert.doesNotMatch(b, /_collab_editor_cap/, `${fn}: 0188's brake is gone`);
+    assert.doesNotMatch(b, /v_link\.role, auth\.uid\(\)/, `${fn}: the role granted is v_role, not the link's`);
+  }
+  const c = code(def('claim_collab_link').body);
+  const up = c.slice(c.indexOf("if v_existing.role = 'viewer' and v_link.role = 'editor' then"));
+  assert.ok(up.indexOf('_editor_admit(') < up.indexOf("set role = 'editor'"), 'the upgrade checks before it upgrades');
+  assert.ok(up.includes("'collab_link', true)"), 'a blocked upgrade is logged as one');
+});
+
+test('the claims keep their shape and words (AuthGate, check_instrumentation 0472 and the link tests read them)', () => {
+  assert.match(def('claim_collab_link').body,
+    /returns table\s*\(\s*workspace_id uuid,\s*board_id uuid,\s*role text,\s*status text\s*\)/i);
+  assert.match(def('claim_workspace_invite_link').body,
+    /returns table\s*\(\s*workspace_id uuid,\s*role text,\s*status text\s*\)/i);
+  const c = def('claim_collab_link').body;
+  for (const s of ["'noop'::text", "'upgraded'::text", "'already'::text", "v_status       text := 'joined'"]) assert.ok(c.includes(s), `claim_collab_link lost ${s}`);
+  const w = def('claim_workspace_invite_link').body;
+  for (const s of ["'dead'::text", "'member'::text", "'joined'::text", "'status', 'joined'"]) assert.ok(w.includes(s), `claim_workspace_invite_link lost ${s}`);
+});
+
+test('0521: the doors keep their grants, have no overloads, and the file proves it', () => {
+  const sql = fileText(DOORS);
+  for (const sig of ['share_board(uuid,text,text)', 'invite_workspace_member(uuid,text,text)',
+                     'set_workspace_member_role(uuid,uuid,text)', 'restore_board_share(uuid,uuid)',
+                     'claim_collab_link(uuid)', 'claim_workspace_invite_link(uuid)'])
+    assert.ok(sql.includes(`'public.${sig}'`), `0521 must prove ${sig}`);
+  assert.match(sql, /having count\(\*\) > 1/);
+  assert.match(sql, /commit;\s*$/);
+  assert.doesNotMatch(code(sql), /\bdrop\s+function\b/i, 'no DROP: create or replace keeps each ACL');
+});

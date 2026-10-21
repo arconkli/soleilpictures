@@ -1012,8 +1012,7 @@ begin
   end if;
   -- (The 0147 "demo can only invite viewers" block was here. Editor
   -- collaboration is open on every plan; owner-pays caps (0187) are the
-  -- resource gate, and since 0521 an account has room for 10 people who can
-  -- edit.)
+  -- resource gate. The 10-editor limit (0520) is checked below.)
 
   select b.workspace_id into v_workspace
   from boards b where b.id = p_board_id;
@@ -1789,8 +1788,8 @@ git fetch -q origin main && git merge-base --is-ancestor origin/main HEAD && git
   v := public.create_workspace_with_root('Probe', 'Probe root');
   ws := (v ->> 'workspace_id')::uuid;
   root := (v ->> 'root_board_id')::uuid;
-  insert into public.boards (workspace_id, parent_board_id, name, view, created_by)
-  values (ws, root, 'Probe child', 'canvas', o) returning id into child;
+  insert into public.boards (workspace_id, parent_board_id, name, created_by)
+  values (ws, root, 'Probe child', o) returning id into child;
 
   -- 1. a fresh account holds one place: its owner
   n := public._account_editor_count(o);
@@ -1955,13 +1954,14 @@ git fetch -q origin main && git merge-base --is-ancestor origin/main HEAD && git
                          case when public._account_editor_count(o) = 12 and b and h = 'editor_limit' then 'ok' else 'FAIL' end,
                          public._account_editor_count(o), b, h);
   end;
-  -- nobody-1 holds its place from step 3; their sign-up claims it although the account is over
+  -- nobody-1 holds its place from step 3; their sign-up claims it (by the
+  -- invite's token, as the email link does) although the account is over
   insert into auth.users (instance_id, id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, email_confirmed_at)
   values ('00000000-0000-0000-0000-000000000000', late, 'authenticated', 'authenticated',
           'nobody-1@probe.invalid', '{"provider":"email"}', '{}', now(), now(), now());
   perform set_config('request.jwt.claims', json_build_object('sub', late, 'role', 'authenticated')::text, true);
   begin
-    perform public.claim_pending_invite(pi.id) from public.pending_invites pi
+    perform public.claim_pending_invite(pi.token) from public.pending_invites pi
      where lower(pi.email) = 'nobody-1@probe.invalid' and pi.claimed_at is null;
   exception when others then
     get stacked diagnostics m = message_text;
