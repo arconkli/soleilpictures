@@ -165,7 +165,12 @@ test('a trial is one per PERSON: the address is swept, not just the reusable cus
   const src = read('../../../supabase/functions/create-checkout-session/index.ts');
   assert.match(src, /emailCustomers = found\.data\.filter/, 'the address lookup is kept, not discarded');
   assert.match(src, /if \(!customerId \|\| trial\)/, 'and it runs for a trial even when a customer is already known');
-  assert.match(src, /for \(const c of emailCustomers\)/, 'every customer on the address is asked');
+  // All at once, every customer on the address but the one already asked; one
+  // that has trialed refuses the trial whatever the rest say, and with none
+  // trialed a lookup that failed still fails the request.
+  assert.match(src, /const others = emailCustomers\.filter\(\(c\) => c\.id !== customerId\);/, 'every customer on the address is asked');
+  assert.match(src, /Promise\.allSettled\(\s*others\.map\(\(c\) => stripe\.subscriptions\.list\(\{ customer: c\.id, status: "all", limit: 10 \}\)\),?\s*\)/);
+  assert.match(src, /if \(priors\.some\(\(p\) => p\.status === "fulfilled" && customerHasTrialed\(p\.value\.data\)\)\) everTrialed = true;\s*else \{\s*const failed = [^;]+;\s*if \(failed\) throw failed\.reason;/);
   assert.match(src, /reason: t\.error \? "tier_unreadable" : everTrialed \? "already_trialed"/);
 });
 
