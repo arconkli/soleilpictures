@@ -285,7 +285,9 @@ test('VS-PANELS-09: a long name in the Share list ends in an ellipsis, not a cut
   await probe(page, 'mountShare');
   const name = page.locator('.share-row-name', { hasText: 'jordan.longname' });
   await expect(name).toBeVisible();
-  const m = await name.evaluate((el) => {
+  // A person's row is a flex line (the name, then an online dot) since the dot
+  // came in, so the cut is on the name's own span, as in the member test below.
+  const m = await name.locator('.share-row-name-text').evaluate((el) => {
     const cs = getComputedStyle(el);
     return { display: cs.display, overflow: cs.textOverflow, clipped: el.scrollWidth > el.clientWidth };
   });
