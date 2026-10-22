@@ -3,7 +3,7 @@
 // With the files sidebar, Board · Files no longer lives in the bar, and most
 // of what was left was empty width. So the bar goes and its controls float:
 // where you are (back, forward, the trail) at the top left, what you do here
-// (undo, search, theme, who's here, Share) at the top right, and everything
+// (undo, search, split view, theme, who's here, Share) at the top right, and everything
 // used now and then behind ⋯. The canvas runs to the top edge between them.
 //
 // Presentational: App fills both islands with the same buttons and handlers

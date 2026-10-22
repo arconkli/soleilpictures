@@ -21,8 +21,9 @@ test('App imports the bell', () => {
 
 test('in the right island the bell follows Toggle theme, or Search under a finger', () => {
   const r = rightIsland();
-  // Search, then: with a mouse the theme and the bell, under a finger the bell.
-  assert.match(r, /aria-label="Search"[\s\S]*?<\/button>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?\{!isTouch \? \(\s*<>\s*<button className="tb-icon tb-icon-theme"/);
+  // Search, then: with a mouse split view, the theme and the bell, under a
+  // finger the bell.
+  assert.match(r, /aria-label="Search"[\s\S]*?<\/button>\s*(\{\/\*[\s\S]*?\*\/\}\s*)?\{!isTouch \? \(\s*<>\s*<button className=\{`tb-icon tb-icon-split[\s\S]*?<\/button>\s*<button className="tb-icon tb-icon-theme"/);
   assert.match(r, /aria-label="Toggle theme"[\s\S]*?<\/button>\s*\{notifBell\}\s*<\/>\s*\) : notifBell\}\s*<span className="chrome-sep"/);
   assert.equal((r.match(/notifBell/g) || []).length, 2);
 });
