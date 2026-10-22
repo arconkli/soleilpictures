@@ -405,8 +405,8 @@ function composeThread(id, head, filed, state) {
   // The state entry speaks for the thread unless a build that writes resolves
   // into the thread changed it after that entry was written (it records the
   // thread's own flag as it saw it). A tab on such a build that toggles twice
-  // in a row ends where the entry saw it and loses the second toggle; those
-  // tabs are made to reload before entries are written (COMMENT_LOG_WRITES).
+  // in a row ends where the entry saw it and loses the second toggle; the
+  // Worker's MIN_CLIENT_BUILD reloads those tabs (COMMENT_LOG_WRITES).
   const own = !!headResolved;
   const resolved = state && own === !!state.headerSeen ? state.resolved : own;
   return { id, ...rest, replies, resolved };
@@ -753,11 +753,13 @@ export function healPages(ydoc, scope) {
 // Every build since these readers reads both that and the old shape (a reply
 // or a resolve rewriting the whole thread), but builds from before read only
 // the old one, and preview and production tabs share every room. So filing
-// beside the thread ships in two promotes: these readers first, writing the
-// old way; then this flag on, with the Worker's MIN_CLIENT_BUILD raised past
-// the readers' production build so no tab without them is still open
-// (docState.concurrency.test holds the two together).
-export const COMMENT_LOG_WRITES = false;
+// beside the thread is on only with the Worker's MIN_CLIENT_BUILD past the
+// readers' landing (2026-10-20), which reloads every tab without them
+// (docState.concurrency.test holds the two together). The readers and this
+// flag may reach production in the same promote: a tab open from before it
+// shows a reply or a resolve filed here once it reloads, and nothing it
+// writes meanwhile overwrites one.
+export const COMMENT_LOG_WRITES = true;
 
 export function addCommentThread(ydoc, opts) {
   const { pageId, body, author, authorId, authorColor, mentions, scope } = opts;

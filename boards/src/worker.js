@@ -84,7 +84,10 @@ import { BUILD_DATE, BUILD_SHA } from './lib/buildInfo.js';
 // so check what the builds you mean to keep are stamped before raising it.
 // 2026-10-18: builds stamped 10-17 and earlier never park a hidden tab
 // (lib/partyPark.js), and each one left open held two party rooms all day.
-const MIN_CLIENT_BUILD = '2026-10-18';
+// 2026-10-21: builds stamped 10-20 and earlier can't read a doc comment's
+// replies and resolves filed beside the thread (lib/commentKeys.js), which
+// this build writes (docState COMMENT_LOG_WRITES).
+const MIN_CLIENT_BUILD = '2026-10-21';
 // After this instant (ISO), a tab that must reload stops waiting for a dialog
 // to close or a field to empty, and reloads once it has been hidden two
 // minutes. null = no deadline. Set for the party's move off PartyKit, which
