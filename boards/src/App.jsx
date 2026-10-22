@@ -104,6 +104,7 @@ import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
 import { isAiTaggerEnabled } from './lib/aiTaggerFlag.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
+import { useTeamPreview, useTeamPage, openTeamPage, closeTeamPage } from './lib/teamPreview.js';
 import {
   markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch,
   markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
@@ -303,6 +304,7 @@ const CommandPalette = lazyPanel(() => import('./components/CommandPalette.jsx')
 const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m => ({ default: m.TrashModal })));
 const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })));
 const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })));
+const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
 const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
 const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
 const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
@@ -5967,6 +5969,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const captureAllowed = myTier.tier === 'admin';
   const { capture, active: captureActive } = useCaptureMode(captureAllowed);
 
+  // The admin preview's test team (Settings › Preview › Team plan): look only.
+  // Admins only, so a stored choice does nothing for anyone else. Its data
+  // loads in a chunk of its own, never with the app.
+  const teamAs = useTeamPreview();
+  const [team, setTeam] = useState(null);
+  useEffect(() => {
+    if (!captureAllowed || !teamAs) { setTeam(null); return undefined; }
+    let live = true;
+    import('./lib/teamSample.js').then((m) => { if (live) setTeam(m.sampleTeam(teamAs)); }, () => {});
+    return () => { live = false; };
+  }, [captureAllowed, teamAs]);
+  const teamPage = useTeamPage();
+  useEffect(() => { if (!team) closeTeamPage(); }, [team]);
+  // Going somewhere else leaves the page.
+  useEffect(() => { closeTeamPage(); }, [currentId, currentSurface]);
+
   // The admin Surface Gallery rides the same tier read and the same doctrine:
   // pure client-side rendering with no server capability behind it, so this IS
   // its gate. galleryState refuses every write until armed, and disarming on a
@@ -10448,6 +10466,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onOpenSettings={(ws) => openWorkspaceSettings(ws)}
           onShare={(ws) => shareWorkspace(ws)}
           onClose={() => setWsMenuOpen(false)}
+          team={team ? {
+            name: team.name,
+            workspaces: team.workspaces,
+            manage: team.me.role !== 'member',
+            viewOnly: team.status === 'view_only',
+            onOpenPage: () => openTeamPage(),
+            onPickWorkspace: (w) => feedback.toast({ type: 'info', message: `Preview: ${w.name} is an example workspace in the test team.` }),
+          } : null}
         />
       )}
     </div>
@@ -11374,6 +11400,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           />
         )}
       </main>
+
+      {/* The admin preview's test team page (look only): lazy, over the board
+          column and beside the sidebar. */}
+      {team && teamPage && (
+        <Suspense fallback={null}>
+          <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} onClose={closeTeamPage}
+                    onToast={(message) => feedback.toast({ type: 'info', message })} />
+        </Suspense>
+      )}
 
       {/* Boards-only "link a board onto canvas" picker — the command palette in
           pick mode (same UI, boards only, selecting one links it). */}

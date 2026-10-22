@@ -7,7 +7,7 @@
 // Escape close it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check, Share2 } from '../lib/icons.js';
+import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check, Share2, Lock, Users, ChevronRight } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { R2Image } from './R2Image.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
@@ -34,6 +34,11 @@ export function WorkspaceMenu({
   // not an outside click — closing here first would let the toggle reopen it.
   // The sidebar's is the default; Home passes its own.
   triggerSelector = '.sb-ws-trigger',
+  // The admin preview's test team (Settings › Preview): null, or { name,
+  // workspaces: [{ id, name, letter, color, private }], manage, viewOnly,
+  // onOpenPage, onPickWorkspace }. Its section sits above YOURS, is not part
+  // of the filter, and is hidden while the filter has text.
+  team = null,
 }) {
   const ref = useRef(null);
   const [filter, setFilter] = useState('');
@@ -196,6 +201,35 @@ export function WorkspaceMenu({
         </div>
       )}
       <div className="ws-menu-scroll">
+        {team && !q && (
+          <>
+            <div className="ws-menu-section">{team.name.toUpperCase()}<span className="ws-menu-tag">TEAM</span></div>
+            {team.workspaces.map((w) => (
+              <button key={w.id} type="button" className="ws-menu-row"
+                      onClick={() => { team.onPickWorkspace?.(w); onClose?.(); }}>
+                <span className="ws-menu-avatar" style={{ background: w.color }}>{w.letter}</span>
+                <span className="ws-menu-text">
+                  <span className="ws-menu-name">{w.name}</span>
+                  <span className="ws-menu-sub">
+                    {team.viewOnly ? 'Team · view-only' : w.private ? 'Team · private' : 'Team'}
+                  </span>
+                </span>
+                {w.private && (
+                  <span className="ws-menu-tail"><Icon as={Lock} size={13} weight="regular" /></span>
+                )}
+              </button>
+            ))}
+            <button type="button" className="ws-menu-row"
+                    onClick={() => { team.onOpenPage?.(); onClose?.(); }}>
+              <span className="ws-menu-avatar is-icon"><Icon as={Users} size={14} weight="regular" /></span>
+              <span className="ws-menu-text">
+                <span className="ws-menu-name">Team page</span>
+                <span className="ws-menu-sub">{team.manage ? 'People, seats and billing' : 'Who’s on the team'}</span>
+              </span>
+              <span className="ws-menu-tail"><Icon as={ChevronRight} size={12} weight="regular" /></span>
+            </button>
+          </>
+        )}
         {mine.length > 0 && (
           <>
             <div className="ws-menu-section">YOURS</div>

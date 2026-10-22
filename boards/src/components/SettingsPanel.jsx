@@ -379,7 +379,7 @@ export function SettingsPanel({
                 <Suspense fallback={null}><SecurityTab /></Suspense>
               )}
               {tab === 'preview' && isAdmin && (
-                <Suspense fallback={null}><PreviewTab /></Suspense>
+                <Suspense fallback={null}><PreviewTab onClose={onClose} /></Suspense>
               )}
             </SettingsSaveProvider>
           </div>

@@ -198,4 +198,6 @@ export {
   CloudSlash,
   CloudWarning,
   BookmarkSimple,
+  // The Team page's payment card (components/team/TeamBilling.jsx).
+  CreditCard,
 } from '@phosphor-icons/react';
