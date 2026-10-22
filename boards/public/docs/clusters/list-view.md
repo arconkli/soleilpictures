@@ -352,7 +352,7 @@ what a drive is really for, no. Here is the line:
 | Share | A whole cluster, yes: one link opens it read-only, and everyone you invite edits free |
 | Store any kind of file | Yes, at any size, on every plan. The free plan holds 50 cards or 5GB of files, whichever comes first; Creator removes the card cap and gives you a 1TB drive |
 | Keep each file's original name | Yes — images and videos since names were kept; audio, PDFs and attachments always |
-| Share one file by its own link | No — sharing is per cluster. **Copy link** opens a card on its board, for people who can already open that board |
+| Share one file by its own link | Yes — **Share file…** gives a video, a PDF or any other file a page of its own, without the cluster around it. See [Sharing a single file](/docs/collaborate/sharing#sharing-a-single-file) |
 | Sync a folder on your computer | No — there is no desktop sync app |
 | Work offline | No |
 | Back up your files | No — a cluster is where work happens, not a backup of it |

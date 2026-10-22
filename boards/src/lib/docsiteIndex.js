@@ -1497,7 +1497,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I use Clusters like Google Drive?",
-        "a": "For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link. It is not a backup or sync service — no desktop sync, no offline copy, no link to a single file — so keep a drive for that."
+        "a": "For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link, or one file on its own. It is not a backup or sync service — no desktop sync, no offline copy — so keep a drive for that."
       }
     ]
   },

@@ -24561,21 +24561,32 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "No — sharing is per cluster. "
+       "v": "Yes — "
       },
       {
        "t": "strong",
-       "v": "Copy link",
+       "v": "Share file…",
        "children": [
         {
          "t": "text",
-         "v": "Copy link"
+         "v": "Share file…"
         }
        ]
       },
       {
        "t": "text",
-       "v": " opens a card on its board, for people who can already open that board"
+       "v": " gives a video, a PDF or any other file a page of its own, without the cluster around it. See "
+      },
+      {
+       "t": "link",
+       "v": "Sharing a single file",
+       "href": "/docs/collaborate/sharing#sharing-a-single-file",
+       "children": [
+        {
+         "t": "text",
+         "v": "Sharing a single file"
+        }
+       ]
       }
      ]
     ],
