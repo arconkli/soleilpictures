@@ -10,6 +10,9 @@
 //
 // Closure-based inverses (soft-delete restores, server ops) omit
 // undoManager/stackItem — they are order-independent by construction.
+//
+// `also`: buttons shown before Undo, for a toast that offers another way on
+// ("Moved 3 photos into Feature film's files · Put on board · Undo").
 export function undoToast(feedback, {
   message,
   type = 'info',
@@ -18,24 +21,27 @@ export function undoToast(feedback, {
   stackItem = null,
   onUndo,
   supersededMessage = 'The board changed since — press ⌘Z to step back instead.',
+  also = null,
 }) {
   if (!feedback?.toast || !message) return;
+  const undo = {
+    label: 'Undo',
+    onClick: () => {
+      if (undoManager && stackItem) {
+        const top = undoManager.undoStack[undoManager.undoStack.length - 1];
+        if (top !== stackItem) {
+          feedback.toast({ type: 'info', message: supersededMessage });
+          return;
+        }
+      }
+      onUndo?.();
+    },
+  };
+  const more = (also || []).filter(Boolean);
   feedback.toast({
     type,
     message,
     ttl,
-    action: {
-      label: 'Undo',
-      onClick: () => {
-        if (undoManager && stackItem) {
-          const top = undoManager.undoStack[undoManager.undoStack.length - 1];
-          if (top !== stackItem) {
-            feedback.toast({ type: 'info', message: supersededMessage });
-            return;
-          }
-        }
-        onUndo?.();
-      },
-    },
+    ...(more.length ? { actions: [...more, undo] } : { action: undo }),
   });
 }

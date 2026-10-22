@@ -1,10 +1,10 @@
 # Notifications
 
-> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, changes to a shoot day in your schedule, and occasional product tips. Each of the seven is its own switch in Settings under Notifications, and product tips, mentions, replies and schedule emails carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
+> Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/notifications · Updated 2026-10-21_
 
-Seven categories, seven independent switches, in **Settings → Notifications**.
+Six categories, six independent switches, in **Settings → Notifications**.
 
 | Category | Fires when |
 |---|---|
@@ -13,22 +13,31 @@ Seven categories, seven independent switches, in **Settings → Notifications**.
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
 | **Invite accepted** | Someone you invited opens your link and joins |
-| **Schedule changes** | A shoot day you can see moves *(being rebuilt — quiet for now)* |
-| **Product tips and check-ins** | Occasional messages about the product |
+| **Product tips and check-ins** | Occasional messages about the product, including a short note from the team when something new ships |
 
 The last one is the one to switch off if you only want to hear about your own
-work. The other six are all consequences of something a person did that
+work. The other five are all consequences of something a person did that
 involves you.
 
 ## Where they appear
 
 **In the app** — unread indicators on the sidebar, and in the browser tab title
-for [messages](/docs/collaborate/messages). Schedule notifications collect under
-**Schedule** in the sidebar and stay there until read, rather than vanishing
-with the toast that announced them.
+for [messages](/docs/collaborate/messages). A [file shared with
+you](/docs/collaborate/sharing), a comment on it and notices about your account
+show as a toast when they arrive while you are in the app; for a file, **Open**
+opens it in the app. The share itself also reaches you by email, and every file
+shared with you is listed under **Shared files** in the sidebar.
 
-**Email only when you are away** — a schedule email is sent only if you are not
-currently in the app. If you are, the in-app notification is the whole story and
+**The bell** — at the top right of the board, right after the theme switch; on
+a phone it is in the top bar, just before **Share**. Its number counts the
+notifications you haven't read. Press it and the list opens under it, newest
+first, with the unread ones marked; **Mark all read** clears the number. Press
+a row to go to what it is about: a row for a file shared with you, or a comment
+on one, opens the file in the app. **Esc**, a click outside the list or the
+bell again closes it; on a phone the list fills the screen and **×** closes it.
+
+**Email only when you are away** — an accepted-invite email is sent only if you
+are not currently in the app. If you are, the in-app notification is the whole story and
 a second copy in your inbox is just noise.
 
 **Browser notifications** — only if you grant permission. Nothing is requested
@@ -53,8 +62,8 @@ you do, and a link that signed you in on load would be spent by a robot.
 
 ## Unsubscribing
 
-Product tips, mentions, replies and schedule emails carry a **one-click
-unsubscribe** that works without signing in. Invitation, share and
+Product tips, mentions and replies carry a **one-click unsubscribe** that
+works without signing in. Invitation, share and
 accepted-invite emails are each sent once, for one thing someone did; switch
 those off in Settings under Notifications. Unsubscribing from email does not
 turn off in-app notifications; those are separate.
@@ -68,16 +77,3 @@ notification links to the exact card, comment or passage, not just to the board
 A busy thread cannot flood your inbox: one person's mentions reach you by email
 at most 5 times a day, and the same goes for their
 replies to your comments. Every one of them still shows up in the app.
-
-## Schedule changes
-
-> The [schedule card](/docs/canvas/schedule) is being rebuilt, and publishing a
-> shoot day is part of that rebuild. The switch is here and the sidebar section
-> is here; nothing is sent yet.
-
-When it returns, this is the one that matters on a
-[production schedule](/docs/clusters/production-schedule): a shoot day moving,
-or a call sheet being published, tells everyone who can read it what changed.
-Nothing is sent while a schedule is being built — a day is a draft until someone
-publishes it, and drafts are silent, so laying out a twelve-week shoot does not
-page anybody.

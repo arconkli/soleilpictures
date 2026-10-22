@@ -96,20 +96,23 @@ export const TOUR_STEPS = [
     accepts: (e) => e?.type === 'content_added',
   },
   {
-    // Final step: flip the cluster into List view — the "every cluster is also
-    // a drive" reveal (browse/upload any file, storage pitch). Completes on the
-    // real switch; `list_ack` is the Got-it fallback when the toggle isn't on
-    // screen (ctaWhenUnanchored — see OnboardingTour), so nobody can strand.
+    // Final step: open the cluster's files full screen — the "every cluster is
+    // also a drive" reveal (browse/upload any file, storage pitch). The anchor
+    // is the Files card's ⤢ in the sidebar (the Board · Files pill went with
+    // the sidebar release), so the pill sits to its right, over the canvas.
+    // Completes on the real switch; `list_ack` is the Got-it fallback when the
+    // button isn't on screen (Files hidden — ctaWhenUnanchored, see
+    // OnboardingTour), so nobody can strand.
     id: 'list',
     anchor: 'view-toggle',
-    placement: 'bottom',
+    placement: 'right',
     cta: 'Got it',
     ctaWhenUnanchored: true,
     ackEvent: { type: 'list_ack' },
     copy: {
       title: 'Every cluster is also a drive',
-      body: 'Switch to Files to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
-      touch: 'Tap Files to browse this cluster like a drive — every file you add lives here too. Free covers images and small media; Creator stores any file, any size.',
+      body: 'Every file you add is in Files, in the sidebar. Open it full screen (or press F) to browse this cluster like a drive. Free covers images and small media; Creator stores any file, any size.',
+      touch: 'Every file you add is in Files, in the sidebar. Tap here to browse this cluster full screen, like a drive. Free covers images and small media; Creator stores any file, any size.',
     },
     accepts: (e) => (e?.type === 'view_switched' && e.view === 'list') || e?.type === 'list_ack',
   },
@@ -156,8 +159,8 @@ export const MOBILE_TOUR_STEPS = [
     ackEvent: { type: 'mobile_done' },
     copy: {
       title: 'Group them into a cluster',
-      body: 'Tap + then Cluster to group these — drag photos in, name it.',
-      touch: 'Tap + then Cluster to group these — drag photos in, name it.',
+      body: 'Tap + then New cluster to group these — drag photos in, name it.',
+      touch: 'Tap + then New cluster to group these — drag photos in, name it.',
     },
     accepts: (e) => e?.type === 'cluster_created' || e?.type === 'mobile_done',
   },
@@ -251,6 +254,16 @@ export function initialTourState(variant = 'full') {
   return { step: stepsFor(variant)[0].id, clusterId: null, done: false, variant };
 }
 
+// Where a fresh tour starts. The first-run setup (workspace_setup arm B)
+// already asked what the work is, so `start` = { skipIntent, intent } opens
+// project_first on its content step with that answer instead of asking again.
+// Every other variant starts at its first step either way.
+export function startTourState(variant = 'full', start = null) {
+  const s = initialTourState(variant);
+  if (!start?.skipIntent || variant !== 'project_first') return s;
+  return { ...s, step: 'add_content', ...(typeof start.intent === 'string' ? { intent: start.intent } : {}) };
+}
+
 export function currentStep(state) {
   if (!state || state.done) return null;
   const step = stepsFor(state.variant)[tourStepIndex(state.step, state.variant)] || null;
@@ -319,11 +332,13 @@ export function mergeTourIntoOnboarding(onboarding, tour) {
 // cross-device handoff: a phone user's finished mobile_lite record must not
 // gate the full desktop tour, and a full-tour record stuck at step 1 restarts
 // as mobile_lite on a phone. Legacy rows (no variant field) read as 'full'.
-export function readTourState(onboarding, sessionVariant = 'full') {
+// `start` shapes a tour that starts fresh (startTourState); a resumed one keeps
+// its own step.
+export function readTourState(onboarding, sessionVariant = 'full', start = null) {
   const t = onboarding && onboarding.tour;
-  if (!t || typeof t !== 'object') return initialTourState(sessionVariant);
+  if (!t || typeof t !== 'object') return startTourState(sessionVariant, start);
   const persistedVariant = t.variant ?? 'full';
-  if (persistedVariant !== sessionVariant) return initialTourState(sessionVariant);
+  if (persistedVariant !== sessionVariant) return startTourState(sessionVariant, start);
   const known = tourStepIndex(t.step, sessionVariant) >= 0;
   return {
     step: known ? t.step : stepsFor(sessionVariant)[0].id,

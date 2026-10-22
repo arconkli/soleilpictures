@@ -17,8 +17,9 @@
 // that by computing each line/block's NATURAL offset = its on-screen top minus
 // the gap heights already placed above it. Natural offsets don't depend on the
 // gaps, so the computed breaks are stable: same content → same breaks → no
-// re-dispatch. We only dispatch a new DecorationSet when the break list
-// actually changes.
+// re-dispatch. We only dispatch a new DecorationSet when the breaks differ
+// from the gap widgets already on the page — which an edit maps along with
+// the text, so a key typed above a break changes nothing here.
 
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -204,18 +205,29 @@ function computeBreaks(view, zoom) {
   return { breaks, pages };
 }
 
+const clampPos = (doc, pos) => Math.max(0, Math.min(pos, doc.content.size));
+
+// A gap widget is keyed by its height alone: two gaps of one height draw the
+// same element, so ProseMirror keeps a gap's element wherever a new set has
+// one of that height — a break that moved, or stayed, keeps its gap.
 function decosFromBreaks(doc, breaks) {
   if (!breaks.length) return DecorationSet.empty;
   const decos = breaks.map(b => {
-    const pos = Math.max(0, Math.min(b.pos, doc.content.size));
-    return Decoration.widget(pos, () => makeGapEl(b.gap), { side: -1, key: `pg-${pos}-${Math.round(b.gap)}` });
+    const gap = Math.round(b.gap);
+    return Decoration.widget(clampPos(doc, b.pos), () => makeGapEl(gap), { side: -1, key: `pg-${gap}`, gap });
   });
   return DecorationSet.create(doc, decos);
 }
 
-// Stable signature so we only re-render when pagination actually changes.
-function sig(breaks, pages) {
-  return pages + '|' + breaks.map(b => b.pos + ':' + Math.round(b.gap)).join(',');
+// Whether the gap widgets on the page already are these breaks. Comparing
+// with the last measure instead (as this did) read every key typed above a
+// break as a new layout — every break's position had moved by one — and
+// dispatched, tearing down and rebuilding every gap below the caret.
+function sameBreaks(decos, breaks, doc) {
+  const on = decos.find();
+  if (on.length !== breaks.length) return false;
+  on.sort((a, b) => a.from - b.from);
+  return breaks.every((b, i) => on[i].from === clampPos(doc, b.pos) && on[i].spec.gap === Math.round(b.gap));
 }
 
 export const DocPagination = Extension.create({
@@ -229,21 +241,17 @@ export const DocPagination = Extension.create({
       new Plugin({
         key,
         state: {
-          init: () => ({ decos: DecorationSet.empty, sig: '' }),
+          init: () => ({ decos: DecorationSet.empty, pages: 0 }),
           apply(tr, prev) {
             const meta = tr.getMeta(key);
             if (meta) return meta;
             // Keep decorations mapped through edits until the next measure.
-            if (!tr.docChanged) return prev;
-            const decos = prev.decos.map(tr.mapping, tr.doc);
             // y-prosemirror applies every REMOTE change as one whole-document
-            // replace, and mapping through it deletes every gap widget. The
-            // re-measure then finds the same breaks (natural offsets don't
-            // depend on the gaps), so a kept sig would read as "converged" and
-            // the gaps would never come back: a collaborator typing anywhere
-            // collapsed this tab's pages. Losing widgets forgets the sig.
-            const lost = decos.find().length < prev.decos.find().length;
-            return { decos, sig: lost ? '' : prev.sig };
+            // replace, and mapping through it deletes every gap widget; the
+            // re-measure finds the same breaks (natural offsets don't depend
+            // on the gaps) but no widgets on the page, and puts them back.
+            if (!tr.docChanged) return prev;
+            return { decos: prev.decos.map(tr.mapping, tr.doc), pages: prev.pages };
           },
         },
         props: {
@@ -258,12 +266,11 @@ export const DocPagination = Extension.create({
             let res;
             try { res = computeBreaks(view, opts.getZoom() || 1); }
             catch (_) { return; }
-            const s = sig(res.breaks, res.pages);
             const cur = key.getState(view.state);
-            if (s === cur.sig) return; // converged — nothing changed
+            if (res.pages === cur.pages && sameBreaks(cur.decos, res.breaks, view.state.doc)) return; // converged
             try { opts.onPages(res.pages); } catch (_) {}
             const decos = decosFromBreaks(view.state.doc, res.breaks);
-            view.dispatch(view.state.tr.setMeta(key, { decos, sig: s }).setMeta('addToHistory', false));
+            view.dispatch(view.state.tr.setMeta(key, { decos, pages: res.pages }).setMeta('addToHistory', false));
           };
           const schedule = () => { if (!raf) raf = requestAnimationFrame(measure); };
           // Re-measure on size changes (zoom, width, content reflow, font load).

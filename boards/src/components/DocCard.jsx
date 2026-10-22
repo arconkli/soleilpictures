@@ -15,11 +15,20 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cardScope, readDocSummary, initCardDocStore, followTitle } from '../lib/docState.js';
 import { readDocOpenMode, writeDocOpenMode } from '../lib/docOpenMode.js';
+import { RELOAD_EVENT, noteReopen, reopenMode, clearReopen } from '../lib/docResets.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { SurfaceErrorBoundary } from './SurfaceErrorBoundary.jsx';
+import { DocOpening } from './DocOpening.jsx';
 import { Avatar } from './primitives.jsx';
 import { useMessagesUi } from '../hooks/useOpenDm.js';
 import { EditableText } from './EditableText.jsx';
+import { FileShareButton } from './fileShare/FileShareButton.jsx';
+import { docSharesAllowed } from '../lib/appHost.js';
+import { isShareableDoc } from '../lib/fileShares.js';
+import { docLook } from '../lib/looks.js';
+import { createDocFrame } from '../lib/docFrame.js';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
 // ~400KB raw) into whichever chunk imports it statically — which used to be
@@ -29,6 +38,9 @@ import { EditableText } from './EditableText.jsx';
 // AppShell idle-prefetches it for signed-in users so the skeleton is rarely
 // seen; public viewers pay the fetch only when they actually open a doc.
 const DocSurface = lazyWithReload(() => import('./DocSurface.jsx').then(m => ({ default: m.DocSurface })));
+// The doc look's header (lib/looks.js docLook(), held): lazy too, so the doc as
+// it is never downloads the look (components/doc/DocFrameA.jsx).
+const DocHeadA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocHeadA })));
 
 const DEFAULT_SIDE_RATIO = 0.5;
 const RATIO_KEY = 'soleil.boards.docCardSideRatio';
@@ -43,6 +55,36 @@ let openOverlayCount = 0;
 // to the same coordinates — the newer one would simply bury the older. One
 // doc is open at a time; opening the next hands it the layout.
 const OPEN_EVENT = 'soleil-doccard-open';
+
+const NO_SUMMARY = { pages: [], firstText: '', firstPageName: '' };
+
+// The closed card's preview: the first page's name and opening text, and the
+// page count. It keeps itself fresh, observing this card's own doc store
+// (rAF-coalesced, so a burst of edits refreshes it once) — this used to be
+// state on the card, so every keystroke in the open doc re-rendered the card
+// and, with it, the whole open doc in its overlay. `children` draws it.
+function DocCardSummary({ ydoc, cardYMap, scope, children }) {
+  const [, setRev] = useState(0);
+  useEffect(() => {
+    if (!ydoc || !cardYMap) return;
+    const sc = cardScope(cardYMap);
+    const targets = [sc.content, sc.pages, sc.sheetContent].filter(Boolean);
+    if (!targets.length) return;
+    let raf = 0;
+    const bump = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = 0; setRev((n) => n + 1); });
+    };
+    targets.forEach((t) => t.observeDeep(bump));
+    return () => {
+      targets.forEach((t) => t.unobserveDeep(bump));
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ydoc, cardYMap]);
+  // A generous slice of the first page, so the preview fills the card with
+  // prose (600 chars ≈ a paragraph-and-a-half at the preview's size).
+  return children((ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : NO_SUMMARY);
+}
 
 export function RichDocCard({
   card, ydoc, cardYMap,
@@ -68,6 +110,11 @@ export function RichDocCard({
   onDock = null,
   // True when THIS card is the one currently docked in the split pane.
   isDocked = false,
+  // Set while ANOTHER doc is docked: opening this one (a double-click, a double
+  // tap, a jump to it) puts it beside the docked one, in the board's place, so
+  // two docs can be read at once (lib/docPanes.js). The buttons on the card
+  // keep their own meaning: the dock button swaps what is docked.
+  onOpenBeside = null,
   // The cluster this card sits on. The doc scope carries it as `boardId`:
   // comment @-mention notifications, doc tagging and the save footer are all
   // keyed by the HOST board, and without it they silently did nothing.
@@ -99,9 +146,12 @@ export function RichDocCard({
   // New docs no longer auto-open their full editor — autoFocus now means
   // "focus the title for renaming," letting the user rename + place the
   // card on the canvas first. The full editor opens on double-click,
-  // explicit Open buttons, or peer-jump events.
-  const [mode, setMode] = useState('closed'); // 'closed' | 'full' | 'side'
-  const [previewKey, setPreviewKey] = useState(0);
+  // explicit Open buttons, or peer-jump events. A card back from its
+  // cluster's reload under it (a restore, cards moved in) opens as it was
+  // before it went: the reload takes the card away, and it comes back closed
+  // (lib/docResets.js; noted below).
+  const [mode, setMode] = useState(() => reopenMode(card.id) || 'closed'); // 'closed' | 'full' | 'side'
+  useEffect(() => { clearReopen(card.id); }, [card.id]);
   // Click-to-jump landing target: when App.jumpToPeer dispatches a
   // soleil-open-doc-card event, we self-open and stash the peer's
   // pageId+scrollTop here so DocSurface inside the overlay can consume
@@ -114,33 +164,6 @@ export function RichDocCard({
   useEffect(() => {
     try { localStorage.setItem(RATIO_KEY, String(sideRatio)); } catch (_) {}
   }, [sideRatio]);
-
-  // Pull a generous slice of the first page so the preview fills the blank
-  // area with actual prose (rather than 1-2 lines + empty space). 600 chars
-  // ≈ a paragraph-and-a-half of body copy at the preview's font size.
-  const summary = (ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : { pages: [], firstText: '', firstPageName: '' };
-  const pageCount = summary.pages.length;
-
-  // Keep the closed-card preview fresh on content edits. This used to ride on
-  // readCards re-hashing the whole doc every board keystroke (a perf cliff now
-  // removed in yhelpers.cardHash) — observe THIS card's own doc store instead,
-  // rAF-coalesced so a burst of edits triggers one refresh.
-  useEffect(() => {
-    if (!ydoc || !cardYMap) return;
-    const sc = cardScope(cardYMap);
-    const targets = [sc.content, sc.pages, sc.sheetContent].filter(Boolean);
-    if (!targets.length) return;
-    let raf = 0;
-    const bump = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => { raf = 0; setPreviewKey((n) => n + 1); });
-    };
-    targets.forEach((t) => t.observeDeep(bump));
-    return () => {
-      targets.forEach((t) => t.unobserveDeep(bump));
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [ydoc, cardYMap]);
 
   // Public viewers can open docs too — read-only, and always FULLSCREEN
   // (side mode's dock layout assumes the workspace topbar, and the dock
@@ -161,7 +184,18 @@ export function RichDocCard({
   };
   // What a plain double-click (or a peer jump) should do — the layout the user
   // last chose, falling back to fullscreen for anyone who has never docked.
-  const openRemembered = () => open(isPublic ? 'full' : readDocOpenMode());
+  // With another doc docked, beside it. Read through a ref: the open-event
+  // listener below outlives the render that made it, and a doc docked after
+  // this card mounted must still count.
+  const onOpenBesideRef = useRef(onOpenBeside);
+  onOpenBesideRef.current = isPublic ? null : onOpenBeside;
+  const openRemembered = () => {
+    const beside = onOpenBesideRef.current;
+    if (!beside) { open(isPublic ? 'full' : readDocOpenMode()); return; }
+    // One overlay doc at a time still: a doc this canvas has open goes.
+    try { document.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { cardId: card.id } })); } catch (_) {}
+    beside({ cardId: card.id });
+  };
 
   // Public single-click-to-open. Mirrors the board-cover pattern in
   // CanvasSurface's read-only branch: a release within 4px is a click and
@@ -194,7 +228,6 @@ export function RichDocCard({
     // immediately leaving the tab can't drop the tail of an edit.
     try { document.dispatchEvent(new CustomEvent('soleil-doccard-unmount', { detail: { cardId: card.id } })); } catch (_) {}
     setMode('closed');
-    setPreviewKey((n) => n + 1);
   };
 
   // Listen for jump-to-this-doc-card events. App.jumpToPeer fires these
@@ -210,7 +243,9 @@ export function RichDocCard({
       if (pageId) {
         try { localStorage.setItem(`soleil.boards.docActivePage.${card.id}`, pageId); } catch (_) {}
       }
-      setPendingScroll({ boardId: card.id, pageId: pageId || null, scrollTop: scrollTop || 0 });
+      // Beside the docked doc, the workspace hosts it: the page above is where
+      // it opens, and this card's own overlay has nothing to scroll.
+      if (!onOpenBesideRef.current) setPendingScroll({ boardId: card.id, pageId: pageId || null, scrollTop: scrollTop || 0 });
       openRemembered();
     };
     document.addEventListener('soleil-open-doc-card', onOpen);
@@ -225,7 +260,16 @@ export function RichDocCard({
   // inside a setMode updater: updaters must be pure, and React invokes them
   // twice under StrictMode — which would have fired two flushes per eviction.
   const modeRef = useRef(mode);
-  useEffect(() => { modeRef.current = mode; }, [mode]);
+  // Closed (or handed to the dock) while its cluster reloads: it stays so.
+  useEffect(() => { modeRef.current = mode; if (mode === 'closed') clearReopen(card.id); }, [mode]);
+  useEffect(() => {
+    if (!hostBoardId) return undefined;
+    const onReload = (e) => {
+      if (e.detail?.boardId === hostBoardId) noteReopen(card.id, modeRef.current);
+    };
+    window.addEventListener(RELOAD_EVENT, onReload);
+    return () => window.removeEventListener(RELOAD_EVENT, onReload);
+  }, [card.id, hostBoardId]);
   useEffect(() => {
     const onOtherOpen = (e) => {
       if (e.detail?.cardId === card.id) return;
@@ -264,11 +308,24 @@ export function RichDocCard({
     window.addEventListener('pointerup', onUp);
   };
 
+  // A dblclick a finger made is the canvas's to answer (CanvasSurface
+  // onCardDoubleClick, from its own double tap): it waits for both taps on this
+  // card, where the browser pairs a tap anywhere with the next one — the tap
+  // that placed the doc and the first tap on it read as a double-click.
+  const lastPointerRef = useRef('mouse');
+
   return (
     <>
       <div className="doc-card"
-           onDoubleClick={(e) => { e.stopPropagation(); openRemembered(); }}
-           onPointerDown={isPublic ? onPublicPointerDown : undefined}>
+           onDoubleClick={(e) => {
+             e.stopPropagation();
+             if (lastPointerRef.current === 'touch') return;
+             openRemembered();
+           }}
+           onPointerDown={(e) => {
+             lastPointerRef.current = e.pointerType || 'mouse';
+             if (isPublic) onPublicPointerDown(e);
+           }}>
         {/* Peer-presence dots — shown on the card preview when peers are
             inside this doc card. Same visual + interaction model as the
             BoardCard presence stack so the breadcrumb trail (canvas →
@@ -317,41 +374,45 @@ export function RichDocCard({
             }}
           />
         )}
-        <div className="doc-card-page" key={previewKey}>
-          {summary.firstPageName && summary.firstPageName !== card.title && (
-            <div className="doc-card-h1">{summary.firstPageName}</div>
-          )}
-          <div className="doc-card-rule" />
-          {summary.firstText && (
-            <div className="doc-card-text">{summary.firstText}</div>
-          )}
-        </div>
-        <div className="doc-card-foot">
-          <span className="doc-card-tag">DOC</span>
-          <span className="doc-card-meta">
-            {pageCount > 0 ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'}` : 'no pages'}
-          </span>
-          {/* Gold marks the active state (house rule) — while this doc holds
-              the side pane, its own button says so. */}
-          <button className={`doc-card-open${isDocked ? ' is-active' : ''}`}
-                  title={isDocked ? 'Docked beside the canvas' : 'Open beside (dock to right)'}
-                  aria-label="Open beside"
-                  aria-pressed={isDocked || undefined}
-                  onClick={(e) => { e.stopPropagation(); open('side'); }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
-              <path d="M8 2 V12" stroke="currentColor" strokeWidth="1.2"/>
-              <rect x="8.5" y="2.5" width="3.5" height="9" fill="currentColor" opacity=".18"/>
-            </svg>
-          </button>
-          <button className="doc-card-open" title="Open fullscreen"
-                  aria-label="Open fullscreen"
-                  onClick={(e) => { e.stopPropagation(); open('full'); }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
-            </svg>
-          </button>
-        </div>
+        <DocCardSummary ydoc={ydoc} cardYMap={cardYMap} scope={scope}>
+          {(summary) => (<>
+            <div className="doc-card-page">
+              {summary.firstPageName && summary.firstPageName !== card.title && (
+                <div className="doc-card-h1">{summary.firstPageName}</div>
+              )}
+              <div className="doc-card-rule" />
+              {summary.firstText && (
+                <div className="doc-card-text">{summary.firstText}</div>
+              )}
+            </div>
+            <div className="doc-card-foot">
+              <span className="doc-card-tag">DOC</span>
+              <span className="doc-card-meta">
+                {summary.pages.length > 0 ? `${summary.pages.length} ${summary.pages.length === 1 ? 'page' : 'pages'}` : 'no pages'}
+              </span>
+              {/* Gold marks the active state (house rule) — while this doc holds
+                  the side pane, its own button says so. */}
+              <button className={`doc-card-open${isDocked ? ' is-active' : ''}`}
+                      title={isDocked ? 'Docked beside the canvas' : 'Open beside (dock to right)'}
+                      aria-label="Open beside"
+                      aria-pressed={isDocked || undefined}
+                      onClick={(e) => { e.stopPropagation(); open('side'); }}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M8 2 V12" stroke="currentColor" strokeWidth="1.2"/>
+                  <rect x="8.5" y="2.5" width="3.5" height="9" fill="currentColor" opacity=".18"/>
+                </svg>
+              </button>
+              <button className="doc-card-open" title="Open fullscreen"
+                      aria-label="Open fullscreen"
+                      onClick={(e) => { e.stopPropagation(); open('full'); }}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
+                </svg>
+              </button>
+            </div>
+          </>)}
+        </DocCardSummary>
       </div>
 
       {mode !== 'closed' && createPortal(
@@ -405,6 +466,9 @@ export function DockedDocPane({
   boards = {}, wsPeers = [], onJumpToPeer, canEdit = true,
   onUpdate, onClose, full = false, onSetFull,
   hostBoardId = null, // the cluster the card lives on — see RichDocCard
+  // Which pane of the workspace it takes (lib/docPanes.js): 'split' docked,
+  // 'beside' opened next to the docked one, in the board's place.
+  pane = 'split',
 }) {
   if (cardYMap) initCardDocStore(ydoc, cardYMap);
   const scope = useMemo(
@@ -432,7 +496,8 @@ export function DockedDocPane({
       onClose={onClose}
       peersOnCard={peersOnCard}
       onJumpToPeer={onJumpToPeer}
-      canEdit={canEdit} />
+      canEdit={canEdit}
+      pane={full ? null : pane} />
   );
   // Fullscreen still portals to <body> so it clears the pane and the topbar;
   // the pane variant renders in flow, sized by the split divider.
@@ -454,8 +519,15 @@ export function DocCardOverlay({
   // 'pane'   — rendered in flow inside the split pane, which owns the width
   //   and supplies the resize divider. No inset, no scrim, no divider here.
   variant = 'overlay',
+  // The workspace pane the doc sits in (lib/activePane.js), for its ⌘Z; null
+  // when it covers them all.
+  pane = null,
 }) {
   const inPane = variant === 'pane';
+  // The doc look (held): its header switches the page list and the side
+  // panel, which the surface owns; the frame is how the two talk.
+  const look = docLook();
+  const [frame] = useState(() => (look ? createDocFrame() : null));
   // Esc closes from either mode — but never while typing: Escape inside the
   // title input / editor / a mention popover belongs to that control, and
   // closing the whole overlay mid-edit was how doc text got "lost".
@@ -463,8 +535,29 @@ export function DocCardOverlay({
   // Not in a pane: there the doc is a persistent half of the workspace, like
   // a split cluster, and nothing else in the workspace closes on a stray Esc
   // pressed over the canvas. The × in the pane's bar is the way out.
+  //
+  // Fullscreen covers the canvas, so it is a layer like any dialog
+  // (lib/modalGuard): the canvas's window shortcuts stand down while it is up
+  // (Backspace on a header button deleted the selected cards behind it, this
+  // doc's own card among them), and Escape comes to it through the layer
+  // stack. The canvas's Escape (clear the selection) used to take the key
+  // first, so the doc stayed open. A menu inside the doc claims its own
+  // Escape, so one press closes one layer.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const isFull = mode === 'full';
   useEffect(() => {
-    if (inPane) return;
+    if (inPane || !isFull) return undefined;
+    return registerModalOpen({
+      onEscape: (e) => {
+        if (isEditableTarget(e)) return false;
+        onCloseRef.current?.();
+        return true;
+      },
+    });
+  }, [inPane, isFull]);
+  useEffect(() => {
+    if (inPane || isFull) return;
     const onKey = (e) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (isEditableTarget(e)) return;
@@ -472,7 +565,7 @@ export function DocCardOverlay({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, inPane]);
+  }, [onClose, inPane, isFull]);
 
   // Focus management: when a brand-new (untitled) doc card opens, drop the
   // caret in the title input so the user can name it immediately. Restore
@@ -541,7 +634,7 @@ export function DocCardOverlay({
              onPointerDown={(e) => e.stopPropagation()}
              onClick={onClose} />
       )}
-      <div className={`doc-card-modal doc-card-modal-${inPane ? 'pane' : mode}`}
+      <div className={`doc-card-modal doc-card-modal-${inPane ? 'pane' : mode}${look ? ' dl' : ''}`}
            // Position via inline style. IMPORTANT: declare `inset` FIRST,
            // then override individual sides — otherwise React applies them
            // in object order and `inset: auto` clobbers our explicit edges.
@@ -550,6 +643,15 @@ export function DocCardOverlay({
            // is open. Fullscreen still uses the .doc-card-modal-full inset.
            style={isSide ? { inset: 'auto', top: 42, right: 0, bottom: 0, left: 'auto', width: widthPct } : undefined}
            onPointerDown={(e) => e.stopPropagation()}>
+        {look ? (
+          <Suspense fallback={<div className="dl-head" />}>
+            <DocHeadA frame={frame} card={card} scope={scope} boards={boards}
+                      canEdit={canEdit} isPublic={isPublic} mode={mode}
+                      titleInputRef={titleInputRef} focusTitle={!hadTitleOnOpenRef.current}
+                      onUpdate={onUpdate} onSetMode={onSetMode} onClose={onClose}
+                      peersOnCard={peersOnCard} onJumpToPeer={onJumpToPeer} />
+          </Suspense>
+        ) : (
         <div className="doc-card-modal-head">
           <input className="doc-card-title-input"
                  ref={titleInputRef}
@@ -575,6 +677,12 @@ export function DocCardOverlay({
                 <span className="doc-card-peers-overflow">+{peersOnCard.length - 4}</span>
               )}
             </div>
+          )}
+          {/* Share this doc on its own, to read or edit together (held:
+              docSharesAllowed). Its cluster is the scope's host board. */}
+          {!isPublic && canEdit && scope?.boardId && docSharesAllowed() && isShareableDoc(card) && (
+            <FileShareButton variant="doc" surface="doc" boardId={scope.boardId} cardId={card.id}
+                             card={{ id: card.id, kind: 'doc', title: card.title || 'Untitled doc' }} />
           )}
           {/* Messages. Fullscreen covers the whole workspace and side mode
               docks over exactly where the panel lives, so without this the
@@ -610,8 +718,14 @@ export function DocCardOverlay({
             </svg>
           </button>
         </div>
+        )}
         <div className="doc-card-modal-body">
-          <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
+          {/* A crash stays in here (SurfaceErrorBoundary): the doc puts itself
+              back, its header and the way out stay, and the canvas is left alone. */}
+          <SurfaceErrorBoundary resetKey={card.id} logKind="doc" retryInPlace
+                                message="This doc hit a problem." retryLabel="Reopen"
+                                fallbackClassName="is-in-doc">
+          <Suspense fallback={<DocOpening />}>
           <DocSurface
             board={{ id: card.id, name: card.title || 'Untitled doc' }}
             ydoc={ydoc}
@@ -631,8 +745,11 @@ export function DocCardOverlay({
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit}
             isPublic={isPublic}
+            pane={pane}
+            frame={frame}
           />
           </Suspense>
+          </SurfaceErrorBoundary>
         </div>
       </div>
     </>

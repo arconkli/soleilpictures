@@ -1,18 +1,19 @@
 // AdminReferralsSection — the "invite a friend → earn 25 cards" growth loop,
 // as seen by an operator. Funnel KPIs (joined → activated → cards granted),
 // the link-vs-collab source split, and a top-referrers leaderboard. Pure
-// presentational: AcquisitionView fetches admin_referral_stats and passes the
-// jsonb payload as `data` (graceful — a failed RPC just renders the empty
-// state without blocking the rest of the view).
+// presentational: FunnelView's paths section fetches admin_referral_stats and
+// passes the jsonb payload as `data` (graceful — a failed RPC just renders the
+// empty state without blocking the rest of the view).
 //
 // `data` shape (from admin_referral_stats):
 //   { total, pending, activated, activation_rate, cards_granted,
 //     referring_users, paid_conversions, months_granted, k_factor,
 //     median_days_to_activate,
 //     by_source: { link:{total,activated}, collab:{total,activated} },
-//     invites: { sent_total, pending_signup, direct_grants, inviting_users },   // 0185 — invites SENT (the k-factor numerator)
+//     invites: { sent_total, pending_signup, signed_up, direct_grants, inviting_users },   // 0185 — invites SENT; signed_up 0491
 //     link_invites: { created, claimed, active_links },                          // 0190 — invite LINKS (0189)
 //     editor_seats: { workspaces_with_editors, max_editors_per_owner },          // 0190 — all-time seat watch (free-editor decision, 0188)
+//     banned_left_out: { accounts, invites, links, referrals },                  // 0490 — what banned accounts did, left out of every figure
 //     top_referrers: [{ user_id, email, friends_joined, friends_activated, friends_paid, cards_earned }] }
 
 import { CopyableText } from '../../../../components/CopyableText.jsx';
@@ -22,9 +23,23 @@ import { RateCell } from '../../SmallN.jsx';
 
 const SOURCE_LABELS = { link: 'Personal link', collab: 'Collab invite' };
 
+// What a banned account did is abuse, not growth. 0490 leaves it out of every
+// figure and reports how much, so the panel says so instead of dropping
+// silently.
+function bannedNote(b) {
+  if (!b) return null;
+  const parts = [[b.invites, 'invite'], [b.links, 'invite link'], [b.referrals, 'referral']]
+    .filter(([n]) => Number(n) > 0)
+    .map(([n, word]) => `${formatCount(n)} ${word}${Number(n) === 1 ? '' : 's'}`);
+  if (!parts.length) return null;
+  const who = Number(b.accounts) || 0;
+  return `Left out: ${parts.join(', ')} from ${formatCount(who)} banned account${who === 1 ? '' : 's'}.`;
+}
+
 export function AdminReferralsSection({ data, days = 30 }) {
   const d = data || null;
   const windowLabel = days > 0 ? `last ${days}d` : 'all time';
+  const leftOut = bannedNote(d?.banned_left_out);
 
   // No payload, or zero referrals AND zero invites → a single honest empty
   // panel. Invites-without-signups still renders (that half of the funnel is
@@ -37,6 +52,7 @@ export function AdminReferralsSection({ data, days = 30 }) {
           <span className="admin-chart-sub t-meta">invite a friend → earn 25 cards · {windowLabel}</span>
         </header>
         <div className="admin-empty">No referrals in this window yet.</div>
+        {leftOut && <div className="admin-panel-note">{leftOut}</div>}
       </section>
     );
   }
@@ -101,8 +117,9 @@ export function AdminReferralsSection({ data, days = 30 }) {
             title="Distinct users who invited anyone in the window — the breadth half of the loop (k-factor only counts those whose friends signed up)" />
           <AdminStatCard
             label="Invite → signup"
-            value={<RateCell numer={bySource.collab?.total || 0} denom={invites.pending_signup || 0} />}
-            title="Referral rows attributed source='collab' ÷ email invites to non-users. Windows are both trailing, so a signup can trail its invite — directional, not exact." />
+            value={<RateCell numer={invites.signed_up || 0} denom={invites.pending_signup || 0} />}
+            sub={`${formatCount(invites.signed_up || 0)} of ${formatCount(invites.pending_signup || 0)} emailed invites`}
+            title="Emailed invites to people without an account that someone signed up with, of those sent in the window. Invite links are counted on their own, claimed against created. An invite sent late in the window may not be answered yet." />
           <AdminStatCard
             label="Invite links"
             value={formatCount(linkInvites.created || 0)}
@@ -115,6 +132,7 @@ export function AdminReferralsSection({ data, days = 30 }) {
             sub={`max ${formatCount(seats.max_editors_per_owner || 0)} per owner`}
             title="ALL-TIME seat watch for free editor collaboration (0188): workspace owners with external editors + the largest seat count. Growth here = the future Team-plan list; runaway growth = flip admin_set_collab_editor_cap." />
         </div>
+        {leftOut && <div className="admin-panel-note">{leftOut}</div>}
       </section>
 
       <section className="admin-chart-panel admin-chart-panel-wide">

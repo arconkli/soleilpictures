@@ -1,0 +1,326 @@
+/* The owner's "Share file" dialog (FileShareDialog.jsx). The same visual
+   language as the cluster Share panel (.share-* in styles.css): rows that say
+   who on the left and one right-aligned native select on the right, a footer
+   that never scrolls away. Its own class names, so neither can break the
+   other. Gold is focus and the on-switch only; everything at rest is ink. */
+
+/* Over every full-screen viewer: the review player (.frv 1095), Quick look
+   (.ql 1090), and the lightbox and PDF viewer (.lightbox / .pdfv at the top,
+   2147483647). It ties those two and wins by portaling to <body> after them.
+   That is above the toast stack (1100), so the dialog shows its own messages
+   inline (.fsd-notice). Doubled class to beat .modal-shell-bg { z-index: 200 }. */
+.modal-shell-bg.fsd-backdrop {
+  z-index: 2147483647;
+  align-items: center;
+  padding: 20px;
+}
+.fsd-modal {
+  width: min(500px, 92vw);
+  max-height: 86vh;
+  background-color: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 56px rgba(0,0,0,.5);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  color: var(--ink-0);
+  font-family: var(--font-sans);
+}
+
+.fsd-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--line-1);
+}
+.fsd-title {
+  font: 700 16px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  margin: 0;
+  display: flex; gap: 0.3em;
+  min-width: 0;
+  white-space: nowrap;
+}
+.fsd-title-verb { flex: 0 0 auto; }
+.fsd-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fsd-close {
+  appearance: none; border: 0; background: transparent;
+  width: 28px; height: 28px; flex: 0 0 auto;
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid; place-items: center;
+  color: var(--ink-2);
+}
+.fsd-close:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+.fsd-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.fsd-section {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line-1);
+}
+.fsd-section:last-of-type { border-bottom: 0; }
+.fsd-section-title {
+  font: 600 13px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  margin: 0 0 8px;
+}
+.fsd-empty {
+  font: 500 12.5px/1.45 var(--font-sans);
+  color: var(--ink-2);
+}
+.fsd-hint {
+  font: 500 11px/1.45 var(--font-sans);
+  color: var(--ink-3);
+  margin-top: 6px;
+}
+
+/* Add people: chips and the typing field share one box. */
+.fsd-chips {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  min-height: 36px;
+  padding: 4px 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  cursor: text;
+}
+.fsd-chips:focus-within { border-color: var(--soleil); box-shadow: var(--shadow-glow); }
+.fsd-input {
+  flex: 1 1 140px;
+  min-width: 80px;
+  appearance: none; border: 0; outline: none;
+  background: transparent;
+  color: var(--ink-0);
+  font: 500 13px/1.4 var(--font-sans);
+  padding: 3px 4px;
+}
+.fsd-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  max-width: 100%;
+  padding: 2px 2px 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-4);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  font: 500 12px/1.3 var(--font-sans);
+}
+.fsd-chip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Not an address: it will be skipped. Dashed and dimmed, not red: nothing
+   is wrong yet, it just won't be sent. */
+.fsd-chip.is-invalid {
+  background: transparent;
+  border-style: dashed;
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.fsd-chip-x {
+  appearance: none; border: 0; background: transparent;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.fsd-chip-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.fsd-invite-access {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 8px;
+}
+.fsd-select {
+  appearance: none;
+  background: var(--bg-3) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none'><path d='M2 4 L5 7 L8 4' stroke='%2399a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 8px center;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-0);
+  font: 500 12px/1.4 var(--font-sans);
+  padding: 6px 26px 6px 10px;
+  cursor: pointer;
+  outline: none;
+}
+.fsd-send { margin-left: auto; }
+
+/* Buttons: neutral at rest. Focus is the only gold. */
+.fsd-btn {
+  appearance: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  font: 600 12px/1 var(--font-sans);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.fsd-btn:hover:not(:disabled):not([aria-disabled='true']) { background: var(--bg-hov); border-color: var(--line-3, var(--line-2)); }
+.fsd-btn:disabled, .fsd-btn[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
+.fsd-modal :is(button, select, input):focus-visible,
+.fsd-btn:focus {
+  outline: 2px solid var(--soleil);
+  outline-offset: 1px;
+}
+.fsd-chips .fsd-input:focus-visible { outline: none; }
+.fsd-linkish {
+  appearance: none; border: 0; background: transparent;
+  padding: 0;
+  color: var(--ink-1);
+  font: 600 12px/1.4 var(--font-sans);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.fsd-linkish:hover { color: var(--ink-0); }
+
+/* Rows: who on the left, one control on the right, never wrapping. */
+.fsd-list { display: flex; flex-direction: column; gap: 2px; }
+.fsd-row {
+  display: flex; align-items: center; flex-wrap: nowrap; gap: 10px;
+  min-height: 40px;
+  padding: 6px;
+  border-radius: var(--radius);
+}
+.fsd-person:hover { background: var(--bg-hov); }
+.fsd-avatar {
+  width: 28px; height: 28px; flex: 0 0 auto;
+  border-radius: var(--radius-md);
+  display: grid; place-items: center;
+  font: 700 12px/1 var(--font-sans);
+  color: var(--bg-0);
+  object-fit: cover;
+}
+.fsd-avatar.fsd-avatar-link { background: var(--bg-4); color: var(--ink-1); }
+.fsd-row-text {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; align-items: flex-start;
+  min-width: 0;
+}
+.fsd-row-name {
+  max-width: 100%;
+  font: 600 12.5px/1.3 var(--font-sans);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fsd-row-sub {
+  max-width: 100%;
+  font: 500 10.5px/1.35 var(--font-sans);
+  color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fsd-row-sub.fsd-wrap { white-space: normal; }
+.fsd-row-access { flex: 0 0 auto; margin-left: auto; display: flex; align-items: center; }
+/* Reads as text with a caret until pointed at; right-aligned so every row's
+   value ends in the same column. */
+.fsd-pick {
+  appearance: none;
+  max-width: 190px;
+  background: transparent url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none'><path d='M2 4 L5 7 L8 4' stroke='%2399a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 7px center;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  font: 500 12px/1.4 var(--font-sans);
+  padding: 5px 24px 5px 8px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  text-align: right;
+  text-align-last: right;
+}
+.fsd-pick:hover { border-color: var(--line-2); background-color: var(--bg-hov); }
+/* General access names itself with its select, so that one reads as the
+   row's title: left-aligned, ink-0, pulled flush with the text under it. */
+.fsd-pick.fsd-pick-left {
+  font-weight: 600; font-size: 12.5px;
+  color: var(--ink-0);
+  text-align: left; text-align-last: left;
+  margin-left: -8px;
+}
+.fsd-modal option { color: var(--ink-0); background: var(--bg-2, var(--bg-1)); }
+
+/* Allow downloading */
+.fsd-toggle-row { margin-top: 6px; }
+.fsd-switch {
+  appearance: none;
+  width: 36px; height: 20px; flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  position: relative; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.fsd-switch.is-on { background: var(--soleil); border-color: var(--soleil); }
+.fsd-switch-thumb {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px; left: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.fsd-switch.is-on .fsd-switch-thumb { transform: translateX(16px); }
+
+.fsd-error,
+.fsd-notice {
+  margin: 0 18px 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font: 500 12px/1.45 var(--font-sans);
+}
+.fsd-error {
+  color: var(--ink-0);
+  background: color-mix(in srgb, var(--danger, #d9534f) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger, #d9534f) 40%, transparent);
+}
+.fsd-notice {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  color: var(--ink-1);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+}
+
+/* Footer: outside the scroll, so Copy link is one press from anywhere. */
+.fsd-foot-note {
+  flex: 0 0 auto;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+  padding: 10px 18px 0;
+  border-top: 1px solid var(--line-1);
+  font: 500 11.5px/1.45 var(--font-sans);
+  color: var(--ink-2);
+}
+.fsd-foot-note + .fsd-foot { border-top: 0; }
+.fsd-foot {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-1);
+}
+.fsd-comments { margin-right: auto; font-weight: 500; }
+.fsd-foot-btn { padding: 9px 14px; font-size: 12.5px; }
+.fsd-done { margin-left: auto; }
+.fsd-comments ~ .fsd-done { margin-left: 0; }
+
+@media (max-width: 640px) {
+  .modal-shell-bg.fsd-backdrop { z-index: 2147483647; padding: 0; align-items: stretch; }
+  .fsd-modal {
+    width: 100vw; max-width: 100vw;
+    height: calc(100vh - var(--safe-top, 0px));
+    height: calc(100dvh - var(--safe-top, 0px));
+    max-height: none;
+    border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
+  }
+  .fsd-section { padding: 14px 16px; }
+  .fsd-head { padding: 12px 16px 10px; }
+  .fsd-foot { padding: 12px 16px calc(12px + var(--safe-bottom, 0px)); }
+  .fsd-foot-note { padding-left: 16px; padding-right: 16px; }
+  .fsd-pick { max-width: 150px; min-height: 36px; }
+  .fsd-pick.fsd-pick-left { max-width: 100%; }
+  .fsd-foot-btn, .fsd-send { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .fsd-input { font-size: 16px; } /* iOS zooms into anything smaller */
+}

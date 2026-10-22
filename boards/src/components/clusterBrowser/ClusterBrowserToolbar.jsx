@@ -60,6 +60,17 @@ function Group({ label, children }) {
   );
 }
 
+// The quiet storage upsell for free workspace owners, a muted text link (not
+// gold: gold is for what's active or selected). The full Files page in the
+// files sidebar's look shows the same one in its head (FilesPageHead.jsx).
+export function StorageUpsell({ onUpsell }) {
+  return (
+    <button className="cbt-upsell" onClick={() => onUpsell?.()}>
+      Any file, any size — Creator
+    </button>
+  );
+}
+
 // The single shared toolbar for the cluster browser: search + sort + filter +
 // Grid/List toggle + Add-files + presence facepile. Holds only menu-open UI
 // state; all data lives in the orchestrator and flows back through callbacks.
@@ -266,11 +277,7 @@ export function ClusterBrowserToolbar({
         <button className={`view-pill-btn${viewMode === 'table' ? ' on' : ''}`} onClick={() => onViewMode('table')}
                 aria-label="List layout" aria-pressed={viewMode === 'table'} title="List"><Icon as={List} size={16} weight="light" /></button>
       </div>
-      {canEdit && showUpsell && (
-        <button className="cbt-upsell" onClick={() => onUpsell?.()}>
-          Any file, any size — Creator
-        </button>
-      )}
+      {canEdit && showUpsell && <StorageUpsell onUpsell={onUpsell} />}
       {canEdit && (
         <button type="button" className="cbt-add" onClick={onAddFiles}>
           <Icon as={Plus} size={14} weight="regular" />Add files

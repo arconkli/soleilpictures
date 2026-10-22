@@ -2,7 +2,7 @@
 // tables. Pure functions over the Supabase client — no React.
 
 import * as Y from 'yjs';
-import { supabase } from './supabase.js';
+import { supabase, sessionUserId } from './supabase.js';
 import { bytesToB64, b64ToBytes } from './yhelpers.js';
 import * as perf from './perf.js';
 import { buildCardIndexRow } from './cardIndexRow.js';
@@ -10,7 +10,13 @@ import { createPlacementLedger } from './capRefusal.js';
 import { isAbandonedUpload } from './abandonedUploads.js';
 import { fitByCost } from './demoCardCap.js';
 import { docPagesText, docSignature } from './docText.js';
+import { markLocalReset } from './docResets.js';
 import { createStateWriteGate } from './boardStateGate.js';
+import { shareThisTurn } from './shareThisTurn.js';
+import { normalizeEditorCapacity } from './editorLimit.js';
+import {
+  personalWorkspaceQuery, rootBoardQuery, boardListQuery, sharedBoardsQuery, boardStateQuery,
+} from './bootQueries.js';
 
 
 // ── Workspaces ──────────────────────────────────────────────────────────────
@@ -44,8 +50,7 @@ export async function getMyFirstWorkspace() {
 // clearer for first-time users; pre-existing workspaces keep whatever
 // name they already have.
 export async function getOrCreatePersonalWorkspace({ userId, name = 'Personal Workspace' }) {
-  const { data, error } = await supabase
-    .rpc('get_or_create_personal_workspace', { p_user_id: userId, p_name: name });
+  const { data, error } = await personalWorkspaceQuery(supabase, userId, name);
   if (error) throw error;
   return data;
 }
@@ -135,16 +140,17 @@ export async function updateWorkspaceSettings(workspaceId, patch) {
 
 // Caller's role on this workspace. 'editor' | 'owner' | 'viewer' | null
 // (null when not a member). Used by the SettingsPanel to gate the
-// workspace-defaults editor for viewers.
-export async function getMyWorkspaceRole(workspaceId) {
+// workspace-defaults editor for viewers. `userId` is the caller's own id when
+// it has it; otherwise it comes from the session (see sessionUserId).
+export async function getMyWorkspaceRole(workspaceId, userId = null) {
   if (!workspaceId) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const uid = userId || await sessionUserId();
+  if (!uid) return null;
   const { data, error } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
+    .eq('user_id', uid)
     .maybeSingle();
   if (error) throw error;
   return data?.role || null;
@@ -162,9 +168,18 @@ export async function getMyWorkspaceRole(workspaceId) {
 // mate's row as if it were yours, which then propagated into userInfo
 // (name + color) and out through workspace presence — every collaborator
 // ended up sharing the same identity in the UI.
-export async function getOwnProfile() {
-  const { data: userData } = await supabase.auth.getUser();
-  const uid = userData?.user?.id;
+//
+// `userId` is the caller's own id when it has it (App, useResolvedDefaults);
+// otherwise it comes from the session (see sessionUserId). Calls that pass it
+// in the same turn share one request: Workspace's mount asks twice.
+const ownProfileReads = new Map();   // uid → this turn's read
+export function getOwnProfile({ userId = null } = {}) {
+  if (!userId) return readOwnProfile(null);
+  return shareThisTurn(ownProfileReads, userId, () => readOwnProfile(userId));
+}
+
+async function readOwnProfile(userId) {
+  const uid = userId || await sessionUserId();
   if (!uid) return null;
   const { data, error } = await supabase
     .from('profiles')
@@ -338,6 +353,33 @@ export async function inviteWorkspaceMember({ workspaceId, email, role = 'editor
   return data || 'granted';
 }
 
+// The 10-editor limit (0520). Numbers only: is the limit on for the account
+// that owns this cluster or workspace, how many of its places are taken, and
+// is it full. Pass a boardId (editors of it may ask) or a workspaceId.
+export async function getEditorCapacity({ boardId = null, workspaceId = null } = {}) {
+  const { data, error } = await supabase
+    .rpc('get_editor_capacity', { p_board_id: boardId, p_workspace_id: workspaceId });
+  if (error) throw error;
+  return normalizeEditorCapacity(data);
+}
+
+// Someone the limit turned away asks the account's owner (and co-owners) to
+// make room. 'sent' | 'already_sent' | 'not_full' | 'owner'.
+export async function askOwnerForEditorSlot({ boardId = null, workspaceId = null } = {}) {
+  const { data, error } = await supabase
+    .rpc('ask_owner_for_editor_slot', { p_board_id: boardId, p_workspace_id: workspaceId });
+  if (error) throw error;
+  return data;
+}
+
+// The owner's own list of everyone holding a place, waiting invites included,
+// with the workspaces and clusters each one can edit.
+export async function listMyAccountEditors() {
+  const { data, error } = await supabase.rpc('list_my_account_editors');
+  if (error) throw error;
+  return data || [];
+}
+
 // Pending invites (the rows ShareModal renders as "Pending signup").
 
 export async function listPendingInvitesForBoard(boardId) {
@@ -411,7 +453,7 @@ export async function listInheritedBoardShares(boardId) {
 //     source_workspace_name, parent_board_id, board_view, board_cover,
 //     created_at }
 export async function listSharedBoards() {
-  const { data, error } = await supabase.rpc('list_shared_boards');
+  const { data, error } = await sharedBoardsQuery(supabase);
   if (error) throw error;
   return data || [];
 }
@@ -759,13 +801,11 @@ export async function adminPreviewPublicBoard(boardId) {
 
 // ── Boards ─────────────────────────────────────────────────────────────────
 
+// The boot reads (this, getRootBoard, loadBoardSnapshot, the personal RPC and
+// listSharedBoards) are built in lib/bootQueries.js, which bootPrefetch also
+// builds them from: a read started at sign-in is the one the app would make.
 export async function listBoards(workspaceId) {
-  const { data, error } = await supabase
-    .from('boards')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
+  const { data, error } = await boardListQuery(supabase, workspaceId);
   if (error) throw error;
   return data || [];
 }
@@ -782,14 +822,7 @@ export async function listDeletedBoards(workspaceId) {
 }
 
 export async function getRootBoard(workspaceId) {
-  const { data, error } = await supabase
-    .from('boards')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .is('parent_board_id', null)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-    .limit(1);
+  const { data, error } = await rootBoardQuery(supabase, workspaceId);
   if (error) throw error;
   return (data && data[0]) || null;
 }
@@ -1002,6 +1035,16 @@ export async function updateBoardThumb(boardId, { thumbKey = null, cardCount = n
   if (error) console.warn('[updateBoardThumb]', error);
 }
 
+// The item count a cluster's tile shows, without touching its cover: the bulk
+// import brings it up to date as each folder fills (lib/importJob.js), where
+// updateBoardThumb would mark the cover new and send every parent tile that
+// draws it to regenerate.
+export async function updateBoardCardCount(boardId, cardCount) {
+  if (!boardId || !Number.isFinite(cardCount)) return;
+  const { error } = await supabase.from('boards').update({ card_count: cardCount }).eq('id', boardId);
+  if (error) console.warn('[updateBoardCardCount]', error);
+}
+
 // Authoritative "is this board's thumbnail user-set?" check for the yboard regen
 // funnel (_renderUploadStampThumb), which has only a boardId and no in-memory
 // board row. One indexed PK select behind the same 8s throttle + content-hash
@@ -1074,21 +1117,20 @@ export async function restoreBoard(boardId) {
   if (error) throw error;
 }
 
-// Hard-delete a board (admin-only path; not wired into the UI yet). Use
-// the existing DELETE for cases where the user explicitly wants to purge.
+// Remove a cluster in the trash for good (the Trash's Delete now). Only the
+// workspace's owner and co-owners may (0608: the boards DELETE policy), and
+// a delete the policy filters out matches no row rather than erroring, so an
+// empty result is the refusal.
 export async function hardDeleteBoard(boardId) {
-  const { error } = await supabase.from('boards').delete().eq('id', boardId);
+  const { data, error } = await supabase.from('boards').delete().eq('id', boardId).select('id');
   if (error) throw error;
+  if (!data?.length) throw new Error('Only the workspace’s owner and co-owners can delete a cluster for good.');
 }
 
 // ── Board state (Y.Doc snapshot, base64-encoded text) ───────────────────────
 
 export async function loadBoardSnapshot(boardId) {
-  const { data, error } = await supabase
-    .from('board_state')
-    .select('doc')
-    .eq('board_id', boardId)
-    .maybeSingle();
+  const { data, error } = await boardStateQuery(supabase, boardId);
   if (error) throw error;
   return data?.doc || null; // base64 string or null
 }
@@ -1768,8 +1810,7 @@ export async function listWorkspaceAlerts(workspaceId, { limit = 50, onlyOpen = 
 
 // Acknowledge an open alert (set acknowledged_at = now()).
 export async function acknowledgeAlert(alertId) {
-  const { data: u } = await supabase.auth.getUser();
-  const userId = u?.user?.id || null;
+  const userId = await sessionUserId();
   const { error } = await supabase
     .from('workspace_anomaly_alerts')
     .update({ acknowledged_at: new Date().toISOString(), acknowledged_by: userId })
@@ -1843,6 +1884,9 @@ export async function fetchNextVersion(boardId, currentSnapshotAt) {
 // server to PartyKit's /reset, preserving the Bearer-token auth.
 export async function forceResetBoardRoom(boardId) {
   if (!boardId) throw new Error('forceResetBoardRoom: missing boardId');
+  // This tab is replacing the board (a restore, a move into it): a doc it has
+  // open there speaks only if its page changed (lib/docResets.js).
+  markLocalReset(boardId);
   let accessToken = '';
   try {
     const { data } = await supabase.auth.getSession();
@@ -1896,6 +1940,10 @@ export async function bulletproofRestore(boardId, b64) {
   } catch (e) {
     throw new Error('Version snapshot could not be decoded: ' + (e?.message || e));
   }
+  // This tab is restoring: a doc it has open on the board speaks only if its
+  // page changed (lib/docResets.js). Before the marker below, whose signal can
+  // reach this tab first.
+  markLocalReset(boardId);
   // 1) Save restored bytes to board_state. Use a fresh Y.Doc so the
   //    written update is a clean snapshot (no merge artifacts). Verify
   //    the snapshot actually contains something — if the decoded Y.Doc
@@ -1940,7 +1988,7 @@ export async function bulletproofRestore(boardId, b64) {
   }
   // 3) Audit row (board_versions) recording the bulletproof restore.
   try {
-    const userId = (await supabase.auth.getUser())?.data?.user?.id || null;
+    const userId = await sessionUserId();
     const seed = decodeSnapshotBytes(b64);
     await saveBoardVersion(boardId, seed, {
       label: 'bulletproof-restore',
@@ -1956,7 +2004,7 @@ export async function bulletproofRestore(boardId, b64) {
   //    tears down + re-cold-loads, picking up the restored state.
   try {
     if (typeof window !== 'undefined' && typeof window.__soleilEmitBoardReset === 'function') {
-      window.__soleilEmitBoardReset(boardId);
+      window.__soleilEmitBoardReset(boardId, 'restore');
     }
   } catch (_) {}
 }
@@ -2288,16 +2336,6 @@ export async function cancelScheduleDay(boardId, reason = null) {
   });
   if (error) throw error;
   return data || { ok: false, error: 'no_response' };
-}
-
-// Every dated cluster the caller can reach, across every production — the read
-// behind "in your schedule".
-export async function listMySchedule(fromDate = null, days = 60) {
-  const { data, error } = await supabase.rpc('list_my_schedule', {
-    p_from: fromDate || null, p_days: days,
-  });
-  if (error) throw error;
-  return data || [];
 }
 
 // ── Notifications ────────────────────────────────────────────────────────────

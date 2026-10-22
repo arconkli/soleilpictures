@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0908" />
   <title>Soleil Clusters — Creative Workspace & Moodboard for Production Teams</title>
-  <meta name="description" content="Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place." />
+  <meta name="description" content="Soleil Clusters is a creative workspace and moodboard for film, photo, design and brand teams: references, video, PDFs and any other file on one canvas." />
 
   <link rel="preconnect" href="https://use.typekit.net" crossorigin />
+  <!-- The kit's CSS @imports p.typekit.net/p.css, and its font faces wait for
+       that import. Fetched as a plain stylesheet, so no crossorigin here: a
+       CORS connection would be a different socket. -->
+  <link rel="preconnect" href="https://p.typekit.net" />
   <!-- Load Typekit non-render-blocking: preload as style, then swap to a real
        stylesheet on load so a slow remote CSS round-trip can't hold up first
        paint. <noscript> keeps it working without JS. -->
@@ -26,7 +30,7 @@
        time, so it only gets a DNS prefetch.) -->
   <link rel="preconnect" href="https://ehlhlmbpwwalmeisvmdp.supabase.co" crossorigin />
   <link rel="preconnect" href="https://soleil-boards-party.arconkli.workers.dev" crossorigin />
-  <link rel="preconnect" href="https://connect.facebook.net" />
+  <link rel="dns-prefetch" href="https://connect.facebook.net" />
   <link rel="dns-prefetch" href="https://r2.cloudflarestorage.com" />
 
   <link rel="icon" href="/favicon.ico" sizes="32x32" />
@@ -40,7 +44,7 @@
   <meta property="og:site_name" content="Soleil Clusters" />
   <meta property="og:url" content="https://clusters.soleilpictures.com/" />
   <meta property="og:title" content="Soleil Clusters — Creative Workspace & Moodboard for Production Teams" />
-  <meta property="og:description" content="Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place." />
+  <meta property="og:description" content="Soleil Clusters is a creative workspace and moodboard for film, photo, design and brand teams: references, video, PDFs and any other file on one canvas." />
   <meta property="og:image" content="https://clusters.soleilpictures.com/og/default.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -52,7 +56,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@soleilclusters" />
   <meta name="twitter:title" content="Soleil Clusters — Creative Workspace & Moodboard for Production Teams" />
-  <meta name="twitter:description" content="Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place." />
+  <meta name="twitter:description" content="Soleil Clusters is a creative workspace and moodboard for film, photo, design and brand teams: references, video, PDFs and any other file on one canvas." />
   <meta name="twitter:image" content="https://clusters.soleilpictures.com/og/default.png" />
   <meta name="twitter:image:alt" content="Soleil Clusters — creative workspace and moodboard for production teams" />
 
@@ -201,18 +205,44 @@
     } catch (_) {}
   </script>
 
-  <!-- Meta Pixel Code -->
+  <!-- Meta Pixel Code. Not loaded at all when the browser sends Global Privacy
+       Control (2026-10-20): window.fbq then never exists, so every caller in
+       src/lib/metaPixel.js no-ops through fbqReady(), and the server senders
+       withhold the same events (supabase/functions/_shared/meta-capi.ts).
+       Nor when this page's address, or the page before it, holds a token — a
+       share, file or template link's page, an invite or remix link, the resume
+       link — because the pixel reports both addresses and the token opens
+       what it points at. Same test as urlCarriesLinkToken in
+       src/lib/linkTokens.js; linkTokens.test.mjs runs both on the same cases.
+       Meta's stub runs here, so init, this PageView and every later fbq() call
+       queue as they always have, but its script is only added when
+       window.__soleilPixel() is called: src/lib/metaPixel.js does that once the
+       page has done what the visit came for (src/lib/pixelSchedule.js), and the
+       address is checked again first, in case the app has moved since. -->
   <script>
+    function soleilLinkToken(p, q) {
+      return /^\/(?:share|f|t)\/[0-9a-f]{8}-|^\/resume\/?$/i.test(p)
+        || /[?&](?:share_token|file_token|join|wsjoin|invite|remix|shared|rt)=/i.test(q)
+        || /[?&]utm_campaign=[^&#]*[0-9a-f]{8}-[0-9a-f]{4}-/i.test(q);
+    }
+    var soleilRef = null;
+    try { soleilRef = document.referrer ? new URL(document.referrer) : null; } catch (_) {}
+    var linkToken = soleilLinkToken(location.pathname, location.search)
+      || (soleilRef !== null && soleilLinkToken(soleilRef.pathname, soleilRef.search));
+    if (navigator.globalPrivacyControl !== true && !linkToken) {
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
     if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
+    n.queue=[];f.__soleilPixel=function(){
+    if(t||soleilLinkToken(f.location.pathname,f.location.search))return;
+    t=b.createElement(e);t.async=!0;
     t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    s.parentNode.insertBefore(t,s)}}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '1671656413978924');
     fbq('track', 'PageView');
+    }
   </script>
   <!-- End Meta Pixel Code -->
 
@@ -288,6 +318,7 @@
           <a href="/tools/shot-list-maker" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">Shot list maker</a>
           <a href="/tools/free-mood-board-maker" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">Free mood board maker</a>
           <a href="/tools/reference-board-maker" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">Reference board maker</a>
+          <a href="/tools/video-reference-board" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">Video reference board</a>
           <a href="/tools/ai-mood-board-maker" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">AI mood board maker</a>
           <a href="/tools/shared-reference-board" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">Shared reference boards for art teams</a>
           <a href="/tools/directors-treatment" style="color:#FFA500;text-decoration:none;margin-right:1.2em;">Director’s treatment template</a>

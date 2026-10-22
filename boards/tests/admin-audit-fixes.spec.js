@@ -132,7 +132,7 @@ test.describe('admin Discover in light theme (ADMIN-12)', () => {
 
 test.describe('admin background refresh (ADMIN-5)', () => {
   test('a failed refresh keeps the view and a half-typed note, under a notice', async ({ page }) => {
-    await openAdmin(page, { view: 'today' });
+    await openAdmin(page, { view: 'overview' });
     const form = page.getByRole('form', { name: 'Add a dated note' });
     await expect(form).toBeVisible({ timeout: 15000 });
     const field = form.getByRole('textbox', { name: 'Label', exact: true });
@@ -149,10 +149,10 @@ test.describe('admin background refresh (ADMIN-5)', () => {
   });
 });
 
-test.describe('admin Today people (ADMIN-6)', () => {
+test.describe('admin Overview people (ADMIN-6)', () => {
   test('Arrived and stalled lists recent signups by signup age, never-opened ones included', async ({ page }) => {
     const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
-    await openAdmin(page, { view: 'today' });
+    await openAdmin(page, { view: 'overview' });
     await expect(page.getByText('The last seven days')).toBeVisible({ timeout: 15000 });
     await patchRpc(page, {
       admin_user_dormancy: { error: null, data: [
@@ -172,23 +172,31 @@ test.describe('admin Today people (ADMIN-6)', () => {
   });
 });
 
-test.describe('admin Funnel money detail (ADMIN-7)', () => {
+// The money detail moved from Funnel to Analytics › Money on 2026-10-20; the
+// rule it pinned moved with it.
+test.describe('admin Money tiles (ADMIN-7)', () => {
   test('comped paid-tier accounts are not called paying', async ({ page }) => {
-    await openAdmin(page, { view: 'funnel' });
-    await expect(page.locator('.admin-hero-funnel').first()).toBeVisible({ timeout: 15000 });
+    await openAdmin(page, { view: 'money' });
+    const tile = (key) => page.locator(`.mny-tile[data-tile="${key}"]`);
+    await expect(tile('paying')).toBeVisible({ timeout: 20000 });
     await patchRpc(page, {
       admin_stats: { error: null, data: {
         tier_counts: { admin: 1, paid: 3, demo: 40 }, sub_counts: {}, comped_paid: 3, subscribed_paid: 0, mrr_cents: 0,
       } },
+      admin_money_people: { error: null, data: {
+        near_cap: { people: 2, active_7d: 1 }, paid_plan: 3, paying: 0, past_due: 0, comped: 3, paid_ever: 0,
+        trials: [], cap_hits: { since: null, rows: [] },
+      } },
     });
     await page.getByRole('button', { name: 'Refresh' }).first().click();
-    await expect.poll(() => page.evaluate(() => window.__patchedRpc.some(([n]) => n === 'admin_stats'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.__patchedRpc.some(([n]) => n === 'admin_money_people'))).toBe(true);
 
-    await page.getByRole('button', { name: /Checkout, upsell/ }).click();
-    const line = page.locator('.adm-detail-body .admin-section-sub').first();
-    await expect(line).toContainText('No subscription has ever existed');
-    await expect(line).toContainText('3 comped accounts are on the paid tier without paying.');
-    await expect(line).not.toContainText('paying account');
+    await expect(tile('paying').locator('.mny-t-val')).toHaveText('0');
+    await expect(tile('paying')).toContainText('Nobody has been charged yet.');
+    await expect(tile('comped').locator('.mny-t-val')).toHaveText('3');
+    await expect(tile('comped')).toContainText('3 on paid plans');
+    await expect(tile('mrr')).toContainText('No paying subscription yet.');
+    await expect(page.locator('.adm-money')).not.toContainText('paying account');
   });
 });
 
@@ -246,7 +254,7 @@ test.describe('admin live console (ADMIN-13)', () => {
   test('pushed rows are named, and internal ones stay out under Internal: excluded', async ({ page }) => {
     await openAdmin(page, { view: 'funnel' });
     await expect(page.locator('.admin-hero-funnel').first()).toBeVisible({ timeout: 15000 });
-    // Capture the console's realtime handler before Today mounts it: the
+    // Capture the console's realtime handler before Overview mounts it: the
     // harness stub never pushes, so the test does.
     await page.evaluate(async () => {
       const { supabase } = await import('/src/lib/supabase.js');
@@ -263,7 +271,7 @@ test.describe('admin live console (ADMIN-13)', () => {
       { id: '00000000-0000-4000-8000-0000000000e1', event: 'qa_external_evt', occurred_at: new Date().toISOString(),
         user_id: '00000000-0000-4000-8000-0000000000a1', email: 'outside@example.com', path: '/' },
     ] } });
-    await page.getByRole('tab', { name: /^today$/i }).click();
+    await page.getByRole('tab', { name: /^overview$/i }).click();
     await expect.poll(() => page.evaluate(() => typeof window.__pushActivity)).toBe('function');
 
     await page.evaluate(() => {

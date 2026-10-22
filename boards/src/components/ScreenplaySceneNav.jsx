@@ -1,39 +1,36 @@
 // Scene navigator for screenplay mode — a left-rail outline of every scene
 // heading (with its number) that jumps the editor to that scene on click.
-// Mirrors the page tree's role for prose docs. Reads the live editor doc and
-// refreshes on every edit.
+// Mirrors the page tree's role for prose docs. Reads the live editor doc, and
+// redraws only when a scene heading or its number changes — not on every key
+// typed in a speech.
 
-import { useEffect, useState } from 'react';
+import { useEditorState } from '@tiptap/react';
 import { computeSceneNumbers } from './docExtensions/screenplay/screenplayFlow.js';
 
-export function ScreenplaySceneNav({ editor, titlePageEnabled = false, onJumpTitlePage }) {
-  const [, force] = useState(0);
-  useEffect(() => {
-    if (!editor) return undefined;
-    const tick = () => force(n => n + 1);
-    editor.on('update', tick);
-    return () => { editor.off('update', tick); };
-  }, [editor]);
+// Numbering via the SAME engine as the gutters and the PDF
+// (computeSceneNumbers: auto by order, or locked A/B once any scene carries
+// a stamped number) — a naive ordinal here diverged the moment an imported
+// FDX locked some numbers (gutters read 1, 1A, 2 while the rail read 1, 2, 3).
+// It numbers scene headings only, so it's handed only those. Read once per
+// doc: a caret move keeps the doc, and reads nothing.
+const NO_SCENES = [];
+const scenesByDoc = new WeakMap();
+function readScenes(doc) {
+  let scenes = scenesByDoc.get(doc);
+  if (scenes) return scenes;
+  const heads = [];
+  doc.forEach((node) => {
+    if (node.type.name !== 'screenplayBlock' || node.attrs.element !== 'scene') return;
+    heads.push({ element: 'scene', sceneNumber: node.attrs.sceneNumber || null, text: node.textContent });
+  });
+  const nums = computeSceneNumbers(heads);
+  scenes = heads.map((h, i) => ({ num: nums.get(i), text: (h.text || '').trim() || 'Untitled scene' }));
+  scenesByDoc.set(doc, scenes);
+  return scenes;
+}
 
-  // Numbering via the SAME engine as the gutters and the PDF
-  // (computeSceneNumbers: auto by order, or locked A/B once any scene carries
-  // a stamped number) — a naive ordinal here diverged the moment an imported
-  // FDX locked some numbers (gutters read 1, 1A, 2 while the rail read 1, 2, 3).
-  const scenes = [];
-  if (editor) {
-    const blocks = [];
-    editor.state.doc.forEach((node) => {
-      const isSp = node.type.name === 'screenplayBlock';
-      blocks.push({
-        element: isSp ? (node.attrs.element || 'action') : 'action',
-        sceneNumber: isSp ? (node.attrs.sceneNumber || null) : null,
-        text: node.textContent,
-      });
-    });
-    computeSceneNumbers(blocks).forEach((num, idx) => {
-      scenes.push({ num, text: (blocks[idx].text || '').trim() || 'Untitled scene' });
-    });
-  }
+export function ScreenplaySceneNav({ editor, titlePageEnabled = false, onJumpTitlePage }) {
+  const scenes = useEditorState({ editor, selector: () => (editor ? readScenes(editor.state.doc) : NO_SCENES) });
 
   // Resolve the scene's CURRENT position at click time — a collaborator's edit
   // above it since the last render would otherwise send the caret into the

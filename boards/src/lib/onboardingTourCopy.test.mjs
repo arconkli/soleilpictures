@@ -31,3 +31,22 @@ test('steps without copyFor are returned unchanged', () => {
   assert.equal(s.id, 'pick_intent');
   assert.equal(s.copy.title, 'What are you working on?');
 });
+
+// The first-run setup (workspace_setup arm B) asked what the work is before the
+// canvas, so the tour must not ask it again.
+test('a tour started after the setup opens on the content step with its answer', async () => {
+  const { startTourState, readTourState } = await import('./onboardingTour.js');
+  const s = startTourState('project_first', { skipIntent: true, intent: 'storyboard' });
+  assert.equal(s.step, 'add_content');
+  assert.equal(currentStep(s).copy.title, 'Now drop your frames in');
+  assert.equal(startTourState('project_first', { skipIntent: true, intent: null }).intent, undefined);
+  // Phones have no ask to skip; nothing changes for them or without a start.
+  assert.deepEqual(startTourState('mobile_lite', { skipIntent: true, intent: 'moodboard' }), initialTourState('mobile_lite'));
+  assert.deepEqual(startTourState('project_first', null), initialTourState('project_first'));
+  // A fresh read starts there; a recorded tour keeps its own place.
+  assert.equal(readTourState({ seeded: true }, 'project_first', { skipIntent: true, intent: 'moodboard' }).step, 'add_content');
+  const done = readTourState({ tour: { step: 'add_content', done: true, variant: 'project_first' } }, 'project_first', { skipIntent: true });
+  assert.equal(done.done, true);
+  // Content still finishes it, the same as after a picked intent.
+  assert.equal(advanceTour(s, { type: 'content_added' }).done, true);
+});

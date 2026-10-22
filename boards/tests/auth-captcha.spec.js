@@ -30,7 +30,8 @@ test('a code request carries a Turnstile token', async ({ page }) => {
   await page.getByRole('button', { name: /Continue with email/ }).click();
   await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 30000 });
 
-  expect(sent).toHaveLength(1);
+  // The step shows before the request goes (it runs under the step).
+  await expect.poll(() => sent.length, { timeout: 30000 }).toBe(1);
   const token = sent[0]?.gotrue_meta_security?.captcha_token;
   expect(token, `no captcha token in ${JSON.stringify(sent[0])}`).toBeTruthy();
   // An invisible pass leaves nothing on screen.

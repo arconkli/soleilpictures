@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MIGRATIONS_DIR, latestDefinition } from './migrationText.mjs';
+import { MIGRATIONS_DIR, latestDefinition, latestDefinitionPastCodeEntry } from './migrationText.mjs';
 
 const FILE = '0365_feature_reach_and_import_mode.sql';
 const src = readFileSync(join(MIGRATIONS_DIR, FILE), 'utf8');
@@ -23,7 +23,8 @@ test('both RPCs are granted to authenticated only, admin-gated, and proven', () 
   for (const fn of ['admin_feature_reach', 'admin_return_by_mode']) {
     assert.match(src, new RegExp(`revoke all on function public\\.${fn}\\([^)]*\\)\\s+from public, anon`), `${fn} revoke`);
     assert.match(src, new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\)\\s+to authenticated`), `${fn} grant`);
-    const def = latestDefinition(fn);
+    // 0461 restated admin_feature_reach only to change who counts as a signup.
+    const def = latestDefinitionPastCodeEntry(fn);
     assert.ok(def && def.file === FILE, `${fn} is defined in ${FILE}`);
     assert.match(def.body, /_require_admin\(\)/, `${fn} is admin-only`);
   }

@@ -1,14 +1,18 @@
-import { useState, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
-import { Paperclip, Smile, Link as LinkIcon } from '../lib/icons.js';
+import { Paperclip, Smile, Link as LinkIcon, Reply, X, Plus, ArrowUp, Check, Edit } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
+import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { caretRect } from '../lib/caretRect.js';
 import { EntityPicker } from './EntityPicker.jsx';
 import { EmojiPalette } from './EmojiPalette.jsx';
+import { GrowingTextarea } from './GrowingTextarea.jsx';
 import { useDraft } from '../hooks/useDraft.js';
+import { newItemKey, releaseItems, updateDraft } from '../lib/draftStore.js';
+import { uploadQueue } from '../lib/uploadQueue.js';
+import { isComposingKey, messageKeyAction, touchKeyboard } from '../lib/composerKeys.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { useFeedback } from './AppFeedback.jsx';
 
 // What a pending entity attachment's chip says: its title when the drag or
 // the picker carried one, else what kind of thing it is.
@@ -17,23 +21,128 @@ function refChipLabel(ref) {
   return ref?.title || ref?.name || REF_KIND_LABEL[ref?.kind] || 'Attachment';
 }
 
+// Upload files into a conversation's draft, three at a time across the app.
+// Each one is a chip from the moment it's dropped, and finishes into its own
+// chip by key: one that lands while you're in another conversation is there
+// when you come back, and one you removed while it uploaded stays removed.
+function stageUploads(draftKey, files, ctx) {
+  const staged = files.map((f) => ({
+    key: newItemKey(),
+    status: 'uploading',
+    name: f.name || 'file',
+    size: f.size,
+    mime: f.type || '',
+    file: f,
+    previewUrl: /^image\//.test(f.type || '') ? objectUrl(f) : null,
+  }));
+  updateDraft(draftKey, (d) => ({ ...d, items: [...d.items, ...staged] }));
+  staged.forEach((item) => runUpload(draftKey, item, ctx));
+}
+
+function runUpload(draftKey, item, { workspaceId, userId }) {
+  uploadQueue.run(() => uploadMessageFile(item.file, { workspaceId, userId }))
+    .then((att) => att, () => null)
+    .then((att) => updateDraft(draftKey, (d) => {
+      if (!d.items.some((i) => i.key === item.key)) return d;
+      // A failed upload used to vanish: "Uploading…", then nothing (COMMS-19).
+      // It stays as a chip that says so, with Retry.
+      return { ...d, items: d.items.map((i) => (i.key !== item.key ? i
+        : att ? { ...i, status: 'done', att, file: null } : { ...i, status: 'failed' })) };
+    }));
+}
+
+function objectUrl(file) {
+  try { return URL.createObjectURL(file); } catch (_) { return null; }
+}
+
+function chipThumb(item) {
+  if (item.previewUrl) return item.previewUrl;
+  const a = item.att;
+  return a?.kind === 'image' && a.storage_path ? publicAttachmentUrl(a.storage_path) : null;
+}
+
+function chipLabel(item) {
+  const a = item.att;
+  if (!a) return item.name;
+  return a.name || a.title || (a.kind === 'url' ? a.href : a.kind);
+}
+
 // Bottom-of-thread input. Detects @<query> tokens at the caret to fire the
 // EntityPicker filtered to user/board/card/doc; resolved picks become
 // pendingMentions[] (people, drives notifications) or pendingEntityRefs[]
 // (entity attachments rendered as soleil pills).
-export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…' }) {
-  const [body, setBody, clearDraft] = useDraft(draftKey || `tmp:${workspaceId || 'unknown'}`);
-  const feedback = useFeedback();
-  const [attachments, setAttachments] = useState([]);
-  const [uploading, setUploading] = useState(false);
+//   replyTo / replyToName / onCancelReply — the message the next send answers:
+//   shown above the field as "Replying to …"; Escape or × lets it go.
+//   onEditLast — ↑ in an empty box: edit your last message; true if it did.
+//   ref — { focus() }: where the thread puts you on open and when something
+//   that had focus (an edit box, a palette, a menu) goes away.
+//   card — the files sidebar's look: one rounded field, + inside it on the
+//   left, the emoji and Send (an arrow, in your colour once there's something
+//   to send) on the right, no separate link button (a pasted link is a link).
+//   editing / onSaveEdit / onCancelEdit — the card look edits a message here:
+//   { id, body, draft } fills the box (draft: your words from a save that
+//   failed), Enter or ✓ saves, Escape lets it go. What you were writing waits
+//   in the draft meanwhile.
+//
+// Everything typed or staged here is the conversation's draft (useDraft): it's
+// there when you come back, files still uploading included. The field grows
+// with what you write and is never disabled; Send waits for the uploads.
+export const MessageComposer = forwardRef(function MessageComposer({
+  onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…',
+  replyTo = null, replyToName = '', onCancelReply, onEditLast,
+  card = false, editing = null, onSaveEdit, onCancelEdit,
+}, ref) {
+  const key = draftKey || `tmp:${workspaceId || 'unknown'}`;
+  const [draft, update] = useDraft(key);
+  const { body, items, refs: pendingEntityRefs, mentions: pendingMentions } = draft;
+  const setBody = (v) => update((d) => ({ ...d, body: typeof v === 'function' ? v(d.body) : v }));
+  const setPendingEntityRefs = (fn) => update((d) => ({ ...d, refs: fn(d.refs) }));
+  const setPendingMentions = (fn) => update((d) => ({ ...d, mentions: fn(d.mentions) }));
+  const addLink = (href) => update((d) => ({
+    ...d, items: [...d.items, { key: newItemKey(), status: 'done', att: { kind: 'url', href, title: href } }],
+  }));
+  // What goes with the message: finished uploads and links, in the order added.
+  const attachments = items.filter((i) => i.status === 'done' && i.att).map((i) => i.att);
+  const uploading = items.some((i) => i.status === 'uploading');
   const [mention, setMention] = useState(null); // { tokenStart, query, anchor }
-  const [pendingMentions, setPendingMentions] = useState([]);     // user ids
-  const [pendingEntityRefs, setPendingEntityRefs] = useState([]); // entity targets
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkDraft, setLinkDraft] = useState('');
   const [emojiAnchor, setEmojiAnchor] = useState(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const emojiBtnRef = useRef(null);
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus({ preventScroll: true }),
+  }), []);
+  // Starting a reply puts you in the field to write it (not a reply that was
+  // already in the draft when the conversation opened).
+  const replyId = replyTo?.id || null;
+  const prevReplyRef = useRef(replyId);
+  useEffect(() => {
+    const prev = prevReplyRef.current;
+    prevReplyRef.current = replyId;
+    if (replyId && replyId !== prev) inputRef.current?.focus({ preventScroll: true });
+  }, [replyId]);
+  // An edit's words live here, not in the draft.
+  const editingId = editing?.id || null;
+  const editSeed = editing ? (editing.draft ?? editing.body ?? '') : '';
+  const [editText, setEditText] = useState('');
+  useEffect(() => {
+    if (!editingId) return;
+    setEditText(editSeed);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus({ preventScroll: true });
+      const n = el.value.length;
+      try { el.setSelectionRange(n, n); } catch (_) {}
+    });
+  }, [editingId, editSeed]);
+  const saveEdit = () => {
+    const v = editText.trim();
+    if (!v) return;
+    onSaveEdit?.(v);
+  };
   const lastTypingRef = useRef(0);
   // Drag-over state for the visual drop affordance. enterCount tracks
   // dragenter/leave nesting so the highlight doesn't flicker when the
@@ -42,26 +151,18 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   const [dragOver, setDragOver] = useState(false);
   const enterCountRef = useRef(0);
 
-  const handleFiles = async (files) => {
+  const handleFiles = (files) => {
     if (!files?.length || !workspaceId || !userId) return;
-    setUploading(true);
-    const uploaded = [];
-    const failed = [];
-    for (const f of files) {
-      const att = await uploadMessageFile(f, { workspaceId, userId });
-      if (att) uploaded.push(att); else failed.push(f.name || 'file');
-    }
-    setAttachments(prev => [...prev, ...uploaded]);
-    setUploading(false);
-    // A failed upload used to vanish: "Uploading…", then nothing (COMMS-19).
-    if (failed.length) {
-      feedback.toast({
-        type: 'error',
-        message: failed.length === 1
-          ? `Couldn't attach ${failed[0]} — try again.`
-          : `Couldn't attach ${failed.length} files — try again.`,
-      });
-    }
+    stageUploads(key, [...files], { workspaceId, userId });
+  };
+  const retryItem = (item) => {
+    if (!item.file) return;
+    update((d) => ({ ...d, items: d.items.map((i) => (i.key === item.key ? { ...i, status: 'uploading' } : i)) }));
+    runUpload(key, item, { workspaceId, userId });
+  };
+  const removeItem = (item) => {
+    releaseItems([item]);
+    update((d) => ({ ...d, items: d.items.filter((i) => i.key !== item.key) }));
   };
 
   // Try to fetch a remote URL and treat the bytes as a file upload.
@@ -76,20 +177,22 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
       const blob = await res.blob();
       const ext = (blob.type.split('/')[1] || 'bin').replace(/[^a-z0-9]/gi, '').slice(0, 8);
       const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'application/octet-stream' });
-      await handleFiles([file]);
+      handleFiles([file]);
     } catch (_) {
       // CORS blocked or 404 — attach the URL as a link instead.
-      setAttachments(prev => [...prev, { kind: 'url', href: url, title: url }]);
+      addLink(url);
     }
   };
 
   const handlePaste = (e) => {
+    // An edit changes words only: a pasted file isn't staged behind it.
+    if (editing) return;
     const files = [...e.clipboardData?.files || []];
     if (files.length) { e.preventDefault(); handleFiles(files); }
   };
 
   const handleDragEnter = (e) => {
-    if (!hasDragData(e)) return;
+    if (!hasDragData(e) || editing) return;
     e.preventDefault();
     enterCountRef.current++;
     setDragOver(true);
@@ -102,6 +205,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     e.preventDefault();
     enterCountRef.current = 0;
     setDragOver(false);
+    if (editing) return; // an edit changes words only
     // 1. Universal entity refs (dragged from EntityLink chip, picker
     //    row, or canvas card). Push into pendingEntityRefs[].
     const refListJson = e.dataTransfer?.getData(ENTITY_REF_LIST_MIME);
@@ -123,7 +227,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     }
     // 2. File drop.
     const files = [...e.dataTransfer?.files || []];
-    if (files.length) { await handleFiles(files); return; }
+    if (files.length) { handleFiles(files); return; }
     // 3. Dragged from another browser tab / canvas image card → URL.
     const uri = e.dataTransfer?.getData('text/uri-list')
               || e.dataTransfer?.getData('text/plain') || '';
@@ -142,9 +246,13 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   // used to attach invisibly, and only if you also typed (COMMS-19).
   const hasPayload = attachments.length > 0 || pendingEntityRefs.length > 0;
 
+  const isBusy = busy || uploading;
+
   const send = async () => {
     const v = body.trim();
     if (!v && !hasPayload) return;
+    if (isBusy) return; // Send waits for the files; its label says so
+    const sent = items.filter((i) => i.status === 'done');
     // onSend resolves false when the send failed — keep the draft and
     // attachments so the user's message isn't silently lost.
     const ok = await onSend?.({
@@ -153,14 +261,13 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
       mentions: pendingMentions,
     });
     if (ok === false) { inputRef.current?.focus(); return; }
-    clearDraft();
-    setAttachments([]);
-    setPendingMentions([]);
-    setPendingEntityRefs([]);
+    // What was sent leaves the draft, and the stored copy now, so a reload
+    // can't bring it back. A file that failed stays for Retry or ×.
+    releaseItems(sent);
+    const sentKeys = new Set(sent.map((i) => i.key));
+    update((d) => ({ ...d, body: '', items: d.items.filter((i) => !sentKeys.has(i.key)), refs: [], mentions: [] }), { now: true });
     inputRef.current?.focus();
   };
-
-  const isBusy = busy || uploading;
 
   // Insert a URL chip into the attachment row. Same `{ kind: 'url' }`
   // shape used by the CORS-fallback path when a dragged remote image
@@ -171,7 +278,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     if (!raw) return;
     if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) raw = 'https://' + raw;
     if (!/^https?:\/\//i.test(raw)) { setLinkOpen(false); setLinkDraft(''); return; }
-    setAttachments(prev => [...prev, { kind: 'url', href: raw, title: raw }]);
+    addLink(raw);
     setLinkOpen(false);
     setLinkDraft('');
     inputRef.current?.focus();
@@ -183,10 +290,11 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
   const insertEmoji = (emoji) => {
     if (!emoji) return;
     const el = inputRef.current;
-    if (!el) { setBody((b) => (b || '') + emoji); return; }
+    const setField = editing ? setEditText : setBody;
+    if (!el) { setField((b) => (b || '') + emoji); return; }
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? el.value.length;
-    setBody(el.value.slice(0, start) + emoji + el.value.slice(end));
+    setField(el.value.slice(0, start) + emoji + el.value.slice(end));
     const pos = start + emoji.length;
     requestAnimationFrame(() => {
       el.focus();
@@ -194,40 +302,17 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
     });
   };
 
-  return (
-    <form className={`msg-composer ${dragOver ? 'is-drop-target' : ''}`}
-          onSubmit={(e) => { e.preventDefault(); send(); }}
-          onDragEnter={handleDragEnter}
-          onDragOver={(e) => { if (hasDragData(e)) e.preventDefault(); }}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}>
-      {dragOver && <div className="msg-composer-drop">Drop to attach</div>}
-      {hasPayload && (
-        <div className="msg-composer-attachments">
-          {attachments.map((a, i) => (
-            <div key={i} className="msg-composer-att-chip">
-              <span>{a.name || a.title || (a.kind === 'url' ? a.href : a.kind)}</span>
-              <button type="button" aria-label="Remove attachment" onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}>×</button>
-            </div>
-          ))}
-          {pendingEntityRefs.map((r, i) => (
-            <div key={`ref-${i}`} className="msg-composer-att-chip">
-              <span>{refChipLabel(r)}</span>
-              <button type="button" aria-label="Remove attachment" onClick={() => setPendingEntityRefs(prev => prev.filter((_, idx) => idx !== i))}>×</button>
-            </div>
-          ))}
-        </div>
-      )}
-      <textarea
+  // The box you type in, the same in both looks.
+  const field = (
+      <GrowingTextarea
         ref={inputRef}
         className="msg-composer-input"
-        placeholder={placeholder}
-        rows={1}
-        disabled={isBusy}
-        value={body}
+        placeholder={editing ? 'Edit your message' : placeholder}
+        value={editing ? editText : body}
         onPaste={handlePaste}
         onChange={(e) => {
           const v = e.target.value;
+          if (editing) { setEditText(v); return; }
           setBody(v);
           const tok = detectMentionToken(v, e.target.selectionEnd);
           setMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
@@ -238,12 +323,126 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
           }
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey && !mention) { e.preventDefault(); send(); }
+          // Mid-composition (Japanese, Chinese, Korean…) keys belong to the IME.
+          if (isComposingKey(e)) return;
+          if (editing) {
+            // Escape lets the edit go (the panel stays open); Enter saves.
+            if (e.key === 'Escape') { e.preventDefault(); onCancelEdit?.(); return; }
+            if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); saveEdit(); }
+            return;
+          }
+          // Escape lets a reply go first; the panel stays open.
+          if (e.key === 'Escape' && replyTo && !mention) { e.preventDefault(); onCancelReply?.(); return; }
+          if (mention) return; // the picker takes Enter
+          // ↑ in an empty box edits your last message, as in Slack.
+          if (e.key === 'ArrowUp' && !body && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && onEditLast?.()) {
+            e.preventDefault();
+            return;
+          }
+          // Enter sends on a desktop keyboard; on a touch one it makes a line.
+          if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); send(); }
         }}
       />
+  );
+  const canSend = !isBusy && (!!body.trim() || hasPayload);
+
+  return (
+    <form className={`msg-composer ${dragOver ? 'is-drop-target' : ''}${card ? ' is-card' : ''}${editing ? ' is-editing' : ''}`}
+          onSubmit={(e) => { e.preventDefault(); if (editing) saveEdit(); else send(); }}
+          onDragEnter={handleDragEnter}
+          onDragOver={(e) => { if (hasDragData(e)) e.preventDefault(); }}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}>
+      {dragOver && <div className="msg-composer-drop">Drop to attach</div>}
+      {editing ? (
+        <div className="msg-reply-bar is-edit">
+          <Icon as={Edit} size={14} weight="regular" />
+          <span className="msg-reply-bar-text">
+            <span className="msg-reply-bar-who">Editing your message</span>
+            {!touchKeyboard() && <span className="msg-reply-bar-body">Enter saves, Esc cancels</span>}
+          </span>
+          <button type="button" className="msg-reply-bar-x" aria-label="Cancel the edit" title="Cancel (Esc)"
+                  onClick={() => { onCancelEdit?.(); inputRef.current?.focus({ preventScroll: true }); }}>
+            <Icon as={X} size={12} />
+          </button>
+        </div>
+      ) : replyTo && (
+        <div className="msg-reply-bar">
+          <Icon as={Reply} size={13} />
+          <span className="msg-reply-bar-text">
+            <span className="msg-reply-bar-who">Replying to {replyToName}</span>
+            <span className="msg-reply-bar-body">{(replyTo.body || '').replace(/\s+/g, ' ').trim() || 'Attachment'}</span>
+          </span>
+          <button type="button" className="msg-reply-bar-x" aria-label="Cancel the reply" title="Cancel (Esc)"
+                  onClick={() => { onCancelReply?.(); inputRef.current?.focus({ preventScroll: true }); }}>
+            <Icon as={X} size={12} />
+          </button>
+        </div>
+      )}
+      {!editing && (items.length > 0 || pendingEntityRefs.length > 0) && (
+        <div className="msg-composer-attachments">
+          {items.map((item) => {
+            const label = chipLabel(item);
+            const thumb = chipThumb(item);
+            return (
+              <div key={item.key} className={`msg-composer-att-chip is-${item.status}`} title={label}>
+                {thumb && <img className="msg-composer-att-thumb" src={thumb} alt="" draggable={false} />}
+                <span className="msg-composer-att-name">{label}</span>
+                {item.status === 'uploading' && <span className="msg-composer-att-state" role="status">Uploading…</span>}
+                {item.status === 'failed' && (
+                  <>
+                    <span className="msg-composer-att-state" role="alert">Couldn't upload</span>
+                    <button type="button" className="msg-composer-att-retry" onClick={() => retryItem(item)}>Retry</button>
+                  </>
+                )}
+                <button type="button" className="msg-composer-att-x" aria-label="Remove attachment" onClick={() => removeItem(item)}>
+                  <Icon as={X} size={11} />
+                </button>
+              </div>
+            );
+          })}
+          {pendingEntityRefs.map((r, i) => (
+            <div key={`ref-${i}`} className="msg-composer-att-chip is-done">
+              <span className="msg-composer-att-name">{refChipLabel(r)}</span>
+              <button type="button" className="msg-composer-att-x" aria-label="Remove attachment" onClick={() => setPendingEntityRefs(prev => prev.filter((_, idx) => idx !== i))}>
+                <Icon as={X} size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {card ? (
+        <div className="msg-composer-field">
+          {!editing && (
+            <button type="button" className="msg-composer-btn msg-composer-attach" title="Attach files" aria-label="Attach files"
+                    onClick={() => fileInputRef.current?.click()}>
+              <Icon as={Plus} size={17} weight="regular" />
+            </button>
+          )}
+          {field}
+          <button type="button" ref={emojiBtnRef}
+                  className={`msg-composer-btn ${emojiAnchor ? 'is-active' : ''}`}
+                  title="Emoji" aria-label="Emoji"
+                  onClick={(e) => setEmojiAnchor(emojiAnchor ? null : e.currentTarget.getBoundingClientRect())}>
+            <Icon as={Smile} size={17} weight="regular" />
+          </button>
+          {editing ? (
+            <button type="submit" className={`msg-composer-send is-icon${editText.trim() ? ' is-armed' : ''}`} disabled={!editText.trim()}
+                    title="Save (Enter)" aria-label="Save the edit">
+              <Icon as={Check} size={16} weight="bold" />
+            </button>
+          ) : (
+            <button type="submit" className={`msg-composer-send is-icon${canSend ? ' is-armed' : ''}`} disabled={!canSend}
+                    title={uploading ? 'Sending waits for your uploads' : 'Send'}
+                    aria-label={uploading ? 'Send, once the uploads finish' : 'Send'}>
+              <Icon as={ArrowUp} size={16} weight="bold" />
+            </button>
+          )}
+        </div>
+      ) : field}
       <input ref={fileInputRef} type="file" hidden multiple
              onChange={(e) => { handleFiles([...e.target.files]); e.target.value = ''; }} />
-      {linkOpen && (
+      {!card && linkOpen && (
         <div className="msg-composer-link">
           <input
             className="msg-composer-link-input"
@@ -261,7 +460,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
           <button type="button" className="msg-composer-btn" onClick={cancelLink}>Cancel</button>
         </div>
       )}
-      <div className="msg-composer-actions">
+      {!card && <div className="msg-composer-actions">
         <button type="button" className="msg-composer-btn" title="Attach"
                 onClick={() => fileInputRef.current?.click()}>
           <Icon as={Paperclip} size={14} />
@@ -272,7 +471,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
                 onClick={() => { setLinkOpen(o => !o); setLinkDraft(''); }}>
           <Icon as={LinkIcon} size={14} />
         </button>
-        <button type="button"
+        <button type="button" ref={emojiBtnRef}
                 className={`msg-composer-btn ${emojiAnchor ? 'is-active' : ''}`}
                 title="Emoji"
                 onClick={(e) => setEmojiAnchor(emojiAnchor ? null : e.currentTarget.getBoundingClientRect())}>
@@ -281,7 +480,7 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
         <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && !hasPayload)}>
           {uploading ? 'Uploading…' : 'Send'}
         </button>
-      </div>
+      </div>}
 
       {mention && (
         <EntityPicker
@@ -299,6 +498,14 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
             if (t.kind === 'user') setPendingMentions(p => [...p, t.id]);
             else                   setPendingEntityRefs(p => [...p, t]);
             setMention(null);
+            // Back in the box, the caret after the name, to carry on writing.
+            const caret = before.length + name.length + 2;
+            requestAnimationFrame(() => {
+              const el = inputRef.current;
+              if (!el) return;
+              el.focus({ preventScroll: true });
+              try { el.setSelectionRange(caret, caret); } catch (_) {}
+            });
           }}
           onCancel={() => setMention(null)}
         />
@@ -307,13 +514,14 @@ export function MessageComposer({ onSend, onTyping, busy, workspaceId, userId, d
       {emojiAnchor && (
         <EmojiPalette
           anchor={emojiAnchor}
+          trigger={emojiBtnRef.current}
           onPick={(emoji) => { insertEmoji(emoji); setEmojiAnchor(null); }}
           onClose={() => setEmojiAnchor(null)}
         />
       )}
     </form>
   );
-}
+});
 
 // Only show the drop overlay for drags that look like files or URLs —
 // not, e.g., a plain text selection.

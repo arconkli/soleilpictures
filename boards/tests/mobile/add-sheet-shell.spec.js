@@ -2,7 +2,7 @@
 // touch tablets / landscape phones (isPhone false but mobileShell true, so the
 // bottom-nav "+" puck still renders). If the sheet is gated on isPhone alone,
 // tapping "+" on a non-empty board on a tablet/landscape phone does nothing —
-// dead-ending the mobile tour's "Tap + then Cluster" group step.
+// dead-ending the mobile tour's "Tap + then New cluster" group step.
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }, testInfo) => {

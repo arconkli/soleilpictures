@@ -5,7 +5,7 @@ h1: Links and mentions
 navLabel: Links and mentions
 section: organize
 order: 1
-updated: 2026-08-08
+updated: 2026-10-20
 answer: Type @ anywhere you can write to mention a cluster, document, card, tag or person. Mentions become real links with hover previews, and they register as backlinks so the thing you mentioned can show everywhere it is referenced from. URLs and names of things you already created are detected and linked automatically.
 faq:
   - q: What can I mention?
@@ -52,8 +52,8 @@ The reverse direction, and the reason mentions are worth the keystroke.
 Anything that gets mentioned can show a **Referenced by** panel listing
 everywhere it was mentioned from — documents, notes, cards, messages, boards.
 
-A location entity ends up listing the script scene, the reference wall, the
-schedule entry and the message thread that all pointed at it. Nobody built that
+A location entity ends up listing the script scene, the reference wall and the
+message thread that all pointed at it. Nobody built that
 index; it is a by-product of writing normally.
 
 ## Deep links

@@ -2,7 +2,8 @@
 //
 // Features:
 //   - Click row → switch active page
-//   - ▸ / ▾ chevron → expand/collapse
+//   - ▸ / ▾ chevron → expand/collapse, on this device only
+//     (hooks/useDocTreeExpansion)
 //   - Dbl-click name → inline rename
 //   - Right-click row → context menu (rename / duplicate-as-child / delete)
 //   - HTML5 drag-drop → reorder (drop on row top/bottom) or nest
@@ -12,12 +13,17 @@
 
 import { useRef, useState } from 'react';
 import {
-  buildPageTree, addPage, deletePage, renamePage, movePage, setPageExpanded,
+  buildPageTree, addPage, deletePage, renamePage, movePage,
   getDocUndoManager, readPages, DOC_ORIGIN,
 } from '../lib/docState.js';
+import { byPageOrder } from '../lib/docPageEntries.js';
+import { useDocTreeExpansion } from '../hooks/useDocTreeExpansion.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { Icon } from './Icon.jsx';
+import { ChevronDown, ChevronRight, FileText, Plus } from '../lib/icons.js';
 
 export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage, peers = [], onJumpToPeer,
                               // false → a view-only member or the public viewer. Their Y.Doc
@@ -26,7 +32,10 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                               canEdit = true,
                               // Name for the page that replaces a deleted last page: the
                               // same card-title name DocSurface's empty-doc seed uses.
-                              defaultName = 'Untitled' }) {
+                              defaultName = 'Untitled',
+                              // The doc look (DocSurface's frame): icons where the glyphs
+                              // were, and its own indent.
+                              look = false }) {
   const tree = buildPageTree(pages);
   const [renaming, setRenaming] = useState(null);  // page id
   const [draftName, setDraftName] = useState('');
@@ -34,8 +43,17 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   const [dropTarget, setDropTarget] = useState(null); // { id, side: 'before'|'after'|'inside' }
   const [ctx, setCtx] = useState({ open: false, x: 0, y: 0, pageId: null });
   const feedback = useFeedback();
+  const fold = useDocTreeExpansion(boardId, scope?.cardId);
 
-  const startRename = (p) => { if (!canEdit) return; setRenaming(p.id); setDraftName(p.name || ''); };
+  // The name a rename started from: finishing without changing it writes
+  // nothing, so it can't put back a name someone else gave the page meanwhile.
+  const renameFromRef = useRef('');
+  const startRename = (p) => {
+    if (!canEdit) return;
+    renameFromRef.current = p.name || '';
+    setRenaming(p.id);
+    setDraftName(p.name || '');
+  };
   // A page just made with "+" is selected with { keepOpen, naming }: the phone
   // drawer stays up while it is named (selecting normally closes it, which
   // hid the auto-focused name field and left the page "Untitled"), and its
@@ -49,7 +67,8 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   };
   const commitRename = () => {
     const id = renaming;
-    if (id) renamePage(ydoc, id, draftName.trim() || 'Untitled', scope);
+    const name = draftName.trim() || 'Untitled';
+    if (id && name !== renameFromRef.current) renamePage(ydoc, id, name, scope);
     setRenaming(null);
     if (id) finishAdded(id);
   };
@@ -63,14 +82,14 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     const id = addPage(ydoc, { scope });
     justAddedRef.current = id;
     onSelectPage(id, { keepOpen: true, naming: true });
-    setTimeout(() => { setRenaming(id); setDraftName(''); }, 0);
+    setTimeout(() => { renameFromRef.current = 'Untitled'; setRenaming(id); setDraftName(''); }, 0);
   };
   const onAddChild = (parentId) => {
     const id = addPage(ydoc, { parent_id: parentId, scope });
-    setPageExpanded(ydoc, parentId, true, scope);
+    fold.setOpen(parentId, true);
     justAddedRef.current = id;
     onSelectPage(id, { keepOpen: true, naming: true });
-    setTimeout(() => { setRenaming(id); setDraftName(''); }, 0);
+    setTimeout(() => { renameFromRef.current = 'Untitled'; setRenaming(id); setDraftName(''); }, 0);
   };
 
   const buildContextMenuItems = (pageId) => {
@@ -169,11 +188,11 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     getDocUndoManager(ydoc, scope)?.stopCapturing();
     if (dropTarget.side === 'inside') {
       movePage(ydoc, dragId, target.id, 9999, scope);
-      setPageExpanded(ydoc, target.id, true, scope);
+      fold.setOpen(target.id, true);
     } else {
       const siblings = pages
-        .filter(x => x.parent_id === target.parent_id && x.id !== dragId)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        .filter(x => (x.parent_id ?? null) === (target.parent_id ?? null) && x.id !== dragId)
+        .sort(byPageOrder);
       const idx = siblings.findIndex(x => x.id === target.id);
       const insertAt = dropTarget.side === 'before' ? idx : idx + 1;
       movePage(ydoc, dragId, target.parent_id, insertAt, scope);
@@ -194,7 +213,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
 
   const renderRow = (p, depth) => {
     const isActive = p.id === activePageId;
-    const isOpen = p.expanded !== false;
+    const isOpen = fold.isOpen(p);
     const hasKids = pages.some(x => x.parent_id === p.id);
     const drop = dropTarget && dropTarget.id === p.id ? dropTarget.side : null;
     const pagePeers = peersByPage.get(p.id) || [];
@@ -202,7 +221,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
       <div key={p.id} className="doc-tree-node">
         <div className={`doc-tree-row ${isActive ? 'is-active' : ''} ${drop ? `drop-${drop}` : ''}`}
              draggable={canEdit && renaming !== p.id}
-             style={{ paddingLeft: 6 + depth * 14 }}
+             style={{ paddingLeft: look ? 6 + depth * 16 : 6 + depth * 14 }}
              onDragStart={(e) => onDragStart(e, p)}
              onDragOver={(e) => onDragOver(e, p)}
              onDragLeave={onDragLeave}
@@ -217,10 +236,11 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           <button className="doc-tree-chev"
                   aria-label={isOpen ? 'Collapse' : 'Expand'}
                   aria-expanded={isOpen}
-                  onClick={(e) => { e.stopPropagation(); if (hasKids) setPageExpanded(ydoc, p.id, !isOpen, scope); }}
+                  onClick={(e) => { e.stopPropagation(); if (hasKids) fold.setOpen(p.id, !isOpen); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}>
-            {isOpen ? '▾' : '▸'}
+            {look ? <Icon as={isOpen ? ChevronDown : ChevronRight} size={11} /> : (isOpen ? '▾' : '▸')}
           </button>
+          {look && <Icon as={FileText} size={16} className="doc-tree-ico" />}
           {renaming === p.id ? (
             <input className="doc-tree-rename"
                    autoFocus
@@ -230,6 +250,8 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                    onFocus={(e) => e.target.select()}
                    onBlur={commitRename}
                    onKeyDown={(e) => {
+                     // Mid-syllable, Enter commits the syllable, not the name.
+                     if (isComposingKey(e)) return;
                      if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
                    }}
@@ -259,7 +281,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           <button className="doc-tree-add"
                   title="Add sub-page"
                   aria-label="Add sub-page"
-                  onClick={(e) => { e.stopPropagation(); onAddChild(p.id); }}>+</button>
+                  onClick={(e) => { e.stopPropagation(); onAddChild(p.id); }}>{look ? <Icon as={Plus} size={14} /> : '+'}</button>
           )}
         </div>
         {isOpen && p.children?.length > 0 && (
@@ -275,7 +297,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     <div className="doc-tree">
       <div className="doc-tree-head">
         <span className="doc-tree-kicker">Pages</span>
-        {canEdit && <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}>+</button>}
+        {canEdit && <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}>{look ? <Icon as={Plus} size={16} /> : '+'}</button>}
       </div>
       <div className="doc-tree-body">
         {tree.length === 0 ? (canEdit ? (

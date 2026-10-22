@@ -31,12 +31,13 @@
 //   Guardrail: same-session visitor -> ps_signup on the same pages. Pull the
 //     block if the point estimate falls by more than a third — deliberately
 //     trigger-happy, because the test cannot confirm a fall that size.
-//   Two phases. /vs/pureref carries roughly nine in ten compare sessions and is
+//   Two phases. /vs/pureref carries roughly nine in ten compare sessions and was
 //     held without the block (planBlock: false) until two weeks after its
-//     corrected copy is live on production. Until then the block runs on pages
-//     too quiet to read anything from: collect, do not grade. The read starts
-//     the day /vs/pureref gets the block — window +3d to +31d from that
-//     production deploy, never inside 3 days of it.
+//     corrected copy was live on production; it got the block on 2026-10-20.
+//     Before that the block ran on pages too quiet to read anything from:
+//     collect, do not grade. The read starts the day /vs/pureref's block
+//     reaches production — window +3d to +31d from that production deploy,
+//     never inside 3 days of it.
 //   Power, stated now so nobody over-reads it later: at this page family's
 //     traffic only a fall of about three-quarters is distinguishable from noise
 //     (80% power, alpha 0.05). A smaller effect reports as "not detected",
@@ -51,7 +52,7 @@
 // scripts/gen-docs.mjs (the .md twins), so the three cannot say different things.
 
 import {
-  PLAN_NAME, PRICING, PRICING_PAGE, CREATOR_BENEFITS, DEMO_FEATURES, CREATOR_STORAGE_LABEL,
+  PLAN_NAME, PRICING, PRICING_PAGE, CREATOR_BENEFITS, DEMO_FEATURES,
 } from './billingCopy.js';
 
 export const PLAN_BLOCK_ID = 'what-it-costs';
@@ -59,20 +60,22 @@ export const PLAN_BLOCK_HEADING = 'What it costs';
 
 // Which pages carry it. One predicate, shared by every renderer and the tests.
 // An explicit `planBlock: false` wins over kind:'compare' — that is how a
-// comparison page is held back (see /vs/pureref).
+// comparison page is held back (/vs/pureref was, until 2026-10-20).
 export function hasPlanBlock(spec) {
   if (!spec || spec.storefront || spec.planBlock === false) return false;
   return spec.kind === 'compare' || spec.planBlock === true;
 }
 
-// The Creator lines the block shows. Titles only, with two corrections:
-// "No size limits" alone read as no limit at all, when there is a drive behind
-// it — so the line names the drive. And the workspace benefit is dropped,
-// because the block's closing note says the same thing in full one line later.
+// The Creator lines the block shows: the titles, without the workspace
+// benefit, because the block's closing note says the same thing in full one
+// line later. The storage line used to read "No size limits", which sounded
+// like no limit at all, so the drive was appended to it. Since 0413 the title
+// IS the drive ("A 1TB drive"), and the suffix printed "A 1TB drive, on a 1TB
+// drive" on every page carrying the block (production 2026-10-17 to the fix).
 function creatorLines() {
   return CREATOR_BENEFITS
     .filter((b) => b.key !== 'workspace')
-    .map((b) => (b.key === 'storage' ? `${b.title}, on a ${CREATOR_STORAGE_LABEL} drive` : b.title));
+    .map((b) => b.title);
 }
 
 export function planBlockModel() {

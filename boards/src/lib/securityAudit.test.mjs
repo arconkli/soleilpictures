@@ -189,8 +189,8 @@ test('a typed link can never become a script URL in an href', async () => {
 
 // ── 0369 + 0370: the outbound breaker ───────────────────────────────────────
 
-const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite'];
-const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted'];
+const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite', 'file_shared'];
+const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented'];
 
 // Functions whose live (latest, not since dropped) definition matches `re`,
 // with what each match captured.
@@ -228,7 +228,8 @@ test('every database email asks the outbound gate first, and only the known trig
 
   const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
   assert.deepEqual([...senders.keys()].sort(), [
-    '_tg_comment_reply_email', '_tg_mention_notification_email', '_tg_pending_invite_email',
+    '_tg_comment_reply_email', '_tg_file_comment_notify', '_tg_file_share_person_email',
+    '_tg_mention_notification_email', '_tg_pending_invite_email',
     '_tg_schedule_notification_email', '_tg_share_notification_email', '_tg_workspace_member_email',
   ], 'a new email path must be classified in _outbound_gate and added here on purpose');
   const gateBody = latestDefinition('_outbound_gate').body;
@@ -354,7 +355,7 @@ test('the Security tab is admin-only, its alert link opens it, and it calls only
 
 test('a banned account\'s shares and published clusters stop serving, and its invitations do nothing', () => {
   assert.match(latestDefinition('_resolve_share_target').body,
-    /if public\._sharer_suspended\(v_creator\)\s+or exists \(select 1 from boards b join workspaces w on w\.id = b\.workspace_id\s+where b\.id = v_root and public\._user_banned\(w\.created_by\)\) then/);
+    /if public\._sharer_suspended\(v_creator\)\s+(?:or not public\._user_can_write_board\(v_creator, v_root\)\s+)?or exists \(select 1 from boards b join workspaces w on w\.id = b\.workspace_id\s+where b\.id = v_root and public\._user_banned\(w\.created_by\)\) then/);
   for (const fn of ['_resolve_published_board', 'list_public_boards', 'list_public_board_images', 'get_related_public_boards']) {
     const body = latestDefinition(fn).body;
     assert.match(body, /not public\._user_banned\(w\.created_by\)/, `${fn} must drop a banned owner's clusters`);
@@ -375,11 +376,12 @@ test('a banned account\'s shares and published clusters stop serving, and its in
 });
 
 test('a suspended account acts on nothing: links, workspaces, keys, OAuth, self-delete', () => {
-  for (const fn of ['create_public_link', 'create_collab_link']) {
+  for (const fn of ['create_public_link', 'create_collab_link', 'create_workspace_invite_link']) {
     assert.match(latestDefinition(fn).body, /if not public\._actor_can_send\(\) then/, `${fn}: a held or banned account makes no link`);
   }
   for (const fn of ['set_public_link_indexing', 'set_public_link_subboards', 'transfer_workspace_ownership',
-    'delete_workspace', 'create_workspace_with_root', 'claim_pending_invite', 'claim_collab_link']) {
+    'delete_workspace', 'create_workspace_with_root', 'claim_pending_invite', 'claim_collab_link',
+    'claim_workspace_invite_link', 'revoke_workspace_invite_link']) {
     assert.match(latestDefinition(fn).body, /if not public\._actor_active\(\) then/, `${fn} must check the caller`);
   }
   assert.match(latestDefinition('api_token_resolve').body,
@@ -720,7 +722,7 @@ test('a client analytics row names its own sender and a sane time, or is quarant
   assert.ok(latestMatch(/create trigger analytics_events_a_caller_guard\s+before insert on public\.analytics_events/));
   assert.ok('analytics_events_a_caller_guard' < 'analytics_events_divert_synthetic', 'the guard fires before the divert');
   assert.match(latestDefinition('_tg_divert_synthetic_events').body,
-    /new\.props->>'synthetic_reason' in \('uid_mismatch', 'stale'\)/);
+    /new\.props->>'synthetic_reason' in \('uid_mismatch', 'stale'(?:, '[a-z_]+')*\)/);
 });
 
 // ── 0386: the cron secret lives in Vault ────────────────────────────────────
@@ -889,12 +891,35 @@ test('the server weighs a card the way cardWeight does, except the grid it canno
   const fn = latestDefinition('_tg_card_weight_by_kind').body;
   assert.match(fn, /if coalesce\(new\.kind, 'note'\) = 'grid' then\s+return new;/);
   assert.match(fn, /elsif new\.kind = 'schedule' then\s+new\.weight := greatest\(1, coalesce\(new\.weight, 1\)\);/);
-  assert.match(fn, /else\s+new\.weight := 1;/);
+  assert.match(fn, /else\s+new\.weight := 1;\s+end if;\s+return new;/);
   assert.ok(latestMatch(/create trigger card_index_weight_by_kind\s+before insert or update of weight, kind on public\.card_index/));
-  // The rule the trigger mirrors: anything but a grid or a schedule weighs 1.
-  const { cardWeight } = await import('./gridCount.js');
-  for (const kind of ['note', 'image', 'video', 'link', 'board', 'doc']) assert.equal(cardWeight(kind, []), 1, kind);
+  // 0429: a cluster's card is free, but only a real cluster of this workspace —
+  // a note relabelled 'board' still weighs 1, and the uuid test guards the cast.
+  assert.match(fn, /elsif new\.kind = 'board' then\s+[^]*?new\.weight := 1;\s+if new\.card_id ~\* '\^\[0-9a-f\]\{8\}-/);
+  assert.match(fn, /where b\.id = new\.card_id::uuid and b\.workspace_id = new\.workspace_id\) then\s+new\.weight := 0;/);
+  assert.match(fn, /security definer/);
+  // The rule the trigger mirrors: anything but a grid, a schedule or a cluster
+  // weighs 1, a cluster CLUSTER_CARD_COST, and a linked cluster 1.
+  const { cardWeight, CLUSTER_CARD_COST } = await import('./gridCount.js');
+  for (const kind of ['note', 'image', 'video', 'link', 'boardlink', 'doc']) assert.equal(cardWeight(kind, []), 1, kind);
   assert.equal(cardWeight('schedule', []), 1);
+  assert.equal(CLUSTER_CARD_COST, 0);
+  assert.equal(cardWeight('board', []), 0);
+});
+
+test('0429 backfills every cluster card to 0 with the triggers off, and proves its grants', () => {
+  const sql = readFileSync(new URL('../../../supabase/migrations/0429_nested_clusters_cost_no_cards.sql', import.meta.url), 'utf8');
+  const off = sql.indexOf('alter table public.card_index disable trigger user;');
+  const upd = sql.indexOf('update public.card_index ci\n   set weight = 0');
+  const on = sql.indexOf('alter table public.card_index enable trigger user;');
+  assert.ok(off > 0 && off < upd && upd < on, 'disable → update → enable');
+  assert.match(sql.slice(upd, on), /where ci\.kind = 'board'[^;]*b\.id::text = ci\.card_id and b\.workspace_id = ci\.workspace_id/);
+  // Refuses to start over a trigger that was already off (enable would wake it).
+  assert.ok(sql.indexOf("already disabled") > 0 && sql.indexOf("already disabled") < off);
+  assert.match(sql, /revoke execute on function public\._tg_card_weight_by_kind\(\) from public, anon, authenticated;/);
+  assert.match(sql, /has_function_privilege\('anon', 'public\._tg_card_weight_by_kind\(\)', 'execute'\)/);
+  assert.match(sql, /has_function_privilege\('authenticated', 'public\._tg_card_weight_by_kind\(\)', 'execute'\)/);
+  assert.match(sql, /the weight trigger does not fire before the cap/);
 });
 
 // ── 0390: an alert reaches the inbox, and one nobody saw is raised ───────────
@@ -1019,4 +1044,104 @@ test('no client makes a workspace, or rewrites a member\'s role, by writing the 
       assert.doesNotMatch(src, /from\(\s*['"]workspace_members['"]\s*\)\s*\.(?:insert|upsert|update)\(/, `${root}${rel} writes workspace_members directly`);
     }
   }
+});
+
+// ── 0419: the sidebar writes clusters that aren't open ──────────────────────
+// worker-clusters.js reaches scoutBoard's service-role triple write from a
+// browser session. What stands in front of it: a verified user, can_write_board
+// asked AS that user before every write, one workspace, and a move that refuses
+// unless both rooms are live (clustersRoute.test.mjs drives each of these).
+
+test('the sidebar\'s cluster writes verify the user and ask can_write_board before any service-role write', () => {
+  const src = read('../worker-clusters.js');
+  const entry = src.slice(src.indexOf('export async function handleClustersRoute'));
+  assert.ok(entry.indexOf('await deps.verifyUser(request, env)') > 0, 'the session is verified');
+  assert.ok(entry.indexOf('await deps.verifyUser(request, env)') < entry.indexOf('await route('), 'before any route runs');
+  for (const [fn, write] of [
+    ['async function routeMove', 'deps.moveCardsBetweenBoards('],
+    ['async function routeAppend', 'deps.addCardsToBoard('],
+    ['async function routePatch', 'deps.updateCardsOnBoard('],
+    ['async function routeRemove', 'deps.deleteCardsFromBoard('],
+  ]) {
+    const body = src.slice(src.indexOf(fn), src.indexOf('\n}\n', src.indexOf(fn)));
+    const ask = body.indexOf('canWrite(deps, env, token');
+    assert.ok(ask > 0 && ask < body.indexOf(write), `${fn}: can_write_board before ${write}`);
+  }
+  assert.match(src, /userRpc\(env, token, 'can_write_board', \{ p_board_id: boardId \}\)/, 'asked as the user');
+  assert.match(src, /requireLive: true,/, 'a move never half-happens');
+  assert.match(src, /src\.workspace_id !== dst\.workspace_id/, 'one workspace');
+  assert.match(read('../worker.js'), /startsWith\('\/api\/clusters\/'\)\) return await handleClustersRoute/);
+});
+
+test('the party /file-share route is dispatched before the auth check and never uses the immutable cache header', () => {
+  const party = read('../../party/upload.ts');
+  const dispatch = party.indexOf('endsWith("/file-share")');
+  assert.ok(dispatch > 0, '/file-share is dispatched');
+  assert.ok(dispatch < party.indexOf('const accessToken'), 'before the accessToken check (it is anon-callable)');
+  const start = party.indexOf('async handleFileShare');
+  const body = party.slice(start, party.indexOf('\n  }\n', start));
+  assert.ok(start > 0 && body.includes('FILE_SHARE_CACHE_CONTROL'), 'presigns with the private cache header');
+  assert.ok(!body.includes('READ_RESPONSE_CACHE_CONTROL'), 'never the public/immutable one');
+  assert.match(body, /get_file_share/, 'access is decided by the RPC as the caller');
+});
+
+// ── 0470: the record is the caller's, dated on arrival ──────────────────────
+
+test('time in app credits only the account that is calling', () => {
+  const bump = latestDefinition('bump_seconds_in_app').body;
+  const take = bump.indexOf('p_user_id := auth.uid();');
+  assert.ok(take > 0, 'p_user_id is overwritten with the caller');
+  assert.ok(take < bump.indexOf('insert into public.heartbeat_session'), 'before anything is credited');
+  assert.match(bump, /seconds\s+= public\.user_active_day\.seconds \+ excluded\.seconds;/, '0460\'s seconds stay');
+});
+
+test('a signed-out caller cannot run the heartbeat, and the client never sends one (0477)', () => {
+  const revoke = latestMatch(/revoke execute on function public\.bump_seconds_in_app\(integer, uuid, uuid, boolean\) from anon;/);
+  assert.equal(revoke?.file, '0477_heartbeat_signed_in_only.sql');
+  const regrant = latestMatch(/grant execute on function public\.bump_seconds_in_app\([^)]*\) to [^;]*\banon\b/);
+  assert.ok(!regrant || regrant.file < revoke.file, `${regrant?.file} gives the heartbeat back to anon`);
+
+  const hb = readFileSync(new URL('./heartbeat.js', import.meta.url), 'utf8');
+  for (const fn of ['async function flush()', 'function flushBeacon()']) {
+    const body = hb.slice(hb.indexOf(fn), hb.indexOf('\n}\n', hb.indexOf(fn)));
+    const gate = body.indexOf('if (!cachedUid) { dropSignedOut(); return; }');
+    assert.ok(gate > 0, `${fn} drops a signed-out flush`);
+    assert.ok(gate < body.indexOf("'bump_seconds_in_app'"), `${fn} returns before it calls the heartbeat`);
+  }
+});
+
+test('every analytics row is dated on arrival and takes its subject\'s country, and the archive keeps the whole row', () => {
+  const guard = latestDefinition('_tg_event_caller_guard').body;
+  const roleCheck = guard.indexOf("if current_user not in ('anon', 'authenticated') then");
+  assert.ok(guard.indexOf('new.received_at := now();') > 0, 'received_at is the server\'s clock');
+  assert.ok(guard.indexOf('new.received_at := now();') < roleCheck, 'stamped before the server-role return, so on every row');
+  assert.ok(guard.indexOf('new.country := public.request_country();') > roleCheck, 'a client row takes the edge country, whatever it sent');
+
+  const stamp = latestDefinition('_tg_stamp_event_country').body;
+  assert.match(stamp, /security definer/i, 'it reads profiles whoever inserted');
+  assert.doesNotMatch(stamp, /current_user/, 'inside a definer current_user is always the owner');
+  assert.match(stamp, /if new\.country is null then\s+if new\.user_id is not null and new\.user_id is distinct from auth\.uid\(\) then\s+new\.country := \(select p\.country from public\.profiles p where p\.user_id = new\.user_id\);/,
+    'a server row about someone else takes their country');
+  assert.ok(latestMatch(/alter trigger analytics_events_stamp_country on public\.analytics_events\s+rename to analytics_events_b_stamp_country;/),
+    'the stamp is renamed to fire before the divert');
+  assert.ok('analytics_events_a_caller_guard' < 'analytics_events_b_stamp_country'
+    && 'analytics_events_b_stamp_country' < 'analytics_events_divert_synthetic', 'guard, stamp, divert');
+
+  const divert = latestDefinition('_tg_divert_synthetic_events').body;
+  assert.match(divert, /'synthetic_reason' in \('uid_mismatch', 'stale', 'preview', 'dev'\)/);
+  assert.match(divert, /new\.occurred_at, new\.country, new\.app_session_id, new\.received_at, v_reason\);/,
+    'the archive keeps the session and the arrival');
+  assert.match(divert, /exception when others then\s+(?:--[^\n]*\n\s*)*raise warning/, 'a failed archive write is said');
+});
+
+test('an account made on a preview, a dev build or a local page is internal, and is not sent to the preview', () => {
+  const src = latestDefinition('set_first_source').body;
+  assert.match(src, /v_src := v_src - 'env';/, 'the env is never stored');
+  assert.match(src, /if \(v_env in \('preview', 'dev'\) or public\.request_is_local\(\)\)\s+and exists \(select 1 from auth\.users u\s+where u\.id = v_uid and u\.created_at > now\(\) - interval '1 day'\)/,
+    'only a brand-new account: an old one opening a preview or a local page was made somewhere else');
+  assert.match(src, /insert into public\.internal_accounts \(user_id, reason\)\s+values \(v_uid, case when v_env = 'preview' then 'preview' else 'dev' end \|\| '_signup'\)\s+on conflict \(user_id\) do nothing;/,
+    'a local page is a dev build here (0476), so the reason is one the redirect below already knows');
+  assert.match(src, /set first_source = v_src\b/, 'what is stored is the source without the env');
+  assert.match(latestDefinition('get_staging_redirect').body,
+    /coalesce\(ia\.reason, ''\) not in \('preview_signup', 'dev_signup'\)/, 'the redirect stays the team\'s');
 });

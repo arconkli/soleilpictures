@@ -137,6 +137,22 @@ const ROLES = [
 const roleKey = (uid) => `soleil.role.v1:${uid || 'anon'}`;
 const ROLE_PENDING_KEY = 'soleil.role.pending.v1';
 
+// Under the roles, optional (2026-10-20, submit_age_range, 0471): five bands,
+// never a birth date, and none under 13, since the terms require 13 or over.
+// The band is stored in public.feedback and nowhere else; age_range_answered
+// says only that one was given, and this device keeps 'answered', not the
+// band. Per account, with the role's delivery. feedbackContract.test compares
+// the ids and labels with the server's.
+const AGES = [
+  { id: 'under_18', label: 'Under 18' },
+  { id: '18_24',    label: '18–24' },
+  { id: '25_34',    label: '25–34' },
+  { id: '35_44',    label: '35–44' },
+  { id: '45_plus',  label: '45+' },
+];
+const ageKey = (uid) => `soleil.age.v1:${uid || 'anon'}`;
+const AGE_PENDING_KEY = 'soleil.age.pending.v1';
+
 function readKey(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
 function writeKey(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* private mode */ } }
 function dropKey(k) { try { localStorage.removeItem(k); } catch (_) {} }
@@ -227,39 +243,44 @@ async function flushPending(uid) {
   if (res.ok || res.terminal) dropKey(PENDING_KEY);
 }
 
-// The role's own write, with the same rules: the error is read, a transport
-// failure is retried on a later page load (three tries, one week), and a
-// terminal code — or the server saying a role is already on record — ends it.
-async function deliverRole(role) {
+// The role's and the age range's own writes, with the same rules: the error is
+// read, a transport failure is retried on a later page load (three tries, one
+// week), and a terminal code — or the server saying an answer is already on
+// record — ends it.
+async function deliverTap(rpc, args, failedEvent) {
   try {
-    const { error } = await supabase.rpc('submit_role', { p_role: role });
+    const { error } = await supabase.rpc(rpc, args);
     if (!error) return { ok: true };
     const code = error.code || null;
-    logEvent(EV.ROLE_WRITE_FAILED, { code, terminal: !code || TERMINAL.has(code) });
+    logEvent(failedEvent, { code, terminal: !code || TERMINAL.has(code) });
     return { ok: false, terminal: !!code && TERMINAL.has(code) };
   } catch (_) {
-    logEvent(EV.ROLE_WRITE_FAILED, { code: null, terminal: false });
+    logEvent(failedEvent, { code: null, terminal: false });
     return { ok: false, terminal: false };
   }
 }
+const deliverRole = (role) => deliverTap('submit_role', { p_role: role }, EV.ROLE_WRITE_FAILED);
+const deliverAge = (range) => deliverTap('submit_age_range', { p_range: range }, EV.AGE_RANGE_WRITE_FAILED);
 
-let roleFlushed = false;
-async function flushRolePending(uid) {
-  if (roleFlushed || !uid) return;
-  roleFlushed = true;
+// Once per page load per record, at module scope for the StrictMode reason
+// above. `field` names what the record carries: { uid, role|range, tries, at }.
+const tapsFlushed = new Set();
+async function flushTapPending(key, field, uid, send) {
+  if (tapsFlushed.has(key) || !uid) return;
+  tapsFlushed.add(key);
   try {
-    const raw = readKey(ROLE_PENDING_KEY);
+    const raw = readKey(key);
     if (!raw) return;
     const p = JSON.parse(raw);
-    if (p?.uid && p.uid !== uid) { roleFlushed = false; return; }
-    if (!p?.role || !Number.isFinite(p.at) || Date.now() - p.at > PENDING_TTL_MS || (Number(p.tries) || 0) >= MAX_TRIES) {
-      dropKey(ROLE_PENDING_KEY);
+    if (p?.uid && p.uid !== uid) { tapsFlushed.delete(key); return; }
+    if (!p?.[field] || !Number.isFinite(p.at) || Date.now() - p.at > PENDING_TTL_MS || (Number(p.tries) || 0) >= MAX_TRIES) {
+      dropKey(key);
       return;
     }
-    writeKey(ROLE_PENDING_KEY, JSON.stringify({ ...p, tries: (Number(p.tries) || 0) + 1 }));
-    const res = await deliverRole(p.role);
-    if (res.ok || res.terminal) dropKey(ROLE_PENDING_KEY);
-  } catch (_) { dropKey(ROLE_PENDING_KEY); }
+    writeKey(key, JSON.stringify({ ...p, tries: (Number(p.tries) || 0) + 1 }));
+    const res = await send(p[field]);
+    if (res.ok || res.terminal) dropKey(key);
+  } catch (_) { dropKey(key); }
 }
 
 // A share or invite landing already records why that person is here, in full,
@@ -282,8 +303,11 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState(null);   // choice id once tapped
   const [role, setRole] = useState(null);       // role id once tapped
-  // Read once: a role answered on this device is never asked again here.
+  const [age, setAge] = useState(null);         // age range id once tapped
+  // Read once: a role or an age range answered on this device is never asked
+  // again here.
   const [askRole] = useState(() => !readKey(roleKey(userId)));
+  const [askAge] = useState(() => !readKey(ageKey(userId)));
   const [note, setNote] = useState('');
   const [receipt, setReceipt] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -330,7 +354,8 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   useEffect(() => {
     migrateLegacyKey();
     flushPending(userId);
-    flushRolePending(userId);
+    flushTapPending(ROLE_PENDING_KEY, 'role', userId, deliverRole);
+    flushTapPending(AGE_PENDING_KEY, 'range', userId, deliverAge);
 
     if (alreadyHandled()) return undefined;
     if (arrivedViaSomeoneElse()) return undefined;
@@ -349,7 +374,11 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
       // header — nothing may be STAMPED before this returns true. A deferral is
       // not a decline, and burning the one-shot on one would retire the surface
       // for that account forever.
-      if (!claimUpsellSlot('return-reason')) {
+      //
+      // A dialog already open is the same deferral: checked BEFORE the claim,
+      // so a retry never opens the question on top of one (and never takes the
+      // slot it will not use).
+      if (!quiet() || !claimUpsellSlot('return-reason')) {
         tries += 1;
         if (tries <= RETRIES) {
           timerRef.current = setTimeout(show, RETRY_MS);
@@ -448,13 +477,13 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
 
   // The follow-up closes itself if it is never touched. Cancelled permanently
   // on the first keystroke — someone mid-sentence must never be interrupted.
-  // A role tap restarts the clock rather than cancelling it: tapping and looking
-  // away must still end with the banner gone.
+  // A role or age tap restarts the clock rather than cancelling it: tapping and
+  // looking away must still end with the banner gone.
   useEffect(() => {
     if (!picked || picked === NOTHING || receipt) return undefined;
     idleRef.current = setTimeout(() => { if (!touchedRef.current) setOpen(false); }, NOTE_IDLE_MS);
     return () => { if (idleRef.current) clearTimeout(idleRef.current); idleRef.current = null; };
-  }, [picked, receipt, role]);
+  }, [picked, receipt, role, age]);
 
   if (!open) return null;
 
@@ -463,6 +492,7 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   const context = buildFeedbackContext(contextInput || {}, feedbackEnv());
   const contextLine = describeFeedbackContext(context);
   const showRoles = !!picked && picked !== NOTHING && askRole;
+  const showAge = !!picked && picked !== NOTHING && askAge;
 
   // The delivery tick's work, done now if the tick hasn't run yet. A tap or a
   // close inside the first seconds used to skip it for good — the tick then saw
@@ -501,6 +531,10 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
       logEventNow(EV.RETURN_REASON_ANSWERED, {
         choice,
         days_since_last_seen: daysRef.current,
+        // Whether the next step will offer each question: the denominators of
+        // role_answered and age_range_answered.
+        role_asked: choice !== NOTHING && askRole,
+        age_asked: choice !== NOTHING && askAge,
         ...currentSessionShape(),
       });
     } catch (_) {}
@@ -523,6 +557,18 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
     try { logEventNow(EV.ROLE_ANSWERED, { role: id, surface: 'return_banner' }); } catch (_) {}
     const res = await deliverRole(id);
     if (res.ok || res.terminal) dropKey(ROLE_PENDING_KEY);
+  };
+
+  // The same for the age range, except that the band rides on no event and
+  // this device keeps 'answered' rather than the band.
+  const pickAge = async (id) => {
+    if (busy || age) return;
+    setAge(id);
+    writeKey(ageKey(userId), 'answered');
+    writeKey(AGE_PENDING_KEY, JSON.stringify({ uid: userId, range: id, tries: 1, at: Date.now() }));
+    try { logEventNow(EV.AGE_RANGE_ANSWERED, { surface: 'return_banner', after_role: !!role }); } catch (_) {}
+    const res = await deliverAge(id);
+    if (res.ok || res.terminal) dropKey(AGE_PENDING_KEY);
   };
 
   const send = async () => {
@@ -617,6 +663,25 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
             </button>
           ))}
         </div>
+        )}
+
+        {showAge && (
+          <div className="rr-age" role="group" aria-label="Your age, optional">
+            <div className="rr-age-label" aria-hidden="true">Your age<span>optional</span></div>
+            <div className="rr-ages">
+              {AGES.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`rr-chip ${age === a.id ? 'is-picked' : ''}`}
+                  disabled={busy || !!age}
+                  onClick={() => pickAge(a.id)}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {picked && (

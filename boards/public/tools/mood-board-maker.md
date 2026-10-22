@@ -1,8 +1,8 @@
 # Mood Board Maker
 
-> Soleil Clusters is a free online mood board maker: drag images, links, video, and color palettes onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
+> Soleil Clusters is a free online mood board maker: drag images, links, video, color palettes and any other file onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
 
-_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-20_
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
@@ -34,7 +34,7 @@ Send a board to a client or collaborator with one link — they see a clean, int
 
 ### Is the mood board maker free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — every cluster you make is one of the cards — with collaborators included. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaboration is free for everyone.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with collaborators included. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaboration is free for everyone.
 
 ### Can I make a mood board with my team?
 
@@ -43,6 +43,10 @@ Yes — Clusters is a real-time collaborative canvas. Multiple people can edit t
 ### What can I put on a mood board?
 
 Images, screenshots, links, video, audio, PDFs, rich-text notes, color palettes, and any other file, at any size. Everything lives on one infinite canvas you can pan and zoom.
+
+### What happens when my drive is full?
+
+Nothing you have made is removed or locked. A drop that would not fit is caught before anything uploads, so you can add the part that fits. The rest waits in that browser tab and goes on by itself when you upgrade or add storage — or press Upload now after deleting something to make room. Closing the tab lets the waiting files go; they are still on your computer.
 
 ### Can I share a mood board without making people sign up?
 

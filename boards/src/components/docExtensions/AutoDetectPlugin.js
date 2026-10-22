@@ -1,5 +1,6 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { changedRange, decorateAll, redecorate, sameRangesOutside, textblocksIn } from './textblockDecorations.js';
 
 export const AUTO_DETECT_KEY = new PluginKey('autoDetect');
 
@@ -18,23 +19,18 @@ export const AUTO_DETECT_KEY = new PluginKey('autoDetect');
 //                                          // the colored underline wins.
 //   }
 export function makeAutoDetectPlugin({ getIndex, getIgnored, getAppliedRangeSet }) {
-  const build = (doc) => {
-    const index = getIndex?.();
-    if (!index) return DecorationSet.empty;
+  // The underlines of one textblock. Text in a code block, or already wrapped
+  // in a link or inline code mark, is left alone.
+  const decorator = (index, ignored, applied) => (block, blockPos) => {
+    if (block.type.name === 'codeBlock') return [];
     const decos = [];
-    // Build the suppression range list once per recompute. Each
-    // entry is an absolute [from, to) range in doc positions.
-    const applied = getAppliedRangeSet?.(doc) || [];
-    doc.descendants((node, pos, parent) => {
-      if (node.type.name === 'codeBlock') return false;
+    block.descendants((node, offset) => {
       if (!node.isText) return;
-      if (parent?.type?.name === 'codeBlock') return;
-      // Skip text already wrapped in a link or inline code mark.
       for (const m of node.marks) {
         if (m.type.name === 'link' || m.type.name === 'code') return;
       }
       const text = node.text;
-      const ignored = getIgnored?.() || null;
+      const pos = blockPos + 1 + offset;
       for (const m of index.findMatches(text)) {
         // Per-doc ignore list — kill the decoration if the matched
         // text is in the doc's "don't auto-link here" suppression
@@ -54,27 +50,51 @@ export function makeAutoDetectPlugin({ getIndex, getIgnored, getAppliedRangeSet 
           'data-records': JSON.stringify(m.records),
         }));
       }
-      return true;
     });
-    return DecorationSet.create(doc, decos);
+    return decos;
+  };
+
+  // What the underlines were drawn from, with them. The applied ranges are
+  // the absolute [from, to) boxes of the doc being decorated; decorations
+  // overlapping one are suppressed — the colored underline wins.
+  const build = (doc) => {
+    const index = getIndex?.() || null;
+    const ignored = getIgnored?.() || null;
+    const applied = (index && getAppliedRangeSet?.(doc)) || [];
+    const set = index ? decorateAll(doc, decorator(index, ignored, applied)) : DecorationSet.empty;
+    return { set, index, ignored, applied };
   };
 
   return new Plugin({
     key: AUTO_DETECT_KEY,
     state: {
       init(_config, state) { return build(state.doc); },
-      apply(tr, old, _oldState, newState) {
+      apply(tr, old, oldState, newState) {
         // Re-walk only when the doc changed or the owner says the index /
         // ignore list / applied ranges moved (a tr with this key's meta —
         // DocPageEditor sends one). A caret move or selection change used to
         // re-run the trie over every text node and JSON.stringify every
         // match, per arrow key.
         if (!tr.docChanged && !tr.getMeta(AUTO_DETECT_KEY)) return old;
-        return build(newState.doc);
+        if (tr.getMeta(AUTO_DETECT_KEY)) return build(newState.doc);
+        // A doc change redraws only the textblocks it touched
+        // (textblockDecorations.js) — unless what the rest were drawn from
+        // moved too: a new index or ignore list, or an applied range that
+        // appeared, vanished or moved by itself outside them.
+        const index = getIndex?.() || null;
+        const ignored = getIgnored?.() || null;
+        if (!index || index !== old.index || ignored !== old.ignored) return build(newState.doc);
+        const change = changedRange(oldState.doc, newState.doc);
+        if (!change) return old;
+        const touched = textblocksIn(newState.doc, change.from, change.to);
+        const applied = getAppliedRangeSet?.(newState.doc) || [];
+        if (!sameRangesOutside(old.applied, applied, change.mapping, touched)) return build(newState.doc);
+        const set = redecorate(old.set, change.mapping, newState.doc, touched, decorator(index, ignored, applied));
+        return { set, index, ignored, applied };
       },
     },
     props: {
-      decorations(state) { return this.getState(state); },
+      decorations(state) { return this.getState(state).set; },
     },
   });
 }

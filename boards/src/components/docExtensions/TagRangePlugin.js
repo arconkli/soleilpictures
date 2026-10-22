@@ -1,6 +1,6 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { contentHash } from '../../lib/clusterMath.js';
+import { paragraphStarts } from '../../lib/paragraphHash.js';
 
 export const TAG_RANGE_KEY = new PluginKey('tagRange');
 
@@ -9,7 +9,8 @@ export const TAG_RANGE_KEY = new PluginKey('tagRange');
 // the hook stores them in a ref that we read on every transaction.
 //
 // Each range is anchored to a paragraph by content-hash. We re-walk
-// the doc whenever it changes, hashing every paragraph, so an edit
+// the doc whenever it changes, finding every paragraph by its hash
+// (lib/paragraphHash.js, worked out once per paragraph), so an edit
 // elsewhere in the page doesn't disturb existing underlines — the
 // paragraph keeps its hash until its own text changes.
 //
@@ -46,16 +47,8 @@ export function makeTagRangePlugin({ getRanges }) {
 // hovering the text doesn't open a popover (the margin dot does).
 function buildDecorations(doc, ranges) {
   if (!ranges?.length || !doc?.descendants) return DecorationSet.empty;
-  const byHash = new Map(); // pHash → { paraFrom, paraText }
-  doc.descendants((node, pos) => {
-    if (node.type?.name !== 'paragraph') return true;
-    const text = (node.textContent || '').trim();
-    if (text.length < 20) return false;
-    const h = contentHash(text);
-    if (!byHash.has(h)) byHash.set(h, { paraFrom: pos + 1, paraText: text });
-    // First-occurrence wins on duplicate paragraphs.
-    return false;
-  });
+  // pHash → { from, node }; first-occurrence wins on duplicate paragraphs.
+  const byHash = paragraphStarts(doc);
 
   const decos = [];
   for (const r of ranges) {
@@ -70,8 +63,8 @@ function buildDecorations(doc, ranges) {
     if (typeof kwOff !== 'number' || !(kwLen > 0)) continue;
     const p = byHash.get(r.pHash);
     if (!p) continue;
-    const start = p.paraFrom + Math.max(0, kwOff);
-    const end = Math.min(p.paraFrom + p.paraText.length, start + kwLen);
+    const start = p.from + Math.max(0, kwOff);
+    const end = Math.min(p.from + (p.node.textContent || '').trim().length, start + kwLen);
     if (end <= start) continue;
     decos.push(Decoration.inline(start, end, {
       class: 'tt-tag-word',

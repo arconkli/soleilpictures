@@ -121,15 +121,21 @@ test('phone: screenplay keeps its true 8.5in geometry while fitted', async ({ pa
   expect(576 * r.zoom).toBeLessThanOrEqual(r.paperClientWidth - r.padX + 1);
 });
 
-test('desktop: fit mode is off and the sheet renders at 100%', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'tablet', 'runs on the wide (tablet) project only');
+test('tablet: a script shows at 100%, its column whole on screen and its sheet a true page', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'tablet', 'runs on the tablet project only');
   await openDoc(page);
   await page.evaluate(() => {
     const T = window.__soleilDocTest;
     T.setDocMode(T.ydoc, T.getScope(), 'screenplay');
   });
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
+  // An 834px portrait iPad has no room for the page list beside a page: the
+  // list tucks away and the column fits the width at actual size
+  // (lib/docRoom.js). With the list open the sheet used to be squeezed to the
+  // paper, wrapping the script at about half its 60 characters. (A wide
+  // window keeps fit mode off: doc-narrow-pane.spec.)
   const r = await readFit(page);
-  expect(r.fitMode).toBe(false);
   expect(r.zoom).toBeCloseTo(1, 2);
+  expect(576 * r.zoom).toBeLessThanOrEqual(r.paperClientWidth - r.padX + 1);
+  expect(r.wrapRenderedWidth).toBeCloseTo(PAGE_W * r.zoom, 0);
 });

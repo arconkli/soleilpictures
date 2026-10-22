@@ -5,7 +5,7 @@ h1: Getting started
 navLabel: Getting started
 section: start
 order: 1
-updated: 2026-10-04
+updated: 2026-10-21
 answer: Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes {{fact:demoCardLimit}} cards and unlimited collaborators.
 faq:
   - q: Do I need to install anything?
@@ -14,6 +14,8 @@ faq:
     a: No. Sign-in is a one-time code sent to your email address. There is no password to lose or rotate.
   - q: My sign-in code didn't arrive. What now?
     a: Look in Spam or Promotions first. On the code screen, a Gmail, Outlook, Yahoo, iCloud or Proton address gets a button that opens that inbox in a new tab, and for Gmail it searches every folder. Work and school mail servers can hold a code back for a few minutes or quarantine it, so check there too — signing in with a different address creates a separate account. You can ask for a new code once the resend timer runs out. Asking again cancels the code before it, so type the one from the newest email. Reloading the page keeps you on the code step.
+  - q: Do I have to invite anyone during setup?
+    a: No. Every question after the workspace's name can be skipped. If you skip the invite step you may be asked once more, after you have added a few things, and never again. The invite link and the Share panel are there whenever you want them.
   - q: Can people I share with edit my board?
     a: Only if you invite them as an editor. A public link is view-only. Editors do not need a paid plan — collaboration is free on every tier.
 related:
@@ -29,8 +31,37 @@ From an empty account to a board you would show someone, in about five minutes.
 Go to [clusters.soleilpictures.com]({{fact:siteOrigin}}/) and enter your email
 address. You will get a one-time code — there is no password.
 
-New accounts land on a starter cluster with a few cards already on it, so the
-canvas is never a blank intimidating rectangle. You can delete all of it.
+Some new accounts start with a short setup before the canvas; others go
+straight to their first cluster.
+
+The setup is three screens:
+
+1. **Name your workspace.** It is where your clusters, files and people live,
+   and you can rename it any time. This is the one step you can't skip.
+2. **Tell us about it.** *Who's working in it?* (Just me, A few people or A
+   team) and *What kind of work?* — film and video, photo, design, ads and
+   brand, music, school, personal, or something else. One tap each, or
+   **Skip**. The work answer changes what your first cluster says when it is
+   empty.
+3. **Invite people.** The step leads with an invite link to the whole
+   workspace — **Copy link** on a computer, **Share invite link** on a phone —
+   and under it, **or invite by email**. See
+   [Inviting a whole workspace](/docs/collaborate/sharing#inviting-a-whole-workspace)
+   for what the link does. **Skip for now** goes straight in.
+
+If you skip the invite step, you may be asked once more in your first two
+weeks, after you have put a few things on the board, and never a third time.
+
+Once something is on your board, three short tips point out where your
+clusters are, that Files takes any file and a pasted link becomes a card, and
+how to bring a folder over from Google Drive or Dropbox. **Next** moves on,
+**Skip** ends them, and the last one's **See how** opens the steps for
+downloading a folder from Google Drive and
+[bringing it in](/docs/clusters#importing-folders-and-zips). They show once.
+
+Someone who joins your workspace through an invite is asked only what kind of
+work they do (optional), then opens it. If nothing is in it yet, they see
+whose workspace it is, so the empty board is not a mystery.
 
 ## 2. Start a project
 
@@ -82,6 +113,7 @@ attached when you move things.
 Click **Share**. You have two different things there, and the difference matters:
 
 - **Invite by email** gives a named person Editor or Viewer access. Editors can change the board. This does not require them to pay — collaboration is free on every plan.
+- **The workspace invite link** from setup brings people into the whole workspace, every cluster and file in it, as editors.
 - **Create a public link** produces a view-only URL that works for anyone, with no account and no sign-in. You can set it to expire, and choose whether sub-clusters are included.
 
 ## Where to go next

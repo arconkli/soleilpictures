@@ -27,8 +27,14 @@ test('the canvas and the docked pane pass the board they render', () => {
   const rich = canvas.slice(canvas.indexOf('<RichDocCard '), canvas.indexOf('onUpdate={onUpdate} />', canvas.indexOf('<RichDocCard ')));
   assert.match(rich, /hostBoardId=\{board\.id\}/);
   const app = read('../App.jsx');
-  const docked = app.slice(app.indexOf('<DockedDocPane'), app.indexOf('onSetFull={setSplitDocFull} />'));
-  assert.match(docked, /hostBoardId=\{splitId\}/, 'the board splitYb loaded — the one renderSplitDoc reads the card from');
+  // One pane renderer for the docked doc and the doc beside it: the card, its
+  // Y.Doc and the host board all come from the board that pane's Y.Doc holds.
+  const docked = app.slice(app.indexOf('<DockedDocPane'), app.indexOf('pane={pane} />', app.indexOf('<DockedDocPane')));
+  assert.match(docked, /hostBoardId=\{boardId\}/, 'the board ybh loaded — the one renderDocPane reads the card from');
+  assert.match(docked, /ydoc=\{ybh\.ydoc\}/);
+  assert.match(app, /const here = ybh\.ready && ybh\.boardId === boardId;/);
+  assert.match(app, /pane: 'split', cardId: splitDoc\?\.cardId, ybh: splitYb, boardId: splitId,/);
+  assert.match(app, /pane: 'beside', cardId: besideDoc\?\.cardId, ybh: yb, boardId: besideDoc\?\.boardId,/);
 });
 
 test('the comment flows read the board from that scope', () => {

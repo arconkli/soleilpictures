@@ -21,6 +21,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
+import { selectAll } from '../../lib/selectAll.js';
 import { cosineDist, SILENT_APPLY_DIST, NO_MATCH_DIST, SUGGEST_DIST } from '../../lib/clusterMath.js';
 import { parsePgvector } from '../../lib/tagsClient.js';
 import { runEval, buildHistogram, summarize } from '../../lib/tagEval.js';
@@ -46,16 +47,21 @@ export function AdminTaggingTab() {
   const [labelEdits, setLabelEdits] = useState(null);
 
   // ── Load everything in parallel. ───────────────────────────────────
+  // Each table a page at a time in key order: one select stops at
+  // PostgREST's row cap without a word, and workspaces and card_embeddings
+  // grow past it with ordinary use.
   const q = useAdminData(async () => {
     const [t, w, c, e, l, el] = await Promise.all([
-      supabase.from('tags').select('id, name, slug, color, description, workspace_id'),
-      supabase.from('workspaces').select('id, name'),
-      supabase.from('tag_centroids').select('tag_id, centroid'),
-      supabase.from('card_embeddings').select('card_id, workspace_id, board_id, embedding'),
-      supabase.from('entity_links')
+      selectAll(() => supabase.from('tags').select('id, name, slug, color, description, workspace_id').order('id')),
+      selectAll(() => supabase.from('workspaces').select('id, name').order('id')),
+      selectAll(() => supabase.from('tag_centroids').select('tag_id, centroid').order('tag_id')),
+      selectAll(() => supabase.from('card_embeddings').select('card_id, workspace_id, board_id, embedding')
+        .order('entity_kind').order('card_id')),
+      selectAll(() => supabase.from('entity_links')
         .select('target_id, source_kind, source_id')
-        .eq('target_kind', 'tag').eq('link_kind', 'applied'),
-      supabase.from('tag_eval_labels').select('tag_id, source_kind, source_id, label, workspace_id, created_at'),
+        .eq('target_kind', 'tag').eq('link_kind', 'applied').order('id')),
+      selectAll(() => supabase.from('tag_eval_labels').select('tag_id, source_kind, source_id, label, workspace_id, created_at')
+        .order('tag_id').order('source_kind').order('source_id')),
     ]);
     if (t.error)  throw t.error;
     if (w.error)  throw w.error;

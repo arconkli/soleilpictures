@@ -1,4 +1,4 @@
-// stalledSignups — who the Today view's "Arrived and stalled" panel lists.
+// stalledSignups — who the Overview's "Arrived and stalled" panel lists.
 // Plain JS so node --test can drive it (src/lib/adminStalledSignups.test.mjs).
 //
 // Reads admin_user_dormancy rows { user_id, email, signup (UTC date),

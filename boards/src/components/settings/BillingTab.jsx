@@ -9,12 +9,13 @@ import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING, CTA, STORAGE_ADDON_HELD, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS } from '../../lib/billingCopy.js';
 import { creatorTrialEligibility } from '../../lib/creatorTrial.js';
-import { startPortal } from '../../lib/checkout.js';
+import { startPortal, warmPortal } from '../../lib/checkout.js';
 import { checkoutErrorMessage } from '../../lib/checkoutErrors.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { useMyTier } from '../../hooks/useMyTier.js';
 import { useStorageUsage } from '../../hooks/useStorageUsage.js';
 import { formatBonusBytes } from '../../lib/inviteReward.js';
+import { fmtBytes } from '../../lib/storageLabel.js';
 import { PricingModal } from '../PricingModal.jsx';
 import { StorageAddonSheet } from '../StorageAddonSheet.jsx';
 import { useBfcacheRestore } from '../../auth/useBfcacheRestore.js';
@@ -49,6 +50,10 @@ export function BillingTab({ user }) {
       .then(({ data }) => { if (!cancelled) setSub(data || null); });
     return () => { cancelled = true; };
   }, [user?.id, storageEpoch]);
+
+  // Manage billing's function, booted and its preflight answered while the tab
+  // is read (lib/checkout.js), so the click waits on Stripe alone.
+  useEffect(() => { if (tier === 'paid') warmPortal(); }, [tier]);
 
   const openPortal = async () => {
     if (busy) return;
@@ -124,17 +129,6 @@ export function BillingTab({ user }) {
       )}
     </div>
   );
-}
-
-function fmtBytes(b) {
-  if (b == null) return '—';
-  const tb = b / (1024 ** 4);
-  if (tb >= 1) return `${tb >= 10 ? Math.round(tb) : Math.round(tb * 10) / 10} TB`;
-  const gb = b / (1024 ** 3);
-  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
-  const mb = b / (1024 ** 2);
-  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
-  return `${Math.round(b / 1024)} KB`;
 }
 
 // "X / <drive>" usage meter, for every plan: the drive is a limit on free as

@@ -59,9 +59,10 @@ const BATCH = 50;
 const TIME_BUDGET_MS = 100_000;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 // Same sender identity send-transactional-email gives its hello@-class mail:
-// a billing notice should land where a reply reaches a person.
+// a billing notice should land where a reply reaches a person, which is the
+// owner's inbox, not hello@clusters (Resend's inbound; emailReplyTo.test.mjs).
 const FROM_HELLO = "Clusters <hello@clusters.soleilpictures.com>";
-const REPLY_TO   = "hello@clusters.soleilpictures.com";
+const REPLY_TO   = "hello@soleilpictures.com";
 // Remind when the first charge is at most this far out. The job runs daily, so
 // a subscription enters the window roughly three days ahead, and a failed send
 // gets two or three more daily attempts before the charge.

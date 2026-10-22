@@ -1,0 +1,723 @@
+/* The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
+   direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,
+   G-viewer). Every rule is scoped to what only the look renders: the window's
+   .dl (DocCard.jsx DocCardOverlay) and the surface's .dl-surface (DocSurface,
+   given a frame), so the doc as it is never meets one. The buttons are the
+   toolbar look's (components/toolbar/toolbar.css). */
+
+/* ── The header ── */
+.dl-head {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 52px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-1);
+  flex-shrink: 0;
+  container-type: inline-size;
+  font-family: var(--font-sans);
+}
+.dl-head .tl-btn { color: var(--ink-2); }
+.dl-head .tl-btn.is-on { color: var(--ink-0); }
+.dl-flip svg { transform: scaleX(-1); }
+.dl-crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.dl-crumb-c { display: contents; }
+.dl-crumb-p { flex: 0 1 auto; min-width: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.dl-crumb-s { flex-shrink: 0; color: var(--ink-3); }
+.dl-head .doc-card-title-input.dl-title { min-width: 4ch; padding: 2px 0; text-overflow: ellipsis; }
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  margin: 0 6px 0 2px;
+  border-radius: 12px;
+  font: 600 12px/1 var(--font-sans);
+  color: var(--ink-1);
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.dl-faces.doc-card-peers { padding: 0 8px 0 6px; margin: 0; flex-shrink: 0; }
+.dl-faces .doc-card-peer { margin-left: -5px; }
+.dl-faces .doc-card-peer:first-child { margin-left: 0; }
+.dl-faces .doc-card-peer .avatar { box-shadow: 0 0 0 1.5px var(--bg-1); }
+/* Share: the one button in words, with a hairline round it. */
+.dl-head .doc-card-share {
+  height: 32px;
+  margin: 0 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  gap: 6px;
+  font: 600 13px/1 var(--font-sans);
+  color: var(--ink-0);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+@media (hover: hover) {
+  .dl-head .doc-card-share:hover { background: var(--tl-hov); color: var(--ink-0); }
+}
+.dl-head .doc-card-share:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* Unread messages: a dot, ink rather than gold (gold is for what's on). */
+.dl-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-0);
+  box-shadow: 0 0 0 2px var(--bg-1);
+  pointer-events: none;
+}
+/* A narrow window (docked beside the board, one of two side by side): the
+   title alone, and Share as its icon. */
+@container (max-width: 680px) {
+  .dl-crumb-c { display: none; }
+  .dl-head .doc-card-share { width: 32px; padding: 0; margin: 0 4px; justify-content: center; }
+  .dl-head .doc-card-share span { display: none; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .dl-head .doc-card-share { height: 40px; }
+  .dl-dot { top: 9px; right: 9px; }
+}
+
+/* ── The body: page list, page, side panel; the footer under all three ── */
+.doc-surface.dl-surface {
+  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: var(--bg-1);
+}
+/* The page list gives the page 16px of the panel's room (AC-comments). */
+.doc-surface.dl-surface.has-panel { grid-template-columns: 216px minmax(0, 1fr) 300px; }
+.doc-surface.dl-surface.rail-left-collapsed { grid-template-columns: minmax(0, 1fr); }
+.doc-surface.dl-surface.rail-left-collapsed.has-panel { grid-template-columns: minmax(0, 1fr) 300px; }
+.doc-surface.dl-surface.rail-left-collapsed:not(.mobile-rail-open) > .doc-rail-left { display: none; }
+.doc-surface.dl-surface > .doc-rail-left,
+.doc-surface.dl-surface > .doc-center,
+.doc-surface.dl-surface > .dl-panel { grid-row: 1; }
+
+/* ── The page list ── */
+.dl-surface .doc-rail-left { border-right: 1px solid var(--line-1); background: var(--bg-1); padding-bottom: 10px; }
+.dl-surface .doc-tree { height: auto; flex: 0 1 auto; min-height: 0; }
+.dl-surface .doc-tree-head { height: 40px; padding: 0 8px 0 18px; border-bottom: 0; }
+.dl-surface .doc-tree-kicker,
+.dl-surface .doc-bookmarks-head,
+.dl-surface .sp-scenenav-head {
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.dl-surface .doc-tree-add-root { width: 26px; height: 26px; border-radius: 6px; color: var(--ink-2); }
+.dl-surface .doc-tree-add-root svg { width: 16px; height: 16px; }
+.dl-surface .doc-tree-body { padding: 0 0 4px; }
+/* A row's "+" (a sub-page) sits under the head's (a page): one column, the
+   head's 26px button 8px in, so the row keeps 2px past its 22px one. */
+.dl-surface .doc-tree-row {
+  gap: 7px;
+  height: 30px;
+  margin: 0 8px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 2px;
+  border-radius: 6px;
+  font: 400 13px/1 var(--font-sans);
+  color: var(--ink-1);
+}
+.dl-surface .doc-tree-row.is-active { background: var(--bg-act); color: var(--ink-0); font-weight: 600; }
+/* The page you're on: the gold mark at the list's edge. */
+.dl-surface .doc-tree-row.is-active::before { left: -8px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; }
+.dl-surface .doc-tree-chev { width: 14px; height: 14px; color: var(--ink-3); }
+.dl-surface .doc-tree-chev svg { width: 11px; height: 11px; }
+.dl-surface .doc-tree-ico { width: 16px; height: 16px; color: var(--ink-2); flex-shrink: 0; }
+.dl-surface .doc-tree-add { width: 22px; height: 22px; border-radius: 5px; color: var(--ink-2); }
+.dl-surface .doc-tree-add svg { width: 14px; height: 14px; }
+.dl-surface .doc-tree-peers { margin-left: auto; }
+.dl-surface .doc-tree-peer { width: 7px; height: 7px; border: 0; box-shadow: none; }
+.dl-surface .doc-bookmarks { padding: 14px 0 0; border-top: 0; }
+.dl-surface .doc-bookmarks-head,
+.dl-surface .sp-scenenav-head { display: flex; align-items: center; height: 40px; padding: 0 8px 0 18px; border-bottom: 0; }
+.dl-surface .doc-bookmarks-row { height: 30px; margin: 0 8px; padding: 0 4px 0 10px; gap: 7px; }
+.dl-surface .doc-bookmarks-item { padding: 0; font: 400 13px/1 var(--font-sans); }
+.dl-surface .doc-bookmarks-row > svg { width: 16px; height: 16px; color: var(--ink-2); flex-shrink: 0; }
+.dl-surface .doc-bookmarks-x svg { width: 12px; height: 12px; }
+.dl-surface .sp-scenenav { padding: 14px 0 0; margin: 0; border-top: 0; }
+.dl-surface .sp-scenenav-item {
+  align-items: center;
+  gap: 7px;
+  width: calc(100% - 16px);
+  height: 30px;
+  margin: 0 8px;
+  padding: 0 8px 0 10px;
+  font: 400 13px/1 var(--font-sans);
+}
+.dl-surface .sp-scenenav-num {
+  min-width: 18px;
+  font: 400 10.5px/1 var(--font-mono);
+  color: var(--ink-2);
+  text-align: right;
+}
+
+/* ── The side panel ── */
+.dl-panel {
+  position: relative;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--line-1);
+  background: var(--bg-1);
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+.dl-tabs { padding: 12px 14px 4px; flex-shrink: 0; }
+.dl-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+/* Its buttons: the panel's tabs, and a filter's choices (role radio). */
+.dl-seg > button {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: 600 12.5px/1 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .dl-seg > button:hover:not([aria-selected='true'], [aria-checked='true']) { color: var(--ink-0); }
+}
+.dl-seg > button:is([aria-selected='true'], [aria-checked='true']) {
+  background: var(--bg-4);
+  color: var(--ink-0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+[data-theme='light'] .dl-seg > button:is([aria-selected='true'], [aria-checked='true']) {
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(10, 10, 12, .08), 0 1px 2px rgba(10, 10, 12, .08);
+}
+.dl-seg > button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-seg.is-sm > button { height: 24px; font-size: 12px; font-weight: 500; }
+.dl-cnt {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font: 600 10.5px/1 var(--font-sans);
+  color: var(--ink-1);
+  background: var(--bg-4);
+}
+[data-theme='light'] .dl-cnt { background: #e4e4e8; }
+.dl-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
+
+/* ── The panel's Comments (AC-comments): a card a thread, in the doc's
+   order ── */
+/* Its cards say where every thread is: the margin's dots step aside. */
+.dl-surface.has-panel-comments .comment-gutter { display: none; }
+.dl-cmts-f { padding: 12px 14px 6px; }
+.dl-ths { list-style: none; margin: 0; padding: 0; }
+.dl-th {
+  margin: 6px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  cursor: pointer;
+}
+[data-theme='light'] .dl-th { background: #fff; }
+.dl-th.is-on { background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-3); }
+[data-theme='light'] .dl-th.is-on { background: #fff; box-shadow: inset 0 0 0 1px rgba(10, 10, 12, .2); }
+.dl-th.is-res { opacity: .72; }
+.dl-th.is-res:is(.is-on, :hover, :focus-within) { opacity: 1; }
+/* The words it's on, in the page's face: a button to go to them. */
+.dl-th-q {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: italic 400 13px/1.4 var(--doc-body-font, Georgia, serif);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.dl-th-q.is-gone { cursor: inherit; color: var(--ink-3); }
+.dl-th-q:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 4px; }
+.dl-cm { display: flex; gap: 9px; margin-top: 8px; }
+.dl-th-q + .dl-cm { margin-top: 0; }
+.dl-face {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font: 700 10px/1 var(--font-sans);
+  color: #0a0a0c;
+}
+.dl-cm-b { flex: 1 1 auto; min-width: 0; }
+.dl-cm-h { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+.dl-cm-h b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink-0); }
+.dl-cm-h time { flex-shrink: 0; }
+.dl-cm-t { margin-top: 1px; font-size: 13px; line-height: 1.45; color: var(--ink-1); white-space: pre-wrap; overflow-wrap: anywhere; }
+.dl-th-a { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.dl-th-by { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--ink-2); }
+.dl-reply { position: relative; flex: 1 1 auto; min-width: 0; }
+.dl-reply input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 30px 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 400 12.5px/1 var(--font-sans);
+  color: var(--ink-0);
+}
+[data-theme='light'] .dl-reply input { background: #f7f7f9; }
+.dl-reply input::placeholder { color: var(--ink-3); }
+.dl-reply input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--line-3), 0 0 0 2px rgba(255, 165, 0, .35); }
+.dl-reply-send {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ink-0);
+  color: var(--bg-1);
+  cursor: pointer;
+}
+.dl-reply-send:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font: 400 12px/1 var(--font-sans);
+  color: var(--ink-1);
+  white-space: nowrap;
+  cursor: pointer;
+}
+[data-theme='light'] .dl-th .dl-mini { background: #f7f7f9; }
+@media (hover: hover) {
+  .dl-mini:hover { color: var(--ink-0); background: var(--tl-hov); }
+  .dl-th-del:hover { color: var(--ink-0); background: var(--tl-hov); }
+}
+.dl-mini:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* On the first line, at its end; its margins keep the line as tall as
+   the name. */
+.dl-th-del {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  margin: -5px -6px -5px auto;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  opacity: 0;
+}
+.dl-th:is(:hover, :focus-within, .is-on) .dl-th-del,
+.dl-th-del:focus-visible { opacity: 1; }
+.dl-th-del:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-cmts-none { padding: 28px 22px; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.dl-cmts-none p { margin: 0 0 8px; }
+.dl-cmts-none-t { font-size: 13px; color: var(--ink-1); }
+
+/* ── Find (AC-find): the search and its replacement, where to look and how,
+   Replace and Replace all, then the hits page by page, which scroll under
+   the rest. ── */
+.dl-panel-body.dl-panel-find { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.dl-panel-body.dl-panel-find[hidden] { display: none; }
+.dl-find { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; padding-top: 8px; }
+.dl-find-f { display: flex; align-items: center; gap: 4px; padding: 4px 14px; }
+.dl-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  color: var(--ink-2);
+  cursor: text;
+}
+[data-theme='light'] .dl-field { background: #f7f7f9; box-shadow: inset 0 0 0 1px var(--line-2); }
+.dl-field:focus-within { box-shadow: inset 0 0 0 1px var(--line-3), 0 0 0 2px rgba(255, 165, 0, .35); }
+.dl-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 13px/1 var(--font-sans);
+  color: var(--ink-0);
+}
+.dl-field input::placeholder { color: var(--ink-3); }
+/* The field rings itself; the app's own ring on the input inside it would
+   draw a second box. */
+.dl-field input:is(:focus, :focus-visible) { outline: none; box-shadow: none; }
+.dl-find-n { flex-shrink: 0; font: 400 11px/1 var(--font-mono); color: var(--ink-2); white-space: nowrap; }
+.dl-find-o { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 14px; }
+.dl-find-a { display: flex; gap: 6px; padding: 2px 14px 6px; }
+.dl-mini[aria-pressed='true'] { background: var(--tl-on); box-shadow: inset 0 0 0 1px var(--tl-on-line); color: var(--ink-0); }
+.dl-mini:disabled { opacity: .45; cursor: default; }
+@media (hover: hover) {
+  .dl-mini:disabled:hover { color: var(--ink-1); background: var(--bg-2); }
+}
+.dl-find-res { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
+.dl-fg-h { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 16px 4px; font: 600 12px/1.3 var(--font-sans); color: var(--ink-1); }
+.dl-fg-h > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-fr {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  text-align: left;
+  font: 400 13px/1.4 var(--doc-body-font, Georgia, 'Iowan Old Style', serif);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .dl-fr:hover:not(.is-on) { background: var(--tl-hov); }
+}
+.dl-fr.is-on { background: var(--bg-act); color: var(--ink-1); }
+.dl-fr:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.dl-fr mark { padding: 0 1px; border-radius: 2px; background: color-mix(in oklab, #ffa500 22%, transparent); color: var(--ink-0); }
+.dl-find-more { margin: 0; padding: 10px 18px 0; font-size: 12px; color: var(--ink-2); }
+/* The hits lit in the page: a soft fill, the one that's on deeper and ringed,
+   the text in its own ink. */
+.dl-surface .doc-find-hit { border-bottom: 0; border-radius: 2px; background: color-mix(in oklab, #ffa500 16%, transparent); }
+.dl-surface .doc-find-hit-current { background: rgba(255, 165, 0, .42); box-shadow: 0 0 0 1.5px rgba(255, 165, 0, .6); color: inherit; }
+.dl-find-none { margin: 0; padding: 28px 22px; text-align: center; font-size: 12.5px; color: var(--ink-2); }
+/* The words a card was jumped to from, flashed (DocSurface puts the rule on
+   their mark's id; two names, so a second jump plays it again). */
+@keyframes dl-flash-a {
+  from { background: color-mix(in oklab, var(--soleil) 45%, transparent); }
+  to { background: var(--soleil-soft); }
+}
+@keyframes dl-flash-b {
+  from { background: color-mix(in oklab, var(--soleil) 45%, transparent); }
+  to { background: var(--soleil-soft); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dl-surface .tt-comment { animation: none !important; }
+}
+
+/* ── The footer ── */
+.dl-foot {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 30px;
+  padding: 0 10px 0 14px;
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-1);
+  font: 400 12px/1 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.dl-sp { flex: 1 1 auto; }
+.dl-foot-status { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dl-foot-status svg { flex-shrink: 0; }
+.dl-foot-status.is-saving { color: var(--ink-1); }
+.dl-foot-status.is-offline { color: #f59e0b; }
+.dl-foot-status.is-error { color: var(--danger, #ef4444); }
+.dl-foot-words { font: 400 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.dl-foot .tl-btn.dl-foot-zoom {
+  height: 22px;
+  min-width: 0;
+  padding: 0 6px;
+  gap: 5px;
+  border-radius: 6px;
+  font: 400 11px/1 var(--font-mono);
+  color: var(--ink-2);
+}
+
+/* ── The one row of tools (DocBarA; the toolbar canvas's A-doc frame): its
+   own row over the page, the bar an island in its middle 12px under the
+   header, and the page 14px under the bar. ── */
+.dl-cap {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 12px 12px 0;
+  background: var(--bg-0);
+}
+.dl-cap > .tl-bar { max-width: 100%; }
+/* Before the bar's chunk is in: its room, so the page doesn't jump. */
+.dl-bar-ph { height: calc(var(--tl-bs) + var(--tl-pad) * 2); }
+.dl-surface .doc-paper { padding-top: 14px; }
+
+/* The widths lib/docBarFold.js counts on (DOC_BAR_SIZES.desktop; .touch in
+   the block under a finger below). */
+.dl-bar .tl-btn.dl-w-doc { width: 80px; }
+.dl-bar .tl-btn.dl-w-docicon { width: 44px; }
+.dl-bar .tl-btn.dl-w-style { width: 96px; }
+.dl-bar .tl-btn.dl-w-font { width: 86px; }
+.dl-bar .tl-btn.dl-w-caret { width: 46px; }
+.dl-bar .size-combo-wrap.is-tl { width: 54px; }
+/* A select's icon (Doc's) is a text button's size. */
+.dl-bar .tl-btn.is-select > svg:first-child { width: 16px; height: 16px; }
+
+/* The size: the field and its ⌄, one control. */
+.dl-bar .size-combo-wrap.is-tl {
+  flex-shrink: 0;
+  height: var(--tl-bs);
+  border-radius: var(--tl-br);
+}
+.dl-bar .size-combo-wrap.is-tl .size-combo {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 22px 0 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ink-1);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.dl-bar .size-combo-wrap.is-tl .size-combo:focus { background: var(--tl-hov); box-shadow: inset 0 0 0 1px var(--line-2); }
+.dl-bar .size-combo-wrap.is-tl .size-combo:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-bar .size-combo-wrap.is-tl .size-combo-arrow.tl-btn {
+  right: 2px;
+  width: 20px;
+  min-width: 0;
+  height: calc(var(--tl-bs) - 8px);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+}
+@media (hover: hover) {
+  .dl-bar .size-combo-wrap.is-tl:hover .size-combo:not(:disabled) { background: var(--tl-hov); color: var(--ink-0); }
+  .dl-bar .size-combo-wrap.is-tl .size-combo-arrow.tl-btn:hover:not(:disabled) { background: transparent; color: var(--ink-0); }
+}
+.tl-menu.size-combo-tl { min-width: 88px; }
+
+/* Colour and highlight: the colour the text has, under the A. */
+.dl-bar .tl-btn.dl-colour::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--tl-is) * .34 - 1.25px);
+  width: calc(var(--tl-is) * .7);
+  height: 2.5px;
+  margin-left: calc(var(--tl-is) * -.35);
+  border-radius: 1px;
+  background: var(--dl-ink, transparent);
+  pointer-events: none;
+}
+.dl-swrow {
+  display: grid;
+  grid-template-columns: repeat(9, auto);
+  justify-content: start;
+  gap: 8px;
+  padding: 4px 10px 8px;
+}
+.dl-swrow .tl-sw { margin: 0; }
+/* The colour a text has by default: no fill, struck through. */
+.tl-sw.is-none { overflow: hidden; background: none; box-shadow: inset 0 0 0 1.5px var(--line-3); }
+.tl-sw.is-none::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - .75px);
+  top: -2px;
+  bottom: -2px;
+  width: 1.5px;
+  background: var(--ink-2);
+  transform: rotate(45deg);
+}
+.tl-sw.is-none.is-on { box-shadow: inset 0 0 0 1.5px var(--line-3), 0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--soleil); overflow: visible; }
+
+/* The menus off the bar. A style says what it looks like; a font is in its
+   own face. */
+.dl-style-menu .dl-style-h1 .tl-mt { font-size: 18px; font-weight: 700; }
+.dl-style-menu .dl-style-h2 .tl-mt { font-size: 16px; font-weight: 700; }
+.dl-style-menu .dl-style-h3 .tl-mt { font-size: 14.5px; font-weight: 650; }
+.dl-style-menu :is(.dl-style-h4, .dl-style-h5, .dl-style-h6) .tl-mt { font-weight: 600; }
+.tl-menu.dl-font-pop { width: 248px; }
+.dl-font-pop .dl-font-rows .tl-mi { font-size: 14px; }
+.dl-font-pop .dl-font-rows .tl-mi .tl-mt { font-family: inherit; }
+.tl-menu.dl-insert-menu { min-width: 284px; }
+.tl-menu.dl-more { min-width: 236px; }
+.dl-mrow-i { width: 16px; height: 16px; flex-shrink: 0; color: var(--ink-2); }
+.dl-minfo { padding: 6px 10px 5px; color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+.tl-btn.dl-zoom-pct { min-width: 48px; padding: 0 6px; font: 400 12px/1 var(--font-mono); color: var(--ink-1); }
+.dl-bar .tl-btn.dl-zoom-pct { font-size: 12.5px; }
+
+/* ── Under a finger (A-ipad, AC-ipad): finger rows in the page list, a
+   narrower list and panel, a taller footer. Before the drawer's block below,
+   which outranks it where both apply. ── */
+@media (hover: none) and (pointer: coarse) {
+  .doc-surface.dl-surface { grid-template-columns: 220px minmax(0, 1fr); }
+  .doc-surface.dl-surface.has-panel { grid-template-columns: 212px minmax(0, 1fr) 288px; }
+  .dl-surface .doc-tree-row,
+  .dl-surface .doc-bookmarks-row,
+  .dl-surface .sp-scenenav-item { height: 40px; font-size: 14.5px; }
+  .dl-surface .doc-bookmarks-item { font-size: 14.5px; }
+  .dl-crumb { font-size: 14.5px; }
+  .dl-seg > button { height: 34px; font-size: 13.5px; }
+  .dl-seg.is-sm > button { height: 34px; font-size: 13px; }
+  .dl-mini { height: 36px; padding: 0 11px; font-size: 13px; }
+  .dl-reply input { height: 36px; font-size: 16px; }
+  .dl-reply-send { top: 5px; right: 5px; width: 26px; height: 26px; }
+  .dl-th-del { width: 36px; height: 36px; margin: -11px -10px -11px auto; opacity: 1; }
+  .dl-field { height: 40px; }
+  /* Under 16px iOS zooms the page in on focus. */
+  .dl-field input { font-size: 16px; }
+  .dl-fr { padding: 9px 12px; font-size: 14.5px; }
+  .dl-foot { height: 36px; font-size: 13px; }
+  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
+  /* The bar's widths under a finger (DOC_BAR_SIZES.touch). */
+  .dl-bar .tl-btn.dl-w-doc { width: 88px; }
+  .dl-bar .tl-btn.dl-w-docicon { width: 52px; }
+  .dl-bar .tl-btn.dl-w-style { width: 104px; }
+  .dl-bar .tl-btn.dl-w-font { width: 96px; }
+  .dl-bar .tl-btn.dl-w-caret { width: 60px; }
+  .dl-bar .size-combo-wrap.is-tl { width: 64px; }
+  /* Under 16px iOS zooms the page in on focus. */
+  .dl-bar .size-combo-wrap.is-tl .size-combo { font-size: 16px; }
+}
+/* An iPad's window sits 16px in, not the desktop's 24 (a phone's is the
+   whole screen). */
+@media (min-width: 641px) and (hover: none) and (pointer: coarse) {
+  .doc-card-modal-full.dl { inset: 16px; }
+}
+
+/* ── Phone and touch tablet (App.jsx's mobileShell): the page list is the
+   drawer it was, and the side panel lies over the page's right edge. ── */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .doc-surface.dl-surface,
+  .doc-surface.dl-surface.has-panel,
+  .doc-surface.dl-surface.rail-left-collapsed,
+  .doc-surface.dl-surface.rail-left-collapsed.has-panel { grid-template-columns: minmax(0, 1fr); }
+  .doc-surface.dl-surface:not(.mobile-rail-open) > .doc-rail-left { display: none; }
+  /* The drawer's head keeps the column (styles.css moves today's "+"). */
+  .doc-surface.dl-surface.mobile-rail-open .doc-tree-head { padding-right: 8px; }
+  .doc-surface.dl-surface > .dl-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(86%, 320px);
+    z-index: 30;
+    box-shadow: -16px 0 48px rgba(0, 0, 0, .3);
+  }
+  .dl-foot { height: 36px; font-size: 13px; }
+  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
+}
+
+/* ── On a phone the side panel is a sheet from the bottom (mockup C-phone2),
+   over the doc, which dims; it rides above the on-screen keyboard (--dl-kb,
+   DocSidePanel). ── */
+.dl-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, .42);
+  animation: dl-scrim-in .18s ease-out;
+}
+.dl-panel.is-sheet {
+  position: fixed;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: var(--dl-kb, 0px);
+  width: auto;
+  height: min(74dvh, calc(100dvh - var(--dl-kb, 0px) - 56px));
+  z-index: 61;
+  border-left: 0;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, .35);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transition: transform .2s ease-out;
+  animation: dl-sheet-in .24s cubic-bezier(.2, .8, .2, 1);
+}
+[data-theme='light'] .dl-panel.is-sheet { box-shadow: 0 -12px 40px rgba(10, 10, 12, .16); }
+.dl-panel.is-sheet .dl-tabs { padding-top: 2px; }
+.dl-sheet-grab {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 100%;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+}
+.dl-sheet-grab span { width: 36px; height: 5px; border-radius: 3px; background: var(--line-3); }
+.dl-sheet-grab:focus-visible { outline: none; }
+.dl-sheet-grab:focus-visible span { box-shadow: 0 0 0 2px var(--soleil); }
+@keyframes dl-sheet-in { from { transform: translateY(32px); opacity: .5; } }
+@keyframes dl-scrim-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .dl-panel.is-sheet, .dl-sheet-scrim { animation: none; transition: none; }
+}

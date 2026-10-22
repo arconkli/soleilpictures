@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
-import { getFbCookies } from '../lib/metaPixel.js';
+import { getFbCookies, gpcOn } from '../lib/metaPixel.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
@@ -56,7 +56,7 @@ export function WaitlistModal({ onClose }) {
       const res = await fetch(EDGE_URL, {
         method: 'POST',
         headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ links: validLinks, timezone: tz, fbp, fbc }),
+        body: JSON.stringify({ links: validLinks, timezone: tz, fbp, fbc, gpc: gpcOn() }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);

@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.
 
-_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-20_
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
 
@@ -32,7 +32,7 @@ Nest a cluster per character, environment or shot and the project stays navigabl
 
 ## One plan for the team, not a licence per seat
 
-Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files, with each cluster counting as one card, shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six.
+Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six.
 
 ## Where a desktop app is still the right call
 
@@ -42,7 +42,7 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
 2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
-3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video and PDFs. Everything lands as cards you can arrange.
+3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.
 4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
 
@@ -54,13 +54,13 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- A 1TB drive, on a 1TB drive
+- A 1TB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -82,7 +82,7 @@ Yes. A view-only link opens the board in any browser with no account, can includ
 
 ### Can we bring our PureRef boards over?
 
-Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On Creator you can also attach the .pur file itself to the board.
+Not as .pur files — that is PureRef’s own local format. Export the images, or gather the originals, select them all and drag them onto a board in one go, then rebuild the layout. On any plan you can also attach the .pur file itself, so the original travels with the board as a download.
 
 ### Does it work offline?
 
@@ -90,5 +90,5 @@ No. Clusters is a browser workspace and needs a connection. In exchange the boar
 
 ### Is it free?
 
-Free for 50 cards or 5GB of files across the workspace — each cluster counts as one — with free editors. Creator removes the card cap and gives you a 1TB drive; see “What it costs” on this page.
+Free for 50 cards or 5GB of files across the workspace — clusters themselves are free — with free editors. Creator removes the card cap and gives you a 1TB drive; see “What it costs” on this page.
 

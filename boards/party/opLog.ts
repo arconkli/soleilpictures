@@ -37,6 +37,12 @@ const SKIP_ORIGINS = new Set([
   "soleil:cold-load",
 ]);
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function authorOf(origin: unknown): string | null {
+  const actor = origin && typeof origin === "object" ? (origin as { actor?: unknown }).actor : null;
+  return typeof actor === "string" && UUID_RE.test(actor) ? actor : null;
+}
+
 function shouldSkip(origin: unknown): boolean {
   if (origin == null) return false;
   const s = typeof origin === "string" ? origin : String(origin);
@@ -141,7 +147,8 @@ export function installOpLogCapture(opts: InstallOptions): void {
 
       const body = {
         p_board_id: boardId,
-        p_author_id: null,
+        // A shared doc's guest: their edits arrive from its room with an actor.
+        p_author_id: authorOf(origin),
         p_client_id: typeof origin === "string" ? origin : null,
         p_tx_id: null,
         p_tx_role: null,

@@ -193,6 +193,18 @@
 .sb-frost .auth-btn.auth-btn-secondary:hover { border-color: rgba(255,255,255,.36); }
 .sb-cap { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); text-align: center; }
 
+/* ?wsjoin= — "Join Lost Time / Nora invited you", above the frost. Its own
+   dark plate, like the frost, so it reads on the moving board in both themes;
+   no gold, which stays with the one primary control. */
+.auth-wsjoin { display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box;
+  padding: 10px 18px 10px 10px; border-radius: 12px; background: rgba(18,16,13,.8);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); text-align: left; }
+.auth-wsjoin-av { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 9px; display: grid; place-items: center;
+  background: #26262a; color: #f5f5f7; font: 700 16px/1 var(--font-sans); }
+.auth-wsjoin-t { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.auth-wsjoin-t b { color: #f5f5f7; font: 600 14px/1.2 var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-wsjoin-t span { color: #a4a4ac; font: 400 13px/1.35 var(--font-sans); }
+
 /* credential line — the whole pitch (IYKYK): "Made by a film studio, …". Sits
    below the form as the last box child; quiet gold tint so it reads as a
    credential, not body copy. */

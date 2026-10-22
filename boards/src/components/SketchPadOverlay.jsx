@@ -36,6 +36,7 @@ import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { useGesture } from '@use-gesture/react';
 import { Sheet } from './shell/Sheet.jsx';
 import { tapIsDouble } from '../lib/doubleTap.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -826,6 +827,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                    aria-label={`Rename ${l.name}`}
                    onBlur={(e) => { renameLayer(l.id, e.target.value); setRenamingId(null); }}
                    onKeyDown={(e) => {
+                     if (isComposingKey(e)) return;
                      if (e.key === 'Enter') { renameLayer(l.id, e.currentTarget.value); setRenamingId(null); }
                      if (e.key === 'Escape') { e.stopPropagation(); setRenamingId(null); }
                    }} />
@@ -1038,9 +1040,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <span className="sp-sep" />
               <div className="sp-brushes">{brushButtons}</div>
               <span className="sp-sep" />
-              {swatches}
+              <div className="sp-swatches">{swatches}</div>
               <span className="sp-sep" />
-              {widths}
+              <div className="sp-widths">{widths}</div>
               {canPickAspect && (
                 <>
                   <span className="sp-sep" />

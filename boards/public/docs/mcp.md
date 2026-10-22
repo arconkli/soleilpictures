@@ -2,7 +2,7 @@
 
 > Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
-_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-10-20_
 
 The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
@@ -184,15 +184,15 @@ quietly failing.
 
 | Tool | Input |
 |---|---|
-| `create_board` | `name`, `workspace_id?`, `parent_board_id?`, `scheduled_date?`, `scheduled_end?`, `day_label?`, `identifiers?`, `props?` |
-| `create_boards` | `boards[]`, `on_conflict?` — build a structure in one call; each entry takes the same schedule fields |
+| `create_board` | `name`, `workspace_id?`, `parent_board_id?`, `identifiers?`, `props?` |
+| `create_boards` | `boards[]`, `on_conflict?` — build a structure in one call; each entry takes the same fields as `create_board` |
 | `add_cards` | `board_id`, `cards[]` — up to 1000, `on_conflict?` |
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
 | `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
-| `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?`, `scheduled_date?`, `scheduled_end?`, `day_label?`, `notify?` |
+| `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?` |
 | `move_boards` | `board_ids[]`, `parent_board_id` |
 | `update_card` | `board_id`, `card_id`, plus any field `add_cards` takes — `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, and any of the eight kinds |
 | `update_cards` | `board_id`, `cards[]` — many at once |
@@ -252,7 +252,7 @@ bodies, and expect it to be large. Both `read_board` and `list_boards` paginate
 **Deleting returns the card.** `delete_card` responds with the card it
 removed. That object is the undo — pass it back to `add_cards` to restore it.
 Worth keeping in context before destructive work. Card kinds `add_cards` does
-not create (grids, palettes, schedules, cluster cards and the like) and docs
+not create (grids, palettes, cluster cards and the like) and docs
 written in the app are the exception: the response lists them in
 `not_restorable`, and they come back from the board's Version history in the
 app instead.

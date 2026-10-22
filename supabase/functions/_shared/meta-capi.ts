@@ -14,6 +14,12 @@
 //   • If META_CAPI_TOKEN is unset, every call is a logged no-op. This file is
 //     therefore safe to deploy BEFORE the access token exists — nothing sends
 //     until the secret is added in the Supabase dashboard.
+//   • Global Privacy Control is honoured here, for everyone, wherever they
+//     are (2026-10-20). An event with optOut set is logged as 'gpc' and never
+//     sent. Every caller passes it, from gpcFrom() or from the checkout
+//     session's metadata.gpc; boards/src/lib/gpc.test.mjs fails on an emitCapi
+//     call without it. The browser half is index.html, which doesn't load the
+//     pixel when navigator.globalPrivacyControl is true.
 //
 // Dedup: every event carries an event_id. Browser-pixel counterparts (Purchase
 // on the success page, CompleteRegistration post-signup) reuse the SAME
@@ -78,6 +84,16 @@ export interface CapiEvent {
   eventSourceUrl?: string | null;
   userData: CapiUserData;
   customData?: Record<string, unknown>;
+  optOut: boolean;                // Global Privacy Control: true = never sent
+}
+
+// Global Privacy Control, as a request carries it: the Sec-GPC header a browser
+// with GPC on sends with every request, or the `gpc: true` the app adds to the
+// body from navigator.globalPrivacyControl, since an extension that turns GPC
+// on in Chrome may set only that.
+export function gpcFrom(req: Request, body?: unknown): boolean {
+  if ((req.headers.get("sec-gpc") || "").trim() === "1") return true;
+  return !!body && typeof body === "object" && (body as { gpc?: unknown }).gpc === true;
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -108,6 +124,11 @@ async function buildUserData(u: CapiUserData): Promise<Record<string, unknown>> 
 // Send one event. Never throws; logs on failure. Returns true iff a request was
 // actually dispatched (false = no-op'd because the token isn't configured).
 export async function sendCapiEvent(ev: CapiEvent): Promise<boolean> {
+  if (ev.optOut) {
+    console.log(`[meta-capi] GPC; not sending ${ev.eventName} (${ev.eventId})`);
+    fireLog(ev.eventName, ev.eventId, false, null, "gpc");
+    return false;
+  }
   if (!TOKEN) {
     console.log(`[meta-capi] no META_CAPI_TOKEN; skipping ${ev.eventName} (${ev.eventId})`);
     fireLog(ev.eventName, ev.eventId, false, null, "no_token");

@@ -4,6 +4,7 @@
 // as N visual lines (the ch-grid matches the paginator's char widths).
 
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 
 async function openScreenplay(page) {
   await page.goto('/?docqa=1');
@@ -12,7 +13,7 @@ async function openScreenplay(page) {
   await expect(page.locator('.doc-card-modal')).toBeVisible();
   await expect(page.locator('.tt-editor').first()).toBeVisible();
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
 }

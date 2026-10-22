@@ -23,11 +23,16 @@
 // rule — the pricing-specific bits are all .pp-*, in styles.css — so the two
 // stylesheets' injection order cannot matter.
 
+import { lazy, Suspense } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, BenefitGrid, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
 import { DEMO_FEATURES, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PLAN_NAME, CREATOR_BENEFITS } from '../lib/billingCopy.js';
 import { PRICING_ANSWER } from '../lib/pricingCrawlable.js';
 import '../pages/seoLanding.css';
+
+// The Team card (the team preview only: PricingPage passes `teamCard`, and
+// nothing else does). Lazy, so the signed-out page and production never load it.
+const TeamPlanCard = lazy(() => import('../components/team/TeamPlanCard.jsx'));
 
 const NO_PROPS = () => ({});
 
@@ -55,6 +60,11 @@ export function PricingPageView({
   showPlanToggle = true,
   showPrice = true,
   footer = null,
+  // The team preview's third card: { plan, seats, setSeats(n), onStart(),
+  // talkNote, onTalk(), heroLine }. Null everywhere but the signed-in preview.
+  // heroLine arrives from PricingPage, so this shared page never imports the
+  // team model.
+  teamCard = null,
 }) {
   const shot = PRICING_PAGE.shot;
 
@@ -92,7 +102,10 @@ export function PricingPageView({
               moves, so the comparison pages keep the hero they were built for. */}
           <header className="seo-hero is-pricing">
             <h1 className="seo-h1">{PRICING_PAGE.h1}</h1>
-            <p className="seo-subhead">{PRICING_PAGE.subhead}</p>
+            <p className="seo-subhead">
+              {PRICING_PAGE.subhead}
+              {teamCard?.heroLine && ` ${teamCard.heroLine}`}
+            </p>
           </header>
 
           {/* THE PLANS, side by side, first. This is the thing a pricing page
@@ -101,7 +114,7 @@ export function PricingPageView({
               surface was a 620px box sitting alone in the left two-thirds of
               an otherwise empty screen, 2,300px down. Nobody could compare two
               plans because the page never put two plans next to each other. */}
-          <section className="pp-plans" id="plans">
+          <section className={`pp-plans${teamCard ? ' is-three' : ''}`} id="plans">
             <article className="pp-plan pp-plan-free">
               {/* The same head row as Creator's, so the two names and the two
                   prices sit level although only Creator's row holds a toggle. */}
@@ -160,7 +173,25 @@ export function PricingPageView({
                 {creatorCta.label}
               </button>
             </article>
+
+            {teamCard && (
+              <Suspense fallback={null}>
+                <TeamPlanCard plan={teamCard.plan} seats={teamCard.seats} setSeats={teamCard.setSeats} onStart={teamCard.onStart} />
+              </Suspense>
+            )}
           </section>
+
+          {teamCard && (
+            <>
+              <p className="pp-talk">
+                Need SSO, invoices or more than 100 seats?{' '}
+                <button type="button" className="pp-talk-link" onClick={teamCard.onTalk}>Talk to us</button>
+              </p>
+              {teamCard.talkNote && (
+                <p className="pp-talk-note">Preview: this opens a short form that reaches us. It comes before launch.</p>
+              )}
+            </>
+          )}
 
           <div className="seo-trust pp-trust">
             <span>{PRICING_PAGE.startFreeSub}</span>

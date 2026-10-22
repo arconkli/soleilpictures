@@ -117,6 +117,9 @@ curl -X DELETE "$SOLEIL_API/service-accounts/$SA" -H "Authorization: Bearer $SOL
 
 Deleting a service account is immediate: every token is revoked and the
 membership is removed, so the credential is dead by the time the call returns.
+A service account also stops when the person who created it leaves the
+workspace or hands it to a new owner: its tokens are revoked, and the new owner
+creates their own.
 The record itself is kept, so past entries in the
 [audit log](/docs/api/authentication) still resolve to a name rather than to a
 deleted id.

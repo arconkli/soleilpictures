@@ -35,6 +35,8 @@ const SERVER_EMITTED = new Map([
   ['REFERRAL_ACTIVATED',     '0163_referrals.sql'],
   ['REFERRAL_REWARD_GRANTED','0163_referrals.sql'],
   ['INVITE_LINK_CLAIMED',    '0189_collab_invite_links.sql / 0199'],
+  ['WORKSPACE_LINK_CLAIMED', '0450_workspace_invite_links.sql'],
+  ['EDITOR_LIMIT_VIEWER_FALLBACK', '0520_editor_limit_core.sql (_editor_limit_fallback, called from 0521)'],
 ]);
 
 // Comments are documentation, not wiring. This file's own header shows a

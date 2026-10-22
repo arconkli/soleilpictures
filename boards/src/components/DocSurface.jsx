@@ -11,16 +11,18 @@
 // (per-tab) — picked from the tree by default, restored from sessionStorage
 // per board so a refresh reopens the same page.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle } from '../lib/docState.js';
+import { paperRoom, railRoom } from '../lib/docRoom.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages, readPageBlocks, getPageSheetIds } from '../lib/docState.js';
+import { RELOAD_EVENT, noteDocReset, refreshDocReset, settleDocReset } from '../lib/docResets.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
-import { uploadImage } from '../lib/uploads.js';
+import { uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
 import { isDocQaMode } from '../lib/localMode.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -34,7 +36,21 @@ import { ScreenplayTitlePage } from './ScreenplayTitlePage.jsx';
 import { ScreenplaySceneNav } from './ScreenplaySceneNav.jsx';
 import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
+import { DocOpening } from './DocOpening.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { IconWeightContext } from './Icon.jsx';
+import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
+import { openableUrl } from '../lib/openableUrl.js';
+
+// The doc look's side panel, footer and one row of tools (held;
+// components/doc/DocFrameA.jsx): lazy, so the doc as it is never downloads
+// the look.
+const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
+const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
+const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
+const DocCommentsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocCommentsTab })));
+const DocFindTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFindTab })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -127,8 +143,44 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // comment surfaces entirely (view-only MEMBERS keep
                               // them — gate on this, not canEdit).
                               isPublic = false,
+                              // true → a doc shared with this reader on its own
+                              // (components/fileShare/DocShareView.jsx), in its
+                              // live room. They may read or edit its words but
+                              // bring nothing in (no images, no cluster embeds,
+                              // no @-links), and the doc's housekeeping (healing
+                              // the mode, seeding a page, following the title) is
+                              // left to its members: the room refuses a guest's
+                              // write outside the doc, and two healers race.
+                              guestMode = false,
+                              // false → no Export in the toolbar (a doc shared without
+                              // "Allow exporting").
+                              allowExport = true,
+                              // The pane this doc sits in beside the canvas
+                              // (lib/activePane.js): its ⌘Z answers only while
+                              // the keyboard is there. null covers every pane.
+                              pane = null,
+                              // The doc look's frame (lib/docFrame.js): its window draws the
+                              // header, whose switches change the page list and the side
+                              // panel this surface keeps. Only the look passes one.
+                              frame = null,
                               onClose }) {
+  // ?docqa=1's crash hook: the harness's crash() makes this doc throw the way
+  // a real render crash would, so doc-crash.spec can drive the boundary
+  // around it. State, not a flag read once, so React's retry of the render
+  // throws too and the error reaches the boundary. The literal
+  // import.meta.env.DEV drops the throw from production builds.
+  const [qaCrash, setQaCrash] = useState(false);
+  useEffect(() => {
+    if (!(import.meta.env.DEV && isDocQaMode())) return undefined;
+    const crash = () => setQaCrash(true);
+    document.addEventListener('soleil-docqa-crash', crash);
+    return () => document.removeEventListener('soleil-docqa-crash', crash);
+  }, []);
+  if (import.meta.env.DEV && isDocQaMode() && (qaCrash || window.__soleilDocCrashAlways)) {
+    throw new Error('docqa: this doc crashed');
+  }
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
+  const lookA = !!frame;
 
   // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —
   // page add/delete/move/rename, sheets, bookmarks, comment threads; not the
@@ -136,10 +188,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // separate by design (see docState.js). While this surface is mounted it
   // OWNS Cmd+Z: CanvasSurface stands down (lib/overlayRouting.js) so a
   // shortcut can never silently undo canvas ops hidden behind the overlay.
+  // In a pane, only while the keyboard is in that pane: the canvas beside it
+  // keeps its own.
   const docUndoManager = useMemo(() => (ydoc ? getDocUndoManager(ydoc, scope) : null), [ydoc, scope]);
   useEffect(() => {
     if (!canEdit || !docUndoManager) return undefined;
-    pushDocUndoTarget(docUndoManager);
+    pushDocUndoTarget(docUndoManager, pane);
     const onKey = (e) => {
       const cmd = e.metaKey || e.ctrlKey;
       if (!cmd || (e.key !== 'z' && e.key !== 'y')) return;
@@ -159,7 +213,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       window.removeEventListener('keydown', onKey);
       removeDocUndoTarget(docUndoManager);
     };
-  }, [canEdit, docUndoManager]);
+  }, [canEdit, docUndoManager, pane]);
   // Subscribe to the awareness instance lazily — it's only created after the
   // realtime channel attaches in yboard.js. getAwareness() returns null
   // until then, and yboard doesn't trigger a re-render here when realtime
@@ -206,6 +260,18 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => { onActivePageChange?.(activePageId || null); }, [activePageId, onActivePageChange]);
   const [rails, setRails] = useState(loadRails);
   useEffect(() => { saveRails(rails); }, [rails]);
+  // Where the doc is too narrow for the page list beside a page (docked beside
+  // the board, one of two side by side: lib/docRoom.js) the list tucks away to
+  // its toggle, which brings it back for as long as the doc stays narrow and
+  // stores nothing: `rails` is how it opens wherever there is room.
+  const [railFits, setRailFits] = useState(true);
+  const [railAskedBack, setRailAskedBack] = useState(false);
+  useEffect(() => { if (railFits) setRailAskedBack(false); }, [railFits]);
+  const railOpen = railFits ? rails.left : railAskedBack;
+  const toggleRail = () => {
+    if (railFits) setRails(r => ({ ...r, left: !r.left }));
+    else setRailAskedBack(v => !v);
+  };
   // On phone the rail is a slide-over drawer (the desktop rail + its only
   // toggle are display:none at <=640px, which stranded multi-page navigation).
   const [mobileRailOpen, setMobileRailOpen] = useState(false);
@@ -267,10 +333,28 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // awareness, could both heal — that needs stranded lines too, so it is
   // vanishingly rare, which is not true of converting on every mount.)
   useEffect(() => {
-    if (!canEdit || !awareness) return;
+    if (!canEdit || !awareness || guestMode) return;
     if (awareness.clientID !== Math.min(...awareness.getStates().keys())) return;
     try { healDocMode(ydoc, scope); } catch (_) {}
   }, [ydoc, scope, canEdit, awareness, docMode]);
+  // Clear the extra entries a page is left with when two edits to it meet
+  // (docState.healPages). Unlike the mode, any editor may: it only deletes,
+  // never anything the list shows, so two at once agree. A beat after the list
+  // last changed, never mid-drag; it is no undo step. Viewers and guests leave
+  // it to the doc's members, as they do the mode.
+  useEffect(() => {
+    if (!ready || !canEdit || guestMode) return undefined;
+    const arr = pagesArray(ydoc, scope);
+    if (!arr) return undefined;
+    let timer = 0;
+    const soon = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { try { healPages(ydoc, scope); } catch (_) {} }, 2000);
+    };
+    soon();
+    arr.observe(soon);
+    return () => { clearTimeout(timer); arr.unobserve(soon); };
+  }, [ydoc, scope, ready, canEdit, guestMode]);
   // Only an editor converts, and only the one who flipped: switchDocMode
   // rewrites the content in the same transaction as the mode.
   const toggleScreenplay = useCallback(() => {
@@ -378,10 +462,22 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // content fragment — so on a phone it simply shows continuous (the reader's
   // view only: the doc's Pages setting, exports and wider screens keep real
   // pages). Pageless prose is already fluid and fits a phone on its own.
-  const { isPhone } = useBreakpoint();
+  //
+  // Not phones only: a doc docked beside the board, or one of two side by
+  // side, can be as narrow as a phone's on any screen, so the paper's own width
+  // decides (lib/docRoom.js). Narrower than a page, a script fits its column
+  // as on a phone, and prose takes the narrow margins (is-narrow / is-tight)
+  // without leaving its pages; coming into a narrow pane fits the script again,
+  // whatever zoom it was given with room.
+  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  // Where the page list is a drawer rather than a column (styles.css's mobile
+  // shell, App.jsx mobileShell): a phone, or a tablet under a finger.
+  const drawerRail = isPhone || (isTablet && isTouch);
   const phoneReflow = isPhone && docMode !== 'screenplay' && !pageless;
   const layoutPageless = pageless || phoneReflow;
-  const fitEligible = isPhone && docMode === 'screenplay';
+  const [room, setRoom] = useState('page');
+  const roomRef = useRef('page');
+  const fitEligible = docMode === 'screenplay' && (isPhone || room !== 'page');
   const [fitWanted, setFitWanted] = useState(true);
   const fitMode = fitEligible && fitWanted;
   const [fitZoom, setFitZoom] = useState(1);
@@ -390,6 +486,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const paper = paperRef.current;
     if (!paper || typeof ResizeObserver === 'undefined') return undefined;
     const measure = () => {
+      const nextRoom = paperRoom(paper.clientWidth, roomRef.current);
+      if (nextRoom !== roomRef.current) {
+        if (roomRef.current === 'page') setFitWanted(true);
+        roomRef.current = nextRoom;
+        setRoom(nextRoom);
+      }
       // clientWidth excludes the scrollbar; subtracting the paper's own
       // horizontal padding is what makes this self-consistent with the
       // .is-fit-width padding overrides in CSS.
@@ -417,7 +519,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   }, [fitMode, docMode, sceneNumbersShow, ready]);
 
   // Column fit: the sheet is now wider than the paper, so open it scrolled to
-  // where the column starts (the left margin is a pan away). Once per fitted
+  // the column, centred in the width (on a phone the column fills it; in a
+  // pane with room to spare, a little of each margin shows). A sheet that fits
+  // whole has nothing to pan to: its auto margins centre it. Once per fitted
   // zoom, so rotation re-centres it but a sheet added while typing doesn't
   // yank a panned view back. It has to wait for the sheet itself: on a cold
   // open (no remembered page) the paper first renders the empty state, and
@@ -428,8 +532,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     const paper = paperRef.current;
     if (!fitMode || !paper) return undefined;
     const apply = () => {
+      const cs = getComputedStyle(paper);
+      const avail = paper.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+      if (PAGE_W * fitZoom <= avail) return true;
       if (paper.scrollWidth <= paper.clientWidth) return false;
-      paper.scrollLeft = SP_LEFT_MARGIN * fitZoom;
+      paper.scrollLeft = SP_LEFT_MARGIN * fitZoom - Math.max(0, (avail - SP_COLUMN_W * fitZoom) / 2);
       return true;
     };
     if (apply() || typeof MutationObserver === 'undefined') return undefined;
@@ -460,6 +567,64 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   };
 
   const [findOpen, setFindOpen] = useState(false);
+
+  // The doc look's side panel (Comments, Find, and Elements for a screenplay):
+  // open or not and on which tab, the reader's own for every doc they open.
+  // Not for the public viewer, who has no comments to see. On a phone it is a
+  // sheet over the doc, so a doc opens with it put away there, and putting
+  // it away there isn't kept.
+  const [panel, setPanel] = useState(() => (isPhone ? { ...readDocPanel(), open: false } : readDocPanel()));
+  useEffect(() => { if (lookA && !isPhone) writeDocPanel(panel); }, [lookA, panel, isPhone]);
+  const panelOpen = lookA && !isPublic && panel.open;
+  const panelSheet = panelOpen && isPhone;
+  const closePanel = useCallback(() => setPanel((p) => ({ ...p, open: false })), []);
+  // ⌘F and the bar's Find: in the doc look, the side panel's Find, searching
+  // for the words selected in the text (within one block: a search never runs
+  // across two); the find bar for the public viewer and outside the look.
+  const [findSeed, setFindSeed] = useState(null);
+  const openFind = () => {
+    if (!lookA || isPublic) { setFindOpen(true); return; }
+    let q = '';
+    try {
+      const { state } = editorRef.current;
+      const { $from, $to, empty } = state.selection;
+      if (!empty && $from.sameParent($to)) q = state.doc.textBetween($from.pos, $to.pos);
+    } catch (_) {}
+    setPanel({ open: true, tab: 'find' });
+    setFindSeed((s) => ({ q: q.length <= 200 ? q : '', n: (s?.n || 0) + 1 }));
+  };
+  const openFindRef = useRef(openFind);
+  openFindRef.current = openFind;
+  const openComments = useMemo(() => comments.filter((t) => !t.resolved).length, [comments]);
+  // The thread the panel's Comments has picked (its words lit in the page),
+  // and the one just jumped to (its words flashed).
+  const [panelThread, setPanelThread] = useState(null);
+  const [flashThread, setFlashThread] = useState(null);
+  const showThreadInPanel = useCallback((id) => {
+    setPanel({ open: true, tab: 'comments' });
+    setPanelThread(id);
+  }, []);
+  // A flash is once: gone when it's done, or a span ProseMirror redraws later
+  // (typing in those words) would flash again.
+  useEffect(() => {
+    if (!flashThread) return undefined;
+    const t = setTimeout(() => setFlashThread(null), 1500);
+    return () => clearTimeout(t);
+  }, [flashThread]);
+  // What the look's header shows and switches (lib/docFrame.js): the page
+  // list, as a column or, on a phone or a tablet under a finger, the drawer;
+  // and the panel, which its button opens on Comments and closes from any tab.
+  useLayoutEffect(() => {
+    if (!frame) return;
+    frame.act.toggleRail = () => {
+      if (!drawerRail) { toggleRail(); return; }
+      setRails((r) => ({ ...r, left: true }));
+      setMobileRailOpen((o) => !o);
+    };
+    frame.act.togglePanel = (tab = 'comments') => setPanel((p) => (p.open ? { ...p, open: false } : { open: true, tab }));
+    frame.publish({ railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments });
+  });
+  useEffect(() => () => frame?.reset(), [frame]);
   // Embed-board picker — DocPageEditor calls our request fn (which sets a
   // pending callback); the picker, on selection, runs the callback so the
   // editor inserts the embed at the cursor.
@@ -479,17 +644,26 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
 
   // ⌘F opens find. ⌘⇧F also opens find (legacy macOS Pages-style).
   // ⌘+ / ⌘- / ⌘0 zoom in / out / reset (when the cursor is in this doc).
+  // THIS doc: two can be open at once (docked, and beside it or fullscreen
+  // over it), and a check for any doc's surface opened find in both.
+  const rootRef = useRef(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => setRailFits((prev) => railRoom(root.clientWidth, prev));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [ready]);
   useEffect(() => {
     const onKey = (e) => {
       const cmd = e.metaKey || e.ctrlKey;
       if (!cmd) return;
-      const inDoc = e.target?.closest?.('.tt-editor')
-                 || e.target?.closest?.('.doc-find')
-                 || e.target?.closest?.('.doc-surface');
-      if (!inDoc) return;
+      if (!rootRef.current?.contains?.(e.target)) return;
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        setFindOpen(true);
+        openFindRef.current();
       } else if (e.key === '=' || e.key === '+') {
         e.preventDefault();
         setZoom((z) => z + ZOOM_STEP);
@@ -540,8 +714,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => {
     if (!ready || seededRef.current) return;
     // A reader's seed would exist only in their tab (the board room drops a
-    // viewer's writes) — they get the "Nothing open yet" state instead.
-    if (!canEdit) return;
+    // viewer's writes) — they get the "Nothing open yet" state instead. So
+    // does a guest: the doc's members seed it.
+    if (!canEdit || guestMode) return;
     if (pages.length === 0) {
       seededRef.current = true;
       const id = addPage(ydoc, { name: titleOverride || board.name || 'Untitled', scope });
@@ -567,7 +742,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   useEffect(() => {
     const prev = prevTitleRef.current;
     prevTitleRef.current = titleOverride;
-    if (!titleOverride || titleOverride === prev || !pages.length) return;
+    if (!titleOverride || titleOverride === prev || !pages.length || guestMode) return;
     followTitle(ydoc, scope, prev, titleOverride);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titleOverride]);
@@ -673,9 +848,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
 
   const handleNavigateTarget = (target) => {
     switch (target?.kind) {
-      case 'url':
-        window.open(target.href, '_blank', 'noopener,noreferrer');
+      case 'url': {
+        const u = openableUrl(target.href);
+        if (u) window.open(u, '_blank', 'noopener,noreferrer');
         break;
+      }
       // Internal navigation (board/card/doc/docPos) is wired up by App.jsx's
       // navigation in a follow-up wiring task; for Phase 2 we just log.
       default:
@@ -738,6 +915,94 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     }
     exposeEditor(ed);
   };
+
+  // The side panel shows a place in the doc: its page opened first if it isn't
+  // the one open, and once that page's editors are up, `locate` finds the
+  // place in them ({ ed, from, to }, or null while it can't) and `land` shows
+  // it. A newer request drops an older one still waiting.
+  const revealRef = useRef(0);
+  const reveal = (pageId, locate, land) => {
+    const run = ++revealRef.current;
+    const want = pageId || activePageId;
+    if (!want) return;
+    if (want !== activePageId) setActivePageId(want);
+    let tries = 0;
+    const tick = () => {
+      if (run !== revealRef.current) return;
+      const eds = getPageSheetIds(ydoc, want, scope).map((sid) => editorsRef.current.get(sid));
+      const hit = eds.every((ed) => ed && !ed.isDestroyed) ? locate(eds) : null;
+      if (hit) { land(hit); return; }
+      if (tries++ < 50) setTimeout(tick, 40);
+    };
+    tick();
+  };
+  // A thread's words: scrolled to the middle of the page and flashed (on a
+  // phone, with the sheet put away from over them).
+  const jumpToThread = (id, pageId) => {
+    if (panelSheet) closePanel();
+    reveal(pageId, (eds) => {
+      for (const ed of eds) {
+        const el = ed.view.dom.querySelector(`.tt-comment[data-comment-id="${CSS.escape(id)}"]`);
+        if (el) return { ed, el };
+      }
+      return null;
+    }, ({ el }) => {
+      el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      setFlashThread((f) => ({ id, n: (f?.n || 0) + 1 }));
+    });
+  };
+
+  // The cluster this doc is on, reloading under it: a restore, cards moved
+  // into it, a repair (lib/docResets.js). It is told before its old copy goes,
+  // so note the page this is and what the page holds, and again as this
+  // surface goes with the cluster's cards, so a key typed in between counts.
+  // The doc that comes back for this card says what happened (below).
+  const reloadSeenRef = useRef({ activePageId, pages, title: titleOverride || '' });
+  reloadSeenRef.current = { activePageId, pages, title: titleOverride || '' };
+  useEffect(() => {
+    const boardId = scope?.boardId;
+    const cardId = scope?.cardId;
+    if (!boardId || !cardId || !ydoc || isPublic || guestMode) return undefined;
+    let noted = false;
+    const held = () => {
+      const { activePageId: pageId = null, pages: list = [] } = reloadSeenRef.current;
+      const eds = [...editorsRef.current.values()].filter((ed) => ed && !ed.isDestroyed);
+      const blocks = (pageId && readPageBlocks(ydoc, pageId, scope)) || [];
+      return {
+        pageId,
+        pageName: list.find((p) => p.id === pageId)?.name || '',
+        blocks,
+        text: eds.length ? eds.map((ed) => ed.getText({ blockSeparator: '\n\n' })).join('\n\n') : blocks.join('\n\n'),
+        html: eds.map((ed) => ed.getHTML()).join(''),
+      };
+    };
+    const onReload = (e) => {
+      if (e.detail?.boardId !== boardId) return;
+      noted = true;
+      try {
+        noteDocReset({
+          boardId, cardId, docGuid: ydoc.guid, title: reloadSeenRef.current.title,
+          reason: e.detail.reason, canEdit, ...held(),
+        }, { feedback });
+      } catch (_) { /* a doc too broken to read still reloads */ }
+    };
+    window.addEventListener(RELOAD_EVENT, onReload);
+    return () => {
+      window.removeEventListener(RELOAD_EVENT, onReload);
+      if (noted) { try { refreshDocReset(cardId, held()); } catch (_) {} }
+    };
+  }, [ydoc, scope, canEdit, isPublic, guestMode, feedback]);
+  // Back after such a reload, on the cluster as it came back: say what
+  // happened, now that the page can be set beside what it held. Once
+  // (StrictMode's second run finds it said).
+  useEffect(() => {
+    if (!ready || !ydoc || !scope?.boardId || !scope?.cardId) return;
+    settleDocReset({
+      boardId: scope.boardId, cardId: scope.cardId, docGuid: ydoc.guid,
+      pageBlocks: (pageId) => readPageBlocks(ydoc, pageId, scope),
+      feedback,
+    });
+  }, [ready, ydoc, scope, feedback]);
 
   // Mobile soft-keyboard: the layout viewport doesn't shrink when the iOS/
   // Android keyboard opens, so the caret + footer can hide behind it. Pad the
@@ -950,22 +1215,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     addBookmark(ydoc, { name: name.trim() || 'Bookmark', pageId: activePageId, sheetId, anchor, relAnchor, scope });
   };
 
-  // Toolbar "+" insert menu — upload an image from disk into the active editor.
+  // Toolbar "+" insert menu — an image from disk, into the active editor at
+  // its caret (docExtensions/ImageUpload.js, the path a paste or drop takes).
   const pickImageFromDisk = (editor) => {
     if (!editor) return;
     if (!workspaceId || !userId) { feedback.toast({ type: 'error', message: 'Sign in to add images.' }); return; }
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0];
-      if (!file || !file.type?.startsWith('image/')) return;
-      try {
-        const payload = await uploadImage({ file, workspaceId, userId });
-        editor.chain().focus().setImage({ src: payload.publicUrl }).run();
-      } catch (e) {
-        console.error('image upload failed', e);
-        feedback.toast({ type: 'error', message: `Image upload failed: ${e?.message || e}` });
-      }
+      if (file) uploadImageIntoDoc(editor, file, { workspaceId, userId, scope, toast: (t) => feedback.toast(t) });
     };
     input.click();
   };
@@ -982,34 +1241,31 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     });
   };
 
-  if (!ready) {
-    return (
-      <div className="doc-surface">
-        <div className="doc-loading">
-          <span className="t-eyebrow">Document</span>
-          <div className="doc-state-title">Opening…</div>
-          <div className="doc-state-sub">Syncing the latest changes.</div>
-        </div>
-      </div>
-    );
-  }
+  if (!ready) return <DocOpening />;
 
   return (
-    <div className={`doc-surface no-right-rail ${rails.left ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
+    // The look's icons are Phosphor's regular, the sidebar's weight; outside
+    // it the floor is unset, as everywhere else.
+    <IconWeightContext.Provider value={lookA ? 'regular' : null}>
+    <div ref={rootRef} className={`doc-surface ${lookA ? 'dl-surface' : 'no-right-rail'} ${railOpen ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}${panelOpen ? ' has-panel' : ''}${panelOpen && panel.tab === 'comments' ? ' has-panel-comments' : ''}`}>
       {/* Phone-only backdrop that closes the page drawer. */}
       {mobileRailOpen && <div className="doc-rail-backdrop" onClick={() => setMobileRailOpen(false)} />}
       {/* Left rail — page tree */}
       <aside className="doc-rail doc-rail-left">
+        {/* In the doc look the window's header has the page list's toggle. */}
+        {!lookA && (
         <button className="doc-rail-toggle"
-                title={rails.left ? 'Hide pages' : 'Show pages'}
-                aria-label={rails.left ? 'Hide pages' : 'Show pages'}
-                aria-expanded={rails.left}
-                onClick={() => setRails(r => ({ ...r, left: !r.left }))}>
+                title={railOpen ? 'Hide pages' : 'Show pages'}
+                aria-label={railOpen ? 'Hide pages' : 'Show pages'}
+                aria-expanded={railOpen}
+                onClick={toggleRail}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d={rails.left ? 'M8 3 L4 7 L8 11' : 'M6 3 L10 7 L6 11'} />
+            <path d={railOpen ? 'M8 3 L4 7 L8 11' : 'M6 3 L10 7 L6 11'} />
           </svg>
         </button>
-        {rails.left && (
+        )}
+        {/* In the rail, or in the phone and tablet drawer. */}
+        {(railOpen || mobileRailOpen) && (
           <DocPageTree
             ydoc={ydoc}
             scope={scope}
@@ -1029,9 +1285,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit && !isPublic}
             defaultName={titleOverride || board.name || 'Untitled'}
+            look={lookA}
           />
         )}
-        {rails.left && (
+        {(railOpen || mobileRailOpen) && (
           <DocBookmarkList
             ydoc={ydoc}
             scope={scope}
@@ -1039,9 +1296,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             pages={pages}
             canEdit={canEdit && !isPublic}
             onJump={(id) => { setLocalBookmarkJump({ bookmarkId: id }); setMobileRailOpen(false); }}
+            look={lookA}
           />
         )}
-        {rails.left && docMode === 'screenplay' && (
+        {(railOpen || mobileRailOpen) && docMode === 'screenplay' && (
           <ScreenplaySceneNav
             editor={editorRef.current}
             titlePageEnabled={titlePage.enabled}
@@ -1060,6 +1318,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             is hidden under the mobile-shell query). Opens the rail as a
             slide-over drawer. Labelled "Page list", not "Pages": it sits right
             above the toolbar's "Pages" layout toggle, which does another job. */}
+        {!lookA && (
         <button className="doc-mobile-pages-btn"
                 aria-label={docMode === 'screenplay' ? 'Pages and scenes' : 'Page list'} aria-expanded={mobileRailOpen}
                 onClick={() => { setRails(r => ({ ...r, left: true })); setMobileRailOpen(o => !o); }}>
@@ -1070,7 +1329,36 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               or the only way to jump between scenes on a phone is invisible. */}
           {docMode === 'screenplay' ? 'Scenes' : 'Page list'}
         </button>
-        {!isPublic && (
+        )}
+        {/* The doc look's one row (a screenplay keeps today's bar until its
+            own row lands; a reader gets Find, the zoom and Export). */}
+        {!isPublic && lookA && (docMode !== 'screenplay' || !canEdit) && (
+          <Suspense fallback={<div className="dl-cap" aria-hidden="true"><div className="dl-bar-ph" /></div>}>
+            <DocBarA editor={editorRef.current}
+                     docName={board.name}
+                     ydoc={ydoc}
+                     scope={scope}
+                     docMode={docMode}
+                     onToggleScreenplay={canEdit ? toggleScreenplay : null}
+                     pageless={pageless}
+                     pagesShownContinuous={phoneReflow}
+                     onTogglePageless={onTogglePageless}
+                     onInsertBookmark={insertBookmarkAtCaret}
+                     onInsertImage={guestMode ? null : pickImageFromDisk}
+                     onInsertBoardEmbed={guestMode ? null : pickBoardEmbed}
+                     onOpenFind={openFind}
+                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
+                     onAddComment={() => openAddCommentRef.current?.()}
+                     zoom={effectiveZoom}
+                     fitEligible={fitEligible}
+                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
+                     onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
+                     onZoomReset={resetZoom}
+                     canEdit={canEdit}
+                     canExport={allowExport} />
+          </Suspense>
+        )}
+        {!isPublic && !(lookA && (docMode !== 'screenplay' || !canEdit)) && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
                     ydoc={ydoc}
@@ -1085,9 +1373,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     pagesShownContinuous={phoneReflow}
                     onTogglePageless={onTogglePageless}
                     onInsertBookmark={insertBookmarkAtCaret}
-                    onInsertImage={pickImageFromDisk}
-                    onInsertBoardEmbed={pickBoardEmbed}
-                    onOpenFind={() => setFindOpen(true)}
+                    canExport={allowExport}
+                    onInsertImage={guestMode ? null : pickImageFromDisk}
+                    onInsertBoardEmbed={guestMode ? null : pickBoardEmbed}
+                    onOpenFind={openFind}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
                     onAddComment={() => openAddCommentRef.current?.()}
                     zoom={effectiveZoom}
@@ -1102,7 +1391,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                         open={findOpen}
                         canEdit={canEdit && !isPublic}
                         onClose={() => setFindOpen(false)} />
-        <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && layoutPageless ? ' is-pageless' : ''}`} ref={paperRef}
+        <div className={`doc-paper${fitMode ? ' is-fit-width' : ''}${room !== 'page' ? ' is-narrow' : ''}${room === 'tight' ? ' is-tight' : ''}${docMode === 'screenplay' ? ' is-screenplay' : ''}${docMode === 'screenplay' && sceneNumbersShow ? ' show-scene-numbers' : ''}${docMode !== 'screenplay' && layoutPageless ? ' is-pageless' : ''}`} ref={paperRef}
              style={{ position: 'relative', '--doc-zoom': effectiveZoom }}>
           {/* Grain texture is painted as a background-image on .doc-paper
               with background-attachment:local so it tiles across the
@@ -1150,9 +1439,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 onNavigateTarget={handleNavigateTarget}
                 registerOpenLinkPicker={registerOpenLinkPicker}
                 registerOpenAddComment={registerOpenAddComment}
+                onShowThread={lookA && !isPublic ? showThreadInPanel : null}
                 boards={Object.values(boards || {})}
                 editable={canEdit}
                 isPublic={isPublic}
+                guestMode={guestMode}
                 onDeleteSheet={canEdit && sid !== activePageId ? () => deleteSheet(sid) : null}
               />
             ))
@@ -1167,9 +1458,62 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               The manual "+ New page" sheet button is obsolete in the reflow model. */}
         </div>
         {/* Save state is reported per HOST board (yboard persists the board
-            that holds the doc); board.id here is the doc card's id. */}
-        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={scope?.boardId || (scope ? null : board.id)} />
+            that holds the doc); board.id here is the doc card's id. In the
+            doc look the footer runs under the whole window instead (below). */}
+        {!lookA && (
+        <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={scope?.boardId || (scope ? null : board.id)}
+                         showSave={!guestMode} />
+        )}
       </section>
+
+      {panelOpen && (
+        <Suspense fallback={null}>
+          <DocSidePanel tab={panel.tab} onTab={(tab) => setPanel((p) => ({ ...p, tab }))}
+                        sheet={panelSheet} onClose={closePanel}
+                        host={panelSheet ? rootRef.current?.closest('.doc-card-modal') || null : null}
+                        screenplay={docMode === 'screenplay'} openComments={openComments}
+                        onEscape={() => { try { editorRef.current?.commands.focus(); } catch (_) {} }}>
+            {{
+              comments: (
+                <DocCommentsTab ydoc={ydoc} scope={scope} threads={comments}
+                                editor={editorRef.current} currentUser={currentUser}
+                                canEdit={canEdit && !guestMode}
+                                workspaceId={workspaceId} boardId={scope?.boardId || null} cardId={scope?.docCardId || null}
+                                selectedId={panelThread} onSelect={setPanelThread} onJump={jumpToThread} />
+              ),
+              find: (active) => (
+                <DocFindTab ydoc={ydoc} scope={scope} canEdit={canEdit && !guestMode}
+                            active={active} activePageId={activePageId}
+                            editorsOf={(pid) => (pid ? getPageSheetIds(ydoc, pid, scope) : [])
+                              .map((sid) => editorsRef.current.get(sid)).filter((ed) => ed && !ed.isDestroyed)}
+                            reveal={reveal} seed={findSeed} sheet={panelSheet}
+                            onLeave={panelSheet ? closePanel : null} />
+              ),
+            }}
+          </DocSidePanel>
+        </Suspense>
+      )}
+      {/* The picked thread's words lit in the page, and the one jumped to
+          flashed: a rule on the mark's id, since ProseMirror owns the spans
+          and redraws over a class put on one. Ids are the comment keys'
+          (lib/commentKeys.js), so nothing in one needs escaping. */}
+      {panelOpen && panel.tab === 'comments' && /^[A-Za-z0-9_-]{1,64}$/.test(panelThread || '') && (
+        <style>{`.dl-surface .tt-comment[data-comment-id="${panelThread}"]{background:var(--soleil-soft);text-decoration-color:var(--soleil)}`}</style>
+      )}
+      {flashThread && /^[A-Za-z0-9_-]{1,64}$/.test(flashThread.id) && (
+        <style>{`.dl-surface .tt-comment[data-comment-id="${flashThread.id}"]{animation:${flashThread.n % 2 ? 'dl-flash-a' : 'dl-flash-b'} 1.4s ease-out}`}</style>
+      )}
+      {lookA && (
+        <Suspense fallback={null}>
+          <DocFootA editor={editorRef.current} boardId={scope?.boardId || (scope ? null : board.id)}
+                    showSave={!guestMode}
+                    zoom={effectiveZoom} fitMode={fitMode} fitEligible={fitEligible}
+                    onZoom={(z) => setZoom(z)}
+                    onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
+                    onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
+                    onZoomReset={resetZoom} />
+        </Suspense>
+      )}
 
       {embedPickerOpen && (
         <DocBoardEmbedPicker
@@ -1180,5 +1524,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       )}
 
     </div>
+    </IconWeightContext.Provider>
   );
 }

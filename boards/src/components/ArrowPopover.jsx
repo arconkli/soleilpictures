@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ARROW_COLOR_KEYS, ARROW_COLOR_TOKENS, arrowHeadStyle, isCustomArrowColor,
 } from '../lib/arrowGeometry.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const THICKNESS_LABELS = { thin: 'Thin', medium: 'Medium', thick: 'Thick' };
 
@@ -199,6 +200,7 @@ export function ArrowPopover({
             if (v !== (arrow.label || '')) commit({ label: v || null });
           }}
           onKeyDown={(e) => {
+            if (isComposingKey(e)) return;
             if (e.key === 'Enter') { e.currentTarget.blur(); }
             if (e.key === 'Escape') {
               setLabelDraft(arrow.label || '');

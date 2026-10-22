@@ -12,7 +12,7 @@
 //     some by aliasing them to a different, pricier model, so calls go on
 //     working and only the catalog shows it,
 //   - or fails a tiny known request, read the way production reads it.
-// On Mondays it also lists the models Cloudflare added in the tasks used here.
+// On Sundays it also lists the models Cloudflare added in the tasks used here.
 //
 // The ids stay as literals where they are called. aiModels.test.mjs fails when
 // a literal in the code is missing here, when an entry's `files` disagree with
@@ -370,7 +370,7 @@ export function watchAlert(source, err) {
 // cut, which would otherwise drop the list of models in use off the end.
 const LISTED = 8;
 
-// The Monday email listing the catalog's new models, or null when there are none.
+// The Sunday email listing the catalog's new models, or null when there are none.
 export function digestAlert(fresh) {
   if (!fresh?.length) return null;
   const lines = fresh.slice(0, LISTED).map((m) => {

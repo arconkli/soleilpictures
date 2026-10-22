@@ -74,7 +74,7 @@ function makeNamespacedStorage(suffix) {
   };
 }
 
-export const supabase = (url && publicKey)
+export let supabase = (url && publicKey)
   ? createClient(url, publicKey, {
       auth: {
         persistSession: true,
@@ -103,6 +103,26 @@ export const supabase = (url && publicKey)
   : null;
 
 export const isSupabaseConfigured = !!supabase;
+
+// The signed-in account's id, from the stored session. Never auth.getUser()
+// for this: it asks the auth server and holds the auth lock above for the
+// whole round trip, and every query reads its token through getSession()
+// under that same lock, so all of them wait behind it (a boot made four or
+// five, one after another, and the Workspace's reads queued behind every
+// one). RLS checks the token on each query; the id here is only a filter.
+export async function sessionUserId() {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.id || null;
+}
+
+// Dev-only seam for the Messages QA harness (?msgqa=1, local/MessagesQaHarness):
+// swaps in an in-memory fake. `supabase` is a live ES binding, so every importer
+// sees the fake at call time. The DEV literal lets Vite drop this in production.
+export function installSupabaseForQa(fake) {
+  if (!import.meta.env.DEV) return;
+  supabase = fake;
+}
 
 // A browser that refuses the WebSocket made every channel().subscribe() throw
 // out of its React effect (realtime-js rethrows the constructor failure from

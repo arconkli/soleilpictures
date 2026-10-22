@@ -51,6 +51,7 @@ import SimWorker from './universeSimWorker.js?worker';
 import { galaxyOrbit, starTemp, starMagnitude } from '../../lib/universeLayout.js';
 import { fetchSnapshotPage, useUniverseDeltas } from './useUniverseStream.js';
 import { collectSnapshot } from '../../lib/universePaging.js';
+import { makeMomentEngine } from './universeMomentEngine.js';
 
 // ── Per-kind palette — copied from boards/src/lib/graphData.js
 //    with two admin-only additions (user + ws). User reads as a
@@ -80,25 +81,52 @@ const COLOR = {
   board_:    '#c4a96b',
   boardlink: '#c4a96b',
   doc_card:  '#e6c98a',
-  card:      '#7c8a98',   // shape / video / schedule / art / pdf / audio / file
+  card:      '#7c8a98',   // shape / video / art / pdf / audio / file, and retired kinds (schedule)
   url:       '#8c7a55',
 };
 
 // Legend rows for the Universe HUD, in the order they should read. `card`
 // is the explicit catch-all so the neutral slate is never unexplained.
+//
+// Three rows share the cluster hue (`hue`) without sharing a count. "Boards"
+// used to be all of them at once: every live cluster, each workspace's Studio
+// and every nested cluster's card, which made the legend's figure far bigger
+// than the ticker's Clusters for what read as the same thing.
+// Clusters is now the ticker's population, the clusters people made.
 export const KIND_LEGEND = [
-  { key: 'board',   label: 'Boards'    },
+  { key: 'board',       label: 'Clusters',
+    hint: 'Clusters people made: the ticker\'s Clusters.' },
+  { key: 'studio',      label: 'Studios',       hue: 'board',
+    hint: 'The top-level cluster every workspace is born with.' },
+  { key: 'clustercard', label: 'Cluster cards', hue: 'board',
+    hint: 'A nested cluster\'s card on the canvas it sits in. The cluster itself is counted under Clusters.' },
   { key: 'image',   label: 'Images'    },
   { key: 'note',    label: 'Notes'     },
   { key: 'grid',    label: 'Grids'     },
   { key: 'link',    label: 'Links'     },
   { key: 'palette', label: 'Palettes'  },
   { key: 'doc',       label: 'Docs'       },
-  { key: 'boardlink', label: 'Board links' },
-  { key: 'card',      label: 'Other'      },
+  { key: 'boardlink', label: 'Linked clusters' },
+  { key: 'card',      label: 'Other',
+    hint: 'Shapes, videos, PDFs, audio, files, art and retired kinds: too rare to earn their own hue' },
   { key: 'ws',        label: 'Workspaces' },
 ];
 export const KIND_COLORS = COLOR;
+
+// The card kinds with a legend row of their own. Any other card counts under
+// 'card', the Other row, so every drawn card lands in exactly one row.
+const LEGEND_CARD_KINDS = new Set(['image', 'note', 'grid', 'link', 'palette', 'doc', 'boardlink']);
+
+// The legend row a node belongs to: what the legend counts, what a row hides,
+// and what pointing at a row lifts back to its true hue. A Studio is known by
+// the wsroot edge that reaches it (see markStudio).
+function legendKeyOf(node) {
+  if (node.kind === 'board') return node.studio ? 'studio' : 'board';
+  const k = node.cardKind;
+  if (!k) return node.kind;
+  if (k === 'board') return 'clustercard';
+  return LEGEND_CARD_KINDS.has(k) ? k : 'card';
+}
 
 // Edge tints — match the per-workspace HomeGraph look exactly.
 // HomeGraph uses rgba(91,87,78,.45) structural + rgba(255,165,0,.55)
@@ -239,6 +267,17 @@ const HOT_DURATION_MS   = 60000;
 const RING_MAX_SCALE    = 26;      // multiples of the node's own radius
 const HOT_HALO_BOOST    = 2.2;     // peak halo multiplier, decaying to 1
 
+// A node's resting halo, in multiples of its radius. One constant because the
+// afterglow restores it: when the two numbers differed (3.7 there, 3.1 here)
+// every arrival kept a halo a fifth too big for the rest of the session.
+//
+// 3.7 was tuned for a categorical palette where washing out did not cost
+// anything. Additive halos of DIFFERENT hues sum toward white, so in a dense
+// card swarm the halos — not the discs — are what decides the colour, and a big
+// one throws the star's hue away. Smaller halo, same glow on the bright tail
+// (their radius is large anyway), far less overlap among the faint many.
+const HALO_SCALE        = 3.1;
+
 // Activity sparks — "somebody is working here right now".
 //
 // The universe is a map of what EXISTS, and creation is rare. But people open
@@ -262,6 +301,13 @@ const SPARK_COLOR       = new THREE.Color('#dfe7f2');
 // start costing frames. Click picking has no ceiling; it stays exact forever.
 const HOVER_THROTTLE_MS = 70;
 const HOVER_MAX_NODES   = 200_000;
+
+// The shortest gap between two drawn frames while nobody is steering (see the
+// render loop), on rAF's own timestamps, which step in whole frames of the
+// display: 8.3 ms at 120 Hz, 10 at 100 Hz, 16.7 at 60. Between 120's step and
+// 100's, so 60, 90 and 100 Hz displays draw every frame, and 120, 144 and
+// 165 Hz every other one.
+const IDLE_FRAME_MS = 9.2;
 
 function nextPow2(n, base) { let c = base; while (c < n) c *= 2; return c; }
 
@@ -413,12 +459,23 @@ function edgeKeyOf(raw) {
   return `${raw.source_id}${UNIT_SEP}${raw.target_id}${UNIT_SEP}${raw.edge_kind}`;
 }
 
-// Legend tallies. Cards count under their card kind when it has its own hue,
-// otherwise under 'card' — which is exactly the bucket the legend labels
-// "Other", so the neutral slate is always accounted for.
+// Legend tallies, one row per node (legendKeyOf).
 function countKind(refs, node) {
-  const key = node.cardKind && COLOR[node.cardKind] ? node.cardKind : node.kind;
+  const key = legendKeyOf(node);
   refs.kindCounts.set(key, (refs.kindCounts.get(key) || 0) + 1);
+}
+
+// A wsroot edge runs from a workspace to its top-level cluster, and the edge
+// RPC draws one exactly where admin_universe_stats counts a Studio (no parent,
+// not trashed). The node row says nothing about it, so the Studio is learned
+// here and its tally moves across. Returns whether anything changed.
+function markStudio(refs, idx) {
+  const n = refs.nodes[idx];
+  if (!n || n.kind !== 'board' || n.studio) return false;
+  refs.kindCounts.set('board', (refs.kindCounts.get('board') || 0) - 1);
+  n.studio = true;
+  refs.kindCounts.set('studio', (refs.kindCounts.get('studio') || 0) + 1);
+  return true;
 }
 
 function reportStats(refs) {
@@ -630,10 +687,9 @@ function makeFxPoints(capacity) {
 // endpoints.
 // onStats — fires with { nodes, edges, byKind } once the snapshot is built and
 // again whenever deltas change the totals. This is the ONLY honest source for
-// "how big is the thing on screen": platform_counters counts rows, several of
-// which never become nodes or edges (tag attachments, cards on soft-deleted
-// boards), so a HUD reading the counters can claim connections the universe
-// does not draw.
+// "how big is the thing on screen": admin_universe_stats counts rows, and
+// some rows never become nodes or edges (tag attachments above all), so a HUD
+// reading the counts could claim connections the universe does not draw.
 // onStream — fires with { status, lastDeltaAt } so a HUD can say whether the
 //   socket is alive. On a universe that is legitimately still for twenty
 //   minutes at a stretch, "nothing is happening" and "nothing is arriving
@@ -642,11 +698,20 @@ function makeFxPoints(capacity) {
 // hueKind — one kind to render in its TRUE hue instead of starlight, while
 //   its legend row is under the pointer. Kind identity on demand.
 // isolateWorkspaceId — dim everything outside one workspace.
+// moments — the Universe view's live layer (universeMomentEngine.js): `activity`
+//   becomes flares, halos, arcs and comets instead of sparks, and arrivals are
+//   told apart (a new account, a cluster, a card) instead of all ringing gold.
+//   Read once at mount. The Command Center leaves it off.
+// director — with `moments`, a camera that goes to each moment and captions it.
+//   Off, the same moments in the wide view. onDirector gets its status
+//   ({ on, available, mode, label, pausedUntil, caption }) whenever it changes;
+//   bumping resumeSignal hands the camera back to it early.
 export function UniverseGraph({
   onNodeClick, resetSignal, fitAll = false, dataSource = null, onStats = null,
   onStream = null,
   hiddenKinds = null, isolateWorkspaceId = null, selectedId = null, hueKind = null,
   activity = null,
+  moments = false, director = false, onDirector = null, resumeSignal = null,
 }) {
   const containerRef = useRef(null);
 
@@ -708,6 +773,16 @@ export function UniverseGraph({
     sparkCooldown: new Map(),       // node idx → next allowed spark (perf clock)
     onNodeClickFn: onNodeClick,
     onStatsFn: onStats,
+    // The live layer (see the `moments` prop). tickCount is how many nodes the
+    // last worker tick placed: an index at or past it has no position yet.
+    momentsOn: !!moments,
+    directorOn: !!director,
+    onDirectorFn: onDirector,
+    engine: null,
+    tickCount: 0,
+    // The wide view: where the initial fit and Reset view put the camera, and
+    // where the director comes back to. Moments are sized against its distance.
+    wideDist: 0, wideRadius: 0, wideCenter: null,
     // Auto-fit state. didInitialFit gates the first snap-to-fit.
     // fitAnimating drives a smooth pull-back when the universe grows.
     interacting: false,
@@ -721,6 +796,16 @@ export function UniverseGraph({
   // Keep callbacks fresh without re-mounting the whole scene.
   useEffect(() => { refs.onNodeClickFn = onNodeClick; }, [onNodeClick, refs]);
   useEffect(() => { refs.onStatsFn = onStats; }, [onStats, refs]);
+  useEffect(() => { refs.onDirectorFn = onDirector; }, [onDirector, refs]);
+  useEffect(() => {
+    refs.directorOn = !!director;
+    refs.engine?.setOn(!!director, performance.now());
+  }, [director, refs]);
+  useEffect(() => {
+    if (resumeSignal == null) return;
+    refs.engine?.resume(performance.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeSignal]);
 
   // Legend filtering + workspace isolation. Both repaint through the same
   // multiplier pass, so they compose: hide every kind but images, then isolate
@@ -761,6 +846,18 @@ export function UniverseGraph({
   useEffect(() => {
     if (!activity || !activity.length || !refs.snapshotReady) return;
     const now = performance.now();
+    // The Universe view's live layer reads the same rows as moments.
+    if (refs.engine) {
+      const fresh = [];
+      for (const ev of activity) {
+        if (!ev?.id || refs.seenActivity.has(ev.id)) continue;
+        refs.seenActivity.add(ev.id);
+        fresh.push(ev);
+      }
+      if (fresh.length) refs.engine.ingest(fresh, now);
+      if (refs.seenActivity.size > 4000) refs.seenActivity = new Set(activity.map((ev) => ev?.id));
+      return;
+    }
     for (const ev of activity) {
       if (!ev?.id || refs.seenActivity.has(ev.id)) continue;
       refs.seenActivity.add(ev.id);
@@ -790,6 +887,7 @@ export function UniverseGraph({
   // pull-back as the initial fit.
   useEffect(() => {
     if (resetSignal == null) return;
+    refs.engine?.onReset(performance.now());
     requestFit(refs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetSignal]);
@@ -813,7 +911,10 @@ export function UniverseGraph({
     // perspective like in the classic milky-way photos.
     camera.position.set(0, 500, 60);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // No antialias: the scene renders into the composer's own targets and
+    // only bloom's full-screen quads ever reach the canvas, so a multisampled
+    // canvas cost memory and a resolve every frame and smoothed nothing.
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(w, h);
     // ACES filmic tonemap so blown-out bright pixels (the bloomed
@@ -920,6 +1021,23 @@ export function UniverseGraph({
     refs.pendingEdges = [];
     updatePxPerUnit(h);
 
+    // The live layer, for the Universe view only (see the `moments` prop).
+    if (refs.momentsOn) {
+      refs.engine = makeMomentEngine(refs, {
+        wide: () => widePose(refs),
+        hot: (idx) => {
+          const t = performance.now();
+          refs.hotNodes.set(idx, { start: t, until: t + HOT_DURATION_MS });
+        },
+        report: (status) => refs.onDirectorFn?.(status),
+        addNodes: (rawNodes, rawEdges) => {
+          for (const raw of rawNodes) if (!refs.nodeIndex.has(raw.node_id)) refs.pendingNodes.push(toNode(raw));
+          for (const raw of rawEdges) refs.pendingEdges.push({ raw, attempts: 0 });
+        },
+      });
+      refs.engine.setOn(refs.directorOn, performance.now());
+    }
+
     // Worker.
     const worker = new SimWorker();
     refs.worker = worker;
@@ -954,6 +1072,7 @@ export function UniverseGraph({
             refs.positions = new Float32Array(msg.positions.length);
           }
           refs.positions.set(msg.positions.subarray(0, msg.count * 3));
+          refs.tickCount = msg.count;
           uploadPositions(refs, msg.count);
           // Positions for the newly-arrived nodes exist as of this frame, so
           // their arrival FX can finally be placed where they actually are.
@@ -1059,6 +1178,9 @@ export function UniverseGraph({
       isPointerLocked = document.pointerLockElement === renderer.domElement;
       controls.enabled = !isPointerLocked;  // OrbitControls off while flying
       refs.lookActive  = isPointerLocked;   // pauses idle drift
+      // Flying is steering: the director waits until a minute after it ends.
+      if (isPointerLocked) refs.engine?.hold(performance.now());
+      else refs.engine?.release(performance.now());
     };
     document.addEventListener('pointerlockchange', onPointerLockChange);
 
@@ -1099,7 +1221,11 @@ export function UniverseGraph({
       if (e.metaKey || e.altKey) return;
       if (isTypingTarget(document.activeElement)) return;
       const k = e.key.toLowerCase();
-      if ('wasdqe'.includes(k)) { keys.add(k); e.preventDefault(); }
+      if ('wasdqe'.includes(k)) {
+        keys.add(k);
+        e.preventDefault();
+        refs.engine?.nudge(performance.now());
+      }
     };
     const onKeyUp = (e) => {
       const k = e.key.toLowerCase();
@@ -1129,12 +1255,32 @@ export function UniverseGraph({
     // rAF loop — controls + galactic drift + fit animation + render.
     const rotationAxis = new THREE.Vector3(0, 1, 0);
     let last = performance.now();
-    controls.addEventListener('start', () => { refs.interacting = true; });
-    controls.addEventListener('end',   () => { refs.interacting = false; });
-    const loop = () => {
+    let lastFrameTs = -Infinity;   // rAF's timestamp for the last frame drawn
+    // A drag, a wheel or a click is someone taking the camera: the director
+    // (when on) leaves it to them until a minute after they let go.
+    controls.addEventListener('start', () => { refs.interacting = true; refs.engine?.hold(performance.now()); });
+    controls.addEventListener('end',   () => { refs.interacting = false; refs.engine?.release(performance.now()); });
+    const loop = (frameTs) => {
       const now = performance.now();
+      // The worker moves the galaxy about sixty times a second, so a 120 Hz
+      // display drew every picture twice, bloom and all. While nobody is
+      // steering, a frame that comes sooner than IDLE_FRAME_MS after the last
+      // one drawn is skipped. The gap is read off rAF's timestamps rather than
+      // the clock: they are the display's frame times, so a skip falls on the
+      // same frames every time instead of on whichever ran a little late.
+      // Dragging, flying, a fit and the director's camera moves draw every
+      // frame. `last` is the last frame DRAWN, so the drift's dt spans the skips.
+      if (frameTs - lastFrameTs < IDLE_FRAME_MS && !refs.interacting && !refs.lookActive
+          && keys.size === 0 && !refs.fitAnimating && !refs.engine?.flying) {
+        refs.rafId = requestAnimationFrame(loop);
+        return;
+      }
+      lastFrameTs = frameTs;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+
+      // The director's clock: what it does next, from what it is doing now.
+      refs.engine?.frame(now);
 
       // Fit animation — interpolate camera position + controls.target
       // from "from" to "to" over fitDuration. Cubic ease-out.
@@ -1174,6 +1320,14 @@ export function UniverseGraph({
         rel.x *= horiz / hNow;
         rel.z *= horiz / hNow;
         rel.y = Math.sin(want) * rad;
+
+        // The director chooses where the view looks and how close; the drift
+        // keeps it turning either way, so a shot is a slow orbit, not a still.
+        const shot = refs.engine?.shot(now);
+        if (shot) {
+          rel.setLength(shot.dist);
+          controls.target.copy(shot.target);
+        }
 
         camera.position.copy(rel.add(controls.target));
       }
@@ -1262,6 +1416,8 @@ export function UniverseGraph({
   // the bright tail still blooms because size carries it.
   refs.haloPoints.material.uniforms.uOpacity.value = 0.33 * haloDensity;
       composer.render();
+      // The moments go over the finished picture (universeMomentFx.js says why).
+      refs.engine?.render(now);
       refs.rafId = requestAnimationFrame(loop);
     };
     refs.rafId = requestAnimationFrame(loop);
@@ -1331,6 +1487,8 @@ export function UniverseGraph({
       edgeLines.material.dispose();
       fxPoints.geometry.dispose();
       fxPoints.material.dispose();
+      refs.engine?.dispose();
+      refs.engine = null;
       composer.dispose();
       renderer.dispose();
       refs.scene = null; refs.camera = null; refs.renderer = null; refs.controls = null;
@@ -1391,6 +1549,7 @@ export function UniverseGraph({
         refs.activeFx = [];
         refs.pendingFx = [];
         refs.hotNodes = new Map();
+        refs.tickCount = 0;
         // The delta cursor. Every one of these timestamps was written by
         // Postgres, so starting the stream here cannot be thrown off by a
         // browser clock (see useUniverseDeltas). Edges are scanned too because
@@ -1416,6 +1575,7 @@ export function UniverseGraph({
           const key = edgeKeyOf(raw);
           if (refs.edgeKeys.has(key)) continue;
           refs.edgeKeys.add(key);
+          if (raw.edge_kind === 'wsroot') markStudio(refs, t);
           resolvedEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(raw.edge_kind),   // visual tier (scaffold/structural/semantic)
@@ -1425,6 +1585,8 @@ export function UniverseGraph({
         ensureEdgeCapacity(refs, resolvedEdges.length);
         refs.edges = resolvedEdges;
         writeEdgeColors(refs);
+        // Who belongs where, for the arcs; every index the layer knew is gone.
+        refs.engine?.reset(resolvedEdges);
 
         // Filters set before the corpus arrived (or surviving a "Try again")
         // apply to the freshly built node list — otherwise a reload silently
@@ -1501,6 +1663,7 @@ export function UniverseGraph({
       // without bound and celebrated edits as new links.
       const stillPending = [];
       const newEdges = [];
+      let studiosMarked = false;
       for (const item of refs.pendingEdges) {
         if (refs.edgeKeys.has(edgeKeyOf(item.raw))) continue;
         const s = refs.nodeIndex.get(item.raw.source_id);
@@ -1518,6 +1681,7 @@ export function UniverseGraph({
           // Claim the key now so two identical edges inside ONE flush
           // window can't both get through.
           refs.edgeKeys.add(edgeKeyOf(item.raw));
+          if (item.raw.edge_kind === 'wsroot' && markStudio(refs, t)) studiosMarked = true;
           newEdges.push({
             sourceIdx: s, targetIdx: t,
             kind:    classifyEdge(item.raw.edge_kind),
@@ -1529,8 +1693,11 @@ export function UniverseGraph({
       }
       refs.pendingEdges = stillPending;
 
+      const flushAt = performance.now();
       if (newNodes.length) {
         ensureNodeCapacity(refs, refs.nodes.length + newNodes.length);
+        // A flush this big is the stream catching up, not a moment.
+        const bulk = newNodes.length > 40;
         for (const n of newNodes) {
           const idx = refs.nodes.length;
           refs.nodes.push(n);
@@ -1539,7 +1706,9 @@ export function UniverseGraph({
           writeNodeAppearance(refs, idx, n);
           // Queue, don't spawn — the worker hasn't placed this index yet, so
           // there is no position to attach the effect to (see refs.pendingFx).
-          refs.pendingFx.push({ idx, color: n.threeColor, val: n.val || 8 });
+          // The live layer tells arrivals apart instead, and waits for the same.
+          if (refs.engine) refs.engine.arrive(n, idx, flushAt, bulk);
+          else refs.pendingFx.push({ idx, color: n.threeColor, val: n.val || 8 });
         }
         refs.worker.postMessage({
           type: 'addNodes',
@@ -1554,6 +1723,10 @@ export function UniverseGraph({
         ensureEdgeCapacity(refs, refs.edges.length + newEdges.length);
         refs.edges.push(...newEdges);
         writeEdgeColors(refs);
+        // A new workspace's Studio arrives a flush before its wsroot edge, so it
+        // was classified as a cluster; a Studios or Clusters filter has to see
+        // it move.
+        if (studiosMarked && (refs.hiddenKinds || refs.isolateWs)) applyVisualFilters(refs);
         refs.worker.postMessage({
           type: 'addLinks',
           links: newEdges.map(e => ({
@@ -1564,13 +1737,17 @@ export function UniverseGraph({
         });
         // Pulse traveling along each newly-formed connection — but
         // not for scaffold edges (memberships/wsroots/shares would
-        // throw bright streaks at scaffolding we just made faint).
+        // throw bright streaks at scaffolding we just made faint). With the
+        // live layer, only for links between things: a card's or a nested
+        // cluster's own edge arrives with it, and its moment already says so.
         for (const e of newEdges) {
-          if (e.kind === 'scaffold') continue;
+          refs.engine?.edge(e);
+          if (e.kind === 'scaffold' || (refs.engine && e.kind !== 'semantic')) continue;
           spawnPulse(refs, e.sourceIdx, e.targetIdx);
         }
       }
       if (newNodes.length || newEdges.length) reportStats(refs);
+      refs.engine?.tick(flushAt);
     }, DELTA_FLUSH_MS);
     return () => clearInterval(id);
   }, [refs]);
@@ -1648,8 +1825,15 @@ export function UniverseGraph({
       }
       return count;
     };
+    // The live layer's moments, one at a time: 'card', 'import', 'delete',
+    // 'here', 'together', 'joined', 'invite', 'share', 'landing', 'first_card',
+    // 'cluster', 'signup', 'invited'. Through the same ingest and the same delta
+    // buffers as the real ones (universeMomentEngine.js, qa).
+    window.__universeMoment = (type, opts) => refs.engine?.qa?.(type, opts) ?? null;
     return () => {
-      try { delete window.__universeInject; delete window.__universeSpark; } catch (_) { /* ignore */ }
+      try {
+        delete window.__universeInject; delete window.__universeSpark; delete window.__universeMoment;
+      } catch (_) { /* ignore */ }
     };
   }, [refs]);
 
@@ -1696,7 +1880,8 @@ export function UniverseGraph({
 // carries identity and never content, and hover is not an exception to it.
 function HoverCard({ hover }) {
   const n = hover.node;
-  const label = KIND_HOVER_LABELS[n.cardKind] || KIND_HOVER_LABELS[n.kind] || n.cardKind || n.kind;
+  const key = legendKeyOf(n);
+  const label = KIND_HOVER_LABELS[key === 'card' ? n.cardKind : key] || KIND_HOVER_LABELS[key] || n.cardKind || n.kind;
   return (
     <div className="universe-hover surface-frosted"
          style={{ left: hover.x, top: hover.y }}
@@ -1709,9 +1894,9 @@ function HoverCard({ hover }) {
 }
 
 const KIND_HOVER_LABELS = {
-  ws: 'Workspace', board: 'Board', doc: 'Doc', note: 'Note', image: 'Image',
-  palette: 'Palette', link: 'Link', grid: 'Grid', url: 'External link',
-  boardlink: 'Board link', card: 'Card',
+  ws: 'Workspace', board: 'Cluster', studio: 'Studio', clustercard: 'Cluster card',
+  doc: 'Doc', note: 'Note', image: 'Image', palette: 'Palette', link: 'Link',
+  grid: 'Grid', url: 'External link', boardlink: 'Linked cluster', card: 'Card',
 };
 
 // Compact relative age. adminFormat's relativeTime is prose ("3 hours ago");
@@ -1851,9 +2036,7 @@ function writeNodeVisual(refs, idx, node) {
   const r = refs.baseScale[idx];
   // Starlight at rest; the true kind hue the moment anyone asks for it
   // — a legend row under the pointer, or this node being the selection.
-  const emph = refs.hueKind
-    ? (node.cardKind && COLOR[node.cardKind] ? node.cardKind : node.kind) === refs.hueKind
-    : false;
+  const emph = refs.hueKind ? legendKeyOf(node) === refs.hueKind : false;
   const sel = refs.selectionFx && refs.selectionFx.nodeIdx === idx;
   const c = (emph || sel) ? node.threeColor : (node.starColor || node.threeColor);
   const cr = c.r * dim, cg = c.g * dim, cb = c.b * dim;
@@ -1863,13 +2046,7 @@ function writeNodeVisual(refs, idx, node) {
   hc.array[idx * 3]     = cr;
   hc.array[idx * 3 + 1] = cg;
   hc.array[idx * 3 + 2] = cb;
-  // 3.7 was tuned for a categorical palette where washing out did not
-  // cost anything. Additive halos of DIFFERENT hues sum toward white,
-  // so in a dense card swarm the halos — not the discs — are what
-  // decides the colour, and a big one throws the star's hue away.
-  // Smaller halo, same glow on the bright tail (their radius is large
-  // anyway), far less overlap among the faint many.
-  hs.array[idx]         = r * 3.1 * vis;
+  hs.array[idx]         = r * HALO_SCALE * vis;
   hc.needsUpdate = true;
   hs.needsUpdate = true;
 
@@ -1905,10 +2082,9 @@ function applyVisualFilters(refs) {
   for (let i = 0; i < refs.nodes.length; i++) {
     const n = refs.nodes[i];
     if (!n) continue;
-    const legendKey = n.cardKind && COLOR[n.cardKind] ? n.cardKind : n.kind;
     // Users are invisible either way; isolating never dims them into a
     // different kind of invisible.
-    const isHidden = hasHidden && hidden.has(legendKey);
+    const isHidden = hasHidden && hidden.has(legendKeyOf(n));
     const isDim    = !!iso && n.kind !== 'user' && n.workspace_id !== iso;
     refs.visMul[i] = isHidden ? 0 : 1;
     refs.dimMul[i] = isDim ? DIM_FACTOR : 1;
@@ -2113,6 +2289,8 @@ function maybeAutoFit(refs, count) {
   refs.controls.target.copy(targetCenter);
   refs.didInitialFit = true;
   refs.lastFitAt = performance.now();
+  noteWide(refs, bs, needed);
+  refs.engine?.onFit(refs.lastFitAt);
 }
 
 // Animated "fit everything" — kicked by the Reset view button. Pulls
@@ -2137,6 +2315,28 @@ function requestFit(refs) {
   refs.fitDuration   = 700;
   refs.fitAnimating  = true;
   refs.lastFitAt     = refs.fitStart;
+  noteWide(refs, bs, needed);
+}
+
+// Where the wide view is, for the live layer: moments are sized against its
+// distance, and arcs and comets bow and fly relative to its middle.
+function noteWide(refs, bs, dist) {
+  refs.wideDist = dist;
+  refs.wideRadius = bs.radius;
+  if (!refs.wideCenter) refs.wideCenter = new THREE.Vector3();
+  refs.wideCenter.set(bs.cx, bs.cy, bs.cz);
+}
+
+// The wide view as it is now, for the director to fly back to: the same
+// framing Reset view gives, along whatever direction the camera faces.
+function widePose(refs) {
+  if (!refs.camera || refs.nodes.length === 0) return null;
+  const count = Math.min(refs.nodes.length, refs.tickCount || refs.nodes.length);
+  const bs = computeBoundingSphere(refs, count);
+  if (!bs || !isFinite(bs.radius)) return null;
+  const dist = fitDistance(bs.radius, refs.camera);
+  noteWide(refs, bs, dist);
+  return { cx: bs.cx, cy: bs.cy, cz: bs.cz, radius: bs.radius, dist };
 }
 
 
@@ -2309,7 +2509,7 @@ function updateHot(refs, now) {
   for (const [idx, h] of refs.hotNodes) {
     // Filtered-out nodes glow at zero: an arrival must never punch through a
     // filter the operator deliberately set.
-    const base = refs.baseScale[idx] * 3.7 * refs.visMul[idx];
+    const base = refs.baseScale[idx] * HALO_SCALE * refs.visMul[idx];
     if (now >= h.until) {
       hs.array[idx] = base;
       refs.hotNodes.delete(idx);

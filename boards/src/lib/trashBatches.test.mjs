@@ -42,6 +42,17 @@ test('the trash shows batches, a failed load is not an empty trash, and restore 
   assert.match(src, /past your limit/, 'a cap refusal must still surface (cardCapScope)');
 });
 
+test('only the owner and co-owners are offered Delete now, and a refused delete says so (0608)', () => {
+  const modal = readFileSync(new URL('../components/TrashModal.jsx', import.meta.url), 'utf8');
+  assert.match(modal, /\{canPurge && \(\s*<button className="tb-btn tb-btn-sm tb-btn-danger"/, 'Delete now renders only for a manager');
+  assert.match(modal, /canPurge = false/, 'a caller that says nothing gets the restore-only trash');
+  const app = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
+  assert.match(app, /<TrashModal[^>]*?canPurge=\{canManageWorkspace\(/, 'App asks the manager check');
+  const api = readFileSync(new URL('./boardsApi.js', import.meta.url), 'utf8');
+  assert.match(api, /from\('boards'\)\.delete\(\)\.eq\('id', boardId\)\.select\('id'\);\s+if \(error\) throw error;\s+if \(!data\?\.length\) throw new Error\(/,
+    'a delete the policy filtered out is a refusal, not a success');
+});
+
 test('search finds nothing in the Trash (0404)', async () => {
   // entity_search fed ⌘K, the @-mention trie and the hover popover with
   // trashed clusters and the cards on them; opening one stranded the app on a

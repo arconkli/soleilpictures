@@ -26,6 +26,7 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { fetchTagVisuals } from '../lib/tagVisuals.js';
+import { shareTargetForRef } from '../lib/fileShareBus.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
@@ -526,6 +527,7 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
           src={allImages[lightboxIdx].src}
           title={allImages[lightboxIdx].title || ''}
           alt={allImages[lightboxIdx].title || ''}
+          shareTarget={shareTargetForRef({ ...allImages[lightboxIdx], kind: 'image', name: allImages[lightboxIdx].title }, 'tag_popover')}
           onClose={() => setLightboxIdx(null)}
         />,
         document.body,

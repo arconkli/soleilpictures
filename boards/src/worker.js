@@ -8,6 +8,9 @@
 //                       emergent clusters). See worker-tags.js for the
 //                       per-route contracts. All routes auth-checked
 //                       against the user's Supabase JWT.
+// /api/clusters/*     — the sidebar's writes to clusters that aren't open:
+//                       move, copy, append, patch, remove (worker-clusters.js).
+//                       The user's Supabase JWT, and can_write_board as them.
 // /api/share-thumb/*  — serves a shared board's stored R2 thumbnail as the
 //                       og:image behind /share link previews. Gated by the
 //                       share token (get_share_meta RPC), no user auth.
@@ -16,7 +19,8 @@
 //                       Gated by an HMAC in the URL, no user auth.
 
 import { handleTagsRoute } from './worker-tags.js';
-import { handleSeoRoute, INDEXNOW_KEY, getTier } from './worker-seo.js';
+import { handleClustersRoute } from './worker-clusters.js';
+import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
 import { handleApiRoute } from './worker-api.js';
@@ -80,7 +84,10 @@ import { BUILD_DATE, BUILD_SHA } from './lib/buildInfo.js';
 // so check what the builds you mean to keep are stamped before raising it.
 // 2026-10-18: builds stamped 10-17 and earlier never park a hidden tab
 // (lib/partyPark.js), and each one left open held two party rooms all day.
-const MIN_CLIENT_BUILD = '2026-10-18';
+// 2026-10-21: builds stamped 10-20 and earlier can't read a doc comment's
+// replies and resolves filed beside the thread (lib/commentKeys.js), which
+// this build writes (docState COMMENT_LOG_WRITES).
+const MIN_CLIENT_BUILD = '2026-10-21';
 // After this instant (ISO), a tab that must reload stops waiting for a dialog
 // to close or a field to empty, and reloads once it has been hidden two
 // minutes. null = no deadline. Set for the party's move off PartyKit, which
@@ -91,6 +98,8 @@ const RELOAD_BY = '2026-10-21T00:00:00Z';
 // the PartyKit project it replaced, for tabs that have not reloaded off it.
 import { PARTY_HOST } from './lib/partyHost.js';
 import { OLD_PARTY_HOST, OLD_PARTY_GONE_AFTER } from './lib/partyDefaults.js';
+import { partyFetch } from './lib/partyFetch.js';
+import { edgeContext, edgeContextMeta } from './lib/edgeContext.js';
 
 // ── Per-route SEO metadata ──────────────────────────────────────────────
 // The SPA serves ONE index.html for every path (single-page-application
@@ -116,10 +125,28 @@ const RETIRED_PAGES = new Map([
   ['/vs/storyboarder', '/best/storyboard-software'],
   ['/vs/boords', '/best/storyboard-software'],
   ['/vs/studiobinder', '/best/storyboard-software'],
+  // Schedules were retired (owner, 2026-10-20), and their two docs pages with
+  // them; each lands on the page that covers what is left.
+  ['/docs/canvas/schedule', '/docs/canvas/cards'],
+  ['/docs/clusters/production-schedule', '/docs/clusters'],
 ]);
 
+// META PRE-REGISTERED 2026-10-20 (the CLAUDE.md ritual). The homepage
+// description names what the any-file pass sells (video, PDFs and any other
+// file on the canvas beside the references) and comes back under META_MAX; it
+// ran a character over. index.html carries the same sentence three times, and
+// seoLanding.test.mjs fails if any of the four drift apart. One surface, this
+// commit only. The title is untouched, because the prober pins "Soleil Clusters".
+//   Predicate: path = '/', query = '' (page level), search_type = 'web'; CTR
+//     and impression-weighted position, ±7 and ±14 days around the PRODUCTION
+//     deploy, never inside 3 days of it. Floor: 200 post-change impressions.
+//   Expectation: no material change. Nearly every search for this page is the
+//     brand name, which clicks through whatever the snippet says, so the read
+//     can only show harm (CTR on the brand query falling), never a win. Never
+//     blend this page's CTR into anything else.
+//   Baselines are in the project notes, not in this public file.
 const DEFAULT_DESCRIPTION =
-  'Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.';
+  'Soleil Clusters is a creative workspace and moodboard for film, photo, design and brand teams: references, video, PDFs and any other file on one canvas.';
 const ROUTE_META = {
   '/': {
     title: 'Soleil Clusters — Creative Workspace & Moodboard for Production Teams',
@@ -215,10 +242,11 @@ const SECURITY_HEADERS = {
     "form-action 'self' https://checkout.stripe.com",
 };
 // ── Per-request CSP nonce ───────────────────────────────────────────────────
-// Every <script> a browser executes on this site is one of: the two inline
-// blocks in index.html (theme bootstrap, Meta Pixel loader), the three this
-// Worker injects (SHARE_EARLY_FETCH, PUBLIC_EARLY_FETCH, window.__publicPageModel),
-// the Vite module entry, or something one of those creates (fbevents.js, the
+// Every <script> a browser executes on this site is one of: the three inline
+// blocks in index.html (app preload, theme bootstrap, Meta Pixel stub), the
+// three this Worker injects (SHARE_EARLY_FETCH, PUBLIC_EARLY_FETCH,
+// window.__publicPageModel), the Vite module entry, or something one of those
+// creates (fbevents.js, which the stub adds when the entry asks; the
 // diagnostic in main.jsx). All ours. So script-src can be a per-request nonce
 // plus 'strict-dynamic', which extends trust from a nonced script to whatever
 // it loads — and stops trusting the host allowlist, which is the point: an
@@ -284,7 +312,12 @@ function isWorkersDevHost(host) {
   return typeof host === 'string' && host.toLowerCase().endsWith('.workers.dev');
 }
 
-function withSecurityHeaders(res, nonce, host = null, path = '') {
+// `ctxMeta` is the soleil-ctx tag (lib/edgeContext.js): the region and network
+// kind this request came from, as codes the app reads into its once-a-session
+// session_context row. It rides the same pass as the nonce because that pass
+// already rewrites every page this Worker serves, and pages are never a 304, so
+// it is fresh on every load.
+function withSecurityHeaders(res, nonce, host = null, path = '', ctxMeta = '') {
   // A 101 (WebSocket upgrade) has immutable headers and no body to rewrite.
   if (!res || res.status === 101) return res;
   // The nonce is a promise that a script is OURS. Nothing under /api/ is a page
@@ -311,10 +344,11 @@ function withSecurityHeaders(res, nonce, host = null, path = '') {
   }
   const rebuilt = new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   if (!isHtml) return rebuilt;
-  return new HTMLRewriter()
+  const rw = new HTMLRewriter()
     .on('script', new NonceStamp(nonce))
-    .on('link[rel="modulepreload"]', new NonceStamp(nonce))
-    .transform(rebuilt);
+    .on('link[rel="modulepreload"]', new NonceStamp(nonce));
+  if (ctxMeta) rw.on('head', new AppendHead(ctxMeta));
+  return rw.transform(rebuilt);
 }
 
 // Copy a response, forcing HTML documents to revalidate on every load so new
@@ -388,6 +422,8 @@ function injectRouteMeta(res, meta, canonical) {
 // share page itself must never break on a metadata miss.
 const SHARE_PATH_RE = /^\/share\/([0-9a-f-]{36})\/?$/i;
 const UUID_RE = /^[0-9a-f-]{36}$/i;
+// /f/<uuid> — a single shared file. keep in lockstep with fileShareMatch in main.jsx
+const FILE_SHARE_PATH_RE = /^\/f\/([0-9a-f-]{36})\/?$/i;
 
 // Admin-curated public marketing boards (migration 0136): clean keyword slugs at
 // /c/<slug>, plus the /explore index. The slug charset is a deliberate superset
@@ -508,6 +544,35 @@ function injectShareMeta(res, meta, token) {
   return rw.transform(res);
 }
 
+// /f/<token> link previews. Always noindex; dynamic text only ever flows
+// through the escaping setters (SetText/SetContent/SetHref), never AppendHead.
+function injectFileShareMeta(res, meta, token) {
+  const rw = new HTMLRewriter();
+  rw.on('head', new AppendHead('<meta name="robots" content="noindex">'));
+  const ok = meta?.status === 'ok';
+  const title = ok ? `${meta.file?.name || 'File'} · Clusters` : 'A file shared on Clusters';
+  const description = ok
+    ? `Shared on Clusters by ${meta.shared_by?.name || 'someone'}`
+    : 'Open it on Clusters.';
+  rw.on('title',                            new SetText(title))
+    .on('meta[name="description"]',         new SetContent(description))
+    .on('meta[property="og:title"]',        new SetContent(title))
+    .on('meta[property="og:description"]',  new SetContent(description))
+    .on('meta[name="twitter:title"]',       new SetContent(title))
+    .on('meta[name="twitter:description"]', new SetContent(description));
+  if (ok) {
+    rw.on('meta[property="og:url"]', new SetContent(`${SITE_ORIGIN}/f/${token}`));
+    // webp only, matching handleFileThumb: anything else would unfurl a fallback.
+    if (/\.webp$/i.test(meta.keys?.poster || '')) {
+      const img = `${SITE_ORIGIN}/api/file-thumb/${token}`;
+      rw.on('meta[property="og:image"]',  new SetContent(img))
+        .on('meta[name="twitter:image"]', new SetContent(img))
+        .on('meta[name="twitter:card"]',  new SetContent('summary_large_image'));
+    }
+  }
+  return rw.transform(res);
+}
+
 const worker = {
   // `ctx` is here for /api/v1's audit log: api_log_request runs in
   // ctx.waitUntil so recording a write is never what makes a request slow, and
@@ -523,7 +588,7 @@ const worker = {
   async fetch(request, env, ctx) {
     const nonce = makeNonce();
     const { hostname, pathname } = new URL(request.url);
-    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, hostname, pathname);
+    return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, hostname, pathname, edgeContextMeta(request.cf));
   },
 
   async handleFetch(request, env, ctx) {
@@ -639,6 +704,7 @@ const worker = {
       // Supabase's confirmation flow rather than written here.
       if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
+      if (url.pathname.startsWith('/api/clusters/')) return await handleClustersRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
       // A web image dragged onto a canvas, kept as a copy (worker-media.js).
@@ -650,9 +716,11 @@ const worker = {
         return await handleApiRoute(url, request, env, ctx);
       }
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
-      if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx);
+      if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx, env);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
       if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
+      const fileThumbMatch = url.pathname.match(/^\/api\/file-thumb\/([0-9a-f-]{36})$/i);
+      if (fileThumbMatch) return await handleFileThumb(env, fileThumbMatch[1], request);
       const emailThumbMatch = url.pathname.match(/^\/api\/email-thumb\/([0-9a-f-]{36})$/i);
       if (emailThumbMatch) return await handleEmailThumb(env, emailThumbMatch[1], url.searchParams, request);
       if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
@@ -667,6 +735,15 @@ const worker = {
         return json({ // json() defaults to no-store
           sha: BUILD_SHA, date: BUILD_DATE, party: PARTY_HOST || null,
           minBuild: MIN_CLIENT_BUILD, reloadBy: RELOAD_BY,
+        });
+      }
+      // The soleil-ctx codes (lib/edgeContext.js) for a page that could not carry
+      // the tag: `/` is answered by the static assets before this Worker runs,
+      // so a session that starts there asks here, once. The same string the tag
+      // would have held: codes only, never the network's name.
+      if (url.pathname === '/api/ctx' && request.method === 'GET') {
+        return new Response(edgeContext(request.cf), {
+          headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
         });
       }
       // IndexNow ownership key file (Bing/Yandex verify our submissions here).
@@ -700,6 +777,11 @@ const worker = {
     const shareMatch = isPageReq ? url.pathname.match(SHARE_PATH_RE) : null;
     const shareMetaPromise = shareMatch
       ? fetchShareMeta(env, shareMatch[1], url.searchParams.get('b')).catch(() => null)
+      : null;
+
+    const fileShareMatch = isPageReq ? url.pathname.match(FILE_SHARE_PATH_RE) : null;
+    const fileShareMetaPromise = fileShareMatch
+      ? anonRpc(env, 'get_file_share', { p_token: fileShareMatch[1] }).catch(() => null)
       : null;
 
     // Same overlap trick for /c/<slug> marketing pages + the /explore index:
@@ -901,6 +983,13 @@ const worker = {
     // Shared-board link previews: rewrite OG/Twitter meta on /share/<token>
     // HTML to the board's name + stored thumbnail so pasted links unfurl as
     // the board itself (and noindex the tokened URL either way).
+    if (fileShareMatch && contentType.includes('text/html')) {
+      const meta = await fileShareMetaPromise;
+      const out = withRevalidate(injectFileShareMeta(res, meta, fileShareMatch[1]));
+      out.headers.set('x-robots-tag', 'noindex');
+      return out;
+    }
+
     if (shareMatch && contentType.includes('text/html')) {
       const meta = await shareMetaPromise;
       const out = withRevalidate(injectShareMeta(res, meta, shareMatch[1]));
@@ -962,6 +1051,10 @@ const worker = {
       ctx.waitUntil(runWebhooks(env, { limit: 200 }));
     } else if (which === '15 * * * *') {
       ctx.waitUntil(runCompactionJob1(env));
+      // IndexNow (0480): the first tick on a build production has not pinged
+      // for tells Bing and Yandex which sitemap pages changed; every later tick
+      // is one indexed read that finds the ping already made.
+      ctx.waitUntil(runIndexNowForBuild(env, { sha: BUILD_SHA, date: BUILD_DATE }, () => sitemapUrls(env)));
     } else if (which === '0 4 * * *') {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
       // then the history-aware orphan sweep. Sequential so R2 ops don't spike.
@@ -971,7 +1064,8 @@ const worker = {
       // answering. Separate from the sweep; it touches no R2.
       ctx.waitUntil(runAiModelWatch(env));
     } else if (which === '0 6 * * 1') {
-      // Mondays 06:00 UTC — the AEO retrieval probe (migration 0296). Weekly
+      // Sundays 06:00 UTC: Cloudflare counts day-of-week 1 as Sunday, and every
+      // run since 2026-09-06 has landed on one. The AEO retrieval probe (0296). Weekly
       // because retrieval moves on the timescale of index refreshes; daily
       // would mostly sample answer-to-answer variance. No-ops without
       // OPENAI_API_KEY.
@@ -1270,6 +1364,27 @@ async function rpc(env, fn, params, timeoutMs = 30_000) {
 // Anon-key variant of rpc() for token-gated public functions. Short timeout:
 // this runs inline with HTML serving, not in a cron — a slow Supabase must
 // degrade to default meta, not stall the share page.
+// The service role's RPC, for what only the Worker may read (a shared file's
+// storage key for its preview, after the anonymous answer said ok).
+async function serviceRpc(env, fn, params, timeoutMs = 1500) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+      'authorization': `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+      'accept': 'application/json',
+    },
+    body: JSON.stringify(params || {}),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`rpc ${fn} ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return await res.json();
+}
+
 async function anonRpc(env, fn, params, timeoutMs = 1500) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
@@ -2213,6 +2328,22 @@ export function buildLandingJsonLd(spec, url) {
 // MUST never 500 or shrink to empty (Google reads a sudden empty sitemap as a
 // deindex signal): on RPC failure we still emit the static set. Short-cached.
 async function handleSitemap(env, request) {
+  const urls = await sitemapUrls(env);
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
+    + urls.map((u) => `  <url><loc>${escapeHtml(u.loc)}</loc>`
+        + (u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : '')
+        + (u.changefreq ? `<changefreq>${u.changefreq}</changefreq>` : '')
+        + (u.priority ? `<priority>${u.priority}</priority>` : '')
+        + `</url>`).join('\n')
+    + `\n</urlset>\n`;
+  return sitemapResponse(body, request);
+}
+
+// The sitemap's entries, shared by the XML above and the cron's IndexNow ping
+// for a new build (runIndexNowForBuild), so the two can never disagree about
+// which pages exist or when each one last changed.
+async function sitemapUrls(env) {
   // lastmod policy: HONEST dates only (fabricated per-deploy freshness trains
   // Google to ignore the field). Landings carry their spec's `updated`; the
   // homepage the date its copy last changed; /explore the newest board;
@@ -2270,15 +2401,7 @@ async function handleSitemap(env, request) {
       priority: '0.7',
     });
   }
-  const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
-    + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
-    + urls.map((u) => `  <url><loc>${escapeHtml(u.loc)}</loc>`
-        + (u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : '')
-        + (u.changefreq ? `<changefreq>${u.changefreq}</changefreq>` : '')
-        + (u.priority ? `<priority>${u.priority}</priority>` : '')
-        + `</url>`).join('\n')
-    + `\n</urlset>\n`;
-  return sitemapResponse(body, request);
+  return urls;
 }
 
 // Shared sitemap response: strong ETag (content hash) + 304 support so
@@ -2576,6 +2699,44 @@ async function handleShareThumb(env, token, searchParams, request) {
   return new Response(obj.body, { status: 200, headers });
 }
 
+// og:image behind /f/<token> unfurls: the shared file's poster (webp only),
+// token-gated by get_file_share. Mirrors handleShareThumb; the 302→logo is the
+// fallback for revoked links and files without a webp poster.
+async function handleFileThumb(env, token, request) {
+  const fallback = () =>
+    new Response(null, {
+      status: 302,
+      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store' },
+    });
+
+  const meta = await anonRpc(env, 'get_file_share', { p_token: token }).catch(() => null);
+  if (meta?.status !== 'ok' || !env.IMAGES) return fallback();
+  // Since 0426 get_file_share answers no storage keys (a browser could call
+  // it): with the anonymous answer ok, the key comes from the service role.
+  let poster = meta?.keys?.poster || '';
+  if (!poster && env.SUPABASE_SERVICE_ROLE_KEY) {
+    const keys = await serviceRpc(env, '_file_share_keys', { p_token: token }).catch(() => null);
+    poster = keys?.poster || '';
+  }
+  if (!/\.webp$/i.test(poster)) return fallback();
+
+  const obj = await env.IMAGES.get(poster.replace(/^r2:/, ''));
+  if (!obj) return fallback();
+
+  const headers = {
+    'content-type': 'image/webp',
+    'x-content-type-options': 'nosniff',
+    // 1h TTL bounds how long a just-revoked link keeps serving bytes.
+    'cache-control': 'public, max-age=3600',
+    'etag': obj.httpEtag,
+    'x-robots-tag': 'noindex',
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
 // Signature for /api/email-thumb URLs. The HMAC secret lives in app_config
 // (migration 0186, key 'email_thumb_hmac') — NOT derived from the service-role
 // credential: this worker and the edge functions hold DIFFERENT-format
@@ -2685,8 +2846,9 @@ async function handleEmailThumb(env, boardId, searchParams, request) {
 // worked via curl but got flaky from real browsers — different deploy
 // edges, cached preflight failures, etc.). Going through the worker
 // avoids CORS entirely since the call is same-origin from the client's
-// perspective and worker-to-party is server-to-server.
-async function handleBoardReset(boardId, request, ctx) {
+// perspective and worker-to-party is server-to-server — by the PARTY service
+// binding, since a workers.dev URL is refused from the preview (lib/partyFetch.js).
+async function handleBoardReset(boardId, request, ctx, env) {
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -2709,7 +2871,7 @@ async function handleBoardReset(boardId, request, ctx) {
 
   const target = `https://${PARTY_HOST}/parties/main/${encodeURIComponent(boardId)}/reset`;
   try {
-    const res = await fetch(target, {
+    const res = await partyFetch(env, target, {
       method: 'POST',
       headers: {
         'authorization': `Bearer ${token}`,

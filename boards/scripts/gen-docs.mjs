@@ -67,12 +67,22 @@ import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
+import { IMPORT_LIMITS, LOW_MEMORY_INFLATE_BYTES } from '../src/lib/importTree.js';
+import { CLUSTER_FILE_CEILING } from '../src/lib/importPlan.js';
+import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
+import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
   INVITE_BONUS_STORAGE_BYTES, INVITE_BONUS_STORAGE_LABEL, formatBonusBytes,
 } from '../src/lib/inviteReward.js';
+import {
+  FILE_COMMENT_MAX_CHARS, FILE_COMMENT_BURST, FILE_COMMENT_BURST_MINUTES, FILE_SHARE_PEOPLE_PER_CALL,
+} from '../src/lib/fileShares.js';
+import {
+  DOC_ROOM_MAX_CONNECTIONS, DOC_ROOM_GUEST_DOC_MAX_BYTES, DOC_ROOM_FRAME_MAX_BYTES,
+} from '../src/lib/docRoomLimits.js';
 import { latestDefinition } from '../src/lib/migrationText.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -218,6 +228,19 @@ if (!newAccountHours || !newAccountWorkspaces) {
   throw new Error('gen-docs: the new-account limits were not found — update the extractor');
 }
 
+// Sharing one file (/f/<token>, migrations 0421 and 0422): how often a comment
+// emails the person who shared the file (_tg_file_comment_notify — the bell row
+// is never throttled), and how old the account that opened a link to anyone
+// has to be before a program or script file opens through it
+// (_file_share_access).
+const fileCommentEmailMinutes = latestSqlDefining('_tg_file_comment_notify')
+  ?.match(/_tg_file_comment_notify\(\)[\s\S]*?kind = 'file\.commented'[\s\S]*?emailed_at > now\(\) - interval '(\d+) minutes'/);
+const fileShareRiskyNewAccountHours = latestSqlDefining('_file_share_access')
+  ?.match(/_file_share_access\([\s\S]*?link_set_by and u\.created_at > now\(\) - interval '(\d+) hours'/);
+if (!fileCommentEmailMinutes || !fileShareRiskyNewAccountHours) {
+  throw new Error('gen-docs: the file-share email throttle or new-account window was not found — update the extractor');
+}
+
 // A referral's reward (_pay_referral_rewards, migrations 0377 and 0416): the
 // cards it pays the inviter and how many rewards one person collects in 30
 // days. The friend's own cards on joining, granted in the two places a referral
@@ -231,7 +254,7 @@ const referralCards = referralSql?.match(/c_reward_cards\s+constant\s+integer\s*
 const referralPer30 = referralSql?.match(/c_per_30_days\s+constant\s+integer\s*:=\s*(\d+)/);
 const referralLinkDays = latestSqlDefining('claim_collab_link')
   ?.match(/created_at > now\(\) - interval '(\d+) days'\) into v_is_new_user/i);
-const friendCards = ['ensure_profile_for_new_user', 'claim_collab_link'].map((fn) => latestDefinition(fn)
+const friendCards = ['ensure_profile_for_new_user', 'claim_collab_link', 'claim_workspace_invite_link'].map((fn) => latestDefinition(fn)
   ?.body.match(/bonus_card_credits\s*=\s*coalesce\(bonus_card_credits,\s*0\)\s*\+\s*(\d+)/i)?.[1]);
 const inviteStorage = latestSqlDefining('_referral_bonus_storage_bytes')
   ?.match(/function\s+public\._referral_bonus_storage_bytes\s*\(\s*\)[\s\S]*?select\s+(\d+)::bigint/i);
@@ -248,6 +271,24 @@ if (Number(referralCards[1]) !== REFERRAL_REWARD_CARDS
     `inviter ${referralCards[1]} cards / ${referralPer30[1]} per 30 days, friend ${friendCards.join('/')} cards, ` +
     `storage ${inviteStorage[1]} bytes (${formatBonusBytes(Number(inviteStorage[1]))})`,
   );
+}
+
+// A whole-workspace invite link (create_workspace_invite_link, migration 0450):
+// how long it lasts and how many people it lets in, the tighter terms for an
+// account in its first hours (_account_is_new), and how many links an account
+// makes a day. The setup's invite step reads the same terms from the link's
+// own row (0451), so the page and the step say the same thing. A new account
+// joining through one counts as a referral in the same window as an edit link.
+const wsLinkSql = latestSqlDefining('create_workspace_invite_link');
+const wsLinkConst = (name) => wsLinkSql?.match(new RegExp(`${name}\\s+constant\\s+integer\\s*:=\\s*(\\d+)`))?.[1];
+const wsLink = {
+  days: wsLinkConst('c_days'), uses: wsLinkConst('c_uses'), perDay: wsLinkConst('c_links_per_day'),
+  newDays: wsLinkConst('c_new_days'), newUses: wsLinkConst('c_new_uses'), newPerDay: wsLinkConst('c_new_links_per_day'),
+};
+const wsLinkReferralDays = latestSqlDefining('claim_workspace_invite_link')
+  ?.match(/created_at > now\(\) - interval '(\d+) days'\) into v_is_new_user/i);
+if (Object.values(wsLink).some((v) => !v) || !wsLinkReferralDays || wsLinkReferralDays[1] !== referralLinkDays[1]) {
+  throw new Error('gen-docs: the workspace invite link terms were not found, or its referral window differs from an edit link\'s — update the extractor');
 }
 
 // How long the hashed origins of requests are kept for abuse prevention
@@ -276,6 +317,8 @@ if (!freeQuota || bytesLabel(Number(freeQuota[1])) !== FREE_STORAGE_LABEL) {
 
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
+  // How long a message stays editable by its author (the app enforces it).
+  messageEditWindowMin: String(MESSAGE_EDIT_WINDOW_MIN),
   // The cap accounts created before migration 0229 keep, permanently. The plans
   // page states the grandfather rule; both cohorts are real, so both numbers
   // have to come from code rather than being typed into the markdown.
@@ -311,6 +354,21 @@ export const FACTS = {
   folderMaxFiles: String(FOLDER_LIMITS.maxFiles),
   folderMaxDepth: String(FOLDER_LIMITS.maxDepth),
   folderMaxClusters: String(FOLDER_LIMITS.maxClusters),
+  // A bulk import of folders and zips (lib/importTree IMPORT_LIMITS, read by
+  // folderWalk and treeFromZip): how many files one import reads, how deep
+  // folders nest before merging upward, and how many clusters it makes. A
+  // compressed file inside a zip is unpacked whole in the tab, so one bigger
+  // than maxInflateBytes fails with a reason, and far less on a phone or a
+  // low-memory device (LOW_MEMORY_INFLATE_BYTES via importLimitsFor). A folder
+  // with more files than CLUSTER_FILE_CEILING (lib/importPlan) splits into
+  // parts. One Put on board lays out at most PUT_ON_BOARD_MAX (lib/placement).
+  importMaxFiles: IMPORT_LIMITS.maxFiles.toLocaleString('en-US'),
+  importMaxDepth: String(IMPORT_LIMITS.maxDepth),
+  importMaxClusters: IMPORT_LIMITS.maxClusters.toLocaleString('en-US'),
+  importZipUnpackMax: `${IMPORT_LIMITS.maxInflateBytes / (1024 * MB)} GB`,
+  importZipUnpackLowMemory: `${LOW_MEMORY_INFLATE_BYTES / MB} MB`,
+  importClusterFileCeiling: CLUSTER_FILE_CEILING.toLocaleString('en-US'),
+  putOnBoardMax: String(PUT_ON_BOARD_MAX),
   // File versions (lib/cardVersions.js): how many a file keeps, and how long a deleted one waits.
   versionLimit: String(VERSION_LIMIT),
   versionDeletedDays: String(VERSION_DELETED_KEEP_DAYS),
@@ -352,6 +410,22 @@ export const FACTS = {
   // meanwhile (0375).
   newAccountHours: newAccountHours[1],
   newAccountWorkspaces: newAccountWorkspaces[1],
+  // Sharing one file (lib/fileShares.js, which fileShareMigration.test.mjs
+  // pins to 0421's SQL): a comment's length, the per-author burst, and how
+  // many people one Send adds. Then two read from the SQL itself.
+  fileCommentMaxChars: FILE_COMMENT_MAX_CHARS.toLocaleString('en-US'),
+  fileCommentBurst: String(FILE_COMMENT_BURST),
+  fileCommentBurstMinutes: String(FILE_COMMENT_BURST_MINUTES),
+  fileSharePeoplePerCall: String(FILE_SHARE_PEOPLE_PER_CALL),
+  fileCommentEmailMinutes: fileCommentEmailMinutes[1],
+  fileShareRiskyNewAccountHours: fileShareRiskyNewAccountHours[1],
+  // Sharing one doc (lib/docRoomLimits.js, which party/doc.ts enforces): how
+  // many people one doc's room holds at once, the size past which people
+  // outside the cluster can only read it, and the largest single change one
+  // of them can send.
+  docRoomMaxPeople: String(DOC_ROOM_MAX_CONNECTIONS),
+  docRoomGuestDocMaxMB: String(DOC_ROOM_GUEST_DOC_MAX_BYTES / (1024 * 1024)),
+  docRoomFrameMaxMB: String(DOC_ROOM_FRAME_MAX_BYTES / (1024 * 1024)),
   // What a referral pays the inviter and how often (0377, 0416), what the
   // friend gets on joining (0163, 0371), the storage each side gets (0416),
   // and the edit-link window for counting as a referral (claim_collab_link).
@@ -362,6 +436,14 @@ export const FACTS = {
   // share panel say the same "0.5GB" from the same code.
   referralBonusStorage: formatBonusBytes(Number(inviteStorage[1])),
   referralLinkJoinDays: referralLinkDays[1],
+  // A whole-workspace invite link's life and joins, for an account and for a
+  // new one, and the links an account makes a day (0450).
+  workspaceLinkDays: wsLink.days,
+  workspaceLinkUses: wsLink.uses,
+  workspaceLinksPerDay: wsLink.perDay,
+  workspaceLinkNewDays: wsLink.newDays,
+  workspaceLinkNewUses: wsLink.newUses,
+  workspaceLinksNewPerDay: wsLink.newPerDay,
   // Days a request's hashed network and browser are kept (0378).
   requestOriginRetentionDays: originRetention[1],
   // Characters of text automatic tagging reads per account per day (0381).

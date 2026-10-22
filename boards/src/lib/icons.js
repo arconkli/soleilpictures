@@ -8,6 +8,7 @@ export {
   Plus,
   Minus,
   X,
+  XCircle,
   Check,
   BookOpen,
   CaretDown as ChevronDown,
@@ -65,6 +66,7 @@ export {
   Copy,
   ArrowUUpLeft as Undo,
   ArrowUUpRight as Redo,
+  ArrowBendUpLeft as Reply,
   CircleNotch as Loader2,
   Folder,
   FolderOpen,
@@ -110,6 +112,7 @@ export {
   Question,
   Info,
   Warning,
+  WarningCircle,
   ArrowLeft,
   ArrowUp,
   ArrowDown,
@@ -125,6 +128,7 @@ export {
   ChartLine,
   ChartPie,
   ArrowsClockwise,
+  ArrowsLeftRight,
   Clock,
   Triangle,
   Circle,
@@ -172,4 +176,40 @@ export {
   SpeakerLow,
   Keyboard,
   Gift,
+  // The drag label's "can't go there" (components/sidebar/DragLabel.jsx).
+  Prohibit,
+  // The full Files page in the files sidebar's look: the sidebar's simple
+  // glyphs (clusterBrowser/FilesPageHead.jsx, its shelves and Info).
+  DownloadSimple,
+  UploadSimple,
+  FolderSimple,
+  FolderSimplePlus,
+  LinkSimple,
+  // The toolbar look (components/toolbar/): glyphs that were letters and
+  // marks in the bars before it.
+  TextTSlash,
+  TextAUnderline,
+  AlignCenterVertical,
+  ChatCircleText,
+  // The doc look's frame (components/doc/DocFrameA.jsx).
+  SidebarSimple,
+  Sidebar,
+  ChatsCircle,
+  CloudCheck,
+  CloudSlash,
+  CloudWarning,
+  BookmarkSimple,
+  // The Team page's payment card (components/team/TeamBilling.jsx).
+  CreditCard,
+  // The team setup's done step (components/team/TeamSetup.jsx).
+  CheckCircle,
+  // The doc look's one row of tools (components/doc/DocBarA.jsx).
+  Eraser,
+  Table,
+  CodeBlock,
+  FileHtml,
+  MarkdownLogo,
+  Printer,
+  HighlighterCircle,
+  MagnifyingGlassPlus,
 } from '@phosphor-icons/react';

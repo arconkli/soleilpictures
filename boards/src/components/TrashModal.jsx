@@ -40,7 +40,9 @@ function relTime(iso) {
   return `${mo}mo ago`;
 }
 
-export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored = null }) {
+// canPurge: the viewer is the workspace's owner or a co-owner, the only people
+// who may remove a cluster for good (0608). Everyone else can restore.
+export function TrashModal({ open, workspaceId = null, canPurge = false, onClose, onBoardRestored = null }) {
   const [trash, setTrash] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -134,7 +136,10 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
       </div>
 
       <div className="modal-actions">
-        <span className="modal-hint">Deleted clusters stay here for 30 days before being permanently removed.</span>
+        <span className="modal-hint">
+          Deleted clusters stay here for 30 days before being permanently removed.
+          {!canPurge && ' Only the owner and co-owners can remove one sooner.'}
+        </span>
       </div>
       <div className="modal-body">
         {loading && <div className="modal-empty">Loading…</div>}
@@ -166,9 +171,11 @@ export function TrashModal({ open, workspaceId = null, onClose, onBoardRestored 
                 <button className="tb-btn" disabled={busyId === b.id} onClick={() => onRestoreTrashBoard(b, inside)}>
                   {busyId === b.id ? 'Restoring…' : 'Restore'}
                 </button>
-                <button className="tb-btn tb-btn-sm tb-btn-danger"
-                        disabled={busyId === b.id}
-                        onClick={() => onHardDeleteBoard(b, inside)}>Delete now</button>
+                {canPurge && (
+                  <button className="tb-btn tb-btn-sm tb-btn-danger"
+                          disabled={busyId === b.id}
+                          onClick={() => onHardDeleteBoard(b, inside)}>Delete now</button>
+                )}
               </div>
             ))}
           </div>

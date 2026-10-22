@@ -5,7 +5,7 @@ h1: Files and uploads
 navLabel: Overview
 section: files
 order: 0
-updated: 2026-10-17
+updated: 2026-10-21
 answer: Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a {{fact:freeStorage}} drive and Creator a {{fact:creatorStorage}} one, and the drive is the only limit.
 faq:
   - q: What file types can I upload on the free plan?
@@ -45,6 +45,8 @@ created — you never pick "upload as image" from a menu.
 | Anything else | A file card — type icon, name, size, download |
 
 Small text files get an inline preview on the card rather than only a download.
+Double-click a file card to open it full screen, with **Download** and **Share**
+there.
 
 ## Limits
 
@@ -93,7 +95,7 @@ quota — which is the same rule that governs the [card cap](/docs/canvas/cards)
 
 - **A file counts while a cluster uses it.** Delete its card and the file stops
   counting within a few minutes — unless another cluster still uses the same
-  file, as a [linked copy](/docs/clusters/list-view) does.
+  file, as a [copy](/docs/clusters/sidebar#moving-and-copying-files) does.
 - **Clusters in the trash still count** until the trash is emptied. Emptying
   it frees their space at once.
 - **A deleted [version](#versions) counts** until it leaves Recently deleted.
@@ -114,6 +116,13 @@ references them. Removing the last card that uses a file stops it counting
 toward your storage within a few minutes; the file itself becomes eligible for
 deletion later, not immediately, so undo and version history can still bring it
 back.
+
+## On a phone or tablet
+
+With a finger, a tap on a file in Files opens it in Quick look, and touching
+and holding it opens its menu, whose **Select** lets each tap pick another file
+for the selection bar: put them on the board, move, copy or delete them. See
+[Files with a finger](/docs/account/mobile#files-with-a-finger).
 
 ## Versions
 
@@ -156,3 +165,9 @@ Every version is a stored file, so every version counts toward your
 Every file card has a download. [Images](/docs/canvas/images) additionally offer
 a version with adjustments applied. [PDFs](/docs/files/pdf) can be downloaded
 from the viewer.
+
+To send someone one file on its own — a page with just that file, its player
+and its comments, and nothing else from the cluster — use **Share file…**
+([Sharing a single file](/docs/collaborate/sharing#sharing-a-single-file)), or
+**Share** wherever the file is open full screen: the player, the image and PDF
+viewers, and Quick look from the sidebar or the file list.

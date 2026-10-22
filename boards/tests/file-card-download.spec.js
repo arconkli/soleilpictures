@@ -75,3 +75,18 @@ test('a slow Download from the card menu says "Preparing download…" until it l
   await page.evaluate(() => window.__release());
   await expect(busy).toHaveCount(0);
 });
+
+// A plain file opens full screen like everything else (Quick look, with its
+// Download there), instead of downloading on the spot (owner, 2026-10-18).
+test('double-clicking a plain file opens it full screen instead of downloading', async ({ page }) => {
+  const card = await fileCard(page);
+  let downloads = 0;
+  page.on('download', () => { downloads += 1; });
+  await card.locator('.filec-body').dblclick();
+  const ql = page.getByRole('dialog', { name: /Quick look: reference-pack\.zip/ });
+  await expect(ql).toBeVisible();
+  await expect(ql.getByRole('button', { name: 'Download' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(ql).toHaveCount(0);
+  expect(downloads).toBe(0);
+});

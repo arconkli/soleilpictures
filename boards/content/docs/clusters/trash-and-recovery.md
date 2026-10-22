@@ -5,13 +5,13 @@ h1: Trash and recovery
 navLabel: Trash and recovery
 section: clusters
 order: 3
-updated: 2026-10-11
+updated: 2026-10-22
 answer: Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 faq:
   - q: How long do I have to restore a deleted cluster?
     a: 30 days. After that it is purged permanently.
   - q: Does a cluster in the trash still use up my card limit?
-    a: No. Deleting a cluster releases its cards immediately, so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade.
+    a: No. Deleting a cluster releases the cards inside it immediately (the cluster itself never cost one), so the room is yours to use straight away. The trade-off is that restoring it has to fit: if you have filled the space in the meantime, the restore is refused until you make room or upgrade.
   - q: Can I undo a collaborator's changes?
     a: Cmd-Z only undoes your own edits. To reverse someone else's work, use version history on that board or workspace recovery.
   - q: What is the alert banner about?
@@ -46,8 +46,10 @@ Deleting a cluster is a **soft delete**. It goes to the workspace trash and
 stays restorable for **30 days**, then is purged.
 
 The trash is workspace-wide — open it from the sidebar or `⌘K` → "trash". From
-there, **restore** puts a cluster back where it was, or **remove permanently**
-if you are sure.
+there, **restore** puts a cluster back where it was. The workspace's owner and
+co-owners can also **remove it permanently** if they are sure; for everyone
+else, editors included, a deleted cluster waits out its 30 days and can always
+be brought back.
 
 A cluster goes to the trash with everything inside it, the clusters nested in
 it included, and it comes back the same way: restoring it brings them all back
@@ -56,7 +58,7 @@ restore a cluster whose parent is still in the trash, it comes back under the
 nearest cluster that isn't, or at the top of your workspace.
 
 **A cluster in the trash does not count against your card limit.** Deleting one
-frees its cards the moment you delete it, so if you cleared a cluster to make
+frees the cards inside it the moment you delete it, so if you cleared a cluster to make
 room, the room is there immediately.
 
 That cuts both ways, and deliberately: a restore has to fit. If you used the
@@ -81,9 +83,10 @@ the same list as a human one. Rows are grouped by work session; selecting one
 previews what it contains before you commit.
 
 Restoring always snapshots the **current** state first, so a restore is itself
-restorable. A second tab lists name, colour, cover, view and shoot-day date
-changes, each with a one-click revert — reverting a published day's date goes
-through the same path as moving it, so the crew is notified.
+restorable. Anyone with a [document](/docs/documents) open on the board sees it
+reopen where they were, with a note of what happened, and if the restore
+changed the page they had open, a copy of that page as they had it. A second
+tab lists name, colour, cover and view changes, each with a one-click revert.
 
 This is the tool for "the board was right yesterday and is wrong now", including
 when the change was someone else's.

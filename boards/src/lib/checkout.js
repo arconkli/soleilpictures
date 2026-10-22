@@ -12,16 +12,28 @@
 import { supabase } from './supabase.js';
 import { logEvent, logEventNow } from './analytics.js';
 import { EV } from './analyticsEvents.js';
-import { getFbCookies, trackInitiateCheckout } from './metaPixel.js';
+import { getFbCookies, gpcOn, trackInitiateCheckout } from './metaPixel.js';
 import { PRICING } from './billingCopy.js';
 import { checkoutErrorKind } from './checkoutErrors.js';
 import { isGalleryActive } from './galleryState.js';
 import { noteCheckoutStart, notePendingImport } from './checkoutReturn.js';
 import { AWAIT_PAYMENT_MS, hasHeld, letGoHeld, noteAwaitingPayment } from './heldUploads.js';
 
-const CHECKOUT_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-checkout-session';
-const PORTAL_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/create-portal-session';
-const ACCOUNT_ACTION_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/admin-account-action';
+// The billing functions run where the database is (us-west-2). Supabase runs
+// a function in the region nearest the caller unless told otherwise, and each
+// of these reads or writes the database several times a request (the caller's
+// session, their subscription and profile rows, the activation), so for a
+// buyer far from Oregon every one of those crossed an ocean and back. Pinned
+// with the query parameter, not the x-region header, because a header would
+// have to be allowed by each function's CORS
+// (supabase.com/docs/guides/functions/regional-invocation).
+const FUNCTIONS = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/';
+const BY_THE_DATABASE = '?forceFunctionRegion=us-west-2';
+const CHECKOUT_URL = FUNCTIONS + 'create-checkout-session' + BY_THE_DATABASE;
+const PORTAL_URL   = FUNCTIONS + 'create-portal-session' + BY_THE_DATABASE;
+// PricingSuccess calls it; it lives here so warmCheckout() below can warm it.
+export const VERIFY_URL = FUNCTIONS + 'verify-checkout-session' + BY_THE_DATABASE;
+const ACCOUNT_ACTION_URL = FUNCTIONS + 'admin-account-action';
 
 // The iOS and Android app: a page on another host opens in the system
 // browser and the app stays where it was (Capacitor, no allowNavigation), so
@@ -50,6 +62,47 @@ async function authedToken() {
   return token;
 }
 
+// A click on the Creator button used to wait on two things before its request
+// even left: the browser asking the function whether it may be called (the CORS
+// preflight, a round trip of its own), and often the edge runtime booting the
+// function first. An offer that opens pays both before the click. An OPTIONS
+// request boots the function, and the preflight it needs is remembered
+// (access-control-max-age), so the click's POST goes out alone. Verify is warmed
+// with checkout, so the return from Stripe finds its preflight answered too, and
+// so is the success page's chunk, which the return then reads from the cache.
+// Once a minute per function at most. Nothing here throws or is waited on, and a
+// failure costs only the head start.
+const WARM_EVERY_MS = 60_000;
+const warmedAt = new Map();
+
+async function warm(url) {
+  const now = Date.now();
+  if (now - (warmedAt.get(url) || 0) < WARM_EVERY_MS) return;
+  warmedAt.set(url, now);
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) return;
+    // The same headers the real call sends, so the preflight answers for them.
+    await fetch(url, { method: 'OPTIONS', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' } });
+  } catch (_) { /* the click asks for itself */ }
+}
+
+// For an offer of the plan (PricingModal, the /pricing page).
+export function warmCheckout() {
+  warm(CHECKOUT_URL);
+  warm(VERIFY_URL);
+  if (!warmedAt.has('success-page')) {
+    warmedAt.set('success-page', Date.now());
+    import('../auth/PricingSuccess.jsx').catch(() => {});
+  }
+}
+
+// For an offer of Manage billing (Settings → Billing, the paid side of the offer).
+export function warmPortal() {
+  warm(PORTAL_URL);
+}
+
 // Start Stripe Checkout for `plan` ('monthly' | 'annual'). Redirects the
 // browser to the returned URL (Checkout, or the Customer Portal if the server
 // detected an existing subscription). Throws on failure so callers can show
@@ -65,7 +118,7 @@ async function authedToken() {
 // the plan lands. The tab is opened before the first await, because a browser
 // lets a page open one only inside the click that asked; where it cannot be
 // opened the files are let go and the return asks for them again.
-export async function startCheckout({ plan, surface, header = null, via = null, trial = false }) {
+export async function startCheckout({ plan, surface, header = null, via = null, trial = false, wallCards = null }) {
   // The one previewable action with a real external consequence. Clicking
   // "Try Creator" inside the admin Surface Gallery would otherwise create a
   // live Stripe Checkout session against the admin's own customer record and
@@ -97,7 +150,7 @@ export async function startCheckout({ plan, surface, header = null, via = null, 
     const res = await fetch(CHECKOUT_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ plan, fbp, fbc, ic_event_id: icEventId, trial: Boolean(trial), surface, header, via }),
+      body: JSON.stringify({ plan, fbp, fbc, gpc: gpcOn(), ic_event_id: icEventId, trial: Boolean(trial), surface, header, via, wall_cards: Number.isInteger(wallCards) ? wallCards : undefined }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.url) {

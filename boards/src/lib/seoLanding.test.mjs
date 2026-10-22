@@ -229,6 +229,28 @@ test('siblingListicle is a {path,label} object pointing at a real listicle', () 
   }
 });
 
+test('the homepage description is the same sentence everywhere, within the limit', async () => {
+  // index.html carries it three times (description, og:description and
+  // twitter:description) and the Worker rewrites the homepage <head> with
+  // DEFAULT_DESCRIPTION. Nothing compared them, so a search snippet could quote
+  // one sentence while a share card showed another, and it ran a character
+  // over META_MAX for months.
+  const { readFile } = await import('node:fs/promises');
+  const html = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
+  const worker = await readFile(new URL('../worker.js', import.meta.url), 'utf8');
+  const m = worker.match(/const DEFAULT_DESCRIPTION =\s*'([^']+)';/);
+  assert.ok(m, "worker.js DEFAULT_DESCRIPTION is one single-quoted literal");
+  const want = m[1];
+  for (const [name, re] of [
+    ['description', /<meta name="description" content="([^"]+)"/],
+    ['og:description', /<meta property="og:description" content="([^"]+)"/],
+    ['twitter:description', /<meta name="twitter:description" content="([^"]+)"/],
+  ]) {
+    assert.equal((html.match(re) || [])[1], want, `index.html ${name} differs from the Worker's DEFAULT_DESCRIPTION`);
+  }
+  assert.ok(want.length <= META_MAX, `homepage description is ${want.length} characters, over ${META_MAX}`);
+});
+
 test('the homepage crawlable nav links every public marketing page', async () => {
   // boards/index.html carries a hand-maintained <nav> inside <main id="seo-fallback">
   // — the only internal links the homepage gives a crawler. Nothing else guarded

@@ -71,10 +71,10 @@ const listUsers = NAMES.map((name, i) => {
   const tier = TIERS[i % TIERS.length];
   const paid = tier === 'paid';
   const contacted = i % 5 === 0;   // sprinkle a few "reached out" users for the preview
-  // A couple of unverified examples so the badge + dropdown have something to show:
-  // i===4 confirmed email but never signed in; i===11 email never confirmed.
-  const neverSignedIn = i === 4;
-  const emailUnconfirmed = i === 11;
+  // Two accounts that asked for a code and never entered it, so the badge and
+  // the dropdown have something to show. email_confirmed is 0462's: entered
+  // the code. Their one sign-in is the one made with the account.
+  const neverGotIn = i === 4 || i === 11;
   return {
     user_id: `u-${i}`,
     email: `${name}@${['studio.co', 'gmail.com', 'acme.io', 'proton.me'][i % 4]}`,
@@ -82,8 +82,8 @@ const listUsers = NAMES.map((name, i) => {
     card_count: Math.max(0, wave(i, 70, 60)),
     seconds_in_app: Math.max(0, wave(i, 9000, 8000)) * 6,
     created_at: tsISO((i + 1) * 1440 * 3),
-    last_sign_in_at: neverSignedIn ? null : tsISO((i % 5) * 120 + 15),
-    email_confirmed: !emailUnconfirmed,
+    last_sign_in_at: neverGotIn ? tsISO((i + 1) * 1440 * 3) : tsISO((i % 5) * 120 + 15),
+    email_confirmed: !neverGotIn,
     subscription_plan: paid ? (i % 2 ? 'annual' : 'monthly') : null,
     subscription_status: paid ? 'active' : null,
     current_period_end: paid ? tsISO(-1440 * 20) : null,
@@ -112,19 +112,21 @@ const topUsers = (tier) => listUsers
 // ── funnel ──────────────────────────────────────────────────────────
 const signupFunnel = [
   { ord: 1,  step: 'landing_view',        label: 'Landing view',           branch: 'core',     sessions: 4280, users: 0 },
-  { ord: 2,  step: 'email_submit',        label: 'Email submitted',        branch: 'core',     sessions: 1190, users: 0 },
-  { ord: 3,  step: 'otp_verify',          label: 'OTP verified (account)', branch: 'core',     sessions: 1102, users: 1102 },
+  { ord: 2,  step: 'email_submit',        label: 'Asked for a code',       branch: 'core',     sessions: 1190, users: 0 },
+  { ord: 3,  step: 'otp_verify',          label: 'Entered the code',       branch: 'core',     sessions: 1102, users: 1102 },
   { ord: 4,  step: 'welcome_view',        label: 'Welcome page',           branch: 'core',     sessions: 988,  users: 988 },
   { ord: 5,  step: 'submit_socials_open', label: 'Opened waitlist form',   branch: 'waitlist', sessions: 545,  users: 545 },
   { ord: 6,  step: 'submit_socials_done', label: 'Joined waitlist',        branch: 'waitlist', sessions: 412,  users: 412 },
   { ord: 7,  step: 'pricing_view',        label: 'Viewed pricing',         branch: 'pricing',  sessions: 612,  users: 612 },
   { ord: 8,  step: 'checkout_open',       label: 'Opened checkout',        branch: 'pricing',  sessions: 286,  users: 286 },
   { ord: 9,  step: 'checkout_success',    label: 'Completed payment',      branch: 'pricing',  sessions: 142,  users: 142 },
-  { ord: 20, step: 'email_submit_error',  label: 'Email submit failed',    branch: 'leak',     sessions: 64,   users: 0 },
-  { ord: 21, step: 'otp_verify_error',    label: 'OTP verify failed',      branch: 'leak',     sessions: 38,   users: 0 },
+  { ord: 20, step: 'email_submit_error',  label: 'Code request failed',    branch: 'leak',     sessions: 64,   users: 0 },
+  { ord: 21, step: 'otp_verify_error',    label: 'Code not accepted',      branch: 'leak',     sessions: 38,   users: 0 },
   { ord: 22, step: 'waitlist_abandon',    label: 'Abandoned waitlist form',branch: 'leak',     sessions: 121,  users: 121 },
   { ord: 23, step: 'pricing_abandon',     label: 'Abandoned pricing',      branch: 'leak',     sessions: 240,  users: 240 },
   { ord: 24, step: 'checkout_error',      label: 'Checkout failed',        branch: 'leak',     sessions: 31,   users: 31 },
+  // 0461: derived from steps 2 and 3, not an event of its own.
+  { ord: 25, step: 'code_never_entered',  label: 'Never entered the code', branch: 'leak',     sessions: 88,   users: 0 },
 ];
 const funnelSegments = [
   { dim: 'source', value: 'google',   sessions: 1840 },
@@ -133,6 +135,9 @@ const funnelSegments = [
   { dim: 'source', value: 'direct',   sessions: 520 },
   { dim: 'campaign', value: 'launch-q3', sessions: 1420 },
   { dim: 'campaign', value: 'creators',  sessions: 880 },
+  // Since 0474 no shared link's token is stored, so every link's sign-ups
+  // arrive as this one campaign, and the admin names it (segmentLabel).
+  { dim: 'campaign', value: ':token',    sessions: 310 },
   { dim: 'content', value: 'hero-a',  sessions: 760 },
   { dim: 'content', value: 'hero-b',  sessions: 540 },
 ];
@@ -229,7 +234,7 @@ const RPCS = {
     total_users: 1284, new_users_7d: 96,
     total_seconds_in_app: 40_000_000,    // ~1.3 yr — exercises the y/mo/d/h/m/s breakdown
     tier_counts: { admin: 3, paid: 142, demo: 806, waitlist: 333 },
-    sub_counts: { active: 138, trialing: 4, canceled: 18 },
+    sub_counts: { active: 138, trialing: 4, canceled: 18 }, trialing_subs: 4,
     mrr_cents: 312400, comped_paid: 6, subscribed_paid: 136, discounted_subs: 21,
     waitlist_pending: 211, waitlist_total: 333,
   },
@@ -267,6 +272,22 @@ const RPCS = {
     { ord: 7, step: 'checkout_success', label: 'Completed payment',     branch: 'buy',  sessions: 22,  users: 22 },
   ],
   admin_funnel_segments: funnelSegments,
+  // Referrals, invites and invite links. banned_left_out exercises the
+  // panel's "Left out" note (0490).
+  admin_referral_stats: {
+    days: 30, total: 18, pending: 5, activated: 13, activation_rate: 0.7222, cards_granted: 300,
+    referring_users: 11, paid_conversions: 1, months_granted: 1, k_factor: 1.182, median_days_to_activate: 0.4,
+    by_source: { link: { total: 4, activated: 3 }, collab: { total: 14, activated: 10 } },
+    invites: { sent_total: 52, pending_signup: 21, signed_up: 12, direct_grants: 31, inviting_users: 16 },
+    link_invites: { created: 24, claimed: 13, active_links: 20 },
+    editor_seats: { workspaces_with_editors: 19, max_editors_per_owner: 6 },
+    banned_left_out: { accounts: 1, invites: 340, links: 2, referrals: 0 },
+    top_referrers: [
+      { user_id: 'u3', email: 'mara@lumenworks', friends_joined: 5, friends_activated: 4, friends_paid: 1, cards_earned: 100 },
+      { user_id: 'u5', email: 'theo@northlight', friends_joined: 3, friends_activated: 3, friends_paid: 0, cards_earned: 75 },
+      { user_id: 'u8', email: 'ines@paperplane', friends_joined: 2, friends_activated: 1, friends_paid: 0, cards_earned: 25 },
+    ],
+  },
   admin_acquisition_breakdown: [
     { source: 'google',  signups: 412, converted: 79, conversion: 0.1917 },
     { source: 'reddit',  signups: 233, converted: 28, conversion: 0.1202 },
@@ -305,6 +326,16 @@ const RPCS = {
       palette: { admin: 20, paid: 700, demo: 850, waitlist: 70 },
       doc:   { admin: 20, paid: 200, demo: 700, waitlist: 60 },
       url:   { admin: 10, paid: 100, demo: 450, waitlist: 20 },
+    },
+  },
+  // 0505: the cards on live clusters, by kind. The total is total_cards in
+  // admin_universe_stats below, as it is in production, and the long tail
+  // still exercises the Command Center's fold into "Other".
+  admin_live_card_mix: {
+    total: 18420,
+    by_kind: {
+      image: 7400, note: 3900, link: 2400, palette: 1500, board: 1100, doc: 820, grid: 740,
+      shape: 260, video: 155, boardlink: 88, schedule: 40, art: 9, pdf: 5, audio: 2, file: 1,
     },
   },
   admin_tier_usage_compare: [
@@ -497,6 +528,12 @@ RPCS.admin_event_coverage = [
   { milestone: 'first_populated_board', server_truth: 41, client_event: 39, coverage_pct: 0.9512 },
   { milestone: 'first_share',           server_truth: 31, client_event: 19, coverage_pct: 0.6129 },
   { milestone: 'first_paid',            server_truth: 17, client_event: 17, coverage_pct: 1 },
+  // 0472's rows. joined_by_link is the 0-of-0 case: a feature nobody has used
+  // yet, whose coverage_pct is null rather than 0.
+  { milestone: 'first_cluster',         server_truth: 44, client_event: 41, coverage_pct: 0.9318 },
+  { milestone: 'first_message',         server_truth: 12, client_event: 12, coverage_pct: 1 },
+  { milestone: 'first_import',          server_truth: 6,  client_event: 5,  coverage_pct: 0.8333 },
+  { milestone: 'joined_by_link',        server_truth: 0,  client_event: 0,  coverage_pct: null },
 ];
 
 // admin_email_stats(category, template, sent, delivered, opened, clicked,
@@ -552,11 +589,15 @@ RPCS.admin_journey_reconstruct_by_user = [
   journey('j-recent', 190, JOURNEY_A),
 ];
 
-// admin_universe_stats() -> platform_counters + today. Today's lifetime strip
-// and the "all time" figure beside each window metric read from this.
+// admin_universe_stats() -> exact live totals (0460), the last 24 hours and
+// today since midnight UTC. total_boards is clusters made plus Studios, one
+// Studio per workspace here, and the 24h boards count the new workspaces'
+// Studios too, so nodes_created_24h = users + workspaces + boards + cards.
 RPCS.admin_universe_stats = {
   total_users: 1284, total_workspaces: 640, total_boards: 1810, total_cards: 18420,
+  total_clusters_made: 1170, total_studios: 640,
   total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 4_812_000,
+  last_24h: { users: 7, workspaces: 4, boards: 13, clusters_made: 9, cards: 72 },
   today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
 };
 
@@ -908,6 +949,114 @@ RPCS.admin_api_overview = {
   first_call_at: tsISO(60 * 24 * 22),
   last_call_at: tsISO(6),
 };
+// admin_lifetime_totals(p_exclude_internal, p_verified_only): what exists now,
+// under the toolbar's toggles (0460). The harness has one population, as with
+// admin_weekly_series, so a toggle re-issues the call over the same numbers.
+// They sit a little under admin_universe_stats above, which counts the team.
+RPCS.admin_lifetime_totals = {
+  users: 1276, workspaces: 628, clusters_made: 1094, studios: 628, cards: 17260, seconds_in_app: 3_960_000,
+};
+
+// admin_recent_signups(p_limit, …): newest first, with what each person made
+// anywhere (0460). A rotation of the four cases the Overview words differently:
+// own cards and clusters, cards only in someone else's cluster (an invitee),
+// a card placed and since deleted (first_card_at outlives it), and nothing yet.
+RPCS.admin_recent_signups = Array.from({ length: 20 }, (_, i) => {
+  const kind = i % 4;
+  const own = kind === 0 ? 3 + ((i * 7) % 40) : 0;
+  return {
+    user_id: `rs-${i}`,
+    email: `${NAMES[i % NAMES.length]}.${i}@${['studio.co', 'gmail.com', 'acme.io', 'proton.me'][i % 4]}`,
+    created_at: tsISO(25 + i * 190),
+    acquisition_source: CHANNELS[i % CHANNELS.length],
+    first_card_at: kind === 3 ? null : tsISO(20 + i * 190),
+    card_count: own,
+    guest_cards: kind === 1 ? 6 + i : (kind === 0 && i % 8 === 0 ? 2 : 0),
+    clusters_made: kind === 0 ? 1 + (i % 3) : 0,
+  };
+});
+
+// admin_share_signups(p_limit): shares that brought people to the PRODUCT.
+// `activated` is 0460's rule, the Users list's "made something". One public
+// cluster, one invite link, and one share whose cluster has since been deleted
+// (board_title null), so all three of the pane's branches render.
+RPCS.admin_share_signups = [
+  { kind: 'public_board', token: null, slug: 'storyboard-kit', board_id: 'b-share-1', board_title: 'Storyboard kit',
+    shared_by_email: 'mara@studio.co', link_kind: null, link_role: null, signups: 14, activated: 9 },
+  { kind: 'share_link', token: 'tok-share-2', slug: null, board_id: 'b-share-2', board_title: 'Lookbook, spring',
+    shared_by_email: 'devon@ridge.io', link_kind: 'invite', link_role: 'editor', signups: 6, activated: 4 },
+  { kind: 'share_link', token: 'tok-share-3', slug: null, board_id: null, board_title: null,
+    shared_by_email: 'kit@paperlane', link_kind: 'view', link_role: 'viewer', signups: 2, activated: 0 },
+];
+
+// admin_user_detail(p_user_id), built from that person's list row so the pane
+// agrees with the row it was opened from. The shape is the live payload's
+// (0460). Without this the RPC resolved to null and the pane showed only its
+// header, so none of the Engagement rows could be looked at.
+function userDetailFixture(userId) {
+  const i = listUsers.findIndex((u) => u.user_id === userId);
+  const row = listUsers[i];
+  if (!row) return null;
+  const made = row.card_count > 0;
+  const paid = row.tier === 'paid';
+  const clustersMade = made ? 1 + (i % 6) : 0;
+  const activeDays = made ? 3 + (i % 17) : i % 2;
+  const verified = row.email_confirmed;
+  return {
+    user_id: row.user_id,
+    email: row.email,
+    flags: {
+      banned: row.banned, verified, is_internal: i === 0,
+      email_confirmed: row.email_confirmed, last_sign_in_at: row.last_sign_in_at,
+    },
+    identity: {
+      tier: row.tier, color: null, banned: row.banned, banned_at: null, banned_by: null, avatar_url: null,
+      display_name: null, banned_reason: row.banned ? 'Spam signups' : null, banned_by_email: null,
+    },
+    acquisition: {
+      label: row.acquisition_source, landing_path: i % 3 ? '/' : '/vs/pureref',
+      referrer: i % 2 ? 'https://www.google.com/' : null, referrer_host: i % 2 ? 'www.google.com' : null,
+      utm_source: null, utm_medium: null, utm_campaign: null, utm_term: null, utm_content: null,
+      share: null, share_token: null, public_slug: null, last_touch: null, raw: {},
+      fbclid: null, gclid: null, wbraid: null, gbraid: null, msclkid: null, ttclid: null, twclid: null,
+      li_fat_id: null, rdt_cid: null, sccid: null, epik: null,
+    },
+    activation: {
+      created_at: row.created_at,
+      first_board_at: made ? row.created_at : null,
+      first_card_at: made ? row.created_at : null,
+      first_share_at: made && i % 3 === 0 ? row.created_at : null,
+      first_backlink_at: null,
+      first_paid_at: paid ? row.created_at : null,
+      milestones: [],
+    },
+    engagement: {
+      card_count: row.card_count, effective_card_limit: 50, demo_card_cap: 50,
+      bonus_card_credits: i % 3 === 0 ? 10 : 0, card_cap_base: i % 7 === 0 ? 100 : 50,
+      board_count: clustersMade + 1, clusters_made: clustersMade, studios: 1,
+      discarded_cards: i % 9 === 0 ? 6 : 0, discarded_clusters: i % 9 === 0 ? 1 : 0,
+      guest_cards: i % 8 === 0 ? 12 : 0, guest_clusters: i % 8 === 0 ? 2 : 0, guest_workspaces: i % 8 === 0 ? 1 : 0,
+      seconds_in_app: row.seconds_in_app, last_seen_at: row.last_sign_in_at, online: i % 6 === 0,
+      storage: { used_bytes: paid ? 2_400_000_000 : 0, quota_bytes: paid ? 100_000_000_000 : null, image_count: paid ? 812 : 0 },
+      active_days: activeDays, work_days: made ? Math.max(1, Math.floor(activeDays / 2)) : 0,
+      first_active_day: activeDays ? dayISO(activeDays * 2 + 3) : null,
+      last_active_day: activeDays ? dayISO(i % 4) : null,
+    },
+    device: {
+      last: { device_type: ['desktop', 'mobile', 'tablet'][i % 3], os: ['macOS', 'iOS', 'iPadOS'][i % 3], browser: ['Chrome', 'Safari', 'Safari'][i % 3] },
+      breakdown: [{ device_type: 'desktop', events: 120 + i }, { device_type: 'mobile', events: 14 + (i % 5) }],
+    },
+    geo: { country: ['US', 'GB', 'CA', 'DE'][i % 4], signup_country: ['US', 'GB', 'CA', 'DE'][i % 4], breakdown: [] },
+    billing: paid ? {
+      plan: row.subscription_plan, status: row.subscription_status, trialing: false,
+      monthly_amount_cents: row.subscription_amount_cents, discounted: row.subscription_discounted,
+      cancel_at_period_end: false, current_period_end: row.current_period_end, stripe_customer_id: 'cus_fixture',
+    } : null,
+    grants: [],
+    outreach: [],
+  };
+}
+
 RPCS.admin_user_api_usage = {
   days: 30,
   tokens: [
@@ -1016,6 +1165,107 @@ export const HARNESS_BREAKS = DEFINITION_BREAKS.map((b) => (
   b.cut === true ? { ...b, date: isoPlus(WK[WORK_FROM], 1) } : b
 ));
 
+// ── The long run: admin_growth_series (0460) ──────────────────────────────
+//
+// Twenty-six weeks on the same calendar as WK, so its last fourteen rows ARE
+// admin_weekly_series' rows (spread in below, never retyped) and the band can
+// never disagree with the tiles above it. The first twelve are an earlier,
+// smaller product, shaped so every state the band draws is on screen:
+//
+//   presence  not measured for the first three weeks (active_floor GW[3]), so
+//             Weekly active opens hatched, as production's does;
+//   work      measured from WK[WORK_FROM] only, and cut by HARNESS_BREAKS the
+//             week after, so the line is thin for one week, then full;
+//   day one   cohorts under SMALL_N early on (small unjoined dots), and the
+//             newest complete week still filling until it is eight days old;
+//   time      not recorded before today, the state production is in until its
+//             first full week: the chart is hatched with its message. ?time=1
+//             starts it at WK[WORK_FROM] instead, to look at the measured bars.
+//
+// Synthetic numbers; this repo is public. seconds_in_app is a bigint column, so
+// it arrives as a string of digits, as PostgREST sends one.
+const GW = weekStarts(26);
+const GROWTH_EARLY = GW.length - WK.length; // 12 rows before WK[0]
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const EARLY_SIGNUPS  = [3, 1, 2, 4, 3, 6, 8, 7, 11, 14, 18, 23];
+const EARLY_ACTIVE   = [null, null, null, 6, 7, 9, 12, 14, 18, 22, 27, 34];
+const EARLY_CARDS    = [0, 4, 12, 20, 35, 60, 90, 118, 160, 214, 262, 331];
+const DAY_ONE_RATE   = [0.33, 1, 0.5, 0.5, 0.33, 0.5, 0.38, 0.43, 0.45, 0.43, 0.39, 0.43,
+  0.46, 0.42, 0.4, 0.45, 0.44, 0.42, 0.47, 0.44, 0.48, 0.41, 0.46, 0.43, 0.47, 0.42];
+const GROWTH_ACTIVE_FLOOR = GW[3];
+function timeFloor() {
+  try { if (new URLSearchParams(window.location.search).get('time') === '1') return WK[WORK_FROM]; } catch { /* no window */ }
+  return TODAY_ISO;
+}
+const TIME_HOURS = [31, 38, 35, 42, 11]; // WK[WORK_FROM..13], when ?time=1
+
+function growthRows() {
+  return liveWeek(baseGrowthRows());
+}
+
+function baseGrowthRows() {
+  const secondsFloor = timeFloor();
+  let users = 0;
+  let cardsTotal = 0;
+  return GW.map((week_start, i) => {
+    const late = i >= GROWTH_EARLY ? RPCS.admin_weekly_series[i - GROWTH_EARLY] : null;
+    const signups = late ? late.signups : EARLY_SIGNUPS[i];
+    const active = late ? late.active_users : EARLY_ACTIVE[i];
+    const activeMeasurable = week_start >= GROWTH_ACTIVE_FLOOR;
+    const cards = late ? late.cards : EARLY_CARDS[i];
+    // Running totals of what still exists: a few accounts and cards deleted along the way.
+    users += signups;
+    cardsTotal += cards;
+    const fresh = activeMeasurable ? Math.min(active, Math.round(signups * 0.7)) : null;
+    const dayOne = Math.round(signups * DAY_ONE_RATE[i]);
+    const secondsMeasurable = week_start >= secondsFloor;
+    const hoursAt = i - GROWTH_EARLY - WORK_FROM;
+    return {
+      week_start,
+      complete: late ? late.complete : true,
+      settling: late ? late.settling : false,
+      signups,
+      active_users: activeMeasurable ? active : null,
+      active_measurable: activeMeasurable,
+      work_users: late ? late.work_users : null,
+      work_measurable: late ? late.work_measurable : false,
+      cards,
+      active_floor: GROWTH_ACTIVE_FLOOR,
+      work_floor: WK[WORK_FROM],
+      users_total: users - Math.floor(users / 40),
+      new_active: fresh,
+      returning_active: activeMeasurable ? active - fresh : null,
+      clusters_made: Math.round(signups * 0.55) + (i % 3),
+      cards_total: cardsTotal - Math.floor(cardsTotal / 14),
+      day_one_n: signups,
+      day_one_activated: dayOne,
+      day_one_complete: isoPlus(week_start, 8) <= TODAY_ISO,
+      seconds_in_app: secondsMeasurable && hoursAt >= 0 && hoursAt < TIME_HOURS.length
+        ? String(TIME_HOURS[hoursAt] * 3600 + 1234)
+        : null,
+      seconds_measurable: secondsMeasurable,
+      seconds_floor: secondsFloor,
+    };
+  });
+}
+
+// admin_return_fixed_horizon's week rows across the same calendar, for the band's
+// "Back within 7 days" (it asks for 52 weeks; the Retention view asks for 12 and
+// keeps getting the rows above). The read counts a first visit once it is a week
+// old, so this week has no row, and the newest complete week only the days of it
+// that are: here two of its seven.
+function growthReturnRows() {
+  const rows = [];
+  GW.forEach((w, i) => {
+    if (i === GW.length - 1) return;
+    const full = Math.max(1, Math.round((i >= GROWTH_EARLY ? WEEKLY_SIGNUPS[i - GROWTH_EARLY] : EARLY_SIGNUPS[i]) * 0.9));
+    const n = i === GW.length - 2 ? Math.max(1, Math.round((full * 2) / 7)) : full;
+    const returned = Math.round(n * (0.24 + (i % 4) * 0.03));
+    rows.push([`week:${w}`, n, returned]);
+  });
+  return fhRows(rows);
+}
+
 // The notes table is reached only through admin_note_add / _delete / _restore and
 // read only through admin_markers: it has no client grants, so TABLES below has
 // no entry for it and must not get one. The state is mutable on purpose. The
@@ -1068,6 +1318,325 @@ function weeksParam() {
   } catch { return null; }
 }
 
+// ── Analytics › Money (0492, 0493) ──────────────────────────────────
+// Invented, like everything here, in the two states the rest of the harness
+// has: the populated product, and ?mrr=0's, one trial running and nobody
+// paying yet. The path is nested in both, so no step is larger than the one
+// before it.
+const agoISO = (days, hour = 9) => {
+  const d = new Date(TODAY.getTime() - days * 86_400_000);
+  d.setUTCHours(hour, 12, 0, 0);
+  return d.toISOString();
+};
+const aheadISO = (days) => new Date(TODAY.getTime() + days * 86_400_000).toISOString();
+
+function moneyPathFixture(zero) {
+  const steps = zero
+    ? { saw: 214, pressed: 3, pressed_trial: 3, checkout: 3, finished: 2, started: 1, started_trial: 1, paid: 0,
+      first_pressed: agoISO(8), first_finished: agoISO(6), first_paid: null,
+      trial_running: 1, trial_cancelling: 0, trial_ends: aheadISO(9.4), trial_ended_unpaid: 0, checkout_error_people: 0 }
+    : { saw: 1240, pressed: 262, pressed_trial: 230, checkout: 236, finished: 171, started: 166, started_trial: 160, paid: 138,
+      first_pressed: agoISO(140), first_finished: agoISO(139), first_paid: agoISO(125),
+      trial_running: 4, trial_cancelling: 1, trial_ends: aheadISO(3.2), trial_ended_unpaid: 18, checkout_error_people: 9 };
+  return {
+    since: agoISO(150, 18),
+    steps,
+    routes: zero
+      ? { wall: { people: 31, pressed: 3 }, button: { people: 88, pressed: 0 }, elsewhere: { people: 108, pressed: 0 }, both: 13 }
+      : { wall: { people: 310, pressed: 141 }, button: { people: 520, pressed: 96 }, elsewhere: { people: 520, pressed: 25 }, both: 110 },
+    offer: {
+      since: agoISO(118),
+      times: zero ? 344 : 2930,
+      people: zero ? 101 : 880,
+      outcomes: zero
+        ? { dismiss: { times: 318, people: 92 }, hidden: { times: 12, people: 10 }, invite_alt: { times: 11, people: 9 }, cta: { times: 3, people: 3 } }
+        : { dismiss: { times: 2440, people: 760 }, hidden: { times: 120, people: 104 }, invite_alt: { times: 96, people: 81 }, cta: { times: 274, people: 262 } },
+      dismiss_methods: zero
+        ? { x: 214, backdrop: 52, maybe_later: 33, nav: 12, esc: 7 }
+        : { x: 1560, backdrop: 430, maybe_later: 300, nav: 98, esc: 52 },
+      trial_on_button: zero
+        ? { since: agoISO(35), times: 52, people: 29, pressed: 3, pressed_first: agoISO(8), pressed_last: agoISO(6) }
+        : { since: agoISO(35), times: 980, people: 410, pressed: 230, pressed_first: agoISO(34), pressed_last: agoISO(0.2) },
+      reasons: {
+        since: agoISO(14),
+        shown: zero ? 16 : 140,
+        answered: zero ? 6 : 61,
+        choices: zero
+          ? [{ choice: 'price', label: 'The price', n: 3 }, { choice: 'enough_room', label: 'The free plan is enough for me', n: 2 },
+            { choice: 'just_trying', label: 'I am just trying it out', n: 1 }]
+          : [{ choice: 'enough_room', label: 'The free plan is enough for me', n: 22 }, { choice: 'price', label: 'The price', n: 17 },
+            { choice: 'unsure_value', label: 'Not sure it is worth it yet', n: 11 }, { choice: 'no_card', label: 'I do not want to add a card', n: 7 },
+            { choice: 'other', label: 'Something else', n: 4 }],
+      },
+    },
+  };
+}
+
+const capHit = (email, o) => ({
+  user_id: `cap-${email}`, email, joined_at: agoISO(o.joined), first_hit: agoISO(o.hit, 14), cap: o.cap ?? 50, cards: o.cards,
+  tier: o.tier || 'demo', sub_status: o.sub ?? null, closed_offer: o.closed ?? 1, pressed: !!o.pressed, checkout: !!o.co,
+  why: o.why ?? null, why_label: o.why === 'enough_room' ? 'The free plan is enough for me' : o.why === 'price' ? 'The price' : null,
+  deleted_after: o.del ?? 0, refused_most: o.refused ?? 1, days_back: o.back ?? 0, last_seen: dayISO(o.last ?? o.hit),
+});
+
+function moneyPeopleFixture(zero) {
+  const trial = (email, o) => ({
+    user_id: `trial-${email}`, email, plan: o.plan || 'monthly', amount_cents: o.amount ?? 2500, cancelling: !!o.cancelling,
+    ends_at: aheadISO(o.left), started_at: aheadISO(o.left - 14), reminder_at: o.reminded ? agoISO(o.reminded) : null,
+    cards: o.cards, cap: o.cap ?? 75, days_back: o.back, last_seen: dayISO(o.last ?? 0),
+    hit_cap_at: o.hit == null ? null : aheadISO(o.left - 14 - o.hit), pressed_at: aheadISO(o.left - 14 - 0.002), checkout_at: aheadISO(o.left - 14 - 0.001),
+  });
+  const trials = zero
+    ? [trial('kit@paperlane.co', { left: 9.4, cards: 212, cap: 100, back: 3, hit: 0.03 })]
+    : [
+      trial('juno@thirdfloor.tv', { left: 3.2, cards: 140, back: 9, hit: 0.2, reminded: 0.5 }),
+      trial('sim@atlas.tv', { left: 6.8, cards: 96, back: 4, cancelling: true, hit: 1 }),
+      trial('rowan@fieldwork.studio', { left: 10.1, cards: 61, cap: 50, back: 2, plan: 'annual', amount: 2000 }),
+      trial('ash@northlight.io', { left: 12.9, cards: 75, back: 1, hit: 0.01 }),
+    ];
+  const hits = [
+    capHit('ines@moodhaus.com', { joined: 1.6, hit: 0.9, cards: 0, refused: 64, back: 0 }),
+    capHit('kit@paperlane.co', { joined: 5.2, hit: 4.6, cards: 212, cap: 100, tier: 'paid', sub: 'trialing', closed: 0, pressed: true, co: true, del: 31, back: 3, last: 0 }),
+    capHit('omar@lumenworks.io', { joined: 6.1, hit: 5.8, cards: 44, closed: 2, del: 6, back: 0 }),
+    capHit('lena@spoolroom.de', { joined: 8.4, hit: 8.1, cards: 9, pressed: true, co: true, del: 41, back: 0 }),
+    capHit('pat@offgrid.film', { joined: 9.0, hit: 8.7, cards: 50, back: 2, last: 1 }),
+    capHit('mira@northfold.co', { joined: 20.3, hit: 12.2, cards: 50, why: 'enough_room', closed: 3, del: 5, back: 4, last: 3 }),
+    capHit('theo@castplan.net', { joined: 15.2, hit: 15.0, cards: 31, refused: 9, del: 19, back: 0 }),
+    capHit('ada@reeltime.io', { joined: 24.6, hit: 21.4, cards: 45, closed: 4, del: 8, back: 0 }),
+    capHit('noor@greyline.studio', { joined: 34.0, hit: 27.5, cards: 70, cap: 75, tier: 'paid', closed: 3, del: 1, back: 7, last: 12 }),
+    capHit('ben@quietcut.tv', { joined: 33.1, hit: 33.0, cards: 0, refused: 38, back: 0 }),
+    capHit('ivy@foldout.co', { joined: 41.8, hit: 41.2, cards: 50, closed: 2, back: 1, last: 39 }),
+    capHit('cal@framehaus.com', { joined: 60.5, hit: 48.0, cards: 100, cap: 100, closed: 7, back: 4, last: 27 }),
+    capHit('rue@stillpoint.io', { joined: 52.3, hit: 52.1, cards: 50, why: 'price', closed: 5, back: 0 }),
+    capHit('dex@lightbox.film', { joined: 70.2, hit: 63.4, cards: 3, cap: 100, closed: 25, back: 0 }),
+  ];
+  return {
+    near_cap: zero ? { people: 34, active_7d: 9 } : { people: 212, active_7d: 61 },
+    paid_plan: zero ? 5 : 147,
+    paying: zero ? 0 : 136,
+    past_due: zero ? 0 : 2,
+    comped: zero ? 4 : 5,
+    paid_ever: zero ? 0 : 154,
+    trials,
+    cap_hits: { since: agoISO(84), rows: hits },
+  };
+}
+
+function trialFunnelFixture(zero) {
+  const rows = zero ? [146, 3, 1, 1, 0, 0] : [410, 260, 166, 4, 138, 18];
+  const STAGES = [
+    ['Eligible for the trial today', 'Demo, never trialed, and holding a real body of work'],
+    ['Asked for it', 'Clicked the trial button'],
+    ['Started one', 'A subscription actually reached trialing'],
+    ['On trial right now', 'Paid access, no money yet, never counted as revenue'],
+    ['Converted to paying', 'Trialed, then a first charge cleared — counted once, forever'],
+    ['Ended without paying', 'Trial is over and no first charge ever cleared'],
+  ];
+  return STAGES.map(([stage, note], i) => ({ stage, sort_order: i + 1, people: rows[i], note }));
+}
+
+function conversionFunnelFixture(zero) {
+  // surface, exposures, people, dwell ms, read a feature, compared plans, pressed, checkouts, trials
+  const rows = zero
+    ? [['Cap wall', 188, 27, 2300, 12, 2, 3, 3, 1], ['Near-cap toast', 3, 2, 5100, 0, 1, 0, 0, 0],
+      ['Upgrade pill', 71, 48, 5600, 16, 5, 0, 0, 0], ['First-value banner', 19, 19, 5400, 4, 3, 0, 0, 0],
+      ['File/size gate', 16, 9, 2400, 2, 0, 0, 0, 0], ['Settings', 27, 21, 9100, 12, 6, 0, 0, 0],
+      ['Pricing page (signed in)', 5, 4, 7200, 1, 0, 0, 0, 0], ['Public pricing page', 119, 0, 6800, 15, 10, 0, 0, 0]]
+    : [['Cap wall', 1460, 290, 2600, 380, 120, 141, 128, 86], ['Near-cap toast', 210, 160, 4800, 40, 22, 18, 16, 12],
+      ['Upgrade pill', 640, 410, 6100, 210, 96, 64, 58, 41], ['First-value banner', 180, 176, 5200, 52, 31, 12, 11, 8],
+      ['File/size gate', 120, 84, 2300, 18, 6, 9, 8, 5], ['Settings', 230, 190, 9800, 120, 64, 14, 13, 8],
+      ['Pricing page (signed in)', 48, 40, 7400, 11, 9, 4, 2, 0], ['Public pricing page', 1350, 0, 7100, 210, 180, 0, 0, 0]];
+  return rows.map(([surface, exposures, people, ms, read, cmp, cta, co, trials], i) => ({
+    surface, sort_order: i + 1, exposures, people, evaluated: read + cmp, read_feature: read, toggled_plan: cmp,
+    cta, intents: cta, checkouts: co, checkout_errors: 0, config_errors: 0, trials, paid: zero ? 0 : Math.round(trials * 0.8),
+    median_dwell_ms: ms,
+  }));
+}
+
+// ── Emails › Impact (0494) ──────────────────────────────────────────
+// Invented, in the shape admin_email_impact returns, on a FIXED calendar: the
+// read as it would stand on Wednesday 2026-10-21. Unlike the weekly fixtures
+// above, these weeks do not move with the clock, because what changed
+// (lib/emailChanges.js) is dated: a moving calendar would walk those lines off
+// the left edge within a few months, and the page would stop showing what it
+// is for. Each email starts and stops on the days the registry gives it, so a
+// dated line lands where its bars do. Here two of the four emails that sent
+// across the split day halved and two did not, and no welcome went out in the
+// week of Sep 7.
+const EMAIL_WEEKS = Array.from({ length: 18 }, (_, i) => isoPlus('2026-06-22', i * 7));
+const EMAIL_TODAY = '2026-10-21';
+const EMAIL_AFTER = 13; // EMAIL_WEEKS[13] is the first week after the split day, 2026-09-20
+
+// type, first and last send, sent each week, opened per delivered before and
+// after the split, and the share of sends followed by something made in 3 days
+const EMAIL_SENDS = [
+  ['welcome_board', '2026-07-12T02:00:00Z', '2026-10-20T19:00:00Z',
+    [0, 0, 9, 12, 14, 16, 15, 18, 21, 17, 13, 0, 8, 11, 12, 10, 13, 4], 0.62, 0.27, 0.12],
+  ['activate_nudge_1', '2026-06-28T10:00:00Z', '2026-10-20T21:00:00Z',
+    [5, 22, 14, 19, 16, 24, 21, 13, 17, 15, 20, 16, 21, 23, 27, 25, 31, 8], 0.38, 0.3, 0.06],
+  ['activate_nudge_2', '2026-06-28T06:00:00Z', '2026-10-04T23:00:00Z',
+    [4, 15, 11, 13, 12, 17, 15, 10, 12, 11, 14, 12, 15, 16, 13, 0, 0, 0], 0.33, 0.12, 0.04],
+  ['nudge_dormant_early', '2026-07-20T23:00:00Z', '2026-08-26T02:00:00Z',
+    [0, 0, 0, 0, 11, 14, 12, 9, 13, 10, 0, 0, 0, 0, 0, 0, 0, 0], 0.29, 0, 0.05],
+  ['board_waiting', '2026-07-21T00:00:00Z', '2026-10-21T04:00:00Z',
+    [0, 0, 0, 0, 6, 9, 8, 7, 10, 8, 0, 0, 0, 0, 0, 12, 14, 5], 0.44, 0.31, 0.08],
+  ['whats_new', '2026-08-15T05:00:00Z', '2026-08-26T02:00:00Z',
+    [0, 0, 0, 0, 0, 0, 0, 18, 21, 9, 0, 0, 0, 0, 0, 0, 0, 0], 0.36, 0, 0.03],
+  ['reengage_1', '2026-06-29T18:00:00Z', '2026-08-30T17:00:00Z',
+    [0, 3, 4, 2, 5, 3, 4, 6, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0], 0.25, 0, 0],
+];
+// The group Your cluster is waiting holds back since it came back on Oct 5:
+// { week: [held back, of whom made something anyway] }.
+const EMAIL_HELD = { board_waiting: { 15: [3, 0], 16: [4, 1], 17: [1, 0] } };
+// Sends that never arrived: type, reason, { week: count }.
+const EMAIL_LOST = [
+  ['nudge_dormant_early', 'failed', { 4: 2, 8: 3 }],
+  ['activate_nudge_1', 'bounced', { 3: 1, 9: 1, 15: 1 }],
+  ['activate_nudge_2', 'no_report', { 11: 1, 12: 1 }],
+  ['welcome_board', 'bounced', { 6: 1, 14: 1 }],
+  ['activate_nudge_1', 'no_report', { 13: 1 }],
+  ['whats_new', 'bounced', { 8: 1 }],
+  ['board_waiting', 'bounced', { 5: 1 }],
+  ['reengage_1', 'bounced', { 2: 1 }],
+];
+// Each mailbox's share of what was delivered ('other' takes what the rest
+// leave), and its opened per delivered before and after the split.
+const EMAIL_BOXES = [
+  ['gmail', 0.58, 0.47, 0.19],
+  ['icloud', 0.15, 0.69, 0.63],
+  ['outlook', 0.12, 0.31, 0.14],
+  ['yahoo', 0.06, 0.36, 0.18],
+  ['other', null, 0.4, 0.33],
+];
+// type, factor, arm, share of the email's sends (null: what its other lines
+// leave), how much better or worse than the email it does, and a later start
+const EMAIL_ARMS = [
+  ['welcome_board', 'subject', 's1', 0.52, 1.06], ['welcome_board', 'subject', 's2', null, 0.94],
+  ['welcome_board', 'body', 'b1', 0.5, 1.03], ['welcome_board', 'body', 'b2', null, 0.97],
+  ['activate_nudge_1', 'subject', 's1', 0.36, 1.08], ['activate_nudge_1', 'subject', 's2', 0.34, 1],
+  ['activate_nudge_1', 'subject', 's3', null, 0.9, '2026-08-08'],
+  ['activate_nudge_1', 'body', 'b1', 0.5, 1.02], ['activate_nudge_1', 'body', 'b2', null, 0.98],
+  ['activate_nudge_2', 'subject', 's1', 0.5, 1.1], ['activate_nudge_2', 'subject', 's2', null, 0.9],
+  ['nudge_dormant_early', 'subject', 's1', 0.5, 1.04], ['nudge_dormant_early', 'subject', 's2', null, 0.96],
+  ['board_waiting', 'subject', 's1', 0.5, 1.05], ['board_waiting', 'subject', 's2', null, 0.95],
+  ['whats_new', 'subject', 's1', 1, 1],
+  ['reengage_1', 'subject', 's1', 0.5, 1.1], ['reengage_1', 'subject', 's2', null, 0.9],
+];
+// New accounts by sign-up week, and how many of them got the welcome.
+const EMAIL_SIGNUPS  = [12, 15, 14, 18, 17, 21, 19, 16, 22, 24, 20, 27, 23, 19, 21, 25, 22, 9];
+const EMAIL_WELCOMED = [0, 0, 10, 13, 12, 15, 14, 12, 16, 17, 9, 0, 11, 14, 15, 17, 14, 3];
+
+function emailImpactFixture(split) {
+  const n = EMAIL_WEEKS.length;
+  const total = (a, lo = 0, hi = a.length) => a.slice(lo, hi).reduce((s, v) => s + v, 0);
+  const wiggle = (i, k) => 1 + 0.16 * Math.sin(i * 1.9 + k * 2.3);
+  const sides = (delivered, opened) => ({
+    before: split ? { delivered: total(delivered, 0, EMAIL_AFTER), opened: total(opened, 0, EMAIL_AFTER) } : null,
+    after: split ? { delivered: total(delivered, EMAIL_AFTER), opened: total(opened, EMAIL_AFTER) } : null,
+  });
+  const lostAt = (type, i, reason) => EMAIL_LOST
+    .filter(([t, r]) => t === type && (!reason || r === reason))
+    .reduce((s, [, , w]) => s + (w[i] || 0), 0);
+  const perWeek = (f) => Array.from({ length: n }, (_, i) => f(i));
+
+  const types = EMAIL_SENDS.map(([type, first, last, sent, before, after, makes], k) => {
+    const delivered = sent.map((v, i) => Math.max(0, v - lostAt(type, i)));
+    const opened = delivered.map((d, i) => Math.min(d, Math.round(d * (i < EMAIL_AFTER ? before : after) * wiggle(i, k))));
+    return {
+      type, first_sent: first, last_sent: last,
+      sent: sent.slice(), delivered, opened,
+      failed: perWeek((i) => lostAt(type, i, 'failed')),
+      made: sent.map((v, i) => Math.round(v * makes * wiggle(i, k + 1))),
+      // A send under 3 days old has not had its 3 days yet: this week's, and
+      // last Sunday's share of last week's.
+      young: sent.map((v, i) => (i === n - 1 ? v : i === n - 2 ? Math.round(v / 7) : 0)),
+      held: perWeek((i) => EMAIL_HELD[type]?.[i]?.[0] || 0),
+      held_made: perWeek((i) => EMAIL_HELD[type]?.[i]?.[1] || 0),
+      ...sides(delivered, opened),
+    };
+  });
+
+  // This calendar month and the two before it, a week counted in the month its Thursday is in.
+  const monthOf = (i) => isoPlus(EMAIL_WEEKS[i], 3).slice(0, 7);
+  const months = ['2026-08', '2026-09', '2026-10'].map((mo) => {
+    const at = EMAIL_WEEKS.map((_, i) => i).filter((i) => monthOf(i) === mo);
+    return {
+      month: `${mo}-01`,
+      delivered: total(at.map((i) => total(types.map((t) => t.delivered[i])))),
+      opened: total(at.map((i) => total(types.map((t) => t.opened[i])))),
+    };
+  });
+
+  const left = perWeek((i) => total(types.map((t) => t.delivered[i])));
+  const all = left.slice();
+  const mailbox = EMAIL_BOXES.map(([box, share, before, after], k) => {
+    const delivered = all.map((v, i) => {
+      const d = share == null ? left[i] : Math.min(left[i], Math.round(v * share));
+      left[i] -= d;
+      return d;
+    });
+    const opened = delivered.map((d, i) => Math.min(d, Math.round(d * (i < EMAIL_AFTER ? before : after) * wiggle(i, k + 3))));
+    return { box, delivered, opened, ...sides(delivered, opened) };
+  });
+
+  const lost = EMAIL_LOST.map(([type, reason, w]) => {
+    const byWeek = perWeek((i) => w[i] || 0);
+    return { type, reason, n: total(byWeek), by_week: byWeek };
+  });
+
+  const room = new Map();
+  const arms = EMAIL_ARMS.map(([type, factor, arm, share, lift, from]) => {
+    const t = types.find((x) => x.type === type);
+    const sent = total(t.sent);
+    const key = `${type}:${factor}`;
+    const rest = room.has(key) ? room.get(key) : sent;
+    const sends = share == null ? rest : Math.round(sent * share);
+    room.set(key, rest - sends);
+    const delivered = Math.round((sends * total(t.delivered)) / sent);
+    const opened = Math.min(delivered, Math.round(((delivered * total(t.opened)) / total(t.delivered)) * lift));
+    return {
+      type, factor, arm, sends, delivered, opened,
+      clicked: Math.round(opened * 0.22 * lift),
+      returned: Math.round(sends * 0.14 * lift),
+      made: Math.round(((total(t.made) * sends) / sent) * lift),
+      first: from || t.first_sent.slice(0, 10),
+      last: t.last_sent.slice(0, 10),
+    };
+  });
+
+  return {
+    weeks: EMAIL_WEEKS.slice(),
+    today: EMAIL_TODAY,
+    split: split || null,
+    tracked_from: '2026-06-29T10:00:00Z',
+    types,
+    months,
+    signups: EMAIL_SIGNUPS.slice(),
+    welcomed: EMAIL_WELCOMED.slice(),
+    mailbox,
+    lost,
+    arms,
+  };
+}
+
+// admin_recent_emails (0212), newest first. Every address is example.com.
+RPCS.admin_recent_emails = [
+  ['activate_nudge_1', 'opened', 0, 9, 2], ['welcome_board', 'delivered', 0, 7, 0],
+  ['board_waiting', 'clicked', 1, 21, 1], ['activate_nudge_1', 'bounced', 1, 14, 0],
+  ['otp', 'opened', 2, 10, 1], ['welcome_board', 'sent', 3, 18, 0],
+].map(([template, status, days, hour, opens], i) => ({
+  id: 9100 + i, resend_id: `re_fixture_${i}`, template,
+  category: template === 'otp' ? 'transact' : 'lifecycle',
+  recipient_email: `reader.${i + 1}@example.com`, user_id: null,
+  status: status === 'sent' ? 'sent' : 'delivered', sent_at: agoISO(days, hour),
+  delivered_at: status === 'sent' ? null : agoISO(days, hour),
+  opened_at: opens ? agoISO(days, hour + 1) : null,
+  clicked_at: status === 'clicked' ? agoISO(days, hour + 1) : null,
+  bounced_at: status === 'bounced' ? agoISO(days, hour) : null, complained_at: null,
+  bounce_type: status === 'bounced' ? 'hard' : null, open_count: opens,
+  click_count: status === 'clicked' ? 1 : 0, sending_domain: 'example.com', derived_status: status,
+}));
+
 // ── mock supabase shim ──────────────────────────────────────────────
 // A few RPCs return different things for different arguments, and the
 // difference is the reason the panel exists — so the shim has to honour it or
@@ -1081,21 +1650,53 @@ function rpcResult(name, params) {
   // behaves differently there (no trend line, no change badge, and a sub-label
   // that says why), and that behaviour needs to be previewable.
   if (name === 'admin_stats' && zeroRevenue()) {
+    // Production's actual state since the first trial: one subscription,
+    // trialing, so nothing is paying and MRR is $0. subscribed_paid counts the
+    // trial, as the real admin_stats does — the trap the tiles' wording avoids.
     const s = RPCS.admin_stats;
     return {
       ...s,
       mrr_cents: 0,
-      sub_counts: {},
+      sub_counts: { trialing: 1 },
+      trialing_subs: 1,
       comped_paid: 0,
-      subscribed_paid: 0,
+      subscribed_paid: 1,
       discounted_subs: 0,
-      tier_counts: { ...s.tier_counts, paid: 0, demo: (s.tier_counts.demo || 0) + (s.tier_counts.paid || 0) },
+      tier_counts: { ...s.tier_counts, paid: 1, demo: (s.tier_counts.demo || 0) + (s.tier_counts.paid || 0) - 1 },
     };
   }
   if (name === 'admin_metrics_history' && zeroRevenue()) {
     const rows = RPCS.admin_metrics_history || [];
     const want = Number(params?.p_days) || rows.length;
     return rows.slice(Math.max(0, rows.length - want)).map((r) => ({ ...r, mrr_cents: 0, paid_users: 0 }));
+  }
+  if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
+  if (name === 'admin_money_path') return moneyPathFixture(zeroRevenue());
+  if (name === 'admin_money_people') return moneyPeopleFixture(zeroRevenue());
+  // Without a split day the read has no before and after, so neither does this.
+  if (name === 'admin_email_impact') return emailImpactFixture(params?.p_split || null);
+  // The stream's filters only mean something against rows they can remove.
+  if (name === 'admin_recent_emails') {
+    const q = String(params?.p_query || '').toLowerCase();
+    return RPCS.admin_recent_emails.filter((r) => (!params?.p_template || r.template === params.p_template)
+      && (!params?.p_status || r.derived_status === params.p_status)
+      && (!q || r.recipient_email.includes(q)));
+  }
+  if (name === 'admin_trial_funnel') return trialFunnelFixture(zeroRevenue());
+  if (name === 'admin_conversion_funnel') return conversionFunnelFixture(zeroRevenue());
+  // Two checkouts finished and one became the trial, so the reliability read
+  // says the same thing as the path beside it.
+  if (name === 'admin_checkout_reliability' && zeroRevenue()) {
+    return { success_views: 2, activated: 1, stalled: 0, verify_retry: 1, missing_session: 0, verify_failed: 0, support_clicks: 0 };
+  }
+  // admin_events_by_id(p_ids, …): the rows __adminLive played, with emails.
+  if (name === 'admin_events_by_id') {
+    return (Array.isArray(params?.p_ids) ? params.p_ids : [])
+      .map((id) => LIVE_ROWS.get(id)).filter(Boolean).map((r) => ({ ...r }));
+  }
+  if (name === 'admin_recent_signups') {
+    const want = Math.max(1, Math.trunc(Number(params?.p_limit) || 20));
+    return RPCS.admin_recent_signups.slice(0, want).map((r) => ({ ...r }));
   }
   // admin_top_users is called with { p_tier } — route to the right list.
   if (name === 'admin_top_users') {
@@ -1153,6 +1754,31 @@ function rpcResult(name, params) {
       kept = rows.slice(Math.max(0, rows.length - want));
     }
     return kept.map((r) => ({ ...r }));
+  }
+  // admin_growth_series(p_weeks): the last p_weeks rows, the partial week last, as
+  // admin_weekly_series above, and the same ?weeks=N switch, so a young database
+  // can be looked at on the band too. The RPC clamps p_weeks to 2..260.
+  if (name === 'admin_growth_series') {
+    const rows = growthRows();
+    const keep = weeksParam();
+    let kept;
+    if (keep !== null) {
+      const complete = rows.filter((r) => r.complete);
+      kept = [...complete.slice(Math.max(0, complete.length - keep)), ...rows.filter((r) => !r.complete)];
+    } else {
+      const asked = params?.p_weeks == null ? 104 : Math.trunc(Number(params.p_weeks));
+      const want = Math.min(260, Math.max(2, Number.isFinite(asked) ? asked : 104));
+      kept = rows.slice(Math.max(0, rows.length - want));
+    }
+    return kept;
+  }
+  // admin_return_fixed_horizon(p_weeks): past the twelve weeks the Retention view
+  // reads, the week rows run back across the band's whole calendar.
+  if (name === 'admin_return_fixed_horizon' && Number(params?.p_weeks) > 12) {
+    return [
+      ...RPCS.admin_return_fixed_horizon.filter((r) => !r.dim.startsWith('week:')).map((r) => ({ ...r })),
+      ...growthReturnRows(),
+    ];
   }
   // admin_markers(p_since): live notes plus the collapsed alerts, oldest first and
   // ordered by day, source, label as the SQL is, so equal days do not shuffle
@@ -1271,6 +1897,106 @@ RPCS.admin_second_sitting = fhRows([
   ...fhWeeks(7).map((w, i) => [`week:${w}`, [30, 27, 35, 31, 34, 39, 18][i], [6, 6, 8, 7, 8, 8, 4][i]]),
 ]);
 
+// ── Live, in the harness ────────────────────────────────────────────────────
+// The harness has no realtime server, so nothing is ever pushed and the live
+// layers would sit still in the one place they can be looked at. Two doors in:
+//
+//   window.__adminRealtimeEmit(row, topic = 'admin:activity')
+//     pushes an analytics_events row to every handler on that topic, exactly as
+//     postgres_changes would.
+//   window.__adminLive(kind)   kind: 'card' | 'signup' | 'first_card' | 'here'
+//     moves the fixtures the way that moment moves the database, then pushes
+//     its event, so the Overview's live read finds something new.
+//
+// The Universe picks its own clusters (window.__universeMoment in
+// UniverseGraph), since only it knows which ones the harness drew.
+const LIVE = { signups: 0, cards: 0, active_users: 0, work_users: 0, clusters_made: 0, n: 0 };
+
+/** The week so far, moved by what __adminLive has played. */
+function liveWeek(rows) {
+  if (!LIVE.n) return rows;
+  return rows.map((r) => (r.complete ? r : {
+    ...r,
+    signups: r.signups + LIVE.signups,
+    active_users: r.active_users == null ? r.active_users : r.active_users + LIVE.active_users,
+    work_users: r.work_users == null ? r.work_users : r.work_users + LIVE.work_users,
+    cards: r.cards + LIVE.cards,
+    users_total: r.users_total + LIVE.signups,
+    cards_total: r.cards_total + LIVE.cards,
+    clusters_made: r.clusters_made + LIVE.clusters_made,
+    day_one_n: r.day_one_n + LIVE.signups,
+  }));
+}
+
+const LIVE_HANDLERS = new Map();   // topic -> Set of postgres_changes callbacks
+
+function emitRealtime(row, topic = 'admin:activity') {
+  const hs = LIVE_HANDLERS.get(topic);
+  if (!hs) return 0;
+  for (const cb of hs) { try { cb({ new: row }); } catch (_) { /* a handler's own bug */ } }
+  return hs.size;
+}
+
+// What admin_events_by_id resolves a played row to: the row with its author's
+// email, as 0410 joins it. Played authors are never internal.
+const LIVE_ROWS = new Map();
+
+function liveRow(event, userId, props = {}) {
+  LIVE.n += 1;
+  const row = {
+    id: `00000000-0000-4000-8000-${String(900000000000 + LIVE.n).padStart(12, '0')}`,
+    event, occurred_at: new Date().toISOString(), user_id: userId, props,
+  };
+  const email = RPCS.admin_recent_signups.find((r) => r.user_id === userId)?.email || null;
+  LIVE_ROWS.set(row.id, { id: row.id, event, occurred_at: row.occurred_at, user_id: userId, email, path: '/' });
+  return row;
+}
+
+function playLive(kind) {
+  const kpiNow = RPCS.admin_kpi_summary;
+  const bump = (patch) => { RPCS.admin_kpi_summary = { ...kpiNow, current: { ...kpiNow.current, ...patch(kpiNow.current) } }; };
+  const life = (patch) => { RPCS.admin_lifetime_totals = { ...RPCS.admin_lifetime_totals, ...patch(RPCS.admin_lifetime_totals) }; };
+  const signups = RPCS.admin_recent_signups;
+  if (kind === 'signup') {
+    const id = `rs-live-${LIVE.n + 1}`;
+    RPCS.admin_recent_signups = [{
+      user_id: id, email: `${NAMES[(LIVE.n + 3) % NAMES.length]}.new${LIVE.n + 1}@example.com`,
+      created_at: new Date().toISOString(), acquisition_source: CHANNELS[LIVE.n % CHANNELS.length],
+      first_card_at: null, card_count: 0, guest_cards: 0, clusters_made: 0,
+    }, ...signups];
+    bump((c) => ({ signups: c.signups + 1, wau: c.wau + 1 }));
+    life((t) => ({ users: t.users + 1, workspaces: t.workspaces + 1, studios: t.studios + 1 }));
+    RPCS.admin_active_now += 1;
+    LIVE.signups += 1; LIVE.active_users += 1;
+    return emitRealtime(liveRow('ps_signup', id, { is_new: true }));
+  }
+  if (kind === 'first_card') {
+    const at = signups.findIndex((r) => !r.first_card_at && !r.card_count && !r.guest_cards);
+    if (at < 0) return 0;
+    const who = signups[at];
+    RPCS.admin_recent_signups = signups.map((r, i) => (i === at
+      ? { ...r, first_card_at: new Date().toISOString(), card_count: 1 } : r));
+    bump((c) => ({ cards_created: c.cards_created + 1, work_users: c.work_users + 1 }));
+    life((t) => ({ cards: t.cards + 1 }));
+    LIVE.cards += 1; LIVE.work_users += 1;
+    emitRealtime(liveRow('onboarding_first_card', who.user_id, {}));
+    return emitRealtime(liveRow('card_placed', who.user_id, { n: 1, kind: 'image', board_id: 'qa-live-board' }));
+  }
+  if (kind === 'card') {
+    const who = signups.find((r) => r.card_count > 0) || signups[0];
+    RPCS.admin_recent_signups = signups.map((r) => (r === who ? { ...r, card_count: (r.card_count || 0) + 1 } : r));
+    bump((c) => ({ cards_created: c.cards_created + 1 }));
+    life((t) => ({ cards: t.cards + 1 }));
+    LIVE.cards += 1;
+    return emitRealtime(liveRow('card_placed', who.user_id, { n: 1, kind: 'note', board_id: 'qa-live-board' }));
+  }
+  if (kind === 'here') {
+    RPCS.admin_active_now += 1;
+    return emitRealtime(liveRow('board_open', signups[2]?.user_id || 'rs-2', { board_id: 'qa-live-board' }));
+  }
+  return 0;
+}
+
 // Monkeypatch the shared supabase singleton's data methods. Non-invasive: the
 // admin tabs import this same instance, so no tab / useAdminData / supabase.js
 // edits are needed. Returns false if the client is null (env not configured).
@@ -1297,14 +2023,30 @@ export function installAdminPreviewMocks(supabase) {
   // The subscribe callback IS invoked with 'SUBSCRIBED'. Skipping it leaves
   // those panels stuck reporting a dead socket, which would make the harness
   // exercise the one state it is least able to tell you anything true about.
-  supabase.channel = () => {
+  //
+  // Each channel keeps its postgres_changes handlers by topic, so the live
+  // doors above can push to them (and a test that wraps `on` still sees them).
+  supabase.channel = (topic) => {
+    const mine = new Set();
     const ch = {
-      on: () => ch,
+      on: (type, _filter, cb) => {
+        if (type === 'postgres_changes' && typeof cb === 'function') {
+          mine.add(cb);
+          if (!LIVE_HANDLERS.has(topic)) LIVE_HANDLERS.set(topic, new Set());
+          LIVE_HANDLERS.get(topic).add(cb);
+        }
+        return ch;
+      },
       subscribe: (cb) => { try { cb?.('SUBSCRIBED'); } catch (_) { /* ignore */ } return ch; },
       unsubscribe: () => Promise.resolve('ok'),
+      __drop: () => { for (const cb of mine) LIVE_HANDLERS.get(topic)?.delete(cb); },
     };
     return ch;
   };
-  supabase.removeChannel = () => Promise.resolve('ok');
+  supabase.removeChannel = (ch) => { try { ch?.__drop?.(); } catch (_) { /* ignore */ } return Promise.resolve('ok'); };
+  try {
+    window.__adminRealtimeEmit = emitRealtime;
+    window.__adminLive = playLive;
+  } catch (_) { /* no window */ }
   return true;
 }

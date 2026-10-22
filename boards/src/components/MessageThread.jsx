@@ -1,13 +1,20 @@
-import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit } from '../lib/icons.js';
+import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit, ArrowDown } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
+import { useStickToBottom } from '../hooks/useStickToBottom.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
+import { MessageActionSheet } from './MessageActionSheet.jsx';
+import { MessageMenu } from './MessageMenu.jsx';
+import { MessagePinsPopover } from './MessagePinsPopover.jsx';
+import { MessageFaces } from './MessageFaces.jsx';
 import { useMessageableUsers } from '../hooks/useMessageableUsers.js';
 import {
   sendMessage, deleteMessage, restoreMessage, editMessage, toggleReaction,
-  searchMessagesInConversation,
-  fetchReplies, replyCountsFor, togglePin,
+  searchMessagesInConversation, fetchMessagesByIds, fetchReadState,
+  togglePin,
   listPinnedForConversation,
   addParticipants, leaveConversation, rejoinConversation, renameConversation,
 } from '../lib/messages.js';
@@ -15,7 +22,13 @@ import {
   broadcastConversationMessage, broadcastConversationTyping, broadcastConversationChange,
 } from '../lib/messageRealtime.js';
 import { MessageBubble } from './MessageBubble.jsx';
+import { RelTime } from './RelTime.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
+import { finePointer } from '../lib/composerKeys.js';
+import { lastEditableMessage, withinEditWindow } from '../lib/messageEdit.js';
+import { snippetParts } from '../lib/messageSearchSnippet.js';
+import { useDraftValue } from '../hooks/useDraft.js';
+import { replyTarget, updateDraft } from '../lib/draftStore.js';
 import { INBOX_MIME } from '../lib/dragMimes.js';
 import { inboxPayloadFor } from '../lib/messageAttachments.js';
 import { SoleilMark } from './primitives.jsx';
@@ -24,12 +37,28 @@ import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { lastMessageId } from '../lib/messagePaging.js';
+import { newMessageId, toggleReactionMap } from '../lib/messageStore.js';
+import { buildFeedItems, selectSeenMessageId, typingLabel } from '../lib/messageFeed.js';
 import { showingConversation } from '../lib/threadAttention.js';
+import { usePanelPresence } from './MessagesPresence.jsx';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
 import { isDmConversation } from '../lib/conversationState.js';
+import { useMessagesLook } from './messagesLook.js';
+import { membersLine, dmSubline } from '../lib/messagesCard.js';
+import { MessagesFixtureContext } from '../lib/messagesFixture.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+import { sendShape, errorCode } from '../lib/messageEvents.js';
 
-const STICK_THRESHOLD_PX = 80;
+// Dragging an attachment out of a message onto a canvas makes it a card.
+function attachmentDragStart(e, att) {
+  const payload = inboxPayloadFor(att);
+  if (!payload) return;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData(INBOX_MIME, JSON.stringify(payload));
+}
+
 // Start fetching the previous page this far before the reader hits the top.
 const LOAD_OLDER_THRESHOLD_PX = 120;
 
@@ -37,22 +66,68 @@ const LOAD_OLDER_THRESHOLD_PX = 120;
 export function MessageThread({
   workspaceId, currentUser, conversation,
   onBack, onClose, onChanged, jumpToMessageId, onJumpConsumed,
-  canSend = true, readOnlyReason = null,
+  canSend = true, readOnlyReason = null, lastReadAt,
+  peerHere = false, // a DM's other person is in the workspace now (the card look's "Here now")
 }) {
   const userId = currentUser?.id;
   const conversationId = conversation?.id;
+  const scrollRef = useRef(null);
+  const [bottomSeen, setBottomSeen] = useState(false);
+  // The end of the thread, checked live when it's time to mark read: the
+  // observer behind bottomSeen reports changes, and an empty thread's end was
+  // "seen" before its rows arrived and the view moved off it.
+  const endRef = useRef(null);
+  const endOnScreen = useCallback(() => {
+    const root = scrollRef.current;
+    const end = endRef.current;
+    if (!root || !end) return false;
+    const r = root.getBoundingClientRect();
+    const e = end.getBoundingClientRect();
+    return e.top <= r.bottom && e.bottom >= r.top;
+  }, []);
+  // Where you'd read up to when the conversation opened: the "New" line sits
+  // after it and stays put while the thread is open, however it gets marked.
+  // undefined until known. A link or a toast can open a thread before the
+  // list has loaded: then it reads it itself, and marks nothing read until
+  // it has, or the mark would wipe out where you'd got to.
+  const [newAfter, setNewAfter] = useState(() => lastReadAt);
+  const fixtureMode = !!useContext(MessagesFixtureContext);
+  useEffect(() => {
+    if (newAfter !== undefined) return undefined;
+    if (lastReadAt !== undefined || fixtureMode) { setNewAfter(lastReadAt ?? null); return undefined; }
+    let cancelled = false;
+    fetchReadState({ conversationId }).then((rows) => {
+      if (cancelled) return;
+      setNewAfter((rows || []).find(r => r.user_id === userId)?.last_read_at ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [lastReadAt, newAfter, conversationId, userId, fixtureMode]);
   const feedback = useFeedback();
+  // The files sidebar's card look: who's in it under the name, the thread in
+  // bubbles (messagesCard.css), no glowing mark on an empty one.
+  const card = useMessagesLook() === 'card';
+  // The dev QA harness's rows, when it provides them (lib/messagesFixture.js).
+  const fixture = useContext(MessagesFixtureContext);
 
-  const { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading } = useMessageThread({
+  const {
+    messages, typingUsers, pinTick, refetch, hasOlder, loadingOlder, loadOlder, failed: loadFailed, loading,
+    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback, fresh, readState,
+  } = useMessageThread({
     conversationId, userId,
     onMarkedRead: onChanged,
+    // Read means seen: the newest message has been on screen (see endRef),
+    // and where you'd read up to before is known (the "New" line).
+    readGate: bottomSeen && newAfter !== undefined,
+    isReadable: endOnScreen,
   });
 
-  const scrollRef = useRef(null);
 
   // Tell the inbox this conversation is on screen, so its toast and OS
   // notification stay quiet only while it really is (COMMS-03).
-  useEffect(() => showingConversation(conversationId), [conversationId]);
+  // Not while the panel plays its exit: a message landing then should still
+  // say so with a toast.
+  const closing = usePanelPresence() === 'closing';
+  useEffect(() => (closing ? undefined : showingConversation(conversationId)), [conversationId, closing]);
 
   // ── Active participants (for title + group menu) ─────────────────────
   const activeParticipants = useMemo(
@@ -80,102 +155,149 @@ export function MessageThread({
     return u?.name || u?.email || 'Member';
   });
   const titleText = conversation?.title || (peerLabels.length ? peerLabels.join(', ') : 'New conversation');
+  // The card look's faces: the people in it besides you.
+  const peerPeople = peers.map(p => {
+    const u = userProfiles.get(p.user_id);
+    return { id: p.user_id, name: u?.name || u?.email || 'Member', color: u?.color || pickPresenceColor(p.user_id || '') };
+  });
+  const firstPeer = (peerLabels[0] || '').split(/[\s@]/)[0];
+  // A first name for "Replying to …": you, or whoever wrote it.
+  const replyName = (uid) => {
+    if (uid === userId) return 'yourself';
+    const u = userProfiles.get(uid);
+    return (u?.name || u?.email || 'Member').split(/[\s@]/)[0];
+  };
+  // A face for someone in the card look: theirs, or yours.
+  const faceOf = (uid) => {
+    const u = userProfiles.get(uid);
+    const mine = uid === userId;
+    return {
+      id: uid,
+      name: u?.name || u?.email || (mine ? currentUser?.name || currentUser?.email : '') || 'Member',
+      color: u?.color || (mine ? currentUser?.color : null) || pickPresenceColor(uid || ''),
+    };
+  };
+  // Who wrote a search result.
+  const senderName = (m) => {
+    if (m.sender_id === userId) return 'You';
+    const u = userProfiles.get(m.sender_id);
+    return u?.name || u?.email || m.sender_name || 'Member';
+  };
 
-  // ── Sticky-scroll behavior ───────────────────────────────────────────
-  const wasAtBottomRef = useRef(true);
+  // ── Focus ────────────────────────────────────────────────────────────
+  // Focus has a home in the conversation: the box you type in where there's a
+  // mouse and a keyboard, the panel itself under a finger (a focused field
+  // would raise the keyboard). The conversation opens with focus there, so
+  // Escape and the shortcuts reach it (the list row that opened it is gone),
+  // and focus goes back there whenever what held it goes away: an edit box
+  // that saved, a search that closed, a menu or a palette that shut.
+  const rootRef = useRef(null);
+  const composerRef = useRef(null);
+  const lastFocusRef = useRef(null);
+  const focusHome = useCallback(() => {
+    if (composerRef.current && finePointer()) composerRef.current.focus();
+    else rootRef.current?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      if (!rootRef.current?.contains(document.activeElement)) focusHome();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [focusHome]);
+  // Only focus that's still ours: pressing or moving focus anywhere outside
+  // the panel lets it go, so an element removed after you've gone to the
+  // canvas never pulls you back into the box you type in.
+  const dropFocusIfOutside = useCallback((target) => {
+    if (target && !rootRef.current?.contains(target)) lastFocusRef.current = null;
+  }, []);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof MutationObserver === 'undefined') return undefined;
+    let frame = 0;
+    // Looked at once focus has settled: a press elsewhere can remove the
+    // focused element (a rename that commits on blur) mid-way through moving
+    // focus, and focus is on the page for that moment.
+    const rescue = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const had = lastFocusRef.current;
+        if (!had || had.isConnected) return;
+        const active = document.activeElement;
+        lastFocusRef.current = null;
+        if (active && active !== document.body && active !== document.documentElement) return;
+        focusHome();
+      });
+    };
+    const inside = new MutationObserver(rescue);
+    inside.observe(root, { childList: true, subtree: true });
+    // Menus, pickers and palettes are portals on <body>; their focus counts.
+    const portals = new MutationObserver(rescue);
+    portals.observe(document.body, { childList: true });
+    const onDown = (e) => dropFocusIfOutside(e.target);
+    document.addEventListener('pointerdown', onDown, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      inside.disconnect(); portals.disconnect();
+      document.removeEventListener('pointerdown', onDown, true);
+    };
+  }, [focusHome, dropFocusIfOutside]);
+
+  // ── Staying where the reader is ─────────────────────────────────────
+  // useStickToBottom keeps the newest message in view while you're at the
+  // bottom, whatever grows (a message, an image, a reaction, the typing row,
+  // the composer), and holds your place while you read history (older pages,
+  // reactions and images landing above you). A send always goes to the bottom.
+  const contentRef = useRef(null);
+  const stick = useStickToBottom({ scrollRef, contentRef, startStuck: !jumpToMessageId });
   const [unseenCount, setUnseenCount] = useState(0);
   const prevLastIdRef = useRef(null);
-  // Scroll height captured just before an older page is prepended, so the
-  // message the reader is looking at stays put instead of jumping down.
-  const anchorRef = useRef(null);
 
-  const isNearBottom = () => {
-    const el = scrollRef.current;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < STICK_THRESHOLD_PX;
-  };
   const requestOlder = () => {
-    const el = scrollRef.current;
-    if (!hasOlder || loadingOlder || !el) return;
-    const anchor = { height: el.scrollHeight, top: el.scrollTop };
-    anchorRef.current = anchor;
-    // A bail (mid-switch) brings no page: a stale anchor would shift the
-    // next arrival by its height.
-    loadOlder().then(started => { if (!started && anchorRef.current === anchor) anchorRef.current = null; });
+    if (!hasOlder || loadingOlder || !scrollRef.current) return;
+    // The controller holds the first message in view while the page lands above it.
+    stick.captureAnchor();
+    loadOlder();
   };
   const lastScrollTopRef = useRef(0);
   const onScroll = () => {
-    wasAtBottomRef.current = isNearBottom();
-    if (wasAtBottomRef.current) setUnseenCount(0);
+    stick.onScroll();
+    if (stick.stuckRef.current) setUnseenCount(0);
     const el = scrollRef.current;
     if (!el) return;
     // Only an UPWARD scroll near the top pages back: the opening jump to the
     // bottom starts at scrollTop 0 and must not fetch history on its way down.
     const goingUp = el.scrollTop < lastScrollTopRef.current;
     lastScrollTopRef.current = el.scrollTop;
-    if (goingUp && el.scrollTop < LOAD_OLDER_THRESHOLD_PX && !searchOpen && !replyParent) requestOlder();
+    if (goingUp && el.scrollTop < LOAD_OLDER_THRESHOLD_PX && !searchOpen) requestOlder();
   };
-  const jumpToBottom = (smooth = true) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+  const jumpToBottom = () => {
+    stick.pin();
     setUnseenCount(0);
   };
 
-  // Initial mount + conversation switch: jump to bottom instantly.
-  useEffect(() => {
-    wasAtBottomRef.current = true;
-    setUnseenCount(0);
-    prevLastIdRef.current = null;
-    anchorRef.current = null;
-    requestAnimationFrame(() => jumpToBottom(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
-
-  // New messages land at the END, so "something arrived" is the newest id
-  // moving — not the length, which also grows when older history is
-  // prepended and stays flat once a thread holds a full page.
+  // While you read history, count what the others send: the jump button says
+  // how many. At the bottom the controller simply keeps you there.
   const lastId = lastMessageId(messages);
   useEffect(() => {
     const prevId = prevLastIdRef.current;
     prevLastIdRef.current = lastId;
-    if (!lastId || lastId === prevId) return;
-    if (wasAtBottomRef.current || !prevId) {
-      // The first page of a conversation lands instantly: smooth-scrolling
-      // it animated through the whole history on every open (COMMS-16).
-      // Only a later arrival glides.
-      requestAnimationFrame(() => jumpToBottom(!!prevId));
-    } else {
-      const at = messages.findIndex(m => m.id === prevId);
-      const added = at >= 0 ? messages.length - 1 - at : 1;
-      if (added > 0) setUnseenCount(c => c + added);
-    }
+    if (!lastId || !prevId || lastId === prevId || stick.stuckRef.current) return;
+    const at = messages.findIndex(m => m.id === prevId);
+    const added = messages.slice(at + 1).filter(m => m.sender_id !== userId && !m.sendState).length;
+    if (added > 0) setUnseenCount(c => c + added);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastId]);
 
-  // An image that finishes loading above the newest message grows the thread
-  // under the reader; while they're at the bottom, keep them there. (load
-  // doesn't bubble — listen in the capture phase.)
+  // The end of the thread on screen = the newest message seen: only then does
+  // the thread mark itself read (useMessageThread's readGate).
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onLoad = (e) => {
-      if (e.target?.tagName !== 'IMG' || !wasAtBottomRef.current) return;
-      el.scrollTop = el.scrollHeight;
-    };
-    el.addEventListener('load', onLoad, true);
-    return () => el.removeEventListener('load', onLoad, true);
+    const root = scrollRef.current;
+    const end = endRef.current;
+    if (!root || !end || typeof IntersectionObserver === 'undefined') { setBottomSeen(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => setBottomSeen(e.isIntersecting), { root, threshold: 0 });
+    io.observe(end);
+    return () => io.disconnect();
   }, []);
-
-  // After an older page is prepended, push the scroll position down by the
-  // height it added so the reader's place doesn't move.
-  useLayoutEffect(() => {
-    const a = anchorRef.current;
-    const el = scrollRef.current;
-    if (!a || !el || loadingOlder) return;
-    anchorRef.current = null;
-    el.scrollTop = el.scrollHeight - a.height + a.top;
-  }, [messages, loadingOlder]);
 
   // ── Search ───────────────────────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
@@ -184,6 +306,9 @@ export function MessageThread({
   const [searching, setSearching] = useState(false);
   const searchInputRef = useRef(null);
   const searchSeqRef = useRef(0);
+  // The search's last settled query, logged once as the search ends: its
+  // length and what it found, never the words (msg_search).
+  const searchStatRef = useRef(null);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -192,59 +317,69 @@ export function MessageThread({
     const seq = ++searchSeqRef.current;
     const t = setTimeout(async () => {
       let rows = [];
+      let failed = false;
       try {
         rows = await searchMessagesInConversation({ conversationId, query: q, limit: 50 });
-      } catch (e) { console.warn('search failed', e); }
+      } catch (e) { failed = true; console.warn('search failed', e); }
       if (seq !== searchSeqRef.current) return;
+      searchStatRef.current = { q_len: q.length, results_n: rows.length, failed };
       setSearchResults(rows);
       setSearching(false);
     }, 150);
     return () => clearTimeout(t);
   }, [searchQuery, searchOpen, conversationId]);
 
+  const endSearch = (picked) => {
+    const stat = searchStatRef.current;
+    searchStatRef.current = null;
+    if (stat) logEvent(EV.MSG_SEARCH, { ...stat, picked });
+  };
+  // Closing the panel mid-search ends it too.
+  useEffect(() => () => {
+    const stat = searchStatRef.current;
+    if (stat) logEvent(EV.MSG_SEARCH, { ...stat, picked: false });
+  }, []);
+
   const closeSearch = () => {
+    endSearch(false);
     setSearchOpen(false);
     setSearchQuery('');
     setSearchResults([]);
   };
 
-  // ── Threaded replies ─────────────────────────────────────────────────
-  const [replyParent, setReplyParent] = useState(null);
-  const [replies, setReplies] = useState([]);
-  const [replyCounts, setReplyCounts] = useState(new Map());
+  // ── Replies ──────────────────────────────────────────────────────────
+  // A reply sits in the conversation with what it answers quoted above it
+  // (there's no separate thread view). replyTo is what your next send answers;
+  // the composer shows it as "Replying to …", and Escape lets it go. It's part
+  // of the conversation's draft, so it waits with your text if you go elsewhere.
+  const replyTo = useDraftValue(conversationId || '', (d) => d.replyTo);
+  const setReplyTo = useCallback((m) => updateDraft(conversationId || '', (d) => {
+    const next = replyTarget(m);
+    return (d.replyTo?.id || null) === (next?.id || null) ? d : { ...d, replyTo: next };
+  }), [conversationId]);
 
+  // Search results borrow the scroller: hands off while they're up, and back
+  // to where you were after.
   useEffect(() => {
-    if (!replyParent) return;
-    let cancelled = false;
-    fetchReplies({ parentId: replyParent.id }).then(rows => {
-      if (!cancelled) setReplies(rows);
-    });
-    return () => { cancelled = true; };
-  }, [replyParent, messages.length]);
-
-  useEffect(() => {
-    if (replyParent) return;
-    const topLevelIds = (messages || []).filter(m => !m.parent_id).map(m => m.id);
-    if (topLevelIds.length === 0) { setReplyCounts(new Map()); return; }
-    let cancelled = false;
-    replyCountsFor(topLevelIds).then(map => {
-      if (!cancelled) setReplyCounts(map);
-    });
-    return () => { cancelled = true; };
-  }, [messages, replyParent]);
+    if (!searchOpen) return undefined;
+    return stick.suspend();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchOpen]);
 
   // ── Pinned strip ─────────────────────────────────────────────────────
   const [pinned, setPinned] = useState([]);
   const [pinnedExpanded, setPinnedExpanded] = useState(false);
-  // Also re-read when a loaded message is pinned or unpinned: a peer's pin
-  // arrives as a refetch that leaves the count where it was.
+  // Read again when a pin changes: one on screen (pinnedSig), a peer's pin
+  // of any message, and after a resync (pinTick). Not on every arrival: the
+  // pinned list is the whole conversation's, so a new message doesn't move it.
   const pinnedSig = messages.filter(m => m.is_pinned).map(m => m.id).join(',');
   useEffect(() => {
     if (!conversationId) return;
+    if (fixture) { setPinned(messages.filter(m => m.is_pinned)); return; }
     let cancelled = false;
     listPinnedForConversation({ conversationId }).then(rows => { if (!cancelled) setPinned(rows); });
     return () => { cancelled = true; };
-  }, [conversationId, messages.length, pinnedSig]);
+  }, [conversationId, pinnedSig, pinTick, fixture]);
 
   // ── Permalink scroll ─────────────────────────────────────────────────
   // Once, when the target's page is on screen. It re-ran on every new
@@ -313,12 +448,12 @@ export function MessageThread({
         // panel on the same press threw away what you were in (COMMS-10).
         if (e.defaultPrevented || e.isComposing) return;
         if (searchOpen) { closeSearch(); return; }
-        if (replyParent) { setReplyParent(null); return; }
+        if (replyTo) { setReplyTo(null); return; }
         if (escapeClosesPanel(e, '.msg-panel')) onClose?.();
         return;
       }
       if (inField) return;
-      const list = replyParent ? [replyParent, ...replies] : messages;
+      const list = messages;
       if (list.length === 0) return;
       if (e.key === 'j' || e.key === 'k') {
         e.preventDefault();
@@ -334,7 +469,7 @@ export function MessageThread({
         }
       } else if (e.key === 'r' && focusedId) {
         const m = list.find(x => x.id === focusedId);
-        if (m && !m.parent_id) { e.preventDefault(); setReplyParent(m); }
+        if (m && !m.sendState) { e.preventDefault(); setReplyTo(m); }
       } else if (e.key === 'e' && focusedId) {
         const m = list.find(x => x.id === focusedId);
         if (m && m.sender_id === userId) {
@@ -345,7 +480,7 @@ export function MessageThread({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [searchOpen, replyParent, messages, replies, focusedId, userId, onClose]);
+  }, [searchOpen, replyTo, messages, focusedId, userId, onClose]);
 
   const flashMessage = (msgId) => {
     closeSearch();
@@ -364,180 +499,285 @@ export function MessageThread({
     return m;
   }, [messages]);
   // Jump within the thread: flash it if it's loaded, else page back to it.
-  const jumpTo = (msgId) => {
+  // One function for the life of the thread (it reads the latest through a
+  // ref), so the memoized bubbles that hold it don't all re-render.
+  const jumpToRef = useRef(null);
+  jumpToRef.current = (msgId) => {
     if (messagesById.has(msgId)) { flashMessage(msgId); return; }
     closeSearch();
     setSeekId(msgId);
   };
+  const jumpTo = useCallback((msgId) => jumpToRef.current(msgId), []);
 
-  // ── Day-divider + consecutive-sender grouping ───────────────────────
-  // A message is a "continuation" of the one above it when it's from the
-  // same sender, within 5 minutes, on the same day, and is neither a reply
-  // nor pinned. Continuations drop their avatar/name/time header (see
-  // MessageBubble's isContinuation) so a burst reads as one block instead
-  // of repeating the author on every line.
-  const groupedMessages = useMemo(() => {
-    const groups = [];
-    let lastKey = null;
-    let prevMsg = null; // previous *message* row actually rendered (not a divider/system)
-    const list = replyParent ? [] : (messages || []);
-    for (const m of list) {
-      const k = dayKey(m.created_at);
-      let brokeDay = false;
-      if (k !== lastKey) {
-        groups.push({ kind: 'divider', key: 'd-' + k, label: dayLabel(m.created_at) });
-        lastKey = k; brokeDay = true; prevMsg = null;
-      }
-      if (m.kind === 'system') {
-        groups.push({ kind: 'msg', key: m.id, msg: m });
-        prevMsg = null; // a system row always breaks the run
-        continue;
-      }
-      const within5 = prevMsg && m.created_at && prevMsg.created_at
-        && (new Date(m.created_at) - new Date(prevMsg.created_at)) < 5 * 60 * 1000;
-      const isContinuation = !brokeDay && !!prevMsg
-        && prevMsg.sender_id === m.sender_id
-        && !m.parent_id && !m.is_pinned && within5;
-      groups.push({ kind: 'msg', key: m.id, msg: m, isContinuation });
-      prevMsg = m;
-    }
-    return groups;
-  }, [messages, replyParent]);
+  // What a reply quotes when the original isn't on screen (older than the
+  // pages loaded, or deleted): read by id, once each.
+  const [quoteRows, setQuoteRows] = useState(() => new Map());
+  useEffect(() => {
+    const want = [...new Set(messages
+      .filter(m => m.parent_id && !messagesById.has(m.parent_id) && !quoteRows.has(m.parent_id))
+      .map(m => m.parent_id))];
+    if (!want.length || fixture || !conversationId) return undefined;
+    let cancelled = false;
+    fetchMessagesByIds({ conversationId, ids: want }).then(rows => {
+      if (cancelled || rows == null) return;
+      setQuoteRows(prev => {
+        const next = new Map(prev);
+        for (const id of want) {
+          const r = rows.find(x => x.id === id);
+          next.set(id, !r ? { id, unavailable: 'missing' } : r.deleted_at ? { id, unavailable: 'deleted' } : r);
+        }
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [messages, messagesById, quoteRows, conversationId, fixture]);
+  const quoteFor = (m) => (m.parent_id ? (messagesById.get(m.parent_id) || quoteRows.get(m.parent_id) || null) : null);
+
+  // ── Day dividers, runs and the "New" line (lib/messageFeed.js) ───────
+  // A message continues the run above it when it's from the same sender,
+  // within 5 minutes of the one before it, on the same day, and is neither a
+  // reply nor pinned; continuations drop their avatar/name/time header (see
+  // MessageBubble's isContinuation). A message still sending is laid out
+  // like the one it becomes, so it never changes shape when it's saved.
+  // The card look keeps a reply and a pin in their run: the quote sits inside
+  // the bubble, and "Pinned" in the line under it.
+  const groupedMessages = useMemo(
+    () => buildFeedItems(messages, { selfId: userId, newAfter: newAfter || null, ...(card ? { breakOnPin: false, breakOnReply: false } : {}) }),
+    [messages, userId, newAfter, card],
+  );
+
+  // "Seen", in a DM only: under your newest message once the other person has
+  // read it (lib/messageFeed.js). Their position is the later of what the
+  // list knows and what this thread last read; one who left still counts.
+  const peerId = isDm ? (conversation?.participants || []).find(p => p.user_id !== userId)?.user_id || null : null;
+  const listReadAt = (conversation?.participants || []).find(p => p.user_id === peerId)?.last_read_at || null;
+  const liveReadAt = peerId ? readState.get(peerId) || null : null;
+  const peerLastReadAt = !listReadAt ? liveReadAt : !liveReadAt ? listReadAt : (listReadAt > liveReadAt ? listReadAt : liveReadAt);
+  const seenId = useMemo(
+    () => selectSeenMessageId(messages, { selfId: userId, isDm, peerId, peerLastReadAt }),
+    [messages, userId, isDm, peerId, peerLastReadAt],
+  );
+
+  // Opening with more unread than fits: land on the "New" line, not the
+  // bottom, so you start where you left off. A linked message wins, and so
+  // does the bottom when everything new fits on screen.
+  const landedRef = useRef(false);
+  useLayoutEffect(() => {
+    if (landedRef.current || !fresh) return;
+    landedRef.current = true;
+    if (jumpToMessageId) return;
+    const el = scrollRef.current;
+    const line = el?.querySelector('.msg-new-divider');
+    if (!el || !line) return;
+    // Measured from the end of the thread, wherever the scroller is right now.
+    const lineInContent = line.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+    if (el.scrollHeight - lineInContent <= el.clientHeight) return;
+    stick.holdAt(line, 64);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fresh]);
 
   // ── Send / Edit / Delete / React / Reply / Pin / Copy-link ──────────
-  // Optimistic sends: the message renders instantly with a "Sending…"
-  // state; on failure it flips to a failed bubble with Retry/Discard (the
-  // composer already cleared, so the bubble owns recovery — plus an error
-  // toast in case the user has scrolled away).
-  const [pendingMsgs, setPendingMsgs] = useState([]);
-  useEffect(() => { setPendingMsgs([]); }, [conversationId]);
+  // Everything shows before the server answers (useMessageThread's local
+  // writes). A send appears at once with the id the server will keep, so its
+  // bubble never remounts or changes shape when it's confirmed; a reaction,
+  // edit, pin or delete shows at once and rolls back, with a toast, if the
+  // server refuses it. A failed send stays in the thread with Retry/Discard
+  // (the composer already cleared, so the bubble owns recovery) plus a toast
+  // in case you've scrolled away.
+  const sendOpsRef = useRef(new Map()); // message id → its send's write
+  const sendTriesRef = useRef(new Map()); // message id → { n: attempts, at: when the last began } (msg_send)
 
-  const deliverPending = useCallback(async (tmp) => {
+  const deliverPending = useCallback(async (row) => {
+    const opId = sendOpsRef.current.get(row.id);
+    const tries = sendTriesRef.current.get(row.id) || { n: 0, at: 0 };
+    tries.n += 1;
+    tries.at = Date.now();
+    sendTriesRef.current.set(row.id, tries);
+    let saved = null;
     try {
-      const inserted = await sendMessage({
+      saved = await sendMessage({
+        id: row.id,
         workspaceId, conversationId,
         senderId: userId,
         senderEmail: currentUser?.email || null,
-        parentId: tmp.parent_id,
-        body: tmp.body, attachments: tmp.attachments, mentions: tmp.mentions,
+        parentId: row.parent_id,
+        body: row.body, attachments: row.attachments, mentions: row.mentions,
       });
-      const payload = { ...inserted, sender_name: currentUser?.name || currentUser?.email };
-      await broadcastConversationMessage({ conversationId, payload });
-      // refetch resolves after setMessages, so the real row is in place
-      // before the optimistic one unmounts — no flicker gap.
-      await refetch();
-      setPendingMsgs(p => p.filter(x => x.id !== tmp.id));
-      onChanged?.();
     } catch (e) {
-      console.warn('send failed', e);
-      setPendingMsgs(p => p.map(x => x.id === tmp.id ? { ...x, sendState: 'failed' } : x));
-      feedback.toast({ type: 'error', message: "Message didn't send — it's kept in the thread with a Retry button." });
+      // A retry whose first try was saved after all (its answer was lost)
+      // hits the id it already has: show the stored message, not a copy.
+      if (e?.code === '23505') saved = (await fetchMessagesByIds({ conversationId, ids: [row.id] }))?.[0] || null;
+      if (!saved) {
+        console.warn('send failed', e);
+        markSendState(opId, 'failed');
+        logEvent(EV.MSG_SEND, { ok: false, attempt: tries.n, ms: Date.now() - tries.at, code: errorCode(e), ...sendShape(row) });
+        feedback.toast({ type: 'error', message: "Message didn't send — it's kept in the thread with a Retry button." });
+        return;
+      }
     }
-  }, [workspaceId, conversationId, userId, currentUser, refetch, onChanged, feedback]);
+    sendOpsRef.current.delete(row.id);
+    sendTriesRef.current.delete(row.id);
+    confirmSend(opId, saved);
+    logEvent(EV.MSG_SEND, { ok: true, attempt: tries.n, ms: Date.now() - tries.at, ...sendShape(row) });
+    // Tell the others once it's saved, without waiting on the socket: a slow
+    // or failed broadcast must never make a saved message look unsent. They
+    // re-read it by id; the payload carries nothing else.
+    broadcastConversationMessage({ conversationId, payload: { id: saved.id, sender_id: saved.sender_id } })
+      .then(null, (e) => console.warn('send broadcast failed', e));
+    // No list re-read here: the insert bumps the conversation (0058's
+    // messages_touch_conversation) and the list hears that change live. A
+    // read per send was three queries in each of two lists, on top of it.
+  }, [workspaceId, conversationId, userId, currentUser, markSendState, confirmSend, feedback]);
 
   const handleSend = useCallback(async ({ body, attachments, mentions }) => {
     if (!conversationId) return false;
-    const tmp = {
-      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    const row = {
+      id: newMessageId(),
+      conversation_id: conversationId,
+      workspace_id: workspaceId,
+      kind: 'user',
       body, attachments, mentions,
-      parent_id: replyParent?.id || null,
+      parent_id: replyTo?.id || null,
       sender_id: userId,
+      sender_email: currentUser?.email || null,
       sender_name: currentUser?.name || currentUser?.email,
+      reactions: {},
       created_at: new Date().toISOString(),
-      sendState: 'sending',
     };
-    setPendingMsgs(p => [...p, tmp]);
-    wasAtBottomRef.current = true;
-    deliverPending(tmp);
+    sendOpsRef.current.set(row.id, sendLocal(row));
+    setReplyTo(null);
+    stick.requestPin();
+    deliverPending(row);
     return true;
-  }, [conversationId, replyParent, userId, currentUser, deliverPending]);
+  }, [conversationId, workspaceId, replyTo, userId, currentUser, sendLocal, deliverPending, stick]);
 
   const retryPending = useCallback((msg) => {
-    setPendingMsgs(p => p.map(x => x.id === msg.id ? { ...x, sendState: 'sending' } : x));
+    markSendState(sendOpsRef.current.get(msg.id), 'sending');
     deliverPending(msg);
-  }, [deliverPending]);
+  }, [markSendState, deliverPending]);
   const discardPending = useCallback((msg) => {
-    setPendingMsgs(p => p.filter(x => x.id !== msg.id));
-  }, []);
+    rollback(sendOpsRef.current.get(msg.id));
+    sendOpsRef.current.delete(msg.id);
+    logEvent(EV.MSG_ACTION, { action: 'discard', attempts: sendTriesRef.current.get(msg.id)?.n || 0 });
+    sendTriesRef.current.delete(msg.id);
+  }, [rollback]);
 
   const handleDelete = useCallback(async (msg) => {
-    // ("This can't be undone" was a lie — messages soft-delete via
-    // deleted_at. Keep the confirm because deletion is peer-visible, but be
-    // honest, and offer the Undo the mechanism always allowed.)
-    const ok = await feedback.confirm({
-      title: 'Delete message',
-      message: 'Delete this message? You can undo for a few seconds after.',
-      confirmLabel: 'Delete',
-      danger: true,
-    });
-    if (!ok) return;
+    // No confirm: it goes at once and the toast's Undo brings it back (the
+    // house convention for deleting). Messages soft-delete via deleted_at.
+    const opId = removeLocal(msg.id);
     try {
       await deleteMessage({ id: msg.id });
-      refetch();
-      // Peers only learn of a change already in the thread from a nudge:
-      // messages aren't in the realtime publication (COMMS-04).
-      broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
-      undoToast(feedback, {
-        message: 'Message deleted',
-        onUndo: async () => {
-          try {
-            await restoreMessage({ id: msg.id });
-            refetch();
-            broadcastConversationChange({ conversationId, changed: 'restore', id: msg.id });
-          }
-          catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' }); }
-        },
-      });
     } catch (e) {
       console.warn('delete failed', e);
+      rollback(opId);
+      logEvent(EV.MSG_ACTION, { action: 'delete', ok: false, code: errorCode(e) });
       feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });
+      return;
     }
-  }, [conversationId, refetch, feedback]);
+    settle(opId);
+    logEvent(EV.MSG_ACTION, { action: 'delete', ok: true });
+    // Peers only learn of a change already in the thread from a nudge:
+    // messages aren't in the realtime publication (COMMS-04).
+    broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
+    undoToast(feedback, {
+      message: 'Message deleted',
+      onUndo: async () => {
+        const back = upsertLocal({ ...msg, deleted_at: null });
+        try {
+          await restoreMessage({ id: msg.id });
+          settle(back);
+          logEvent(EV.MSG_ACTION, { action: 'undo_delete', ok: true });
+          broadcastConversationChange({ conversationId, changed: 'restore', id: msg.id });
+        }
+        catch (e) {
+          rollback(back);
+          logEvent(EV.MSG_ACTION, { action: 'undo_delete', ok: false, code: errorCode(e) });
+          feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' });
+        }
+      },
+    });
+  }, [conversationId, removeLocal, upsertLocal, settle, rollback, feedback]);
 
+  // Resolves false when the save failed, so the bubble reopens with your text.
   const handleEdit = useCallback(async (msg, newBody) => {
+    const opId = patchLocal(msg.id, { body: newBody, edited_at: new Date().toISOString() });
     try {
       await editMessage({ id: msg.id, body: newBody });
-      refetch();
-      broadcastConversationChange({ conversationId, changed: 'edit', id: msg.id });
     } catch (e) {
       console.warn('edit failed', e);
+      rollback(opId);
+      logEvent(EV.MSG_ACTION, { action: 'edit', ok: false, code: errorCode(e) });
       feedback.toast({ type: 'error', message: 'Could not save your edit — try again.' });
+      return false;
     }
-  }, [conversationId, refetch, feedback]);
+    settle(opId);
+    logEvent(EV.MSG_ACTION, { action: 'edit', ok: true });
+    broadcastConversationChange({ conversationId, changed: 'edit', id: msg.id });
+    return true;
+  }, [conversationId, patchLocal, settle, rollback, feedback]);
 
   const handleReact = useCallback(async (msg, emoji) => {
     if (!emoji) return;
+    const action = Array.isArray(msg.reactions?.[emoji]) && msg.reactions[emoji].includes(userId) ? 'unreact' : 'react';
+    const opId = patchLocal(msg.id, { reactions: toggleReactionMap(msg.reactions, emoji, userId) });
     try {
-      await toggleReaction({ messageId: msg.id, emoji, userId });
-      refetch();
+      const reactions = await toggleReaction({ messageId: msg.id, emoji, userId });
+      settle(opId, reactions && typeof reactions === 'object' ? { patch: { reactions } } : {});
+      logEvent(EV.MSG_ACTION, { action, ok: true });
       broadcastConversationChange({ conversationId, changed: 'react', id: msg.id });
     } catch (e) {
+      rollback(opId);
+      logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
       feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
     }
-  }, [conversationId, userId, refetch, feedback]);
+  }, [conversationId, userId, patchLocal, settle, rollback, feedback]);
 
   const handleReply = useCallback((msg) => {
-    setReplyParent(msg);
+    setReplyTo(msg);
     setFocusedId(null);
+    logEvent(EV.MSG_ACTION, { action: 'reply' });
   }, []);
 
+  // ↑ in an empty composer: edit your last message (the `e` key's event),
+  // brought into view. False when there's none to edit, so ↑ stays a caret key.
+  const editLast = useCallback(() => {
+    const m = lastEditableMessage(messages, userId);
+    if (!m) return false;
+    document.dispatchEvent(new CustomEvent('soleil-msg-edit', { detail: { id: m.id } }));
+    requestAnimationFrame(() => {
+      scrollRef.current?.querySelector(`[data-msg-id="${m.id}"]`)?.scrollIntoView({ block: 'nearest' });
+    });
+    return true;
+  }, [messages, userId]);
+
   const handlePin = useCallback(async (msg) => {
+    const action = msg.is_pinned ? 'unpin' : 'pin';
+    const opId = patchLocal(msg.id, { is_pinned: !msg.is_pinned });
     try {
-      await togglePin(msg.id);
-      refetch();
+      const isPinned = await togglePin(msg.id);
+      settle(opId, { patch: { is_pinned: isPinned } });
       broadcastConversationChange({ conversationId, changed: 'pin', id: msg.id });
       const rows = await listPinnedForConversation({ conversationId });
       setPinned(rows);
-    } catch (e) { console.warn('pin failed', e); }
-  }, [conversationId, refetch]);
+      logEvent(EV.MSG_ACTION, { action, ok: true });
+    } catch (e) {
+      console.warn('pin failed', e);
+      rollback(opId);
+      feedback.toast({ type: 'error', message: msg.is_pinned ? "Couldn't unpin the message — try again." : "Couldn't pin the message — try again." });
+      logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
+    }
+  }, [conversationId, patchLocal, settle, rollback, feedback]);
 
   // Say whether it worked: a silent copy left you guessing (COMMS-24).
   const handleCopyLink = useCallback(async (msg) => {
     const url = `${window.location.origin}${window.location.pathname}?m=${msg.id}`;
     try {
       await navigator.clipboard.writeText(url);
+      logEvent(EV.MSG_ACTION, { action: 'copy_link', ok: true });
       feedback.toast({ type: 'success', message: 'Link copied' });
     } catch (_) {
+      logEvent(EV.MSG_ACTION, { action: 'copy_link', ok: false });
       feedback.toast({ type: 'error', message: "Couldn't copy the link — your browser blocked the clipboard." });
     }
   }, [feedback]);
@@ -547,12 +787,98 @@ export function MessageThread({
     broadcastConversationTyping({ conversationId, userId });
   }, [conversationId, userId]);
 
-  const handleAttachmentDragStart = (e, att) => {
-    const payload = inboxPayloadFor(att);
-    if (!payload) return;
-    e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData(INBOX_MIME, JSON.stringify(payload));
-  };
+  // ── Press and hold (a finger) ────────────────────────────────────────
+  // Under a finger there's no hover chip: holding a message opens its
+  // actions in a sheet. The click that ends the hold is eaten (it would open
+  // a link or an attachment under the finger), and the long-press menu
+  // Android raises a moment later is turned away.
+  const [sheetId, setSheetId] = useState(null);
+  const heldAtRef = useRef(0);
+  useLongPress(scrollRef, (x, y, e) => {
+    const id = e?.target?.closest?.('[data-msg-id]')?.getAttribute('data-msg-id');
+    const m = id ? messagesById.get(id) : null;
+    if (!m || m.sendState || m.kind === 'system') return;
+    heldAtRef.current = Date.now();
+    swallowNextClick({ held: true });
+    setSheetId(id);
+    logEvent(EV.MSG_ACTION, { action: 'sheet' });
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  const sheetMsg = sheetId ? messagesById.get(sheetId) || null : null;
+  const onThreadContextMenu = (e) => { if (Date.now() - heldAtRef.current < 1500) e.preventDefault(); };
+  const handleCopyText = useCallback(async (msg) => {
+    try {
+      await navigator.clipboard.writeText(msg.body || '');
+      logEvent(EV.MSG_ACTION, { action: 'copy_text', ok: true });
+      feedback.toast({ type: 'success', message: 'Copied' });
+    } catch (_) {
+      logEvent(EV.MSG_ACTION, { action: 'copy_text', ok: false });
+      feedback.toast({ type: 'error', message: "Couldn't copy — your browser blocked the clipboard." });
+    }
+  }, [feedback]);
+  const requestEdit = useCallback((msg) => {
+    document.dispatchEvent(new CustomEvent('soleil-msg-edit', { detail: { id: msg.id } }));
+  }, []);
+
+  // ── The card look: editing in the box, one menu, the pinned list ─────
+  // An edit happens in the box you type in, its message outlined in the
+  // thread: ↑ in an empty box, the `e` key, and a menu's or a sheet's Edit
+  // all ask for it (soleil-msg-edit). Saving shows at once; a save that
+  // fails reopens the edit with your words (handleEdit resolves false).
+  const [editingMsg, setEditingMsg] = useState(null); // { id, body, draft }
+  const messagesByIdRef = useRef(messagesById);
+  messagesByIdRef.current = messagesById;
+  const editingRef = useRef(null);
+  editingRef.current = editingMsg;
+  useEffect(() => {
+    if (!card) return undefined;
+    const onEditRequest = (e) => {
+      const m = messagesByIdRef.current.get(e.detail?.id);
+      if (!m || m.sender_id !== userId || m.sendState || !withinEditWindow(m.created_at)) return;
+      setEditingMsg({ id: m.id, body: m.body, draft: null });
+    };
+    document.addEventListener('soleil-msg-edit', onEditRequest);
+    return () => document.removeEventListener('soleil-msg-edit', onEditRequest);
+  }, [card, userId]);
+  // A message that goes (deleted here or by a peer) lets its edit go too.
+  useEffect(() => {
+    if (editingMsg && !messagesById.has(editingMsg.id)) setEditingMsg(null);
+  }, [editingMsg, messagesById]);
+  const cancelEdit = useCallback(() => setEditingMsg(null), []);
+  const saveEdit = useCallback(async (text) => {
+    const m = editingRef.current && messagesByIdRef.current.get(editingRef.current.id);
+    setEditingMsg(null);
+    if (!m || text === m.body) return;
+    const ok = await handleEdit(m, text);
+    // Reopened with your words, unless you've started another edit meanwhile
+    // (the toast still says this one didn't save).
+    if (ok === false && !editingRef.current) setEditingMsg({ id: m.id, body: m.body, draft: text });
+  }, [handleEdit]);
+
+  // A message's actions are one menu, from its ⋯ (which toggles it) or a
+  // right click.
+  const [menuFor, setMenuFor] = useState(null); // { id, anchor, trigger }
+  const openMenu = useCallback((msg, anchor, trigger) => {
+    setMenuFor(cur => (cur && trigger && cur.trigger === trigger ? null : { id: msg.id, anchor, trigger }));
+  }, []);
+  // Shut from inside (an action, Escape): focus goes home, as when anything
+  // that held it goes away; a press elsewhere keeps where it went.
+  const settleFocus = useCallback((back) => {
+    if (!back) return;
+    requestAnimationFrame(() => { if (!rootRef.current?.contains(document.activeElement)) focusHome(); });
+  }, [focusHome]);
+  const closeMenu = useCallback((back) => { setMenuFor(null); settleFocus(back); }, [settleFocus]);
+  const menuMsg = menuFor ? messagesById.get(menuFor.id) || null : null;
+  // A message that goes (deleted here or by a peer) takes its menu with it,
+  // so an Undo doesn't bring the menu back where it was.
+  useEffect(() => { if (menuFor && !menuMsg) setMenuFor(null); }, [menuFor, menuMsg]);
+
+  // The pinned messages open from the count in the header.
+  const [pinsFor, setPinsFor] = useState(null); // { anchor, trigger }
+  const closePins = useCallback((back) => { setPinsFor(null); settleFocus(back); }, [settleFocus]);
+  // Unpinning the last one empties the list: it shuts, and focus goes home.
+  useEffect(() => { if (pinsFor && !pinned.length) closePins(true); }, [pinsFor, pinned.length, closePins]);
+
+  const handleAttachmentDragStart = attachmentDragStart;
 
   // ── Group chat actions ───────────────────────────────────────────────
   const [menuAnchor, setMenuAnchor] = useState(null);
@@ -609,32 +935,57 @@ export function MessageThread({
   };
 
   // ── Render ───────────────────────────────────────────────────────────
-  const isEmpty = !searchOpen && !replyParent && messages.length === 0;
-  const subtitle = replyParent ? 'THREAD' : (isDm ? 'DIRECT MESSAGE' : 'GROUP CHAT');
+  const isEmpty = !searchOpen && messages.length === 0;
+  // Who's typing, for the card look's dots: first names, or one's full name.
+  const typingIds = [...typingUsers.keys()];
+  const typingNames = typingIds.map(id => (userProfiles.get(id)?.name || userProfiles.get(id)?.email || 'Someone').split(/[\s@]/)[0]);
+  const typingFull = typingIds.length === 1 ? (userProfiles.get(typingIds[0])?.name || typingNames[0]) : '';
+  const subtitle = isDm ? 'DIRECT MESSAGE' : 'GROUP CHAT';
 
-  const threadList = replyParent
-    ? [{ kind: 'msg', key: replyParent.id, msg: replyParent }, ...replies.map(r => ({ kind: 'msg', key: r.id, msg: r }))]
-    : null;
+  const showPinned = !searchOpen && pinned.length > 0;
 
-  const showPinned = !replyParent && !searchOpen && pinned.length > 0;
-
-  const draftKey = conversationId
-    ? (replyParent ? `${conversationId}:r:${replyParent.id}` : conversationId)
-    : '';
+  const draftKey = conversationId || '';
 
   return (
-    <div className="msg-panel">
+    <div className="msg-pane msg-pane-thread" ref={rootRef} tabIndex={-1}
+         onFocus={(e) => { lastFocusRef.current = e.target; }}
+         onBlur={(e) => dropFocusIfOutside(e.relatedTarget)}>
       <div className="msg-panel-head">
+        {card && searchOpen ? (
+          // The card look searches in the header: the field, then Done.
+          <>
+            <label className="msg-search is-head">
+              <Icon as={Search} size={15} weight="regular" />
+              <input
+                ref={searchInputRef}
+                className="msg-search-input"
+                placeholder={`Search ${titleText}`}
+                aria-label="Search this conversation"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button type="button" className="msg-search-clear" aria-label="Clear the search"
+                        onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}>
+                  <Icon as={X} size={12} weight="regular" />
+                </button>
+              )}
+            </label>
+            <button type="button" className="msg-search-done" onClick={closeSearch}>Done</button>
+          </>
+        ) : (
+        <>
         <button
           className="msg-panel-icon"
-          onClick={() => { if (replyParent) setReplyParent(null); else onBack?.(); }}
-          title={replyParent ? 'Back to thread' : 'Back'}
+          onClick={() => onBack?.()}
+          title="Back"
           aria-label="Back"
         >
           <Icon as={ChevronLeft} size={14} />
         </button>
+        {card && <MessageFaces people={peerPeople} size={28} className="msg-panel-faces" />}
         <div className="msg-panel-title">
-          <div className="t-eyebrow msg-panel-eyebrow">{subtitle}</div>
+          {!card && <div className="t-eyebrow msg-panel-eyebrow">{subtitle}</div>}
           {renaming ? (
             <input
               className="msg-panel-name-input"
@@ -653,13 +1004,30 @@ export function MessageThread({
             <button
               className="msg-panel-name"
               title={titleText}
-              onClick={!isDm && !replyParent ? beginRename : undefined}
+              onClick={!isDm ? beginRename : undefined}
             >
               {titleText}
             </button>
           )}
+          {card && (isDm ? dmSubline(peerHere) : membersLine(peerLabels)) && (
+            <div className="msg-panel-sub">
+              {isDm ? dmSubline(peerHere) : membersLine(peerLabels)}
+            </div>
+          )}
         </div>
-        {!isDm && !replyParent && (
+        {card && pinned.length > 0 && (
+          <button
+            type="button"
+            className={`msg-pins-chip ${pinsFor ? 'is-active' : ''}`}
+            onClick={(e) => { const el = e.currentTarget; setPinsFor(cur => (cur ? null : { anchor: el.getBoundingClientRect(), trigger: el })); }}
+            title="Pinned messages"
+            aria-label={`${pinned.length} pinned message${pinned.length === 1 ? '' : 's'}`}
+            aria-expanded={!!pinsFor}
+          >
+            <Icon as={Pin} size={13} weight="regular" />{pinned.length}
+          </button>
+        )}
+        {!isDm && !card && (
           <button
             className="msg-panel-icon"
             onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
@@ -680,9 +1048,21 @@ export function MessageThread({
         >
           <Icon as={Search} size={14} />
         </button>
+        {!isDm && card && (
+          <button
+            className={`msg-panel-icon ${menuAnchor ? 'is-active' : ''}`}
+            onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
+            title="Conversation actions"
+            aria-label="Conversation actions"
+          >
+            <Icon as={MoreHorizontal} size={14} />
+          </button>
+        )}
         <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
           <Icon as={X} size={14} />
         </button>
+        </>
+        )}
       </div>
 
       {menuAnchor && (
@@ -714,7 +1094,7 @@ export function MessageThread({
         />
       )}
 
-      {searchOpen && (
+      {searchOpen && !card && (
         <div className="msg-search">
           <Icon as={Search} size={12} />
           <input
@@ -728,7 +1108,7 @@ export function MessageThread({
         </div>
       )}
 
-      {showPinned && (
+      {showPinned && !card && (
         <div className={`msg-pinned-strip ${pinnedExpanded ? 'is-expanded' : ''}`}>
           <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)}>
             <Icon as={Pin} size={11} />
@@ -752,8 +1132,10 @@ export function MessageThread({
         </div>
       )}
 
-      <div className="msg-thread-body" ref={scrollRef} onScroll={onScroll}>
-        {!searchOpen && !replyParent && hasOlder && (
+      <div className="msg-thread-scroll">
+      <div className={`msg-thread-body${card ? (isDm ? ' is-dm' : ' is-group') : ''}`} ref={scrollRef} onScroll={onScroll} onContextMenu={onThreadContextMenu}>
+        <div className="msg-thread-content" ref={contentRef}>
+        {!searchOpen && hasOlder && (
           <button
             type="button"
             className="msg-load-older t-meta"
@@ -766,25 +1148,35 @@ export function MessageThread({
         {searchOpen && searchQuery.trim() ? (
           <>
             <div className="msg-search-summary t-meta">
-              {searching ? 'Searching…' : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
+              {searching ? 'Searching…' : card
+                ? `${searchResults.length} message${searchResults.length === 1 ? '' : 's'} in ${titleText}`
+                : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
             </div>
             {searchResults.length === 0 && !searching && (
               <div className="msg-empty">No matches for "{searchQuery}".</div>
             )}
-            {searchResults.map(m => (
-              <button
-                key={m.id}
-                className="msg-search-result"
-                onClick={() => jumpTo(m.id)}
-              >
-                <MessageBubble msg={m} selfId={userId} highlight={searchQuery}
-                  onDelete={handleDelete}
-                  onAttachmentDragStart={handleAttachmentDragStart}
-                  onReact={handleReact}
-                  onEdit={handleEdit}
-                />
-              </button>
-            ))}
+            {/* A result is one button: who, when, and the words around the
+                match. A whole message inside it put its own buttons inside
+                a button, and pressing React there jumped as well. */}
+            {searchResults.map(m => {
+              const parts = snippetParts(m.body, searchQuery);
+              return (
+                <button key={m.id} type="button" className="msg-search-result" onClick={() => { endSearch(true); jumpTo(m.id); }}>
+                  {card && <MessageFaces people={[faceOf(m.sender_id)]} size={26} />}
+                  <span className="msg-search-result-head">
+                    <span className="msg-search-result-who">{senderName(m)}</span>
+                    <RelTime className="msg-search-result-time" iso={m.created_at} />
+                  </span>
+                  <span className="msg-search-result-body">
+                    {parts.length
+                      ? parts.map((p, i) => (p.match
+                        ? <mark key={i} className="msg-bubble-mark">{p.text}</mark>
+                        : <span key={i}>{p.text}</span>))
+                      : (m.attachments?.[0]?.name || 'Attachment')}
+                  </span>
+                </button>
+              );
+            })}
           </>
         ) : isEmpty && loadFailed ? (
           // A failed read is not an empty conversation (COMMS-15).
@@ -793,48 +1185,39 @@ export function MessageThread({
             <button type="button" className="msg-retry-btn" onClick={() => refetch()}>Retry</button>
           </div>
         ) : isEmpty && loading ? (
-          // Still reading this conversation: not "No messages yet".
-          null
+          // Still reading this conversation: not "No messages yet". The card
+          // look shows the shape of a thread if the read takes a moment.
+          card ? <ThreadSkeleton /> : null
         ) : isEmpty ? (
-          <div className="msg-empty msg-empty-hero">
-            <SoleilMark size={32} color="var(--soleil)" glow />
-            <div className="msg-empty-title">No messages yet</div>
-            <div className="msg-empty-sub">Say hi</div>
-          </div>
-        ) : replyParent && threadList ? (
-          <>
-            <div className="msg-thread-header">
-              <span className="t-eyebrow">REPLYING TO</span>
+          card ? (
+            <div className="msg-empty msg-empty-hero is-card">
+              <MessageFaces people={peerPeople} size={56} />
+              <div className="msg-empty-title">{titleText}</div>
+              <div className="msg-empty-sub">
+                {isDm && firstPeer ? `This is the start of your conversation with ${firstPeer}.` : `This is the start of ${titleText}.`}
+              </div>
             </div>
-            {threadList.map(g => (
-              <MessageBubble key={g.key} msg={g.msg} selfId={userId}
-                isFocused={focusedId === g.msg.id}
-                onDelete={handleDelete}
-                onReact={handleReact}
-                onEdit={handleEdit}
-                onPin={handlePin}
-                onCopyLink={handleCopyLink}
-                onAttachmentDragStart={handleAttachmentDragStart}
-              />
-            ))}
-            {pendingMsgs.filter(m => m.parent_id === replyParent.id).map(m => (
-              <MessageBubble key={m.id} msg={m} selfId={userId}
-                onRetrySend={retryPending} onDiscardSend={discardPending} />
-            ))}
-          </>
+          ) : (
+            <div className="msg-empty msg-empty-hero">
+              <SoleilMark size={32} color="var(--soleil)" glow />
+              <div className="msg-empty-title">No messages yet</div>
+              <div className="msg-empty-sub">Say hi</div>
+            </div>
+          )
         ) : (
           <>
             {groupedMessages.map(g => g.kind === 'divider' ? (
               <div key={g.key} className="msg-day-divider"><span>{g.label}</span></div>
+            ) : g.kind === 'new' ? (
+              <div key={g.key} className="msg-new-divider" role="separator" aria-label="New messages"><span>New</span></div>
             ) : g.msg.kind === 'system' ? (
               <div key={g.key} className="msg-system-row t-meta">{g.msg.body}</div>
             ) : (
               <MessageBubble
                 key={g.key} msg={g.msg} selfId={userId}
                 isContinuation={g.isContinuation}
-                replyMeta={replyCounts.get(g.msg.id) || null}
-                parent={g.msg.parent_id ? messagesById.get(g.msg.parent_id) : null}
-                onJumpToMessage={flashMessage}
+                parent={quoteFor(g.msg)}
+                onJumpToMessage={jumpTo}
                 isFocused={focusedId === g.msg.id}
                 onDelete={handleDelete}
                 onAttachmentDragStart={handleAttachmentDragStart}
@@ -843,40 +1226,139 @@ export function MessageThread({
                 onReply={handleReply}
                 onPin={handlePin}
                 onCopyLink={handleCopyLink}
+                onRetrySend={retryPending}
+                onDiscardSend={discardPending}
+                seen={g.msg.id === seenId}
+                card={card}
+                inDm={isDm}
+                runStart={g.runStart}
+                joinUp={g.joinUp}
+                joinDown={g.joinDown}
+                runEnd={g.runEnd}
+                showTime={g.showTime}
+                editingHere={card && editingMsg?.id === g.msg.id}
+                menuOpen={card && menuFor?.id === g.msg.id}
+                onOpenMenu={card ? openMenu : undefined}
               />
             ))}
-            {pendingMsgs.filter(m => !m.parent_id).map(m => (
-              <MessageBubble key={m.id} msg={m} selfId={userId}
-                onRetrySend={retryPending} onDiscardSend={discardPending} />
-            ))}
-            {typingUsers.size > 0 && (
+            {typingUsers.size > 0 && (card ? (
+              // The card look: a bubble of dots from them, named in a group.
+              <div className="msg-typing is-card" role="status" aria-label={typingLabel(typingNames)}>
+                {!isDm && <div className="msg-bubble-author">{typingNames.length === 1 ? typingFull : typingLabel(typingNames)}</div>}
+                <div className="msg-typing-bubble"><span className="msg-typing-dots"><span /><span /><span /></span></div>
+              </div>
+            ) : (
               <div className="msg-typing">
                 <span className="msg-typing-dots"><span /><span /><span /></span>
                 <span className="t-meta">{typingUsers.size === 1 ? 'Typing…' : `${typingUsers.size} typing…`}</span>
               </div>
-            )}
+            ))}
           </>
         )}
+          <div className="msg-thread-end" ref={endRef} aria-hidden="true" />
+        </div>
       </div>
 
-      {!searchOpen && unseenCount > 0 && (
-        <button className="msg-jump-pill" onClick={() => jumpToBottom(true)}>
-          ↓ {unseenCount} new message{unseenCount === 1 ? '' : 's'}
+      {!searchOpen && !stick.stuck && (card ? (
+        // The card look: a round chip with how many are new on its corner.
+        <button type="button" className="msg-jump-pill is-round" onClick={jumpToBottom} title="Latest"
+                aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
+          <Icon as={ArrowDown} size={16} weight="regular" />
+          {unseenCount > 0 && <span className="msg-jump-n" aria-hidden="true">{unseenCount > 99 ? '99+' : unseenCount}</span>}
         </button>
-      )}
+      ) : (
+        <button type="button" className="msg-jump-pill" onClick={jumpToBottom}
+                aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
+          <Icon as={ArrowDown} size={13} />
+          {unseenCount > 0 ? `${unseenCount} new message${unseenCount === 1 ? '' : 's'}` : 'Latest'}
+        </button>
+      ))}
+      </div>
 
       {canSend ? (
         <MessageComposer
+          ref={composerRef}
           onSend={handleSend}
           onTyping={handleTyping}
           workspaceId={workspaceId}
           userId={userId}
           draftKey={draftKey}
-          placeholder={replyParent ? 'Reply…' : 'Message…'}
+          placeholder={card ? `Message ${isDm && firstPeer ? firstPeer : titleText}` : 'Message…'}
+          card={card}
+          editing={card ? editingMsg : null}
+          onSaveEdit={saveEdit}
+          onCancelEdit={cancelEdit}
+          replyTo={replyTo}
+          replyToName={replyTo ? replyName(replyTo.sender_id) : ''}
+          onCancelReply={() => setReplyTo(null)}
+          onEditLast={editLast}
         />
       ) : (
         <ReadOnlyComposerNotice reason={readOnlyReason} />
       )}
+
+      {menuMsg && (
+        <MessageMenu
+          msg={menuMsg}
+          selfId={userId}
+          anchor={menuFor.anchor}
+          trigger={menuFor.trigger}
+          onClose={closeMenu}
+          onReact={handleReact}
+          onReply={handleReply}
+          onCopyText={handleCopyText}
+          onCopyLink={handleCopyLink}
+          onPin={handlePin}
+          onEdit={requestEdit}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {card && pinsFor && pinned.length > 0 && (
+        <MessagePinsPopover
+          anchor={pinsFor.anchor}
+          trigger={pinsFor.trigger}
+          title={titleText}
+          pinned={pinned}
+          selfId={userId}
+          onJump={jumpTo}
+          onUnpin={handlePin}
+          onClose={closePins}
+        />
+      )}
+
+      {sheetMsg && (
+        <MessageActionSheet
+          msg={sheetMsg}
+          selfId={userId}
+          onClose={() => setSheetId(null)}
+          onReact={handleReact}
+          onReply={handleReply}
+          onCopyText={handleCopyText}
+          onCopyLink={handleCopyLink}
+          onPin={handlePin}
+          onEdit={requestEdit}
+          onDelete={handleDelete}
+        />
+      )}
+    </div>
+  );
+}
+
+// The shape of a thread while its first page loads (the card look), shown
+// only once the read has taken a moment, so a quick one doesn't flash it.
+function ThreadSkeleton() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShown(true), 150);
+    return () => clearTimeout(t);
+  }, []);
+  if (!shown) return null;
+  return (
+    <div className="msg-thread-skel" role="status" aria-label="Loading messages">
+      {[[58, 0], [72, 0], [44, 1], [64, 0], [52, 1], [30, 1]].map(([w, mine], i) => (
+        <span key={i} className={`msg-skel-bubble${mine ? ' is-mine' : ''}`} style={{ width: `${w}%` }} />
+      ))}
     </div>
   );
 }
@@ -1091,23 +1573,4 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
       </div>
     </div>
   ), document.body);
-}
-
-function dayKey(iso) {
-  if (!iso) return 'unknown';
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-function dayLabel(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const now = new Date();
-  const isToday = d.toDateString() === now.toDateString();
-  if (isToday) return 'Today';
-  const yest = new Date(now); yest.setDate(yest.getDate() - 1);
-  if (d.toDateString() === yest.toDateString()) return 'Yesterday';
-  const days = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
-  return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
 }

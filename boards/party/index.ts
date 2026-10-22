@@ -19,13 +19,19 @@ import { routePartykitRequest } from "partyserver";
 import { BoardParty } from "./board";
 import { WorkspaceParty } from "./workspace";
 import { UniverseParty } from "./universe";
+import { DocParty } from "./doc";
 import { UploadParty } from "./upload";
-import { authBoard, authWorkspace, bannedAmong, canWriteBoard } from "./auth";
+import { authBoard, authWorkspace, bannedAmong, canWriteBoard, docRoomAccess } from "./auth";
 import type { Env } from "./env";
 
-export { BoardParty, WorkspaceParty, UniverseParty };
+export { BoardParty, WorkspaceParty, UniverseParty, DocParty };
 
-const TRUSTED_HEADERS = ["x-user-id", "x-user-email", "x-workspace-id", "x-can-write"];
+const TRUSTED_HEADERS = [
+  "x-user-id", "x-user-email", "x-workspace-id", "x-can-write",
+  "x-doc-access", "x-anon", "x-token-ok", "x-doc-name",
+];
+// A shared doc's room: <share id>.<edit|view>.<generation> (0426).
+const DOC_ROOM = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(edit|view)\.[0-9a-f]{12}$/;
 // Boards and workspaces are UUIDs. Anything else is turned away before a
 // Durable Object is created for it.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -61,11 +67,40 @@ async function beforeConnect(req: Request, lobby: Lobby, env: Env): Promise<Requ
     return req;
   }
 
+  // A shared doc's room: the caller's own answer from doc_room_access decides
+  // (signed out is fine on a view link; the edit room needs an account that
+  // may edit). The room trusts these headers and nothing else.
+  if (lobby.className === "Doc") {
+    if (!DOC_ROOM.test(lobby.name)) return notFound();
+    const share = new URL(req.url).searchParams.get("share") || "";
+    const r = await docRoomAccess(token || "", lobby.name, share);
+    if (!r || r.status !== "ok") {
+      const s = r?.status || "unavailable";
+      const code = s === "sign_in" || s === "auth_expired" ? 401 : s === "moved" ? 409 : s === "gone" ? 410
+        : s === "unavailable" ? 503 : 403;
+      return new Response(s, { status: code });
+    }
+    if (r.user_id) {
+      const banned = await bannedAmong(env.SUPABASE_SERVICE_ROLE_KEY, [String(r.user_id)]);
+      if (banned.has(String(r.user_id))) return new Response("Account suspended", { status: 403 });
+    }
+    req.headers.set("x-user-id", r.user_id ? String(r.user_id) : "");
+    req.headers.set("x-doc-access", String(r.access || "view"));
+    req.headers.set("x-anon", r.user_id ? "0" : "1");
+    req.headers.set("x-token-ok", r.token_ok ? "1" : "0");
+    req.headers.set("x-doc-name", String(r.name || "").slice(0, 80));
+    return req;
+  }
+
   if (lobby.className === "Workspace") {
     if (!UUID.test(lobby.name)) return notFound();
     if (!token) return new Response("Missing access_token", { status: 401 });
     const auth = await authWorkspace(token, lobby.name);
     if (!auth.ok) return new Response(auth.reason ?? "Unauthorized", { status: 401 });
+    // The same suspension gate as the board room, so the room's minute recheck
+    // (party_workspace_access) never refuses someone this door let in.
+    const banned = await bannedAmong(env.SUPABASE_SERVICE_ROLE_KEY, [auth.userId ?? ""]);
+    if (auth.userId && banned.has(auth.userId)) return new Response("Account suspended", { status: 403 });
     // The roster trusts what a client says its identity is; the JWT's subject
     // lets the room refuse a `here` that claims to be someone else.
     req.headers.set("x-user-id", auth.userId ?? "");
@@ -87,6 +122,33 @@ async function beforeRequest(req: Request, lobby: Lobby): Promise<Request | Resp
     return req;
   }
   if (lobby.className === "Universe") return lobby.name === "main" ? req : notFound();
+  // A shared doc's room answers only POST /recheck from outside: the owner
+  // changed who may be there. Only someone who manages the doc may ask
+  // (security review: an open /recheck could keep two rooms awake). Its other
+  // routes are its board's, by stub.
+  if (lobby.className === "Doc") {
+    const url = new URL(req.url);
+    if (!DOC_ROOM.test(lobby.name) || !url.pathname.endsWith("/recheck")) return notFound();
+    // The preflight is answered here: a stranger never wakes the room.
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": req.headers.get("origin") || "*",
+          "access-control-allow-methods": "POST, OPTIONS",
+          "access-control-allow-headers": "content-type, authorization",
+          "access-control-max-age": "86400",
+          "vary": "Origin",
+        },
+      });
+    }
+    if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+    const bearer = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!bearer) return new Response("Missing token", { status: 401 });
+    const r = await docRoomAccess(bearer, lobby.name, "");
+    if (!r || r.status !== "ok" || r.access !== "manage") return new Response("Forbidden", { status: 403 });
+    return req;
+  }
   return notFound();
 }
 

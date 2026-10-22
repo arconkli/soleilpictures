@@ -33,6 +33,9 @@ import { useBoardCapacity } from './hooks/useBoardCapacity.js';
 import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
+import { DocPaneFrame } from './components/DocPaneFrame.jsx';
+import { DocOpening } from './components/DocOpening.jsx';
+import { openBesideDock, mainPaneMoved, sidebarShown, toggleSidebar } from './lib/docPanes.js';
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
@@ -61,6 +64,11 @@ import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolle
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { bootMark, bootAt, bootDetail, onBootMark } from './lib/bootMarks.js';
+import { afterBoot } from './lib/afterBoot.js';
+import { takeBootRoot, bootPrefetchLanding } from './lib/bootPrefetch.js';
+import { conversationKind } from './lib/messageEvents.js';
+import { isDefaultClusterName } from './lib/hints.js';
 import { setJourneySink, beginJourney, endJourney, setJourneyState, journey } from './lib/journey.js';
 import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 
@@ -89,37 +97,46 @@ import './lib/entityKinds.js';
 import { SidebarBoardsSection } from './components/SidebarBoardsSection.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { SidebarTags } from './components/SidebarTags.jsx';
-import { TagDetailView } from './components/TagDetailView.jsx';
+// The Shared page (held: sharedFilesAllowed), loaded when it is opened.
+const SharedPage = React.lazy(() => import('./components/shared/SharedPage.jsx').then((m) => ({ default: m.SharedPage })));
 import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
 import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
 import { isAiTaggerEnabled } from './lib/aiTaggerFlag.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import {
+  useTeamPreview, useTeamPage, openTeamPage, closeTeamPage, readTeamPreviewName, consumeTeamPageOnBoot,
+} from './lib/teamPreview.js';
+import {
   markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch,
   markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
   markShareAfterSwitch, shareAfterSwitchFor, clearShareAfterSwitch,
 } from './lib/homeAfterSwitch.js';
-import { SettingsPanel } from './components/SettingsPanel.jsx';
-import { ShareModal } from './components/ShareModal.jsx';
 import { CanvasSurface } from './components/CanvasSurface.jsx';
-import { ListSurface } from './components/ListSurface.jsx';
-import { CommandPalette } from './components/CommandPalette.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
+import { NewClusterButton } from './components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
-import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen } from './lib/filesDock.js';
-import { placedOf, positionUnplaced } from './lib/placement.js';
+import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen, viewWrite } from './lib/filesDock.js';
+import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX, canStore } from './lib/placement.js';
+import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalGuard.js';
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
-import { EntityBacklinksPanel } from './components/EntityBacklinksPanel.jsx';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question, Eye } from './lib/icons.js';
+// The small things in the files sidebar's look (nudges, View only, a
+// comment's unread dot), under body[data-sb-files], which App sets.
+import './components/smallThingsLook.css';
 import { probeFile } from './lib/mediaProbe.js';
 import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 import { PlayerHost } from './components/film/PlayerHost.jsx';
+import { FileShareHost } from './components/fileShare/FileShareHost.jsx';
+import { setShareRightsResolver } from './lib/fileShareBus.js';
+import { SharedFileHost } from './components/fileShare/SharedFileHost.jsx';
+import { useSharedFiles } from './hooks/useSharedFiles.js';
+import { saveSharedFileCopy } from './lib/fileShares.js';
 import { openPlayer } from './lib/playerBus.js';
 // Only the hook. The panel components came with BoardsSettingsPanel, which was
 // never rendered anywhere — a second theme control and a rival ⌘. binding, both
@@ -132,10 +149,12 @@ import { invitedStartWorkspace } from './lib/startWorkspace.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
 import { useYBoard } from './hooks/useYBoard.js';
-import { RENDER_VERSION as THUMB_VERSION } from './lib/renderThumbnail.js';
+import { useOrphanedDocResets } from './hooks/useOrphanedDocResets.js';
+import { RENDER_VERSION as THUMB_VERSION, renderMosaicBlob } from './lib/renderThumbnail.js';
 import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
 import { useAudioPeaksBackfill } from './hooks/useAudioPeaksBackfill.js';
+import { usePdfThumbBackfill } from './hooks/usePdfThumbBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -144,8 +163,10 @@ import { useInboxLive } from './hooks/useInboxLive.js';
 import { useRecents } from './hooks/useRecents.js';
 import { useWorkspacePresence } from './hooks/useWorkspacePresence.js';
 import { WorkspacePresenceStack } from './components/WorkspacePresenceStack.jsx';
-import { MessagesPanel } from './components/MessagesPanel.jsx';
+import { MessagesPresence } from './components/MessagesPresence.jsx';
+import { MessagesLookContext, MessagesBoardsContext } from './components/messagesLook.js';
 import { NotificationsPanel } from './components/NotificationsPanel.jsx';
+import { NotificationsBell } from './components/NotificationsBell.jsx';
 import { addShootDays, scaffoldShootDay, nextDayNumber } from './lib/productionDay.js';
 import { useNotifications } from './hooks/useNotifications.js';
 // Lazy: the ?local=1 / no-Supabase QA harness (and its deps — demo data,
@@ -155,18 +176,20 @@ import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
+import { failMove } from './lib/moveFailure.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { isAbandonedUpload } from './lib/abandonedUploads.js';
 import { forceBoardThumbnail, boardDoc, loadYBoard } from './lib/yboard.js';
-import { ancestorPath, boardDepth, planReparent } from './lib/boardTree.js';
+import { ancestorPath, boardDepth, collectDescendantIds, planReparent } from './lib/boardTree.js';
 import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap } from './lib/yhelpers.js';
-import { evaluateDemoCap, fitByCost, rejectedNoun, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { evaluateDemoCap, fitByCost, rejectedNoun, wallCardsOf, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { CLUSTER_CARD_COST } from './lib/gridCount.js';
 import { planImport, planBytes } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
@@ -179,7 +202,7 @@ import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './li
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { storageRoom } from './lib/storageRoom.js';
-import { holdDrop, claimReady, setHeldBaseline, subscribeHeld, announceBillingChange } from './lib/heldUploads.js';
+import { holdDrop, claimReady, setHeldBaseline, subscribeHeld, announceBillingChange, heldEntries, discardHeld, listenBillingChange } from './lib/heldUploads.js';
 import { useHeldUploads } from './hooks/useHeldUploads.js';
 import { HeldUploadsBar } from './components/HeldUploadsBar.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
@@ -200,7 +223,22 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed } from './lib/appHost.js';
+import { FilesLookContext } from './components/clusterBrowser/filesLook.js';
+import { getSetupOutcome } from './lib/setupGate.js';
+import { workToFirstBoardKind } from './lib/workspaceSetup.js';
+import { WHATS_NEW_KEY, predatesFilesSidebar } from './lib/whatsNew.js';
+import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
+import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
+import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
+import { repointCardRefs } from './lib/moveFromCluster.js';
+import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, withFilesHidden, shownLayout, keepStoredFold, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
+import { whoLine } from './lib/sidebarWho.js';
+import { SidebarWho } from './components/sidebar/SidebarWho.jsx';
+import { useMatchMedia } from './hooks/useMatchMedia.js';
+import { moveFiles, failureMessage, appendCards, patchCards, removeCards } from './lib/clustersApi.js';
+import { SHELF_BUCKETS } from './lib/sidebarShelves.js';
+import { useStorageUsage } from './hooks/useStorageUsage.js';
 import {
   graftKeyMap, parseSlotKey, dayKey as schedDayKey, hourKey as schedHourKey,
   reslotItemKey, moveSlotSubtree as schedMoveSlotSubtree,
@@ -213,17 +251,25 @@ import { lowMemoryDevice } from './lib/device.js';
 import { classifyDropFile, fitImageDims, sizeBucket, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from './lib/fileIngest.js';
 import { walkEntries, treeFromRelativePaths } from './lib/folderWalk.js';
 import { planFolderImport, slicePlan } from './lib/folderPlan.js';
-import { runFolderImport, undoFolderImport, countFiles } from './lib/folderImport.js';
+import { runFolderImport, undoFolderImport, countFiles, layoutTops } from './lib/folderImport.js';
+import { findStoppedImports, loadImportSeed, lockImport, matchStopped } from './lib/importResume.js';
+import { saveImportHandles, loadImportHandles, dropImportHandles, pruneImportHandles } from './lib/importHandles.js';
+import { setCoverMosaics } from './lib/coverMosaic.js';
+import { makeImportDeps } from './lib/importDeps.js';
+import { IMPORT_LIMITS, importLimitsFor } from './lib/importTree.js';
+import { putImportJob, dropImportJob, hasActiveImport, subscribeImportJobs, importJobsSnapshot, importJobEntry } from './lib/importJobs.js';
+import { openImportGuide, isImportGuideOpen } from './lib/importGuide.js';
+import { ImportTray } from './components/ImportTray.jsx';
+import { ImportAskDialog } from './components/ImportAskDialog.jsx';
+import { ImportZipDialog } from './components/ImportZipDialog.jsx';
 import { makeLimiter } from './lib/asyncPool.js';
-import { TrashModal } from './components/TrashModal.jsx';
 import { unopenableClusterNotice, waitUntil } from './lib/clusterOpen.js';
-import { VersionHistoryModal } from './components/VersionHistoryModal.jsx';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
-import { WorkspaceRecoveryModal } from './components/WorkspaceRecoveryModal.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
 import { ScoutClaimBanner } from './components/ScoutClaimBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
-import { lazyWithReload } from './lib/lazyWithReload.js';
+import { lazyWithReload, importWithReload } from './lib/lazyWithReload.js';
+import { lazyPanel } from './lib/lazyPanel.jsx';
 // Lazy: HomeGraph pulls in three.js + react-force-graph-3d (~365KB gz) but only
 // renders on the Home view. Keeping it out of the eager App bundle means a board
 // canvas no longer downloads the 3D-graph libs.
@@ -231,6 +277,10 @@ const HomeGraph = lazyWithReload(() => import('./components/HomeGraph.jsx').then
 // Home's projects panel is light (no three.js), so it is eager: the panel paints
 // at once while the graph behind it loads lazily.
 import { ProjectsHome } from './components/ProjectsHome.jsx';
+import { ClustersHome } from './components/home/ClustersHome.jsx';
+import { useHomeRail, loadClusterPhotos } from './hooks/useHomeRail.js';
+import { useClusterStars } from './hooks/useClusterStars.js';
+import { canManageWorkspace } from './lib/workspaceRoles.js';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -243,8 +293,63 @@ const CaptureHud = lazyWithReload(() => import('./components/capture/CaptureHud.
 const SurfaceGallery = lazyWithReload(() => import('./components/gallery/SurfaceGallery.jsx'));
 const AspectMask = lazyWithReload(() => import('./components/capture/AspectMask.jsx').then(m => ({ default: m.AspectMask })));
 const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.jsx').then(m => ({ default: m.Spotlight })));
+// The setup's part inside the workspace: its three tips, its one invite re-ask
+// and where a link joiner landed. Mounted only where the setup runs
+// (appHost.js workspaceSetupAllowed), so nobody else downloads it.
+const SetupInWorkspace = lazyWithReload(() => import('./components/setup/SetupInWorkspace.jsx'));
+const WhatsNewHint = lazyWithReload(() => import('./components/whatsNew/WhatsNewHint.jsx'));
+// Files, docked beside the board or as the whole view. It starts shut, so most
+// opens never render it, and one that does paints the board while it arrives.
+const ListSurface = lazyWithReload(() => import('./components/ListSurface.jsx').then(m => ({ default: m.ListSurface })));
+// What only a click opens: none of it is on screen when the app opens, so none
+// of it is downloaded before then. The panels kept mounted behind an `open`
+// prop mount at their first open and stay (lib/lazyPanel.jsx); the rest mount
+// when they're wanted, under their own Suspense.
+const SettingsPanel = lazyPanel(() => import('./components/SettingsPanel.jsx').then(m => ({ default: m.SettingsPanel })));
+const CommandPalette = lazyPanel(() => import('./components/CommandPalette.jsx').then(m => ({ default: m.CommandPalette })));
+const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m => ({ default: m.TrashModal })));
+const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })));
+const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })));
+const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
+const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
+const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
+const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
+const EntityBacklinksPanel = lazyWithReload(() => import('./components/EntityBacklinksPanel.jsx').then(m => ({ default: m.EntityBacklinksPanel })));
+// What a first click most often opens, fetched once the board has settled
+// (lib/afterBoot.js: its first picture, or a while after its paint) so that
+// click seldom waits on its chunk. Not under Save-Data or on a 2G connection.
+let firstClicksWarmed = false;
+function warmFirstClicks() {
+  if (firstClicksWarmed) return;
+  firstClicksWarmed = true;
+  try {
+    const c = navigator.connection;
+    if (c?.saveData || /2g/.test(c?.effectiveType || '')) return;
+  } catch (_) {}
+  afterBoot(() => {
+    for (const C of [CommandPalette, ShareModal, SettingsPanel, ListSurface, MessagesPanel]) C.warm();
+  }, { signedInApp: true });
+}
+// The bulk import's engine (lib/importStart.js), fetched by the first import or
+// by the offer to resume one a reload stopped: an open of the app never needs
+// it. Until then there is no import for a released hold to wake.
+let importStartModule = null;
+function loadImportStart() {
+  if (!importStartModule) {
+    importStartModule = importWithReload(() => import('./lib/importStart.js'));
+    importStartModule.catch(() => { importStartModule = null; });
+  }
+  return importStartModule;
+}
 import { useBreakpoint } from './hooks/useBreakpoint.js';
+import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
+import { openableUrl } from './lib/openableUrl.js';
+
+// A cluster with nothing on its board but files in Files gets a cover of its
+// pictures (lib/coverMosaic.js). Stored covers reach every host, so only where
+// bulk import runs, until it ships.
+setCoverMosaics(bulkImportAllowed());
 
 const TWEAK_DEFAULTS = {
   // NOTE: theme is intentionally NOT a tweak. It lives in the per-user
@@ -277,6 +382,18 @@ function logCardEdit(cardId, kind, boardId) {
   if (!cardId || _editedCardsThisSession.has(cardId)) return;
   _editedCardsThisSession.add(cardId);
   logEvent(EV.CARD_EDIT, { kind: kind || 'card', board_id: boardId });
+}
+
+// An error's code for a row (a SQLSTATE such as 23503, PostgREST's PGRST…, an
+// HTTP status), never its message.
+const errCodeOf = (e) => {
+  const c = e?.code ?? e?.status;
+  return c == null || c === '' ? null : String(c).slice(0, 16);
+};
+// A cluster that couldn't be made: by which door, and whether it failed being
+// made ('create') or after it was ('after_create': it exists, unannounced).
+function logClusterCreateFail(via, stage, e) {
+  try { logEvent(EV.CLUSTER_CREATE_FAIL, { via: via || 'unknown', stage, code: errCodeOf(e) }); } catch (_) {}
 }
 
 function readSession(key) {
@@ -435,7 +552,9 @@ export function App() {
     let cancelled = false;
     (async () => {
       try {
-        let r = await getRootBoard(activeWorkspace.id);
+        // Started at sign-in when this device remembered the workspace.
+        let r = await takeBootRoot(user.id, activeWorkspace.id);
+        if (r === undefined) r = await getRootBoard(activeWorkspace.id);
         // null is not an error from the query's point of view — it means the
         // workspace has no live root cluster. Left alone, activeRoot stays
         // null and the LoadingShell gate below never opens, which is exactly
@@ -446,6 +565,7 @@ export function App() {
         }
         if (cancelled) return;
         if (!r) throw new Error('This workspace has no clusters and could not be repaired.');
+        bootPrefetchLanding(user, activeWorkspace.id, r.id);
         setActiveRoot(r);
         setActiveRootError(null);
       } catch (e) {
@@ -514,9 +634,23 @@ export function App() {
   );
 }
 
+// Whether this page load's app_open has said how long the app took (boot_ms).
+let appOpenTimed = false;
+// Whether this page load's board_ready has gone out: once, for the board the
+// load landed on. A board opened later by a click is not a boot.
+let boardReadySent = false;
+
+// The import question's wall: what is already counted plus everything the
+// drop would add; only on the person's own plan and only for the CARD limit
+// (a storage wall uses the trial's storage arm).
+function importWallCards(ask) {
+  return ask && ask.own && (ask.limitKind || 'cards') === 'cards' ? (Number(ask.count) || 0) + (Number(ask.n) || 0) : null;
+}
+
 function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWorkspace, onWorkspacesChanged, personalWorkspaceId, tweak, setTweak }) {
   perf.usePerfRenderTime('Workspace');
-  const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id);
+  bootMark('workspace');
+  const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id, user.id);
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
   // section in the sidebar reads from the same source.
@@ -796,8 +930,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // isTouch still drives the focus button, tap-to-view, auto-hide and 44px
   // targets below, so every iPad gets the touch affordances regardless of
   // orientation. Plain desktop (mouse, !isTouch) is unaffected.
-  const { isPhone, isTablet, isTouch } = useBreakpoint();
-  const mobileShell = isPhone || (isTablet && isTouch);
+  const breakpoint = useBreakpoint();
+  const { isPhone, isTouch } = breakpoint;
+  const { mobileShell } = shellOf(breakpoint);
+  // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx),
+  // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
+  // Read this early: with it, Files has no dock and no pill (see canDockMain).
+  const filesSidebar = sidebarFilesAllowed();
+  // The full Files page in the files sidebar's look (direction A; its own hold,
+  // preview only): read once here and handed down (clusterBrowser/filesLook.js).
+  const filesLook = filesSidebar && filesPageLookAllowed() ? 'sb' : null;
+  // With the files sidebar the desktop bar floats as two islands over the
+  // surface (components/chrome/FloatingChrome.jsx); a phone keeps its bar.
+  const floatingChrome = filesSidebar && !mobileShell;
+  // Messages portals to <body>, outside .app, so what it wears with the files
+  // sidebar hangs off <body>: data-sb-files for the look (the sidebar's
+  // materials, bubbles), data-sb-float for the floating card beside the
+  // islands (a desktop; on a phone it stays a sheet).
+  useEffect(() => {
+    const b = document.body;
+    if (filesSidebar) b.setAttribute('data-sb-files', '1'); else b.removeAttribute('data-sb-files');
+    if (floatingChrome) b.setAttribute('data-sb-float', '1'); else b.removeAttribute('data-sb-float');
+    return () => { b.removeAttribute('data-sb-files'); b.removeAttribute('data-sb-float'); };
+  }, [filesSidebar, floatingChrome]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Ephemeral immersive "focus" view for touch — hides ALL chrome so the user
   // can just look at a board/pictures. Distinct from the persisted desktop
@@ -912,6 +1067,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
   const view = viewOverride[currentId] || currentBoard.view || 'canvas';
+  // A reload inside a cluster, before the lists have landed: its row isn't in
+  // the map yet, so currentBoard falls back to the root. Opening the root in
+  // its place loaded the root's doc, its snapshot and its party room (Durable
+  // Object time) only to switch away a moment later. Nothing opens until the
+  // cluster is known; if the lists come back without it, the prune effect
+  // below takes the stack back to the root and the root opens then.
+  const landingPending = boardListsLoading && currentId !== rootBoard.id && !boards[currentId];
 
   // Filter the stack down to boards that still exist. Catches cascaded
   // deletes where multiple frames in the stack vanish at once (e.g. you
@@ -956,7 +1118,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    getOwnProfile()
+    getOwnProfile({ userId: user.id })
       .then(p => { if (!cancelled) setOwnProfile(p || null); })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -996,7 +1158,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     email: user.email,
     name: userInfo.name,
     color: userInfo.color || pickPresenceColor(user.id),
-  }), [user.id, user.email, userInfo.name, userInfo.color]);
+    // The canvas keeps its offers off an account's first day (the Studio bar).
+    createdAt: user.created_at || null,
+  }), [user.id, user.email, userInfo.name, userInfo.color, user.created_at]);
 
   // Resolved defaults — workspace > user > hardcoded fallback. Drives every
   // addX mutator's initial values + the SettingsPanel UI. Stash in a ref
@@ -1173,7 +1337,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // open a thread. Toast suppression for the thread
   // you're looking at is threadAttention.js's job (it knows when the panel is
   // closed or the tab is hidden), not this id's.
-  const [openConversationId, setOpenConversationId] = useState(null);
+  const [openConversationId, setOpenConversationIdState] = useState(null);
+  // An open says how it came about (the panel passes 'list', 'new', 'person'
+  // or 'link'; a toast's Open is 'toast'), for msg_conv_open below.
+  const convOpenViaRef = useRef(null);
+  const setOpenConversationId = React.useCallback((id, via) => {
+    convOpenViaRef.current = id ? (via || null) : null;
+    setOpenConversationIdState(id);
+  }, []);
   const conversationList = useConversationList({ workspaceId: workspace.id, userId: user.id, refreshTick: msgRefreshTick });
   const { total: messagesUnread, mentions: messagesMentions } = useUnreadTotal({ unreadByConv: conversationList.unreadByConv });
   useTitleBadge({ total: messagesUnread, mentions: messagesMentions });
@@ -1185,15 +1356,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     userId: user.id,
     feedback,
     onOpenBoard: (id) => { if (id) { openBoardAnywhere(id); setCurrentSurface('board'); } },
+    // An editor-limit notice's "See who can edit" (openNotificationSettings,
+    // below, is called only once the toast is pressed).
+    onOpenSettings: (tab, wsId) => openNotificationSettings(tab, wsId),
   });
 
   // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +
   // OS notifications, publishes to inboxBus for optimistic list updates.
   const openConversationFromToast = React.useCallback((convId) => {
     if (!convId) return;
-    setOpenConversationId(convId);
+    setOpenConversationId(convId, 'toast');
     setTweak('showMessages', true);
-  }, [setTweak]);
+  }, [setOpenConversationId, setTweak]);
+
+  // Which conversations get opened, how, and with how much waiting in them.
+  // Who is in one, never who: people is a count.
+  useEffect(() => {
+    if (!openConversationId) return;
+    const via = convOpenViaRef.current || 'other';
+    convOpenViaRef.current = null;
+    const conv = conversationList.conversations.find(c => c.conversation_id === openConversationId);
+    const people = conv?.active_participant_count ?? null;
+    logEvent(EV.MSG_CONV_OPEN, {
+      via, kind: conversationKind(people), people,
+      unread: conversationList.unreadByConv.get(openConversationId) || 0,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openConversationId]);
   useInboxLive({
     userId: user.id,
     onOpenConversation: openConversationFromToast,
@@ -1218,15 +1407,62 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (tweak.showMessages) setNotifOpen(false);
   }, [tweak.showMessages]);
+
+  // msg_panel: an open someone made (false → true) and how long it stayed.
+  // The panel's state survives a reload, so one already open at mount is
+  // neither an open nor, later, a close.
+  const msgPanelRef = useRef({ open: !!tweak.showMessages, at: 0 });
+  useEffect(() => {
+    const open = !!tweak.showMessages;
+    const was = msgPanelRef.current;
+    if (open === was.open) return;
+    if (open) {
+      logEvent(EV.MSG_PANEL, { action: 'open', unread: messagesUnread, convs: conversationList.conversations.length });
+    } else if (was.at) {
+      logEvent(EV.MSG_PANEL, { action: 'close', ms: Date.now() - was.at });
+    }
+    msgPanelRef.current = { open, at: open ? Date.now() : 0 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tweak.showMessages]);
   useEffect(() => {
     if (notifOpen && tweak.showMessages) setTweak('showMessages', false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifOpen]);
 
+  // The bell (placement C, owner's pick, 2026-10-21): the new sidebar has no
+  // Notifications row, so the list opens from a button in the board's right
+  // island (after the theme switch) or, on a phone, the top bar (before
+  // Share). One element, rendered in whichever bar is showing; the panel
+  // hangs from it (notifBellRef).
+  const notifBellRef = useRef(null);
+  const notifBell = (
+    <NotificationsBell ref={notifBellRef} unread={notifications.unread} open={notifOpen}
+      onToggle={() => {
+        // Only the open is worth a row; the close tells us nothing. This is
+        // the denominator notif_click needs — a notification nobody clicked
+        // and a bell nobody opened are different failures.
+        if (!notifOpen) {
+          try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
+        }
+        setNotifOpen(v => !v);
+      }} />
+  );
+  // An editor-limit row opens Settings at Members in the row's workspace:
+  // here, or after switching to it, the way the workspace menu's Settings
+  // does (the remount would throw an open panel away, so a note opens it).
+  const openNotificationSettings = (tab, workspaceId) => {
+    if (workspaceId && workspaceId !== workspace?.id) {
+      markSettingsAfterSwitch(workspaceId, tab);
+      onSwitchWorkspace?.(workspaceId);
+      return;
+    }
+    openSettings(tab);
+  };
+
   // "hasThumb" = has a CURRENT-version stored thumbnail. A stale version
   // (pre-rework render) counts as missing so the on-open backfill in
   // loadYBoard regenerates it with the new look.
-  const yb = useYBoard(currentBoard.id, user.id, userInfo, workspace.id,
+  const yb = useYBoard(landingPending ? null : currentBoard.id, user.id, userInfo, workspace.id,
     !!currentBoard.thumb_key && currentBoard.thumb_version === THUMB_VERSION);
   // The count on the topbar's Files switch. Only this board's own snapshot —
   // on the navigation commit yb.cards still holds the previous board.
@@ -1234,6 +1470,47 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     () => (yb.ready && yb.boardId === currentBoard.id ? filesCountOf(yb.cards) : 0),
     [yb.ready, yb.boardId, yb.cards, currentBoard.id]
   );
+
+  // Boot timing (lib/bootMarks.js): the board this load landed on has painted.
+  // board_ready says when, from what (this device's draft or cache, or the
+  // server) and with how many cards, then when the first picture arrived, so a
+  // slow open in the field names the step it was slow in. The landed board, not
+  // whatever is current: while the board list loads, a reload into a
+  // sub-cluster paints the root first, and that paint is not the one anybody
+  // was waiting for.
+  const landedBoardRef = useRef(stack[stack.length - 1] || rootBoard.id);
+  useEffect(() => {
+    if (boardReadySent) return;
+    // A landed board that no longer exists is pruned from the stack; then the
+    // board shown in its place is the one this load landed on.
+    if (!stack.includes(landedBoardRef.current)) landedBoardRef.current = stack[stack.length - 1];
+    if (!yb.ready || yb.boardId !== landedBoardRef.current) return;
+    boardReadySent = true;
+    const cards = yb.cards || [];
+    const source = yb.paintSource || null;
+    bootMark('paint', { source, cards: cards.length });
+    // The paint is still marked, for what waits on it (lib/afterBoot.js), but
+    // after a checkout's in-place entry (boot:enter) it is not a boot's paint.
+    if (bootAt('enter') != null) return;
+    const ms = bootAt('paint');
+    let sent = false;
+    const send = () => {
+      if (sent) return;
+      sent = true;
+      const image = bootDetail('image');
+      logEvent(EV.BOARD_READY, {
+        ms, source, cards: cards.length,
+        first_image_ms: bootAt('image'), image_tier: image?.tier ?? null, image_meta: image?.meta ?? null,
+        refreshed: bootDetail('session')?.refreshed ?? null, shell_cached: bootDetail('shell')?.cached ?? null,
+      });
+    };
+    // A board with no pictures is ready at its paint. One with pictures waits
+    // for the first, up to 15 s; past that the picture is reported as missing.
+    if (!cards.some((c) => c.kind === 'image')) { send(); return; }
+    onBootMark('image', send);
+    setTimeout(send, 15_000);
+  }, [yb.ready, yb.boardId, yb.cards, yb.paintSource, stack]);
+  useEffect(() => { warmFirstClicks(); }, []);
 
   // Avatar-click → open DM with a workspace member. Exposed via context.
   const [pendingDmPeerId, setPendingDmPeerId] = useState(null);
@@ -1310,6 +1587,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // overlay without giving up the pane that keeps its board loaded.
   const [splitDoc, setSplitDoc] = useState(null);
   const [splitDocFull, setSplitDocFull] = useState(false);
+  // A second doc, beside the docked one in the main pane's place, so two can
+  // be read at once (lib/docPanes.js; the owner's ask, 2026-10-20):
+  // { cardId, boardId } on the main pane's board, which stays mounted under it
+  // as it was. besideDocFull lifts it to fullscreen, as splitDocFull does.
+  const [besideDoc, setBesideDoc] = useState(null);
+  const [besideDocFull, setBesideDocFull] = useState(false);
+  // Two docs side by side take the sidebar's room: it tucks away while both
+  // are open, and its button and ⌘B bring it back meanwhile. Nothing is
+  // stored; it is as it was when one of them closes (docPanes.js).
+  const twoDocs = !!splitDoc && !!besideDoc && !mobileShell;
+  const [sidebarAskedBack, setSidebarAskedBack] = useState(false);
+  useEffect(() => { if (!twoDocs) setSidebarAskedBack(false); }, [twoDocs]);
+  const sidebarShownNow = sidebarShown({ open: sidebarOpen, twoDocs, askedBack: sidebarAskedBack });
+  const toggleSidebarNow = () => {
+    const next = toggleSidebar({ open: sidebarOpen, twoDocs, askedBack: sidebarAskedBack });
+    if (next.open !== sidebarOpen) setSidebarOpen(next.open);
+    setSidebarAskedBack(next.askedBack);
+  };
+  const showSidebarNow = () => { if (!sidebarShownNow) toggleSidebarNow(); };
   // The pane Board · Files acts on — the topbar switch, its count, F and the
   // ⌘K command all agree on it. Same rule as the breadcrumb (toolbarPane,
   // below): the split pane once you have touched it, unless a document is
@@ -1326,7 +1622,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [mainRoom, setMainRoom] = useState(() => (
     typeof window !== 'undefined' && canDock(window.innerWidth - 240, { mobileShell })
   ));
-  const canDockMain = mainRoom && !mobileShell;
+  // With the files sidebar the files live on the left, so Files never docks on
+  // the right: F and Show Files open the full page, a Board button comes back.
+  const canDockMain = mainRoom && !mobileShell && !filesSidebar;
   const mainFilesMode = filesModeOf({ view, dockOpen: dockPrefs.open, canDock: canDockMain });
   // Read at call time by handlers that outlive this render: which board is in
   // full Files (null when none is), and whether there's room beside it.
@@ -1353,8 +1651,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setSplitStack([boardId]);
     setSplitDoc({ cardId });
     setSplitDocFull(false);
+    // Docking the doc that was beside moves it, and the board comes back.
+    setBesideDoc((b) => (b?.cardId === cardId ? null : b));
   };
-  const closeSplitDoc = () => { setSplitDoc(null); setSplitDocFull(false); setSplitStack([]); };
+  // × on the docked doc. One beside it moves into the dock, so the board comes
+  // back where it was (docPanes closeDock).
+  const closeSplitDoc = () => {
+    if (besideDoc) {
+      dockDocCard(besideDoc);
+      setBesideDoc(null);
+      setBesideDocFull(false);
+      return;
+    }
+    setSplitDoc(null); setSplitDocFull(false); setSplitStack([]);
+  };
+  // Any other doc opened while one is docked (a double-click, a double tap, a
+  // jump to it from Files or a peer) goes beside it: RichDocCard asks only
+  // while a doc is docked and it isn't that one.
+  const openBesideDoc = (doc) => {
+    const dock = splitDoc && splitId ? { cardId: splitDoc.cardId, boardId: splitId } : null;
+    const next = openBesideDock({ dock, beside: besideDoc }, doc);
+    if (!next || next.beside === besideDoc) return;
+    setBesideDoc(next.beside);
+    setBesideDocFull(false);
+  };
+  const closeBesideDoc = () => { setBesideDoc(null); setBesideDocFull(false); };
   // Safety net for the prune above: if the doc's host board is deleted the
   // split stack empties, and the dock must go with it.
   useEffect(() => {
@@ -1378,6 +1699,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if ((splitYb.cards || []).some(c => c.id === splitDoc.cardId)) return;
     setSplitDoc(null); setSplitDocFull(false); setSplitStack([]);
   }, [splitDoc, splitId, splitYb.ready, splitYb.boardId, splitYb.cards]);
+  // The doc beside lives on the main pane's board, in its place. The split
+  // closing takes it too (it is beside the dock, so it goes with it), and so
+  // does the main pane moving to another cluster or to its Files page
+  // (docPanes mainPaneMoved) or its card being deleted, once the board has
+  // loaded: absent while it hydrates is "not yet".
+  useEffect(() => {
+    if (!besideDoc) return;
+    const deleted = yb.ready && yb.boardId === besideDoc.boardId
+      && !(yb.cards || []).some(c => c.id === besideDoc.cardId);
+    const moved = !mainPaneMoved({ dock: splitDoc, beside: besideDoc }, { boardId: currentId, view }).beside;
+    if (!splitDoc || moved || deleted) {
+      setBesideDoc(null); setBesideDocFull(false);
+    }
+  }, [besideDoc, splitDoc, currentId, view, yb.ready, yb.boardId, yb.cards]);
+  // Opening it (or maximizing it) hands it the keyboard, as the dock does, and
+  // its going hands the keyboard back to the board.
+  useEffect(() => { if (besideDoc) setActivePane('beside'); }, [besideDoc, besideDocFull]);
+  useEffect(() => { if (!besideDoc && getActivePane() === 'beside') setActivePane('main'); }, [besideDoc]);
   // Board cards whose reparent is in flight — childBoardId → oldParentId. The
   // render filter (see renderSurface) hides each from its OLD parent's canvas
   // the instant the drop is dispatched, so the dragged card doesn't snap back
@@ -1573,6 +1912,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // the engine).
     tourFireRef.current?.({ type: 'view_switched', view: v, boardId });
     logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: boardId, via });
+    // With the files sidebar, looking is this device's alone: only the cluster
+    // menu's "Always open in Files" changes how it opens for everyone.
+    if (viewWrite({ filesSidebar, via }) === 'device') return;
     // Only a real change reaches the board. A cluster opened in Files on this
     // device alone (folder drop, a folder opened from Files) is still stored as
     // canvas, so going back to the board must not write anything.
@@ -1584,10 +1926,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       .catch((e) => console.warn('persist board view failed', e));
   };
 
+  // The split pane's F and ⌘K. With the files sidebar they change only this
+  // device's view, as the main pane's do; only the cluster menu's "Always open
+  // in Files" writes the view everyone gets.
+  const setPaneView = (v, via, boardId) => {
+    if (!filesSidebar) { setView(v, via, boardId); return; }
+    if (!boardId) return;
+    setViewOverride((o) => ({ ...o, [boardId]: v }));
+    markViewSwitched();
+    logEvent(EV.VIEW_MODE_SWITCH, { view: v, board_id: boardId, via });
+  };
+  const setPaneViewRef = useRef(setPaneView);
+  setPaneViewRef.current = setPaneView;
+
   // Every way of showing, sizing or putting away Files on the main pane comes
   // through here: the topbar switch, F, ⌘K, the panel's ⤢ ⤡ × buttons and the
-  // divider (lib/filesDock.js planFilesEvent). Full Files is the stored view,
-  // so moving into or out of it goes through setView; the panel itself is this
+  // divider (lib/filesDock.js planFilesEvent). Without the files sidebar, full
+  // Files is the stored view, so moving into or out of it goes through setView;
+  // with it, full is this device's alone (below). The panel itself is this
   // device's preference and never writes to the board.
   const applyFilesEvent = (event, via = 'button') => {
     const plan = planFilesEvent(mainFilesMode, event, { canDock: canDockMain });
@@ -1597,6 +1953,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const from = mainFilesMode;
     const to = plan.next;
     if (to === from) return;
+    // With the files sidebar, F, ⤢ and the Board button change what THIS device
+    // shows, never the cluster: how it opens for everyone is its own menu item
+    // ("Always open in Files"), not a side effect of looking at its files.
+    if (filesSidebar && (to === 'full' || from === 'full')) {
+      setViewOverride((o) => ({ ...o, [currentId]: to === 'full' ? 'list' : 'canvas' }));
+      if (to === 'full') {
+        markViewSwitched();
+        tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId: currentId });
+      }
+      logEvent(EV.FILES_DOCK, { from, to, via, board_id: currentId });
+      return;
+    }
     if (to === 'full') setView('list', via);
     else if (from === 'full') setView('canvas', via);
     if (to === 'panel') updateDockPrefs({ open: true });
@@ -1982,7 +2350,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Returns the id it placed, or null when nothing was placed (the cap
     // refused it, or the board isn't ready) — so a caller never reports a card
     // that does not exist.
-    const addCard = (card, { afterInsert = null } = {}) => {
+    // untracked: off the undo stack, for a card whose undo is a toast that
+    // reverses more than this one write (a cluster made from a selection).
+    const addCard = (card, { afterInsert = null, untracked = false } = {}) => {
       const m = cardsMap(); if (!m) { if (!isSeedCard(card)) noteBlocked('mutator_null'); return null; }
       // Owner-pays cap: hard-block at the limit (cards total across the
       // OWNER's workspaces — 0187). The trigger on card_index enforces the
@@ -2026,7 +2396,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // this transaction so create+init is ONE undo step. Yjs transact is
         // reentrant, so a nested ydoc.transact inside afterInsert merges here.
         if (afterInsert) { try { afterInsert(m.get(c.id)); } catch (_) {} }
-      }, 'local');
+      }, untracked ? 'cross-board-move' : 'local');
       // The gate let this card in on a cached count. If the server disagrees,
       // this is the one card the refusal may take back (capRefusal.js).
       if (gated && placedId) notePlacedThroughCap([placedId]);
@@ -3292,16 +3662,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // pre-named cluster also skips the rename autofocus below.
       const defaultName = opts.name || 'Untitled cluster';
       // Ask the cap before the cluster exists, the way addNewProject does: its
-      // card on this canvas costs one. Asked only by addCard below, the refusal
-      // came after createBoard — a cluster with no card, logged as created,
-      // whose card the reconcile effect then kept trying to place.
+      // card on this canvas costs CLUSTER_CARD_COST. Asked only by addCard
+      // below, the refusal came after createBoard — a cluster with no card,
+      // logged as created, whose card the reconcile effect then kept trying to
+      // place. A cost of 0 never meets the wall (evaluateDemoCap).
       if (!opts.seed) {
         const cs = capSource();
         if (cs.capped) {
-          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+          const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: CLUSTER_CARD_COST, limit: cs.limit });
           if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
         }
       }
+      let madeId = null;
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -3309,10 +3681,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           name: defaultName, view, userId: user.id,
           cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
         });
+        madeId = b.id;
         const w = d.w || 280, h = d.h || 220;
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
-        addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) });
+        // opts.untracked: a cluster made FROM cards is undone by the move's
+        // toast (which also trashes the cluster); a Cmd+Z that took only its
+        // card would leave the cluster behind with the cards inside it.
+        addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) },
+          { untracked: !!opts.untracked });
         // Which door this came through. card_placed already says a cluster was
         // made; nothing said whether it was the sidebar, cmd-K or the canvas.
         if (!opts.seed) {
@@ -3324,7 +3701,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           } catch (_) {}
         }
         await refreshBoards();
-        if (!opts.name) setAutoFocusId(b.id);
+        // opts.focusName: focus the name even when one was suggested — a
+        // suggestion is a starting point, and most clusters that kept
+        // "Untitled cluster" were never renamed.
+        if (!opts.name || opts.focusName) setAutoFocusId(b.id);
         tourFireRef.current?.({ type: 'cluster_created', boardId: b.id });
         // Step inside it when the caller asked (the first-card auto-open).
         // Safe here specifically because refreshBoards has already landed.
@@ -3335,6 +3715,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return b.id;
       } catch (e) {
         console.error('createBoard failed', e);
+        logClusterCreateFail(opts.seed ? 'seed' : opts.via, madeId ? 'after_create' : 'create', e);
         feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
       }
       return null;
@@ -3369,11 +3750,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // made whose own card would then be refused.
       const cs = capSource();
       if (cs.capped) {
-        const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: 1, limit: cs.limit });
+        const { capHit } = evaluateDemoCap({ tier: 'demo', demoCardCount: cs.count, requested: CLUSTER_CARD_COST, limit: cs.limit });
         if (capHit) { noteBlocked('demo_cap'); surfaceCapHit(cs); return null; }
       }
       const d = defaultsRef.current?.board || {};
       const view = d.view || 'canvas';
+      let madeId = null;
       try {
         const b = await createBoard({
           workspaceId: workspace.id,
@@ -3382,18 +3764,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           view, userId: user.id,
           cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
         });
+        madeId = b.id;
         try {
           logEvent(EV.CLUSTER_CREATE, { via, parent_depth: 0, opened: true, board_id: b.id });
         } catch (_) {}
         // Its card on the root counts once the reconcile places it; move the
-        // cached count now so the next add gates on it.
-        if (cs.own) myTier.notePlaced?.(1);
+        // cached count now so the next add gates on it (a 0 moves nothing).
+        if (cs.own) myTier.notePlaced?.(CLUSTER_CARD_COST);
         await refreshBoards();
         projectOpenRef.current?.(b.id);
         projectCreatedRef.current?.(b.id, { via });
         return b.id;
       } catch (e) {
         console.error('createBoard (project) failed', e);
+        logClusterCreateFail(via, madeId ? 'after_create' : 'create', e);
         feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
       }
       return null;
@@ -4096,8 +4480,111 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     [splitYDoc, splitId, splitYb.undoManager]
   );
 
+  // Desktop files dropped on a cluster row in the sidebar. The open cluster (or
+  // the split pane's) takes them through its own mutators, once its doc is
+  // ready. Anything else queues for a BackgroundDrop (components/sidebar), which
+  // opens that cluster's doc, pours the files in through the very same
+  // ingestFilesArranged as a drop into Files (the cap dialog, held uploads,
+  // scripts and all) while you stay where you are, and lets the doc go when its
+  // uploads have settled. One cluster at a time.
+  const [bgDrops, setBgDrops] = useState([]);       // queue of { boardId, files, token }
+  const [sidebarRefresh, setSidebarRefresh] = useState(0);
+  const bgDrop = bgDrops[0] || null;
+  const finishBgDrop = useCallback((drop) => {
+    setBgDrops((q) => q.filter((d) => d.token !== drop.token));
+    setSidebarRefresh((n) => n + 1);
+  }, []);
+  const dropFilesOnCluster = (boardId, files) => {
+    if (!boardId || !files?.length || !boards[boardId]) return;
+    // Refused up front, as the canvas refuses a drop on a view-only cluster —
+    // not after the uploads have started.
+    if (!canEditBoard(boardId)) {
+      feedback.toast({ type: 'info', message: `You can view ${boards[boardId].name || 'that cluster'} but not add to it.` });
+      return;
+    }
+    if (boardId === currentId && currentYDoc) { mainMutators.ingestFilesArranged?.(files); return; }
+    if (boardId === splitId && splitYDoc) { splitMutators.ingestFilesArranged?.(files); return; }
+    setBgDrops((q) => [...q, { boardId, files, token: `${boardId}:${Date.now()}:${q.length}` }]);
+  };
+  const sidebarUploads = useMemo(() => {
+    const out = {};
+    for (const d of bgDrops) out[d.boardId] = (out[d.boardId] || 0) + d.files.length;
+    return out;
+  }, [bgDrops]);
+
+  // Files moved or copied between clusters through the route (lib/dropRules.js
+  // decides which). Dropped on a board (CanvasSurface's Files drop) they land
+  // at the drop point, `at`; from full Files (a folder, its list, Move to… and
+  // Copy to…) and the board's Move to cluster…, `at` is null and they're kept
+  // in the cluster's Files, off its board, with Put on board in the toast.
+  // `what` names them as the drag's label did; `kinds` says what they are (if
+  // none could wait in Files, no Put on board). → whether any arrived.
+  const moveFilesHere = async (targetId, payload, at, { copy = false, what = null, kinds = null } = {}) => {
+    const from = payload?.sourceBoardId;
+    const cardIds = (payload?.cards || []).map((c) => c.id);
+    if (!from || !targetId || from === targetId || !cardIds.length) return false;
+    const nameOf = (id) => boards[id]?.name || 'another cluster';
+    const r = await moveFiles({ from, to: targetId, cardIds, mode: copy ? 'copy' : 'move', at: at || null });
+    if (!r.ok) {
+      // They reached the other cluster but didn't all leave this one: the same
+      // move again finishes it without a second copy (the route finds them).
+      if (r.error === 'partial') {
+        setSidebarRefresh((n) => n + 1);
+        feedback.toast({
+          type: 'error',
+          message: `Moved to ${nameOf(targetId)}, but they’re still in ${nameOf(from)} too.`,
+          action: { label: 'Finish', onClick: () => moveFilesHere(targetId, payload, at, { what, kinds }) },
+        });
+        return false;
+      }
+      feedback.toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') });
+      return false;
+    }
+    setSidebarRefresh((n) => n + 1);
+    const n = copy ? (r.copied || 0) : (r.moved || 0);
+    const late = (r.kept?.length || 0) + (r.skipped?.length || 0);
+    if (!n) {
+      feedback.toast({ type: 'info', message: late ? 'Those files are still uploading. Try again when they finish.' : 'Those files aren’t there any more.' });
+      return false;
+    }
+    const said = what && n === cardIds.length ? what : n === 1 ? '1 file' : `${n} files`;
+    const where = at ? `here from ${nameOf(from)}`
+      : targetId === currentBoard?.id ? `into ${nameOf(targetId)}’s files` : `to ${nameOf(targetId)}`;
+    const extra = late ? ` · ${late} still uploading stayed put` : '';
+    const landed = copy ? (r.cards || []).map((c) => c.id) : (r.pairs || []).map((p) => p.to);
+    const storable = !kinds || kinds.some((kind) => canStore({ kind }));
+    const putOn = !at && storable && landed.length ? {
+      label: 'Put on board',
+      onClick: () => {
+        onPutOnBoard(targetId, landed)
+          .catch((e) => feedback.toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' }))
+          .finally(() => setSidebarRefresh((k) => k + 1));
+      },
+    } : null;
+    undoToast(feedback, {
+      also: [putOn],
+      message: `${copy ? 'Copied' : 'Moved'} ${said} ${where}${extra}`,
+      onUndo: async () => {
+        const u = copy
+          ? await removeCards({ boardId: targetId, cardIds: landed })
+          : await moveFiles({
+            from: targetId, to: from, mode: 'move',
+            cardIds: (r.pairs || []).map((p) => p.to),
+            restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
+          });
+        if (!u.ok) feedback.toast({ type: 'error', message: failureMessage(u, 'move') });
+        setSidebarRefresh((k) => k + 1);
+      },
+    });
+    return true;
+  };
+  // The same, for a surface that names both ends: full Files, the board's menu.
+  const moveFilesBetween = ({ from, to, cardIds, copy = false, what = null, kinds = null }) => (
+    moveFilesHere(to, { sourceBoardId: from, cards: (cardIds || []).map((id) => ({ id })) }, null, { copy, what, kinds })
+  );
+
   // ── Postgres board rename ─────────────────────────────────────────────────
-  const renameBoardById = async (boardId, name) => {
+  const renameBoardById = async (boardId, name, opts = {}) => {
     if (!name || !name.trim()) return;
     // boardsRef, not `boards`: these workspace mutators ride on the memoized
     // pane mutators (see mainMutatorsFull), so `boards` here is the map from
@@ -4108,6 +4595,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await renameBoard(boardId, name.trim());
       await refreshBoards();
       tourFireRef.current?.({ type: 'cluster_renamed', boardId });
+      // A cluster that was made becomes one that is used about when it gets a
+      // real name, and nothing recorded that. The name itself never leaves.
+      if (prevName !== name.trim()) {
+        try {
+          logEvent(EV.CLUSTER_RENAME, {
+            board_id: boardId, via: opts.via || 'unknown',
+            from_default: isDefaultClusterName(prevName), len: name.trim().length,
+          });
+        } catch (_) {}
+      }
       // Server-side meta is outside the Yjs UndoManager — the toast closure
       // is the undo engine (skip when the name didn't actually change).
       if (prevName && prevName !== name.trim()) {
@@ -4428,13 +4925,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const createBoardInside = async (parentId) => {
     const parent = boards[parentId];
     if (!parent) return;
-    // The new cluster's card on its parent costs one, and arrives through the
-    // reconcile effect, which restores rather than adds — so the cap is asked
-    // here, before the cluster exists, and the count moved now.
-    const ask = askCapFor(parentId, 1);
+    // The new cluster's card on its parent costs CLUSTER_CARD_COST, and arrives
+    // through the reconcile effect, which restores rather than adds — so the cap
+    // is asked here, before the cluster exists, and the count moved now.
+    const ask = askCapFor(parentId, CLUSTER_CARD_COST);
     if (!ask.ok) return;
     const d = defaultsRef.current?.board || {};
     const view = d.view || 'canvas';
+    let madeId = null;
     try {
       const b = await createBoard({
         workspaceId: parent.workspace_id,
@@ -4443,15 +4941,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         view, userId: user.id,
         cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
       });
+      madeId = b?.id || null;
       try {
         logEvent(EV.CLUSTER_CREATE, {
           via: 'sidebar_inside', parent_depth: boardDepth(boards, parentId), opened: false, board_id: b?.id || null,
         });
       } catch (_) {}
-      if (ask.cs.own) myTier.notePlaced?.(1);
+      if (ask.cs.own) myTier.notePlaced?.(CLUSTER_CARD_COST);
       await refreshBoards();
     } catch (e) {
       console.error('createBoardInside failed', e);
+      logClusterCreateFail('sidebar_inside', madeId ? 'after_create' : 'create', e);
       feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
     }
   };
@@ -4625,7 +5125,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
         } finally { peek.destroy(); }
       }
-      const ask = askCapFor(targetId, 1 + carried);
+      const ask = askCapFor(targetId, CLUSTER_CARD_COST + carried);
       if (!ask.ok) return;
       const newBoard = await createBoard({
         workspaceId: target.workspace_id,
@@ -4655,7 +5155,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await saveBoardSnapshot(newBoard.id, tmp);
         tmp.destroy();
       }
-      if (ask.cs.own) myTier.notePlaced?.(1 + carried);
+      if (ask.cs.own) myTier.notePlaced?.(CLUSTER_CARD_COST + carried);
       await refreshBoards();
       feedback.toast({ type: 'success', message: 'Pasted cluster.' });
     } catch (e) {
@@ -4772,6 +5272,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // still one row per arrival. A switch arrival is tagged via:'switch' — the
   // person was already on Home, and must not read as a fresh visit.
   const homeViewViaSwitchRef = useRef(arrivedOnHome);
+  // What the files sidebar's Home card is used for, beyond opening (which is
+  // HOME_OPEN_BOARD): its Rename, Cover, Move, Star and Delete.
+  const logHomeClusterAction = (action) => { try { logEvent(EV.HOME_CLUSTER_ACTION, { action }); } catch (_) {} };
   useEffect(() => {
     if (currentSurface !== 'home' || boardsLoading) return;
     const viaSwitch = homeViewViaSwitchRef.current;
@@ -4780,6 +5283,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       logEvent(EV.HOME_VIEW, {
         exploring: !!homeExploring,
         projects_n: projectList(boards, rootBoard.id, { workspaceId: workspace.id }).length,
+        // Which Home this was: the files sidebar's (ClustersHome) or the
+        // projects panel, and whether it drew the graph — neither does on the
+        // mobile shell (phones, and touch tablets in portrait).
+        home: filesSidebar ? 'clusters' : 'projects',
+        graph: !mobileShell,
         ...(viaSwitch ? { via: 'switch' } : {}),
       });
     } catch (_) {}
@@ -4788,12 +5296,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
   //   'tag'   = TagDetailView keyed by activeTag
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
+  //   'shared' = the Shared page (files shared with you / by you; held)
+  const sharedFiles = useSharedFiles({ enabled: sharedFilesAllowed() });
+  const sharedFilesRow = sharedFilesAllowed() && (sharedFiles.withMe.length || sharedFiles.byMe.length)
+    ? { unread: sharedFiles.unread, active: currentSurface === 'shared',
+        onOpen: () => { setCurrentSurface('shared'); if (mobileShell) setMobileNavOpen(false); } }
+    : null;
   // Name the tab after what you're looking at. The board shown is the one the
   // BREADCRUMB describes — same rule, so the tab and the topbar never disagree
   // about which side of a split you are on. A docked document has no board
   // trail of its own, so the trail (and the tab) keep naming the canvas.
   const tabTitle = useMemo(() => {
     if (currentSurface === 'tag') return activeTag?.name || null;
+    if (currentSurface === 'shared') return 'Shared';
     if (currentSurface !== 'board') return null;   // home graph → served title
     const paneId = (activePaneId === 'split' && splitId && !splitDoc) ? splitId : currentId;
     return boards[paneId]?.name || (paneId === rootBoard.id ? rootBoard.name : null);
@@ -4850,8 +5365,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // events; we mirror them into state so workspace presence reflects
   // the exact location for click-to-jump.
   //   null OR { cardId, pageId }   (scrollTop lives in openDocScrollRef)
-  const [openDocCard, setOpenDocCard] = useState(null);
-  const openDocScrollRef = useRef({ cardId: null, scrollTop: 0 });
+  // Two can be open at once (docked, and beside it or fullscreen over it), so
+  // every open one is kept, oldest first: openDocCard is the newest, and
+  // closing it hands presence back to the one still open, which used to be
+  // dropped. Scroll offsets are kept per card.
+  const [openDocs, setOpenDocs] = useState([]);
+  const openDocCard = openDocs.length ? openDocs[openDocs.length - 1] : null;
+  const openDocScrollRef = useRef(new Map());
   // Keep a live reference to the board flush fns so the (empty-dep) doc-card
   // listener below can persist pending edits the moment a card closes. A doc
   // card's content lives in its host board's Y.Doc, so flushing the open
@@ -4868,17 +5388,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onMount = (e) => {
       const { cardId } = e.detail || {};
       if (!cardId) return;
-      openDocScrollRef.current = { cardId, scrollTop: 0 };
-      setOpenDocCard({ cardId, pageId: null });
+      openDocScrollRef.current.set(cardId, 0);
+      setOpenDocs(list => [...list.filter(d => d.cardId !== cardId), { cardId, pageId: null }]);
     };
     const onUnmount = (e) => {
       const { cardId } = e.detail || {};
       try { flushBoardsRef.current?.(); } catch (_) {}
-      setOpenDocCard(c => (c?.cardId === cardId ? null : c));
+      openDocScrollRef.current.delete(cardId);
+      setOpenDocs(list => (list.some(d => d.cardId === cardId) ? list.filter(d => d.cardId !== cardId) : list));
     };
     const onPage = (e) => {
       const { cardId, pageId } = e.detail || {};
-      setOpenDocCard(c => (c?.cardId === cardId ? { ...c, pageId: pageId || null } : c));
+      setOpenDocs(list => (list.some(d => d.cardId === cardId)
+        ? list.map(d => (d.cardId === cardId ? { ...d, pageId: pageId || null } : d)) : list));
     };
     // Scroll lands in a ref, never in state: this fires every 200ms while a
     // doc scrolls, and a state write here re-rendered the whole App (~9k
@@ -4887,7 +5409,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // reads it lazily at heartbeat time (see the location getter below).
     const onScroll = (e) => {
       const { cardId, scrollTop } = e.detail || {};
-      if (openDocScrollRef.current.cardId === cardId) openDocScrollRef.current.scrollTop = scrollTop || 0;
+      if (openDocScrollRef.current.has(cardId)) openDocScrollRef.current.set(cardId, scrollTop || 0);
     };
     document.addEventListener('soleil-doccard-mount', onMount);
     document.addEventListener('soleil-doccard-unmount', onUnmount);
@@ -5095,7 +5617,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (ref?.id) openDmWith(ref.id);
         else setTweak('showMessages', true);
       },
-      url: (ref) => { window.open(ref.href, '_blank', 'noopener,noreferrer'); },
+      url: (ref) => { const u = openableUrl(ref?.href); if (u) window.open(u, '_blank', 'noopener,noreferrer'); },
       group: async (ref) => {
         // Resolve boardId via group_index if not provided.
         let boardId = ref.boardId;
@@ -5219,14 +5741,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       // Someone accepted an invite / joined via an invite link (0189) — the
       // inviter's payoff moment. detail carries the joiner's display name.
+      // A whole-workspace join names the workspace and offers a hello rather
+      // than the root cluster it anchors on (`scope`, 0452).
       if (n.kind === 'joined') {
+        const scope = n.scope === 'workspace' ? 'workspace' : 'board';
+        try { logEvent(EV.JOINED_TOAST, { action: 'shown', scope }); } catch (_) {}
+        const opened = () => { try { logEvent(EV.JOINED_TOAST, { action: 'open', scope }); } catch (_) {} };
         const joinedBoard = boards[n.board_id];
+        if (scope === 'workspace') {
+          const wsName = joinedBoard ? workspace.name : null;
+          feedback.toast({
+            type: 'success',
+            ttl: 8000,
+            message: `${n.detail || 'Someone'} joined ${wsName || 'your workspace'} — say hi.`,
+            ...(n.shared_by ? { action: { label: 'Message', onClick: () => { opened(); openDmWith(n.shared_by); } } } : {}),
+          });
+          continue;
+        }
         const joinedName = joinedBoard?.name || 'your cluster';
         feedback.toast({
           type: 'success',
           ttl: 8000,
           message: `${n.detail || 'Someone'} joined "${joinedName}" — say hi.`,
-          ...(joinedBoard ? { action: { label: 'Open', onClick: () => openBoard(n.board_id) } } : {}),
+          ...(joinedBoard ? { action: { label: 'Open', onClick: () => { opened(); openBoard(n.board_id); } } } : {}),
         });
         continue;
       }
@@ -5249,6 +5786,169 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
+
+  // The floating sidebar: stacked or side by side, and each card's size
+  // (lib/sidebarLayout.js). A handle sizes the cards directly while it's
+  // dragged and hands the layout over when it lets go; remembered per device.
+  const [sidebarLayout, setSidebarLayout] = useState(() => readSidebarLayout());
+  // Side by side only where the window has the room for it (less for side
+  // by side the button keeps).
+  const sidebarRoomy = useMatchMedia(SIDE_FITS_QUERY);
+  const sidebarSnug = useMatchMedia(KEPT_FITS_QUERY);
+  const onSidebarLayout = useCallback((next, { commit = false } = {}) => {
+    setSidebarLayout(next);
+    if (commit) writeSidebarLayout(next);
+  }, []);
+  // Direction A (preview only): while the full Files page shows this cluster,
+  // the sidebar's Files card folds to its bar, so the files are listed once.
+  // Shown, never kept (lib/sidebarLayout.js shownLayout / keepStoredFold).
+  const pageFilesId = filesLook && !mobileShell && currentSurface === 'board' && mainFilesMode === 'full' ? currentId : null;
+  const shownSidebarLayout = useMemo(() => shownLayout(sidebarLayout, { pageOpen: !!pageFilesId }), [sidebarLayout, pageFilesId]);
+  const onShownSidebarLayout = useCallback((next, opts) => {
+    onSidebarLayout(pageFilesId ? keepStoredFold(sidebarLayout, next) : next, opts);
+  }, [onSidebarLayout, pageFilesId, sidebarLayout]);
+  // The fold bar's Shrink, ⌘\ and ⌘K while the page is open: back to the
+  // board, and the files back in the sidebar even if they were hidden.
+  const shrinkPageToSidebar = (via) => {
+    applyFilesEvent('board', via);
+    if (sidebarLayout.filesHidden) onSidebarLayout(withFilesHidden(sidebarLayout, false), { commit: true });
+  };
+  const shrinkPageRef = useRef(shrinkPageToSidebar);
+  shrinkPageRef.current = shrinkPageToSidebar;
+  // A shelf's ⤢ opens its cluster in full Files narrowed to that shelf.
+  const [filesFilter, setFilesFilter] = useState(null);   // { boardId, buckets, token }
+  const sidebarStorage = useStorageUsage({ enabled: filesSidebar });
+  const [paletteQuery, setPaletteQuery] = useState('');
+  // The open cluster's canvas groups by id, so the sidebar can name them.
+  const sidebarGroupNames = useMemo(
+    () => new Map((yb.groups || []).map((g) => [String(g.id), g.name || ''])),
+    [yb.groups],
+  );
+  // Words handed over by the sidebar's finder are for that one opening, however
+  // the palette is closed (⌘K again, a drawer row, Escape).
+  useEffect(() => { if (!paletteOpen) setPaletteQuery(''); }, [paletteOpen]);
+  const openSidebarCluster = (id) => {
+    if (!id || !boards[id]) return;
+    setStack(ancestorPath(boards, id));
+    setCurrentSurface('board');
+    if (mobileShell) setMobileNavOpen(false);
+  };
+  // Double-click (or Show on board) on a file in the sidebar: a placed file is
+  // shown on its board; one stored off the board has no spot on a canvas, so
+  // its cluster opens in Files with it picked out.
+  const showSidebarFileRef = useRef(null);
+  const showSidebarFile = (boardId, cardId, { unplaced = false } = {}) => {
+    if (!boardId || !boards[boardId]) return;
+    if (mobileShell) setMobileNavOpen(false);
+    setCurrentSurface('board');
+    if (!unplaced) { showInCluster(boardId, [cardId]); return; }
+    openInFiles(boardId);
+    setFilesReveal({ boardId, ids: [cardId], token: Date.now(), pane: 'main' });
+  };
+  showSidebarFileRef.current = showSidebarFile;
+  // Put on board from beyond the board — the sidebar's Files bar, and the toast
+  // after files move into a cluster's Files: files waiting in a cluster's Files
+  // go on as the board's own Put lays them (ListSurface putOnBoard, the
+  // canvas's UnplacedOffer): one block where its canvas last looked, rows when
+  // they're all photos, at most PUT_ON_BOARD_MAX, one undo step. The cluster
+  // comes up on its canvas first, the files go on once its doc has them, and
+  // the board then frames them. → Promise<{ placed, left }> (left: still in
+  // Files past the cap); it rejects, with words fit to show, when the cluster
+  // can't be changed or doesn't come up.
+  const PUT_OPEN_MS = 20000;
+  const pendingPutRef = useRef(null);   // { boardId, ids, resolve, reject, timer }
+  const framePutRef = useRef(null);     // { boardId, ids }: put on, framed once the board draws them
+  const [putTick, setPutTick] = useState(0);
+  const putFilesOnBoard = (boardId, cardIds) => new Promise((resolve, reject) => {
+    const ids = [...new Set((cardIds || []).filter(Boolean))];
+    if (!boardId || !boards[boardId]) { reject(new Error('That cluster isn’t here any more.')); return; }
+    const name = boards[boardId].name || 'That cluster';
+    if (!canEditBoard(boardId)) { reject(new Error(`${name} is view-only for you.`)); return; }
+    if (!ids.length) { resolve({ placed: 0, left: 0 }); return; }
+    const was = pendingPutRef.current;
+    if (was) { clearTimeout(was.timer); was.reject(new Error('Another Put on board took its place.')); }
+    const timer = setTimeout(() => {
+      if (pendingPutRef.current?.timer !== timer) return;
+      pendingPutRef.current = null;
+      reject(new Error(`${name} didn’t open, so nothing was put on its board.`));
+    }, PUT_OPEN_MS);
+    pendingPutRef.current = { boardId, ids, resolve, reject, timer };
+    if (mobileShell) setMobileNavOpen(false);
+    setCurrentSurface('board');
+    if (currentBoard.id !== boardId) showInCluster(boardId);
+    else setViewOverride((o) => (o[boardId] === 'canvas' ? o : { ...o, [boardId]: 'canvas' }));
+    setPutTick((n) => n + 1);
+  });
+  const putFilesOnBoardRef = useRef(putFilesOnBoard);
+  putFilesOnBoardRef.current = putFilesOnBoard;
+  // Stable, for a toast that outlives the render it was made in.
+  const onPutOnBoard = useCallback((boardId, cardIds) => putFilesOnBoardRef.current(boardId, cardIds), []);
+  useEffect(() => {
+    const live = currentYDoc ? yb.cards : null;
+    if (!live) return;
+    const f = framePutRef.current;
+    if (f && f.boardId !== currentBoard.id) framePutRef.current = null;
+    else if (f) {
+      const put = new Set(f.ids);
+      if (live.some((c) => put.has(c.id) && !isUnplaced(c))) {
+        framePutRef.current = null;
+        setFocusRequest({ boardId: f.boardId, ids: f.ids, token: Date.now() });
+      }
+    }
+    const p = pendingPutRef.current;
+    if (!p) return;
+    // The board went there with the request, so another one up now means
+    // someone opened it since.
+    if (p.boardId !== currentBoard.id) {
+      pendingPutRef.current = null;
+      clearTimeout(p.timer);
+      p.reject(new Error(`Another cluster opened before ${boards[p.boardId]?.name || 'that cluster'} did, so nothing was put on its board.`));
+      return;
+    }
+    // The first paint is the cache's, which can be behind: wait for the
+    // server unless every file is already here.
+    const have = new Set(live.map((c) => c.id));
+    if (!yb.synced && !p.ids.every((id) => have.has(id))) return;
+    pendingPutRef.current = null;
+    clearTimeout(p.timer);
+    const muts = mainMutatorsGuarded;
+    if (muts.captureGuarded) { p.reject(new Error('The board is showing a capture layout. Put them on once it’s closed.')); return; }
+    const asked = new Set(p.ids);
+    const waiting = live.filter((c) => asked.has(c.id) && isUnplaced(c));
+    const take = waiting.slice(0, PUT_ON_BOARD_MAX);
+    const plan = take.length ? planPutOnBoard(live, take.map((c) => c.id), getViewCenter(p.boardId), { layout: layoutForPut(take) }) : [];
+    if (!plan.length) {
+      feedback.toast({ type: 'info', message: live.some((c) => asked.has(c.id)) ? 'Those are already on the board.' : 'Those files aren’t there any more.' });
+      p.resolve({ placed: 0, left: 0 });
+      return;
+    }
+    const um = muts.undoManager;
+    muts.breakUndo?.();
+    muts.updateCards?.(plan);
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    muts.breakUndo?.();
+    const left = waiting.length - plan.length;
+    undoToast(feedback, {
+      type: 'success',
+      message: `${plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`}${left ? ` · ${left} still in Files` : ''}`,
+      undoManager: um, stackItem: item,
+      onUndo: () => muts.undo?.(),
+    });
+    framePutRef.current = { boardId: p.boardId, ids: plan.map((x) => x.id) };
+    p.resolve({ placed: plan.length, left });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentYDoc, yb.cards, yb.synced, putTick, mainMutatorsGuarded]);
+  // Upload in the sidebar's foot: into the cluster on screen, or — off the
+  // board — into one picked from a list that leads with the recent ones. Either
+  // way it goes in as a drop on that cluster's row does: stored off the board,
+  // while you stay where you are. (The picker resolves with the board itself.)
+  const uploadFromSidebar = async (files) => {
+    if (!files?.length) return;
+    const here = currentSurface === 'board' ? currentBoard?.id : null;
+    if (here && canEditBoard(here)) { dropFilesOnCluster(here, files); return; }
+    const picked = await requestClusterPick({ placeholder: 'Upload to…' });
+    if (picked?.id && boards[picked.id]) dropFilesOnCluster(picked.id, files);
+  };
   // Live mirror so stable callbacks (e.g. the guided-tour persist fn) read fresh
   // tier/onboarding without re-creating on every tier refetch.
   const myTierRef = useRef(myTier);
@@ -5275,6 +5975,34 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // resets and clears storage: losing admin can never leave a chromeless app.
   const captureAllowed = myTier.tier === 'admin';
   const { capture, active: captureActive } = useCaptureMode(captureAllowed);
+
+  // The admin preview's test team (Settings › Preview › Team plan): look only.
+  // Admins only, so a stored choice does nothing for anyone else. Its data
+  // loads in a chunk of its own, never with the app.
+  const teamAs = useTeamPreview();
+  const [team, setTeam] = useState(null);
+  useEffect(() => {
+    if (!captureAllowed || !teamAs) { setTeam(null); return undefined; }
+    let live = true;
+    import('./lib/teamSample.js').then((m) => { if (live) setTeam(m.sampleTeam(teamAs, undefined, { name: readTeamPreviewName() })); }, () => {});
+    return () => { live = false; };
+  }, [captureAllowed, teamAs]);
+  const teamPage = useTeamPage();
+  useEffect(() => { if (!team) closeTeamPage(); }, [team]);
+  // The setup's "Open the team page" reloads the app and asks for the page
+  // once. Wait until the boot has landed: the landing fallback can still move
+  // the stack when the boards arrive, in the same render this flag flips.
+  const [teamLanded, setTeamLanded] = useState(false);
+  useEffect(() => { if (!boardsLoading && boardsReady) setTeamLanded(true); }, [boardsLoading, boardsReady]);
+  useEffect(() => { if (team && teamLanded && consumeTeamPageOnBoot()) openTeamPage(); }, [team, teamLanded]);
+  // Going somewhere else leaves the page: somewhere other than where it opened.
+  const teamOpenedAt = useRef(null);
+  useEffect(() => {
+    const place = `${currentId}:${currentSurface}`;
+    if (!teamPage) { teamOpenedAt.current = null; return; }
+    if (teamOpenedAt.current === null) teamOpenedAt.current = place;
+    else if (teamOpenedAt.current !== place) closeTeamPage();
+  }, [teamPage, currentId, currentSurface]);
 
   // The admin Surface Gallery rides the same tier read and the same doctrine:
   // pure client-side rendering with no server capability behind it, so this IS
@@ -5415,7 +6143,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (!ask.hold) notePendingImport({ n: ask.n });
         // A drop the DRIVE stopped opens the storage wall, not the card wall.
         if (ask.limitKind === 'storage') pitchStorageGate({ force: true });
-        else openCapWall();
+        else openCapWall({ wallCards: importWallCards(ask) });
       } else if (ask.own && (action === 'cancel' || action === 'partial')) {
         // Declining the room this drop needed is declining the offer: the one
         // moment to ask why (UpgradeReasonAsk). Only on the person's own plan —
@@ -5424,7 +6152,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           window.dispatchEvent(new CustomEvent(OFFER_DISMISSED, {
             detail: {
               offer: 'import', surface: 'import_dialog', method: action,
-              trial: Boolean(trialOfferRef.current), dwell_ms: null,
+              trial: ask.limitKind === 'storage' ? Boolean(trialOfferRef.current) : Boolean(wallTrialRef.current(importWallCards(ask))), dwell_ms: null,
               cards: ask.count, cap: ask.limit, tier: 'demo',
             },
           }));
@@ -5457,6 +6185,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   trialOfferRef.current = creatorTrialEligibility({
     tier: myTier.tier, cards: myTier.serverCardCount,
     cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+  }).eligible;
+  // The trial decision at a wall: the server's count, plus the count the wall stopped.
+  const wallTrialRef = useRef(null);
+  wallTrialRef.current = (wallCards) => creatorTrialEligibility({
+    tier: myTier.tier, cards: myTier.serverCardCount,
+    cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt, wallCards,
   }).eligible;
   // Same idea, one beat earlier: the limit we last showed the approaching-cap
   // warning for. Keyed on the limit so raising the cap re-arms the warning.
@@ -5571,6 +6305,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // that value is string-compared at five sites and widening it would touch all
   // of them for a field only one branch reads.
   const [capRejected, setCapRejected] = useState(null);
+  // The count the cap wall stopped (wallCardsOf), for the trial rule; null when unknown.
+  const [capWallCards, setCapWallCards] = useState(null);
   const pitchCapWall = useCallback((cs) => {
     const limit = Number(cs?.limit) || 0;
     // The wall always shows — a refused card is a consequence, not a promotion,
@@ -5583,6 +6319,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // about the thing that just happened to them.
     const rejected = Math.max(0, Number(cs?.rejected) || 0);
     setCapRejected(rejected > 0 ? { n: rejected, noun: rejectedNoun(cs?.kinds, rejected) } : null);
+    const wall = cs?.own === false ? null : wallCardsOf(cs);
     if (capPitchedAtRef.current === limit) {
       // Already explained at this limit. Say what happened, don't re-interrupt.
       const lost = rejected > 0
@@ -5591,7 +6328,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // The second and later refusals used to say "See Creator" even to
       // someone the trial was waiting for; it was the one cap surface that
       // never named it.
-      const trial = trialOfferRef.current;
+      const trial = wallTrialRef.current(wall);
       feedback.toast({
         type: 'warning',
         message: trial
@@ -5601,13 +6338,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           label: trial ? CTA.tryCreatorShort : 'See Creator',
           onClick: () => {
             logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit', rejected });
-            openCapWall();
+            openCapWall({ wallCards: wall });
           },
         },
       });
       return;
     }
     capPitchedAtRef.current = limit;
+    setCapWallCards(wall);
     setUpgradeReason('cap-hit');
   }, [feedback]);
 
@@ -5622,8 +6360,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // pitchCapWall is the INVOLUNTARY twin — a refused card rather than a press —
   // and claims for itself at the top, where it also owns the once-per-ceiling
   // latch and the degraded toast some of this helper's callers sit inside.
-  const openCapWall = useCallback(() => {
+  const openCapWall = useCallback(({ wallCards = null } = {}) => {
     claimUpsellSlot('cap-hit');
+    setCapWallCards(wallCards);
     setUpgradeReason('cap-hit');
   }, []);
 
@@ -5741,6 +6480,102 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return true;
   }, []);
 
+  // "Save a copy" of a file shared with you (the in-app viewer's Add to
+  // cluster): pick one of your clusters, and the party copies the file into
+  // it (lib/fileShareSave.js). It counts toward that workspace's storage and
+  // cards like an upload, so the walls are an upload's: the card limit is
+  // checked first for your own clusters, a full drive answers 402.
+  const saveSharedCopy = useCallback(async ({ token, res }) => {
+    const picked = await requestClusterPick({ placeholder: 'Save a copy to…' });
+    const dest = picked?.id ? boards[picked.id] : null;
+    if (!dest) return;
+    const own = dest.workspace_id === workspace?.id && workspace?.created_by === user?.id;
+    const mt = myTierRef.current || myTier;
+    const paid = mt.tier === 'paid' || mt.tier === 'admin';
+    if (own && mt.tier === 'demo') {
+      const limit = mt.effectiveCardLimit || DEMO_CARD_LIMIT;
+      if (Number(mt.demoCardCount) >= limit) { pitchCapWall({ limit, rejected: 1, kinds: [res?.file?.kind] }); return; }
+    }
+    const out = await saveSharedFileCopy(token, { boardId: dest.id, workspaceId: dest.workspace_id });
+    const log = (ok, reason = null) => {
+      try { logEvent(EV.SHARED_FILE_SAVE, { kind: res?.file?.kind || null, ok, reason }); } catch (_) {}
+    };
+    if (!out.ok) {
+      log(false, out.reason);
+      if (out.reason === 'over_quota') {
+        try {
+          logEventOnce(`storage_wall:shared_save:${own ? (paid ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, {
+            surface: 'shared_save', own: !!own, paid: !!paid, offered: !!(own && !paid),
+          });
+        } catch (_) {}
+        if (own && !paid && pitchStorageGate({ force: true })) return;
+        feedback.toast({ type: 'warning', message: storageFullMessage({ own, paid }) });
+        return;
+      }
+      const msg = out.reason === 'no_download' ? 'The person who shared it turned off downloading.'
+        : out.reason === 'not_writer' ? 'You can’t add files to that cluster.'
+        : out.reason === 'gone' || out.reason === 'no_access' ? 'This file isn’t shared with you anymore.'
+        : 'Couldn’t save a copy. Try again.';
+      feedback.toast({ type: 'error', message: msg });
+      return;
+    }
+    const landed = await appendCards({ boardId: dest.id, cards: [out.card] });
+    if (!landed?.ok) {
+      log(false, landed?.error || 'append');
+      if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit: mt.effectiveCardLimit || DEMO_CARD_LIMIT, rejected: 1, kinds: [out.card.kind] }); return; }
+      feedback.toast({ type: 'error', message: failureMessage(landed, 'save') || 'Couldn’t save a copy. Try again.' });
+      return;
+    }
+    log(true);
+    const cardId = landed.cards?.[0]?.id || out.card.id;
+    feedback.toast({
+      type: 'success',
+      message: `Saved to ${dest.name || 'your cluster'}`,
+      action: { label: 'Show', onClick: () => showSidebarFileRef.current?.(dest.id, cardId, { unplaced: true }) },
+    });
+  }, [boards, workspace, user?.id, myTier, requestClusterPick, pitchCapWall, pitchStorageGate, feedback]);
+
+  // "Add shortcut" for a file shared with you (the Shared page, the in-app
+  // viewer): a live card on one of your clusters that carries only the
+  // share's token, never the file's name (components/cards/ShortcutCard.jsx).
+  // It counts as a card and takes no storage, so only the card wall applies.
+  const addSharedShortcut = useCallback(async ({ token, res }) => {
+    const picked = await requestClusterPick({ placeholder: 'Add a shortcut to…' });
+    const dest = picked?.id ? boards[picked.id] : null;
+    if (!dest) return;
+    const kind = res?.file?.kind || null;
+    const log = (ok, reason = null) => {
+      try { logEvent(EV.SHARED_FILE_SHORTCUT, { kind, ok, reason }); } catch (_) {}
+    };
+    const own = dest.workspace_id === workspace?.id && workspace?.created_by === user?.id;
+    const mt = myTierRef.current || myTier;
+    const limit = mt.effectiveCardLimit || DEMO_CARD_LIMIT;
+    if (own && mt.tier === 'demo' && Number(mt.demoCardCount) >= limit) {
+      log(false, 'limit_reached');
+      pitchCapWall({ limit, rejected: 1, kinds: ['shortcut'] });
+      return;
+    }
+    const id = `shortcut-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const landed = await appendCards({ boardId: dest.id, cards: [{ id, kind: 'shortcut', shareToken: token, w: 240, h: 180 }] });
+    if (!landed?.ok) {
+      log(false, landed?.error || 'append');
+      if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit, rejected: 1, kinds: ['shortcut'] }); return; }
+      feedback.toast({ type: 'error', message: landed?.error === 'forbidden' ? 'You can’t add to that cluster.' : 'Couldn’t add the shortcut. Try again.' });
+      return;
+    }
+    log(true);
+    const cardId = landed.cards?.[0]?.id || id;
+    feedback.toast({
+      type: 'success',
+      message: `Shortcut added to ${dest.name || 'your cluster'}`,
+      action: { label: 'Show', onClick: () => {
+        setCurrentSurface('board');
+        setViewOverride((o) => (o[dest.id] === 'canvas' ? o : { ...o, [dest.id]: 'canvas' }));
+        navHandlers.card({ kind: 'card', boardId: dest.id, cardId });
+      } },
+    });
+  }, [boards, workspace, user?.id, myTier, requestClusterPick, pitchCapWall, feedback, navHandlers]);
+
   // ── A dropped FOLDER becomes clusters (Drive basics, item 2) ─────────────────
   // lib/folderWalk reads the folder, lib/folderPlan prices it in cards, the
   // preflight asks ONCE for the whole thing, lib/folderImport does it. The pane
@@ -5848,6 +6683,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         createCluster: async ({ parentBoardId, name }) => {
           const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'canvas', userId: user.id });
           setViewOverride(o => ({ ...o, [b.id]: 'list' }));
+          // A dropped folder is a door too, and the busiest one for people
+          // who arrive with their work already sorted. A sub-folder's parent
+          // was made moments ago, so its depth can read short; that is fine.
+          try {
+            logEvent(EV.CLUSTER_CREATE, {
+              via: 'folder_import', parent_depth: boardDepth(boardsRef.current || {}, parentBoardId),
+              opened: false, board_id: b.id,
+            });
+          } catch (_) {}
           return b.id;
         },
         deleteCluster, removeTopCard,
@@ -5938,6 +6782,258 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     return { loose: plan.loose, walked, plan, res };
   }, [workspace?.id, user?.id, currentBoard?.id, feedback, refreshBoards, pitchStorageGate]);
+  // ── Bulk import (lib/importStart.js, behind bulkImportAllowed) ────────────
+  // The same drop and picker hand a folder here instead of importFolderOnce:
+  // the clusters are made first, each file lands in its cluster's Files, and
+  // what doesn't fit the plan waits in this tab (the tray, components/
+  // ImportTray.jsx) until there is room. App's part is the env: everything
+  // with a network, React or browser side.
+  const [bulkAsk, setBulkAsk] = useState(null);   // { model, resolve }
+  const [zipAsk, setZipAsk] = useState(null);     // { model, resolve }
+  const bulkImportEnv = useCallback(() => ({
+    newKey: () => `imp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    put: putImportJob,
+    drop: dropImportJob,
+    walk: (entries, opts) => walkEntries(entries, { limits: IMPORT_LIMITS, ...opts }),
+    walkPicked: (files, opts) => treeFromRelativePaths(files, { limits: IMPORT_LIMITS, ...opts }),
+    // A zip's files are inflated in the tab: far less of that on a phone.
+    limits: importLimitsFor({ lowMemory: lowMemoryDevice() }),
+    // Whose plan the files count against, and what could make room on it —
+    // the same reading as the drop preflight's capSource.
+    who: (boardId) => {
+      const b = boardsRef.current?.[boardId];
+      const own = !b || (b.workspace_id === workspace?.id && workspace?.created_by === user?.id);
+      const mt = myTierRef.current || myTier;
+      const paid = ['paid', 'admin'].includes(mt.tier);
+      const trialing = paid && mt.subscriptionStatus === 'trialing';
+      const end = trialing && mt.currentPeriodEnd ? new Date(mt.currentPeriodEnd) : null;
+      return {
+        own,
+        plan: own ? (paid ? (trialing ? 'trial' : 'paid') : 'free') : (boardCapacity.get(boardId)?.isCapped === false ? 'paid' : 'free'),
+        ownerName: null,
+        workspaceName: own ? null : (b?.workspace_id === workspace?.id ? workspace?.name || null : null),
+        targetName: b?.name || null,
+        trialOffer: own && creatorTrialEligibility({
+          tier: mt.tier, cards: mt.serverCardCount, cardLimit: mt.effectiveCardLimit, trialStartedAt: mt.creatorTrialStartedAt,
+        }).eligible,
+        // The card-limit stop: a person past their free card limit is owed the
+        // trial whatever the server has counted so far.
+        trialAtWall: own && creatorTrialEligibility({
+          tier: mt.tier, cards: mt.serverCardCount, cardLimit: mt.effectiveCardLimit, trialStartedAt: mt.creatorTrialStartedAt,
+          wallCards: (Number(mt.effectiveCardLimit) || 0) + 1,
+        }).eligible,
+        addon: own && paid && !trialing && !STORAGE_ADDON_HELD,
+        interval: 'month',
+        firstPayment: end && Number.isFinite(end.getTime()) ? end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null,
+      };
+    },
+    makeDeps: ({ targetBoardId, canAttemptFiles, kind, sourceRef, placeTops }) => makeImportDeps({
+      supabase, clusters: { appendCards, patchCards, removeCards },
+      uploads: { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile },
+      workspaceId: boardsRef.current?.[targetBoardId]?.workspace_id || workspace.id,
+      targetBoardId, userId: user.id, source: kind || 'folder', sourceRef, storageRoom, placeTops, canAttemptFiles,
+      covers: {
+        draw: (files) => renderMosaicBlob({ files }), upload: uploadBoardThumbnail, stamp: updateBoardThumb,
+        count: updateBoardCardCount, isCustom: isBoardThumbCustom, version: THUMB_VERSION,
+      },
+    }),
+    ask: (model) => new Promise((resolve) => setBulkAsk({ model, resolve })),
+    askZip: (model) => new Promise((resolve) => setZipAsk({ model, resolve })),
+    // A zip dropped anywhere while the tray's guide is open is what it asked for.
+    unpackZips: () => isImportGuideOpen(),
+    upgrade: (offer, { stoppedBy, waiting } = {}) => {
+      if (offer === 'addon') window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'import' } }));
+      else if (stoppedBy === 'storage') pitchStorageGate({ force: true });
+      else {
+        // Stopped on the person's own card limit: the count they were trying
+        // to hold is what is counted now plus everything still waiting.
+        const mt = myTierRef.current || myTier;
+        const own = workspace?.created_by === user?.id;
+        openCapWall({
+          wallCards: own && stoppedBy === 'cards'
+            ? wallCardsOf({ count: mt.demoCardCount, limit: mt.effectiveCardLimit, rejected: waiting })
+            : null,
+        });
+      }
+    },
+    // A hold is what opens a checkout in a new tab while files wait here
+    // (checkout.js); HeldUploadsBar leaves import holds to the tray.
+    hold: ({ key, boardId, limit, count, bytes, quota }) => holdDrop({
+      boardId, via: 'import', limit, folder: { key, count, bytes },
+      tier: (myTierRef.current || myTier).tier || null, quota,
+    }),
+    unhold: (id) => discardHeld([id], 'released'),
+    openBoard: (id) => openBoardRef.current?.(id),
+    // To the trash with its subfolders (soft_delete_board takes the subtree),
+    // with the house Undo. Its card on the parent hides itself while the
+    // cluster is gone and is back with it.
+    removeImport: async ({ topIds, title }) => {
+      for (const id of topIds) {
+        try { await deleteBoard(id); } catch (e) { console.error('[import] remove failed', id, e); }
+      }
+      try { await refreshBoards(); } catch (_) {}
+      myTierRef.current?.refetch?.();
+      feedback.toast({
+        type: 'info', message: `Removed ${title} — its clusters are in the trash.`, ttl: 10000,
+        action: { label: 'Undo', onClick: async () => {
+          await restoreBoardsAnnouncing(topIds, feedback);
+          try { await refreshBoards(); } catch (_) {}
+          myTierRef.current?.refetch?.();
+        } },
+      });
+    },
+    wake: (fn) => {
+      const onFocus = () => fn();
+      window.addEventListener('focus', onFocus);
+      const offBilling = listenBillingChange(() => fn());
+      return () => { window.removeEventListener('focus', onFocus); offBilling(); };
+    },
+    every: (ms, fn) => {
+      const t = setInterval(() => { if (document.visibilityState !== 'hidden') fn(); }, ms);
+      return () => clearInterval(t);
+    },
+    log: (name, props) => { try { logEvent(name, props); } catch (_) {} },
+    toast: (t) => feedback.toast(t),
+    now: () => Date.now(),
+    clusterCost: CLUSTER_CARD_COST,
+    // An import a reload stopped (lib/importResume.js): found on the server,
+    // told from one another tab runs by its Web Lock, and gone on with from
+    // its ledger and, where this browser kept them, its folders' handles.
+    findStopped: () => findStoppedImports({ supabase, workspaceId: workspace?.id, locks: navigator.locks }),
+    stoppedFor: ({ boardId, tops }) => {
+      const e = matchStopped(importJobsSnapshot().list, { boardId, tops });
+      return e ? { jobId: e.stopped.jobId, key: e.key } : null;
+    },
+    loadSeed: (jobId) => loadImportSeed({ supabase, jobId }),
+    lock: (jobId) => lockImport(navigator.locks, jobId),
+    saveHandles: saveImportHandles,
+    loadHandles: loadImportHandles,
+    dropHandles: dropImportHandles,
+    pruneHandles: pruneImportHandles,
+    isLive: (boardId) => !!boardsRef.current?.[boardId],
+    has: (key) => !!importJobEntry(key),
+    setJobStatus: async (jobId, status) => {
+      const { error } = await supabase.from('import_jobs').update({ status }).eq('id', jobId);
+      if (error) throw error;
+    },
+  }), [workspace?.id, workspace?.created_by, workspace?.name, user?.id, myTier, boardCapacity, feedback, refreshBoards, pitchStorageGate, openCapWall]);
+  const startBulkImportHere = useCallback((args) => {
+    const muts = args.mutators;
+    // The top clusters' cards on the open canvas, where the folder was
+    // dropped, through its own add (one cap wall). Without an open canvas the
+    // drift reconcile places them when the cluster is next opened.
+    const placeTops = muts?.addCard ? (tops) => {
+      const rects = layoutTops(tops.length, args.at);
+      tops.forEach((t, i) => muts.addCard({ id: t.id, kind: 'board', ...rects[i] }));
+      Promise.resolve(refreshBoards()).catch(() => {});
+    } : null;
+    const env = bulkImportEnv();
+    return loadImportStart().then((m) => m.startBulkImport({ ...args, placeTops }, env));
+  }, [bulkImportEnv, refreshBoards]);
+  // The sidebar's Upload menu: "A folder…" and "A zip or Google Takeout…",
+  // into the open cluster when it can be edited, else one the person picks
+  // (as its "Files…" does). What isn't part of the tree goes in as files.
+  const uploadTreeFromSidebar = async (input, placeholder) => {
+    const here = currentSurface === 'board' ? currentBoard?.id : null;
+    const target = here && canEditBoard(here) ? here : (await requestClusterPick({ placeholder }))?.id;
+    if (!target || !boardsRef.current?.[target]) return;
+    const out = await importFolder({
+      ...input, boardId: target, canAttemptFiles: bulkImportEnv().who(target).plan !== 'free', boardWasEmpty: false,
+    });
+    if (out?.loose?.length) dropFilesOnCluster(target, out.loose);
+  };
+  const uploadFolderFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ pickedFiles: files, source: 'picker' }, 'Import into…') : null);
+  const uploadZipsFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ zips: files, askZips: false, source: 'zip' }, 'Unpack into…') : null);
+  // The tray's guide (lib/importGuide.js): the cluster its drops go into,
+  // what fits there now, and its drops and picks, which import as the Upload
+  // menu's do (a zip unpacks without asking: that is what the guide is for).
+  const importGuideProps = () => {
+    const here = currentSurface === 'board' && currentBoard?.id && canEditBoard(currentBoard.id) ? currentBoard : null;
+    const w = bulkImportEnv().who(here?.id);
+    const st = sidebarStorage;
+    return {
+      target: here ? here.name || 'this cluster' : null,
+      room: {
+        own: here ? w.own : workspace?.created_by === user?.id,
+        plan: w.plan,
+        // Nothing until the plan is known: a paid plan still loading reads as free.
+        cardsLeft: myTier.tier == null ? null : (myTier.effectiveCardLimit || DEMO_CARD_LIMIT) - (Number(myTier.demoCardCount) || 0),
+        bytesLeft: st && !st.loading && !st.error && st.remaining != null ? Number(st.remaining) : null,
+      },
+      // A touch screen picks no folders: iPadOS's browser reports
+      // webkitdirectory and still opens a file picker, and other tablets'
+      // can't be counted on either. The guide says zip it.
+      canFolder: !mobileShell && !isTouch,
+      onImport: (input) => uploadTreeFromSidebar({ ...input, askZips: false, source: 'guide' }, 'Import into…'),
+    };
+  };
+  // Imports a reload or a closed tab stopped, offered in the tray once this
+  // workspace's clusters are known (a job whose clusters are gone isn't). The
+  // tray's store outlives a workspace switch, which remounts this: the
+  // entries leave with the workspace they belong to.
+  useEffect(() => {
+    if (!bulkImportAllowed() || !user?.id || !workspace?.id || boardsLoading) return undefined;
+    const ctl = new AbortController();
+    const offered = [];
+    const env = bulkImportEnv();
+    // The engine is fetched only when there is a stopped import to offer, so an
+    // ordinary open never downloads it.
+    env.findStopped().then((jobs) => {
+      if (ctl.signal.aborted || !jobs?.length) return undefined;
+      return loadImportStart().then((m) => {
+        if (!ctl.signal.aborted) m.offerStopped({ ...env, findStopped: async () => jobs }, { signal: ctl.signal, offered });
+      });
+    }).catch(() => {});
+    return () => {
+      ctl.abort();
+      for (const k of offered) if (importJobEntry(k)?.phase === 'stopped') dropImportJob(k);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, workspace?.id, boardsLoading]);
+  // The held-drop watcher released an import's hold (the plan or the drive
+  // grew): its job looks for room now.
+  useEffect(() => {
+    if (!bulkImportAllowed()) return undefined;
+    const take = () => {
+      const ready = heldEntries().filter((e) => e.via === 'import' && e.ready);
+      for (const boardId of new Set(ready.map((e) => e.boardId))) {
+        for (const e of claimReady({ boardId, via: 'import' })) {
+          importStartModule?.then((m) => m.pokeImport(e.folder?.key), () => {});
+        }
+      }
+    };
+    let queued = false;
+    const later = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => { queued = false; take(); });
+    };
+    take();
+    return subscribeHeld(later);
+  }, []);
+  // An import in this tab: the browser asks before the tab is left, and the
+  // build watcher may not reload it (lib/buildWatch.js). Waiting counts: the
+  // rest of the folder only comes in while this tab is open.
+  useEffect(() => {
+    if (!bulkImportAllowed()) return undefined;
+    const guard = (ev) => { ev.preventDefault(); ev.returnValue = ''; return ''; };
+    let release = null;
+    const sync = () => {
+      const on = hasActiveImport();
+      if (on && !release) {
+        window.addEventListener('beforeunload', guard);
+        const letReload = holdReload();
+        release = () => { window.removeEventListener('beforeunload', guard); letReload(); };
+      } else if (!on && release) {
+        release();
+        release = null;
+      }
+    };
+    sync();
+    const off = subscribeImportJobs(sync);
+    return () => { off(); release?.(); };
+  }, []);
+
   // One folder import at a time. There is one progress banner and one Cancel,
   // and a second import running alongside wrote its counts into the first's
   // banner, and whichever finished first took the banner (and the other's only
@@ -5949,6 +7045,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // be lost: it waits its turn instead.
   const folderImportIdleRef = useRef(Promise.resolve());
   const importFolder = useCallback(async (args = {}) => {
+    // A folder held by the old path (via 'folder') goes back the old way.
+    if (bulkImportAllowed() && args.source !== 'held') return startBulkImportHere(args);
     while (folderImportBusyRef.current && args.source === 'held') await folderImportIdleRef.current;
     if (folderImportBusyRef.current) {
       feedback.toast({ type: 'info', message: 'A folder is still importing. Drop this one again when it has finished.', ttl: 6000 });
@@ -5959,7 +7057,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     folderImportIdleRef.current = new Promise((r) => { idle = r; });
     try { return await importFolderOnce(args); }
     finally { folderImportBusyRef.current = false; idle(); }
-  }, [importFolderOnce, feedback]);
+  }, [importFolderOnce, feedback, startBulkImportHere]);
 
   // Held drops (lib/heldUploads.js): the release watcher, and the claimers App
   // owns. Each CanvasSurface claims its own cluster's canvas drops and
@@ -6279,9 +7377,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (_) { return {}; }
     })();
     const landedCards = Number(boards?.[landedId]?.card_count);
+    // How long the app took to be ready, from the navigation: the first mount
+    // of a page load only, as a workspace switch mounts again long after.
+    let bootMs = null;
+    // Where the boot spent that time (lib/bootMarks.js), on the same first mount.
+    let boot = {};
+    // Not when the app opened in place after a checkout (boot:enter): that
+    // mount came long after the load, as a workspace switch's does.
+    if (!appOpenTimed) {
+      appOpenTimed = true;
+      if (bootAt('enter') == null) {
+        const t = performance.now();
+        if (Number.isFinite(t) && t > 0 && t < 600_000) bootMs = Math.round(t);
+        boot = {
+          t_session: bootAt('session'), t_shell: bootAt('shell'), t_tier: bootAt('tier'), t_ws: bootAt('workspace'),
+          shell_cached: bootDetail('shell')?.cached ?? null, refreshed: bootDetail('session')?.refreshed ?? null,
+        };
+      }
+    }
     logEvent(EV.APP_OPEN, {
       tier: myTier.tier, board_id: landedId, restored, source: restored ? 'session' : 'root',
-      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null,
+      ...view, landed_cards: Number.isFinite(landedCards) ? landedCards : null, boot_ms: bootMs, ...boot,
     });
     // Post-signup journey: open it (idempotent — TierRouter also opens it for the
     // AdWelcome/waitlist branches) and mark that the App workspace actually
@@ -6433,6 +7549,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (_) {}
   }, []);
   const tourActive = onboardingArmB && (onboardingUiActive || desktopHandoff);
+  // workspace_setup arm B already asked what the work is, before the canvas
+  // (lib/setupGate.js): the tour opens on its content step with that answer
+  // and the first board's headline names it. The gate's answer from this page
+  // load first, else the profile's record on a later visit. Where the setup can
+  // run at all, the tour waits for the profile rather than flash the old ask.
+  const setupOutcome = getSetupOutcome(user?.id);
+  const setupWelcome = setupOutcome?.welcome || mySettings?.welcome || null;
+  const setupDone = !!setupWelcome?.done && !setupWelcome.invitee;
+  const setupKind = setupDone ? workToFirstBoardKind(setupWelcome.work) : null;
+  const tourStart = useMemo(() => (setupDone ? { skipIntent: true, intent: setupKind } : null), [setupDone, setupKind]);
+  const setupUnread = !setupOutcome && !mySettingsLoaded && workspaceSetupAllowed();
   const tour = useOnboardingTour({
     onboarding: myTier.onboarding,
     persist: persistTour,
@@ -6440,8 +7567,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Paused while the Creator offer they asked for on /pricing is open: a tour
     // step anchored behind a modal is a step nobody can do. `enabled` only
     // gates which step is surfaced, so progress is kept and it resumes on close.
-    enabled: tourActive && upgradeReason !== 'pricing-intent',
+    enabled: tourActive && upgradeReason !== 'pricing-intent' && !setupUnread,
     variant: tourVariantRef.current,
+    start: tourStart,
   });
   // Only feed tour events while the tour is actually running — otherwise a
   // non-arm-B (or finished) user's card/nav actions would advance + persist +
@@ -6454,10 +7582,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     let src = {};
     try { src = getFirstSource() || {}; } catch (_) { src = {}; }
     return firstBoardKindFrom({
-      intent: tour?.state?.intent || myTier.onboarding?.intent || null,
+      intent: tour?.state?.intent || myTier.onboarding?.intent || setupKind || null,
       landingPath: src.landing_path, referrerHost: src.referrer_host, utmSource: src.utm_source,
     });
-  }, [tour?.state?.intent, myTier.onboarding?.intent]);
+  }, [tour?.state?.intent, myTier.onboarding?.intent, setupKind]);
+  // Where the setup runs, the empty board's hint names pasted links too, and
+  // someone else's workspace with nothing in it yet (a joiner's first look)
+  // gets a board that names it and its owner (lib/firstBoardCopy.js `join`).
+  // The owner's first name is looked up once; the copy waits for the answer
+  // rather than gain a name a moment after it paints.
+  const setupHere = workspaceSetupAllowed();
+  const wsCardTotal = useMemo(() => Object.values(ownedBoards || {})
+    .reduce((n, b) => n + (b && !b.deleted_at ? (Number(b.card_count) || 0) : 0), 0), [ownedBoards]);
+  const joinPanel = setupHere && boardsReady && !!workspace?.created_by && workspace.created_by !== user.id && wsCardTotal === 0;
+  const [ownerFirst, setOwnerFirst] = useState(null);   // { id, name }
+  useEffect(() => {
+    if (!joinPanel || ownerFirst?.id === workspace.created_by) return undefined;
+    let cancelled = false;
+    const ownerId = workspace.created_by;
+    getProfilesByIds([ownerId]).then(
+      (m) => { if (!cancelled) setOwnerFirst({ id: ownerId, name: String(m.get(ownerId)?.display_name || '').trim().split(/\s+/)[0] || '' }); },
+      () => { if (!cancelled) setOwnerFirst({ id: ownerId, name: '' }); },
+    );
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joinPanel, workspace?.created_by]);
+  const firstBoardJoin = useMemo(
+    () => (joinPanel && ownerFirst?.id === workspace.created_by ? { ws: workspace.name || '', by: ownerFirst.name } : null),
+    [joinPanel, ownerFirst, workspace?.created_by, workspace?.name],
+  );
   // Finishing the last step (or Skip) closes the onboarding UI. A genuine
   // completion (not Skip — Skip leaves `step` on the step it bailed from with
   // no terminal advance emitted; we key off the ref set by the emit below)
@@ -6607,7 +7760,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // App mounts — see experiments.js). Stamping it here too would double-log the
         // enrollment and could disagree with TierRouter's render decision, so the seed
         // loop leaves it alone.
-        if (key === 'instant_entry') continue;
+        // workspace_setup is the same: TierRouter decides and stamps it before
+        // App mounts (lib/setupGate.js).
+        if (key === 'instant_entry' || key === 'workspace_setup') continue;
         // Hardened: a throw here (bad weights, a thenable without .catch, a
         // throwing logEvent) must NEVER escape and abort the rest of the seed —
         // that blanked the board for every new user. See the .then(undefined,…)
@@ -6626,7 +7781,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           logEvent(EV.EXPERIMENT_ENROLLED, { key, arm });
         } catch (_) { /* one experiment failing must not block the seed */ }
       }
-      if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled);
+      if (Object.keys(enrolled).length) setEnrolledExperiments(enrolled, user.id);
 
       // onboarding_v2 arm decides the whole first-run flow (seed content +
       // first-action). Default 'A' (control) if unenrolled (config fetch failed /
@@ -7441,7 +8596,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const actions = {
       grids: engage(() => mainMutatorsRef.current?.addGrid?.(nearContent(), {})),
-      group: engage(() => mainMutatorsRef.current?.addNewBoard?.(nearContent(), { via: 'power_reveal' })),
       // Room is read when the toast is acted on, not when it was shown.
       list_drive: engage(() => (canDockMainRef.current
         ? applyFilesEventRef.current('files', 'power_reveal')
@@ -7578,6 +8732,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       userId: user.id, tier: myTier.tier,
     }).canEdit;
   }, [boards, workspace, workspaceMembers, sharedBoards, user.id, myTier.tier]);
+  // Viewers opened far from a pane (the tag view, hover popovers) ask this
+  // to decide whether to offer Share (lib/fileShareBus.js).
+  useEffect(() => {
+    setShareRightsResolver(canEditBoard);
+    return () => setShareRightsResolver(null);
+  }, [canEditBoard]);
   // Pre-compute a sync set of board ids the user can read — used by the
   // canvas to render the "No access" placeholder for boardlinks /
   // embedded boards that point outside the user's reach.
@@ -7673,8 +8833,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // A getter, so the heartbeat reads the live value from the ref without
       // the scroll ever re-rendering App.
       get scrollTop() {
-        return openDocCard && openDocScrollRef.current.cardId === openDocCard.cardId
-          ? openDocScrollRef.current.scrollTop : 0;
+        return openDocCard ? (openDocScrollRef.current.get(openDocCard.cardId) || 0) : 0;
       },
       // True only when this tab is foregrounded AND user is on a board.
       // Peers consume this to hide presence dots from background tabs
@@ -7689,6 +8848,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     userProfiles.populateFromPeers(wsPeers);
   }, [wsPeers]);
+  // Messages' card look: who's here now (a DM with them says "Here now", by
+  // the rule of the sidebar's "Maya and Jon are here"), and a cluster a
+  // message carries, with its cover.
+  const msgPresentIds = useMemo(() => new Set((wsPeers || [])
+    .filter(p => p?.user?.id && p.user.id !== user.id && p?.location?.isActive !== false)
+    .map(p => p.user.id)), [wsPeers, user.id]);
+  const msgBoardInfo = useCallback((id) => {
+    const b = boards[id];
+    if (!b || b.deleted_at) return null;
+    return {
+      name: b.name,
+      parentName: boards[b.parent_board_id]?.name || null,
+      cards: Number(b.card_count) || 0,
+      thumbKey: b.thumb_key || null,
+      bust: b.thumb_updated_at || b.thumb_version || undefined,
+    };
+  }, [boards]);
+  // Who is on each cluster now, for the card of a cluster picked on the files
+  // sidebar's Home (hooks/useHomeRail.js), and which clusters are starred
+  // (hooks/useClusterStars.js). Off elsewhere.
+  const homeOn = filesSidebar && currentSurface === 'home';
+  const homeRail = useHomeRail({ enabled: homeOn, selfId: user.id, wsPeers, boards });
+  const homeStars = useClusterStars(workspace.id, { enabled: homeOn });
 
   // Collaboration, as opposed to invitations. Everything about ASKING someone
   // to join was measured; whether two people were ever on a board together was
@@ -7837,10 +9019,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //    update.
   useEffect(() => {
     const onDrop = async (e) => {
+      // createdBoardId / createdBoardName: the target was made a moment ago FOR
+      // these cards ("New cluster from N cards"). Its name comes with the event
+      // because this listener's `boards` can predate it, and its undo trashes it.
       const { sourceBoardId, targetBoardId, cards: movedCards,
-              onTargetSaved, onTargetFailed, via } = e.detail || {};
-      const ack    = () => { try { onTargetSaved?.(); } catch (_) {} };
+              onTargetSaved, onTargetFailed, via, createdBoardId = null, createdBoardName = null } = e.detail || {};
+      let acked = false;
+      const ack    = () => { acked = true; try { onTargetSaved?.(); } catch (_) {} };
       const reject = (err) => { try { onTargetFailed?.(err); } catch (_) {} };
+      // A step that fails says so here, once (lib/moveFailure.js), and takes a
+      // cluster made for these cards to the trash; the source keeps its cards
+      // and drops that cluster's card.
+      const fail = async (err, message, stage) => {
+        const out = await failMove({
+          err, message, createdBoardId, createdBoardName, acked,
+          trash: async (id) => {
+            await deleteBoard(id);
+            try { await refreshBoards(); } catch (_) {}
+            myTier.refetch?.();
+          },
+          toast: (t) => feedback.toast(t),
+        });
+        try {
+          logEvent(EV.CARDS_MOVE_FAIL, {
+            via: via || null, n: movedCards?.length || 0, stage, made: !!createdBoardId,
+            trashed: !!out.createdBoardTrashed, code: errCodeOf(err), board_id: sourceBoardId, target_board_id: targetBoardId,
+          });
+        } catch (_) {}
+        reject(out);
+      };
       if (!sourceBoardId || !targetBoardId || !movedCards?.length) { reject(new Error('bad event')); return; }
       if (sourceBoardId === targetBoardId) { ack(); return; }
       // ── Onboarding AHA: first time the seed note is dragged into the tutorial
@@ -7940,12 +9147,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // a clear error so the user can retry rather than lose data.
         if (!snap) {
           console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
-          feedback.toast({
-            type: 'error',
-            message: 'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.',
-            ttl: 8000,
-          });
-          reject(new Error('target board_state empty'));
+          await fail(new Error('target board_state empty'),
+            'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.', 'load');
           return;
         }
         const tmp = boardDoc(targetBoardId);
@@ -8030,12 +9233,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             tmpCardCount, expectedMin, targetCardCountBefore, moved: movedCards.length,
           });
           tmp.destroy();
-          feedback.toast({
-            type: 'error',
-            message: 'Move cancelled — the destination cluster’s state looked unsafe to overwrite.',
-            ttl: 8000,
-          });
-          reject(new Error('tmp card count below expected'));
+          await fail(new Error('tmp card count below expected'),
+            'Move cancelled — the destination cluster’s state looked unsafe to overwrite.', 'verify');
           return;
         }
         const tmpFinalCount = tmp.getMap('cards').size;
@@ -8045,8 +9244,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (saveErr) {
           console.error('[xbm:save] saveBoardSnapshot threw', saveErr);
           tmp.destroy();
-          feedback.toast({ type: 'error', message: 'Could not save destination cluster: ' + (saveErr.message || saveErr) });
-          reject(saveErr);
+          await fail(saveErr, 'Could not save destination cluster: ' + (saveErr.message || saveErr), 'save');
           return;
         }
         console.log('[xbm:save] done');
@@ -8067,12 +9265,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           await forceResetBoardRoom(targetBoardId);
         } catch (resetErr) {
           console.error('[xbm] target room reset failed; NOT acking (source keeps cards)', resetErr);
-          feedback.toast({
-            type: 'error',
-            message: 'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.',
-            ttl: 8000,
-          });
-          reject(resetErr);
+          await fail(resetErr,
+            'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.', 'room_reset');
           return;
         }
         // If the target happens to be open (e.g. the split pane / another
@@ -8110,6 +9304,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (cmtErr) {
           console.warn('comment move failed', cmtErr);
         }
+        // Stars (and shared files) are filed by card id, and every card here
+        // just got a new one.
+        repointCardRefs(sourceBoardId, targetBoardId, idMap);
 
         // ── The move's ONE undo affordance. ──
         // The source delete runs under the untracked 'cross-board-move'
@@ -8120,11 +9317,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // later edits, and both boards get the room-reset treatment any
         // out-of-band board_state write requires. The pre-drop snapshots
         // remain the catastrophic fallback.
+        const targetName = createdBoardName || boards[targetBoardId]?.name || 'cluster';
         undoToast(feedback, {
           type: 'success',
-          message: movedCards.length === 1
-            ? `Moved card to “${boards[targetBoardId]?.name || 'cluster'}”`
-            : `Moved ${movedCards.length} cards to “${boards[targetBoardId]?.name || 'cluster'}”`,
+          message: createdBoardId
+            ? (movedCards.length === 1 ? `Made “${targetName}” from 1 card` : `Made “${targetName}” from ${movedCards.length} cards`)
+            : movedCards.length === 1
+              ? `Moved card to “${targetName}”`
+              : `Moved ${movedCards.length} cards to “${targetName}”`,
           onUndo: async () => {
             try {
               // 1) Strip the copies from the TARGET (same snapshot
@@ -8153,6 +9353,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 await forceResetBoardRoom(targetBoardId);
                 try { window.__soleilEmitBoardReset?.(targetBoardId); } catch (_) {}
               }
+              // 1b) A cluster made for this move goes too — to the trash, the
+              //     way a folder import's undo takes its clusters. Before the
+              //     source reloads, so the reconcile never sees a live child
+              //     with no card and puts one back.
+              if (createdBoardId) {
+                await deleteBoard(createdBoardId);
+                await refreshBoards();
+                myTier.refetch?.();
+              }
               // 2) Restore the originals on the SOURCE (original ids, so
               //    comments re-anchor and Yjs identities line up).
               const ssnap = await loadBoardSnapshot(sourceBoardId);
@@ -8171,6 +9380,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 }
                 const cm = s.getMap('cards');
                 for (const c of movedCards) { if (!cm.has(c.id)) cm.set(c.id, cardToYMap({ ...c })); }
+                if (createdBoardId && cm.has(createdBoardId)) cm.delete(createdBoardId);
                 const ar = s.getArray('arrows');
                 for (const a of sourceArrows) ar.push([{ ...a }]);
               }, 'cross-board-move');
@@ -8201,6 +9411,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     }).eq('id', row.id);
                   }
                 }
+                const cardsBack = {};
+                for (const [oldId, newId] of Object.entries(idMap)) cardsBack[newId] = oldId;
+                repointCardRefs(targetBoardId, sourceBoardId, cardsBack);
               } catch (_) {}
             } catch (undoErr) {
               console.error('[xbm] undo failed', undoErr);
@@ -8215,8 +9428,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       } catch (err) {
         console.error('cross-board move failed', err);
-        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
-        reject(err);
+        await fail(err, 'Move failed: ' + (err?.message || err), acked ? 'after_ack' : 'other');
       }
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);
@@ -8508,6 +9720,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     window.addEventListener('soleil-board-selfhealed', onHealed);
     return () => window.removeEventListener('soleil-board-selfhealed', onHealed);
   }, [boards, feedback]);
+  // A doc open on a cluster that reloaded under it (a restore, cards moved in)
+  // and came back without it: no doc is coming back to say so, so this does
+  // (lib/docResets.js). A doc that is still there says so itself.
+  useOrphanedDocResets(yb);
+  useOrphanedDocResets(splitYbOwn);
 
   // ⌘B / Ctrl-B — toggle compact sidebar.
   useEffect(() => {
@@ -8518,12 +9735,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // ProseMirror/contenteditable-descendant targets.
         if (isEditableTarget(e)) return;
         e.preventDefault();
-        setSidebarOpen(!sidebarOpen);
+        toggleSidebarNow();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [sidebarOpen, setSidebarOpen]);
+    // toggleSidebarNow reads exactly these (two docs tuck the sidebar away).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sidebarOpen, setSidebarOpen, twoDocs, sidebarAskedBack]);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   useEffect(() => {
@@ -8543,14 +9762,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // F — flip a cluster between Board and Files. App-level rather than in
   // CanvasSurface's keymap because it has to work from the Files view too.
-  // It persists a shared value (boards.view), so it stands down harder than
-  // the canvas tool keys: never while typing, never under anything open on
-  // top of the board — a dialog, a viewer, a menu, Settings, Messages, the
-  // palette, an open doc — and only on a board surface. A doc docked in the
-  // split pane is the exception: with the pointer on the board beside it, F
-  // flips that board. Otherwise it acts on the pane the switch describes.
-  const setViewRef = useRef(setView);
-  setViewRef.current = setView;
+  // Without the files sidebar it persists a shared value (boards.view), so it
+  // stands down harder than the canvas tool keys: never while typing, never
+  // under anything open on top of the board — a dialog, a viewer, a menu,
+  // Settings, Messages, the palette, an open doc — and only on a board
+  // surface. A doc docked in the split pane is the exception: with the pointer
+  // on the board beside it, F flips that board. Otherwise it acts on the pane
+  // the switch describes.
   const applyFilesEventRef = useRef(applyFilesEvent);
   applyFilesEventRef.current = applyFilesEvent;
   useEffect(() => {
@@ -8563,7 +9781,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (openDocCard && !dockedDoc) return;
       if (dockedDoc && activePaneId === 'split') return;
       e.preventDefault();
-      if (switchInSplit) setViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
+      if (switchInSplit) setPaneViewRef.current(nextView(switchView), 'shortcut', switchBoardId);
       else applyFilesEventRef.current('toggle', 'shortcut');
     };
     window.addEventListener('keydown', onKey);
@@ -8576,7 +9794,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const appCommands = useMemo(() => [
     { id: 'new-board', label: 'New project', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board', 'project'],
       available: canEditBoard(rootBoard.id),
-      run: () => { mainMutators.addNewProject?.({ via: 'palette' }); } },
+      run: async () => {
+        // Named at birth: a project made from cmd-K landed as "Untitled
+        // cluster", and most of those never got a name.
+        if (!clusterNudgesAllowed()) { mainMutators.addNewProject?.({ via: 'palette' }); return; }
+        const typed = await feedback.prompt({
+          title: 'New project',
+          message: 'A cluster of its own, at the top level. You land inside it.',
+          label: 'Name', placeholder: 'e.g. Kitchen refs', confirmLabel: 'Create cluster',
+        });
+        if (typed == null) return;
+        const name = String(typed).trim().slice(0, 200);
+        mainMutators.addNewProject?.({ via: 'palette', ...(name ? { name } : {}) });
+      } },
     { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
       available: canEditCurrent && view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
@@ -8599,7 +9829,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch', 'panel'],
       available: currentSurface === 'board',
       run: () => (switchInSplit
-        ? setView(nextView(switchView), 'palette', switchBoardId)
+        ? setPaneView(nextView(switchView), 'palette', switchBoardId)
         : applyFilesEventRef.current('toggle', 'palette')) },
     { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
       available: canEditCurrent && currentSurface === 'board',
@@ -8613,7 +9843,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'theme', label: 'Toggle theme', icon: themeMode === 'dark' ? Sun : Moon, keywords: ['theme', 'dark', 'light', 'mode'],
       run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
     { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
-      run: () => setSidebarOpen(!sidebarOpen) },
+      run: () => toggleSidebarNow() },
+    // The files sidebar's files card: hidden, it folds to its
+    // heading under the clusters; ⌘\ does the same (ClusterSidebar).
+    { id: 'sidebar-files', label: pageFilesId || sidebarLayout.filesHidden ? 'Show files in the sidebar' : 'Hide files in the sidebar',
+      icon: FilesIcon, keywords: ['files', 'sidebar', 'hide', 'show', 'panel'],
+      // Hiding needs the sidebar open to mean anything; Show opens it too.
+      // While the full Files page folds the card, Show shrinks the page back.
+      available: filesSidebar && !mobileShell && (sidebarShownNow || !!sidebarLayout.filesHidden || !!pageFilesId),
+      run: () => {
+        if (pageFilesId) { shrinkPageRef.current('palette'); showSidebarNow(); return; }
+        const hide = !sidebarLayout.filesHidden;
+        onSidebarLayout(withFilesHidden(sidebarLayout, hide), { commit: true });
+        if (!hide) showSidebarNow();
+      } },
     // Keyworded for what people will actually type when the canvas isn't doing
     // what they expect ("scroll", "wheel", "zoom") rather than for the name of
     // the setting, which they have no reason to know.
@@ -8653,8 +9896,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit'],
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
+      twoDocs, sidebarAskedBack,
+      sidebarLayout, onSidebarLayout, filesSidebar, mobileShell, pageFilesId,
       captureAllowed, capture.on, switchMode, switchInSplit, switchView, switchBoardId,
-      setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut]);
+      setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut, feedback]);
 
 
   // ── Production schedule ───────────────────────────────────────────────────
@@ -8786,6 +10031,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const tbMutators = toolbarPane === 'split' ? splitMutators : mainMutators;
   const tbYDoc = toolbarPane === 'split' ? splitYDoc : currentYDoc;
   const tbBoard = toolbarPane === 'split' ? (splitBoard || currentBoard) : currentBoard;
+  // "+ New cluster" after the trail (NewClusterButton): on a cluster you can
+  // edit, on a desktop. A phone's bar has no room for it; its + sheet has it.
+  const tbCanEdit = toolbarPane === 'split' ? splitBoardPerm.canEdit : canEditCurrent;
+  const showNewCluster = clusterNudgesAllowed() && !mobileShell && currentSurface === 'board'
+    && !!activeBoardId && tbCanEdit;
+  // Nothing in the pane took it (still loading): make it in the cluster the
+  // trail shows, and step inside.
+  const newClusterUnhandled = (name) => tbMutators.addNewBoard?.(null, { via: 'topbar', ...(name ? { name } : {}), openAfter: true });
   const ybReadyForCurrent = Boolean(currentYDoc);
   // Hide orphan board / boardlink cards at the render layer. See the
   // long comment in the orphan-sweep section above for why we filter
@@ -8820,6 +10073,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // showing a waveform that was synthesized from its filename. This decodes
   // the real one. Bounded harder (2/pass) because it moves whole audio files.
   useAudioPeaksBackfill({
+    cards: currentCards, canEdit: canEditCurrent,
+    workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
+    updateCardSilent: mainMutators.updateCardMeta,
+  });
+
+  // And for PDFs: a card whose page-1 picture was never made (its upload's
+  // render failed, or it came from a message, the API or Scout) shows the PDF
+  // glyph until a writer opens its cluster, and this draws page 1 then.
+  usePdfThumbBackfill({
     cards: currentCards, canEdit: canEditCurrent,
     workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
     updateCardSilent: mainMutators.updateCardMeta,
@@ -8892,12 +10154,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // keeps its keys until the pointer crosses into Files (lib/activePane.js).
     const basePaneId = paneId;
     const dockPanel = isMain && mainFilesMode === 'panel';
+    // With the files sidebar there's no pill to go back with: full Files
+    // shrinks back into the sidebar with the same icon that opened it, turned
+    // around, and the board returns.
+    const shrinkToSidebar = { shrinkLabel: 'Shrink back to the sidebar', shrinkTitle: 'Shrink back to the sidebar (F)' };
     const dockControls = isMain ? {
-      canShrink: canDockMain,
+      canShrink: canDockMain || filesSidebar,
       onExpand: () => applyFilesEvent('expand', 'button'),
-      onShrink: () => applyFilesEvent('shrink', 'button'),
+      onShrink: filesSidebar ? () => applyFilesEvent('board', 'shrink_button') : () => applyFilesEvent('shrink', 'button'),
       onClose: () => applyFilesEvent('close', 'button'),
-    } : null;
+      ...(filesSidebar ? shrinkToSidebar : {}),
+    } : (filesSidebar ? {
+      canShrink: true,
+      onShrink: () => setPaneView('canvas', 'shrink_button', board.id),
+      ...shrinkToSidebar,
+    } : null);
     const renderList = (listMode) => {
       const paneId = listMode === 'panel' ? 'files' : basePaneId;
       return (
@@ -8910,16 +10181,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                    revealRequest={filesReveal?.boardId === board.id && filesReveal.pane === (isMain ? 'main' : 'split') ? filesReveal : null}
                    onLocate={(id) => setFocusRequest({ boardId: board.id, ids: [id], token: Date.now(), mode: 'center' })}
                    render={(o) => (
+          <Suspense fallback={null}>
           <ListSurface board={board} boards={boards} boardsReady={boardsReady} cards={cards}
                        childBoards={Object.values(boards).filter(b => b.parent_board_id === board.id)}
                        onOpenBoard={openInPane}
                        onOpenPicker={() => openBoardLinkPicker(null, basePaneId)}
                        onDropInboxItem={dropInboxItemFor(muts)}
                        canEdit={paneCanEdit}
+                       canEditBoard={canEditBoard}
                        peersHereByBoard={peersHereByBoard}
                        peersBelowByBoard={peersBelowByBoard}
                        onJumpToPeer={jumpToPeer}
                        onDropFilesToCluster={(files) => muts.ingestFilesArranged?.(files)}
+                       onImportTree={bulkImportAllowed() ? (input, { boardId }) => importFolder({
+                         ...input, boardId, canAttemptFiles: bulkImportEnv().who(boardId).plan !== 'free', boardWasEmpty: false,
+                       }) : null}
                        onRevealDone={(token) => setFilesReveal((r) => (r?.token === token ? null : r))}
                        recentlyAddedIds={recentlyAdded?.boardId === board.id ? recentlyAdded.ids : null}
                        getAwareness={yh.getAwareness}
@@ -8943,15 +10219,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        // the same distinction the chip and the cap wall already make.
                        onStorageUpsell={() => pitchStorageGate({ force: true })}
                        onPickCluster={requestClusterPick}
+                       // The drop rules (lib/dropRules.js), with the sidebar's Files:
+                       // its folders, its list, Move to… and Copy to… go by the route.
+                       onMoveFiles={filesSidebar ? moveFilesBetween : null}
                        paneId={paneId}
                        hasSplit={listMode === 'panel' || !!splitId}
                        mode={listMode}
                        dockControls={dockControls}
+                       filterRequest={filesFilter?.boardId === board.id ? filesFilter : null}
+                       onFilterApplied={(token) => setFilesFilter((f) => (f?.token === token ? null : f))}
                        mutators={muts}
                        // Kept when browsing replaces board/cards/mutators: a drag
                        // that springs into another cluster moves files from here.
                        homeSrc={{ boardId: board.id, cards, mutators: muts, canEdit: paneCanEdit }}
                        {...o} />
+          </Suspense>
                    )} />
       );
     };
@@ -8959,6 +10241,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
             <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={canvasCards} allCards={cards} arrows={arrows} strokes={strokes} groups={groups}
                            onRevealUnplaced={(ids) => revealInFiles(board.id, ids, isMain)}
+                           onMoveFilesHere={filesSidebar ? (payload, at, opts) => moveFilesHere(board.id, payload, at, opts) : null}
+                           onMoveFiles={filesSidebar ? moveFilesBetween : null}
                            /* The empty panel waits for the Y.Doc (boardReady) and takes its
                               first-board shape from the server card count: no cards anywhere
                               means this is the first board (lib/firstBoardCopy). */
@@ -8966,9 +10250,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            boardSynced={synced}
                            firstBoard={isMain && !myTier.loading && Number(myTier.demoCardCount) === 0 && !hasGenuineCard(cards)}
                            firstBoardKind={firstBoardKind}
+                           firstBoardLinks={setupHere}
+                           firstBoardJoin={isMain ? firstBoardJoin : null}
                            freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
                            gridTemplates={gridTemplates} gridSequences={gridSequences}
                            ydoc={yd}
+                           canEditBoard={canEditBoard}
                            getAwareness={yh.getAwareness}
                            focusRequest={focusRequest?.boardId === board.id ? focusRequest : null}
                            clearFocusRequest={() => setFocusRequest(null)}
@@ -8988,6 +10275,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            depth={(isMain ? stack.length : splitStack.length) - 1}
                            onDockDoc={({ cardId }) => dockDocCard({ cardId, boardId: board.id })}
                            dockedDocCardId={splitDoc?.cardId || null}
+                           /* Not on a phone: its halves are too narrow to read
+                              two docs in, so a doc opened there takes the dock. */
+                           onOpenBesideDoc={isMain && splitDoc && !isPhone ? ({ cardId }) => openBesideDoc({ cardId, boardId: board.id }) : null}
                            onSetSchedule={handleSetSchedule}
                            /* Held with the calendar rebuild (lib/appHost.js). This is the
                               SECOND minting path: scaffoldShootDay puts a schedView:'day'
@@ -9041,8 +10331,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                        canvas={mainFilesMode !== 'full' ? renderCanvas() : null}
                        files={mainFilesMode !== 'off' ? renderList(mainFilesMode) : null} />
     ) : (view === 'list' ? renderList('full') : renderCanvas());
+    // Whether this pane shows a canvas: the floating islands float over a
+    // canvas, and every other surface makes room for them (floatingChrome.css).
+    const showsCanvas = isMain ? mainFilesMode !== 'full' : view !== 'list';
     return (
-      <div className={`surface-wrap ${isMain ? '' : 'is-split'}`}>
+      <div className={`surface-wrap ${isMain ? '' : 'is-split'}${showsCanvas ? ' is-canvas' : ''}`}>
         {/* No chrome of its own — no bar (that read as a second toolbar) and no
             floating close either. Every corner of a canvas is already spoken
             for: comments eye and tags strip top-left, hint and selection count
@@ -9073,65 +10366,324 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     );
   };
 
+  // A doc that takes a whole pane (lib/docPanes.js): docked in the split pane,
+  // or beside it in the main pane's place. DocPaneFrame claims the pane's
+  // keyboard and keeps a crash in the pane. Each rides the Y.Doc of the board
+  // its card is on, which its pane keeps loaded.
+  const renderDocPane = ({ pane, cardId, ybh, boardId, canEdit, mutators: muts, onClose, full, onSetFull }) => {
+    const here = ybh.ready && ybh.boardId === boardId;
+    const docCard = here ? (ybh.cards || []).find(c => c.id === cardId) : null;
+    const cardYMap = here ? ybh.ydoc?.getMap?.('cards')?.get?.(cardId) || null : null;
+    return (
+      /* No bar here either: DocCardOverlay's own header already carries the
+         document's title and its close button, so this was the same title
+         and the same × twice over. */
+      <DocPaneFrame pane={pane} cardId={cardId}>
+        {docCard && cardYMap ? (
+          <Suspense fallback={<DocOpening onClose={onClose} />}>
+            <DockedDocPane
+              card={docCard}
+              ydoc={ybh.ydoc}
+              cardYMap={cardYMap}
+              hostBoardId={boardId}
+              workspaceId={workspace.id}
+              userId={user.id}
+              currentUser={currentUser}
+              getAwareness={ybh.getAwareness}
+              boards={boards}
+              wsPeers={wsPeers}
+              onJumpToPeer={jumpToPeer}
+              canEdit={canEdit}
+              onUpdate={(patch) => muts.updateCard?.(cardId, patch)}
+              onClose={onClose}
+              full={full}
+              onSetFull={onSetFull}
+              pane={pane} />
+          </Suspense>
+        ) : (
+          /* Its board still loading: no header yet, so the wait offers the close. */
+          <DocOpening onClose={onClose} />
+        )}
+      </DocPaneFrame>
+    );
+  };
+
   // The right pane, when it's holding a docked doc rather than a cluster. It
   // rides splitYb — the same second Y.Doc the cluster split uses — which is
   // the whole point: the main pane can navigate anywhere and the doc's board
   // stays loaded underneath it.
-  const renderSplitDoc = () => {
-    const cardId = splitDoc?.cardId;
-    const docCard = (splitYb.ready && splitYb.boardId === splitId)
-      ? (splitYb.cards || []).find(c => c.id === cardId) : null;
-    const cardYMap = splitYDoc?.getMap?.('cards')?.get?.(cardId) || null;
-    return (
-      /* Claim the pane the same way the two board surfaces do. The main
-         canvas registers WINDOW-level shortcut handlers and stands down only
-         for the pane that isn't active — without this claim, ⌘Z pressed while
-         writing in the docked doc would undo on the board behind it. */
-      <div className="surface-wrap is-split is-doc-pane"
-           onPointerDownCapture={() => setActivePane('split')}
-           onPointerEnter={() => setActivePane('split')}>
-        {/* No bar here either: DocCardOverlay's own header already carries the
-            document's title and its close button, so this was the same title
-            and the same × twice over. */}
-        <SurfaceErrorBoundary resetKey={cardId}>
-          {docCard && cardYMap ? (
-            <Suspense fallback={<div className="doc-surface-skeleton" aria-hidden="true" />}>
-              <DockedDocPane
-                card={docCard}
-                ydoc={splitYDoc}
-                cardYMap={cardYMap}
-                hostBoardId={splitId}
-                workspaceId={workspace.id}
-                userId={user.id}
-                currentUser={currentUser}
-                getAwareness={splitYb.getAwareness}
-                boards={boards}
-                wsPeers={wsPeers}
-                onJumpToPeer={jumpToPeer}
-                canEdit={splitBoardPerm.canEdit}
-                onUpdate={(patch) => splitMutators.updateCard?.(cardId, patch)}
-                onClose={closeSplitDoc}
-                full={splitDocFull}
-                onSetFull={setSplitDocFull} />
-            </Suspense>
+  const renderSplitDoc = () => renderDocPane({
+    pane: 'split', cardId: splitDoc?.cardId, ybh: splitYb, boardId: splitId,
+    canEdit: splitBoardPerm.canEdit, mutators: splitMutators,
+    onClose: closeSplitDoc, full: splitDocFull, onSetFull: setSplitDocFull,
+  });
+
+  // A second doc beside the docked one, in the main pane's place, over the
+  // board, which stays as it was underneath. It rides the main pane's Y.Doc:
+  // its card is on the board that pane shows (it closes when the pane moves).
+  const renderBesideDoc = () => renderDocPane({
+    pane: 'beside', cardId: besideDoc?.cardId, ybh: yb, boardId: besideDoc?.boardId,
+    canEdit: canEditCurrent, mutators: mainMutators,
+    onClose: closeBesideDoc, full: besideDocFull, onSetFull: setBesideDocFull,
+  });
+
+  // The sidebar's top and foot. The files sidebar puts them on its cards
+  // (ClusterSidebar's top and foot); the old one has them where they always
+  // were.
+  //
+  // The top: the workspace switcher and search, and on the old sidebar Home
+  // and Messages, held in place (flex-shrink:0) while the list below scrolls.
+  const sbTop = (
+    <div className="sb-top">
+    <div className="sb-mid-head">
+      <button className="sb-ws-trigger"
+              onClick={() => setWsMenuOpen(o => !o)}
+              title={`${workspace.name} · click to switch`}
+              aria-haspopup="menu" aria-expanded={wsMenuOpen}>
+        {(() => {
+          const iconSrc = workspace.settings?.icon_url || '';
+          return iconSrc ? (
+            <span className="sb-ws-avatar sb-ws-avatar-img">
+              <R2Image src={iconSrc} alt="" />
+            </span>
           ) : (
-            <div className="doc-surface-skeleton" aria-hidden="true" />
+            // The files sidebar's is neutral: the name beside it says
+            // which workspace, and gold and colour are kept for data.
+            <span className="sb-ws-avatar" style={filesSidebar ? undefined : { background: pickPresenceColor(workspace.id) }}>
+              {(workspace.name || '?').trim().charAt(0).toUpperCase()}
+            </span>
+          );
+        })()}
+        <span className="sb-ws-name">{workspace.name}</span>
+        <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+          <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {/* The files sidebar keeps one search box, the files' own: search
+          everywhere is this icon (and ⌘K). */}
+      {filesSidebar && (
+        <button className="sb-mid-search" onClick={() => setPaletteOpen(true)}
+                title="Search (⌘K)" aria-label="Search">
+          <Icon as={Search} size={16} weight="regular" />
+        </button>
+      )}
+      {/* In the drawer this is the drawer's close. It used to write the
+          desktop collapse preference (to the account) and leave the
+          drawer open with every row hidden. */}
+      <button className="sb-mid-collapse"
+              onClick={() => (mobileShell ? setMobileNavOpen(false) : toggleSidebarNow())}
+              title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
+              aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
+        <Icon as={PanelLeftClose} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
+      </button>
+      {wsMenuOpen && (
+        <WorkspaceMenu
+          workspaces={workspaces || []}
+          activeWorkspaceId={workspace.id}
+          personalWorkspaceId={personalWorkspaceId}
+          selfUserId={user.id}
+          wsPeers={wsPeers}
+          onSelect={(id) => {
+            // From Home (the files sidebar's has no switcher of its own), land
+            // on Home in the other workspace too.
+            if (filesSidebar && currentSurface === 'home' && id !== workspace.id) markHomeAfterSwitch(id);
+            onSwitchWorkspace(id); setCurrentSurface('board');
+          }}
+          onAddNew={addNewWorkspace}
+          onRemove={(ws, action) => removeWorkspace(ws, action)}
+          onOpenSettings={(ws) => openWorkspaceSettings(ws)}
+          onShare={(ws) => shareWorkspace(ws)}
+          onClose={() => setWsMenuOpen(false)}
+          team={team ? {
+            name: team.name,
+            workspaces: team.workspaces,
+            manage: team.me.role !== 'member',
+            viewOnly: team.status === 'view_only',
+            onOpenPage: () => openTeamPage(),
+            onPickWorkspace: (w) => feedback.toast({ type: 'info', message: `Preview: ${w.name} is an example workspace in the test team.` }),
+          } : null}
+        />
+      )}
+    </div>
+    {(() => {
+      // Subtitle + member dots for the ACTIVE workspace.
+      const isOwner = workspace.created_by === user.id;
+      const isPersonal = workspace.id === personalWorkspaceId;
+      const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
+      const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
+      const ownerPeer = peerById.get(workspace.created_by);
+      const sharedBy = maskEmail(ownerPeer?.user?.email, workspace.created_by)
+                       || maskName(ownerPeer?.user?.name, workspace.created_by)
+                       || 'someone';
+      // The files sidebar's line says who's here, or whose it is, and
+      // nothing at all in a workspace that's only yours (lib/sidebarWho.js).
+      if (filesSidebar) {
+        const line = whoLine({
+          others: (wsPeers || []).filter(p => p?.user?.id && p.user.id !== user.id && p?.location?.isActive !== false).map(p => ({
+            id: p.user.id,
+            name: maskName(p.user.name, p.user.id) || maskEmail(p.user.email, p.user.id) || '',
+          })),
+          mine: isOwner || isPersonal,
+          sharedBy,
+          coowner: workspace._myRole === 'coowner',
+        });
+        return <SidebarWho line={line} />;
+      }
+      const subtitle = isPersonal
+        ? 'Personal'
+        : isOwner
+          ? 'Yours'
+          // A shared workspace names its owner by address, right under
+          // the workspace title — the most prominent leak on the screen.
+          : workspace._myRole === 'coowner'
+            ? `Co-owner · shared by ${sharedBy}`
+            : `Shared by ${sharedBy}`;
+      const visibleMembers = workspaceMembers.slice(0, 6);
+      const overflow = workspaceMembers.length - visibleMembers.length;
+      return (
+        <>
+          <div className="sb-mid-subtitle">{subtitle}</div>
+          {workspaceMembers.length > 0 && (
+            <div className="sb-members" title={`${workspaceMembers.length} member${workspaceMembers.length === 1 ? '' : 's'}`}>
+              {visibleMembers.map(m => {
+                const online = onlineIds.has(m.user_id);
+                const peer = peerById.get(m.user_id);
+                const tip = peer?.user?.name || peer?.user?.email
+                  || (m.user_id === user.id ? 'You' : 'Member');
+                return (
+                  <span key={m.user_id}
+                        className={`sb-member ${online ? 'is-online' : ''}`}
+                        style={{ background: pickPresenceColor(m.user_id) }}
+                        title={tip + (online ? ' · online' : '')} />
+                );
+              })}
+              {overflow > 0 && <span className="sb-member sb-member-overflow">+{overflow}</span>}
+            </div>
           )}
-        </SurfaceErrorBoundary>
+        </>
+      );
+    })()}
+
+    {!filesSidebar && (
+      <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
+        <Icon as={Search} size={13} />
+        <span>Search…</span>
+        <span className="sb-search-kbd">⌘K</span>
+      </button>
+    )}
+
+    {/* With the files sidebar, Home and Messages are rows of its own
+        (ClusterSidebar quickNav); Recent and Starred are tabs on its files. */}
+    {!filesSidebar && (<>
+    <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
+         {...rowButtonProps(() => setCurrentSurface('home'))}>
+      <Icon as={Home} size={14} />
+      <span className="sb-row-label">Home</span>
+    </div>
+    <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
+         {...rowButtonProps(() => setTweak('showMessages', !tweak.showMessages))}
+         title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
+      <Icon as={MessageSquare} size={14} />
+      <span className="sb-row-label">Messages</span>
+      {messagesUnread > 0 && (
+        <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
+      )}
+    </div>
+    {/* The bell only when it has something to show: for nearly everyone it
+        was an empty panel in every sidebar, and people opened it and found
+        nothing. It was labelled "Schedule" until schedules were retired
+        (owner, 2026-10-20); it holds notifications only now. */}
+    {((notifications.items?.length || 0) > 0 || notifOpen) && (
+    <div className={`sb-row ${notifOpen ? 'active' : ''}`}
+         {...rowButtonProps(() => {
+           // Only the open is worth a row; the close tells us nothing.
+           // This is the denominator notif_click needs — a notification
+           // nobody clicked and a bell nobody opened are different
+           // failures with different fixes.
+           if (!notifOpen) {
+             try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
+           }
+           setNotifOpen(v => !v);
+         })}
+         title={notifOpen ? 'Hide notifications' : 'Show notifications'}>
+      <Icon as={Bell} size={14} />
+      <span className="sb-row-label">Notifications</span>
+      {notifications.unread > 0 && (
+        <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
+      )}
+    </div>
+    )}
+    </>)}
+    {/* The phone topbar has no room for these (SHELL-06), so the drawer
+        carries them. Search is above, Help is in the footer. */}
+    {mobileShell && currentSurface === 'board' && (
+      <div className="sb-row"
+           {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
+        <Icon as={History} size={14} />
+        <span className="sb-row-label">Version history</span>
       </div>
-    );
-  };
+    )}
+    {mobileShell && isTouch && currentSurface === 'board' && (
+      <div className="sb-row"
+           {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
+        <Icon as={Maximize2} size={14} />
+        <span className="sb-row-label">Focus view</span>
+      </div>
+    )}
+    {mobileShell && myTier.tier === 'admin' && (
+      <div className="sb-row"
+           {...rowButtonProps(() => window.location.assign('/admin'))}>
+        <Icon as={LayoutGrid} size={14} />
+        <span className="sb-row-label">Admin dashboard</span>
+      </div>
+    )}
+    </div>
+  );
+  // The foot: the settings cog and your avatar. Both open the same panel and
+  // differ only in which tab it lands on: the cog is about the workspace, the
+  // avatar is about you.
+  const sbFoot = (
+    <div className="sb-foot">
+      <HelpButton as="foot" via="sidebar" />
+      <button className="sb-foot-icon" title="Settings" aria-label="Settings"
+              onClick={() => openSettings('general')}>
+        <Icon as={Settings} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
+      </button>
+      {(() => {
+        const avatarSrc = ownProfile?.avatar_url || '';
+        if (avatarSrc) {
+          return (
+            <button className="sb-foot-avatar sb-foot-avatar-img" title="Account"
+                    onClick={() => openSettings('profile')}>
+              <R2Image src={avatarSrc} alt="" />
+            </button>
+          );
+        }
+        return (
+          <button className="sb-foot-avatar" title="Account"
+                  style={{ background: userInfo.color || pickPresenceColor(user.id) }}
+                  onClick={() => openSettings('profile')}>
+            {/* With no avatar set this is the first letter of your
+                address, sitting in the corner of every screenshot. */}
+            {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
+          </button>
+        );
+      })()}
+    </div>
+  );
 
   return (
     <EntityNavigateContext.Provider value={navHandlers}>
     <OpenDmContext.Provider value={openDmWith}>
     <MessagesUiContext.Provider value={messagesUi}>
     <AppTrieProvider workspaceId={workspace.id}>
+    <FilesLookContext.Provider value={filesLook}>
     {/* The collapsed-sidebar preference is a desktop layout. In the mobile
         shell the sidebar IS the drawer, and .sb-collapsed hides every row in
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
-    <div className={`app ${sidebarOpen || mobileShell ? '' : 'sb-collapsed'}`}
+    <div className={`app ${sidebarShownNow || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}${filesSidebar && currentSurface === 'home' ? ' is-home' : ''}${pageFilesId ? ' is-files-page' : ''}`}
+         style={filesSidebar && !mobileShell && sidebarShownNow ? { '--sb-w': `${sidebarFootprint(shownSidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -9173,178 +10725,129 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
         <div className="sb-mid">
-          {/* Pinned top zone — workspace switcher, search, Home, Messages.
-              Held in place (flex-shrink:0) while the list below scrolls. */}
-          <div className="sb-top">
-          <div className="sb-mid-head">
-            <button className="sb-ws-trigger"
-                    onClick={() => setWsMenuOpen(o => !o)}
-                    title={`${workspace.name} · click to switch`}
-                    aria-haspopup="menu" aria-expanded={wsMenuOpen}>
-              {(() => {
-                const iconSrc = workspace.settings?.icon_url || '';
-                return iconSrc ? (
-                  <span className="sb-ws-avatar sb-ws-avatar-img">
-                    <R2Image src={iconSrc} alt="" />
-                  </span>
-                ) : (
-                  <span className="sb-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }}>
-                    {(workspace.name || '?').trim().charAt(0).toUpperCase()}
-                  </span>
-                );
-              })()}
-              <span className="sb-ws-name">{workspace.name}</span>
-              <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {/* In the drawer this is the drawer's close. It used to write the
-                desktop collapse preference (to the account) and leave the
-                drawer open with every row hidden. */}
-            <button className="sb-mid-collapse"
-                    onClick={() => (mobileShell ? setMobileNavOpen(false) : setSidebarOpen(false))}
-                    title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
-                    aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
-              <Icon as={PanelLeftClose} size={14} />
-            </button>
-            {wsMenuOpen && (
-              <WorkspaceMenu
-                workspaces={workspaces || []}
-                activeWorkspaceId={workspace.id}
-                personalWorkspaceId={personalWorkspaceId}
-                selfUserId={user.id}
-                wsPeers={wsPeers}
-                onSelect={(id) => { onSwitchWorkspace(id); setCurrentSurface('board'); }}
-                onAddNew={addNewWorkspace}
-                onRemove={(ws, action) => removeWorkspace(ws, action)}
-                onOpenSettings={(ws) => openWorkspaceSettings(ws)}
-                onShare={(ws) => shareWorkspace(ws)}
-                onClose={() => setWsMenuOpen(false)}
-              />
-            )}
-          </div>
-          {(() => {
-            // Subtitle + member dots for the ACTIVE workspace.
-            const isOwner = workspace.created_by === user.id;
-            const isPersonal = workspace.id === personalWorkspaceId;
-            const onlineIds = new Set((wsPeers || []).map(p => p?.user?.id).filter(Boolean));
-            const peerById = new Map((wsPeers || []).map(p => [p?.user?.id, p]));
-            const ownerPeer = peerById.get(workspace.created_by);
-            const sharedBy = maskEmail(ownerPeer?.user?.email, workspace.created_by)
-                             || maskName(ownerPeer?.user?.name, workspace.created_by)
-                             || 'someone';
-            const subtitle = isPersonal
-              ? 'Personal'
-              : isOwner
-                ? 'Yours'
-                // A shared workspace names its owner by address, right under
-                // the workspace title — the most prominent leak on the screen.
-                : workspace._myRole === 'coowner'
-                  ? `Co-owner · shared by ${sharedBy}`
-                  : `Shared by ${sharedBy}`;
-            const visibleMembers = workspaceMembers.slice(0, 6);
-            const overflow = workspaceMembers.length - visibleMembers.length;
-            return (
-              <>
-                <div className="sb-mid-subtitle">{subtitle}</div>
-                {workspaceMembers.length > 0 && (
-                  <div className="sb-members" title={`${workspaceMembers.length} member${workspaceMembers.length === 1 ? '' : 's'}`}>
-                    {visibleMembers.map(m => {
-                      const online = onlineIds.has(m.user_id);
-                      const peer = peerById.get(m.user_id);
-                      const tip = peer?.user?.name || peer?.user?.email
-                        || (m.user_id === user.id ? 'You' : 'Member');
-                      return (
-                        <span key={m.user_id}
-                              className={`sb-member ${online ? 'is-online' : ''}`}
-                              style={{ background: pickPresenceColor(m.user_id) }}
-                              title={tip + (online ? ' · online' : '')} />
-                      );
-                    })}
-                    {overflow > 0 && <span className="sb-member sb-member-overflow">+{overflow}</span>}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-          <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
-            <Icon as={Search} size={13} />
-            <span>Search…</span>
-            <span className="sb-search-kbd">⌘K</span>
-          </button>
-
-          <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
-               {...rowButtonProps(() => setCurrentSurface('home'))}>
-            <Icon as={Home} size={14} />
-            <span className="sb-row-label">Home</span>
-          </div>
-          <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
-               {...rowButtonProps(() => setTweak('showMessages', !tweak.showMessages))}
-               title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
-            <Icon as={MessageSquare} size={14} />
-            <span className="sb-row-label">Messages</span>
-            {messagesUnread > 0 && (
-              <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
-            )}
-          </div>
-          {/* The bell only when it has something to show. Its one producer is the
-              schedule, so for nearly everyone it was an empty panel labelled
-              "Schedule" in every sidebar — and people opened it and found nothing. */}
-          {((notifications.items?.length || 0) > 0 || (notifications.schedule?.length || 0) > 0 || notifOpen) && (
-          <div className={`sb-row ${notifOpen ? 'active' : ''}`}
-               {...rowButtonProps(() => {
-                 // Only the open is worth a row; the close tells us nothing.
-                 // This is the denominator notif_click needs — a notification
-                 // nobody clicked and a bell nobody opened are different
-                 // failures with different fixes.
-                 if (!notifOpen) {
-                   try { logEvent(EV.NOTIF_OPEN, { unread: notifications.unread || 0 }); } catch (_) {}
-                 }
-                 setNotifOpen(v => !v);
-               })}
-               title={notifOpen ? 'Hide schedule' : 'Show schedule and updates'}>
-            <Icon as={Bell} size={14} />
-            <span className="sb-row-label">Schedule</span>
-            {notifications.unread > 0 && (
-              <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
-            )}
-          </div>
-          )}
-          {/* The phone topbar has no room for these (SHELL-06), so the drawer
-              carries them. Search is above, Help is in the footer. */}
-          {mobileShell && currentSurface === 'board' && (
-            <div className="sb-row"
-                 {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
-              <Icon as={History} size={14} />
-              <span className="sb-row-label">Version history</span>
-            </div>
-          )}
-          {mobileShell && isTouch && currentSurface === 'board' && (
-            <div className="sb-row"
-                 {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
-              <Icon as={Maximize2} size={14} />
-              <span className="sb-row-label">Focus view</span>
-            </div>
-          )}
-          {mobileShell && myTier.tier === 'admin' && (
-            <div className="sb-row"
-                 {...rowButtonProps(() => window.location.assign('/admin'))}>
-              <Icon as={LayoutGrid} size={14} />
-              <span className="sb-row-label">Admin dashboard</span>
-            </div>
-          )}
-          </div>{/* /.sb-top */}
+          {!filesSidebar && sbTop}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
               BOARDS tree, and tags. Pinned nav above, pinned footer below.
               Class is .sb-list (NOT .sb-scroll) — SignInBackdrop's global
               .sb-scroll rule would otherwise hijack this element's layout. */}
+          {filesSidebar ? (
+            <ClusterSidebar
+              top={sbTop}
+              foot={sbFoot}
+              layout={shownSidebarLayout}
+              onLayout={mobileShell ? null : onShownSidebarLayout}
+              foldedFor={pageFilesId ? 'page' : null}
+              onShrinkPage={shrinkPageToSidebar}
+              floating={!mobileShell}
+              roomy={sidebarRoomy}
+              snug={sidebarSnug}
+              sizable={!mobileShell && sidebarShownNow}
+              workspaceId={workspace.id}
+              workspaceName={workspace.name || ''}
+              boards={ownedBoards}
+              allBoards={boards}
+              rootId={rootBoard.id}
+              activeBoardId={currentSurface === 'board' ? activeBoardId : null}
+              liveBoardId={yb.ready && yb.boardId === currentBoard.id ? currentBoard.id : null}
+              liveCards={yb.ready && yb.boardId === currentBoard.id ? yb.cards : null}
+              liveGroupNames={sidebarGroupNames}
+              coarse={isTouch}
+              quickNav={{
+                home: { active: currentSurface === 'home', onClick: () => setCurrentSurface('home') },
+                // Messages opens over the cluster you're in, so it reads as
+                // pressed, not as where you are: the gold bar stays on that
+                // cluster.
+                messages: { pressed: !!tweak.showMessages, unread: messagesUnread, onClick: () => setTweak('showMessages', !tweak.showMessages) },
+                // No Schedule: the feature is retired (owner, 2026-10-18).
+              }}
+              listRef={sidebarScrollRef}
+              boardsSectionProps={{
+                boards: ownedBoards,
+                workspaceId: workspace.id,
+                rootId: rootBoard.id,
+                activeBoardId: currentSurface === 'board' ? activeBoardId : null,
+                onOpenBoard: openSidebarCluster,
+                onShareBoard: openShareForBoard,
+                onRenameBoard: (id, name) => renameBoardById(id, name, { via: 'sidebar' }),
+                onCreateBoard: canEditBoard(rootBoard.id) ? () => { mainMutators.addNewProject?.({ via: 'sidebar' }); } : null,
+                renameRequest: projectRenameRequest,
+                onCreateBoardInside: createBoardInside,
+                onSetBoardCover: mainMutators.setBoardCover,
+                onSetBoardBgColor: setBoardBgColorById,
+                onSetBoardThumb: setBoardCustomThumbById,
+                onResetBoardThumb: resetBoardThumbById,
+                onCopyBoard: copyBoard,
+                onPasteBoardInto: pasteBoardInto,
+                onDeleteBoard: (id) => deleteBoardsById([id]),
+                canEditBoard,
+                onOpenPicker: () => setBrowsePickerOpen(true),
+                peersHereByBoard,
+                peersBelowByBoard,
+                onJumpToPeer: jumpToPeer,
+              }}
+              sharedSection={(
+                <SidebarSharedBoards
+                  shared={sharedRoots}
+                  activeBoardId={currentSurface === 'board' ? activeBoardId : null}
+                  onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); if (mobileShell) setMobileNavOpen(false); }}
+                  filesRow={sharedFilesRow}
+                />
+              )}
+              tagsSection={(
+                <SidebarTags
+                  workspaceId={workspace.id}
+                  userId={user.id}
+                  tags={wsTagsForSidebar.tags}
+                  activeTagId={currentSurface === 'tag' ? activeTag?.id : null}
+                  onOpenTag={openTagSurface}
+                  onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
+                />
+              )}
+              meterProps={{
+                isPaid: myTier.tier === 'paid' || myTier.tier === 'admin',
+                cardsUsed: myTier.demoCardCount,
+                cardLimit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
+                storage: sidebarStorage,
+                onOpenGuide: bulkImportAllowed() ? () => openImportGuide() : null,
+              }}
+              onOpenPlan={() => openSettings('billing')}
+              onUpload={uploadFromSidebar}
+              onUploadFolder={bulkImportAllowed() && !mobileShell && !isTouch ? uploadFolderFromSidebar : undefined}
+              onUploadZips={bulkImportAllowed() ? uploadZipsFromSidebar : undefined}
+              onOpenBoard={openSidebarCluster}
+              onShowFile={showSidebarFile}
+              onPutOnBoard={onPutOnBoard}
+              onOpenShelf={(boardId, shelfId) => {
+                if (mobileShell) setMobileNavOpen(false);
+                setCurrentSurface('board');
+                setFilesFilter({ boardId, buckets: SHELF_BUCKETS[shelfId] || [], token: Date.now() });
+                openInFiles(boardId);
+                // Opening the full Files page from here proves Files was found,
+                // as F does: the list_drive reveal retires and the guided
+                // tour's last step (anchored on this ⤢) completes.
+                markViewSwitched();
+                tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId });
+              }}
+              onOpenPalette={(q) => { setPaletteQuery(q || ''); setPaletteOpen(true); }}
+              feedback={feedback}
+              onPickCluster={requestClusterPick}
+              onSetOpensAs={(id, v) => setView(v, 'sidebar_menu', id)}
+              onDropFilesOnCluster={dropFilesOnCluster}
+              onImportTreeOnCluster={bulkImportAllowed() ? (boardId, input) => importFolder({
+                ...input, boardId, canAttemptFiles: bulkImportEnv().who(boardId).plan !== 'free', boardWasEmpty: false,
+              }) : null}
+              uploadsByBoard={sidebarUploads}
+              liveMutators={mainMutators}
+              refreshToken={sidebarRefresh}
+            />
+          ) : (
           <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
             shared={sharedRoots}
             activeBoardId={currentSurface === 'board' ? activeBoardId : null}
             onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
+            filesRow={sharedFilesRow}
           />
 
           {/* This workspace's own clusters only. The tree already filtered to
@@ -9357,7 +10860,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             activeBoardId={currentSurface === 'board' ? activeBoardId : null}
             onOpenBoard={(id) => { setStack(ancestorPath(boards, id)); setCurrentSurface('board'); }}
             onShareBoard={openShareForBoard}
-            onRenameBoard={renameBoardById}
+            onRenameBoard={(id, name) => renameBoardById(id, name, { via: 'sidebar' })}
             onCreateBoard={canEditBoard(rootBoard.id) ? () => { mainMutators.addNewProject?.({ via: 'sidebar' }); } : null}
             renameRequest={projectRenameRequest}
             onCreateBoardInside={createBoardInside}
@@ -9383,38 +10886,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             onOpenTag={openTagSurface}
             onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
           />
-          </div>{/* /.sb-list */}
-
-          {/* Footer — settings cog + avatar. Both open the SAME panel; they
-              differ only in which tab it lands on. The cog is about the
-              workspace, the avatar is about you. */}
-          <div className="sb-foot">
-            <HelpButton as="foot" via="sidebar" />
-            <button className="sb-foot-icon" title="Settings" aria-label="Settings"
-                    onClick={() => openSettings('general')}>
-              <Icon as={Settings} size={14} />
-            </button>
-            {(() => {
-              const avatarSrc = ownProfile?.avatar_url || '';
-              if (avatarSrc) {
-                return (
-                  <button className="sb-foot-avatar sb-foot-avatar-img" title="Account"
-                          onClick={() => openSettings('profile')}>
-                    <R2Image src={avatarSrc} alt="" />
-                  </button>
-                );
-              }
-              return (
-                <button className="sb-foot-avatar" title="Account"
-                        style={{ background: userInfo.color || pickPresenceColor(user.id) }}
-                        onClick={() => openSettings('profile')}>
-                  {/* With no avatar set this is the first letter of your
-                      address, sitting in the corner of every screenshot. */}
-                  {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
-                </button>
-              );
-            })()}
           </div>
+          )}{/* /.sb-list */}
+
+          {!filesSidebar && sbFoot}
         </div>
       </aside>
       {/* One panel. The cog lands on the workspace group, the avatar on
@@ -9458,6 +10933,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <Suspense fallback={null}><SurfaceGallery /></Suspense>
       )}
 
+      {bgDrop && (
+        <BackgroundDrop key={bgDrop.token} drop={bgDrop}
+                        userId={user.id} userInfo={userInfo} workspaceId={workspace.id}
+                        buildMutators={buildMutators} syncCardIndex={syncCardIndex}
+                        onDone={finishBgDrop} />
+      )}
+
       <main className="main">
         <WorkspaceAlertBanner
           workspaceId={workspace?.id}
@@ -9466,14 +10948,119 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         {/* Only renders for a Scout shell account — see the component header;
             the check is a string test on the session email, not a round trip. */}
         <ScoutClaimBanner user={user} />
-        <div className="topbar">
+        {floatingChrome ? (
+          <FloatingChrome
+            left={(
+              <>
+                {!sidebarShownNow && (
+                  <button className="tb-icon" title="Open sidebar (⌘B)" aria-label="Open sidebar"
+                          onClick={showSidebarNow}>
+                    <Icon as={PanelLeftOpen} size={16} />
+                  </button>
+                )}
+                <button className="tb-brand" title="Home" aria-label="Clusters home"
+                        onClick={() => setCurrentSurface('home')}>
+                  <ClustersMark size={20} />
+                </button>
+                <button className="tb-icon tb-hist" title="Back" aria-label="Back"
+                        disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
+                  <Icon as={ChevronLeft} size={15} />
+                </button>
+                <button className="tb-icon tb-hist" title="Forward" aria-label="Forward"
+                        disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
+                  <Icon as={ChevronRight} size={15} />
+                </button>
+                <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
+                     data-pane={toolbarPane}>
+                  {activeCrumbs.map((c, i) => (
+                    <React.Fragment key={`${c.id}-${i}`}>
+                      {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
+                      <span className={`crumb ${i === activeCrumbs.length - 1 ? 'here' : 'clk'}`}
+                            title={c.name} onClick={() => onActiveCrumb(i)}>{c.name}</span>
+                    </React.Fragment>
+                  ))}
+                </div>
+                {showNewCluster && (
+                  <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
+                                    boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
+                                    onUnhandled={newClusterUnhandled} />
+                )}
+                {!canEditCurrent && (
+                  <span className="tb-viewonly" title="You have view-only access to this cluster"><Icon as={Eye} size={14} weight="regular" />View only</span>
+                )}
+              </>
+            )}
+            right={(
+              <>
+                {/* Admins keep their pill in view, as in the bar. Under a finger
+                    the bar's buttons are 40px and the trail needs the room
+                    beside the files, so the pill and the theme wait in ⋯. */}
+                {myTier.tier === 'admin' && !isTouch && (
+                  <button className="tb-admin-btn" title="Admin dashboard"
+                          onClick={() => window.location.assign('/admin')}>
+                    Admin
+                  </button>
+                )}
+                <button className="tb-icon" title="Undo (⌘Z)" aria-label="Undo" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
+                  <Icon as={Undo} size={16} />
+                </button>
+                <button className="tb-icon" title="Redo (⌘⇧Z)" aria-label="Redo" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
+                  <Icon as={Redo} size={16} />
+                </button>
+                <button className="tb-icon" title="Search (⌘K)" aria-label="Search" onClick={() => setPaletteOpen(true)}>
+                  <Icon as={Search} size={16} />
+                </button>
+                {/* The bell follows the theme switch, or Search where the
+                    theme waits in ⋯ (under a finger). */}
+                {!isTouch ? (
+                  <>
+                    <button className="tb-icon tb-icon-theme" title="Toggle theme" aria-label="Toggle theme"
+                            onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
+                      <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
+                    </button>
+                    {notifBell}
+                  </>
+                ) : notifBell}
+                <span className="chrome-sep" aria-hidden="true" />
+                <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
+                                        workspaceId={workspace.id} max={4} onJumpTo={jumpToPeer} />
+                {/* In view on touch, as in the bar: a tablet has no ⌘. for clean mode. */}
+                {isTouch && (
+                  <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
+                          title="Focus view — hide everything but the cluster"
+                          aria-label="Enter focus view">
+                    <Icon as={Maximize2} size={16} />
+                  </button>
+                )}
+                <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
+                  <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
+                </button>
+              </>
+            )}
+            menuItems={[
+              { id: 'versions', label: 'Version history', icon: History, run: () => setVersionsOpen(true) },
+              { id: 'trash', label: 'Deleted clusters', icon: Trash2, run: () => setTrashOpen(true) },
+              splitId
+                ? { id: 'split', label: 'Close split view', icon: Columns2, run: () => setSplitId(null) }
+                : { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => setSplitPickerOpen(true) },
+              ...(isTouch ? [
+                { id: 'theme', label: themeMode === 'dark' ? 'Light theme' : 'Dark theme', icon: themeMode === 'dark' ? Sun : Moon,
+                  run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
+                ...(myTier.tier === 'admin' ? [{ id: 'admin', label: 'Admin dashboard', icon: LayoutGrid, run: () => window.location.assign('/admin') }] : []),
+              ] : []),
+              { sep: true },
+              { id: 'help', label: 'Help & feedback', icon: Question, run: () => openHelpHub('topbar') },
+            ]}
+          />
+        ) : (
+        <div className={`topbar${showNewCluster ? ' topbar-centered' : ''}`}>
           <div className="tb-left">
-            {(!sidebarOpen || mobileShell) && (
+            {(!sidebarShownNow || mobileShell) && (
               <button className="tb-icon" title={mobileShell ? 'Open menu' : 'Open sidebar (⌘B)'}
                       aria-label={mobileShell ? 'Open menu' : 'Open sidebar'}
                       onClick={() => {
                         if (mobileShell) setMobileNavOpen(true);
-                        else setSidebarOpen(true);
+                        else showSidebarNow();
                       }}>
                 <Icon as={PanelLeftOpen} size={16} />
               </button>
@@ -9510,9 +11097,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 </React.Fragment>
               ))}
             </div>
+            {showNewCluster && (
+              <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
+                                boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
+                                onUnhandled={newClusterUnhandled} />
+            )}
           </div>
 
           <div className="tb-center">
+            {!filesSidebar && (
             <ViewSwitch mode={switchMode} filesCount={switchFilesCount}
                         onSegment={(seg) => {
                           if (!switchInSplit) { applyFilesEvent(seg, 'topbar'); return; }
@@ -9521,6 +11114,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                           const want = seg === 'board' ? 'canvas' : 'list';
                           if (want !== switchView) setView(want, 'topbar', switchBoardId);
                         }} />
+            )}
           </div>
 
           <div className="tb-right">
@@ -9574,7 +11168,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                                     onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
             {!canEditCurrent && (
-              <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
+              <span className="tb-viewonly" title="You have view-only access to this cluster"><Icon as={Eye} size={14} weight="regular" />View only</span>
             )}
             {isTouch && !mobileShell && (
               <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
@@ -9604,6 +11198,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 circle on a phone where the label is hidden. Grey text among grey
                 icons was easy to miss, and it is the way people reach
                 invitations. */}
+            {notifBell}
             <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
               <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
             </button>
@@ -9618,13 +11213,94 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             </button>
           </div>
         </div>
+        )}
         {altSessionId && (
           <div className="alt-session-banner">
             Test session ({altSessionId}) — sign in as a different account here, then collab with the main window.
           </div>
         )}
 
-        {currentSurface === 'home' ? (
+        {currentSurface === 'home' && filesSidebar ? (
+          // The universe is the page (preview only; the owner's pick, "B",
+          // 2026-10-19): every cluster a named star, a picked one's card with
+          // what you can do to it, Find and New cluster at the bottom, and the
+          // workspace at the top left with Rename, Invite, switch and New
+          // workspace beside its name.
+          <ClustersHome
+            boards={boards}
+            rootId={rootBoard.id}
+            workspaceId={workspace.id}
+            canCreate={canEditBoard(rootBoard.id)}
+            Graph={mobileShell ? null : HomeGraph}
+            graphProps={{
+              workspaceId: workspace.id,
+              onNavigate: (target) => {
+                if (!target || target.kind === 'url') {
+                  { const u = openableUrl(target?.href); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }
+                  return;
+                }
+                setCurrentSurface('board');
+                navHandlers[target.kind]?.(target);
+              },
+            }}
+            workspace={workspace}
+            workspaces={workspaces || []}
+            personalWorkspaceId={personalWorkspaceId}
+            selfUserId={user.id}
+            wsPeers={wsPeers}
+            memberCount={(workspaceMembers || []).length}
+            canManageWorkspace={canManageWorkspace(workspaceRole || (workspace.created_by === user.id ? 'owner' : workspace._myRole))}
+            onSwitchWorkspace={(id) => {
+              if (!id || id === workspace.id) return;
+              try { logEvent(EV.HOME_WORKSPACE_SWITCH, { n_workspaces: (workspaces || []).length }); } catch (_) {}
+              // Land on Home in the other workspace, not on its canvas.
+              markHomeAfterSwitch(id);
+              onSwitchWorkspace(id);
+            }}
+            onNewWorkspace={() => {
+              try { logEvent(EV.HOME_WORKSPACE_NEW, { n_workspaces: (workspaces || []).length }); } catch (_) {}
+              addNewWorkspace({ thenHome: true });
+            }}
+            onRemoveWorkspace={(ws, action) => removeWorkspace(ws, action, { thenHome: true })}
+            onOpenWorkspaceSettings={(ws) => openWorkspaceSettings(ws, { thenHome: true })}
+            onInviteWorkspace={(ws) => shareWorkspace(ws || workspace, { thenHome: true })}
+            onRenameWorkspace={async (name) => {
+              try {
+                await renameWorkspace(workspace.id, name);
+                await onWorkspacesChanged?.();
+              } catch (e) {
+                feedback.toast({ type: 'error', message: 'Could not rename the workspace: ' + (e.message || e) });
+              }
+            }}
+            onOpenBoard={(id, via) => {
+              try { logEvent(EV.HOME_OPEN_BOARD, { via, board_id: id }); } catch (_) {}
+              setStack(ancestorPath(boards, id));
+              recents.push(id);
+              setCurrentSurface('board');
+            }}
+            onNewProject={(name) => { mainMutators.addNewProject?.({ via: 'home', name }); }}
+            canEditCluster={(id) => canEditBoard(id)}
+            onRenameCluster={(id, name) => { logHomeClusterAction('rename'); return renameBoardById(id, name); }}
+            onCoverCluster={(id, file) => { logHomeClusterAction('cover'); return setBoardCustomThumbById(id, file); }}
+            onMoveCluster={async (id) => {
+              // The tree's drag-to-nest, with its pre-validation, mirror
+              // cleanup and Undo: the same event, from a picked cluster.
+              const exclude = [id, ...collectDescendantIds(boards, id)];
+              const target = await requestClusterPick({ placeholder: `Move “${boards[id]?.name || 'cluster'}” into…`, excludeIds: exclude });
+              logHomeClusterAction(target?.id ? 'move' : 'move_cancelled');
+              if (!target?.id) return;
+              document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', { detail: { childIds: [id], targetId: target.id } }));
+            }}
+            isStarred={homeStars.isStarred}
+            onToggleStar={(id, ...rest) => {
+              logHomeClusterAction(homeStars.isStarred(id) ? 'unstar' : 'star');
+              return homeStars.toggle(id, ...rest);
+            }}
+            onDeleteCluster={(id) => { logHomeClusterAction('delete'); return deleteBoardsById([id]); }}
+            loadPhotos={loadClusterPhotos}
+            hereByBoard={homeRail.hereByBoard}
+          />
+        ) : currentSurface === 'home' ? (
           <ProjectsHome
             boards={boards}
             rootId={rootBoard.id}
@@ -9670,7 +11346,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     // A link opens in its own tab and leaves you on Home; it
                     // used to switch this tab to whatever cluster was last open.
                     if (!target || target.kind === 'url') {
-                      if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');
+                      { const u = openableUrl(target?.href); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }
                       return;
                     }
                     // Everything else goes through navHandlers, like any other
@@ -9685,9 +11361,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               </Suspense>
             )}
           />
+        ) : currentSurface === 'shared' && sharedFilesAllowed() ? (
+          <Suspense fallback={<div className="shp" />}>
+            <SharedPage onClose={() => setCurrentSurface('board')} onSaveCopy={saveSharedCopy}
+                        onAddShortcut={addSharedShortcut} feedback={feedback} />
+          </Suspense>
         ) : currentSurface === 'tag' && activeTag ? (
           // Keyed by tag: switching tags must start from empty state, not
           // render the previous tag's items under the new name.
+          <Suspense fallback={<div className="tag-detail tag-profile" />}>
           <TagDetailView
             key={activeTag.id}
             tag={activeTag}
@@ -9716,6 +11398,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               }
             }}
           />
+          </Suspense>
         ) : (
           /* Always render the same outer container so toggling split doesn't
              re-mount the main pane (and any open doc-card modals inside).
@@ -9732,13 +11415,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             showSplit={!!splitId}
             activePane={focusedPane}
             onClose={() => setSplitId(null)}
-            left={renderSurface({ board: currentBoard, view, yb: ybFramed, isMain: true })}
+            /* The doc beside the docked one lies over the main pane's board
+               (lib/docPanes.js), which stays mounted under it: a sibling, so
+               opening and closing it never re-mounts the board. */
+            left={<>
+              {renderSurface({ board: currentBoard, view, yb: ybFramed, isMain: true })}
+              {besideDoc && splitDoc && renderBesideDoc()}
+            </>}
             right={!splitId ? null : splitDoc ? renderSplitDoc() : renderSurface({
               board: splitBoard, view: splitView, yb: splitYb, isMain: false,
             })}
           />
         )}
       </main>
+
+      {/* The admin preview's test team page (look only): lazy, over the board
+          column and beside the sidebar. */}
+      {team && teamPage && (
+        <Suspense fallback={null}>
+          <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} onClose={closeTeamPage}
+                    onToast={(message) => feedback.toast({ type: 'info', message })} />
+        </Suspense>
+      )}
 
       {/* Boards-only "link a board onto canvas" picker — the command palette in
           pick mode (same UI, boards only, selecting one links it). */}
@@ -9815,7 +11513,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       <CommandPalette
         open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
+        onClose={() => { setPaletteOpen(false); setPaletteQuery(''); }}
+        initialQuery={paletteQuery}
         workspaceId={workspace.id}
         boards={boards}
         rootId={rootBoard.id}
@@ -9856,6 +11555,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <TrashModal
         open={trashOpen}
         workspaceId={workspace.id}
+        canPurge={canManageWorkspace(workspaceRole || (workspace.created_by === user.id ? 'owner' : workspace._myRole))}
         onBoardRestored={() => refreshBoards()}
         onClose={() => setTrashOpen(false)}
       />
@@ -9891,15 +11591,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {notifOpen && createPortal((
         <NotificationsPanel
           items={notifications.items}
-          schedule={notifications.schedule}
           unread={notifications.unread}
           loading={notifications.loading}
           onMarkRead={notifications.markRead}
           onOpenBoard={(id) => { openBoardAnywhere(id); setCurrentSurface('board'); setNotifOpen(false); }}
+          onOpenSettings={openNotificationSettings}
           onClose={() => setNotifOpen(false)}
+          anchorRef={notifBellRef}
+          mobileShell={mobileShell}
         />
       ), document.body)}
-      {tweak.showMessages && createPortal((
+      {/* Kept for its exit while it closes (MessagesPresence). */}
+      <MessagesPresence open={!!tweak.showMessages}>{() => createPortal((
+        // With the files sidebar Messages wears its card (messagesLook.js).
+        <MessagesLookContext.Provider value={filesSidebar ? 'card' : null}>
+        <MessagesBoardsContext.Provider value={msgBoardInfo}>
+        <Suspense fallback={null}>
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
@@ -9922,8 +11629,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onPermalinkConsumed={() => setPermalinkTarget(null)}
           onPeerConsumed={() => setPendingDmPeerId(null)}
           onClose={() => setTweak('showMessages', false)}
+          presentUserIds={msgPresentIds}
         />
-      ), document.body)}
+        </Suspense>
+        </MessagesBoardsContext.Provider>
+        </MessagesLookContext.Provider>
+      ), document.body)}</MessagesPresence>
 
       {shareOpen && (() => {
         // Sharing the WORKSPACE shares its root cluster (links then cover
@@ -9945,6 +11656,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           created_by: null,
         };
         return (
+          <Suspense fallback={null}>
           <ShareModal
             board={shareTarget}
             workspace={shareWs}
@@ -9966,6 +11678,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               openInviteFriends('share_modal');
             }}
             onSharesChanged={() => { refreshSharedBoards?.(); }}
+            onSeeEditors={(wsId) => {
+              setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null);
+              openNotificationSettings('members', wsId || workspace.id);
+            }}
             onLinkCreated={() => {
               try {
                 const yd = yb.ready && yb.boardId === shareTarget.id ? yb.ydoc
@@ -9974,13 +11690,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               } catch (_) {}
             }}
           />
+          </Suspense>
         );
       })()}
       {backlinksRef && (
-        <EntityBacklinksPanel
-          target={backlinksRef}
-          onClose={() => setBacklinksRef(null)}
-        />
+        <Suspense fallback={null}>
+          <EntityBacklinksPanel
+            target={backlinksRef}
+            onClose={() => setBacklinksRef(null)}
+          />
+        </Suspense>
       )}
       {/* Info for anything, from any right-click or ⌘I (lib/infoBus.js). It
           reads the open panes' live cards, so it changes as the file does. */}
@@ -10018,9 +11737,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <PlayerHost
         resolveBoard={(id) => {
           const pane = yb.ready && yb.boardId === id ? yb : (splitYb.ready && splitYb.boardId === id ? splitYb : null);
-          return pane ? { cards: pane.cards } : null;
+          return pane ? { cards: pane.cards, canEdit: canEditBoard(id) } : null;
         }}
       />
+      {fileSharesAllowed() && <FileShareHost />}
+      {sharedFilesAllowed() && <SharedFileHost onSaveCopy={saveSharedCopy} onAddShortcut={addSharedShortcut} />}
 
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing
           and choosing the partial keeps the cards they're entitled to. Rendered
@@ -10037,6 +11758,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           </span>
           <button type="button" className="folder-import-cancel" onClick={folderImport.cancel}>Cancel</button>
         </div>
+      )}
+
+      {/* A bulk import (lib/importStart.js): the tray, or its corner chip. */}
+      {bulkImportAllowed() && <ImportTray aboveNav={mobileShell} guide={importGuideProps()}
+                                          besideMessages={floatingChrome && !!tweak.showMessages} />}
+      {bulkAsk && (
+        <ImportAskDialog
+          model={bulkAsk.model}
+          onChoose={(id) => { bulkAsk.resolve(id); setBulkAsk(null); }}
+        />
+      )}
+      {zipAsk && (
+        <ImportZipDialog
+          model={zipAsk.model}
+          onChoose={(id) => { zipAsk.resolve(id); setZipAsk(null); }}
+        />
       )}
 
       {/* Files a drop kept in this tab until there is room (lib/heldUploads.js). */}
@@ -10062,7 +11799,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           limitKind={importAsk.limitKind || 'cards'}
           bytesNeeded={importAsk.bytesNeeded ?? null}
           bytesLeft={importAsk.bytesLeft ?? null}
-          canUpgrade={importAsk.limitKind === 'storage' ? (importAsk.own && !importAsk.paid) : true}
+          canUpgrade={importAsk.limitKind === 'storage' ? (importAsk.own && !importAsk.paid) : Boolean(importAsk.own)}
           holds={Boolean(importAsk.hold)}
           // A paying owner's full drive: close the question (nothing has
           // uploaded) and open the extra-storage sheet. The whole drop is
@@ -10073,10 +11810,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface: 'preflight' } }));
               }
             : null}
-          trialOffer={creatorTrialEligibility({
+          trialOffer={importAsk.limitKind === 'storage' ? creatorTrialEligibility({
             tier: myTier.tier, cards: myTier.serverCardCount,
             cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
-          }).eligible}
+          }).eligible : Boolean(wallTrialRef.current(importWallCards(importAsk)))}
           onTakePartial={() => answerImportAsk('partial', importAsk.take)}
           onUpgrade={() => answerImportAsk('upgrade', 0)}
           onCancel={() => answerImportAsk('cancel', 0)}
@@ -10105,8 +11842,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // episode must not surface on the storage or generic pitch, where it
           // would describe something that didn't just happen.
           rejected={upgradeReason === 'cap-hit' ? capRejected : null}
+          wallCards={upgradeReason === 'cap-hit' ? capWallCards : null}
           initialPlan={upgradeReason === 'pricing-intent' ? upgradePlan : null}
-          onClose={() => { setUpgradeReason(null); setCapRejected(null); setUpgradePlan(null); }}
+          onClose={() => { setUpgradeReason(null); setCapRejected(null); setCapWallCards(null); setUpgradePlan(null); }}
         />
       )}
 
@@ -10154,6 +11892,48 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             }
           }}
         />
+      )}
+
+      {/* The setup's tips and its one invite re-ask, and where a link joiner
+          landed (components/setup). Only where the setup runs, which needs the
+          files sidebar the tips point at; it waits for the tour, dialogs and
+          other hints on its own. */}
+      {setupHere && filesSidebar && (
+        <Suspense fallback={null}>
+          <SetupInWorkspace
+            user={user} workspace={workspace}
+            settings={mySettings} settingsLoaded={mySettingsLoaded}
+            welcome={setupWelcome} arm={setupOutcome?.arm || null}
+            ownCards={myTier.loading ? 0 : myTier.demoCardCount}
+            boardCards={ownedBoards?.[currentId]?.card_count}
+            wsCards={wsCardTotal}
+            uploading={Object.keys(sidebarUploads || {}).length > 0}
+            phone={mobileShell}
+            sidebarShown={mobileShell || sidebarShownNow}
+            openDrawer={() => setMobileNavOpen(true)}
+            closeDrawer={() => setMobileNavOpen(false)}
+            canImport={bulkImportAllowed()}
+            openGuide={() => openImportGuide('drive')}
+            currentBoardId={currentId} rootBoardId={rootBoard.id}
+            boardsReady={boardsReady}
+            loadPhotos={loadClusterPhotos}
+          />
+        </Suspense>
+      )}
+
+      {/* The one-time "New" hint on the Files card, for accounts from before
+          the files sidebar (components/whatsNew); newer ones get the setup's
+          tips above instead. It waits for the tour, dialogs and other hints
+          on its own, and keeps its own record. */}
+      {filesSidebar && user?.id && predatesFilesSidebar(user.created_at) && (
+        <Suspense fallback={null}>
+          <WhatsNewHint
+            userId={user.id} createdAt={user.created_at}
+            record={mySettings?.[WHATS_NEW_KEY]} settingsLoaded={mySettingsLoaded}
+            phone={mobileShell}
+            save={(rec) => updateOwnSettings({ [WHATS_NEW_KEY]: rec })}
+          />
+        </Suspense>
       )}
 
       <ReferralNudge tier={myTier.tier} onCollaborate={openCollabInvite} />
@@ -10229,6 +12009,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       })()}
 
     </div>
+    </FilesLookContext.Provider>
     </AppTrieProvider>
     </MessagesUiContext.Provider>
     </OpenDmContext.Provider>

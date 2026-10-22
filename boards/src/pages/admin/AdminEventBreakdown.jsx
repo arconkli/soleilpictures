@@ -8,8 +8,8 @@ import { formatCount, formatPct } from '../../lib/adminFormat.js';
 
 
 const LABELS = {
-  email_submit_error:      'Email send failed',
-  otp_verify_error:        'OTP verify failed',
+  email_submit_error:      'Code request failed',
+  otp_verify_error:        'Code not accepted',
   landing_callback_error:  'Magic-link failed',
   landing_edit_email:      'Edited email',
   landing_explore_click:   'Explore-board click',

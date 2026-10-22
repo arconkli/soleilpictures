@@ -97,3 +97,18 @@ https://:worker.:subdomain.workers.dev/*
 /pricing.md
   Cache-Control: public, max-age=300, s-maxage=3600
   Access-Control-Allow-Origin: *
+# Every .md mirror names its HTML page as the canonical one: the Link header is
+# the HTTP form of <link rel="canonical">, which a markdown file cannot carry.
+# The mirrors are for agents (llms.txt lists them); a search engine that indexed
+# one as well would hold two documents for one page and split what each earns,
+# and an assistant citing it would send the reader to raw markdown instead of
+# the page. Nothing is hidden: no noindex, the file still serves to anyone.
+# :splat is the path without ".md", which is the HTML page's own path for every
+# mirror gen-docs writes except the docs hub — its mirror is /docs/index.md and
+# its page is /docs — so that one file carries no canonical rather than a wrong
+# one. Two matching rules that both set Link would be joined into one header
+# naming two canonicals, and engines ignore both: no other rule may set Link.
+/*.md
+  Link: <https://clusters.soleilpictures.com/:splat>; rel="canonical"
+/docs/index.md
+  ! Link

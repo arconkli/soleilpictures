@@ -5,7 +5,7 @@ h1: Images and photo editing
 navLabel: Images
 section: canvas
 order: 2
-updated: 2026-10-17
+updated: 2026-10-21
 answer: Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 faq:
   - q: Do adjustments change my original file?
@@ -21,10 +21,11 @@ related:
 ---
 
 Images are the reason most boards exist. Getting them in is meant to be
-thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its
-own, or select the files you want and drop them where you are — either way they
-upload in parallel and lay themselves out rather than landing in a heap. See
-[dropping a folder](/docs/clusters#dropping-a-folder).
+thoughtless: select the files you want and drop them where you are, and they
+upload in parallel and lay themselves out rather than landing in a heap. Drag a
+whole folder or a zip onto the canvas instead and it becomes a cluster of its
+own, with its files waiting in Files until you put them on the board. See
+[importing folders and zips](/docs/clusters#importing-folders-and-zips).
 
 ## Adding images
 

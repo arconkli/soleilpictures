@@ -125,10 +125,12 @@ test('Checkout opens in a new tab while files are held, before the first await',
 
 test('the success page asks for the holding tab before it sends this one into the app', () => {
   const effect = region(success, 'if (!celebrating) return undefined;', '}, [celebrating]);');
-  const ask = effect.indexOf('askForHolder()');
-  const redirect = effect.indexOf("window.location.assign('/')");
+  const ask = effect.indexOf('const asked = askForHolder();');
+  // Into the app in place (TierRouter's onEnter), or by a reload without one,
+  // and only once the question has been answered.
+  const redirect = effect.indexOf('asked.then((n) => { if (!cancelled && n === 0) enter(); });');
   assert.ok(ask > 0 && redirect > ask, 'asked first');
-  assert.match(effect, /if \(n > 0\) \{ setHeldElsewhere\(n\); return; \}/);
+  assert.match(effect, /asked\.then\(\(n\) => \{ if \(!cancelled && n > 0\) setHeldElsewhere\(n\); \}\);/);
 });
 
 test('a block added in the sheet tells held drops to look, and a bank page makes them wait', () => {
@@ -152,7 +154,13 @@ test('a canceled checkout stops the wait; a new build does not reload the files 
 });
 
 test('a released folder waits for a running import instead of being refused and lost', () => {
-  const fn = region(app, 'const importFolder = useCallback(async (args = {}) => {', '}, [importFolderOnce, feedback]);');
+  const fn = region(app, 'const importFolder = useCallback(async (args = {}) => {', '}, [importFolderOnce, feedback, startBulkImportHere]);');
+  // The bulk import takes every folder but one held by this old path, which
+  // goes back the way it came. Its gate is open since the sidebar release
+  // (2026-10-21), and stays the one switch back to the old path.
+  assert.match(fn, /if \(bulkImportAllowed\(\) && args\.source !== 'held'\) return startBulkImportHere\(args\);/);
+  assert.match(read('./appHost.js'), /export function bulkImportAllowed\(\) \{\n  return true;\n\}/, 'the gate is open');
+  assert.ok(fn.indexOf('startBulkImportHere(args)') < fn.indexOf('while (folderImportBusyRef'), 'before the old path\'s wait');
   assert.match(fn, /while \(folderImportBusyRef\.current && args\.source === 'held'\) await folderImportIdleRef\.current;/);
   assert.ok(fn.indexOf("args.source === 'held'") < fn.indexOf('A folder is still importing'), 'it waits before the refusal');
   assert.match(fn, /finally \{ folderImportBusyRef\.current = false; idle\(\); \}/);

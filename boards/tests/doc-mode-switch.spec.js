@@ -4,6 +4,7 @@
 // the same meta observer path a peer's update takes.
 
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 
 async function openDoc(page) {
   await page.goto('/?docqa=1');
@@ -19,7 +20,7 @@ const liveBlocks = (page) => page.evaluate(() =>
 
 test('Screenplay off then on keeps every element type', async ({ page }) => {
   await openDoc(page);
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
   await page.waitForFunction(() =>
     window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock', null, { timeout: 10000 });
@@ -37,13 +38,13 @@ test('Screenplay off then on keeps every element type', async ({ page }) => {
   }, script);
   await expect.poll(() => liveBlocks(page)).toEqual(script);
 
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), false);
   await expect(page.locator('.doc-paper.is-screenplay')).toHaveCount(0);
   await expect.poll(async () => page.evaluate(() =>
     (window.__soleilDocTest.editor.getJSON().content || []).map(n => n.type),
   )).toEqual(Array(script.length).fill('paragraph'));
 
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
   await expect.poll(() => liveBlocks(page)).toEqual(script);
 });

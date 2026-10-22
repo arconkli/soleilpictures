@@ -16,12 +16,15 @@ import { expect, test } from '@playwright/test';
 
 test.use({ hasTouch: true, isMobile: true });
 
-// peers: how many other people are online; viewOnly drops Undo/Redo for the
-// VIEW ONLY pill, as App.jsx does on a phone.
+// peers: how many other people are online; viewOnly drops Undo/Redo for View
+// only (an eye and the words), as App.jsx does on a phone.
 function buildTopbar({ peers, viewOnly }) {
   // Runs in the page, so everything it uses lives inside it.
   const ICON = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" /></svg>';
   const topbar = document.querySelector('.topbar');
+  // App wears the files sidebar's look, which sets View only's size
+  // (smallThingsLook.css); ?local=1 doesn't.
+  document.body.setAttribute('data-sb-files', '1');
   const pill = topbar.querySelector('.view-pill');
   const btn = (cls, title) => `<button class="${cls}" title="${title}" aria-label="${title}">${ICON}</button>`;
   const shown = Math.min(peers, 1);   // App.jsx: max={mobileShell ? 1 : 4}
@@ -42,7 +45,7 @@ function buildTopbar({ peers, viewOnly }) {
       <span class="tb-divider"></span>
       <div class="ws-presence"><span class="ws-presence-status on"></span>${avatars}</div>
       <span class="tb-divider"></span>
-      ${viewOnly ? '<span class="tb-viewonly">VIEW ONLY</span>' : ''}
+      ${viewOnly ? `<span class="tb-viewonly">${ICON.replace(/16/g, '14')}View only</span>` : ''}
       <button class="tb-btn tb-share" data-probe="share" title="Share this cluster" aria-label="Share this cluster">${ICON.replace(/16/g, '14')} <span class="tb-btn-label">Share</span></button>
       ${btn('tb-icon tb-icon-theme', 'Toggle theme')}
       ${btn('tb-icon tb-icon-split', 'Pin alongside')}

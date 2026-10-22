@@ -24,7 +24,7 @@ test('a bfcache restore clears the busy Creator button on /pricing', async ({ pa
   await page.route('**/rest/v1/analytics_events**', (route) =>
     route.fulfill({ status: 201, contentType: 'application/json', body: '[]' }));
   // Never answered: the button stays busy the way it does while leaving.
-  await page.route('**/functions/v1/create-checkout-session', () => {});
+  await page.route('**/functions/v1/create-checkout-session*', () => {});
   await page.goto('/pricing?local=1&tier=demo');
 
   const buy = page.locator('.pp-buy');

@@ -239,7 +239,6 @@ export const RENDERERS = {
   'toast-share-ask': (f) => f.toast({ ttl: 60000, message: 'This cluster is looking good — send it to someone?', action: { label: 'Copy link', onClick: NOOP } }),
   'toast-manage-access': (f) => f.toast({ ttl: 60000, message: 'Public link created.', action: { label: 'Manage access', onClick: NOOP } }),
   'toast-reveal-grids': reveal('grids'),
-  'toast-reveal-group': reveal('group'),
   'toast-reveal-list': reveal('list_drive'),
   'toast-reveal-docs': reveal('docs'),
   'toast-reveal-palette': reveal('palette'),
@@ -271,7 +270,7 @@ export const RENDERERS = {
   'shortcuts': ({ close }) => <ShortcutsOverlay open onClose={close} />,
   'command-palette': ({ close }) => <CommandPalette open onClose={close} workspaceId={WORKSPACE.id} boards={[BOARD]} rootId={BOARD.id} commands={[{ id: 'c1', label: 'New cluster', keywords: ['add'], run: NOOP, available: true }]} onOpenBoard={NOOP} />,
   'command-palette-pick': ({ close }) => <CommandPalette open mode="pick" onClose={close} workspaceId={WORKSPACE.id} boards={[BOARD]} rootId={BOARD.id} onPickBoard={NOOP} placeholder="Pick a cluster…" />,
-  'trash-modal': ({ close }) => <TrashModal open workspaceId={WORKSPACE.id} onClose={close} />,
+  'trash-modal': ({ close }) => <TrashModal open workspaceId={WORKSPACE.id} canPurge onClose={close} />,
   'custom-fonts': ({ close }) => <CustomFontsModal open onClose={close} />,
   'save-template': ({ close }) => (SaveTemplateDialog
     ? <SaveTemplateDialog open layout={{ cols: 3, rows: 2, cells: [] }} size={{ w: 3, h: 2 }} defaultName="Three up" onCancel={close} onSave={close} />

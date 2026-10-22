@@ -258,6 +258,11 @@ body {
 }
 [data-theme='light'] .grain-canvas,
 [data-theme='light'] .grain-surface { opacity: 0.025; }
+/* The board's ground drawn on a canvas in step with the camera (CanvasSurface
+   drawGround, lib/canvasGround.js; held to the preview). Under the grain and
+   everything else, and never in the way of a press. Its script sets the left
+   and width when the board runs on under a floating sidebar. */
+.cnv-ground { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 
 /* App-level error boundary — shown when any component below it
    throws during render. Without this, the screen would just go
@@ -361,6 +366,10 @@ body {
   color: var(--ink-0, #eee); cursor: pointer; font-size: 13px;
 }
 .surface-error-btn:hover { background: var(--bg-hov, #222); }
+/* A finger's size: Reopen in a crashed doc, Reload page and Close in one slow to open. */
+@media (pointer: coarse) { .surface-error-btn { min-height: 44px; } }
+/* Inside an open doc: fills the doc's body under its header, which stays. */
+.surface-error.is-in-doc { position: static; flex: 1 1 auto; }
 
 /* ─────────────────────────── Type utilities ─────────────────────────────── */
 
@@ -887,6 +896,12 @@ body {
   background: var(--bg-1);
   z-index: 1;
 }
+.ws-menu-tag {
+  margin-left: 8px; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 999px;
+  background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-2);
+}
+.ws-menu-avatar.is-icon { background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-1); }
+.ws-menu-tail { margin-left: auto; color: var(--ink-3); display: flex; }
 .ws-menu-row {
   appearance: none; border: 0; background: transparent;
   display: flex; align-items: center; gap: 10px;
@@ -1065,6 +1080,15 @@ body {
   font: 700 10px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase;
 }
 [data-theme='light'] .sb-shared-ro { color: var(--ink-1); }
+/* The Shared page's row: under the heading, level with the groups. Unread is
+   a plain count, as Messages has it — no gold at rest. */
+.sb-shared-files { padding-left: 14px; }
+.sb-shared-unread {
+  flex: none; margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: color-mix(in srgb, var(--ink-0) 10%, transparent);
+  color: var(--ink-0); font: 600 11px/1 var(--font-sans);
+}
 
 /* ─── Sidebar tags section ─────────────────────────────────────────── */
 /* Mirrors .sb-shared visually so the section reads as a sibling of
@@ -2511,6 +2535,37 @@ body {
 .share-reward-more li + li { margin-top: 3px; }
 .share-reward-more .share-linkish { font: 600 11.5px/1.4 var(--font-sans); }
 
+/* The 10-editor limit's note, at the top of the invite area (the owner's pick
+   B, 2026-10-21): from two places left for the account's owner, and once
+   there are none for anyone who can invite. The reward note's strip on the
+   panel's raised ground; the limit is news, not an action, so nothing in it
+   is gold. */
+.lim-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+.lim-note-icon { flex: 0 0 auto; display: inline-flex; color: var(--ink-1); margin-top: 2px; }
+.lim-note-text { flex: 1 1 auto; min-width: 0; font: 500 12.5px/1.45 var(--font-sans); color: var(--ink-2); }
+.lim-note-lead { font-weight: 600; color: var(--ink-0); }
+.lim-note-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.lim-btn {
+  appearance: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  color: var(--ink-0);
+  font: 600 12px/1 var(--font-sans);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.lim-btn:hover { background: var(--bg-hov); }
+.lim-btn:disabled { opacity: .6; cursor: default; }
+.lim-line { margin-top: 7px; font: 400 12px/1.5 var(--font-sans); color: var(--ink-2); }
+.lim-done { display: flex; align-items: center; gap: 6px; color: var(--ink-1); }
+
 /* A row of "Who has access": avatar, who, and one control on the right. It
    never wraps — the name truncates instead — so a phone shows one line per
    person rather than a second line of buttons under each. */
@@ -3851,6 +3906,11 @@ body {
   outline: none;
 }
 .ap-label-input:focus { border-color: var(--line-2); }
+/* Under 16px, iOS zooms the page in on focus. (The popover's buttons wait for
+   the toolbar language: finger-sized, they no longer fit it.) */
+@media (pointer: coarse) {
+  .ap-label-input { font-size: 16px; height: 28px; }
+}
 
 .ap-delete { color: var(--ink-3); }
 .ap-delete:hover { color: #ef4444 !important; background: rgba(239,68,68,.12) !important; }
@@ -3935,14 +3995,95 @@ body {
 @media (hover: none) and (pointer: coarse) {
   .cnv-tool[data-tip]::after { display: none; }
 }
+/* The Cluster tool's hover card (CanvasSurface, behind clusterNudgesAllowed):
+   what a cluster looks like on a canvas, its key, and what it is for. Same
+   slot as the tip, a beat slower so a pass across the rail doesn't open it,
+   never in the way of a click, and gone once the tool is picked (the hint
+   below the toolbar takes over). */
+.cnv-tool-teach { position: relative; }
+.cnv-tool-card {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  width: 236px;
+  display: block;
+  padding: 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  box-shadow: var(--shadow-2);
+  text-align: left;
+  cursor: default;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), visibility 0s linear var(--dur-fast);
+  z-index: 60;
+}
+.cnv-tool-teach:hover .cnv-tool-card,
+.cnv-tool-teach:focus-visible .cnv-tool-card {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+  transition: opacity var(--dur-fast) var(--ease) 400ms, transform var(--dur-fast) var(--ease) 400ms, visibility 0s linear 400ms;
+}
+.cnv-tool-teach.active .cnv-tool-card { display: none; }
+.cnv-tool-card-mini {
+  display: block;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--bg-3);
+}
+.cnv-tool-card-cover {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 44px 44px;
+  gap: 2px;
+  background: var(--bg-2);
+}
+.cnv-tool-card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cnv-tool-card-cover img:first-child { grid-row: span 2; }
+.cnv-tool-card-meta {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 7px 9px;
+  border-top: 1px solid var(--line-1);
+}
+.cnv-tool-card-meta b { font: 600 12px/1.2 var(--font-sans); color: var(--ink-0); }
+.cnv-tool-card-meta span { font: 400 10.5px/1.2 var(--font-sans); color: var(--ink-3); }
+.cnv-tool-card-title {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px;
+  font: 600 13px/1.2 var(--font-sans);
+  color: var(--ink-0);
+}
+.cnv-tool-card-title kbd {
+  min-width: 20px; height: 20px; padding: 0 5px;
+  display: inline-grid; place-items: center;
+  font: 500 11px/1 var(--font-sans);
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  background: var(--bg-2);
+}
+.cnv-tool-card-body {
+  display: block;
+  margin-top: 4px;
+  font: 500 12px/1.45 var(--font-sans);
+  color: var(--ink-2);
+  white-space: normal;
+}
+@media (hover: none) and (pointer: coarse) {
+  .cnv-tool-card { display: none; }
+}
 .cnv-tool-sep { height: 1px; background: var(--line-1); margin: 3px 4px; }
 .cnv-add-wrap { position: relative; }
-/* The open menu must paint ABOVE the rail tooltips (.cnv-tool[data-tip]::after is
-   z-index 60) — without this it has no z-index (0) and hides under them. */
+/* Hung beside the rail's + from <body> (CanvasSurface's useAnchoredPopover sets
+   its fixed top and left): inside the rail, a phone's rail, which scrolls,
+   clipped it. On the layer of the canvas's other menus (.ctx-menu), over the
+   rail's tips and a phone's bottom nav. */
 .cnv-add-menu {
-  position: absolute;
-  left: 38px;
-  top: 0;
   width: 184px;
   padding: 5px;
   border: 1px solid var(--line-2);
@@ -3955,7 +4096,7 @@ body {
   /* visible (not hidden) so the per-item hover tips can float to the right;
      the grain ::after self-clips via border-radius:inherit and sits at z-index:-1. */
   overflow: visible;
-  z-index: 70;
+  z-index: 2147483600;
 }
 /* While the + menu is open, don't also float the button's own "Add" tooltip over it. */
 .cnv-add-wrap .cnv-tool.active[data-tip]::after { display: none; }
@@ -4028,6 +4169,10 @@ body {
 }
 @media (hover: none) and (pointer: coarse) {
   .cnv-add-menu button[data-tip]::after { display: none; }
+  /* A finger's rows; and with no tips to float out of it, the menu scrolls
+     in a short window (a phone held sideways), which CanvasSurface caps it to. */
+  .cnv-add-menu { overflow-y: auto; overscroll-behavior: contain; }
+  .cnv-add-menu button { min-height: 40px; }
 }
 
 /* (.view-switch superseded by .view-pill in the topbar block) */
@@ -4120,12 +4265,6 @@ body {
   margin: 0 auto;
   padding-block: clamp(20px, 3vw, 32px);
 }
-.list-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
-}
-.list-tile { height: 200px; }
 .list-section {
   display: flex; align-items: baseline; gap: 6px;
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
@@ -4537,6 +4676,15 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   user-select: none;
 }
 .cnv-zoom-val:hover { color: var(--ink-0); }
+/* The readout is a button (Enter on it is ⌘0), drawn as the text it was:
+   none of .cnv-zoom button's box, type or hover reaches it. */
+.cnv-zoom .cnv-zoom-val {
+  width: auto; height: auto; min-width: 44px; min-height: 0;
+  border-radius: 0;
+  font-size: 10.5px; color: var(--ink-2);
+  font-weight: inherit; line-height: inherit; letter-spacing: inherit;
+}
+.cnv-zoom .cnv-zoom-val:hover { background: transparent; color: var(--ink-0); }
 .cnv-zoom-slider {
   appearance: none;
   width: 96px; height: 24px;
@@ -7711,7 +7859,20 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 
 /* "⋯" card-options button — touch-only home for the card context menu now
    that a long-press lifts the card to drag. Hidden by default; the coarse-
-   pointer block reveals it on selected cards. Desktop keeps right-click. */
+   pointer block reveals it on the selection. Desktop keeps right-click.
+   It sits in .sel-menu, a point at the selection's top-right corner drawn
+   outside the cards (a card clips what pokes out of it), which undoes the
+   board's zoom so these offsets are screen pixels at every zoom. */
+.sel-menu {
+  position: absolute;
+  width: 0; height: 0;
+  transform-origin: 0 0;
+  z-index: 999996;
+  pointer-events: none;
+}
+/* Placed from the corner by CanvasSurface (left / top), which keeps it on
+   screen and clear of a small selection. */
+.sel-menu > .card-menu-btn { right: auto; pointer-events: auto; }
 .card-menu-btn {
   display: none;
   position: absolute;
@@ -7759,9 +7920,28 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   15%  { opacity: .55; }
   100% { opacity: .95; clip-path: inset(0 0 0 0); }
 }
+/* The same fill for a finger held on empty canvas: once it closes, dragging
+   draws a selection box and letting go opens the menu. Wider than a fingertip
+   so it shows around one. Shown and hidden by hand (startTouchCanvasPress). */
+.cnv-hold-cue {
+  display: none;
+  position: absolute;
+  width: 64px; height: 64px;
+  margin: -32px 0 0 -32px;
+  border: 2px solid var(--select);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 4;
+}
+.cnv-hold-cue.is-on {
+  display: block;
+  opacity: 0;
+  animation: card-lift-arm var(--lift-ms, 480ms) linear forwards;
+}
 /* Respect a reduced-motion preference: keep the affordance, drop the sweep. */
 @media (prefers-reduced-motion: reduce) {
   .card.is-lifting::after { animation: none; opacity: .7; clip-path: none; }
+  .cnv-hold-cue.is-on { animation: none; opacity: .7; }
 }
 
 /* Card "picked up" by a press-and-hold (touch). Deliberate lift cue that does
@@ -8047,6 +8227,71 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   text-align: center;
 }
 .cnv-empty-tiles-sub-coarse { display: none; }
+/* The Studio bar (CanvasSurface, behind clusterNudgesAllowed): a pile on
+   Studio gets one offer to move into a cluster. In the armed hint's place at
+   the top of the canvas, and hidden while the naming popover is up (it is
+   portaled to the body), which it would otherwise sit under. */
+.cnv-studio-bar {
+  position: absolute; left: 50%; top: 14px; z-index: 25;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  max-width: calc(100% - 24px); box-sizing: border-box;
+  padding: 5px 5px 5px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  font: 500 12.5px/1.2 var(--font-sans);
+  color: var(--ink-1);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.cnv-studio-bar-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cnv-studio-bar-go {
+  flex-shrink: 0; height: 26px; padding: 0 11px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.cnv-studio-bar-go:hover { background: var(--bg-4); border-color: var(--line-3); }
+.cnv-studio-bar-x {
+  flex-shrink: 0; display: inline-grid; place-items: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 6px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.cnv-studio-bar-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+.cnv-studio-bar-go:focus-visible, .cnv-studio-bar-x:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.app.is-floating-chrome .cnv-studio-bar { top: calc(var(--chrome-band) + 14px); }
+body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
+/* A phone's width holds the count and the action, not where they are. */
+@media (max-width: 640px) { .cnv-studio-bar-where { display: none; } }
+/* The empty Studio's line about clusters (CanvasSurface, behind
+   clusterNudgesAllowed): after a hairline, quieter than the drop area above. */
+.cnv-empty-rule { align-self: stretch; height: 1px; margin: 2px 0 -2px; background: var(--line-2); }
+.cnv-empty-clusters {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
+  font: 500 12.5px/1.3 var(--font-sans);
+  color: var(--ink-3);
+}
+.cnv-empty-clusters button {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 6px; margin: -4px -6px;
+  border: 0; border-radius: 4px;
+  background: transparent;
+  color: var(--ink-2);
+  font: 600 12.5px/1.3 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.cnv-empty-clusters button:hover { background: var(--bg-hov); color: var(--ink-0); }
+.cnv-empty-clusters button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 @media (hover: none) and (pointer: coarse) {
   .cnv-empty-tiles-sub-fine { display: none; }
   .cnv-empty-tiles-sub-coarse { display: inline; }
@@ -9055,7 +9300,6 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .list-section-meta::before { content: '·'; margin-right: 8px; color: var(--ink-4); }
-.list-section-count { font: 500 11px/1 var(--font-sans); letter-spacing: 0; text-transform: none; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 /* Take-the-pack. Sits on the section row rather than in the toolbar so it
    reads as an action on the thing named to its left, and so it is not one
    more control competing with Search / Sort / Filter. */
@@ -9230,6 +9474,11 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }
+/* A windowed table (ClusterTable, past 300 rows) mounts only the rows near
+   the viewport, so it needs no skipping, and a row's real height must hold
+   for the spacers' arithmetic. */
+.ct-table.is-windowed .ct-row { content-visibility: visible; contain-intrinsic-size: none; }
+.ct-spacer { flex: none; }
 /* The header stays put. Scrolling a three-hundred-loop pack past its column
    labels leaves four columns of bare numbers — which of 120 and 0:04 is the
    tempo is not guessable. */
@@ -9595,6 +9844,13 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile-preview .img-ph { background: var(--files-paper, var(--bg-3)) !important; }
 .ct-tile-preview .img-ph > svg { display: none; }
 .ct-tile-preview div.cbp-img { background: var(--files-paper, var(--bg-3)); }
+/* The picture fills its preview whatever its own shape. A tile takes the
+   card's shape (lib/justifiedGrid.js aspectOfItem: the card's, clamped), and
+   as a grid item the picture sized the preview's row by its own: taller than
+   the preview, so Chrome cropped it from the top and Safari slid it down,
+   leaving a strip of paper above it. Out of the grid, it is the preview,
+   cropped from the middle. */
+.ct-tile-preview > img.cbp-img { position: absolute; inset: 0; }
 .ct-tile-preview div.cbp-img[aria-label='No access'] { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-3); }
 .ct-jg .ct-tile.is-pending .ct-tile-preview::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -9631,6 +9887,24 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .ct-tile:not(.is-selected) .ct-tile-preview[data-face='paper'] .ct-tile-check:hover { color: var(--ink-2); }
 .ct-tile.is-selected .ct-tile-check { background: var(--select); border-color: var(--select); color: #0a0a0c; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
 .ct-tile-check:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* Select — a touch screen's hold menu — picks several with a finger: the
+   tile checks show on every tile, and rows and folders get the same round
+   check, gold when picked. A tap anywhere on the row toggles it; the check
+   only says which are in. */
+.list-wrap.is-selecting .ct-tile-check { opacity: 1; }
+.row-check {
+  flex: none; width: 20px; height: 20px; box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--ink-0) 48%, transparent);
+  color: transparent;
+}
+:is(.ct-row, .ft, .sbf-file).is-selected .row-check {
+  background: var(--select); border-color: var(--select); color: #0a0a0c;
+}
+/* A held thumbnail is a menu, not iOS's Save Image sheet or a text selection. */
+.list-wrap.is-touch :is(.ct-tile, .ct-row, .ft) {
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
 /* Gallery transport. Centred over the preview rather than beside the name —
    with cover art being read off the files, the tile IS the artwork and the
    play button belongs on it. */
@@ -9695,7 +9969,6 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
    neighbours, which ripples through the whole grid. */
 .ct-tile-type { font-size: 11px; color: var(--ink-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.cluster-browser-empty { padding: 40px 12px; text-align: center; color: var(--ink-2); font-size: 13px; }
 
 /* Descendant search results (matches from sub-clusters — open, don't select) */
 .cb-descendants { margin-top: 14px; border-top: 1px solid var(--line-1); padding-top: 10px; }
@@ -10200,18 +10473,22 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
    44px this app already holds itself to elsewhere (.ctx-item is 40px, the
    resize handles bump on coarse pointers). Drawing is the one tool people
    reach for MOST on a tablet, so its controls were the worst-sized in the app.
-   The ::after expands the hit box only as far as the gap allows, so neighbours
-   never overlap and a near-miss lands on nothing rather than on the wrong
-   colour. */
+   The ::after takes a swatch to 40px, half the gap a side (it hangs off the
+   30px inside the border), so neighbours meet and never overlap: a press
+   between two lands on the nearer colour. */
 @media (pointer: coarse) {
   .tob-swatches { gap: 8px; }
   .tob-sw { width: 32px; height: 32px; border-radius: 6px; position: relative; }
-  .tob-sw::after { content: ''; position: absolute; inset: -4px; }
+  .tob-sw::after { content: ''; position: absolute; inset: -5px; }
   .tob-sw:hover { transform: none; } /* no hover on touch — it just sticks */
   .tob-thickness { gap: 8px; }
   .tob-thick { width: 48px; height: 40px; }
   .tob-action, .tob-segmented button { min-height: 40px; }
-  .tob-icon-btn { min-width: 40px; }
+  .tob-action, .tob-icon-btn { min-width: 40px; }
+  /* The shape and line bars' fields, a finger tall; and text at 16px, under
+     which iOS zooms the page in on focus (the note bar's size field too). */
+  .tob-select, .tob-numinput { min-height: 40px; }
+  .tob-select, .tob-numinput, .size-combo { font-size: 16px; }
 }
 
 .tob-pop-wrap { position: relative; display: inline-block; }
@@ -10227,6 +10504,11 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   border-radius: 6px;
   box-shadow: var(--shadow-1);
   z-index: 100;
+}
+/* A finger's swatches are 32px (above): columns to match, or each one lay
+   over half of the next. */
+@media (pointer: coarse) {
+  .tob-pop { grid-template-columns: repeat(8, 32px); gap: 8px; }
 }
 
 /* Mobile: the default bar is `max-width: calc(100% - 360px)`, which collapses
@@ -10254,8 +10536,12 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
     padding: 6px 8px;
   }
   .tob::-webkit-scrollbar { display: none; }
-  .tob-btn, .tob-action, .tob-icon-btn, .tob-thick { min-width: 38px; min-height: 38px; }
+  .tob-btn, .tob-action, .tob-icon-btn, .tob-thick { min-width: 40px; min-height: 40px; }
   .tob-sep { flex: 0 0 auto; }
+  /* The size field and its presets' chevron, a finger's each: the chevron
+     takes the field's right end, which grows to hold it. */
+  .tob .size-combo { width: 84px; height: 40px; padding-right: 40px; }
+  .tob .size-combo-arrow { right: 0; width: 40px; height: 40px; }
 }
 
 /* iPad-landscape (touch but wider than a phone): the note toolbar stays the
@@ -10789,15 +11075,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 /* ──────────────────────────── Phase 4.11: list select, segmented, picker ─ */
 
-/* List view selection */
-.list-tile { transition: box-shadow .12s, transform .12s; }
-.list-tile.is-selected { box-shadow: 0 0 0 2px var(--ink-1); border-radius: var(--radius-lg); }
-/* A board tile a dragged board will nest into. */
-.list-tile.is-drop-target {
-  box-shadow: 0 0 0 2px var(--soleil), 0 0 0 8px var(--soleil-soft);
-  border-radius: var(--radius-lg);
-  transform: translateY(-1px);
-}
 .lf-row.is-selected { background: var(--bg-act); box-shadow: inset 0 0 0 1px var(--line-3); }
 
 /* The selection bar is an ACTION bar, so it has to still be there after you
@@ -10867,7 +11144,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: background var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);
 }
 .list-selbar-act:hover:not(:disabled) { background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
-.list-selbar-act.is-on { background: var(--bg-4); color: var(--ink-0); border-color: transparent; }
 .list-selbar-act:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .list-selbar-act:disabled { opacity: .55; cursor: default; }
 
@@ -12822,6 +13098,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
    while the compact editor for this card is open — the popover sits beside the
    image, so the cursor isn't hovering the image to reveal them. */
 .ic.is-editing .ic-actions { opacity: 1; }
+/* The keys reach them too: tabbing onto one gave a button the focus while the
+   strip stayed invisible. It shows while one has the keyboard's focus. */
+.ic-actions:has(.ic-act:focus-visible) { opacity: 1; }
 .ic-actions .ic-act {
   position: static; top: auto; right: auto;
   width: 24px; height: 24px; min-width: 24px; min-height: 24px;
@@ -13484,7 +13763,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-tb-sw {
   appearance: none; width: 20px; height: 20px;
   border-radius: var(--radius);
-  border: 1px solid rgba(255,255,255,.08);
+  /* The note bar's edge (.tob-sw): white-on-white it hid the white swatch on
+     the light menu, and the black one barely showed on the dark. */
+  border: 1px solid var(--line-3);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease);
 }
@@ -13494,6 +13775,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: transparent !important;
   color: var(--ink-2); font-size: 12px; line-height: 1;
   display: grid; place-items: center;
+}
+/* On touch, the doc toolbar's swatches: 32px drawn, 40 to a finger, half the
+   gap a side. */
+@media (hover: none) and (pointer: coarse) {
+  .doc-tb-colorpop { grid-template-columns: repeat(8, 32px); gap: 8px; }
+  .doc-tb-sw { width: 32px; height: 32px; position: relative; }
+  .doc-tb-sw::after { content: ''; position: absolute; inset: -5px; }
+  .doc-tb-sw:hover { transform: none; }
 }
 
 /* ── Paper / editor — letter-sized region, no visible card ──────────────
@@ -13654,6 +13943,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (max-width: 640px) {
   .doc-paper:not(.is-fit-width) .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 }
+/* The same relief where the PAPER is narrow, whatever the window: a doc docked
+   beside the board, or one of two side by side (DocSurface sets is-narrow and
+   is-tight from the paper's own width, lib/docRoom.js). Never a script's: its
+   sheet keeps its margins and its column fits the width instead. */
+.doc-paper.is-narrow:not(.is-screenplay) .doc-editor-wrap:not(.doc-flow) { padding: 72px 56px; }
+.doc-paper.is-tight:not(.is-screenplay) .doc-editor-wrap:not(.doc-flow) { padding: 48px 28px; min-height: 800px; }
 
 /* ── Fit-to-width (DocSurface sets --doc-zoom = availableWidth / 576, the
    screenplay text column; see the column-fit note below) ──────────────────
@@ -13762,6 +14057,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   .doc-paper:not(.is-fit-width) .doc-page-sheet { width: 100%; }
   .doc-paper:not(.is-fit-width) .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
 }
+/* And where the paper is narrower than a page in a wide window (is-narrow,
+   as above). */
+.doc-paper.is-narrow:not(.is-screenplay) .doc-editor-wrap.doc-flow { width: 100%; max-width: 100%; }
+.doc-paper.is-narrow:not(.is-screenplay) .doc-page-sheet { width: 100%; }
+.doc-paper.is-narrow:not(.is-screenplay) .doc-editor-wrap.doc-flow .tt-editor { padding: 56px 24px 0; }
 
 /* Suppress any browser-injected focus ring on the contenteditable —
    the Tiptap editor already has outline: none, but Chrome can still
@@ -14493,6 +14793,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-sep { display: none; }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-x { grid-row: 1; grid-column: 6; }
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-find-input--replace { grid-row: 2; grid-column: 1; }
+/* A finger's 40px; and the fields' text at 16px wherever a finger types, not
+   only on a phone (under it, iOS zooms the page in on focus). */
+@media (hover: none) and (pointer: coarse) {
+  .doc-find-input { height: 40px; font-size: 16px; }
+  .doc-find-btn, .doc-find-x { min-width: 40px; height: 40px; }
+}
 .doc-find-hit {
   background: var(--soleil-soft);
   border-bottom: 1px solid var(--soleil);
@@ -14627,6 +14933,57 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .tt-embed-title { font-size: 13.5px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.005em; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tt-embed-arrow { color: var(--ink-3); flex-shrink: 0; }
 
+/* An image on its way into a doc (docExtensions/ImageUpload.js): the picture
+   from the file itself, its name and how far it has got, in the spot it will
+   land; a failed one says so there, with Retry and Remove. Neutral, like the
+   embed above — never gold. It sits in the text, so it resets what a
+   screenplay line or a heading would hand down. */
+.doc-upload {
+  display: flex; align-items: center; gap: 12px;
+  width: min(100%, 420px);
+  margin: 1em 0;
+  padding: 10px 12px 10px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  font: 400 13px/1.3 var(--font-sans);
+  letter-spacing: normal; text-transform: none; text-align: left; text-indent: 0;
+  white-space: normal;
+  user-select: none; -webkit-user-select: none;
+}
+.doc-upload [hidden] { display: none; }
+.doc-upload-thumb {
+  width: 56px; height: 56px; flex-shrink: 0;
+  border-radius: 6px; overflow: hidden;
+  background: var(--bg-act);
+}
+.doc-upload-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: .6; }
+.doc-upload-meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.doc-upload-name { font-weight: 600; color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-upload-state { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.doc-upload-bar { display: block; height: 3px; border-radius: 2px; background: var(--line-2); overflow: hidden; }
+.doc-upload-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--ink-2); transition: width var(--dur-base) var(--ease); }
+.doc-upload-error { font-size: 12px; color: var(--ink-error); }
+.doc-upload-actions { display: flex; gap: 6px; }
+.doc-upload-act {
+  appearance: none;
+  height: 26px; padding: 0 10px;
+  border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: transparent; color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.doc-upload-act:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-upload-act:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.doc-upload.is-failed { border-color: color-mix(in srgb, var(--ink-error) 45%, var(--line-2)); }
+.doc-upload.is-failed .doc-upload-thumb img { opacity: .35; }
+@media (pointer: coarse) {
+  .doc-upload-act { height: 40px; padding: 0 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .doc-upload-fill { transition: none; }
+}
+
 /* ─────── Image alignment + resize ─────── */
 .tt-img-wrap {
   position: relative;
@@ -14678,9 +15035,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   .tt-img-resize { width: 22px; height: 22px; }
 }
 .tt-img-wrap.is-selected .tt-img-resize { opacity: 1; }
+/* Above the image; below it, or inside its visible top (an inline top), when
+   the view has no room above (ImageResizable's placeBar sets data-place). */
 .tt-img-tb {
   position: absolute;
-  top: -36px; left: 50%; transform: translateX(-50%);
+  bottom: 100%; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 2px;
   padding: 4px;
   background: var(--bg-1);
@@ -14691,6 +15050,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: opacity var(--dur-fast) var(--ease);
   z-index: 5;
 }
+.tt-img-tb[data-place="below"] { bottom: auto; top: 100%; }
+.tt-img-tb[data-place="inside"] { bottom: auto; }
 .tt-img-wrap.is-selected .tt-img-tb { opacity: 1; pointer-events: auto; }
 .tt-img-tb-btn {
   appearance: none; border: 0; background: transparent;
@@ -14702,6 +15063,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   font-family: var(--font-sans); font-size: 13px;
 }
 .tt-img-tb-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+@media (pointer: coarse) {
+  .tt-img-tb-btn { width: 40px; height: 40px; }
+}
 .tt-img-tb-sep { width: 1px; height: 14px; background: var(--line-2); margin: 0 3px; }
 
 /* ─────── Comment marks + panel ─────── */
@@ -14859,6 +15223,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
   overflow: hidden;
+  /* Holds a doc opened beside the docked one (.is-doc-beside). */
+  position: relative;
 }
 .split-divider {
   width: 6px;
@@ -14987,6 +15353,14 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .split-close:hover { opacity: 1; color: var(--ink-0); background: var(--bg-hov); }
 .split-close:focus-visible { outline: none; opacity: 1; box-shadow: var(--shadow-glow); }
 @media (prefers-reduced-motion: reduce) { .split-close { transition: none; } }
+/* A finger: the 6px divider grabs 30px and a drag on it resizes rather than
+   scrolling, and its close is 32px drawn, 40 to touch (above the grab). */
+@media (pointer: coarse) {
+  .split-divider { touch-action: none; }
+  .split-divider::after { content: ''; position: absolute; top: 0; bottom: 0; left: -12px; right: -12px; }
+  .split-close { z-index: 1; width: 32px; height: 32px; }
+  .split-close::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; }
+}
 
 
 .split-pane.is-active { position: relative; }
@@ -15339,6 +15713,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   animation: none;
 }
 .surface-wrap.is-doc-pane { background: var(--bg-1); }
+/* A doc opened beside the docked one takes the main pane's place, over the
+   board, which stays mounted under it as it was (lib/docPanes.js). Its own
+   stacking context (.surface-wrap isolates) sits above the board's, under the
+   active pane's gold edge (4) and the divider (5). */
+.surface-wrap.is-doc-beside { position: absolute; inset: 0; z-index: 1; }
 @keyframes doc-card-modal-in {
   from { opacity: 0; transform: scale(.985); }
   to   { opacity: 1; transform: scale(1); }
@@ -15452,7 +15831,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 
 .doc-card-modal-body { flex: 1 1 auto; min-height: 0; display: flex; }
-.doc-card-modal-body > .doc-surface { flex: 1 1 auto; min-width: 0; }
+/* Through the doc's error boundary (SurfaceErrorBoundary's display:contents root). */
+.doc-card-modal-body > .doc-surface,
+.doc-card-modal-body > .surface-eb-root > .doc-surface { flex: 1 1 auto; min-width: 0; }
 /* Suspense fallback while the lazy DocSurface (TipTap) chunk loads — lives
    inside the already-open modal so the canvas never blanks. */
 .doc-surface-skeleton {
@@ -15470,6 +15851,23 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (prefers-reduced-motion: reduce) {
   .doc-surface-skeleton { animation: none; background: var(--bg-1); }
 }
+/* A doc opening (components/DocOpening.jsx): the shimmer above, and if it is
+   slow, the doc's own empty-state words with a reload. */
+.doc-opening {
+  flex: 1 1 auto; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.doc-opening.is-stalled {
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center;
+  background: var(--bg-1);
+}
+.doc-opening-say {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: var(--ink-3);
+}
+.doc-opening-say .t-eyebrow { color: var(--ink-3); }
+.doc-opening-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 /* Doc editor right-click context menu */
 .doc-ctx {
@@ -16212,6 +16610,57 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 /* The list view takes focus when it shows so Escape reaches it; the
    container itself draws no ring (its controls keep theirs). */
 .msg-panel:focus { outline: none; }
+/* One panel, two panes (MessagesPanel): a conversation is a pane over the
+   list, and the list stays mounted under it, inert and hidden, so it keeps
+   its place and nothing replays the panel's entrance on a switch. */
+.msg-pane {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0;
+}
+.msg-pane-list[inert] { visibility: hidden; }
+.msg-pane-thread:focus { outline: none; }
+/* Closing plays an exit before the panel goes (MessagesPresence waits for
+   it); under reduced motion it goes at once. */
+.msg-panel[data-state="closing"] {
+  animation: msg-panel-out 160ms var(--ease) forwards;
+  pointer-events: none;
+}
+@keyframes msg-panel-out { to { opacity: 0; transform: translateY(4px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) {
+  .msg-panel[data-state="closing"] { animation: none; }
+}
+/* A message's actions under a finger (MessageActionSheet): what it says, a
+   row of reactions, then one action a row, each a finger's size. Over a doc
+   overlay the panel is lifted, so the sheet goes above it. */
+body[data-doc-overlay='1'] .sheet-root.msg-sheet { z-index: 2147483604; }
+/* A phone's width wherever it opens: on a tablet a full-width sheet spread
+   the reactions a screen apart. */
+.sheet-root.msg-sheet { align-items: center; }
+.sheet-root.msg-sheet .sheet-panel { width: 100%; max-width: 480px; }
+.msg-sheet-quote {
+  padding: 2px 4px 12px;
+  color: var(--ink-2); font: 400 14px/1.4 var(--font-sans);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.msg-sheet-reactions { display: flex; justify-content: space-between; gap: 4px; padding: 0 0 10px; }
+.msg-sheet-emoji {
+  appearance: none; border: 0; background: var(--bg-3);
+  width: 44px; height: 44px; border-radius: 999px;
+  font-size: 22px; line-height: 1; cursor: pointer;
+}
+.msg-sheet-emoji.is-on { background: var(--soleil-soft); box-shadow: inset 0 0 0 1px var(--soleil); }
+.msg-sheet-actions { display: flex; flex-direction: column; border-top: 1px solid var(--line-1); }
+.msg-sheet-actions button {
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 14px;
+  min-height: 48px; padding: 0 6px;
+  color: var(--ink-0); font: 500 15px/1.2 var(--font-sans); text-align: left;
+  border-bottom: 1px solid var(--line-1);
+  cursor: pointer;
+}
+.msg-sheet-actions button:last-child { border-bottom: 0; }
+.msg-sheet-actions button.is-danger { color: var(--msg-err); }
 
 /* While a doc-card overlay is up, lift the messages panel above it.
    .doc-card-modal is z-index 2147483600 and portals to <body>, so fullscreen
@@ -16291,13 +16740,28 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   padding: 4px 12px 0;
   font: 500 11px/1.3 var(--font-sans);
 }
+/* A search result: who and when, then the words around the match. */
 .msg-search-result {
   appearance: none; border: 0; background: transparent;
-  text-align: left; padding: 0; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+  width: 100%; min-width: 0;
+  text-align: left; padding: 8px 10px; cursor: pointer;
   border-radius: var(--radius);
+  color: var(--ink-1);
   transition: background var(--dur-fast) var(--ease);
 }
-.msg-search-result:hover { background: var(--bg-hov); }
+.msg-search-result:hover, .msg-search-result:focus-visible { background: var(--bg-hov); }
+.msg-search-result-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.msg-search-result-who {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 600 12px/1.3 var(--font-sans); color: var(--ink-0);
+}
+.msg-search-result-time { flex-shrink: 0; font: 500 11px/1.3 var(--font-sans); color: var(--ink-3); }
+.msg-search-result-body {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font: 400 12.5px/1.45 var(--font-sans); color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
 
 .msg-panel-body { flex: 1; overflow-y: auto; padding: 6px; }
 
@@ -16418,14 +16882,67 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 
 .sb-row-count.has-unread { background: var(--ink-0); color: var(--bg-0); padding: 2px 6px; border-radius: 999px; font-weight: 600; }
 
+/* The thread's scroller sits in a wrapper that also holds the jump button, so
+   the button stays just above the composer whatever height the composer is.
+   useStickToBottom keeps the reader at the bottom or holds their place, so the
+   browser's own scroll anchoring is off (Safari has none; two would fight). */
+.msg-thread-scroll {
+  position: relative;
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
 .msg-thread-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-anchor: none;
   padding: 12px;
   display: flex; flex-direction: column;
   gap: 0; /* sender-grouping owns the vertical rhythm via per-bubble margins */
   position: relative;
 }
+.msg-thread-content {
+  display: flex; flex-direction: column;
+  /* Never shrink to the scroller: the observer has to see it grow. */
+  flex-shrink: 0;
+  min-height: 100%;
+}
+.msg-thread-end { height: 1px; flex-shrink: 0; }
+/* "Replying to …": above the composer while a reply is being written. */
+.msg-reply-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 4px 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+.msg-reply-bar-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.msg-reply-bar-who { font: 600 12px/1.25 var(--font-sans); color: var(--ink-1); }
+.msg-reply-bar-body { font: 400 12px/1.25 var(--font-sans); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-reply-bar-x {
+  width: 26px; height: 26px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.msg-reply-bar-x:hover { background: var(--bg-hov); color: var(--ink-0); }
+/* A reply whose original was deleted or can't be read. */
+.msg-reply-preview.is-gone { cursor: default; }
+.msg-reply-preview.is-gone .msg-reply-preview-body { font-style: italic; color: var(--ink-2); }
+/* "Seen": a DM, under your newest message once they've read it. */
+.msg-bubble-seen {
+  margin: 3px 0 0 32px;
+  font: 400 11px/1.3 var(--font-sans);
+  color: var(--ink-2);
+}
+/* "New": above the first message since you last read. */
+.msg-new-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 2px 6px;
+  color: var(--ink-1);
+  font: 600 11px/1 var(--font-sans);
+}
+.msg-new-divider::before,
+.msg-new-divider::after { content: ''; flex: 1; height: 1px; background: currentColor; opacity: .4; }
 
 /* "Load earlier messages" — first row of a thread that holds more history
    than its newest page. Scrolling up to it loads the page too; the button is
@@ -16571,7 +17088,10 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   transition: opacity var(--dur-fast) var(--ease);
 }
 .msg-bubble:hover .msg-bubble-actions,
-.msg-bubble-actions.is-visible { opacity: 1; }
+.msg-bubble:focus-within .msg-bubble-actions { opacity: 1; }
+/* Nothing to act on while a message is being edited or sent. */
+.msg-bubble.is-editing .msg-bubble-actions,
+.msg-bubble--pending .msg-bubble-actions { display: none; }
 .msg-bubble-actions button {
   background: transparent; border: 0; color: var(--ink-3);
   width: 24px; height: 24px;
@@ -16654,28 +17174,6 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 }
 .msg-bubble--reply { /* leave room for the preview chip above */ }
 
-/* Replies-count badge — appears under a parent message that has
-   replies. Click → opens thread mode.                                */
-.msg-bubble-replies {
-  appearance: none;
-  display: inline-flex; align-items: center; gap: 6px;
-  margin-left: 32px; margin-top: 2px;
-  padding: 4px 8px;
-  background: var(--bg-3);
-  border: 1px solid var(--line-2);
-  color: var(--ink-1);
-  border-radius: var(--radius);
-  cursor: pointer;
-  font: 600 11.5px/1 var(--font-sans);
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-}
-.msg-bubble-replies:hover { background: var(--bg-hov); border-color: var(--line-3); }
-.msg-bubble-replies svg { color: var(--ink-2); }
-.msg-bubble-replies-time {
-  color: var(--ink-3);
-  font-weight: 500;
-}
-
 /* Markdown elements rendered by renderMessageBody. */
 .msg-bubble-body p.msg-line { margin: 0; }
 .msg-bubble-body p.msg-line + p.msg-line { margin-top: 6px; }
@@ -16757,13 +17255,6 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .msg-pinned-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-
-/* Thread-mode header eyebrow. */
-.msg-thread-header {
-  padding: 0 4px 4px;
-  border-bottom: 1px solid var(--line-1);
-  margin-bottom: 4px;
-}
 
 /* Channel-row unread count pill (right side, replaces timestamp). Unread
    counts are inverse ink everywhere (sidebar, this row, the phone nav badge,
@@ -17047,20 +17538,22 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   30%           { opacity: 1;    transform: translateY(-2px); }
 }
 
-/* Floating "↓ N new messages" pill that appears when a new message
-   arrives while the user is scrolled up reading history.        */
+/* "Latest" / "N new messages": shows whenever the reader is scrolled up,
+   and takes them back to the bottom. Neutral: gold is for selection and focus. */
 .msg-jump-pill {
   position: absolute;
-  left: 50%; transform: translateX(-50%);
-  bottom: 78px;       /* above the composer */
-  appearance: none; border: 0;
-  background: var(--soleil);
-  color: var(--on-soleil);
+  /* Centred without a transform: its entrance animation owns transform. */
+  left: 0; right: 0; margin: 0 auto; width: max-content;
+  bottom: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  appearance: none; border: 1px solid var(--line-2);
+  background: var(--bg-3);
+  color: var(--ink-0);
   font: 600 11.5px/1 var(--font-sans);
-  padding: 7px 14px;
+  padding: 7px 14px 7px 11px;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  box-shadow: var(--shadow-2);
   z-index: 5;
   animation: ctx-menu-in var(--dur-base) var(--ease);
 }
@@ -17114,7 +17607,9 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   padding: 9px 10px;
   outline: none;
   min-height: 38px;
-  max-height: 120px;
+  /* Its height follows the text, up to 8 lines or 40% of the panel
+     (useAutosizeTextarea sets it), then it scrolls inside itself. */
+  overflow-y: hidden;
   transition: box-shadow var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
 }
 .msg-composer-input::placeholder { color: var(--ink-3); }
@@ -17130,6 +17625,7 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
    too for the iPad in landscape, which is outside the phone block's 16px. */
 @media (pointer: coarse) {
   .msg-composer-input,
+  .msg-search-input,
   .share-input,
   .canvas-comment-draft-input,
   .canvas-comment-reply-input,
@@ -17193,13 +17689,44 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
 }
 .msg-composer-att-chip {
   display: inline-flex; align-items: center; gap: 6px;
+  max-width: 100%; min-width: 0;
   background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: var(--radius);
-  padding: 4px 8px;
+  padding: 4px 4px 4px 8px;
   font: 500 11px/1 var(--font-sans);
   color: var(--ink-1);
 }
 .msg-composer-att-chip button { background: transparent; border: 0; color: var(--ink-3); cursor: pointer; }
+/* Each staged file is its own chip: a thumbnail for a picture, then
+   "Uploading…" until it lands, or "Couldn't upload" with Retry. */
+.msg-composer-att-chip:has(.msg-composer-att-thumb) { padding-left: 4px; }
+.msg-composer-att-thumb {
+  width: 22px; height: 22px; flex-shrink: 0;
+  border-radius: 4px; object-fit: cover;
+  background: var(--bg-act);
+}
+.msg-composer-att-name { min-width: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-composer-att-state { flex-shrink: 0; color: var(--ink-3); }
+.msg-composer-att-chip.is-uploading .msg-composer-att-thumb { opacity: .55; }
+.msg-composer-att-chip.is-uploading .msg-composer-att-state { animation: msg-att-pulse 1.4s var(--ease) infinite; }
+@keyframes msg-att-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .msg-composer-att-chip.is-uploading .msg-composer-att-state { animation: none; }
+}
+.msg-composer-att-chip.is-failed { border-color: color-mix(in srgb, var(--msg-err) 45%, var(--line-2)); }
+.msg-composer-att-chip.is-failed .msg-composer-att-state { color: var(--msg-err); }
+.msg-composer-att-chip .msg-composer-att-retry {
+  flex-shrink: 0;
+  padding: 2px 6px; border-radius: var(--radius);
+  color: var(--ink-1); font: 600 11px/1 var(--font-sans);
+}
+.msg-composer-att-chip .msg-composer-att-retry:hover { color: var(--ink-0); background: var(--bg-act); }
+.msg-composer-att-chip .msg-composer-att-x {
+  flex-shrink: 0;
+  width: 18px; height: 18px; border-radius: 4px;
+  display: grid; place-items: center;
+}
+.msg-composer-att-chip .msg-composer-att-x:hover { color: var(--ink-0); background: var(--bg-act); }
 
 .msg-pill {
   display: inline-block;
@@ -18453,11 +18980,18 @@ select.settings-input {
    into a 68px column, one word per line. */
 .settings-cat-title { font: 600 13px/1 var(--font-sans); color: var(--ink-0); flex: 0 0 auto; white-space: nowrap; }
 .settings-cat-desc { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); flex: 1 1 auto; min-width: 0; }
+/* A number the card is about, at the head's far end ("10 of 10"). */
+.settings-cat-aside {
+  flex: 0 0 auto; margin-left: auto;
+  font: 500 12px/1 var(--font-sans); color: var(--ink-2);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
 /* Phone: too narrow for a column beside the title; the description goes
    under it. */
 @media (max-width: 640px) {
   .settings-cat-head { flex-direction: column; align-items: flex-start; gap: 4px; }
   .settings-cat-title { white-space: normal; }
+  .settings-cat-aside { margin-left: 0; }
 }
 .settings-cat-body { display: flex; flex-direction: column; }
 .settings-size-row { display: flex; align-items: center; gap: 8px; }
@@ -18591,6 +19125,11 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .canvas-comment-layer,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .msg-panel,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .split-close,
+/* The desktop bar's floating islands (FloatingChrome.jsx), with the files sidebar: */
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .chrome-layer,
+/* The import tray and its corner chip (ImportTray.jsx); the import keeps going. */
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .imptray,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .imptray-chip,
 /* Mobile / overlay chrome the original clean-mode list missed: */
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .mb-nav,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .board-tags-strip,
@@ -19139,7 +19678,7 @@ body:not([data-capture-clean='1']) .capture-hud-dot {
    cards are deliberately NOT locked: create/content steps need a canvas click to
    drop a card, and the cluster card itself is the .tour-target on rename/open. */
 body[data-tour-active] :is(
-  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .mb-nav,
+  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .chrome-island, .mb-nav,
   .cnv-comments-eye, .cnv-zoom, .upgrade-chip, .feedback-trigger, .fv-banner
 ) { pointer-events: none; }
 body[data-tour-active] :is(
@@ -19231,6 +19770,14 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   border-bottom: 1px solid var(--line-1);
   background: var(--bg-0);
 }
+/* The desktop bar holds more than one row of the pad can (the pad is at most
+   1200px wide). It wraps onto a second row, as the doc toolbar does under a
+   mouse, rather than squeezing its controls (a colour swatch drew 4px wide)
+   and pushing Add and Close past the pad's edge. Its groups wrap whole. The
+   compact rows (.sp-bar-row) stay fixed. */
+.sketchpad-toolbar:not(.sp-bar-row) { flex-wrap: wrap; row-gap: 8px; }
+.sketchpad-toolbar:not(.sp-bar-row) > * { flex-shrink: 0; }
+.sp-swatches, .sp-widths { display: flex; gap: 6px; align-items: center; }
 .sp-sep {
   width: 1px; height: 18px;
   background: var(--line-2);
@@ -19634,7 +20181,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   .sp-width { width: 48px; height: 44px; }
   .sp-action { min-height: 44px; padding: 10px 16px; }
   .sp-x { width: 44px; height: 44px; }
-  .sp-aspect { padding: 8px 10px; }
+  .sp-aspect { padding: 8px 10px; min-width: 40px; }
   .sp-aspect-box { width: 38px; }
 }
 
@@ -20926,14 +21473,17 @@ button, [role="button"], a {
      44px tap minimum. Bump to 40px on phone. Also top-anchor it (instead of
      vertically centred) and cap its height so on a short / landscape phone the
      ~8 enlarged buttons can't collide with the topbar or the bottom nav — the
-     strip scrolls internally instead. The left-strip "+" stays: it opens the
+     strip scrolls internally instead. It hangs in .canvas-wrap, which starts
+     under the topbar, so the cap is that box's height (100%) less its top and
+     the nav: taken from the window, it left the last tools behind the nav on a
+     phone held sideways. The left-strip "+" stays: it opens the
      secondary-type menu (Doc/File/Shape/Palette/Linked board), which the
      note-only bottom-nav "+" does not cover. */
   .cnv-tools {
     left: max(8px, env(safe-area-inset-left, 0px));
     top: calc(48px + var(--safe-top, 0px) + 8px);
     transform: none;
-    max-height: calc(100dvh - (48px + var(--safe-top, 0px)) - (56px + var(--safe-bottom, 0px)) - 16px);
+    max-height: calc(100% - (48px + var(--safe-top, 0px) + 8px) - (56px + var(--safe-bottom, 0px)) - 8px);
     overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -20941,6 +21491,10 @@ button, [role="button"], a {
   }
   .cnv-tools::-webkit-scrollbar { display: none; }
   .cnv-tool { width: 40px; height: 40px; }
+  /* The strip scrolls; it never squeezes its tools to fit. A flex column
+     shrinks its children to their icons first, which drew a phone held
+     sideways's tools 20px tall. */
+  .cnv-tools > * { flex-shrink: 0; }
   .cnv-tool-sep { margin: 4px 6px; }
 
   /* Canvas zoom controls (bottom-right) — push above the bottom nav
@@ -21140,6 +21694,7 @@ button, [role="button"], a {
   .share-access-pick { max-width: 150px; min-height: 36px; }
   .share-scope-btn { padding: 9px 11px; }
   .share-foot-btn { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .lim-btn { min-height: 40px; padding-left: 14px; padding-right: 14px; }
   /* Presence: one face and a "+N" (App.jsx passes max=1), overlapped. */
   .topbar .ws-presence { gap: 0; padding: 0 2px; }
   .topbar .ws-presence-status { margin-right: 4px; }
@@ -21242,18 +21797,39 @@ button, [role="button"], a {
      Rules here keep desktop-mouse density on real mice but enlarge tap
      targets on touch. */
 
+  /* The tool rail: 40px a button wherever a finger drives it. The phone and
+     portrait-tablet block above sized it; an iPad held sideways is wider than
+     that block and kept the 30px mouse rail. */
+  .cnv-tool { width: 40px; height: 40px; }
+
   /* Doc editor toolbar — 28px buttons → 40px so the user can hit
      bold/italic/list/etc. with a finger without misfires. */
   .doc-tb-btn { width: 40px; height: 40px; }
-  .doc-tb-zoom .doc-tb-btn { width: 40px; height: 36px; }
-  /* Labeled pills (font picker, screenplay toggle) grow to match. */
-  .doc-tb-pill { height: 40px; }
+  .doc-tb-zoom .doc-tb-btn { width: 40px; height: 40px; }
+  /* Labeled pills (font picker, screenplay toggle) grow to match, and so do
+     the selects and the size field, whose presets' chevron takes the field's
+     right end (the field grows to hold it). The selects' text is 16px, as the
+     field's is, or iOS zooms the page in on focus, and the pills' labels match
+     them, so the bar reads as one size. The selects and the font pill widen to
+     hold their longest at that size ("Heading 6", "Scene Heading"; a font's
+     name still ends in … where it did). */
+  .doc-tb-pill, .doc-tb-select { height: 40px; }
+  .doc-tb .doc-tb-pill, .doc-tb-select { font-size: 16px; }
+  .doc-tb .doc-tb-pill { width: 140px; min-width: 140px; max-width: 140px; }
+  .doc-tb-select { width: 110px; min-width: 110px; }
+  .doc-tb-select.doc-tb-select--sp { width: 146px; min-width: 146px; }
+  .doc-tb .size-combo { width: 88px; height: 40px; padding-right: 40px; }
+  .doc-tb .size-combo-arrow { right: 0; width: 40px; height: 40px; }
 
-  /* MessageBubble row action buttons that fade in on hover are
-     unreachable on touch. Make the per-row action stack always visible
-     on coarse pointer (per-component opacity audit lands in P3.5;
-     this is the global safety net). */
-  .msg-row-actions { opacity: 1 !important; }
+  /* Messages: a message's actions are a press and hold away under a finger
+     (MessageActionSheet), so the hover chip, which a tap only flashed, stays
+     out of the way; and a hold opens the sheet rather than starting a text
+     selection or raising the system's callout. */
+  .msg-bubble-actions { display: none !important; }
+  .msg-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  /* …except the box you edit a message in: WebKit inherits user-select, and
+     a field you can't place the caret in can't be edited. */
+  .msg-bubble textarea { -webkit-touch-callout: default; -webkit-user-select: text; user-select: text; }
 
   /* Hover-reveal affordances across cards/docs/palettes. On a real
      mouse, parent:hover reveals these; on touch there's no hover so
@@ -21300,10 +21876,15 @@ button, [role="button"], a {
      fat-fingered. */
   .ctx-item { min-height: 40px; }
   .ent-pop-foot-btn { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+  /* The toolbars' lists: Export's rows, the fonts (the note bar's too) and
+     the size presets. */
+  .doc-export-menu button, .font-pop-row, .size-combo-item { min-height: 40px; }
 
-  /* The card "⋯" options button is touch-only: on a real mouse the card
-     context menu opens via right-click, so it stays hidden there. */
-  .card.is-selected > .card-menu-btn { display: flex; }
+  /* The selection's "⋯" options button is touch-only: on a real mouse the
+     card context menu opens via right-click, so it stays hidden there. 36px
+     drawn, 44px to a finger. */
+  .sel-menu > .card-menu-btn { display: flex; }
+  .sel-menu > .card-menu-btn::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
 
   /* Resize (14px) + rotate (12px) handles were the ONLY card affordances not
      bumped for touch — a finger essentially couldn't resize or rotate. Enlarge
@@ -21318,6 +21899,31 @@ button, [role="button"], a {
   .card-resize::before { content: ''; position: absolute; inset: -8px; }
   .card-rotate { width: 18px; height: 18px; margin-left: -9px; }
   .card-rotate::after { content: ''; position: absolute; inset: -11px; }
+
+  /* The rest of what a finger met under 40px where the desktop layout draws
+     on a touch screen, an iPad held sideways (tests/touch/touch-targets.spec.js).
+     Where the drawn size is the look, a clear ::before takes the finger. */
+  .sb-search { min-height: 40px; }
+  .topbar .tb-btn, .tb-admin-btn, .topbar .view-pill-btn { position: relative; }
+  .topbar .tb-btn::before { content: ''; position: absolute; inset: -5px 0; }
+  .tb-admin-btn::before { content: ''; position: absolute; inset: -8px -2px; }
+  .topbar .view-pill-btn::before { content: ''; position: absolute; inset: -8px 0; }
+  .cnv-comments-eye::before { content: ''; position: absolute; inset: -10px -5px; }
+  .cnv-zoom button { width: 40px; height: 40px; }
+  .cnv-zoom-slider { height: 40px; }
+  .cnv-zoom-val { align-self: stretch; display: grid; place-items: center; }
+}
+
+/* Board · Files as glyphs in the mobile shell's bar: 40px each to a finger.
+   Each glyph is 32px drawn; the pill's 4px rim and the bar's 4px gap on its
+   outer ends belong to nobody, so the outer ends reach across both rather
+   than the pill drawing wider. At 360px with people online the bar has no
+   8px to give the pill (phone-topbar-fit.spec.js keeps the cluster's name
+   48px). The block above gives the height. */
+@media (max-width: 640px) and (pointer: coarse),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .topbar .view-pill-btn:first-child::before { left: -8px; }
+  .topbar .view-pill-btn:last-child::before { right: -8px; }
 }
 
 /* -------------------------------------------------------------------------
@@ -21428,6 +22034,28 @@ button, [role="button"], a {
   color: var(--ink-1);
   text-align: center;
 }
+/* The sheet's "New cluster" row (CanvasSurface, behind clusterNudgesAllowed):
+   full width above the tiles and raised like the desktop bar's pill, because
+   on a phone there is no bar to put that pill in. Never gold at rest. */
+.mobile-add-cluster {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 64px; margin: 0 0 10px; padding: 10px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-3);
+  color: var(--ink-0);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.mobile-add-cluster:active { transform: scale(0.98); background: var(--bg-4); }
+.mobile-add-cluster:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.mobile-add-cluster:active .mobile-add-ico,
+.mobile-add-cluster:focus-visible .mobile-add-ico { color: var(--soleil); }
+.mobile-add-cluster-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mobile-add-cluster-lbl { font: 600 14px/1.2 var(--font-sans); color: var(--ink-0); }
+.mobile-add-cluster-sub { font: 500 12px/1.35 var(--font-sans); color: var(--ink-2); }
 
 
 /* MobileBottomNav -------------------------------------------------------- */
@@ -21956,6 +22584,21 @@ button, [role="button"], a {
 .doc-paper.is-screenplay .doc-editor-wrap:not(.sp-title-page) {
   padding: 96px 96px 96px 144px;
 }
+/* And the sheet is never squeezed: a paper narrower than the page pans it
+   rather than wrapping the column short of the 60 characters the paginator
+   and the PDF count (DocSurface fits the column to the width there, which is
+   .is-fit-width). Centred while there is room, and from its left edge once it
+   overflows, where auto margins come to nothing, so none of it is out of
+   reach. */
+.doc-paper.is-screenplay { align-items: flex-start; }
+.doc-paper.is-screenplay > .doc-editor-wrap {
+  width: 816px;
+  max-width: 816px;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+.doc-paper.is-screenplay > .doc-empty { align-self: center; }
 .doc-paper.is-screenplay .ProseMirror {
   font-family: 'Courier Prime', 'Courier New', Courier, monospace;
   font-size: 12pt;
@@ -22046,6 +22689,18 @@ button, [role="button"], a {
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-pages-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
 :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 26px; padding: 0 8px; font-size: 11.5px; }
+/* …which it does here, for the whole docked bar: tightened for a mouse, it
+   kept a mouse's 26px under a finger too. It scrolls sideways either way. */
+@media (hover: none) and (pointer: coarse) {
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb { height: 40px; }
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-btn { width: 40px; height: 40px; }
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-select { max-width: none; font-size: 16px; }
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-select,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-screenplay-toggle,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-pages-toggle,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-titlepage-toggle,
+  :is(.doc-card-modal-side, .doc-card-modal-pane) .doc-tb-pill.doc-tb-scenenum-toggle { height: 40px; font-size: 16px; }
+}
 .doc-export-menu .doc-export-sep { height: 1px; margin: 4px 0; background: var(--line-2); }
 
 /* ── Editable on-page screenplay title page (ScreenplayTitlePage) ─────────── */
@@ -22165,14 +22820,15 @@ button, [role="button"], a {
    format button keeps showing it's on. */
 .doc-tb-btn.is-active:focus-visible { box-shadow: var(--shadow-glow), inset 0 -2px 0 0 var(--soleil); }
 
-/* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu). */
+/* Touch-only selection bubble menu in docs (DocPageEditor BubbleMenu): a
+   finger's 40px a button. */
 .doc-bubble {
   display: flex; gap: 2px; padding: 4px;
   background: var(--bg-3); border: 1px solid var(--line-2);
   border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
 }
 .doc-bubble button {
-  min-width: 36px; height: 36px; padding: 0 8px;
+  min-width: 40px; height: 40px; padding: 0 8px;
   border: 0; border-radius: 7px; background: transparent;
   color: var(--ink-1); font-size: 15px; cursor: pointer;
 }
@@ -22488,6 +23144,12 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
  * the accent only on hover, on focus, and on the one that was actually chosen.
  */
 .rr-ask {
+  /* A definite width, not shrink-to-fit. .fv-banner sits at left: 50%, so an
+   * auto width could never pass half the screen: 195px on a 390px phone, too
+   * narrow for the five age segments, and the banner changed width between
+   * its steps. 460px on a desktop, the screen less 24px on a phone, as in the
+   * mockup the owner picked (2026-10-20). */
+  width: min(460px, calc(100vw - 24px));
   max-width: 460px;
   box-shadow: var(--shadow-3);
   /* A COLUMN, unlike every other fv-banner. The frame's default puts actions in
@@ -22561,6 +23223,40 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 }
 
 .rr-chip:disabled:not(.is-picked) { cursor: default; }
+
+/* The optional age range under the roles (owner's pick A, 2026-10-20): a label
+ * and five equal segments, so it reads as one small aside rather than a
+ * second list. The segments are the same chips, centred. */
+.rr-age { margin-top: 14px; }
+.rr-age-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 600 12px/1.2 var(--font-sans);
+  color: var(--ink-1);
+}
+.rr-age-label span { font-weight: 400; color: var(--ink-2); }
+.rr-ages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 7px;
+}
+.rr-ages .rr-chip {
+  padding: 0 2px;
+  font-size: 12.5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A 320px screen leaves 51px a segment only with the side padding trimmed:
+ * "Under 18" is 48px at 11.5px. */
+@media (max-width: 360px) {
+  .rr-ask { padding-left: 12px; padding-right: 12px; }
+  .rr-ages { gap: 4px; }
+  .rr-ages .rr-chip { padding: 0; font-size: 11.5px; }
+}
 
 /* Two rows, not a 30px slot. Field size sets expected answer length: a single
  * line asks for two words, and two words is not what this question is for. */
@@ -22658,6 +23354,35 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 .settings-link-btn.is-danger { color: #ef4444; }
 .settings-invite-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .settings-invite-row input.settings-input { flex: 1; min-width: 180px; }
+/* Settings → Members → People who can edit (the 10-editor limit, 0520): the
+   owner's whole account, a row a person: a face, where they edit, and the two
+   ways to free a place. */
+.settings-editor-list { list-style: none; margin: 0; padding: 0; }
+.settings-editor-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-1); }
+.settings-editor-row:last-child { border-bottom: 0; }
+.settings-editor-row.is-busy { opacity: .6; }
+.settings-editor-av {
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  font: 700 12px/1 var(--font-sans);
+  color: var(--bg-0);
+}
+.settings-editor-av.is-neutral { background: var(--bg-4); color: var(--ink-1); }
+.settings-editor-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.settings-editor-name, .settings-editor-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-editor-name { font: 600 12.5px/1.3 var(--font-sans); color: var(--ink-0); }
+.settings-editor-sub { font: 400 11px/1.3 var(--font-sans); color: var(--ink-3); }
+.settings-editor-role { flex: none; font: 400 12.5px/1 var(--font-sans); color: var(--ink-2); }
+/* The buttons' own 6px reaches past the edge, so the last word lines up with
+   "Owner" and the head's "10 of 10". */
+.settings-editor-acts { flex: none; display: flex; gap: 4px; margin-right: -6px; }
+/* Make viewer and Remove wait under the pointer, as the pick drew them; a
+   waiting invite's Revoke stays, as it drew that; the keyboard and a finger
+   always find them. */
+@media (hover: hover) {
+  .settings-editor-row:not(:hover):not(:focus-within) .settings-editor-acts:not(.is-pending) { opacity: 0; }
+}
 /* Settings → Security (admin, 0369). Its rows lead with an address, and on a
    phone the address is the part that must not be squeezed out: wrap instead. */
 @media (max-width: 640px) {
@@ -22995,6 +23720,11 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
 }
 .fdl-divider:hover::before, .fdl-divider.is-dragging::before { background: var(--line-3); }
 .fdl-divider:focus-visible::before { background: var(--soleil); }
+/* A finger has no hover to find it by: the grip shows, and grabs 28px. */
+@media (pointer: coarse) {
+  .fdl-divider { width: 28px; margin: 0 -14px; }
+  .fdl-grip { opacity: 1; }
+}
 /* Opening beside the board: a short slide in. Letting go here would close
    it: the panel fades, so the preview reads before the release. */
 .fdl-files { transition: opacity var(--dur-base) var(--ease); }
@@ -23054,7 +23784,7 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
 .cbt--compact .cbt-input { width: 0; }
 .cbt-btn-ico { flex: none; }
 @container files (max-width: 340px) {
-  .cbt--compact .cbt-btn-label, .cbt--compact .cbt-btn-chev { display: none; }
+  .cbt--compact .cbt-btn-label { display: none; }
   .cbt--compact .cbt-btn { padding-inline: 7px; }
 }
 .cbt-titlerow, .cbt-row { display: flex; align-items: center; gap: 6px; min-width: 0; justify-content: flex-start; }
@@ -23226,10 +23956,6 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 }
 .pb-link { cursor: pointer; }
 .pb-link:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
-.cbt-note {
-  margin-top: -2px;
-  font: 400 11px/1.3 var(--font-sans); color: var(--ink-2);
-}
 
 /* Folder rows in full Files: a little larger, with who's inside. */
 .ft-grid.is-full { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
@@ -23263,12 +23989,6 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   border: 1px solid var(--line-2); border-radius: 999px;
   font: 500 10px/1.5 var(--font-sans); color: var(--ink-2);
   white-space: nowrap;
-}
-.ct-tile-onboard {
-  position: absolute; left: 6px; bottom: 6px; margin: 0;
-  border-color: transparent;
-  background: rgba(10, 10, 12, 0.62); backdrop-filter: blur(6px);
-  color: #fff;
 }
 .ct-tile[draggable="true"], .ct-row[draggable="true"] { -webkit-user-drag: element; }
 /* The drag image for a multi-file drag — rendered off-screen for one frame. */
@@ -23361,7 +24081,6 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 }
 /* Tile size: S / M / L, in the toolbar and the panel's View menu. */
 .cbt-sizepill .view-pill-btn { min-width: 26px; padding: 0 6px; font: 600 11px/1 var(--font-sans); }
-.cbt-sizes { padding: 2px 8px 6px; }
 
 /* ── Files: selection and actions ─────────────────────────────────────────── */
 .list-empty-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -23386,7 +24105,6 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 /* …and keyboard FOCUS on a tile (the list's tab stop) a full 2px gold ring,
    whatever else the tile is. After the cursor and selection rules on purpose. */
 .ct-jg .ct-tile:focus-visible .ct-tile-preview { outline: 2px solid var(--soleil); outline-offset: 2px; }
-.cb-slimbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .lp-drop {
   height: var(--ctl-h); box-sizing: border-box; padding: 0 12px;
   display: flex; align-items: center; justify-content: center; text-align: center;
@@ -23407,7 +24125,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .list-empty.is-compact .list-empty-title { font: 600 13px/18px var(--font-sans); color: var(--ink-0); }
 .list-empty.is-compact .list-empty-sub { font: 400 12px/16px var(--font-sans); color: var(--ink-2); max-width: 30ch; margin: 4px auto 16px; }
 .list-empty-ico { width: 28px; height: 28px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; background: var(--files-paper, var(--bg-3)); box-shadow: inset 0 0 0 1px var(--files-edge, var(--line-1)); color: var(--ink-2); }
-.cluster-browser-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.cluster-browser-empty { padding: 40px 12px; text-align: center; color: var(--ink-2); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 /* Info sits on the Files floor, not over the canvas: no glass. */
 .cb-detail.surface-frosted {
   background: var(--files-paper, var(--bg-3)); border: 1px solid var(--files-edge, var(--line-2));
@@ -23512,7 +24230,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 @media (prefers-reduced-motion: reduce) { .list-wrap .ct-thumb-spin { border-color: color-mix(in srgb, var(--ink-0) 30%, transparent); } }
 
 /* Labels and counts: one colour, quieted by weight, never by a failing grey. */
-.list-section-count { font: 500 10px/1 var(--font-sans); letter-spacing: 0; color: var(--files-label, var(--ink-2)); }
+.list-section-count { font: 500 10px/1 var(--font-sans); letter-spacing: 0; text-transform: none; color: var(--files-label, var(--ink-2)); }
 .list-section-meta { font-size: 11px; }
 /* The selection bar is an overlay: an edge that holds over the tiles. */
 .list-wrap .list-selbar { border-color: var(--files-overlay-edge); }
@@ -23626,9 +24344,6 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .ct-row .ir-input { height: 26px; }
 .ft .ir-input, .ct-jg .ir-input { margin: 0; }
 
-/* ── Files not on the board (lib/placement.js) ───────────────────────────── */
-/* Neutral, like "On board": a fact about the file, never a selection. */
-.ct-tile-onboard.is-off { border: 1px dashed rgba(255, 255, 255, 0.45); }
 /* An empty board whose cluster has files waiting in Files. */
 .cnv-waiting {
   position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
@@ -23642,11 +24357,27 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 /* Touch: every Files control reads --ctl-h, so the whole toolbar grows
    together; a 16px search stops iOS zooming the page on focus. */
 @media (pointer: coarse) {
-  .list-wrap { --ctl-h: 36px; }
-  .list-wrap .cbt .view-pill-btn { height: 30px; }
+  .list-wrap { --ctl-h: 40px; }
+  .list-wrap .cbt .view-pill-btn { position: relative; height: 34px; min-width: 40px; padding: 0 12px; }
+  .list-wrap .cbt .view-pill-btn::before { content: ''; position: absolute; inset: -3px 0; }
+  /* The whole box takes the tap that focuses the search, not its 18px line. */
+  .list-wrap .cbt-input { align-self: stretch; margin: -1px 0; }
+  .list-wrap .pb-name { height: var(--ctl-h); }
+  /* The tile's download disc stays 22px drawn; a finger gets 40. */
+  .ct-tile-dl { top: 9px; right: 9px; }
+  .ct-tile-dl::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; }
   .list-wrap .cbt-sizepill.view-pill { height: var(--ctl-h); }
-  .list-wrap .list-selbar-act { height: 36px; }
+  /* The selection bar is where a finger acts on what it picked: 40px a
+     button, beside the board too, where a mouse gets 26. */
+  .list-wrap .list-selbar-act,
+  .list-wrap.is-panel .list-selbar-act { height: 40px; min-width: 40px; justify-content: center; }
   .list-wrap .cbt-input { font-size: 16px; }
+  /* The tile's round check is 24px drawn; a finger gets 44, once it shows.
+     Hidden (nothing picked), it takes no taps: the tile under it does. */
+  .ct-tile-check { pointer-events: none; }
+  .ct-jg:has(.ct-tile.is-selected) .ct-tile-check,
+  .list-wrap.is-selecting .ct-tile-check { pointer-events: auto; }
+  .ct-tile-check::before { content: ''; position: absolute; inset: -10px; border-radius: 50%; }
 }
 
 /* Clear-formatting glyph (doc toolbar + note bar): a "Tx", the convention from

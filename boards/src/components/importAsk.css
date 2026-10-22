@@ -1,0 +1,58 @@
+/* ImportAskDialog (components/ImportAskDialog.jsx): the question asked before a
+   bulk import moves anything, the owner's pick A, 2026-10-19. Behaviour comes
+   from the shared Modal; only the look lives here. Gold is only on the paid
+   step (.is-primary) and on focus rings; the fit bar is neutral ink. */
+
+.impask-back { z-index: 1200; }
+
+.impask {
+  width: min(500px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-1);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+.impask-head { flex: none; padding: 18px 20px 14px; border-bottom: 1px solid var(--line-1); }
+.impask-kicker { margin-bottom: 6px; color: var(--ink-3); font: 600 10px/1 var(--font-sans); letter-spacing: .07em; text-transform: uppercase; }
+.impask-title { color: var(--ink-0); font: 600 17px/1.25 var(--font-sans); }
+.impask-sub { margin-top: 4px; color: var(--ink-2); font: 400 13px/1.4 var(--font-sans); font-variant-numeric: tabular-nums; }
+.impask-body { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px 18px; overflow-y: auto; min-height: 0; }
+.impask-fit { display: flex; flex-direction: column; gap: 8px; }
+.impask-bar { height: 6px; border-radius: 3px; background: var(--sbf-meter); overflow: hidden; }
+.impask-bar span { display: block; height: 100%; border-radius: 3px; background: var(--ink-1); }
+.impask-legend {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--ink-2);
+  font: 400 12.5px/1.3 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.impask-legend b { color: var(--ink-0); font-weight: 600; }
+.impask-lede { margin: 0; color: var(--ink-1); font: 400 14px/1.5 var(--font-sans); }
+.impask-offer { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 8px; background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line-1); }
+.impask-offer-name { color: var(--ink-0); font: 600 13px/1.3 var(--font-sans); }
+.impask-offer-text { color: var(--ink-1); font: 400 13px/1.45 var(--font-sans); }
+.impask-note { margin: 0; color: var(--ink-3); font: 400 12px/1.5 var(--font-sans); }
+.impask-actions { flex: none; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--line-1); }
+
+.impask-btn {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px;
+  border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg-2); color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans); cursor: pointer; white-space: nowrap;
+}
+.impask-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.impask-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.impask-btn.is-primary { background: var(--soleil); border-color: var(--soleil); color: #1a1205; font-weight: 600; }
+.impask-btn.is-primary:hover { filter: brightness(1.06); }
+.impask-btn.is-default { border-color: color-mix(in srgb, var(--ink-0) 34%, transparent); color: var(--ink-0); }
+@media (hover: none) and (pointer: coarse) { .impask-btn { min-height: 40px; } }
+
+/* ImportZipDialog: the list of zips being added. */
+.impzip { width: min(460px, calc(100vw - 32px)); }
+.impzip-list { display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
+.impzip-row { display: flex; align-items: center; gap: 10px; height: 30px; color: var(--ink-1); font: 400 13px/1 var(--font-sans); }
+.impzip-row svg { flex: none; color: var(--ink-3); }
+.impzip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.impzip-size { flex: none; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.impzip-more { padding-top: 4px; color: var(--ink-3); font: 400 12px/1.4 var(--font-sans); }

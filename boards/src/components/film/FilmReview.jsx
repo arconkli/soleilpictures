@@ -1,8 +1,9 @@
 // The review player: the clip, full size, in a dark room —
 //
 //   header  title · facts (version, label, fps, size, length); the versions
-//           as pills; Compare (pick a second version — \ flips between them
-//           on the same frame); shortcuts; close
+//           as pills (a menu past four, or in a narrow header); Compare (pick
+//           a second version — \ flips between them on the same frame);
+//           shortcuts; close
 //   stage   FilmPlayer mode="full" with its dock
 //   rail    an optional column beside it for what's said about the clip
 //           (frame comments come in through `rail`)
@@ -22,6 +23,9 @@ import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { cardLinkUrl } from '../../lib/cardLink.js';
 import { downloadCardAsset } from '../../lib/cardDownload.js';
 import { Icon } from '../Icon.jsx';
+import { fileSharesAllowed } from '../../lib/appHost.js';
+import { isShareableCard } from '../../lib/fileShares.js';
+import { FileShareButton } from '../fileShare/FileShareButton.jsx';
 import { X, Keyboard, SquareSplitHorizontal, ChevronDown } from '../../lib/icons.js';
 
 // The fields a version's player needs, from a version entry or the card.
@@ -44,7 +48,7 @@ const noFocus = (e) => { if (e.pointerType === 'mouse') e.preventDefault(); };
 export function FilmReview({
   card, title = '', onClose, initialVersionId = null, initialFrame = null, initialTime = null, autoPlay = true,
   rail = null, playerRef: externalRef = null, onFrameChange, markers = [], ghostMarkers = [], overlay = null, overlayLive = false,
-  onAction, boardId = null, cardId = null,
+  onAction, boardId = null, cardId = null, canEdit = false,
 }) {
   const versions = useMemo(() => liveVersions(card), [card]);
   const current = useMemo(() => currentOf(card), [card]);
@@ -79,7 +83,9 @@ export function FilmReview({
     rootRef.current?.focus({ preventScroll: true });
     const onKey = (e) => {
       if (e.key !== 'Tab' || !modalGuard.isTopModal?.(modalRef.current)) return;
-      const els = [...(rootRef.current?.querySelectorAll(FOCUSABLE) || [])];
+      // Only what's drawn: a narrow header hides the pills, a wide one the
+      // menu that stands in for them.
+      const els = [...(rootRef.current?.querySelectorAll(FOCUSABLE) || [])].filter((el) => el.getClientRects().length > 0);
       if (!els.length) { e.preventDefault(); return; }
       const first = els[0], last = els[els.length - 1];
       if (e.shiftKey && (document.activeElement === first || document.activeElement === rootRef.current)) { e.preventDefault(); last.focus(); }
@@ -165,24 +171,26 @@ export function FilmReview({
           <span className="frv-title" title={title}>{title}</span>
           {facts && <span className="frv-sub">{facts}</span>}
         </div>
+        {many && versions.length <= 4 && (
+          <div className="frv-pills" role="radiogroup" aria-label="Version">
+            {versions.map((x) => (
+              <button key={x.id} type="button" onPointerDown={noFocus} role="radio" aria-checked={x.id === v?.id}
+                      className={`frv-pill${x.id === v?.id ? ' is-shown' : ''}${x.id === current?.id ? ' is-current' : ''}`}
+                      title={`${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}${x.id === current?.id ? ' (current)' : ''}`}
+                      onClick={() => showVersion(x.id)}>
+                {versionLabel(x)}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* More versions than pills hold: a menu; and a narrow header, which
+            has no room for the pills, shows it in their place. */}
         {many && (
-          versions.length <= 4 ? (
-            <div className="frv-pills" role="radiogroup" aria-label="Version">
-              {versions.map((x) => (
-                <button key={x.id} type="button" onPointerDown={noFocus} role="radio" aria-checked={x.id === v?.id}
-                        className={`frv-pill${x.id === v?.id ? ' is-shown' : ''}${x.id === current?.id ? ' is-current' : ''}`}
-                        title={`${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}${x.id === current?.id ? ' (current)' : ''}`}
-                        onClick={() => showVersion(x.id)}>
-                  {versionLabel(x)}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <button type="button" onPointerDown={noFocus} className="frv-pill frv-pill--menu is-shown" aria-haspopup="menu"
-                    onClick={(e) => openMenu('versions', e.currentTarget, 'center')}>
-              {versionLabel(v)} <Icon as={ChevronDown} size={10} weight="bold" />
-            </button>
-          )
+          <button type="button" onPointerDown={noFocus} aria-haspopup="menu" aria-label={`Version ${versionLabel(v)}`}
+                  className={`frv-pill frv-pill--menu is-shown${versions.length <= 4 ? ' frv-pill--narrow' : ''}`}
+                  onClick={(e) => openMenu('versions', e.currentTarget, 'center')}>
+            {versionLabel(v)} <Icon as={ChevronDown} size={10} weight="bold" />
+          </button>
         )}
         <div className="frv-actions">
           {many && (
@@ -193,6 +201,9 @@ export function FilmReview({
               <Icon as={SquareSplitHorizontal} size={18} weight="regular" />
               <span>{compareId ? `vs ${versionLabel(cmp)}` : 'Compare'}</span>
             </button>
+          )}
+          {fileSharesAllowed() && canEdit && boardId && cardId && isShareableCard(card) && (
+            <FileShareButton variant="frv" surface="player" boardId={boardId} cardId={cardId} card={card} boardName={null} />
           )}
           <button type="button" onPointerDown={noFocus} className="frv-iconbtn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"
                   onClick={() => playerRef.current?.toggleHelp?.()}>

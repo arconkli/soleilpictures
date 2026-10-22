@@ -77,6 +77,23 @@ export const EXPERIMENTS = {
       { id: 'B', weight: 100 }, // shipped — straight into the seeded board; offer deferred to first_value_upgrade_*
     ],
   },
+  // workspace_setup — RUNNING from the sidebar's release (owner, 2026-10-20).
+  // Arm B names the workspace, asks who it's for and what kind of work it
+  // holds, and offers the invite link before the canvas (components/setup),
+  // then asks once more for an invite at 6 cards; arm A is today's first run.
+  // Both arms get the sidebar tips, so the test isolates the steps and the
+  // re-ask. Decided and stamped in TierRouter before App mounts
+  // (lib/setupGate.js), deterministically like instant_entry, and the App seed
+  // loop leaves it alone. Registry only: never put it in app_config.experiments,
+  // where the nightly optimizer would move the weights of a test that has to
+  // stay 50/50 to be read.
+  workspace_setup: {
+    enabled: true,
+    arms: [
+      { id: 'A', weight: 50 },  // control — today's first run
+      { id: 'B', weight: 50 },  // the setup steps and the one re-ask
+    ],
+  },
   // PAUSED — its empty-board surface is subsumed by the showcase, and we run one
   // clean lever at current volume (the showcase's own clear-and-start affordance
   // is the "try it yourself" CTA). Flip enabled:true + re-enable its config row

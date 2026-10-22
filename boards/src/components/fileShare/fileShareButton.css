@@ -1,0 +1,37 @@
+/* The viewers' Share button. Each variant borrows its viewer's class; these
+   only fit a label into the lightbox's round buttons and the PDF bar.
+   "Shared" stays neutral ink (gold is for active / selection / focus). */
+.lightbox-download.lightbox-share {
+  right: 102px;
+  width: auto;
+  padding: 0 12px;
+  border-radius: 17px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 500 12px/1 var(--font-sans);
+}
+.lightbox-download.lightbox-share:hover:not(:disabled) { transform: none; }
+@media (pointer: coarse) {
+  .lightbox-download.lightbox-share { right: 114px; border-radius: 20px; }
+}
+.pdfv-btn.pdfv-share { gap: 6px; font: 500 12px/1 var(--font-sans); }
+@media (max-width: 640px) {
+  .pdfv-btn.pdfv-share span { display: none; }
+}
+
+/* An open doc's header: the one labelled button among its icon buttons, so
+   sharing the doc reads as an action of its own (DocCard.jsx). */
+.doc-card-share {
+  appearance: none; background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--ink-1);
+  height: 32px; padding: 0 12px; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer; flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.doc-card-share:hover { background: var(--bg-hov); color: var(--ink-0); }
+@media (max-width: 640px) {
+  .doc-card-share { padding: 0 9px; }
+  .doc-card-share span { display: none; }
+}

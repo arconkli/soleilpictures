@@ -62,12 +62,13 @@ import { EntityLink } from './EntityLink.jsx';
 import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download,
+  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download, ArrowSquareOut,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
-import { detectEmbed } from '../lib/oembed.js';
+import { detectEmbed, safeEmbed } from '../lib/oembed.js';
+import { inertContainer } from '../lib/inertHtml.js';
 import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
@@ -75,7 +76,18 @@ import { GridCard } from './cards/GridCard.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { openableUrl } from '../lib/openableUrl.js';
 import { ensureFontsFromHtml, ensureFontForCss } from '../lib/googleFonts.js';
-import { FilmPlayer } from './film/FilmPlayer.jsx';
+import './film/filmFacade.css';
+// Lazy: a clip rests on its poster until it's hovered, selected or played, so
+// a board's first paint never needs the film player. A pointer coming onto a
+// clip starts fetching it, and the poster stands in until it has arrived.
+const FilmPlayer = lazyWithReload(() =>
+  import('./film/FilmPlayer.jsx').then(m => ({ default: m.FilmPlayer })));
+let filmPlayerPrefetched = false;
+function prefetchFilmPlayer() {
+  if (filmPlayerPrefetched) return;
+  filmPlayerPrefetched = true;
+  import('./film/FilmPlayer.jsx').catch(() => { filmPlayerPrefetched = false; });
+}
 import { registerCardPlayer } from '../lib/playerBus.js';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
@@ -118,34 +130,35 @@ export const KIND_DOTS = {
 };
 function htmlToText(html, max = 80) {
   if (!html) return '';
-  const tmp = typeof document !== 'undefined' ? document.createElement('div') : null;
-  if (!tmp) return html.slice(0, max);
-  tmp.innerHTML = html;
+  if (typeof document === 'undefined') return html.slice(0, max);
+  const tmp = inertContainer(html);
   const txt = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
 // Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile by
-// default; the cluster browser passes its own size.
+// default; the cluster browser passes its own size, and the files sidebar its
+// own weight (regular: thin is a hairline at 16px on its glass).
 //
 // audio/video used to be missing here, so a list-board row drew a generic
 // circle for a loop while the cluster browser drew headphones for the same
 // card — one kind, two glyphs, depending which list you were looking at.
-export function KindIcon({ kind, size = 22 }) {
+export function KindIcon({ kind, size = 22, weight }) {
   if (kind === 'board' || kind === 'list' || kind === 'boardlink') {
-    return <Icon as={FolderIcon} size={size} />;
+    return <Icon as={FolderIcon} size={size} weight={weight} />;
   }
-  if (kind === 'image')    return <Icon as={ImagePh} size={size} />;
-  if (kind === 'note')     return <Icon as={StickyNote} size={size} />;
-  if (kind === 'link')     return <Icon as={LinkPh} size={size} />;
-  if (kind === 'palette')  return <Icon as={PalettePh} size={size} />;
-  if (kind === 'doc')      return <Icon as={FileText} size={size} />;
-  if (kind === 'schedule') return <Icon as={CalendarPh} size={size} />;
-  if (kind === 'shape')    return <Icon as={SquarePh} size={size} />;
-  if (kind === 'pdf')      return <Icon as={FilePdf} size={size} />;
-  if (kind === 'audio')    return <Icon as={Headphones} size={size} />;
-  if (kind === 'video')    return <Icon as={Clapperboard} size={size} />;
-  if (kind === 'file')     return <Icon as={Paperclip} size={size} />;
-  return <Icon as={CirclePh} size={size} />;
+  if (kind === 'image')    return <Icon as={ImagePh} size={size} weight={weight} />;
+  if (kind === 'note')     return <Icon as={StickyNote} size={size} weight={weight} />;
+  if (kind === 'link')     return <Icon as={LinkPh} size={size} weight={weight} />;
+  if (kind === 'palette')  return <Icon as={PalettePh} size={size} weight={weight} />;
+  if (kind === 'doc')      return <Icon as={FileText} size={size} weight={weight} />;
+  if (kind === 'schedule') return <Icon as={CalendarPh} size={size} weight={weight} />;
+  if (kind === 'shape')    return <Icon as={SquarePh} size={size} weight={weight} />;
+  if (kind === 'pdf')      return <Icon as={FilePdf} size={size} weight={weight} />;
+  if (kind === 'audio')    return <Icon as={Headphones} size={size} weight={weight} />;
+  if (kind === 'video')    return <Icon as={Clapperboard} size={size} weight={weight} />;
+  if (kind === 'file')     return <Icon as={Paperclip} size={size} weight={weight} />;
+  if (kind === 'shortcut') return <Icon as={ArrowSquareOut} size={size} weight={weight} />;
+  return <Icon as={CirclePh} size={size} weight={weight} />;
 }
 
 // One row inside a list-board card. Sub-board rows use useBoardPreview to
@@ -888,6 +901,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   useEffect(() => () => { clearTimeout(timers.current.on); clearTimeout(timers.current.off); }, []);
   const onEnter = () => {
     hoverRef.current = true;
+    prefetchFilmPlayer();
     clearTimeout(timers.current.off);
     if (!live) timers.current.on = setTimeout(() => setLive(true), 80);
   };
@@ -900,7 +914,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   // click selects, the next one plays. Where you can't select (a view-only
   // board) a clean tap plays.
   const wasSelected = useRef(false);
-  const onDownCapture = (e) => { wasSelected.current = selected; hoverRef.current = true; if (!live) setLive(true); void e; };
+  const onDownCapture = (e) => { wasSelected.current = selected; hoverRef.current = true; prefetchFilmPlayer(); if (!live) setLive(true); void e; };
   const clickGate = (e) => !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && (wasSelected.current || tapToPlay);
   // The review player closed on another frame: this card follows it there,
   // mounting its player if it was resting on the poster.
@@ -925,6 +939,21 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
 
   const durText = Number.isFinite(media?.dur) && media.dur > 0 ? formatClipLength(media.dur) : '';
   const showTitle = !!title || editingTitle;
+  // The clip at rest, and what shows while the player's chunk is on its way.
+  const facade = posterUrl
+    ? (
+      <div className="vc-facade">
+        <img className="vc-video vc-poster" src={posterUrl} alt="" draggable="false" />
+        {resolvedUrl && (
+          <button type="button" className="film-centre-play" tabIndex={-1} aria-label="Play"
+                  onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                  onClick={(e) => { e.stopPropagation(); setPlayOnMount(true); setLive(true); }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.52.85l10.6-6.8a1 1 0 0 0 0-1.7L9.52 4.35A1 1 0 0 0 8 5.2Z" fill="currentColor" /></svg>
+          </button>
+        )}
+      </div>
+    )
+    : <ImagePlaceholder label="VIDEO" tone="neutral" />;
   return (
     <div className="vc">
       {/* Video had no download affordance ANYWHERE — not on the card, not in
@@ -944,28 +973,19 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
             element. Every other clip gets the film player: frame steps, a
             frame-accurate scrubber, timecode, and ⤢ into the review player. */}
         {resolvedUrl && !autoplay && live
-          ? <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
-                        clickGate={clickGate} autoPlay={playOnMount} initialTime={syncTime}
-                        probe={() => probeCardVideo({ kind: 'video', src })} />
+          ? (
+            <Suspense fallback={facade}>
+              <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
+                          clickGate={clickGate} autoPlay={playOnMount} initialTime={syncTime}
+                          probe={() => probeCardVideo({ kind: 'video', src })} />
+            </Suspense>
+          )
           : resolvedUrl && autoplay
           ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
                    {...(posterUrl ? { poster: posterUrl } : {})}
                    {...(loop ? { loop: true } : {})}
                    muted controls preload="metadata" playsInline />
-          : (posterUrl
-              ? (
-                <div className="vc-facade">
-                  <img className="vc-video vc-poster" src={posterUrl} alt="" draggable="false" />
-                  {resolvedUrl && (
-                    <button type="button" className="film-centre-play" tabIndex={-1} aria-label="Play"
-                            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                            onClick={(e) => { e.stopPropagation(); setPlayOnMount(true); setLive(true); }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.52.85l10.6-6.8a1 1 0 0 0 0-1.7L9.52 4.35A1 1 0 0 0 8 5.2Z" fill="currentColor" /></svg>
-                    </button>
-                  )}
-                </div>
-              )
-              : <ImagePlaceholder label="VIDEO" tone="neutral" />)}
+          : facade}
         {durText && !autoplay && <span className="vc-dur" aria-hidden="true">{durText}</span>}
         {/* A dropped clip is placed at once and uploads in the background —
             same overlay as a photo's, so it never looks finished early. */}
@@ -1285,12 +1305,16 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSi
   );
 }
 
-function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, description, favicon, embed: storedEmbed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // The app writes the address to `source` (and `link`); cards made through
   // /api/v1 or a manifest import carry it only as `url`. Reading just `source`
   // left those cards with no address, no open button and no way to fix it
   // short of retyping the link (API-05).
   const source = sourceProp || link || url || null;
+  // The card's stored embed renders only when it points at one of the
+  // providers oembed.js knows (https, known host); anything else shows as a
+  // plain link card.
+  const embed = useMemo(() => safeEmbed(storedEmbed), [storedEmbed]);
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.

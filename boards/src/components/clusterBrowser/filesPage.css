@@ -1,0 +1,615 @@
+/* The full Files page in the files sidebar's look (direction A, the owner's
+   pick of 2026-10-20; preview only, behind its own hold): the sidebar's Files
+   card grown full screen. A calm sheet on the board's ground holds the files
+   (Apple's HIG keeps glass out of the content layer); its head carries the
+   cluster's name and the card's own controls; photos and video lie in a
+   justified grid on the card's shelves, the rest in rows; List is a classic
+   Finder table. Every rule is under [data-look='sb'], which ListSurface and
+   Quick look set only with that look (filesLook.js), or under .is-files-page,
+   which App sets only then (.public-canvas-host.is-files, PublicBoardView's,
+   on a shared link), or names a class only that look's markup carries
+   (fp-*, ct-status, ct-stored, ct-folder-link, is-glyph, ct-tile-off,
+   ct-tile-dur, ct-tile-pend), so the page
+   production has matches nothing here. */
+
+/* ── The ground ──────────────────────────────────────────────────────────── */
+/* While the page is open the board's ground runs on behind the sidebar and
+   around the sheet, as Home's does (clustersHome.css); on a shared link, under
+   the link's own bar, in the dark that page keeps whatever the theme. */
+.public-canvas-host.is-files { --grid-line: rgba(245, 245, 247, .025); --grid-dot: rgba(245, 245, 247, .05); }
+.app.sb-files.is-files-page,
+.public-canvas-host.is-files {
+  --fp-dot2: rgba(245, 245, 247, .085);
+  background-color: var(--bg-0);
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--fp-dot2) 1.25px, transparent 1.75px),
+    radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1.5px),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 80px 80px, 20px 20px, 80px 80px, 80px 80px;
+}
+[data-theme='light'] .app.sb-files.is-files-page { --fp-dot2: rgba(10, 10, 12, .11); }
+/* What lies between the window and the sheet lets the ground through. */
+.app.sb-files.is-files-page .main,
+.app.sb-files.is-files-page .split-wrap,
+.app.sb-files.is-files-page .split-pane,
+.app.sb-files.is-files-page .surface-wrap:not(.is-canvas),
+.app.sb-files.is-files-page .fdl-files { background: transparent; }
+
+/* ── The sheet ───────────────────────────────────────────────────────────── */
+/* The list's own scroller, inset as the sidebar's cards are (8px), with
+   their radius and hairline. Opaque: the files sit on it, not on glass. The
+   hairline is an outline, drawn over what scrolls under it. */
+.list-wrap[data-look='sb'] {
+  --files-floor: var(--bg-1);
+  --files-gutter: 16px;
+  /* The sheet's top edge in the Files area, which starts under the band:
+     Info's card lines up with it. */
+  --fp-top: 2px;
+  /* How far the tables reach into the gutter, so a row's hover and its
+     selection have room around its content. */
+  --fp-bleed: 12px;
+  --fp-zebra: color-mix(in srgb, var(--ink-0) 2.2%, transparent);
+  margin: var(--fp-top) 8px 8px;
+  padding: 0 var(--files-gutter);
+  border-radius: 12px;
+  background-color: var(--bg-1);
+  background-image: none;
+  box-shadow: var(--sbf-glass-shadow);
+  outline: 1px solid var(--sbf-glass-line);
+  outline-offset: -1px;
+}
+/* Paper (a file with no picture, an upload) a shade off the sheet in both
+   themes, as the dark theme's is: the light theme's is white, the sheet's. */
+[data-theme='light'] .list-wrap[data-look='sb'] { --files-paper: color-mix(in srgb, var(--ink-0) 4%, var(--files-floor)); }
+.list-wrap[data-look='sb'] > .list-inner { max-width: none; padding: 0 0 28px; }
+/* Files dragged over the page: the sheet ringed in gold (a drop target is an
+   active place) and the line under the head says what a drop does; the
+   frame production draws over the whole surface stands down. */
+.list-wrap[data-look='sb'].is-drop-target { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.fdl-files:has(.list-wrap[data-look='sb'].is-drop-target)::after { display: none; }
+
+/* On a shared link the sheet stands as far under the link's bar as from the
+   window's sides. */
+.public-canvas-host.is-files > .list-wrap[data-look='sb'] { --fp-top: 8px; }
+
+/* ── A phone ─────────────────────────────────────────────────────────────── */
+/* The sheet is the screen, between App's top bar and its bottom bar, as the
+   board is (on a shared link, under the link's bar). ListSurface marks a
+   phone or a touch tablet itself (data-shell), App's shell or not. */
+.list-wrap[data-look='sb'][data-shell='mobile'] {
+  --files-gutter: 12px;
+  --fp-bleed: 8px;   /* rows keep 4px from the screen's edges, as from the sheet's */
+  margin: 0; border-radius: 0; box-shadow: none; outline: 0;
+}
+
+/* ── The head ────────────────────────────────────────────────────────────── */
+/* Sticky in the sheet's scroller: the title line, then the card's controls,
+   or the selection's actions, or what a drop does. An edge once something
+   has scrolled under it. */
+.list-wrap[data-look='sb'] .fp-head {
+  position: sticky; top: 0; z-index: 9;
+  margin: 0 calc(-1 * var(--files-gutter));
+  background: var(--bg-1);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur-base) var(--ease);
+}
+.list-wrap[data-look='sb'] .fp-head.is-stuck { border-bottom-color: var(--line-1); }
+.fp-titlebar {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  height: 48px; box-sizing: border-box; padding: 10px 10px 0 12px;
+}
+.fp-title { display: flex; min-width: 0; margin: 0; }
+.fp-title-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 32px; padding: 0 6px 0 4px;
+  border: 0; border-radius: 8px; background: transparent; cursor: pointer; text-align: left;
+  color: var(--ink-0); font: 600 20px/1 var(--font-sans); letter-spacing: -0.01em;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.fp-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-title-caret { flex: none; display: grid; place-items: center; width: 20px; height: 20px; color: var(--ink-2); }
+.fp-title-btn:hover { background: var(--bg-hov); }
+.fp-title-btn.is-open { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
+.fp-title-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+/* The name alone (a shared link: no clusters to switch to), where the
+   button's would stand. */
+.fp-title-text {
+  min-width: 0; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-0); font: 600 20px/32px var(--font-sans); letter-spacing: -0.01em;
+}
+.fp-meta {
+  min-width: 0; margin-left: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-2); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.fp-spacer { flex: 1 1 auto; min-width: 8px; }
+/* Words for actions, as the sidebar's: ink, a quiet icon before them. */
+.fp-word {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px;
+  border: 0; border-radius: 7px; background: transparent; cursor: pointer; white-space: nowrap;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.fp-word svg { flex: none; color: var(--ink-2); }
+.fp-word:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+.fp-word:disabled { opacity: .55; cursor: default; }
+.fp-word:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.fp-titlebar > .fp-word:last-child { margin-right: -4px; }
+/* The way back up, before the title on its line. */
+.fp-trail { flex: 0 1 auto; min-width: 0; max-width: 30%; margin: 0 -8px 0 -2px; }
+.fp-trail .pb { margin: 0; }
+.fp-trail .pb-name { height: 28px; font-size: 13px; }
+
+/* The card's controls, at the page's size. */
+.fp-tools {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  height: 50px; box-sizing: border-box; padding: 8px 10px 10px 12px;
+}
+.fp-search { flex: 0 1 340px; min-width: 140px; }
+.fp-search input { font-weight: 400; }
+.fp-found {
+  margin-left: 4px; white-space: nowrap;
+  color: var(--ink-2); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.fp-faces { display: inline-flex; align-items: center; margin-right: 6px; }
+.fp-faces > * + * { margin-left: -5px; }
+.fp-face-more { margin-left: 4px; color: var(--ink-2); font: 500 11px/1 var(--font-sans); }
+.fp-seg { flex: 0 0 auto; margin-right: 2px; }
+.fp-seg .sbf-tab { flex: 0 0 auto; padding: 0 12px; }
+.fp-add { margin-left: 0; height: 30px; padding: 0 12px 0 10px; font-size: 12.5px; }
+/* The menu's one-line Size (Grid). */
+.sbf-menu .fp-size-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 34px; padding: 0 4px 0 28px; flex-shrink: 0; }
+.fp-size-label { color: var(--ink-1); font: 500 13px/1 var(--font-sans); }
+.fp-size-row .sbf-tabs { flex: none; }
+.fp-size-row .sbf-tab { flex: none; height: 24px; padding: 0 10px; font-size: 11.5px; }
+
+/* A selection: the same bar production floats at the foot, set in the head
+   in the controls' place (Drive, Dropbox), on the card's track. */
+.fp-head > .list-selbar {
+  position: static; width: auto; max-width: none;
+  height: 40px; box-sizing: border-box; margin: 2px 10px 8px 12px; padding: 0 4px; gap: 2px;
+  border: 0; border-radius: 9px; background: var(--sbf-track); box-shadow: none;
+  animation: none; color: var(--ink-1); font-size: 13px;
+}
+.fp-head > .list-selbar::after { display: none; }
+.fp-head .list-selbar-count {
+  padding: 0 6px 0 4px; margin: 0; border: 0;
+  color: var(--ink-0); font: 600 13px/1 var(--font-sans);
+}
+.fp-head .list-selbar-sep { flex: none; width: 1px; height: 18px; margin: 0 4px; background: var(--line-2); }
+.fp-head .list-selbar-spacer { flex: 1 1 auto; min-width: 8px; }
+.fp-head .list-selbar-act {
+  height: 30px; margin: 0; padding: 0 10px; gap: 6px; border: 0; border-radius: 7px;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans);
+}
+.fp-head .list-selbar-act svg { color: var(--ink-2); }
+.fp-head .list-selbar-act:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+.fp-head .list-selbar-act.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+.fp-head .list-selbar-act.is-danger { color: #ff8a80; }
+.fp-head .list-selbar-act.is-danger svg { color: currentColor; }
+[data-theme='light'] .fp-head .list-selbar-act.is-danger { color: #c62828; }
+.fp-head .list-selbar-clear { width: 30px; padding: 0; justify-content: center; }
+.fp-head .list-selbar-hint { margin: 0 8px 0 0; padding: 0; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }
+.fp-head .list-selbar-hint kbd { padding: 0; border: 0; background: none; color: var(--ink-1); font: 500 11px/1 var(--font-sans); }
+
+/* Files dragged over: what a drop does, in the controls' place. */
+.fp-drop-line { display: flex; align-items: center; height: 50px; box-sizing: border-box; padding: 8px 10px 10px 12px; }
+.fp-drop {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 12px;
+  border: 1px dashed color-mix(in srgb, var(--soleil) 60%, transparent); border-radius: 8px;
+  background: var(--soleil-soft); color: var(--ink-0); font: 500 13px/1 var(--font-sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fp-drop svg { flex: none; color: var(--soleil); }
+.fp-drop.is-blocked { border-color: var(--line-2); background: var(--sbf-track); color: var(--ink-1); }
+.fp-drop.is-blocked svg { color: var(--ink-2); }
+
+/* ── Grid: the card's shelves, grown ─────────────────────────────────────── */
+.list-wrap[data-look='sb'] .fp-shelf { height: 36px; padding: 0 4px 0 2px; }
+.list-wrap[data-look='sb'] .fp-shelf.is-first { height: 30px; }
+.list-wrap[data-look='sb'] .fp-shelf .sbf-shelf-toggle { flex: 0 1 auto; margin: 0; }
+.list-wrap[data-look='sb'] .fp-shelf .sbf-shelf-caret { opacity: 1; }
+.list-wrap[data-look='sb'] .fp-cls,
+.list-wrap[data-look='sb'] .cb-main .ct-jg,
+.list-wrap[data-look='sb'] .ct-table.is-bare { margin-bottom: 6px; }
+/* Clusters in this one: cards with their covers. */
+.fp-cls { display: flex; flex-wrap: wrap; gap: 8px; }
+.list-wrap[data-look='sb'] .fp-cls .ft {
+  width: 236px; height: 56px; box-sizing: border-box; padding: 0 12px 0 8px; gap: 10px;
+  border: 0; border-radius: 10px; box-shadow: none;
+  background: color-mix(in srgb, var(--ink-0) 4%, transparent);
+}
+[data-theme='light'] .list-wrap[data-look='sb'] .fp-cls .ft { background: rgba(10, 10, 12, .035); }
+.list-wrap[data-look='sb'] .fp-cls .ft:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
+.list-wrap[data-look='sb'] .fp-cls .ft-cover { width: 40px; height: 40px; border-radius: 7px; }
+.list-wrap[data-look='sb'] .fp-cls .ft-name { color: var(--ink-0); font: 500 13px/1.2 var(--font-sans); }
+.list-wrap[data-look='sb'] .fp-cls .ft-meta { color: var(--ink-2); font: 400 12px/1.2 var(--font-sans); font-variant-numeric: tabular-nums; }
+.list-wrap[data-look='sb'] .fp-cls .ft.is-selected {
+  background: var(--bg-act); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent);
+}
+.list-wrap[data-look='sb'] .fp-cls .ft.is-drop-target { box-shadow: inset 0 0 0 2px var(--soleil); }
+/* Rows on a shelf: no box, no header, the columns of the classic table. */
+.list-wrap[data-look='sb']:not(.is-panel) .ct-table {
+  margin-inline: calc(-1 * var(--fp-bleed)); border: 0; border-radius: 0; background: transparent; overflow: visible;
+}
+.list-wrap[data-look='sb'] .ct-table.is-bare .ct-row {
+  grid-template-columns: minmax(0, 1fr) 120px 112px 96px 190px; column-gap: 12px;
+  height: 36px; padding: 0 8px 0 4px; border: 0; border-radius: 6px; contain-intrinsic-size: auto 36px;
+}
+.list-wrap[data-look='sb'] .ct-table.is-bare .ct-thumb { width: 28px; height: 28px; border-radius: 5px; }
+/* A file with no picture: the card's glyph, unboxed. */
+.list-wrap[data-look='sb'] .ct-thumb.is-glyph { border-color: transparent; outline: 0; background: transparent; color: var(--ink-2); }
+.list-wrap[data-look='sb'] .ct-sub { display: none; }
+/* Who has a file is said in its last column, in words, so the row carries
+   no colour bar of theirs (the keyboard's and the player's stay). */
+.list-wrap[data-look='sb'] .ct-row.is-peer:not(.is-active):not(.is-playing)::before { background: transparent; }
+/* Uploading: the spinner alone where the picture will be. */
+.list-wrap[data-look='sb'] .ct-row.is-pending .ct-thumb { outline: 0; background: transparent; }
+.list-wrap[data-look='sb'] .ct-row.is-pending .ct-thumb > :not(.ct-thumb-spin) { display: none; }
+.list-wrap[data-look='sb'] .ct-row.is-pending .ct-thumb-spin { position: static; width: 14px; height: 14px; box-sizing: border-box; }
+/* An audio file with no cover: its note at rest, as the card's rows show
+   it; the play under the pointer, on the keyboard's row and while it plays.
+   (Without hover the play stays, as production's.) */
+@media (hover: hover) {
+  .list-wrap[data-look='sb'] .ct-thumb.is-bare .cbp-glyph { display: grid; }
+  .list-wrap[data-look='sb'] .ct-row:not(:hover):not(.is-active):not(.is-playing) .ct-thumb.is-bare .ct-play:not(:focus-visible) { opacity: 0; }
+  .list-wrap[data-look='sb'] .ct-row:is(:hover, .is-active, .is-playing) .ct-thumb.is-bare .cbp-glyph,
+  .list-wrap[data-look='sb'] .ct-thumb.is-bare:has(.ct-play:focus-visible) .cbp-glyph { visibility: hidden; }
+}
+.list-wrap[data-look='sb'] .ct-row .ct-name { color: var(--ink-1); font: 500 13px/1.2 var(--font-sans); }
+.list-wrap[data-look='sb'] .ct-cell.ct-c-type,
+.list-wrap[data-look='sb'] .ct-cell.ct-c-size,
+.list-wrap[data-look='sb'] .ct-cell.ct-c-date { color: var(--ink-2); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.list-wrap[data-look='sb'] .ct-cell.ct-c-presence {
+  display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden;
+  color: var(--ink-2); font: 400 12px/1 var(--font-sans); white-space: nowrap;
+}
+.ct-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ct-stored { flex: none; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--ink-3); }
+.list-wrap[data-look='sb'] .ct-row.is-selected,
+.list-wrap[data-look='sb'] .ct-row.is-selected + .ct-row.is-selected {
+  background: var(--bg-act); border-bottom-color: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent);
+}
+
+/* ── Tiles: the picture is the name ──────────────────────────────────────── */
+.list-wrap[data-look='sb'] .ct-jg .ct-tile-preview { border-radius: 6px; }
+.list-wrap[data-look='sb'] .ct-jg .ct-tile-preview::before { box-shadow: inset 0 0 0 1px var(--sbf-thumb-line); }
+/* Selected: a gold ring just outside the picture, and the check turns white.
+   (Chromium floors a 1.5px outline to 1px; 2px at 80% reads as the still's.) */
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-selected .ct-tile-preview {
+  outline: 2px solid color-mix(in srgb, var(--soleil) 80%, transparent); outline-offset: 2px;
+}
+.list-wrap[data-look='sb'] .ct-tile.is-selected .ct-tile-check {
+  background: #fff; border-color: #fff; color: #0a0a0c; box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+.list-wrap[data-look='sb'] .ct-tile-check { width: 22px; height: 22px; }
+/* Only the picked tiles carry a check; another's shows under the pointer, so
+   a click on it still adds. Without hover (touch) every check stays, as the
+   way to pick a second one. */
+@media (hover: hover) {
+  .list-wrap[data-look='sb']:not(.is-selecting) .ct-jg .ct-tile:not(.is-selected):not(:hover) .ct-tile-check { opacity: 0; }
+}
+/* Not on board: the sidebar's hollow ring, on a dark disc so it reads on any
+   picture. The tile's own title says it in words, as a sidebar row's does. */
+.ct-tile-off {
+  position: absolute; top: 7px; right: 7px; z-index: 2;
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(10, 10, 12, .55);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.ct-tile-off > i {
+  display: block; width: 8px; height: 8px; box-sizing: border-box; border-radius: 50%;
+  border: 1.5px solid rgba(245, 245, 247, .92);
+}
+/* The download button sits where the ring is; with the ring, it steps left. */
+.list-wrap[data-look='sb'] .ct-tile-preview:has(.ct-tile-off) .ct-tile-dl { right: 33px; }
+/* A video's length, bottom left, as Photos shows it. */
+.ct-tile-dur {
+  position: absolute; left: 7px; bottom: 7px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px 0 6px;
+  border-radius: 6px; background: rgba(10, 10, 12, .62); color: #f5f5f7;
+  font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums; pointer-events: none;
+}
+/* An upload on its way: the word on the paper, under the spinner. */
+.ct-tile-pend {
+  position: absolute; left: 0; right: 0; top: calc(50% + 18px);
+  color: var(--ink-2); font: 400 12px/1 var(--font-sans); text-align: center; pointer-events: none;
+}
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-pending .ct-tile-preview::after { display: none; }
+/* Who has it selected: their colour round the picture (one ring: not the
+   tile's own as well), their face in the corner. */
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-peer { box-shadow: none; }
+.list-wrap[data-look='sb'] .ct-jg .ct-tile.is-peer .ct-tile-preview { outline: 2px solid var(--peer-color); outline-offset: 2px; }
+.list-wrap[data-look='sb'] .ct-tile-peers { right: 7px; bottom: 7px; }
+/* Renaming without a caption: the field lies over the foot of the picture
+   (the tile is placed absolutely, so it holds the field). */
+.list-wrap[data-look='sb'] .ct-tile.is-renaming .ct-tile-meta { position: absolute; left: 7px; right: 7px; bottom: 7px; z-index: 3; padding: 0; }
+.list-wrap[data-look='sb'] .ct-tile.is-renaming .ir-input { height: 28px; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+
+/* ── List: the classic table (C's) ───────────────────────────────────────── */
+/* One flat list, its clusters first, dense, every head sortable, a faint
+   zebra. The header sticks under the page's head, edge to edge. */
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-head,
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-row {
+  grid-template-columns: minmax(0, 1fr) 120px 96px 104px 190px; column-gap: 12px;
+}
+.list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-head,
+.list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-row {
+  grid-template-columns: minmax(0, 1fr) 64px 56px 72px 72px 104px 190px;
+}
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-head {
+  position: sticky; top: var(--lp-head-h, 98px); z-index: 3;
+  height: 30px; box-sizing: border-box;
+  margin: 0 calc(var(--fp-bleed) - var(--files-gutter)); padding: 0 calc(var(--files-gutter) - var(--fp-bleed) + 8px);
+  background: var(--bg-1); border-bottom: 1px solid var(--line-1);
+}
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-th {
+  color: var(--sbf-quiet); font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
+}
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-th:hover,
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-th.is-sorted { color: var(--ink-1); }
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-lead { display: flex; flex-direction: column; margin-top: 4px; }
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-lead,
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-body { padding-top: 0; }
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-row {
+  height: 32px; padding: 0 8px; border: 0; border-radius: 6px; contain-intrinsic-size: auto 32px;
+}
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-row.is-zebra:not(.is-selected) {
+  background-image: linear-gradient(var(--fp-zebra), var(--fp-zebra));
+}
+.list-wrap[data-look='sb'] .ct-table.is-classic .ct-thumb { width: 22px; height: 22px; border-radius: 4px; }
+/* A cluster: a folder's glyph, quietly boxed, as Finder draws one. */
+.list-wrap[data-look='sb'] .ct-folder-glyph {
+  display: grid; place-items: center; outline: 0;
+  background: color-mix(in srgb, var(--ink-0) 6%, transparent); color: var(--ink-1);
+}
+.ct-folder-link { flex: none; display: grid; place-items: center; color: var(--ink-2); }
+/* A linked cluster's mark follows its name. */
+.list-wrap[data-look='sb'] .ct-folder-row .ct-name-wrap { flex: 0 1 auto; }
+.list-wrap[data-look='sb'] .ct-folder-row.is-drop-target { box-shadow: inset 0 0 0 2px var(--soleil); }
+.list-wrap[data-look='sb'] .ct-folder-row.is-springing { animation: spring-blink 700ms steps(1, end); }
+@media (prefers-reduced-motion: reduce) {
+  .list-wrap[data-look='sb'] .ct-folder-row.is-springing { animation: none; box-shadow: inset 0 0 0 1px var(--soleil); background-color: var(--soleil-soft); }
+}
+/* Narrower, the table gives up columns from the right: first the words of
+   where a file stands (its mark stays), then Kind or Added, then all but the
+   name. Production's ladder (styles.css, after .cb-main) hides cells by
+   display at its widths; these tracks match what it leaves showing. */
+@container cbmain (max-width: 820px) {
+  .list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-head,
+  .list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-row { grid-template-columns: minmax(0, 1fr) 52px 44px 62px 40px; }
+  .list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-status { display: none; }
+}
+@container cbmain (max-width: 760px) {
+  .list-wrap[data-look='sb'] .ct-table.is-classic:not([data-cols='audio']) .ct-head,
+  .list-wrap[data-look='sb'] .ct-table.is-classic:not([data-cols='audio']) .ct-row,
+  .list-wrap[data-look='sb'] .ct-table.is-bare .ct-row { grid-template-columns: minmax(0, 1fr) 110px 84px 96px 40px; }
+  .list-wrap[data-look='sb'] .ct-status { display: none; }
+}
+@container cbmain (max-width: 620px) {
+  .list-wrap[data-look='sb'] .ct-table.is-classic:not([data-cols='audio']) .ct-head,
+  .list-wrap[data-look='sb'] .ct-table.is-classic:not([data-cols='audio']) .ct-row,
+  .list-wrap[data-look='sb'] .ct-table.is-bare .ct-row { grid-template-columns: minmax(0, 1fr) 84px 72px 40px; }
+}
+@container cbmain (max-width: 400px) {
+  .list-wrap[data-look='sb'] .ct-table.is-classic:not([data-cols='audio']) .ct-head,
+  .list-wrap[data-look='sb'] .ct-table.is-classic:not([data-cols='audio']) .ct-row,
+  .list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-head,
+  .list-wrap[data-look='sb'] .ct-table.is-classic[data-cols='audio'] .ct-row,
+  .list-wrap[data-look='sb'] .ct-table.is-bare .ct-row { grid-template-columns: minmax(0, 1fr) 40px; }
+}
+
+/* ── Info: a card beside the sheet ───────────────────────────────────────── */
+/* Fixed to the Files area, so it stays put while the sheet scrolls, the
+   ground shows round it, and the sheet makes room. A container query box
+   doesn't hold fixed boxes (container-type no longer implies layout
+   containment), so the area takes layout containment while the card is
+   open; the page's menus and Quick look are portalled to <body>, so nothing
+   else fixed is inside it. Only with .has-info, which ListSurface sets
+   beside a sheet, never on a phone, where Info stays production's bottom
+   sheet. On a shared link the area is the one under the link's bar. */
+.fdl-files:has(.list-wrap[data-look='sb'].has-info),
+.public-canvas-host.is-files:has(> .list-wrap[data-look='sb'].has-info) { contain: layout; }
+.list-wrap[data-look='sb'].has-info { margin-right: 356px; }
+.list-wrap[data-look='sb'].has-info .cb-detail.surface-frosted {
+  position: fixed; top: var(--fp-top); right: 8px; bottom: auto; left: auto; z-index: 5;
+  width: 340px; min-width: 0; max-height: calc(100% - var(--fp-top) - 8px);
+  border: 0; border-radius: 12px;
+  background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--sbf-glass-shadow);
+  outline: 1px solid var(--sbf-glass-line); outline-offset: -1px;
+}
+.list-wrap[data-look='sb'] .cbd-head { padding: 14px 10px 10px 16px; border-bottom: 0; }
+.list-wrap[data-look='sb'] .cbd-title { font: 600 14px/1.3 var(--font-sans); }
+.list-wrap[data-look='sb'] .cbd-sub { font: 400 12px/1.3 var(--font-sans); color: var(--ink-2); }
+.list-wrap[data-look='sb'] .cbd-body { padding: 2px 16px 14px; }
+.list-wrap[data-look='sb'] .cbd-preview { border: 0; border-radius: 8px; background: var(--sbf-track); }
+.list-wrap[data-look='sb'] .cbd-section-label,
+.list-wrap[data-look='sb'] .cbd-members-label {
+  color: var(--sbf-quiet); font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
+}
+.list-wrap[data-look='sb'] .cbd-section + .cbd-section { border-top-color: var(--sbf-glass-line); }
+.list-wrap[data-look='sb'] .cbd-actions { padding: 10px 12px; border-top: 1px solid var(--sbf-glass-line); }
+.list-wrap[data-look='sb'] .cbd-act.is-primary { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); border-color: transparent; color: var(--ink-0); }
+.list-wrap[data-look='sb'] .cbd-act-danger { color: #ff8a80; }
+[data-theme='light'] .list-wrap[data-look='sb'] .cbd-act-danger { color: #c62828; }
+
+/* ── No files, no hits, still loading ────────────────────────────────────── */
+/* A cluster with no files: its clusters, then what to do, in the middle of
+   what's left of the sheet (.is-empty, which ListSurface sets only then). */
+.list-wrap[data-look='sb'].is-empty > .list-inner { display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
+.list-wrap[data-look='sb'].is-empty .cluster-browser,
+.list-wrap[data-look='sb'].is-empty .cb-split { flex: 1; }
+/* With no files, Info can only describe a cluster, which a phone's sheet
+   doesn't show: the room production leaves under the list for that sheet
+   (60vh) would only scroll the page. */
+.list-wrap[data-look='sb'].is-empty .cb-main { display: flex; flex-direction: column; padding-bottom: 0; }
+.list-wrap[data-look='sb'].is-empty .fp-empty { flex: 1; justify-content: center; }
+.fp-empty { display: flex; flex-direction: column; align-items: center; padding: 72px 16px; text-align: center; }
+.fp-empty-ico {
+  display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 14px;
+  border-radius: 12px; background: var(--sbf-count); color: var(--ink-1);
+}
+.fp-empty-title { color: var(--ink-0); font: 600 15px/1.3 var(--font-sans); }
+.fp-empty-sub { max-width: 38ch; margin: 6px 0 18px; color: var(--ink-2); font: 400 13px/1.5 var(--font-sans); }
+.fp-empty-acts { display: flex; align-items: center; gap: 8px; }
+.fp-empty .fp-add { margin: 0; }
+.fp-nomatch { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 56px 16px; color: var(--ink-2); font: 400 13px/1 var(--font-sans); }
+.fp-loading { padding: 56px 16px; text-align: center; color: var(--ink-2); font: 400 13px/1 var(--font-sans); }
+/* Hits in clusters under this one: open them, don't select them. */
+.fp-desc { display: flex; flex-direction: column; margin-bottom: 6px; }
+.fp-desc-row {
+  display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 8px 0 4px;
+  border: 0; border-radius: 6px; background: transparent; cursor: pointer; text-align: left;
+}
+.fp-desc-row:hover { background: var(--bg-hov); }
+.fp-desc-row:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.fp-desc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-1); font: 500 13px/1 var(--font-sans); }
+.fp-desc-where { flex: none; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }
+
+/* ── Quick look (direction A) ────────────────────────────────────────────── */
+/* Still a dark room in both themes (its own tokens, styles.css), now over
+   the page, blurred, rather than a black slab; the bar's two halves float as
+   islands, the chrome's material, with words and regular icons. Only .ql's
+   own tokens here: it's portalled to <body>, whose sidebar materials are the
+   light ones in the light theme. */
+.ql[data-look='sb'] {
+  background: color-mix(in srgb, #08080a 82%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(1.1); backdrop-filter: blur(24px) saturate(1.1);
+}
+/* A light page under it lets more light through: less of it, still dark. */
+[data-theme='light'] .ql[data-look='sb'] { background: color-mix(in srgb, #08080a 90%, transparent); }
+.ql[data-look='sb'] .ql-bar {
+  position: absolute; top: 8px; left: 8px; right: 8px; z-index: 3;
+  height: 36px; padding: 0; gap: 8px; justify-content: space-between;
+  pointer-events: none;
+}
+.ql[data-look='sb'] .ql-title,
+.ql[data-look='sb'] .ql-acts {
+  pointer-events: auto; box-sizing: border-box; height: 36px;
+  display: flex; align-items: center;
+  border: 1px solid var(--line-1); border-radius: 10px;
+  background: color-mix(in oklab, var(--bg-1) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+}
+.ql[data-look='sb'] .ql-title { flex: 0 1 auto; min-width: 0; max-width: 46%; flex-direction: row; gap: 10px; padding: 0 12px; }
+.ql[data-look='sb'] .ql-name { min-width: 0; font: 600 13px/1 var(--font-sans); }
+.ql[data-look='sb'] .ql-meta { flex: none; color: var(--ink-2); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.ql[data-look='sb'] .ql-acts { flex: none; gap: 2px; padding: 0 3px; }
+.ql[data-look='sb'] .ql-btn {
+  height: 28px; padding: 0 9px; gap: 6px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans);
+}
+.ql[data-look='sb'] .ql-btn svg { color: var(--ink-2); }
+.ql[data-look='sb'] .ql-btn:hover { background: rgba(255, 255, 255, .08); color: var(--ink-0); }
+.ql[data-look='sb'] .ql-btn:hover svg { color: var(--ink-1); }
+.ql[data-look='sb'] .ql-btn.is-on { background: var(--bg-4); color: var(--ink-0); }
+.ql[data-look='sb'] .ql-acts-sep { flex: none; width: 1px; height: 18px; margin: 0 4px; background: var(--line-2); }
+.ql[data-look='sb'] .ql-x { width: 28px; padding: 0; justify-content: center; }
+/* The stage under the islands; the arrows are glass circles at its edges. */
+.ql[data-look='sb'] .ql-body { padding: 56px 12px 12px; }
+.ql[data-look='sb'] .ql-nav {
+  align-self: center; flex: none; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--line-1); background: color-mix(in oklab, var(--bg-1) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: var(--ink-1);
+}
+.ql[data-look='sb'] .ql-nav:hover { background: var(--bg-4); color: var(--ink-0); }
+.ql[data-look='sb'] .lightbox-stage img,
+.ql[data-look='sb'] .ql-video { border-radius: 8px; }
+/* Info inside Quick look: the card beside the stage, in the islands' glass. */
+.ql[data-look='sb'] .cb-detail.is-inline {
+  align-self: flex-start; max-height: 100%; border: 1px solid var(--line-1); border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-1) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+}
+@media (max-width: 720px) {
+  .ql[data-look='sb'] .ql-btn { width: 32px; padding: 0; justify-content: center; }
+  /* The name over where it is in the walk, in the room the actions leave. */
+  .ql[data-look='sb'] .ql-title {
+    flex: 1 1 auto; max-width: none; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px;
+  }
+  .ql[data-look='sb'] .ql-name { max-width: 100%; }
+  .ql[data-look='sb'] .ql-meta { font-size: 11px; line-height: 1; }
+  .ql[data-look='sb'] .ql-nav { position: absolute; top: 50%; transform: translateY(-50%); }
+}
+@media (pointer: coarse) {
+  .ql[data-look='sb'] .ql-bar, .ql[data-look='sb'] .ql-title, .ql[data-look='sb'] .ql-acts { height: 48px; }
+  .ql[data-look='sb'] .ql-btn { height: 44px; min-width: 44px; }
+  .ql[data-look='sb'] .ql-nav { width: 44px; height: 44px; }
+  .ql[data-look='sb'] .ql-body { padding-top: 68px; }
+}
+
+/* ── A phone: the title, the search and All files ────────────────────────── */
+/* The name ⌄ and Shrink as an icon on the first line; the search and All
+   files on the second. Grid | List are in the menu, and the bottom bar's +
+   adds files (ListSurface; a shared link has neither Shrink nor +). */
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-titlebar { padding-left: 8px; padding-right: 8px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-title-btn,
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-title-text { font-size: 18px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-shrink { width: 40px; height: 40px; padding: 0; justify-content: center; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-shrink .fp-word-label { display: none; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-tools { flex-wrap: wrap; height: auto; padding: 8px 8px 8px 12px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-search { flex: 1 1 auto; min-width: 0; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-found,
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-tools > .fp-spacer { display: none; }
+/* A sample pack's read stays, on a line of its own under the search; only a
+   search's count gives way to the search's room. */
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-found.is-pack {
+  display: block; order: 1; flex: 1 0 100%; min-width: 0; margin: 2px 0 0;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* The upsell gets a line of its own rather than the search's room. */
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-tools .cbt-upsell { order: 1; flex: 1 0 100%; text-align: left; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-head > .list-selbar { margin: 2px 8px 8px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-head .list-selbar-hint { display: none; }
+/* Clusters in one row that scrolls sideways, the next one showing at the
+   edge, as Photos' albums do. */
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-cls {
+  flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  scroll-snap-type: x proximity; scroll-padding-inline: 12px;
+  margin-inline: -12px; padding-inline: 12px;
+}
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-cls::-webkit-scrollbar { display: none; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-cls .ft { flex: none; width: 200px; scroll-snap-align: start; }
+
+/* ── Fingers: 40px and up ────────────────────────────────────────────────── */
+/* No downloads on the pictures or the rows: every one would carry it. The
+   selection's actions, Quick look and Info download instead. */
+@media (hover: none) {
+  .list-wrap[data-look='sb'] .ct-tile-dl,
+  .list-wrap[data-look='sb'] .ct-dl { display: none; }
+}
+@media (pointer: coarse) {
+  .list-wrap[data-look='sb'] .fp-titlebar { height: 52px; padding-top: 12px; }
+  .list-wrap[data-look='sb'] .fp-title-btn,
+  .list-wrap[data-look='sb'] .fp-word,
+  .list-wrap[data-look='sb'] .fp-trail .pb-name { height: 40px; }
+  .list-wrap[data-look='sb'] .fp-trail .pb-back { width: 40px; height: 40px; }
+  .list-wrap[data-look='sb'] .fp-tools { height: 58px; }
+  .list-wrap[data-look='sb'] .fp-tools .sbf-filter-btn,
+  .list-wrap[data-look='sb'] .fp-seg .sbf-tab,
+  .list-wrap[data-look='sb'] .fp-add { height: 40px; }
+  .list-wrap[data-look='sb'] .fp-tools .cbt-upsell { min-height: 40px; }
+  .list-wrap[data-look='sb'] .fp-head > .list-selbar { height: 48px; }
+  .list-wrap[data-look='sb'] .fp-head .list-selbar-act { height: 40px; min-width: 40px; justify-content: center; }
+  .list-wrap[data-look='sb'] .fp-head .list-selbar-clear { width: 40px; }
+  .list-wrap[data-look='sb'] .fp-shelf { height: 44px; }
+  .list-wrap[data-look='sb'] .fp-shelf.is-first { height: 40px; }
+  .list-wrap[data-look='sb'] .ct-table.is-bare .ct-row,
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-row { height: 44px; contain-intrinsic-size: auto 44px; }
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-head,
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-th { height: 40px; }
+  .list-wrap[data-look='sb'] .fp-desc-row { height: 44px; }
+  /* An audio row's play is its picture: drawn at the picture's size, taken
+     by a finger at 40. The picture clips itself, so the play can reach out. */
+  .list-wrap[data-look='sb'] .ct-thumb.is-audio { overflow: visible; }
+  .list-wrap[data-look='sb'] .ct-thumb.is-audio > :not(.ct-play) { border-radius: inherit; overflow: hidden; }
+  .list-wrap[data-look='sb'] .ct-table.is-bare .ct-play::after { content: ''; position: absolute; inset: -6px; }
+  .list-wrap[data-look='sb'] .ct-table.is-classic .ct-play::after { content: ''; position: absolute; inset: -9px; }
+  /* The menu's Layout and Size (portalled, so outside the sheet). */
+  .sbf-menu .fp-size-row { height: 52px; }
+  .sbf-menu .fp-size-row .sbf-tab { height: 40px; min-width: 44px; font-size: 14px; }
+}

@@ -1,5 +1,5 @@
 // panelsProbe — mounts single panels from the visual sweep (tag profile,
-// Settings, Version history, Trash, Schedule) in a real browser, for
+// Settings, Version history, Trash, Notifications) in a real browser, for
 // tests/panels-visual.spec.js.
 //
 // Served by the Vite dev server by path (page.evaluate → import('/tests/…')),
@@ -98,12 +98,13 @@ export function mountShare({ onlinePeerName } = {}) {
   }));
 }
 
-export function mountNotifications() {
+// `mobileShell`: what App passes on a phone, where the list is a sheet.
+export function mountNotifications({ mobileShell = false } = {}) {
   const now = new Date().toISOString();
-  mountInto(h(NotificationsPanel, {
+  return mountInto(h(NotificationsPanel, {
     items: [
-      { id: 'n1', kind: 'schedule_moved', title: 'Day 3 moved', body: 'Moved to Friday', created_at: now, read_at: null },
+      { id: 'n1', kind: 'file.shared', title: 'Maya shared a file with you', body: 'Lookbook.pdf', created_at: now, read_at: null },
     ],
-    schedule: [], unread: 1, loading: false, onClose: () => {},
+    unread: 1, loading: false, onClose: () => {}, mobileShell,
   }));
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { LiveCursor } from './primitives.jsx';
 import { PRESENCE_TUNING } from '../lib/presenceTuning.js';
 import * as perf from '../lib/perf.js';
+import { cssColor, cssString } from '../lib/presenceCss.js';
 
 // Identity-only fingerprint of a peer — everything the render below actually
 // draws (user, selections, marquee) but NOT cursor position or awareness
@@ -342,10 +343,13 @@ function PeerSelectionStyles({ peers }) {
     const { SELECTION_RULE_CAP } = PRESENCE_TUNING;
     for (const p of peers) {
       if (rules.length >= SELECTION_RULE_CAP) break;
-      const color = p.user.color || '#ffa500';
+      // Every value below arrives from a peer's awareness state, so each one
+      // reaches this stylesheet only in a shape that cannot leave its rule.
+      const color = cssColor(p.user.color);
       for (const id of p.cardIds) {
         if (rules.length >= SELECTION_RULE_CAP) break;
-        const safe = id.replace(/"/g, '\\"');
+        const safe = cssString(id);
+        if (!safe) continue;
         // Single clean ring in the peer's color. Outline (not box-shadow)
         // because contain:paint on the card root clips outer shadows but
         // outlines render outside that clip. No second/inner ring — the
@@ -362,6 +366,7 @@ function PeerSelectionStyles({ peers }) {
       // frame, then reconciles.
       for (const idx of (p.strokeIds || [])) {
         if (rules.length >= SELECTION_RULE_CAP) break;
+        if (!Number.isInteger(idx) || idx < 0) continue;
         rules.push(
           `g[data-stroke-idx="${idx}"] path[data-stroke-line] {`
           + ` stroke: ${color} !important;`
@@ -370,6 +375,7 @@ function PeerSelectionStyles({ peers }) {
       }
       for (const idx of (p.arrowIds || [])) {
         if (rules.length >= SELECTION_RULE_CAP) break;
+        if (!Number.isInteger(idx) || idx < 0) continue;
         rules.push(
           `g[data-arrow-idx="${idx}"] path[data-arrow-line] {`
           + ` stroke: ${color} !important;`

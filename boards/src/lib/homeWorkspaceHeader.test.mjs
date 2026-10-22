@@ -76,8 +76,10 @@ test('App: Home\'s switcher lands on Home; the sidebar\'s still goes to the canv
   assert.match(app, /useState\(\(\) => \(arrivedOnHome \? 'home' : 'board'\)\);\s*useEffect\(\(\) => \{ clearHomeAfterSwitch\(\); clearSettingsAfterSwitch\(\); \}, \[\]\);/);
   assert.match(app, /const addNewWorkspace = async \(\{ thenHome = false \} = \{\}\) => \{/);
   assert.match(app, /if \(thenHome === true\) markHomeAfterSwitch\(ws\.id\);\s*onSwitchWorkspace\?\.\(ws\.id\);/);
-  assert.match(app, /onSelect=\{\(id\) => \{ onSwitchWorkspace\(id\); setCurrentSurface\('board'\); \}\}/,
-    'the sidebar switcher is unchanged: it takes you to work');
+  // The sidebar's switcher takes you to work — except from the files
+  // sidebar's Home, which has no switcher of its own: that lands on Home.
+  assert.match(app, /onSelect=\{\(id\) => \{[\s\S]{0,260}?if \(filesSidebar && currentSurface === 'home' && id !== workspace\.id\) markHomeAfterSwitch\(id\);\s*onSwitchWorkspace\(id\); setCurrentSurface\('board'\);\s*\}\}/,
+    'the sidebar switcher takes you to work, and from the files Home to Home');
 });
 
 test('a Settings note opens Settings in the workspace switched to, on its tab, and only there', () => {
@@ -117,6 +119,23 @@ test('App: a Home arrival is not a canvas landing, and HOME_VIEW waits for the p
   assert.match(app, /if \(currentSurface !== 'home' \|\| boardsLoading\) return;/);
   assert.match(app, /\}, \[currentSurface, boardsLoading\]\);/);
   assert.match(app, /\.\.\.\(viaSwitch \? \{ via: 'switch' \} : \{\}\),/);
+});
+
+test('App: home_view says which Home it was and whether it drew the graph; the Home card logs what it was used for', () => {
+  const app = read('App.jsx');
+  const view = app.slice(app.indexOf('logEvent(EV.HOME_VIEW, {'), app.indexOf("...(viaSwitch ? { via: 'switch' } : {}),"));
+  assert.match(view, /home: filesSidebar \? 'clusters' : 'projects',/);
+  assert.match(view, /graph: !mobileShell,/);
+  // graph reads the same test both Homes use to leave the graph out.
+  assert.match(app, /Graph=\{mobileShell \? null : HomeGraph\}/);
+  assert.match(app, /graph=\{mobileShell \? null : \(/);
+  assert.match(app, /const logHomeClusterAction = \(action\) => \{ try \{ logEvent\(EV\.HOME_CLUSTER_ACTION, \{ action \}\); \} catch \(_\) \{\} \};/);
+  const home = app.slice(app.indexOf('<ClustersHome'), app.indexOf('<ProjectsHome'));
+  for (const [prop, action] of [['onRenameCluster', 'rename'], ['onCoverCluster', 'cover'], ['onDeleteCluster', 'delete']]) {
+    assert.match(home, new RegExp(`${prop}=\\{\\([^)]*\\) => \\{ logHomeClusterAction\\('${action}'\\);`), prop);
+  }
+  assert.match(home, /logHomeClusterAction\(target\?\.id \? 'move' : 'move_cancelled'\);\s*if \(!target\?\.id\) return;/);
+  assert.match(home, /logHomeClusterAction\(homeStars\.isStarred\(id\) \? 'unstar' : 'star'\);\s*return homeStars\.toggle\(id, \.\.\.rest\);/);
 });
 
 test('the menu: focus goes in and comes back, it follows its trigger, and the ⋯ shows on touch', () => {

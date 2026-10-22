@@ -7,7 +7,7 @@
 // The graph renderer + privacy contract (IDs/counts only, no titles/content) are
 // untouched; the Command Center only *reuses* <UniverseGraph>.
 
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminUniverseTicker } from './AdminUniverseTicker.jsx';
 import { UniverseGraph } from './UniverseGraph.jsx';
 import { UniverseLegend } from './UniverseLegend.jsx';
@@ -24,19 +24,31 @@ import { useActivityPulse } from './useActivityPulse.js';
 const AdminCommandCenter = lazy(() =>
   import('./AdminCommandCenter.jsx').then((m) => ({ default: m.AdminCommandCenter })));
 import { fmtDateTime } from '../../lib/adminFormat.js';
+import { directorText } from '../../lib/universeMoments.js';
 
 const KIND_LABELS = {
   user:  'User',
   ws:    'Workspace',
-  board: 'Board',
+  board: 'Cluster',
   doc:   'Doc',
   note:  'Note',
   image: 'Image',
   palette: 'Palette',
   link:  'Link',
+  grid:  'Grid',
+  boardlink: 'Linked cluster',
   card:  'Card',
   url:   'External link',
 };
+
+// What the picked thing is, in the interface's words. A card is named by its
+// own kind (it used to read "Card" whatever it was), a workspace's top-level
+// cluster is its Studio, and a nested cluster's card is not the cluster.
+function kindLabel(node) {
+  if (node.kind === 'board') return node.studio ? 'Studio' : 'Cluster';
+  if (node.cardKind === 'board') return 'Cluster card';
+  return KIND_LABELS[node.cardKind] || KIND_LABELS[node.kind] || node.cardKind || node.kind || 'Node';
+}
 
 // Cards get their created_at from card_index.created_at, added in migration
 // 0254. Rows that predate it were backfilled from updated_at, so anything
@@ -61,7 +73,7 @@ function UniverseDrawer({ node, onClose, isolated, onIsolate }) {
         <div className="universe-drawer-head-info">
           <div className="universe-drawer-eyebrow">
             <span className="universe-drawer-dot" style={{ background: node.color || '#ffa500' }} />
-            <span className="t-eyebrow">{KIND_LABELS[node.kind] || node.kind || 'Node'}</span>
+            <span className="t-eyebrow">{kindLabel(node)}</span>
           </div>
           <div className="universe-drawer-id">{node.id || node.node_id}</div>
         </div>
@@ -95,6 +107,137 @@ function UniverseDrawer({ node, onClose, isolated, onIsolate }) {
   );
 }
 
+// ── Live: the director, its caption, and the key to the light ────────────
+// The owner's pick (2026-10-21): B, "a director", which is A (the wide view,
+// with every moment lit where it happens) plus a camera that goes to each
+// moment and says what it was. The switch takes the director away and leaves
+// exactly A. It is remembered per browser, on by default.
+const DIRECTOR_KEY = 'admin.universe.director';
+
+function readDirector() {
+  try { if (window.localStorage.getItem(DIRECTOR_KEY) === '0') return false; } catch (_) { /* ignore */ }
+  return true;
+}
+
+function UniverseDirector({ on, status, onToggle, onResume }) {
+  const available = status?.available !== false;
+  const pausedUntil = status?.pausedUntil || 0;
+  const [now, setNow] = useState(() => performance.now());
+  // The countdown in "back in 42 s" moves once a second, and only while it shows.
+  useEffect(() => {
+    setNow(performance.now());
+    if (!on || !Number.isFinite(pausedUntil) || pausedUntil <= performance.now()) return undefined;
+    const id = setInterval(() => setNow(performance.now()), 1000);
+    return () => clearInterval(id);
+  }, [on, pausedUntil, status]);
+  const paused = on && available && pausedUntil > now;
+  const text = directorText({ mode: 'wide', label: '', pausedUntil: 0, ...status, on, available }, now);
+  const live = on && available && !paused;
+  return (
+    <div className="universe-dir">
+      <span className={`universe-dir-dot${live ? ' is-on' : ''}`} aria-hidden="true" />
+      <span className="universe-dir-text">{text}</span>
+      {paused && (
+        <button type="button" className="universe-dir-resume" onClick={onResume}>Resume</button>
+      )}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on && available}
+        aria-label="Director"
+        disabled={!available}
+        className="universe-dir-switch"
+        onClick={onToggle}
+        title={!available
+          ? 'Your system asks for reduced motion, so the camera stays still. Every moment still lights up where it happens.'
+          : on ? 'Turn the director off: the same moments, in the wide view'
+            : 'Turn the director on: the camera goes to each moment and says what it was'}
+      >
+        <span className="universe-dir-knob" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+// The caption keeps its last words while it fades out, so it never empties
+// before it has gone.
+function UniverseCaption({ caption }) {
+  const [shown, setShown] = useState(caption);
+  useEffect(() => { if (caption) setShown(caption); }, [caption]);
+  return (
+    <div className={`universe-cap${caption ? ' is-on' : ''}`} aria-live="polite" aria-atomic="true">
+      {shown && (
+        <>
+          <span className="universe-cap-e">{shown.e}</span>
+          <span className="universe-cap-l">{shown.l}</span>
+          <span className="universe-cap-m">{shown.m}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+// The key to the moments' light, drawn as each one is drawn in the scene.
+const MOMENT_KEY = [
+  {
+    label: 'Making', small: "in the card's colour",
+    icon: (
+      <>
+        <circle cx="9" cy="9" r="2.4" fill="#a48cf0" />
+        <circle cx="9" cy="9" r="6.5" fill="none" stroke="#a48cf0" strokeWidth="1.2" opacity=".7" />
+        <path d="M9 0.5v2.4M9 15.1v2.4M0.5 9h2.4M15.1 9h2.4" stroke="#ff9a7d" strokeWidth="1.2" strokeLinecap="round" />
+      </>
+    ),
+  },
+  {
+    label: 'Here now',
+    icon: (
+      <>
+        <circle cx="9" cy="9" r="7.5" fill="#fff4d8" opacity=".16" />
+        <circle cx="9" cy="9" r="4.2" fill="#fff4d8" opacity=".3" />
+        <circle cx="9" cy="9" r="1.6" fill="#fff4d8" />
+      </>
+    ),
+  },
+  {
+    label: 'New account',
+    icon: <path d="M9 1.2L10.1 7.9L16.8 9L10.1 10.1L9 16.8L7.9 10.1L1.2 9L7.9 7.9Z" fill="#ffd06b" />,
+  },
+  {
+    label: 'Together', small: 'invites, shared work',
+    icon: (
+      <>
+        <path d="M2 14C4 4 14 4 16 14" fill="none" stroke="#bfe3ff" strokeWidth="1.3" strokeLinecap="round" />
+        <circle cx="2" cy="14" r="1.8" fill="#bfe3ff" />
+        <circle cx="16" cy="14" r="1.8" fill="#bfe3ff" />
+      </>
+    ),
+  },
+  {
+    label: 'Visiting', small: 'public pages',
+    icon: (
+      <>
+        <path d="M1.5 3.5L13 12.5" stroke="#a9c2ee" strokeWidth="1.3" strokeLinecap="round" opacity=".55" />
+        <circle cx="13.5" cy="13" r="2" fill="#dbe7ff" />
+      </>
+    ),
+  },
+];
+
+function UniverseMomentsKey() {
+  return (
+    <div className="universe-key" role="list" aria-label="What the light means">
+      {MOMENT_KEY.map((k) => (
+        <span className="universe-key-item" role="listitem" key={k.label}>
+          <svg viewBox="0 0 18 18" aria-hidden="true">{k.icon}</svg>
+          {k.label}
+          {k.small && <small>{k.small}</small>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // The original Universe view — unchanged behavior, just extracted so the shell
 // can swap it with the Command Center.
 // Exported so the dev preview harness renders THIS, not a copy of it.
@@ -122,17 +265,20 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
   const [hueKind, setHueKind] = useState(null);
   const [isolateWs, setIsolateWs] = useState(null);
   const [stream, setStream] = useState({ status: 'connecting', lastDeltaAt: null });
+  const [director, setDirector] = useState(readDirector);
+  const [directorStatus, setDirectorStatus] = useState(null);
+  const [resumeSignal, setResumeSignal] = useState(0);
 
   // What people are DOING, as opposed to what they have made. Creation lands
   // about once every twenty minutes; board-scoped activity is several times an
   // hour, and during a real work session far more than that. Without this layer
   // a correctly-working universe is motionless almost all of the time.
   //
-  // Feeds the in-scene spark layer only. There was briefly a floating panel
-  // listing recent arrivals here too; it spent almost all of its time saying
-  // nothing had happened, which is a lot of screen furniture to spend on a
-  // non-event. Arrivals still announce themselves in the scene — ring, flash,
-  // and a minute of afterglow.
+  // Feeds the in-scene moments (universeMomentEngine.js). There was briefly a
+  // floating panel listing recent arrivals here too; it spent almost all of its
+  // time saying nothing had happened, which is a lot of screen furniture to
+  // spend on a non-event. Moments announce themselves in the scene instead, and
+  // the director, when it is on, says in words what each one was.
   const pulse = useActivityPulse();
 
   // Stable identities: UniverseGraph keeps handlers in refs, but an unstable
@@ -140,6 +286,13 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
   const onStats   = useCallback((s) => setGraph(s), []);
   const onSelect  = useCallback((n) => { setActive(n); onPick?.(n); }, [onPick]);
   const onStream  = useCallback((s) => setStream(s), []);
+  const onDirector = useCallback((s) => setDirectorStatus(s), []);
+  const toggleDirector = useCallback(() => {
+    const next = !director;
+    setDirector(next);
+    try { window.localStorage.setItem(DIRECTOR_KEY, next ? '1' : '0'); } catch (_) { /* ignore */ }
+  }, [director]);
+  const resumeDirector = useCallback(() => setResumeSignal((n) => n + 1), []);
 
   const toggleKind = useCallback((key) => {
     setHiddenKinds((prev) => {
@@ -172,9 +325,17 @@ export function UniverseView({ dataSource = null, statsOverride = null, onPick =
         isolateWorkspaceId={isolateWs}
         selectedId={active?.id || null}
         activity={pulse.recent}
+        moments
+        director={director}
+        onDirector={onDirector}
+        resumeSignal={resumeSignal}
       />
       <UniverseLegend graph={graph} hiddenKinds={hiddenKinds} onHoverKind={setHueKind}
                       onToggleKind={toggleKind} onShowAll={showAll} />
+      <UniverseMomentsKey />
+      {director && <UniverseCaption caption={directorStatus?.caption || null} />}
+      <UniverseDirector on={director} status={directorStatus}
+                        onToggle={toggleDirector} onResume={resumeDirector} />
       <div className="universe-controls">
         {isolateWs && (
           <button className="universe-reset-btn is-active" onClick={() => setIsolateWs(null)}

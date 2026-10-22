@@ -1,12 +1,21 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import * as perf from '../lib/perf.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, bulkImportAllowed, touchPassAllowed } from '../lib/appHost.js';
+import { isZipFile } from '../lib/importZips.js';
+import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
+import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
+import { secondIdeaDue } from '../lib/secondIdea.js';
+import { openFileShare, docShareLabel } from '../lib/fileShareBus.js';
+import { openSharedFile } from '../lib/sharedFileBus.js';
+import { ShortcutCard } from './cards/ShortcutCard.jsx';
 import { openableUrl } from '../lib/openableUrl.js';
+import { isShareableCard } from '../lib/fileShares.js';
 
 // Live expand map for a schedule card — Yjs gridMeta when present, else the
 // local shell's plain card.gridMeta.
@@ -35,19 +44,27 @@ function boardKeysBlocked() {
 }
 import { getDocUndoTarget } from '../lib/overlayRouting.js';
 import { undoToast } from '../lib/undoToast.js';
-import { tapIsDouble } from '../lib/doubleTap.js';
+import { swallowGhostClick, tapIsDouble } from '../lib/doubleTap.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard as ScheduleTableCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
   shallowEqualIgnoreFns,
 } from './cards.jsx';
-import { ScheduleCard } from './cards/ScheduleCard.jsx';
 import { RichDocCard as RichDocCardView } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { lazyPanel } from '../lib/lazyPanel.jsx';
+import { toListItem } from '../lib/listItem.js';
 
 // Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
 const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
+// A file with no viewer of its own opens here (Download + Share).
+const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'));
+// Panels kept mounted behind an `open` prop that only a click opens: each loads
+// at its first open and stays mounted from then on (lib/lazyPanel.jsx).
+const SketchPadOverlay = lazyPanel(() => import('./SketchPadOverlay.jsx').then(m => ({ default: m.SketchPadOverlay })));
+const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then(m => ({ default: m.GridTemplatePanel })));
+const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
@@ -56,7 +73,6 @@ import { CanvasPresence } from './CanvasPresence.jsx';
 import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { EditableText } from './EditableText.jsx';
-import { SketchPadOverlay } from './SketchPadOverlay.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -64,15 +80,16 @@ import { useFeedback } from './AppFeedback.jsx';
 import {
   MessageCircle, MessageCircleOff,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
-  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder,
+  Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
   Calendar as CalendarPh, X,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
+import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
+import { ariaKeys } from '../lib/ariaKeys.js';
 import { Sheet } from './shell/Sheet.jsx';
 import { sanitizeLayout } from '../lib/gridLayout.js';
-import { GridTemplatePanel } from './GridTemplatePanel.jsx';
-import { SaveTemplateDialog } from './SaveTemplateDialog.jsx';
 import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
 import { layoutById } from '../lib/templateLayouts.js';
 import { TemplateAddedPrompt } from './TemplateAddedPrompt.jsx';
@@ -86,9 +103,12 @@ import {
   publishGridLayout, unpublishGridLayout,
 } from '../lib/gridLayoutsApi.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, CARD_TRANSFER_MIME, ENTITY_REF_MIME, ENTITY_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween } from '../lib/filesDrag.js';
+import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, arrowsBetween, spreadDropPoints } from '../lib/filesDrag.js';
+import { decideDrop, copyKeyHeld, whatOf } from '../lib/dropRules.js';
+import { dragSession } from '../lib/springLoad.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
 import { unlinkGridForCopy, gridLinkOf, relinkGrid, readGridModel } from '../lib/gridState.js';
 import { yMapToCard } from '../lib/yhelpers.js';
@@ -125,7 +145,7 @@ import { openPlayer, takeCardPlayer } from '../lib/playerBus.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
-import { logEvent, logEventOnce } from '../lib/analytics.js';
+import { logEvent, logEventOnce, noteSessionCounter } from '../lib/analytics.js';
 import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js';
 import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
@@ -135,18 +155,19 @@ import {
   WASD_SPEED, WASD_FAST, WASD_EASE, WASD_REST, WASD_ZOOM_RATE, WASD_ZOOM_REST,
 } from '../lib/wasdPan.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
-import { canShowHint, claimHint, releaseHint, markHintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
-import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
+import { canShowHint, claimHint, releaseHint, markHintSeen, hintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
+import { genuineCards, hasGenuineCard, isSeedCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
 import { shouldPromptMix, MIX_PROMPT_RETIRED } from '../lib/mixPrompt.js';
-import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
+import { claimUpsellSlot, upsellSlotBusy, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
 import { getAppSessionId } from '../lib/appSession.js';
 import {
   dockVisitsKey, dockDismissCountKey, parseVisits, dockVisitAllowed, noteDockVisit,
   dockRetired, rootHoldsClusters,
 } from '../lib/dockFatigue.js';
-import { cardMoveTargets } from '../lib/projectsHome.js';
+import { cardMoveTargets, spotBesideContent } from '../lib/projectsHome.js';
+import { publishNewClusterPick } from '../lib/newClusterPick.js';
 import { momentumHintSeen, markMomentumHintSeen } from '../lib/momentumHint.js';
 import { setJourneyState } from '../lib/journey.js';
 import { ShowcaseBanner } from './ShowcaseBanner.jsx';
@@ -154,6 +175,7 @@ import { isShowcaseCard } from '../lib/onboardingStarter.js';
 import { recordIntent } from '../lib/frictionSignal.js';
 import { useGesture } from '@use-gesture/react';
 import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
@@ -179,7 +201,8 @@ import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading, stashLateUpload, takeLateUploads } from '../lib/abandonedUploads.js';
-import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent } from '../lib/placement.js';
+import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent, planPutOnBoard } from '../lib/placement.js';
+import { UnplacedOffer } from './UnplacedOffer.jsx';
 import { withGeometry } from '../lib/moodboard.js';
 import { holdDrop, claimReady, restoreHeld, setHeldBaseline, subscribeHeld } from '../lib/heldUploads.js';
 import { storageRoom } from '../lib/storageRoom.js';
@@ -201,12 +224,27 @@ import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from '../lib/fileIngest.js';
 import { saveWebImageCopy } from '../lib/webImageClient.js';
 import { pickHotlinks, isHotlinkImage, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
-import { captureDropEntries, hasDirectory } from '../lib/folderWalk.js';
+import { captureDropEntries, captureDropHandles, hasDirectory } from '../lib/folderWalk.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { ArrowPopover } from './ArrowPopover.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
+
+// The cluster glyph. Once the cluster nudges ship it is the folder a cluster
+// already wears in Files, list rows and the cluster browser (cards.jsx
+// KindIcon) — one picture for one thing; until then the two windows it has
+// always had here. Uploading a folder then shows the folder OPEN, so the add
+// menu never draws two identical rows.
+const clusterGlyph = () => (clusterNudgesAllowed() ? Folder : Browsers);
+const folderUploadGlyph = () => (clusterNudgesAllowed() ? FolderOpen : Folder);
+// The Cluster tool's hover card shows what a cluster looks like on a canvas,
+// with the same Lost Time stills the sign-in page shows (public/).
+const CLUSTER_CARD_COVERS = ['/signin-losttime.webp', '/signin-losttime-still1.webp', '/signin-losttime-still2.webp'];
+// cluster_tool_hint{action:'seen'} is logged once per page load: one sighting
+// is what joins the card to the clusters made after it.
+let clusterCardSeenLogged = false;
 
 // Empty-board headline rotator — cycles a few accurate, breadth-signaling nouns
 // ("Start your moodboard / script / shot list…") to hint the app's full range
@@ -252,6 +290,9 @@ function ProjectNameField({ board, onRename }) {
            onChange={(e) => setDraft(e.target.value)}
            onKeyDown={(e) => {
              e.stopPropagation();
+             // Mid-syllable, Enter picks the syllable: blurring then landed it
+             // twice (봄 광고고). The Enter after it names the project.
+             if (isComposingKey(e)) return;
              if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
              if (e.key === 'Escape') { e.preventDefault(); setDraft(named); e.currentTarget.blur(); }
            }}
@@ -308,6 +349,15 @@ function noteCopiedGroups(items, ydoc) {
 const SCHEDULE_SCROLL_PANES = '.rd-body, .schedt, .schedc-rail-body';
 
 const RESIZE_HANDLE_PX = 14;
+// How far the multi-selection's frame (.sel-bbox) sits outside its cards.
+const SEL_FRAME_PAD = 6;
+// The selection's ⋯, in screen px from the selection's top-right corner:
+// over the corner, as it sat on a card, or clear of it on a selection drawn
+// smaller than SEL_MENU_OUT_BELOW_PX, so it never covers the card a finger is on.
+const SEL_MENU_BTN_PX = 36;
+const SEL_MENU_OUT_BELOW_PX = 96;
+const SEL_MENU_OVER = { dx: -26, dy: -14 };
+const SEL_MENU_OUT = { dx: 4, dy: -40 };
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
 // Mobile press-and-hold to pick up a card. On touch a one-finger drag PANS
@@ -412,7 +462,10 @@ const SELECTED_MOUNT_CAP = 50;
 // every drag/resize/marquee frame — and the doc card re-walked its text each
 // time. Both self-observe their own Y content, so the cards.jsx comparator
 // (ignore function identity) is safe for them too.
-const MemoScheduleCard = memo(ScheduleCard, shallowEqualIgnoreFns);
+// Schedule is retired, so only a schedule card made before then renders the
+// first one: it's its own chunk, fetched when a board has one.
+const MemoScheduleCard = lazyWithReload(() => import('./cards/ScheduleCard.jsx')
+  .then(m => ({ default: memo(m.ScheduleCard, shallowEqualIgnoreFns) })));
 const RichDocCard = memo(RichDocCardView, shallowEqualIgnoreFns);
 const EMPTY_UPLOADS = Object.freeze({});
 const EMPTY_ITEMS = Object.freeze([]);
@@ -542,7 +595,10 @@ function GridMatrixControl({ onGenerate }) {
     if (c * r <= 1) return;
     onGenerate(c, r);
   };
-  const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+  const onKey = (e) => {
+    if (isComposingKey(e)) return;
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  };
   return (
     <div className="grid-matrix-ctl" onPointerDown={(e) => e.stopPropagation()}>
       <input type="number" min="1" max="50" value={cols} aria-label="Columns"
@@ -563,10 +619,14 @@ export function CanvasSurface({
   getAwareness,            // () => Awareness | null  — for live presence
   currentUser,             // { id, name, color }     — for awareness localState
   onOpenBoard, tweak, depth, onOpenPicker,
+  // (boardId) => bool, for a file shown from ANOTHER cluster (a sub-cluster's
+  // list rows): Share in its viewer asks about that cluster, not this one.
+  canEditBoard = null,
   // Doc-card dock handoff — passed straight through to RichDocCard. See its
   // `onDock` prop: the workspace hosts the docked doc so it survives
-  // navigating to another cluster.
-  onDockDoc = null, dockedDocCardId = null,
+  // navigating to another cluster. With a doc docked, any other doc opens
+  // beside it (onOpenBesideDoc; lib/docPanes.js).
+  onDockDoc = null, dockedDocCardId = null, onOpenBesideDoc = null,
   // A template that just landed in the library (from /templates, a share link or
   // the public gallery) plus the way to let it go. The canvas owns the prompt
   // because placing is a canvas verb and pickTemplate already does exactly the
@@ -623,6 +683,9 @@ export function CanvasSurface({
                            // writing tiles, never a container (lib/firstBoardCopy).
   firstBoardKind = null,   // 'references' | 'moodboard' | 'storyboard' | null —
                            // shapes the first board's headline and hero verb.
+  firstBoardLinks = false, // the hint names pasted links too (where the setup runs)
+  firstBoardJoin = null,   // { ws, by }: someone else's workspace with nothing in it
+                           // yet; the empty board names it and whose it is.
   freshProject = false,    // an empty TOP-LEVEL cluster (a project): it gets the
                            // first board's treatment — material from elsewhere,
                            // writing tiles, no empty containers as peers — and a
@@ -654,13 +717,29 @@ export function CanvasSurface({
   // `cards` for callers that don't split them.
   allCards = null,
   onRevealUnplaced = null, // (ids) => void — show files that aren't on the board in Files
+  // (payload, { x, y }, { copy, what }) => void — with the sidebar's Files, files
+  // dragged from Files out of ANOTHER cluster move here, at the drop point, or
+  // are copied with the copy key (lib/dropRules.js; App runs it by the route).
+  onMoveFilesHere = null,
+  // ({ from, to, cardIds, copy, what, kinds }) => Promise<bool> — with the
+  // sidebar's Files, Move to cluster… and Copy to cluster… go by the route too.
+  onMoveFiles = null,
 }) {
   const everyCard = allCards || cards;
   const allCardsRef = useRef(everyCard);
   allCardsRef.current = everyCard;
   const onRevealUnplacedRef = useRef(onRevealUnplaced);
   onRevealUnplacedRef.current = onRevealUnplaced;
+  const onMoveFilesHereRef = useRef(onMoveFilesHere);
+  onMoveFilesHereRef.current = onMoveFilesHere;
+  const onMoveFilesRef = useRef(onMoveFiles);
+  onMoveFilesRef.current = onMoveFiles;
   const unplacedCount = useMemo(() => countUnplaced(everyCard), [everyCard]);
+  // What the empty board's offer speaks for (UnplacedOffer): only worked out
+  // while nothing is on the board.
+  const offerCards = useMemo(() => (
+    unplacedCount > 0 && !(cards?.length) ? everyCard.filter(isUnplaced) : null
+  ), [everyCard, cards?.length, unplacedCount]);
   perf.bump('cs.renderCount');
   const wrapRef = useRef(null);
 
@@ -811,7 +890,87 @@ export function CanvasSurface({
     if (!from && z >= CANVAS_PROMOTE_ON_ABOVE) return true;
     return from;
   };
-  const applyCanvasTransform = () => {
+  // ── The ground (lib/canvasGround.js) ──────────────────────────────────────
+  // Dots and very faint lines on a canvas under everything, redrawn in the
+  // frame the camera moves, from the same refs the transform reads, so they
+  // move with the cards instead of waiting for the camera to be committed.
+  // Two cases take the camera from elsewhere: an empty board's ground
+  // stays put under its panel; and while a programmatic
+  // move eases on .is-smooth the refs already hold where it will end, so the
+  // ground reads the transform the transition is showing, frame by frame.
+  const groundRef = useRef(null);
+  const groundRafRef = useRef(0);
+  const groundSmoothUntilRef = useRef(0);
+  const groundSizeRef = useRef({ w: 0, h: 0, dpr: 1, bleed: 0 });
+  const groundInkRef = useRef({ dot: null, line: null });
+  const groundPainterRef = useRef(null);
+  // A mouse wheel click's zoom target while it glides there (the wheel effect).
+  const glideRef = useRef(null);
+  const reduceMotionMq = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null, []);
+  const drawGround = () => {
+    const cv = groundRef.current;
+    const ctx = cv?.getContext('2d');
+    if (!ctx) return;
+    let x = panRef.current.x, y = panRef.current.y, z = zoomRef.current;
+    if (boardIsEmptyRef.current) { x = 0; y = 0; z = 1; }
+    else if (performance.now() < groundSmoothUntilRef.current && canvasRef.current) {
+      const live = cameraFromTransform(getComputedStyle(canvasRef.current).transform);
+      if (live) ({ x, y, z } = live);
+    }
+    const { w, h, dpr, bleed } = groundSizeRef.current;
+    if (!groundPainterRef.current) groundPainterRef.current = createGroundPainter();
+    groundPainterRef.current.draw(ctx, { width: w + bleed, height: h, dpr, x: x + bleed, y, z, ...groundInkRef.current });
+    if (import.meta.env.DEV) cv.dataset.camera = `${x},${y},${z}`;
+  };
+  // From inside an animation frame (a glide, a camera tween), a frame
+  // requested now would draw a frame late: draw at once instead.
+  const drawGroundNow = () => {
+    if (groundRafRef.current) { cancelAnimationFrame(groundRafRef.current); groundRafRef.current = 0; }
+    drawGround();
+    if (performance.now() < groundSmoothUntilRef.current) scheduleGroundDraw();
+  };
+  const scheduleGroundDraw = () => {
+    if (groundRafRef.current) return;
+    groundRafRef.current = requestAnimationFrame(() => {
+      groundRafRef.current = 0;
+      drawGround();
+      // An eased move keeps the ground drawing until its transition is over.
+      if (performance.now() < groundSmoothUntilRef.current) scheduleGroundDraw();
+    });
+  };
+  // The canvas's size, plus the strip under a floating sidebar when
+  // clusterSidebar.css says the board runs on under it (--cnv-ground-bleed).
+  const measureGround = () => {
+    const cv = groundRef.current, wrap = wrapRef.current;
+    if (!cv || !wrap) return;
+    const r = wrap.getBoundingClientRect();
+    const bleed = getComputedStyle(wrap).getPropertyValue('--cnv-ground-bleed').trim() === '1'
+      ? Math.max(0, Math.round(r.left)) : 0;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    groundSizeRef.current = { w: r.width, h: r.height, dpr, bleed };
+    cv.style.left = `${-bleed}px`;
+    cv.style.width = `${r.width + bleed}px`;
+    cv.style.height = `${r.height}px`;
+    const W = Math.max(1, Math.round((r.width + bleed) * dpr));
+    const H = Math.max(1, Math.round(r.height * dpr));
+    // A new size clears the canvas: redraw before this frame paints (a
+    // ResizeObserver runs before paint), or a drag-resize shows no ground.
+    if (cv.width !== W || cv.height !== H) {
+      cv.width = W;
+      cv.height = H;
+      drawGroundNow();
+    } else scheduleGroundDraw();
+  };
+  // The theme's --grid-dot / --grid-line, as numbers for the canvas.
+  const readGroundInk = () => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const cs = getComputedStyle(wrap);
+    groundInkRef.current = { dot: parseColor(cs.getPropertyValue('--grid-dot')), line: parseColor(cs.getPropertyValue('--grid-line')) };
+    scheduleGroundDraw();
+  };
+  // `inFrame`: the caller is an animation frame's callback (see drawGroundNow).
+  const applyCanvasTransform = (inFrame = false) => {
     const el = canvasRef.current;
     if (!el) return;
     const z = zoomRef.current;
@@ -836,6 +995,7 @@ export function CanvasSurface({
       setTransform(el, `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`);
       if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
     }
+    if (inFrame) drawGroundNow(); else scheduleGroundDraw();
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
   // visibleIds = Set of mounted card ids: everything inside the ADD band
@@ -989,6 +1149,28 @@ export function CanvasSurface({
     bumpPerf('cull.drainPass');
     scheduleVisibleRecompute();
   }, [visibleIds, scheduleVisibleRecompute]);
+  // The board holds still on screen while a floating sidebar beside it
+  // changes size (a card dragged, the arrangement switched, the sidebar
+  // collapsed): its cards float over the board, so this box's left edge moving
+  // with theirs mustn't carry the board along. The camera moves the other way
+  // in the same frame (a ResizeObserver runs before paint) and is committed
+  // once it settles. Only where the board runs on under the sidebar
+  // (--cnv-ground-bleed: the main pane, with the floating sidebar).
+  const wrapLeftRef = useRef(null);
+  const holdStillTimerRef = useRef(0);
+  const holdBoardStill = () => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const left = wrap.getBoundingClientRect().left;
+    const was = wrapLeftRef.current;
+    wrapLeftRef.current = left;
+    if (was == null || Math.abs(left - was) < 0.5 || boardIsEmptyRef.current) return;
+    if (getComputedStyle(wrap).getPropertyValue('--cnv-ground-bleed').trim() !== '1') return;
+    panRef.current = { x: panRef.current.x - (left - was), y: panRef.current.y };
+    applyCanvasTransform();
+    clearTimeout(holdStillTimerRef.current);
+    holdStillTimerRef.current = setTimeout(() => setPan({ x: panRef.current.x, y: panRef.current.y }), 160);
+  };
   // ResizeObserver on the wrap element so viewport recomputes when the
   // window or sidebar resizes (also seeds wrapWHRef with the initial size
   // synchronously after mount via the first observation callback).
@@ -1000,11 +1182,42 @@ export function CanvasSurface({
         const r = e.contentRect;
         wrapWHRef.current = { w: r.width, h: r.height };
       }
+      holdBoardStill();
       scheduleVisibleRecompute();
+      measureGround();
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); clearTimeout(holdStillTimerRef.current); };
   }, [scheduleVisibleRecompute]);
+  // The ground's colours follow the theme (<html data-theme>, or the system's
+  // when it has none), and a window moved to another screen redraws it sharp.
+  useEffect(() => {
+    readGroundInk();
+    measureGround();
+    const mo = new MutationObserver(readGroundInk);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    mq?.addEventListener?.('change', readGroundInk);
+    window.addEventListener('resize', measureGround);
+    // A window moved to a screen of another density changes devicePixelRatio
+    // without resizing anything: a query on the current density hears it.
+    let dprMq = null;
+    const onDpr = () => { measureGround(); armDpr(); };
+    const armDpr = () => {
+      dprMq?.removeEventListener?.('change', onDpr);
+      dprMq = window.matchMedia?.(`(resolution: ${window.devicePixelRatio || 1}dppx)`) ?? null;
+      dprMq?.addEventListener?.('change', onDpr);
+    };
+    armDpr();
+    return () => {
+      mo.disconnect();
+      mq?.removeEventListener?.('change', readGroundInk);
+      dprMq?.removeEventListener?.('change', onDpr);
+      window.removeEventListener('resize', measureGround);
+      if (groundRafRef.current) cancelAnimationFrame(groundRafRef.current);
+      groundRafRef.current = 0;
+    };
+  }, []);
   const [smoothXform, setSmoothXform] = useState(false); // true → CSS transition on canvas transform
   const [dragOver, setDragOver] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
@@ -1091,6 +1304,22 @@ export function CanvasSurface({
   // pointerup. Without this, the window pointermove/pointerup listeners stay
   // armed after Escape and still commit the gesture on release.
   const pointerOpAbortRef = useRef(null);
+  // A finger on empty canvas (startTouchCanvasPress): the press in flight, so
+  // the long-press menu and Android's contextmenu stand back while it decides;
+  // the ring that fills while it is held; the last tap, for a double tap; and
+  // when a double tap last opened the add menu, so the browser's own dblclick
+  // that follows it can't open a second one.
+  const touchPressRef = useRef(null);
+  const holdCueRef = useRef(null);
+  // When a press last began on the selection's ⋯ (only those open its menu).
+  const selMenuPressRef = useRef(0);
+  const lastBgTapRef = useRef({});
+  const bgDoubleTapAtRef = useRef(0);
+  // "Select…" from the hold menu: until Done, a tap on a card adds it to the
+  // selection or takes it out, instead of selecting only it.
+  const [touchSelecting, setTouchSelecting] = useState(false);
+  const touchSelectingRef = useRef(false);
+  touchSelectingRef.current = touchSelecting;
   const [arrowFrom, setArrowFrom] = useState(null);
   // While the arrow tool has a source picked, the card the cursor is over
   // (highlighted as the connect target) and the live cursor position (for the
@@ -1657,6 +1886,7 @@ export function CanvasSurface({
   // renders without its adjustments so the user can compare against the source.
   const [compareCardId, setCompareCardId] = useState(null);
   const [pdfViewer, setPdfViewer] = useState(null); // { src: 'r2:<pdfKey>', name }
+  const [fileView, setFileView] = useState(null);   // { cardId } — a plain file in Quick look
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
@@ -1701,6 +1931,75 @@ export function CanvasSurface({
     useWorkspacePalettes(workspaceId);
   useEffect(() => { if (picker) ensureWorkspacePalettes(); }, [picker, ensureWorkspacePalettes]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  // The rail's + and its menu. A press anywhere outside closes it (the canvas's
+  // own ground already did; the sidebar, the top bar, a card and the other
+  // tools didn't). Esc is the canvas's ladder's, or the menu's own when focus
+  // is in it. Focus goes to its first item as it opens, with a ring only when
+  // a key opened it.
+  // It hangs beside the rail from <body>: on a phone (and an iPad held upright)
+  // the rail scrolls, so it clipped a menu hanging out of it, and the + lit up
+  // over nothing a finger could reach. A finger's menu scrolls when the window
+  // is short; a mouse's doesn't, for its items' tips overflow it.
+  const addBtnRef = useRef(null);
+  const addByKeyRef = useRef(false);
+  const closeAddMenu = useCallback(() => setAddMenuOpen(false), []);
+  const addPop = useAnchoredPopover({
+    open: addMenuOpen, onClose: closeAddMenu, anchorRef: addBtnRef, side: 'right', gap: 8, escape: false,
+    fitHeight: typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none) and (pointer: coarse)').matches,
+  });
+  useEffect(() => {
+    if (!addMenuOpen) return undefined;
+    // A frame on: a mouse press focuses what it pressed (the +) once the
+    // press's handlers, this one's opening among them, have run.
+    const raf = requestAnimationFrame(() => {
+      const first = addPop.popRef.current?.querySelector('[role="menuitem"]');
+      first?.focus({ preventScroll: true, focusVisible: addByKeyRef.current });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [addMenuOpen]);
+  const onAddMenuKeyDown = (e) => {
+    // ← too: the menu opens to the right of the rail, on →.
+    if (e.key === 'Escape' || e.key === 'Tab' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      e.stopPropagation();
+      setAddMenuOpen(false);
+      addBtnRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    // Kept from the canvas, whose arrows would nudge the selection behind it.
+    e.preventDefault();
+    e.stopPropagation();
+    const list = [...e.currentTarget.querySelectorAll('[role="menuitem"]')];
+    const n = list.length;
+    const i = list.indexOf(document.activeElement);
+    const down = e.key === 'ArrowDown';
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? n - 1
+      : i < 0 ? (down ? 0 : n - 1) : (i + (down ? 1 : -1) + n) % n;
+    list[j]?.focus();
+  };
+  // A finger on the rail: its tools and + act on the tap, not the press, so a
+  // swipe that starts on one scrolls the rail (a phone held sideways shows a
+  // short window of it, all tools) instead of arming that tool. The mouse
+  // still acts on the press. `mouse`: the press acted already, so the click
+  // that follows it doesn't again; `scrolled`: the finger scrolled the rail.
+  const railPressRef = useRef({ mouse: false, scrolled: false });
+  // The rail is a toolbar down the canvas's edge: one Tab stop, walked by ↑ ↓.
+  const railRef = useRef(null);
+  const railKeys = useToolbarRoving(railRef, { orientation: 'vertical' });
+  const onRailControlPress = (e, act) => {
+    railPressRef.current.mouse = e.pointerType === 'mouse';
+    if (e.pointerType !== 'mouse') return;   // the rail's scroll gets the press
+    e.stopPropagation();
+    act();
+  };
+  const onRailControlClick = (act) => {
+    const press = railPressRef.current;
+    if (press.mouse) { press.mouse = false; return; }
+    if (press.scrolled) return;
+    act();
+  };
+  const openHelp = () => document.dispatchEvent(new CustomEvent('soleil-open-help'));
   // Templates panel (the grid tool's flyout) + the shape it armed. A pending
   // layout rides along with the 'grid' place-tool: the panel picks the shape,
   // the next canvas click decides where. Cleared whenever the tool disarms, so a
@@ -1708,15 +2007,35 @@ export function CanvasSurface({
   const [tplPanelOpen, setTplPanelOpen] = useState(false);
   // The rail's grid button, so the portaled panel can measure where to open.
   const tplAnchorRef = useRef(null);
+  // The Cluster tool's card shows 400ms into a hover or a keyboard focus
+  // (styles.css .cnv-tool-teach), so one that lasts 450ms is one that saw it.
+  const clusterCardRef = useRef({ timer: 0, shown: false });
+  useEffect(() => () => clearTimeout(clusterCardRef.current.timer), []);
+  const armClusterCard = () => {
+    const c = clusterCardRef.current;
+    clearTimeout(c.timer);
+    c.timer = setTimeout(() => {
+      c.shown = true;
+      if (clusterCardSeenLogged) return;
+      clusterCardSeenLogged = true;
+      try { logEvent(EV.CLUSTER_TOOL_HINT, { action: 'seen' }); } catch (_) {}
+    }, 450);
+  };
+  const disarmClusterCard = () => {
+    const c = clusterCardRef.current;
+    clearTimeout(c.timer);
+    c.shown = false;
+  };
   const [pendingGridLayout, setPendingGridLayout] = useState(null);
   // Phone bottom-nav "+" → full add sheet. { pos } = canvas-space drop point
   // captured when the sheet opens (viewport centre); null = closed.
   const [mobileAdd, setMobileAdd] = useState(null);
-  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  const breakpoint = useBreakpoint();
+  const { isPhone, isTouch } = breakpoint;
   // The whole touch shell that shows the bottom-nav "+" puck (App/LocalBoardsApp
   // gate the nav on this) — phones plus touch tablets and landscape phones. The
   // add sheet must render for all of them or the puck dead-ends there.
-  const mobileShell = isPhone || (isTablet && isTouch);
+  const { mobileShell } = shellOf(breakpoint);
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   // The same pointer in SCREEN space. A wheel or trackpad pan moves the camera
@@ -1776,8 +2095,60 @@ export function CanvasSurface({
   const emptyPanelVisible = canEdit && !isPublic && boardReady
     && (firstCardPrompt || (cards.length === 0 && !(strokes?.length) && !(arrows?.length) && unplacedCount === 0));
   const firstLike = firstBoard || freshProject;
-  const panelTiles = firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES;
-  const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone });
+  const panelTiles = (firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES)
+    .map((t) => (t.id === 'board' ? { ...t, icon: clusterGlyph() } : t));
+  const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone, links: firstBoardLinks, join: firstBoardJoin });
+  // On the empty Studio the panel ends with a line about clusters (below).
+  // Seen is logged once per cluster per session, as the panel's own row is.
+  const emptyStudioLine = !isPublic && board?.parent_board_id == null && clusterNudgesAllowed();
+  useEffect(() => {
+    if (!emptyPanelVisible || !emptyStudioLine || !board?.id) return;
+    if (typeof document !== 'undefined' && document.body?.dataset?.tourVariant) return;
+    logEventOnce(`cluster_nudge:empty_studio:${board.id}`, EV.CLUSTER_NUDGE, {
+      surface: 'empty_studio', action: 'view', picked: 0, board_id: board.id,
+    });
+  }, [emptyPanelVisible, emptyStudioLine, board?.id]);
+
+  // ── The Studio bar ──
+  // A pile on Studio gets one offer to move into a cluster of its own: once
+  // per device (lib/hints.js), never on the account's first day (that pile is
+  // still being made), never over the tour or beside another hint, and nothing
+  // moves until it is asked to. Its action names the cluster in the top bar's
+  // popover, for the whole pile at once ('sweep'). Loose = what a sweep would
+  // move: not a cluster, not a starter card, not still uploading.
+  const STUDIO_BAR_MIN = 6;
+  const [studioBarUp, setStudioBarUp] = useState(false);
+  const pastFirstDay = !currentUser?.createdAt || (Date.now() - Date.parse(currentUser.createdAt)) >= 86_400_000;
+  // Once it has been offered on this device the pile is never counted again.
+  const studioBarEligible = !isPublic && canEdit && board?.parent_board_id == null && pastFirstDay
+    && clusterNudgesAllowed() && (studioBarUp || !hintSeen('studio_bar'));
+  const looseOnStudio = useMemo(() => (studioBarEligible
+    ? planClusterFromSelection({ cards, ids: cards.map((c) => c.id), clusters: 'skip', skipSeeds: true }).ids.length
+    : 0), [studioBarEligible, cards]);
+  useEffect(() => {
+    if (studioBarUp) {
+      // Filed, deleted or moved below the line: the offer is over.
+      if (!studioBarEligible || looseOnStudio < STUDIO_BAR_MIN) { releaseHint('studio_bar'); setStudioBarUp(false); }
+      return;
+    }
+    if (!studioBarEligible || !boardReady || looseOnStudio < STUDIO_BAR_MIN) return;
+    if (!canShowHint('studio_bar') || !claimHint('studio_bar')) return;
+    markHintSeen('studio_bar');
+    setStudioBarUp(true);
+    try { logEvent(EV.CLUSTER_NUDGE, { surface: 'studio_bar', action: 'view', picked: looseOnStudio, board_id: board?.id || null }); } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studioBarUp, studioBarEligible, boardReady, looseOnStudio]);
+  useEffect(() => () => releaseHint('studio_bar'), []);
+  const sweepStudio = () => {
+    const d = { boardId: board?.id, paneId, via: 'studio_sweep', surface: 'studio_bar', sweep: looseOnStudio, handled: false };
+    document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
+    if (!d.handled) newClusterPrompted({ via: 'studio_sweep', surface: 'studio_bar', sweep: true });
+  };
+  const dismissStudioBar = () => {
+    try { logEvent(EV.CLUSTER_NUDGE, { surface: 'studio_bar', action: 'dismiss', picked: looseOnStudio, board_id: board?.id || null }); } catch (_) {}
+    releaseHint('studio_bar');
+    setStudioBarUp(false);
+  };
   useEffect(() => {
     if (!emptyPanelVisible || !board?.id) return;
     // A running tour hides the panel by CSS (body[data-tour-variant]); a row
@@ -1790,7 +2161,9 @@ export function CanvasSurface({
       kind: firstBoard ? (firstBoardKind || null) : null,
       is_prompt: !!firstCardPrompt,          // shown over a seeded board, not a bare one
       escalated: !!frictionStuck,            // they'd already tripped the stuck signal
+      join: !!firstBoardJoin,                // a joiner's empty workspace (its own words)
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emptyPanelVisible, board?.id, firstCardPrompt, frictionStuck, firstBoard, freshProject, firstBoardKind, panelTiles.length]);
 
   // ── Depth dock ──
@@ -2085,11 +2458,34 @@ export function CanvasSurface({
     setSelectedTool('select');
     return true;
   };
+  // A finger's photo picker waits for the finger to lift. A touch screen
+  // grants a page the right to open one on the release (pointerup), not the
+  // press, and iOS drops a picker asked for any earlier. Placed where the
+  // finger came down, if it lifted there (a drag isn't a tap).
+  const placesOnRelease = (e) => selectedTool === 'image' && e.pointerType === 'touch';
+  const placeToolOnRelease = (e) => {
+    const at = { x: e.clientX, y: e.clientY };
+    const done = () => {
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
+    };
+    const onUp = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      done();
+      if (Math.hypot(ev.clientX - at.x, ev.clientY - at.y) <= TOUCH_LIFT_TOLERANCE) placeToolAt(clientToCanvas(at.x, at.y));
+    };
+    const onCancel = (ev) => { if (ev.pointerId === e.pointerId) done(); };
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
+  };
 
   // Briefly enable smooth transform after programmatic zoom changes.
   const enableSmoothTransform = useCallback(() => {
     setSmoothXform(true);
     setTimeout(() => setSmoothXform(false), 220);
+    // The ground reads the eased transform frame by frame until it lands.
+    groundSmoothUntilRef.current = performance.now() + 260;
+    scheduleGroundDraw();
   }, []);
 
   useEffect(() => {
@@ -2285,6 +2681,7 @@ export function CanvasSurface({
   // together, so they can never land on different frames.
   const applyCamera = useCallback((cam) => {
     if (!cam || !Number.isFinite(cam.zoom)) return;
+    glideRef.current = null;
     setZoom(cam.zoom);
     setPan({ x: cam.pan.x, y: cam.pan.y });
   }, []);
@@ -2309,6 +2706,7 @@ export function CanvasSurface({
   // token, which is what makes a manual press cancel a running take.
   const tweenCameraTo = useCallback((cam, ms = CAMERA_MS, ease = 'smooth', runToken) => {
     if (!cam || !Number.isFinite(cam.zoom)) return Promise.resolve();
+    glideRef.current = null;
     cancelAnimationFrame(cameraRafRef.current);
     const run = runToken ?? ++cameraRunRef.current;
     const fn = easingFor(ease);
@@ -2354,7 +2752,7 @@ export function CanvasSurface({
         // cards would not appear until the move had already finished.
         gestureUntilRef.current = performance.now() + 200;
         markGestureActiveUntil(gestureUntilRef.current);
-        applyCanvasTransform();
+        applyCanvasTransform(true);
         scheduleVisibleRecompute?.();
         if (t < 1) {
           cameraRafRef.current = requestAnimationFrame(step);
@@ -2668,7 +3066,7 @@ export function CanvasSurface({
     mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
   }, [selected, mutators]);
 
-  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); setAnnotPlacing(null); }, [selectedTool, board.id]);
+  useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); setAnnotPlacing(null); setTouchSelecting(false); }, [selectedTool, board.id]);
   useEffect(() => {
     setSelected(new Set());
     setSelectedStrokes(new Set());
@@ -3085,6 +3483,57 @@ export function CanvasSurface({
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
 
+  // ── The second idea ──
+  // Something new pasted or dropped onto a pile from an earlier sitting may be
+  // the start of something else (lib/secondIdea.js). Once it has all landed —
+  // a card still uploading can't move — a toast offers it a cluster of its
+  // own, named in the top bar's popover like the Studio bar's sweep. Once per
+  // device and never beside another hint (lib/hints.js), and never over an
+  // upgrade surface (lib/upsellSlot.js): then it waits for another sitting.
+  // Armed before the cards are added, so what was here already is known.
+  const SECOND_IDEA_SETTLE_MS = 8_000;   // how long a drop's cards may take to appear
+  const SECOND_IDEA_WAIT_MS = 60_000;    // an upload slower than this lets it go
+  const SECOND_IDEA_TOAST_MS = 9_000;
+  const secondIdeaRef = useRef(null);    // { boardId, prior: Set, expected, at }
+  const [secondIdeaArmed, setSecondIdeaArmed] = useState(0);
+  const armSecondIdeaRef = useRef(null);
+  const offerSecondIdeaRef = useRef(null);
+  armSecondIdeaRef.current = (expected) => {
+    if (!(expected > 0) || isPublic || !canEdit || !board?.id || !clusterNudgesAllowed()) return;
+    const w = secondIdeaRef.current;
+    // Another paste while the first is still landing joins it.
+    if (w && w.boardId === board.id) { w.expected += expected; return; }
+    const prior = cardsRef.current || [];
+    if (!canShowHint('second_idea') || !secondIdeaDue({ priorCards: prior, newCount: expected })) return;
+    secondIdeaRef.current = { boardId: board.id, prior: new Set(prior.map((c) => c.id)), expected, at: Date.now() };
+    setSecondIdeaArmed((n) => n + 1);
+  };
+  useEffect(() => {
+    const w = secondIdeaRef.current;
+    if (!w) return undefined;
+    if (w.boardId !== board?.id) { secondIdeaRef.current = null; return undefined; }
+    // A drop's cards appear one at a time and then upload: look once it is
+    // quiet, and again until they are all up.
+    let t = 0;
+    const look = () => {
+      if (secondIdeaRef.current !== w) return;
+      const me = currentUser?.id || null;
+      const fresh = (cardsRef.current || []).filter((c) => !w.prior.has(c.id)
+        && c.kind !== 'board' && c.kind !== 'boardlink' && !isSeedCard(c)
+        && (!me || !c.createdBy || c.createdBy === me));
+      const age = Date.now() - w.at;
+      const uploading = fresh.some(isStillUploading);
+      if ((uploading || (fresh.length < w.expected && age < SECOND_IDEA_SETTLE_MS)) && age < SECOND_IDEA_WAIT_MS) {
+        t = setTimeout(look, 900);
+        return;
+      }
+      secondIdeaRef.current = null;
+      if (!uploading && fresh.length) offerSecondIdeaRef.current?.(fresh.map((c) => c.id));
+    };
+    t = setTimeout(look, 900);
+    return () => clearTimeout(t);
+  }, [cards, secondIdeaArmed, board?.id, currentUser?.id]);
+
   // ── Capture Mode: the synthetic cast ─────────────────────────────────────
   // Collaboration is the hardest thing here to film, because it needs other
   // people on other machines doing something plausible at the moment you press
@@ -3201,6 +3650,21 @@ export function CanvasSurface({
   const groupById = useMemo(() => {
     const m = {}; (groups || []).forEach(g => m[g.id] = g); return m;
   }, [groups]);
+  // What the top bar's "+ New cluster" would take from this pane: the picked
+  // cards, counted the way it moves them (a cluster among them stays where it
+  // is), and the name it would offer for them (lib/newClusterPick.js).
+  useEffect(() => {
+    if (isPublic || !board?.id || !clusterNudgesAllowed()) return;
+    if (!selected.size) { publishNewClusterPick(paneId, null); return; }
+    const plan = planClusterFromSelection({ cards: cardsRef.current, ids: [...selected], clusters: 'skip' });
+    const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+    publishNewClusterPick(paneId, {
+      boardId: board.id,
+      count: plan.ids.length,
+      suggestion: plan.ids.length ? suggestClusterName({ groupName, cards: plan.cards }) : null,
+    });
+  }, [selected, board?.id, paneId, isPublic, groupById]);
+  useEffect(() => () => { if (!isPublic) publishNewClusterPick(paneId, null); }, [paneId, isPublic]);
   // Expand any selection / drag set to include all groupmates of any
   // card whose group has 2+ visible members. Single-orphan group
   // members aren't expanded — orphaned groups just behave like
@@ -3260,6 +3724,21 @@ export function CanvasSurface({
     const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
     return boundsOfCards(items);
   }, [effectiveSelectedIds, cards]);
+
+  // Where the selection's ⋯ sits: the top-right corner of the selection's
+  // frame (.sel-bbox), or of the one card. `id` is the card whose menu it
+  // opens; with several selected, any of them opens the menu for them all
+  // (buildMenu's `multi`).
+  const selMenuAnchor = useMemo(() => {
+    const id = [...selected].find((sid) => cardById[sid]);
+    if (!id) return null;
+    const b = multiSelectionBounds;
+    if (b) return { id, x: b.x + b.w + SEL_FRAME_PAD, y: b.y - SEL_FRAME_PAD, w: b.w, h: b.h };
+    const c = cardById[id];
+    return { id, x: c.x + c.w, y: c.y, w: c.w, h: c.h };
+    // cardById is mutated in place; `cards` is what says it moved.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, cards, multiSelectionBounds]);
 
   // Group bounding box (computed from member cards) — used by arrow
   // anchoring so arrows can attach to groups, not just cards.
@@ -4357,6 +4836,7 @@ export function CanvasSurface({
         board_id: board?.id || null,
       });
     } catch (_) {}
+    if (source !== 'held') armSecondIdeaRef.current?.(accepted.length + scripts.length);
 
     if (accepted.length) {
       // Real dimensions before layout, not after: laying out at the fallback
@@ -4525,11 +5005,12 @@ export function CanvasSurface({
   // back every file in the chosen folder with its webkitRelativePath, which
   // lib/folderWalk turns into the same tree a drop gives. Not offered where the
   // browser cannot pick a folder (iOS Safari ignores webkitdirectory and would
-  // open an ordinary file picker under a "Folder" label), or in the mobile shell.
+  // open an ordinary file picker under a "Folder" label), or in the mobile shell,
+  // or on any touch screen: iPadOS reports webkitdirectory and still can't.
   const canPickFolder = useMemo(() => {
-    if (mobileShell || !onImportFolder) return false;
+    if (mobileShell || isTouch || !onImportFolder) return false;
     try { return 'webkitdirectory' in document.createElement('input'); } catch (_) { return false; }
-  }, [mobileShell, onImportFolder]);
+  }, [mobileShell, isTouch, onImportFolder]);
   const openFolderPicker = useCallback((pos) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -4715,6 +5196,7 @@ export function CanvasSurface({
       if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (!moved) return;
       moved = false;
+      noteSessionCounter('canvas.wasd');   // one glide, counted on the session's summary
       gestureUntilRef.current = 0;
       markGestureActiveUntil(0);
       setPerfContext({ zoom: zoomRef.current });
@@ -4822,10 +5304,17 @@ export function CanvasSurface({
     const el = wrapRef.current;
     if (!el) return;
     let commitTimer = 0;
+    // What this burst did and what made it — a mouse's notches or a trackpad's
+    // stream — counted once, as it settles, on the session's summary.
+    let burstKey = null;
+    const noteBurst = (e, intent) => {
+      if (!burstKey) burstKey = `canvas.wheel.${intent === 'zoom' ? 'zoom' : 'pan'}.${isWheelClick(e) ? 'mouse' : 'trackpad'}`;
+    };
     const scheduleCommit = () => {
       if (commitTimer) clearTimeout(commitTimer);
       commitTimer = setTimeout(() => {
         commitTimer = 0;
+        if (burstKey) { noteSessionCounter(burstKey); burstKey = null; }
         // Gesture settled: end ADD-only cull mode and run one strict
         // recompute to prune. Explicit call — the pan/zoom layout effect
         // only re-runs when the VALUES change, so a clamped or
@@ -4839,6 +5328,36 @@ export function CanvasSurface({
         emitCanvasSettle();
       }, 140);
     };
+    // A wheel click's glide: a frame at a time toward glideRef's target,
+    // anchored at the pointer, through the same steps as a wheel event
+    // (transform, cull, commit), so nothing downstream can tell a glide from a
+    // quick stream of small wheel events. Another camera move clears glideRef
+    // and the next frame stops.
+    let glideRaf = 0;
+    const glideFrame = (now) => {
+      glideRaf = 0;
+      const g = glideRef.current;
+      if (!g) return;
+      // Anything else that set the zoom since the last frame (⌘0, the zoom
+      // buttons or slider, a fit, a restored view) wins: the glide stands down.
+      if (zoomRef.current !== g.lastZ) { glideRef.current = null; return; }
+      const z0 = zoomRef.current;
+      const z1 = g.from === g.z ? g.z : glideZoom(g.from, g.z, now - g.t0);
+      const rect = el.getBoundingClientRect();
+      const sx = g.cx - rect.left, sy = g.cy - rect.top;
+      const p = panRef.current;
+      panRef.current = { x: sx - ((sx - p.x) / z0) * z1, y: sy - ((sy - p.y) / z0) * z1 };
+      zoomRef.current = z1;
+      g.lastZ = z1;
+      gestureUntilRef.current = performance.now() + 200;
+      markGestureActiveUntil(gestureUntilRef.current);
+      applyCanvasTransform(true);
+      scheduleVisibleRecompute();
+      scheduleCommit();
+      if (z1 === g.z) { glideRef.current = null; return; }
+      glideRaf = requestAnimationFrame(glideFrame);
+    };
+    const startGlide = () => { if (!glideRaf) glideRaf = requestAnimationFrame(glideFrame); };
     const onWheel = (e) => {
       if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
       // The full-screen PDF viewer and image lightbox render inside this wrap:
@@ -4948,6 +5467,23 @@ export function CanvasSurface({
         const isLine = e.deltaMode === 1; // WheelEvent.DOM_DELTA_LINE
         const sensitivity = isLine ? 0.05 : 0.0025;
         const factor = Math.exp(-e.deltaY * sensitivity);
+        // A mouse wheel's click glides to its zoom (glideFrame below) instead
+        // of landing in one jump; a trackpad's stream is smooth already.
+        // Reduce Motion keeps the jump.
+        if ((isWheelClick(e) || glideRef.current) && !reduceMotionMq?.matches) {
+          // A smaller step arriving mid-glide (a stream that mixes both kinds)
+          // joins it rather than fight it frame by frame.
+          const base = glideRef.current ? glideRef.current.z : curZoom;
+          const target = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, base * factor));
+          if (!glideRef.current && target === curZoom) return;   // at a limit already
+          glideRef.current = {
+            from: curZoom, z: target, lastZ: curZoom,
+            t0: performance.now(), cx: e.clientX, cy: e.clientY,
+          };
+          noteBurst(e, intent);
+          startGlide();
+          return;
+        }
         const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, curZoom * factor));
         if (newZoom === curZoom) return;
         const cx = (e.clientX - rect.left - curPan.x) / curZoom;
@@ -4958,12 +5494,14 @@ export function CanvasSurface({
         };
         zoomRef.current = newZoom;
       } else {
+        glideRef.current = null;
         panRef.current = { x: curPan.x - e.deltaX, y: curPan.y - e.deltaY };
       }
       gestureUntilRef.current = performance.now() + 200; // ADD-only cull while zoom/scroll is live
       markGestureActiveUntil(gestureUntilRef.current);
       applyCanvasTransform();
       scheduleVisibleRecompute();
+      noteBurst(e, intent);
       scheduleCommit();
       if (_tZ) {
         const ms = performance.now() - _tZ;
@@ -4976,6 +5514,8 @@ export function CanvasSurface({
     return () => {
       el.removeEventListener('wheel', onWheel);
       if (commitTimer) clearTimeout(commitTimer);
+      if (glideRaf) cancelAnimationFrame(glideRaf);
+      glideRef.current = null;
     };
   }, []);
 
@@ -4986,10 +5526,14 @@ export function CanvasSurface({
   // Both gestures route through panRef/zoomRef + direct DOM transform like
   // the wheel handler above — see that comment for rationale.
   const touchPanCommitTimer = useRef(0);
+  // Which two-finger gesture this was, counted once as it settles: a pinch
+  // wins over the pan that rides along with it.
+  const touchGestureRef = useRef(null);
   const scheduleTouchPanCommit = () => {
     if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
     touchPanCommitTimer.current = setTimeout(() => {
       touchPanCommitTimer.current = 0;
+      if (touchGestureRef.current) { noteSessionCounter(`canvas.${touchGestureRef.current}`); touchGestureRef.current = null; }
       // Gesture settled — see scheduleCommit for the prune contract.
       gestureUntilRef.current = 0;
       markGestureActiveUntil(0);
@@ -5007,6 +5551,7 @@ export function CanvasSurface({
     {
       onPinch: ({ event, origin: [ox, oy], movement: [ms], memo }) => {
         if (event?.cancelable) event.preventDefault();
+        glideRef.current = null;
         const el = wrapRef.current;
         if (!el) return memo;
         // Round 17: time the JS-side cost of pinch-zoom handling.
@@ -5029,6 +5574,7 @@ export function CanvasSurface({
         markZooming();            // reveal the zoom widget while pinching
         applyCanvasTransform();
         scheduleVisibleRecompute();
+        touchGestureRef.current = 'pinch';
         scheduleTouchPanCommit();
         if (_tZ) {
           const dur = performance.now() - _tZ;
@@ -5046,6 +5592,7 @@ export function CanvasSurface({
         if (pointerType !== 'touch') return;
         if (touches < 2) return;
         if (event?.cancelable) event.preventDefault();
+        glideRef.current = null;
         const p = panRef.current;
         panRef.current = { x: p.x + dx, y: p.y + dy };
         gestureUntilRef.current = performance.now() + 200; // ADD-only cull while two-finger panning
@@ -5053,6 +5600,7 @@ export function CanvasSurface({
         markCanvasInteracting();  // immersive look-around (auto-hide chrome)
         applyCanvasTransform();
         scheduleVisibleRecompute();
+        if (touchGestureRef.current !== 'pinch') touchGestureRef.current = 'two_finger_pan';
         scheduleTouchPanCommit();
       },
     },
@@ -5091,6 +5639,18 @@ export function CanvasSurface({
   useLongPress(
     wrapRef,
     (x, y, e) => {
+      // What keeps its own menu on a right-click: the comments eye's archive,
+      // a group's label, an arrow, a tag chip. A hold there is that
+      // right-click. Android raises the contextmenu itself on a hold; iOS
+      // never does, so there the canvas menu used to open instead. Letting go
+      // then must not also click it (the eye would hide every comment).
+      const own = e.target.closest?.('.cnv-comments-eye, .group-label, .card-tag-chip, [data-arrow-idx] path');
+      if (own) {
+        touchPressRef.current?.abort();
+        swallowNextClick({ held: true });
+        own.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        return;
+      }
       const cardEl = e.target.closest?.('.card');
       if (cardEl) {
         const id = cardEl.getAttribute('data-card-id');
@@ -5103,11 +5663,20 @@ export function CanvasSurface({
         if (canEdit && selectedTool === 'select') return;
         if (!selected.has(c.id)) setSelected(new Set([c.id]));
         setBgCtx(b => ({ ...b, open: false }));
+        swallowNextClick({ held: true });
         setCtx({ open: true, x, y, cardId: c.id });
         return;
       }
-      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox')) return;
+      // The selection's ⋯ and its resize corner sit outside every card.
+      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox, .sel-menu, .multi-resize')) return;
+      // A finger on empty canvas decides this itself, on letting go
+      // (startTouchCanvasPress): the hold may yet become a selection box.
+      if (touchPressRef.current) return;
+      // With a tool in hand a hold is part of using it: a finger that paused
+      // at the start of a stroke opened the board's menu under itself.
+      if (selectedTool !== 'select' && selectedTool !== 'pan') return;
       const pos = clientToCanvas(x, y);
+      swallowNextClick({ held: true });
       setBgCtx({ open: true, x, y, canvasPos: pos });
     },
     { ms: 480, tolerance: 10, pointerType: 'touch' },
@@ -5546,6 +6115,7 @@ export function CanvasSurface({
           }
           if (c.route === 'screenplay') {
             const { pos } = resolvePastePos();
+            armSecondIdeaRef.current?.(1);
             importDroppedScripts([file], {
               addScriptCard: mutators.addScriptCard, pos, source: 'paste', toast: feedback.toast,
             }).catch((err) => console.error(err));
@@ -5569,6 +6139,7 @@ export function CanvasSurface({
           }
           const { pos, clamped } = resolvePastePos();
           notePasteCreate(clamped);
+          armSecondIdeaRef.current?.(1);
           // Caught here rather than awaited: this is a window event handler, so
           // a rejection would be unhandled. The drop path already surfaces the
           // same failure through ingestFiles' try/catch.
@@ -5616,6 +6187,7 @@ export function CanvasSurface({
       if (urlMatch) {
         e.preventDefault();
         notePasteCreate(clamped);
+        armSecondIdeaRef.current?.(1);
         createLinkCardFromUrl(urlMatch[1], pos);
         return;
       }
@@ -5624,6 +6196,7 @@ export function CanvasSurface({
       if (text.trim().length > 0) {
         e.preventDefault();
         notePasteCreate(clamped);
+        armSecondIdeaRef.current?.(1);
         createNoteCardFromText(text, pos);
         return;
       }
@@ -5661,7 +6234,8 @@ export function CanvasSurface({
       if (cmd && e.key === 'z' && !e.shiftKey) {
         // While a doc overlay is open its STRUCTURAL UndoManager owns Cmd+Z
         // (DocSurface registers itself + its own listener) — undoing hidden
-        // canvas ops behind the overlay would be silent data mangling.
+        // canvas ops behind the overlay would be silent data mangling. A doc
+        // docked beside this board owns it only from its own pane.
         if (getDocUndoTarget()) return;
         // In-session UndoManager only — synchronous and CRDT-correct, so it
         // can't network-fail. preventDefault unconditionally so a stray
@@ -5723,6 +6297,9 @@ export function CanvasSurface({
         if (e.key === 'g' || e.key === 'G') { e.preventDefault(); setSelectedTool('grid'); return; }
         if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setSelectedTool('draw'); return; }
         if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setSelectedTool('arrow'); return; }
+        // C picks the Cluster tool — the one tool that had no key. Free here:
+        // Cmd+C is copy (above), and the player's C stays in the player.
+        if ((e.key === 'c' || e.key === 'C') && clusterNudgesAllowed()) { e.preventDefault(); setSelectedTool('board'); return; }
         if (e.key === '[') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('backward'); return; }
         if (e.key === ']') { e.preventDefault(); if (!canEdit) { showEditBlockedToast(); return; } arrangeSelected('forward'); return; }
 
@@ -5783,6 +6360,8 @@ export function CanvasSurface({
         if (addMenuOpen) { setAddMenuOpen(false); return; }
         if (tplPanelOpen) { setTplPanelOpen(false); return; }
         if (annotPlacing) { setAnnotPlacing(null); return; }
+        // Select… ends and keeps what it selected, as Done does.
+        if (touchSelecting) { setTouchSelecting(false); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
         if (selected.size || selectedStrokes.size || selectedArrows.size) {
@@ -5795,7 +6374,7 @@ export function CanvasSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [mutators, selectAll, doDuplicate, doCopy, doCut, doDeleteSelected, selected.size, selectedStrokes.size, selectedArrows.size, setSelectedTool, enableSmoothTransform,
       zoomAroundCenter, zoomToSelection, fitToContent, arrangeSelected, groupSelected, canEdit,
-      ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing,
+      ctx.open, bgCtx.open, addMenuOpen, tplPanelOpen, arrowFrom, activeStroke, activeFreeArrow, selectedTool, annotPlacing, touchSelecting,
       hasSplit, paneId, board?.id, isPublic]);
 
   // ── Preserve card selection across undo/redo ──────────────────────────────
@@ -5896,14 +6475,17 @@ export function CanvasSurface({
     if (typeof document !== 'undefined') document.body.removeAttribute('data-zooming');
   }, []);
 
-  const startPan = (e) => {
+  // `onTap(ev)`: a touch that let go without travelling was a tap, not a pan.
+  const startPan = (e, { onTap = null } = {}) => {
     e.preventDefault();
+    glideRef.current = null;
     const startClient = { x: e.clientX, y: e.clientY };
     const startPanXY = { x: panRef.current.x, y: panRef.current.y };
     const initialPointerId = e.pointerId;
     const startedFromTouch = e.pointerType === 'touch';
     document.body.style.cursor = 'grabbing';
     let aborted = false;
+    let travelled = false;
     const cleanup = () => {
       document.body.style.cursor = '';
       window.removeEventListener('pointermove', onMove);
@@ -5917,6 +6499,7 @@ export function CanvasSurface({
       // panRef with stale values computed from startPanXY + delta and
       // overwrite whatever useGesture's pinch handler just set.
       if (ev.pointerId !== initialPointerId) return;
+      if (!travelled && Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) > TOUCH_LIFT_TOLERANCE) travelled = true;
       panRef.current = {
         x: startPanXY.x + (ev.clientX - startClient.x),
         y: startPanXY.y + (ev.clientY - startClient.y),
@@ -5949,6 +6532,8 @@ export function CanvasSurface({
       setPan({ x: panRef.current.x, y: panRef.current.y });
       scheduleVisibleRecompute();
       emitCanvasSettle();
+      if (travelled) noteSessionCounter(`canvas.drag_pan.${e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse'}`);
+      if (onTap && startedFromTouch && !travelled) onTap(ev);
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -6066,6 +6651,24 @@ export function CanvasSurface({
     return n;
   };
 
+  // Move to cluster… and Copy to cluster… with the drop rules (the sidebar's
+  // Files): by the route, like every other move between clusters — the same
+  // cards, kept in that cluster's Files, with Undo and Put on board in App's
+  // toast. A move keeps a snapshot of this board first, as a drag does.
+  const sendCardsByRoute = async (ids, targetId, list, copy) => {
+    if (!copy && ydoc && board?.id) {
+      await saveBoardVersion(board.id, ydoc, {
+        triggerKind: 'pre-drop', sessionId, userId, label: 'pre-move-to-cluster',
+        opSummary: { action: 'move-to-cluster', via: 'menu', target_board: targetId, card_count: ids.length },
+      });
+    }
+    return onMoveFilesRef.current?.({
+      from: board.id, to: targetId, cardIds: ids, copy,
+      what: whatOf(list.map((c) => ({ kind: c.kind, name: c.title || c.label || c.fileName || '' }))),
+      kinds: list.map((c) => c.kind),
+    });
+  };
+
   // Move cards from THIS canvas into another cluster. Dropping cards on a
   // cluster card and "Move to cluster…" in the card menu both land here, so the
   // menu inherits everything the drag earned: the pre-move snapshot, the
@@ -6075,7 +6678,7 @@ export function CanvasSurface({
   // sides. Run as an async transaction so we can capture before/after state
   // around the source delete and roll back via bulletproofRestore if the
   // invariant fails. Cluster cards never come through here — they nest.
-  const moveCardsIntoBoard = async (dragIds, targetBoardId, movedCards, { via = 'drag' } = {}) => {
+  const moveCardsIntoBoard = async (dragIds, targetBoardId, movedCards, { via = 'drag', createdBoardId = null, createdBoardName = null } = {}) => {
     // A card still uploading stays where it is: its upload writes the file into
     // THIS card, by id, when it lands. A moved copy has a new id on another
     // cluster and would never be told — it would spin, and in a day be swept
@@ -6148,17 +6751,19 @@ export function CanvasSurface({
         onTargetSaved: resolveTargetSaved,
         onTargetFailed: rejectTargetSaved,
         via,
+        createdBoardId,
+        createdBoardName,
       },
     }));
     try {
       await targetSaved;
     } catch (err) {
       console.error('[drag-into-board] target save failed; NOT deleting source', err);
-      feedback.toast({
-        type: 'error',
-        message: 'Move failed — your cards are safe on this cluster. ' + (err?.message || err),
-        ttl: 8000,
-      });
+      // App's listener has said why, in the move's one message
+      // (lib/moveFailure.js). A cluster made for this move is in the trash by
+      // now; its card leaves this canvas the way it came, off the undo history,
+      // with the room it took.
+      if (createdBoardId && err?.createdBoardTrashed) mutators.deleteCardsForMove?.([createdBoardId], { refund: true });
       return;
     }
     // Now safe to clear local comments + delete source.
@@ -6248,6 +6853,145 @@ export function CanvasSurface({
         },
       });
     }
+  };
+
+  // "New cluster from N cards": make the cluster where the cards are, then move
+  // them in through moveCardsIntoBoard — the same pre-move snapshot, handshake,
+  // rollback and one-toast undo as dropping them on a cluster card. The toast's
+  // undo also trashes the cluster (App's listener, createdBoardId), so its card
+  // goes on untracked: that toast is its undo, not Cmd+Z. Named at birth: the
+  // field opens on a suggestion (the group's name, what the files share, the
+  // first note), because most clusters left "Untitled" stayed that way.
+  // A caller that already asked for the name (the top bar's popover) passes
+  // it as `name` — null for the default — and no second prompt opens.
+  const createClusterFrom = async (ids, { via, name: given, clusters = 'refuse', skipSeeds = false } = {}) => {
+    if (!board?.id || !mutators.addNewBoard) return null;
+    const plan = planClusterFromSelection({ cards, ids, clusters, skipSeeds });
+    keepUploadsInPlace(plan.held);
+    if (plan.refused || !plan.ids.length) return null;
+    let name = given;
+    if (given === undefined) {
+      const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+      const n = plan.ids.length;
+      const typed = await feedback.prompt({
+        title: 'Name this cluster',
+        message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
+        label: 'Name',
+        placeholder: 'e.g. Kitchen refs',
+        defaultValue: suggestClusterName({ groupName, cards: plan.cards }) || '',
+        confirmLabel: 'Create cluster',
+      });
+      if (typed == null) return null;
+      name = String(typed).trim().slice(0, 200) || null;
+    }
+    const newId = await mutators.addNewBoard(plan.center, { via, ...(name ? { name } : {}), untracked: true });
+    if (!newId) return null;
+    await moveCardsIntoBoard(plan.ids, newId, plan.cards, {
+      via: 'menu', createdBoardId: newId, createdBoardName: name || 'Untitled cluster',
+    });
+    return newId;
+  };
+
+  // The top bar's "+ New cluster" (NewClusterButton) arrives named. Cards
+  // picked here go into it, the way "New cluster from N cards" takes them, and
+  // a cluster among them stays where it is. Nothing picked: it lands beside
+  // what is here and opens, ready to fill. The host opens it in the main pane
+  // (the board list it needs has only just refreshed — see addClusterCard);
+  // the split pane steps in itself.
+  const newClusterHereRef = useRef(null);
+  newClusterHereRef.current = async ({ name = null, via = 'topbar', sweep = false } = {}) => {
+    // The Studio bar's sweep: every loose card here, whatever is picked.
+    if (sweep) {
+      return createClusterFrom(cards.map((c) => c.id), { via, name, clusters: 'skip', skipSeeds: true });
+    }
+    const picked = [...selectedRef.current];
+    if (picked.length && planClusterFromSelection({ cards, ids: picked, clusters: 'skip' }).ids.length) {
+      return createClusterFrom(picked, { via, name, clusters: 'skip' });
+    }
+    const spot = spotBesideContent(cards);
+    const newId = await mutators.addNewBoard?.({ x: spot.x + 140, y: spot.y + 110 },
+      { via, ...(name ? { name } : {}), openAfter: paneId === 'main' });
+    if (newId && paneId !== 'main') onOpenBoard?.(newId);
+    return newId || null;
+  };
+  useEffect(() => {
+    if (isPublic) return undefined;
+    const onNew = (e) => {
+      const d = e.detail;
+      if (!d || d.handled || d.boardId !== board?.id || d.paneId !== paneId || !canEdit) return;
+      d.handled = true;
+      newClusterHereRef.current?.(d);
+    };
+    document.addEventListener('soleil-new-cluster', onNew);
+    return () => document.removeEventListener('soleil-new-cluster', onNew);
+  }, [board?.id, paneId, canEdit, isPublic]);
+  // A phone's bar has no room for "+ New cluster", so its + sheet leads with
+  // the row instead, and the empty Studio's line has no popover to open there;
+  // both ask the name in the app's own prompt, in the popover's words, and
+  // then go the same way — the Studio bar's sweep too, on a phone. A nudge
+  // (`surface`) logs its answer as the popover would.
+  const newClusterPrompted = async ({ via, surface = null, sweep = false }) => {
+    const plan = sweep
+      ? planClusterFromSelection({ cards, ids: cards.map((c) => c.id), clusters: 'skip', skipSeeds: true })
+      : planClusterFromSelection({ cards, ids: [...selectedRef.current], clusters: 'skip' });
+    const n = plan.ids.length;
+    if (sweep && !n) return;
+    const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+    const typed = await feedback.prompt({
+      title: 'Name this cluster',
+      message: sweep ? `All ${n} loose cards move into it. Undo puts them back.`
+        : n ? (n === 1 ? 'The card you picked moves into it. Undo puts it back.' : `The ${n} cards you picked move into it. Undo puts them back.`)
+        : `It lands on ${board?.name || 'this cluster'} as a card and opens, ready to fill.`,
+      label: 'Name',
+      placeholder: 'Name it, e.g. Short film',
+      defaultValue: n && !sweep ? (suggestClusterName({ groupName, cards: plan.cards }) || '') : '',
+      confirmLabel: 'Create cluster',
+    });
+    if (surface) {
+      try { logEvent(EV.CLUSTER_NUDGE, { surface, action: typed == null ? 'dismiss' : 'accept', picked: n, board_id: board?.id || null }); } catch (_) {}
+    }
+    if (typed == null) return;
+    await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via, sweep });
+  };
+  // "Start a cluster for each" on the empty Studio: the top bar's popover when
+  // the bar shows this pane, else the prompt.
+  const startClusterFromEmpty = () => {
+    const d = { boardId: board?.id, paneId, via: 'empty_studio', handled: false };
+    document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
+    if (!d.handled) newClusterPrompted({ via: 'empty_studio', surface: 'empty_studio' });
+  };
+  // The second idea's toast (armed above) and its answer: the new cards are
+  // picked, so the popover counts them and they are what moves.
+  const secondIdeaActRef = useRef(null);
+  secondIdeaActRef.current = (ids) => {
+    const live = ids.filter((id) => cardByIdRef.current[id]);
+    if (!live.length) return;
+    setSelected(new Set(live));
+    // Once the pick has reached the bar, so its field starts from the suggestion.
+    setTimeout(() => {
+      const d = { boardId: board?.id, paneId, via: 'second_idea', handled: false };
+      document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
+      if (!d.handled) newClusterPrompted({ via: 'second_idea', surface: 'second_idea' });
+    }, 0);
+  };
+  offerSecondIdeaRef.current = (ids) => {
+    if (!canShowHint('second_idea') || upsellSlotBusy() || !claimHint('second_idea')) return;
+    markHintSeen('second_idea');
+    const n = ids.length;
+    const nudge = (action) => {
+      try { logEvent(EV.CLUSTER_NUDGE, { surface: 'second_idea', action, picked: n, board_id: board?.id || null }); } catch (_) {}
+    };
+    nudge('view');
+    // The hint slot is the toast's while it shows.
+    const release = setTimeout(() => releaseHint('second_idea'), SECOND_IDEA_TOAST_MS);
+    const done = () => { clearTimeout(release); releaseHint('second_idea'); };
+    feedback.toast({
+      message: n === 1 ? 'New idea? Give this card its own cluster.'
+        : `New idea? Give these ${n} cards their own cluster.`,
+      ttl: SECOND_IDEA_TOAST_MS,
+      action: { label: 'New cluster', onClick: () => { done(); secondIdeaActRef.current?.(ids); } },
+      onDismiss: () => { done(); nudge('dismiss'); },
+    });
   };
 
   const onCardPointerDown = (e, c) => {
@@ -6358,6 +7102,7 @@ export function CanvasSurface({
     // lands at the cursor (it can overlap; the user drags it off).
     if (PLACE_TOOLS.includes(selectedTool)) {
       e.stopPropagation();
+      if (placesOnRelease(e)) { placeToolOnRelease(e); return; }
       placeToolAt(clientToCanvas(e.clientX, e.clientY));
       return;
     }
@@ -6397,12 +7142,17 @@ export function CanvasSurface({
     // a lift. `touchHold` gates every mobile-specific branch below; for mouse /
     // pen it stays false and the original synchronous path runs verbatim.
     const touchHold = e.pointerType === 'touch' && e.isPrimary;
+    // Select… (the hold menu): a tap adds the card or takes it out (the tap
+    // branch of onUp), and a lift carries the whole selection, this card with it.
+    const toggling = touchHold && touchSelectingRef.current;
 
     let nextSelected;
     if (e.shiftKey) {
       nextSelected = new Set(selected);
       if (nextSelected.has(c.id)) nextSelected.delete(c.id);
       else nextSelected.add(c.id);
+    } else if (toggling) {
+      nextSelected = new Set(selected).add(c.id);
     } else if (selected.has(c.id) && selected.size > 1) {
       nextSelected = selected;
     } else {
@@ -6414,7 +7164,7 @@ export function CanvasSurface({
     // touch until onLift / the tap branch of onUp (see touchHold above).
     const applyCardSelection = () => {
       setSelected(nextSelected);
-      if (!e.shiftKey) {
+      if (!e.shiftKey && !toggling) {
         setSelectedStrokes(new Set());
         setSelectedArrows(new Set());
       }
@@ -6445,6 +7195,74 @@ export function CanvasSurface({
       const dc = cardById[id];
       if (dc) startPositions[id] = { x: dc.x, y: dc.y };
     });
+    // ── Onto a cluster outside the board (the drop rules) ──
+    // With the sidebar's Files, a card let go of over a cluster outside the
+    // board (a tree row, the sidebar's Files, a folder or the list in docked
+    // Files) goes there by the route, as a file dragged from Files would:
+    // kept in its Files, or copied with the copy key; clusters nest under a
+    // tree row. The card is under the sidebar by then, so the label at the
+    // pointer (DragLabel.jsx) says what letting go does, and the place lights
+    // up. Refused, the card goes back where it was.
+    const rulesDrag = !!onMoveFilesRef.current && canEdit && !isPublic;
+    const outsideDrop = { el: null, d: null };
+    let filesOfDrag = null;
+    const dragFiles = () => (filesOfDrag ||= dragIds.map((id) => cardById[id]).filter(Boolean)
+      .filter((dc) => dc.kind !== 'board' && dc.kind !== 'boardlink')
+      .map((dc) => ({
+        id: dc.id, kind: dc.kind, name: dc.title || dc.label || dc.fileName || '',
+        boardId: board.id, uploading: isStillUploading(dc), canMove: true,
+        workspaceId: board.workspace_id || workspaceId || null,
+      })));
+    const clustersOfDrag = () => dragIds.map((id) => cardById[id]).filter(Boolean)
+      .map((dc) => (dc.kind === 'board' ? dc.id : dc.kind === 'boardlink' ? dc.target : null));
+    // The cluster outside the board under the pointer: the first thing there
+    // that isn't a dragged card, when that isn't this board (nor another
+    // pane's, which takes cards its own way).
+    const outsideTargetAt = (stack) => {
+      const top = (stack || []).find((el) => {
+        const ce = el?.closest?.('[data-card-id]');
+        return !ce || !dragIds.includes(ce.getAttribute('data-card-id'));
+      });
+      if (!top || wrapRef.current?.contains(top)) return null;
+      const t = top.closest?.('[data-drop-board]');
+      return t && !t.matches('.canvas-wrap') ? t : null;
+    };
+    // What letting go there does. Files ask the label (DragLabel.jsx), which
+    // answers with lib/dropRules.js; clusters nest under a tree row.
+    const decideOutside = (el, ev) => {
+      if (dragFiles().length) {
+        // Clusters and files together go nowhere (as Move to cluster… offers
+        // neither): one nests, the other is kept in Files.
+        const mixed = clustersOfDrag().some(Boolean);
+        const detail = {
+          el, x: ev.clientX, y: ev.clientY,
+          mods: { altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey },
+          drag: { files: dragFiles(), sourceName: board.name || '', workspaceId: board.workspace_id || workspaceId || null },
+          label: mixed ? { top: 'Clusters and files go separately', sub: 'Drag the clusters, then the files', hint: '', no: true } : null,
+          decision: null,
+        };
+        document.dispatchEvent(new CustomEvent('soleil-card-drag-over', { detail }));
+        return detail.decision;
+      }
+      const to = el.getAttribute('data-drop-board');
+      const ids = clustersOfDrag();
+      const ok = el.matches('.sb-tree-row') && ids.length > 0 && ids.every(Boolean)
+        && !ids.some((id) => id === to || wouldCreateCycle(boards, id, to));
+      return { action: ok ? 'nest' : 'none', nest: ok ? ids : [] };
+    };
+    const setOutside = (el, d) => {
+      if (outsideDrop.el && outsideDrop.el !== el) outsideDrop.el.removeAttribute('data-card-drop');
+      outsideDrop.el = el;
+      outsideDrop.d = d;
+      if (!el) return;
+      if (d && d.action !== 'none') el.setAttribute('data-card-drop', '');
+      else el.removeAttribute('data-card-drop');
+    };
+    const clearOutside = () => {
+      if (!outsideDrop.el) return;
+      setOutside(null, null);
+      document.dispatchEvent(new CustomEvent('soleil-card-drag-end'));
+    };
     const startClient = { x: e.clientX, y: e.clientY };
     // The drag runs in WORLD space: the pointer's board point now minus its
     // board point at the origin, both through the live camera refs. Dividing a
@@ -6606,6 +7424,90 @@ export function CanvasSurface({
       setSnapHints(snap.hints);
       movedSettled = true;
     };
+    // Drop-target hover detection (board nesting + grid-cell drop). Both use
+    // document.elementsFromPoint — a forced synchronous layout — so we (a)
+    // SKIP it entirely when this board has nothing to drop into, and (b)
+    // throttle it to ~20Hz and share ONE stack read. A hover highlight
+    // doesn't need 60/120Hz, and onUp tests the release point once more, so
+    // a drop goes where the pointer is let go. On throttled-out frames the
+    // current highlight is left as-is (no flicker).
+    const hitTestDropTargets = (ev, dx, dy, nowT) => {
+      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
+      // A card still uploading can't go into a cell (routeCardIntoCell), so it
+      // never lights one up either.
+      const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
+      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable || rulesDrag)
+        && (Math.abs(dx) + Math.abs(dy) > 4);
+      if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
+        lastHitTestT = nowT;
+        // The dragged cards sit under the cursor, so use elementsFromPoint and
+        // walk the stack for the first id that ISN'T in the dragged set.
+        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
+        // Over a cluster outside the board, nothing on the board under it counts.
+        const outsideEl = rulesDrag ? outsideTargetAt(stack) : null;
+        if (outsideEl !== outsideDrop.el) {
+          if (outsideEl) setOutside(outsideEl, null);
+          else clearOutside();
+        }
+        let nextDropTarget = null;
+        if (dropCandidateIds.length && !outsideEl) {
+          for (const el of stack) {
+            const cardEl = el?.closest?.('[data-card-id]');
+            const id = cardEl?.getAttribute?.('data-card-id');
+            if (!id) continue;
+            if (dragIds.includes(id)) continue;
+            const tc = cardById[id];
+            if (tc?.kind === 'board') { nextDropTarget = tc.id; break; }
+            if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
+            // Keep walking — non-board cards aren't targets but don't stop us.
+          }
+          // Touch-friendly fallback: on a phone the finger is offset from the
+          // card and occludes small boards, so the point hit-test above often
+          // misses the board you're clearly dragging ONTO. Pick the candidate
+          // board the dragged card visually overlaps the most.
+          if (!nextDropTarget) {
+            const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
+            const dr = dragEl?.getBoundingClientRect();
+            if (dr && dr.width && dr.height) {
+              let best = 0;
+              for (const bid of dropCandidateIds) {
+                const bEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(bid) : bid}"]`);
+                const br = bEl?.getBoundingClientRect();
+                if (!br || !br.width || !br.height) continue;
+                const ox = Math.max(0, Math.min(dr.right, br.right) - Math.max(dr.left, br.left));
+                const oy = Math.max(0, Math.min(dr.bottom, br.bottom) - Math.max(dr.top, br.top));
+                const overlap = ox * oy;
+                if (overlap <= 0) continue;
+                const minArea = Math.min(dr.width * dr.height, br.width * br.height);
+                if (overlap > best && overlap > 0.18 * minArea) {
+                  best = overlap;
+                  const tc = cardById[bid];
+                  nextDropTarget = tc?.kind === 'boardlink' ? tc.target : bid;
+                }
+              }
+            }
+          }
+        }
+        updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
+        // Grid-cell drop target: reuse the same stack for a [data-cell-id] in a
+        // grid that ISN'T part of the dragged set. A board drop wins over a cell
+        // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
+        // a multi-select drag never shows a misleading affordance.
+        let nextCell = null;
+        if (!nextDropTarget && soloCellable && !outsideEl) {
+          for (const el of stack) {
+            const cellEl = el?.closest?.('[data-cell-id]');
+            if (!cellEl) continue;
+            const gridEl = cellEl.closest('[data-grid-id]');
+            const gid = gridEl?.getAttribute?.('data-grid-id');
+            if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
+            nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
+            break;
+          }
+        }
+        updateCellDropTarget(nextCell);
+      }
+    };
     const flushMove = () => {
       moveRafId = 0;
       const ev = pendingMoveEv;
@@ -6709,82 +7611,10 @@ export function CanvasSurface({
       movedSettled = settled;
       if (settleTimer) clearTimeout(settleTimer);
       if (!skip) settleTimer = setTimeout(onSettle, SNAP_TUNING.SETTLE_MS);
-      // Drop-target hover detection (board nesting + grid-cell drop). Both use
-      // document.elementsFromPoint — a forced synchronous layout — so we (a)
-      // SKIP it entirely when this board has nothing to drop into, and (b)
-      // throttle it to ~20Hz and share ONE stack read. A hover highlight
-      // doesn't need 60/120Hz, and pointer-up resolves the real target
-      // independently (onUp), so drop accuracy is unchanged. On throttled-out
-      // frames the current highlight is left as-is (no flicker).
-      const soloKind = dragIds.length === 1 ? cardById[dragIds[0]]?.kind : null;
-      // A card still uploading can't go into a cell (routeCardIntoCell), so it
-      // never lights one up either.
-      const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
-      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable)
-        && (Math.abs(dx) + Math.abs(dy) > 4);
-      if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
-        lastHitTestT = nowT;
-        // The dragged cards sit under the cursor, so use elementsFromPoint and
-        // walk the stack for the first id that ISN'T in the dragged set.
-        const stack = document.elementsFromPoint(ev.clientX, ev.clientY) || [];
-        let nextDropTarget = null;
-        if (dropCandidateIds.length) {
-          for (const el of stack) {
-            const cardEl = el?.closest?.('[data-card-id]');
-            const id = cardEl?.getAttribute?.('data-card-id');
-            if (!id) continue;
-            if (dragIds.includes(id)) continue;
-            const tc = cardById[id];
-            if (tc?.kind === 'board') { nextDropTarget = tc.id; break; }
-            if (tc?.kind === 'boardlink' && tc.target) { nextDropTarget = tc.target; break; }
-            // Keep walking — non-board cards aren't targets but don't stop us.
-          }
-          // Touch-friendly fallback: on a phone the finger is offset from the
-          // card and occludes small boards, so the point hit-test above often
-          // misses the board you're clearly dragging ONTO. Pick the candidate
-          // board the dragged card visually overlaps the most.
-          if (!nextDropTarget) {
-            const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
-            const dr = dragEl?.getBoundingClientRect();
-            if (dr && dr.width && dr.height) {
-              let best = 0;
-              for (const bid of dropCandidateIds) {
-                const bEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(bid) : bid}"]`);
-                const br = bEl?.getBoundingClientRect();
-                if (!br || !br.width || !br.height) continue;
-                const ox = Math.max(0, Math.min(dr.right, br.right) - Math.max(dr.left, br.left));
-                const oy = Math.max(0, Math.min(dr.bottom, br.bottom) - Math.max(dr.top, br.top));
-                const overlap = ox * oy;
-                if (overlap <= 0) continue;
-                const minArea = Math.min(dr.width * dr.height, br.width * br.height);
-                if (overlap > best && overlap > 0.18 * minArea) {
-                  best = overlap;
-                  const tc = cardById[bid];
-                  nextDropTarget = tc?.kind === 'boardlink' ? tc.target : bid;
-                }
-              }
-            }
-          }
-        }
-        updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
-        // Grid-cell drop target: reuse the same stack for a [data-cell-id] in a
-        // grid that ISN'T part of the dragged set. A board drop wins over a cell
-        // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
-        // a multi-select drag never shows a misleading affordance.
-        let nextCell = null;
-        if (!nextDropTarget && soloCellable) {
-          for (const el of stack) {
-            const cellEl = el?.closest?.('[data-cell-id]');
-            if (!cellEl) continue;
-            const gridEl = cellEl.closest('[data-grid-id]');
-            const gid = gridEl?.getAttribute?.('data-grid-id');
-            if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
-            nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
-            break;
-          }
-        }
-        updateCellDropTarget(nextCell);
-      }
+      hitTestDropTargets(ev, dx, dy, nowT);
+      // Over a cluster outside the board: the label follows the pointer and the
+      // keys, every frame (the place under it is found at the hit test's pace).
+      if (outsideDrop.el) setOutside(outsideDrop.el, decideOutside(outsideDrop.el, ev));
       // Live cross-pane / inbox hover signal — other panes use this to
       // highlight themselves as drop targets while the pointer is over them.
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-hover', {
@@ -6834,9 +7664,14 @@ export function CanvasSurface({
           setPan({ x: panRef.current.x, y: panRef.current.y });
           scheduleVisibleRecompute();
           emitCanvasSettle();
+          noteSessionCounter('canvas.drag_pan.touch');
         } else if (!panned && !touchScrolling && !aborted) {
           // Tap: boards still open on tap (as before); other cards select.
-          if (openOnClick) {
+          if (toggling) {
+            const next = new Set(selected);
+            if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+            setSelected(next);
+          } else if (openOnClick) {
             if (c.kind === 'board') onOpenBoard(c.id);
             else if (c.kind === 'boardlink') onOpenBoard(c.target);
           } else {
@@ -6867,6 +7702,38 @@ export function CanvasSurface({
       // committed position. (The Y.Doc updateCards call below propagates
       // the final position via Yjs sync.)
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
+      // ── Onto a cluster outside the board (the drop rules) ──
+      if (rulesDrag && (Math.abs(dx) + Math.abs(dy) > 4)) {
+        const outEl = outsideTargetAt(document.elementsFromPoint(ev.clientX, ev.clientY) || []);
+        const d = outEl ? decideOutside(outEl, ev) : null;
+        clearOutside();
+        if (outEl) {
+          // Not a move on this board: the cards go back where they were, and
+          // leave it only once the route has them.
+          updateCellDropTarget(null);
+          updateBoardDropTarget(null);
+          document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
+          setDrag(null);
+          const to = outEl.getAttribute('data-drop-board');
+          if (d?.action === 'nest') {
+            document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
+              detail: { childIds: d.nest, targetId: to, sourceSurface: 'canvas' },
+            }));
+          } else if (d && d.action !== 'none') {
+            for (const [copy, list] of [[false, d.move || []], [true, d.copy || []]]) {
+              const ids = list.map((f) => f.id);
+              if (ids.length) sendCardsByRoute(ids, to, ids.map((id) => cardById[id]).filter(Boolean), copy);
+            }
+          }
+          return;
+        }
+      }
+      // The last hover test can be up to 50ms old, and this release cancelled
+      // the frame's last move: a quick drop into a cell or onto a cluster
+      // card was decided by where the pointer had been, and the card landed
+      // beside it. Test where it is let go.
+      lastHitTestT = 0;
+      hitTestDropTargets(ev, dx, dy, ev.timeStamp || performance.now());
       // ── Drop a single card INTO a grid cell (auto-formats by kind) ──
       const cellTarget = cellDropTargetRef.current;
       updateCellDropTarget(null);
@@ -6915,7 +7782,10 @@ export function CanvasSurface({
       document.dispatchEvent(new CustomEvent('soleil-cross-pane-end'));
       // Drop onto a different canvas pane.
       if (dropWrap && sourceWrap && dropWrap !== sourceWrap && Math.abs(dx) + Math.abs(dy) > 4) {
-        const isCopy = ev.metaKey || ev.ctrlKey;
+        // Into another pane's cluster ⌘/Ctrl copies, and with the drop rules
+        // (lib/dropRules.js) the copy key too; ⌥ only means "don't snap"
+        // inside one board.
+        const isCopy = ev.metaKey || ev.ctrlKey || (!!onMoveFilesRef.current && copyKeyHeld(ev));
         const movedCards = dragIds.map(id => cardById[id]).filter(Boolean);
         document.dispatchEvent(new CustomEvent('soleil-cross-pane-drop', {
           detail: {
@@ -6967,6 +7837,7 @@ export function CanvasSurface({
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
       cleanupTouchHold();
+      clearOutside();
       if (moveRafId) { cancelAnimationFrame(moveRafId); moveRafId = 0; }
       if (settleTimer) { clearTimeout(settleTimer); settleTimer = 0; }
       if (liveDragRafId) { cancelAnimationFrame(liveDragRafId); liveDragRafId = 0; }
@@ -6997,6 +7868,7 @@ export function CanvasSurface({
       pendingLiveDrag = null;
       try { getAwareness?.()?.setLocalStateField('liveDrag', null); } catch (_) {}
       cleanupTouchHold();
+      clearOutside();
       updateBoardDropTarget(null);
       updateCellDropTarget(null);
       clearSnapGuidesNow();
@@ -7507,6 +8379,37 @@ export function CanvasSurface({
     });
   };
 
+  // The empty board's "Put them on the board" (UnplacedOffer): the files that
+  // are in go on as one block in the middle of the view — rows when they're
+  // all photos — in one undo step, and the view frames them the way an opening
+  // fit does (never past 1:1). Files still coming in stay in Files: their
+  // finished size would undo the layout.
+  const putUnplacedOnBoard = (ids, layout) => {
+    if (!canEdit || mutators.captureGuarded) return;
+    const all = allCardsRef.current || [];
+    const plan = planPutOnBoard(all, ids, readViewCenter(), { layout });
+    if (!plan.length) return;
+    const um = mutators.undoManager;
+    mutators.breakUndo?.();
+    mutators.updateCards?.(plan);
+    const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
+    mutators.breakUndo?.();
+    undoToast(feedback, {
+      type: 'success',
+      message: plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`,
+      undoManager: um, stackItem: item,
+      onUndo: () => mutators.undo?.(),
+    });
+    // Framed from the plan: the cards reach `cards` a render later.
+    const byId = new Map(all.map((c) => [c.id, c]));
+    const b = boundsOfCards(plan.map(({ id, patch }) => ({ ...byId.get(id), ...patch })));
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (!b || !r || r.width < 50 || r.height < 50) return;
+    enableSmoothTransform();
+    applyCamera(solveFit(b, { w: r.width, h: r.height },
+      { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: OPEN_FIT_MAX_ZOOM }));
+  };
+
   const buildMenu = (c) => {
     // Buckets → composeMenuSections keeps every card's menu grouped + ordered
     // the same: primary (open) · EDIT · ANNOTATE · ARRANGE · CLIPBOARD · meta
@@ -7533,6 +8436,8 @@ export function CanvasSurface({
             if (href) window.open(href, '_blank', 'noopener');
             else feedback.toast({ type: 'error', message: "That link can't be opened." });
           }});
+        } else if (c.kind === 'shortcut' && c.shareToken && !isPublic) {
+          openItems.push({ id: 'open', label: 'Open', run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
         }
         metaItems.push({ id: 'info', label: 'Info', shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }) });
@@ -7541,8 +8446,26 @@ export function CanvasSurface({
         metaItems.push({ id: 'info', label: `Info (${selected.size})`, shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [...selected], follow: infoFollow }) });
       }
+      // The drop rules: out of a cluster you can only view, files can still be
+      // copied — into this workspace's clusters, by the route.
+      const copyItems = [];
+      if (onMoveFilesRef.current && !isPublic && (!board.workspace_id || board.workspace_id === workspaceId)) {
+        const copying = (multi ? [...selected] : [c.id])
+          .map((id) => (cards || []).find((x) => x.id === id))
+          .filter((cc) => cc && cc.kind !== 'board' && cc.kind !== 'boardlink');
+        const targets = copying.length ? cardMoveTargets(boards, { workspaceId, fromId: board.id }) : [];
+        if (targets.length) {
+          const ids = copying.map((cc) => cc.id);
+          copyItems.push({
+            id: 'copy-cards-to-board',
+            label: ids.length > 1 ? `Copy ${ids.length} cards to…` : 'Copy to cluster…',
+            submenu: targets.map((t) => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, copying, true) })),
+          });
+        }
+      }
       return composeMenuSections([
         { items: openItems },
+        { items: copyItems },
         { items: metaItems },
       ]);
     }
@@ -7592,17 +8515,38 @@ export function CanvasSurface({
       const anyClusterRef = moving.some(cc => cc.kind === 'board' || cc.kind === 'boardlink');
       if (moving.length > 0 && !anyClusterRef) {
         const targets = cardMoveTargets(boards, { workspaceId, fromId: board.id });
+        const ids = moving.map(cc => cc.id);
+        // "New cluster…" heads the list, and stays when there is no other
+        // cluster to offer — a first project gathered on Studio is exactly
+        // the pile that has nowhere to go yet. A multi-selection with no
+        // targets already has "New cluster from N cards" beside Group.
+        const toNew = clusterNudgesAllowed()
+          ? { id: 'mcb-new', label: 'New cluster…', run: () => createClusterFrom(ids, { via: 'move_to_new' }) }
+          : null;
         if (targets.length) {
-          const ids = moving.map(cc => cc.id);
+          // With the drop rules, by the route, and Copy to… beside Move to….
+          const byRoute = !!onMoveFilesRef.current;
           arrangeItems.push({
             id: 'move-cards-to-board',
             label: ids.length > 1 ? `Move ${ids.length} cards to…` : 'Move to cluster…',
-            submenu: targets.map(t => ({
-              id: 'mcb-' + t.id,
-              label: t.label,
-              run: () => moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' }),
-            })),
+            submenu: [
+              ...(toNew ? [toNew, { divider: true }] : []),
+              ...targets.map(t => ({
+                id: 'mcb-' + t.id,
+                label: t.label,
+                run: () => (byRoute ? sendCardsByRoute(ids, t.id, moving, false) : moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' })),
+              })),
+            ],
           });
+          if (byRoute) {
+            arrangeItems.push({
+              id: 'copy-cards-to-board',
+              label: ids.length > 1 ? `Copy ${ids.length} cards to…` : 'Copy to cluster…',
+              submenu: targets.map(t => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, moving, true) })),
+            });
+          }
+        } else if (toNew && !multi) {
+          arrangeItems.push({ id: 'move-cards-to-new', label: 'Move to a new cluster…', run: toNew.run });
         }
       }
     }
@@ -7661,9 +8605,12 @@ export function CanvasSurface({
           items.push({ id: 'image-download', label: 'Download',
             run: () => runDownload(c, 'image') });
         }
+      } else if (c.kind === 'shortcut') {
+        // A shortcut to a file shared with you: opens in the in-app viewer.
+        if (c.shareToken) openItems.push({ id: 'open', label: 'Open', run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
       } else if (c.kind === 'pdf') {
         openItems.push({ id: 'pdf-open', label: 'Open',
-          run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' }); } });
+          run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id }); } });
         items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
           run: () => triggerInlineEdit(c.id, 'title') });
         items.push({ id: 'pdf-download', label: 'Download', run: () => runDownload(c, 'pdf') });
@@ -7990,6 +8937,15 @@ export function CanvasSurface({
       ]});
     }
 
+    // A cluster from the selection sits beside Group: both gather cards, and
+    // only one of them gives the gathering a place of its own.
+    if (multi && selected.size >= 2 && clusterNudgesAllowed()) {
+      const plan = planClusterFromSelection({ cards, ids: [...selected] });
+      if (!plan.refused && plan.ids.length) {
+        arrangeItems.push({ id: 'new-cluster-from', label: `New cluster from ${plan.ids.length} cards`,
+          run: () => createClusterFrom([...selected], { via: 'from_selection' }) });
+      }
+    }
     // Grouping (stays in the ARRANGE group) ──
     if (multi && selected.size >= 2) {
       // Selection of 2+ → "Group together"
@@ -8057,6 +9013,10 @@ export function CanvasSurface({
           });
         }},
         { id: 'group-info', label: 'Group info', run: () => openInfo({ boardId: board.id, groupId: g.id }) },
+        // A group that has become a project gets a place of its own: the
+        // group moves in whole and keeps its name (clusterFromSelection).
+        ...(clusterNudgesAllowed() ? [{ id: 'group-to-cluster', label: 'Turn into cluster…',
+          run: () => createClusterFrom((cardsByGroup.get(g.id) || []).map(m => m.id), { via: 'from_group' }) }] : []),
         { divider: true },
         { id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) },
       ]});
@@ -8071,6 +9031,16 @@ export function CanvasSurface({
     if (!mutators.captureGuarded && offIds.length && offIds.length === (multi ? selected.size : 1)) {
       metaItems.push({ id: 'unplace', label: offIds.length > 1 ? `Remove ${offIds.length} from board` : 'Remove from board',
         run: () => removeFromBoard(offIds) });
+    }
+    if (!multi && canEdit && !isPublic && fileSharesAllowed() && isShareableCard(c)) {
+      items.push({ id: 'share-file', label: 'Share file…',
+        run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
+    }
+    // A doc, to read or edit together (held: docSharesAllowed).
+    const shareDoc = !multi && canEdit && !isPublic ? docShareLabel(c) : null;
+    if (shareDoc) {
+      items.push({ id: 'share-doc', label: shareDoc,
+        run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
     }
     metaItems.push({ backlinks: true });
     metaItems.push({ id: 'delete', label: multi ? `Delete (${selected.size})` : 'Delete',
@@ -8118,13 +9088,16 @@ export function CanvasSurface({
   // empty-board hint advertises). Cards, chrome, strokes and arrows keep
   // their own double-click behaviors.
   const onBackgroundDoubleClick = (e) => {
+    // A finger's double tap already opened the menu (onTouchTapEmpty); this is
+    // the browser's own dblclick for the same two taps, where it sends one.
+    if (e.type === 'dblclick' && performance.now() - bgDoubleTapAtRef.current < 700) return;
     // Any tour (locked desktop OR the unlocked mobile_lite variant) owns input —
     // a double-tap must not open the quick-add menu over the pill or drop a stray
     // cluster/note that steers away from the guided path.
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -8151,10 +9124,250 @@ export function CanvasSurface({
     setQuickAdd({ open: true, x: e.clientX, y: e.clientY, pos: clientToCanvas(e.clientX, e.clientY) });
   };
 
+  // ── The selection box ─────────────────────────────────────────────────────
+  // A mouse drags it from a press on empty canvas; a finger from a hold
+  // (startTouchCanvasPress). Snapshot the selection first so Escape can put it
+  // back, and treat `additive` (Shift, or a finger in Select…) as a union. We
+  // do NOT clear the current selection on pointerdown — doing so used to drop
+  // a multi-selection the instant a click twitched a pixel. Clearing happens
+  // only once the gesture is confirmed as a drag (first move past the
+  // threshold) or resolves as a plain click on empty canvas (an end with no
+  // move). The caller tracks the pointer and calls sample / end / abort.
+  const beginMarquee = (startClient, { additive = false } = {}) => {
+    const startCanvas = clientToCanvas(startClient.x, startClient.y);
+    setMarquee({ x0: startCanvas.x, y0: startCanvas.y, x1: startCanvas.x, y1: startCanvas.y });
+    const preSelected = new Set(selected);
+    const preStrokes = new Set(selectedStrokes);
+    const preArrows = new Set(selectedArrows);
+
+    let moved = false;
+    let cleared = false;
+    // Fresh (non-additive) marquee: clear the existing selection the first
+    // time movement is confirmed, so the live preview reflects only the box.
+    const clearForFreshMarquee = () => {
+      if (cleared || additive) return;
+      cleared = true;
+      setSelected(new Set());
+      setSelectedStrokes(new Set());
+      setSelectedArrows(new Set());
+    };
+    const sample = (ev) => {
+      const dxClient = ev.clientX - startClient.x;
+      const dyClient = ev.clientY - startClient.y;
+      // 4px matches the card-drag click threshold — the old 3px meant a
+      // tiny drift could start a lasso where the same drift on a card
+      // still counted as a click.
+      if (!moved && Math.abs(dxClient) < 4 && Math.abs(dyClient) < 4) return;
+      moved = true;
+      clearForFreshMarquee();
+      const cur = clientToCanvas(ev.clientX, ev.clientY);
+      setMarquee(prev => prev ? { ...prev, x1: cur.x, y1: cur.y } : null);
+    };
+    // Restore the pre-marquee selection + drop the box (Escape or iOS cancel).
+    const abort = () => {
+      setSelected(preSelected);
+      setSelectedStrokes(preStrokes);
+      setSelectedArrows(preArrows);
+      setMarquee(null);
+    };
+    // Returns how many things the box caught (cards, strokes and arrows).
+    const end = (ev) => {
+      let caught = 0;
+      if (moved) {
+        const cur = clientToCanvas(ev.clientX, ev.clientY);
+        const minX = Math.min(startCanvas.x, cur.x);
+        const maxX = Math.max(startCanvas.x, cur.x);
+        const minY = Math.min(startCanvas.y, cur.y);
+        const maxY = Math.max(startCanvas.y, cur.y);
+        const rect = { minX, maxX, minY, maxY };
+        const hits = (cards || [])
+          .filter(c => c.x < maxX && c.x + c.w > minX && c.y < maxY && c.y + c.h > minY)
+          .map(c => c.id);
+        const strokeHits = (strokes || [])
+          .map((stroke, index) => strokeIntersectsRect(stroke, rect) ? index : null)
+          .filter(index => index !== null);
+        const arrowHits = (arrows || [])
+          .map((_, index) => {
+            const att = arrowAttachments[index];
+            if (!att?.from || !att?.to) return null;
+            const s = att.from.point, e = att.to.point;
+            return (pointInRect(s, rect) || pointInRect(e, rect) ||
+              (Math.min(s.x, e.x) <= rect.maxX && Math.max(s.x, e.x) >= rect.minX &&
+               Math.min(s.y, e.y) <= rect.maxY && Math.max(s.y, e.y) >= rect.minY)) ? index : null;
+          })
+          .filter(index => index !== null);
+        // Additive = union with the pre-marquee selection; a plain marquee
+        // replaces it. Applied uniformly to cards, strokes, arrows.
+        const next = new Set(additive ? preSelected : []);
+        hits.forEach(id => next.add(id));
+        const nextStrokes = new Set(additive ? preStrokes : []);
+        strokeHits.forEach(i => nextStrokes.add(i));
+        const nextArrows = new Set(additive ? preArrows : []);
+        arrowHits.forEach(i => nextArrows.add(i));
+        setSelected(next);
+        setSelectedStrokes(nextStrokes);
+        setSelectedArrows(nextArrows);
+        caught = hits.length + strokeHits.length + arrowHits.length;
+      } else if (!additive) {
+        // Plain click on empty canvas → deselect everything.
+        setSelected(new Set());
+        setSelectedStrokes(new Set());
+        setSelectedArrows(new Set());
+      }
+      setMarquee(null);
+      return caught;
+    };
+    return { sample, end, abort };
+  };
+
+  // Select…: a tap on a card only chooses it. What is inside a card keeps its
+  // own clicks out of it (a cluster's list of what's in it opens that, a
+  // link opens its page), stopped here on the way down.
+  const onSelectingClickCapture = (e) => {
+    if (!e.target.closest?.('.card')) return;
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  // ── A finger on empty canvas ─────────────────────────────────────────────
+  // A tap clears the selection, as a click does, and two taps open the add
+  // menu there, as a double-click does. The browser's own dblclick can't do
+  // it: the canvas owns every touch (touch-action: none, and the pan's
+  // preventDefault), and most browsers never send one.
+  const onTouchTapEmpty = (ev) => {
+    if (tapIsDouble(lastBgTapRef, ev)) {
+      bgDoubleTapAtRef.current = performance.now();
+      onBackgroundDoubleClick(ev);
+      return;
+    }
+    if (touchSelectingRef.current) setTouchSelecting(false);
+    setSelected(new Set());
+    setSelectedStrokes(new Set());
+    setSelectedArrows(new Set());
+  };
+
+  // touchPassAllowed (on since the sidebar release): one press, four ways it can go.
+  //   • a tap: onTouchTapEmpty.
+  //   • a drag: pans, once the finger is past the slop (TOUCH_LIFT_TOLERANCE),
+  //     by the whole way it has come, as a card's press does before its lift.
+  //   • a hold (TOUCH_LIFT_MS), let go where it was held: the canvas menu at
+  //     the finger, with Select… in it. On letting go, not on the timer, so
+  //     the menu never covers the place a box was about to be dragged over.
+  //   • a hold, then a drag: a selection box, as a mouse drags one.
+  // A second finger at any point hands the gesture to the pinch untouched:
+  // no pan committed, no box, no menu, the selection as it was.
+  const startTouchCanvasPress = (e) => {
+    e.preventDefault();
+    glideRef.current = null;
+    const startClient = { x: e.clientX, y: e.clientY };
+    const startPanXY = { x: panRef.current.x, y: panRef.current.y };
+    const press = { phase: 'pending' };   // → pan | armed | box, then done
+    touchPressRef.current = press;
+    let box = null;
+    let dispose = null;
+    // The ring that fills over the hold, under the finger (.cnv-hold-cue).
+    // Driven by hand rather than state: a pan must not cost the canvas two
+    // renders just to show and hide it.
+    const cue = holdCueRef.current;
+    const wrapRect = wrapRef.current?.getBoundingClientRect();
+    const showCue = (on) => {
+      if (!cue || !wrapRect) return;
+      cue.classList.remove('is-on');
+      if (!on) return;
+      cue.style.left = `${startClient.x - wrapRect.left}px`;
+      cue.style.top = `${startClient.y - wrapRect.top}px`;
+      void cue.offsetWidth;   // restart the fill
+      cue.classList.add('is-on');
+    };
+    showCue(true);
+    let timer = setTimeout(() => {
+      timer = null;
+      if (press.phase !== 'pending') return;
+      press.phase = 'armed';
+      try { navigator.vibrate?.(8); } catch (_) {}
+    }, TOUCH_LIFT_MS);
+    const finish = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      window.removeEventListener('pointerdown', onSecondTouch, true);
+      showCue(false);
+      if (touchPressRef.current === press) touchPressRef.current = null;
+      if (pointerOpAbortRef.current === abort) pointerOpAbortRef.current = null;
+    };
+    // Escape, or a second finger: nothing this press did stays.
+    const abort = () => {
+      if (press.phase === 'done') return;
+      dispose?.();
+      finish();
+      if (press.phase === 'box') box.abort();
+      press.phase = 'done';
+    };
+    press.abort = abort;   // a hold on something with its own menu (useLongPress)
+    const onSecondTouch = (ev) => {
+      if (ev.pointerType !== 'touch' || ev.pointerId === e.pointerId) return;
+      abort();
+    };
+    const travel = (ev) => Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
+    const onSample = (ev) => {
+      if (press.phase === 'pending' && travel(ev) > TOUCH_LIFT_TOLERANCE) {
+        press.phase = 'pan';
+        if (timer) { clearTimeout(timer); timer = null; }
+        showCue(false);
+        // A pan is the camera's: Escape goes back to closing what's open.
+        if (pointerOpAbortRef.current === abort) pointerOpAbortRef.current = null;
+      } else if (press.phase === 'armed' && travel(ev) > TOUCH_LIFT_TOLERANCE) {
+        press.phase = 'box';
+        showCue(false);
+        box = beginMarquee(startClient, { additive: touchSelectingRef.current });
+      }
+      if (press.phase === 'pan') {
+        panRef.current = {
+          x: startPanXY.x + (ev.clientX - startClient.x),
+          y: startPanXY.y + (ev.clientY - startClient.y),
+        };
+        gestureUntilRef.current = performance.now() + 200; // ADD-only cull while panning
+        markGestureActiveUntil(gestureUntilRef.current);
+        markCanvasInteracting();  // immersive look-around
+        applyCanvasTransform();
+        scheduleVisibleRecompute();
+      } else if (press.phase === 'box') {
+        box.sample(ev);
+      }
+    };
+    const onEnd = (ev, { canceled }) => {
+      const phase = press.phase;
+      finish();
+      press.phase = 'done';
+      if (phase === 'pan') {
+        // Commit once at gesture end, as startPan does.
+        gestureUntilRef.current = 0;
+        setPan({ x: panRef.current.x, y: panRef.current.y });
+        scheduleVisibleRecompute();
+        emitCanvasSettle();
+        noteSessionCounter('canvas.drag_pan.touch');
+        return;
+      }
+      if (canceled) { if (phase === 'box') box.abort(); return; }
+      if (phase === 'box') {
+        const n = box.end(ev);
+        try { logEvent(EV.TOUCH_SELECT, { where: 'canvas', via: 'hold', n }); } catch (_) {}
+        return;
+      }
+      if (phase === 'pending') { onTouchTapEmpty(ev); return; }
+      // Held, and let go where it was held: the menu, at the finger.
+      swallowNextClick();
+      closeCardMenu();
+      setBgCtx({ open: true, x: startClient.x, y: startClient.y,
+        canvasPos: clientToCanvas(startClient.x, startClient.y), viaTouch: true });
+    };
+    dispose = trackStroke({ pointerId: e.pointerId, onSample, onEnd });
+    window.addEventListener('pointerdown', onSecondTouch, true);
+    pointerOpAbortRef.current = abort;
+  };
+
   const onBackgroundPointerDown = (e) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
-    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
+    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
 
     if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
@@ -8612,122 +9825,43 @@ export function CanvasSurface({
     }
 
     if (selectedTool !== 'select') {
+      if (placesOnRelease(e)) { placeToolOnRelease(e); return; }
       // board/image/text/palette drop at the click via the shared placer;
       // shape (drag-to-draw) and draw/arrow were already handled above.
       placeToolAt(clientToCanvas(e.clientX, e.clientY));
       return;
     }
 
-    // On touch (finger), one-finger drag on empty canvas should pan, not
-    // lasso-select. Tapping a card still selects it (cards have their own
-    // handlers); long-press still opens the background context menu.
-    // Pen / stylus keeps the desktop lasso behavior so Apple Pencil users
-    // can still marquee-select.
+    // A finger on empty canvas. Pen / stylus keeps the desktop marquee below,
+    // so Apple Pencil users can still drag a box.
     //
-    // Only start pan for the PRIMARY pointer (first finger). When the
-    // user adds a second finger for pinch-zoom, that pointerdown also
-    // reaches this handler — if we called startPan(e) again, its
-    // e.preventDefault() would block useGesture from recognising the
-    // second touch and pinch would silently fail. isPrimary is true
-    // only for the first active touch in a sequence; subsequent fingers
+    // Only the PRIMARY pointer (first finger) does anything. When the user
+    // adds a second finger for pinch-zoom, that pointerdown also reaches this
+    // handler — and a preventDefault() on it would block useGesture from
+    // recognising the second touch, so pinch would silently fail. isPrimary
+    // is true only for the first active touch in a sequence; later fingers
     // bail and useGesture's pinch / two-finger pan handler takes over.
     if (e.pointerType === 'touch') {
-      if (e.isPrimary) startPan(e);
+      if (!e.isPrimary) return;
+      // lib/appHost.js touchPassAllowed: a hold, then a drag, draws a selection box.
+      if (touchPassAllowed()) { startTouchCanvasPress(e); return; }
+      // One finger pans; a tap clears the selection, two open the add menu.
+      startPan(e, { onTap: onTouchTapEmpty });
       return;
     }
 
-    // Select tool: marquee. Snapshot the pre-marquee selection so we can
-    // restore it if Escape aborts, and treat Shift as additive. We do NOT
-    // clear the current selection on pointerdown — doing so used to drop a
-    // multi-selection the instant a click twitched a pixel. Clearing happens
-    // only once the gesture is confirmed as a drag (first move past the
-    // threshold) or resolves as a plain click on empty canvas (pointerup).
-    const startClient = { x: e.clientX, y: e.clientY };
-    const startCanvas = clientToCanvas(e.clientX, e.clientY);
-    setMarquee({ x0: startCanvas.x, y0: startCanvas.y, x1: startCanvas.x, y1: startCanvas.y });
-    const wasShift = e.shiftKey;
-    const preSelected = new Set(selected);
-    const preStrokes = new Set(selectedStrokes);
-    const preArrows = new Set(selectedArrows);
-
-    let moved = false;
-    let cleared = false;
-    // Fresh (non-shift) marquee: clear the existing selection the first time
-    // movement is confirmed, so the live preview reflects only the box.
-    const clearForFreshMarquee = () => {
-      if (cleared || wasShift) return;
-      cleared = true;
-      setSelected(new Set());
-      setSelectedStrokes(new Set());
-      setSelectedArrows(new Set());
-    };
-    const onSample = (ev) => {
-      const dxClient = ev.clientX - startClient.x;
-      const dyClient = ev.clientY - startClient.y;
-      // 4px matches the card-drag click threshold — the old 3px meant a
-      // tiny drift could start a lasso where the same drift on a card
-      // still counted as a click.
-      if (!moved && Math.abs(dxClient) < 4 && Math.abs(dyClient) < 4) return;
-      moved = true;
-      clearForFreshMarquee();
-      const cur = clientToCanvas(ev.clientX, ev.clientY);
-      setMarquee(prev => prev ? { ...prev, x1: cur.x, y1: cur.y } : null);
-    };
-    // Restore the pre-marquee selection + drop the box (Escape or iOS cancel).
-    const abortMarquee = () => {
-      setSelected(preSelected);
-      setSelectedStrokes(preStrokes);
-      setSelectedArrows(preArrows);
-      setMarquee(null);
-    };
-    const onEnd = (ev, { canceled }) => {
-      pointerOpAbortRef.current = null;
-      if (canceled) { abortMarquee(); return; }
-      if (moved) {
-        const cur = clientToCanvas(ev.clientX, ev.clientY);
-        const minX = Math.min(startCanvas.x, cur.x);
-        const maxX = Math.max(startCanvas.x, cur.x);
-        const minY = Math.min(startCanvas.y, cur.y);
-        const maxY = Math.max(startCanvas.y, cur.y);
-        const rect = { minX, maxX, minY, maxY };
-        const hits = (cards || [])
-          .filter(c => c.x < maxX && c.x + c.w > minX && c.y < maxY && c.y + c.h > minY)
-          .map(c => c.id);
-        const strokeHits = (strokes || [])
-          .map((stroke, index) => strokeIntersectsRect(stroke, rect) ? index : null)
-          .filter(index => index !== null);
-        const arrowHits = (arrows || [])
-          .map((_, index) => {
-            const att = arrowAttachments[index];
-            if (!att?.from || !att?.to) return null;
-            const s = att.from.point, e = att.to.point;
-            return (pointInRect(s, rect) || pointInRect(e, rect) ||
-              (Math.min(s.x, e.x) <= rect.maxX && Math.max(s.x, e.x) >= rect.minX &&
-               Math.min(s.y, e.y) <= rect.maxY && Math.max(s.y, e.y) >= rect.minY)) ? index : null;
-          })
-          .filter(index => index !== null);
-        // Shift = additive (union with the pre-marquee selection); a plain
-        // marquee replaces it. Applied uniformly to cards, strokes, arrows.
-        const next = new Set(wasShift ? preSelected : []);
-        hits.forEach(id => next.add(id));
-        const nextStrokes = new Set(wasShift ? preStrokes : []);
-        strokeHits.forEach(i => nextStrokes.add(i));
-        const nextArrows = new Set(wasShift ? preArrows : []);
-        arrowHits.forEach(i => nextArrows.add(i));
-        setSelected(next);
-        setSelectedStrokes(nextStrokes);
-        setSelectedArrows(nextArrows);
-      } else if (!wasShift) {
-        // Plain click on empty canvas → deselect everything.
-        setSelected(new Set());
-        setSelectedStrokes(new Set());
-        setSelectedArrows(new Set());
-      }
-      setMarquee(null);
-    };
-    const dispose = trackStroke({ pointerId: e.pointerId, onSample, onEnd });
+    // Select tool: marquee, Shift adding to the selection (beginMarquee).
+    const box = beginMarquee({ x: e.clientX, y: e.clientY }, { additive: e.shiftKey });
+    const dispose = trackStroke({
+      pointerId: e.pointerId,
+      onSample: box.sample,
+      onEnd: (ev, { canceled }) => {
+        pointerOpAbortRef.current = null;
+        if (canceled) box.abort(); else box.end(ev);
+      },
+    });
     // Escape-abort: tear down listeners (no commit) + restore selection.
-    pointerOpAbortRef.current = () => { dispose(); abortMarquee(); };
+    pointerOpAbortRef.current = () => { dispose(); box.abort(); };
   };
 
   const onBackgroundContextMenu = (e) => {
@@ -8737,7 +9871,7 @@ export function CanvasSurface({
     // (Cut / Copy / Paste, spellcheck). Notes already got this in
     // onCardContextMenu; these got Add / Paste / Select all instead.
     if (isEditorPointerTarget(e)) return;
-    if (e.target.closest('.card, .cnv-tool, .cnv-zoom, .inbox, .tob')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-add-menu, .cnv-zoom, .inbox, .tob')) return;
     e.preventDefault();
     // A finger's press-and-hold already opened this menu through
     // useLongPress; Android's contextmenu would open it a second time.
@@ -8755,7 +9889,7 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Cluster', icon: Browsers,      run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
+    { id: 'board',   group: 'card', label: 'Cluster', icon: clusterGlyph(), run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
     { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
     { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     // Multi-select, via the same batch ingest drag-drop uses. This used to call
@@ -8768,7 +9902,7 @@ export function CanvasSurface({
     // (50-73% at 6+, ~13% at zero). Selecting one file behaves exactly as before.
     { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
     { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
-    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: 'Folder', icon: Folder, run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
+    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: 'Folder', icon: folderUploadGlyph(), run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
     { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
     { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
     { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
@@ -8870,6 +10004,10 @@ export function CanvasSurface({
           run: () => mutators.setGroupOutline?.(gid, {
             options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
           }) });
+        if (clusterNudgesAllowed()) {
+          items.push({ id: 'group-to-cluster', label: 'Turn into cluster…',
+            run: () => createClusterFrom((cardsByGroup.get(gid) || []).map(m => m.id), { via: 'from_group' }) });
+        }
         items.push({ divider: true });
         items.push({ id: 'group-ungroup', label: 'Ungroup', danger: true,
           run: () => mutators.ungroup?.(gid) });
@@ -8914,9 +10052,18 @@ export function CanvasSurface({
     // read-only actions. (The demo-tier upgrade CTA died with 0188.)
     const clusterInfo = { id: 'cluster-info', label: 'Cluster info', shortcut: modShortcut('I'),
       run: () => openInfo({ boardId: board.id, clusterId: board.id, follow: infoFollow }) };
+    // Opened by a finger's hold: a finger has no Shift, so it gets a mode in
+    // which taps add cards to the selection (touchSelecting).
+    const selectSome = bgCtx.viaTouch
+      ? [{ id: 'selectsome', label: 'Select…', run: () => {
+          setTouchSelecting(true);
+          try { logEvent(EV.TOUCH_SELECT, { where: 'canvas', via: 'menu', n: selected.size + selectedStrokes.size + selectedArrows.size }); } catch (_) {}
+        } }]
+      : [];
     if (!canEdit) {
       return [
         { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
+        ...selectSome,
         clusterInfo,
       ];
     }
@@ -8965,6 +10112,7 @@ export function CanvasSurface({
         shortcut: modShortcut('V'), disabled: clipboardSize() === 0,
         run: () => doPaste(pos) },
       { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
+      ...selectSome,
       { header: 'BOARD' },
       clusterInfo,
       { id: 'bg', label: 'Background', submenu: [
@@ -9447,8 +10595,16 @@ export function CanvasSurface({
   // For boards: only the cover area triggers open — title/meta dbl-click
   // does nothing (so accidental clicks near the title don't navigate).
   const onCardDoubleClick = (e, c) => {
+    // Select…: two quick taps are two cards chosen, even where the browser
+    // reads them as a double-click (it does across ~100px of a tablet).
+    if (touchSelectingRef.current) return;
     if (isEditorPointerTarget(e)) return;
     if (e.target.closest && e.target.closest('.editable')) return;
+    // A shortcut opens the file shared with you, in the in-app viewer.
+    if (c.kind === 'shortcut') {
+      if (c.shareToken && !isPublic) { e.stopPropagation?.(); openSharedFile({ token: c.shareToken, via: 'shortcut' }); }
+      return;
+    }
     if (c.kind === 'board') {
       // Read-only viewers already navigate on single click (the !canEdit
       // branch of onCardPointerDown) — suppress the double-click path so a
@@ -9476,7 +10632,28 @@ export function CanvasSurface({
     if (c.kind === 'pdf') {
       if (!c.pdfSrc) return;
       e.stopPropagation();
-      setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' });
+      setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id });
+      return;
+    }
+    // A plain file (zip, docx…) opens full screen like everything else, with
+    // Download and Share there; it used to download on the spot.
+    if (c.kind === 'file') {
+      if (!c.fileSrc || c.pending) return;
+      e.stopPropagation();
+      setFileView({ cardId: c.id });
+      return;
+    }
+    // A doc opens on two taps, as on a double-click. A mouse never gets here
+    // (RichDocCard answers its dblclick); a finger does, from the double tap
+    // onCardPointerUp makes, because WebKit never turns two taps into a
+    // dblclick. Only from the card itself: the open doc is portaled out of this
+    // wrapper, and React bubbles the doc's own taps back through it. The tap's
+    // click still owes the page, and it would land in the doc it just opened.
+    if (c.kind === 'doc') {
+      if (!e.target.closest?.('.doc-card')) return;
+      e.stopPropagation?.();
+      if (e.pointerType === 'touch') swallowGhostClick({ x: e.clientX, y: e.clientY });
+      document.dispatchEvent(new CustomEvent('soleil-open-doc-card', { detail: { cardId: c.id } }));
       return;
     }
     // image / note / link / etc — defer to inner editors so dbl-click
@@ -9495,6 +10672,7 @@ export function CanvasSurface({
   const lastCardTapRef = useRef({});
   const onCardPointerUp = (e, c) => {
     if (e.pointerType !== 'touch') return;
+    if (touchSelectingRef.current) return;   // Select…: taps choose, they don't open (onCardDoubleClick)
     if (tapIsDouble(lastCardTapRef, e, { key: c.id })) onCardDoubleClick(e, c);
   };
 
@@ -9703,7 +10881,9 @@ export function CanvasSurface({
       if (mime.startsWith('image/')) {
         const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
-      } else if (mime.startsWith('video/')) {
+      } else if (classifyDropFile(f).kind === 'video') {
+        // A clip by its type, or by its name when it came with none, as a
+        // drop on the board decides it (fileIngest).
         // canAttemptFiles, exactly as the canvas and list drop paths do it.
         // Without it this path applied the FREE 30 MB / 60 s caps to paid
         // owners too — the one upload route that never learned about the
@@ -9955,12 +11135,14 @@ export function CanvasSurface({
                        // diving into the list board. Returning true tells
                        // BoardCard we handled it; falsy → BoardCard's fallback.
                        if (item.kind === 'image' && item.src) {
-                         setLightbox({ src: item.src, title: item.name });
+                         // The row is a card of the sub-cluster c.id: Share in
+                         // the lightbox is about that cluster's card.
+                         setLightbox({ src: item.src, title: item.name, shareBoardId: c.id, shareCard: item.card || null });
                          return true;
                        }
                        return false;
                      }}
-                     onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name) : null}
+                     onRename={canEdit ? (name) => mutators.renameBoardById?.(c.id, name, { via: 'card' }) : null}
                      autoFocus={af}
                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />
         : boardsReady
@@ -10024,7 +11206,7 @@ export function CanvasSurface({
                                                       editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                       pending={!!c.pending}
                                                       uploadProgress={uploadProgressById[c.id] ?? null}
-                                                      onExpand={() => c.pdfSrc && setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF' })}
+                                                      onExpand={() => c.pdfSrc && setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id })}
                                                       onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'doc') {
       // Rich doc card. Pull the live cardYMap so RichDocCard can read its
@@ -10045,6 +11227,7 @@ export function CanvasSurface({
                      isPublic={isPublic}
                      onDock={onDockDoc}
                      isDocked={dockedDocCardId === c.id}
+                     onOpenBeside={onOpenBesideDoc && dockedDocCardId && dockedDocCardId !== c.id ? onOpenBesideDoc : null}
                      hostBoardId={board.id}
                      autoFocus={af}
                      onUpdate={onUpdate} />
@@ -10065,7 +11248,9 @@ export function CanvasSurface({
       // committed zoom changes. The card's level-of-detail tier reads
       // getCanvasScale() on a settle tick, and not every zoom path emits one
       // (keyboard ⌘−/⌘= doesn't), so it used to ride this parent re-render.
-      inner = <MemoScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
+      inner = (
+        <Suspense fallback={null}>
+          <MemoScheduleCard card={c} w={Math.round(w)} h={Math.round(h)} ydoc={ydoc} cardYMap={cardYMap}
                             settledZoom={zoom}
                             canEdit={canEdit} onUpdate={onUpdate}
                             focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
@@ -10073,7 +11258,9 @@ export function CanvasSurface({
                             cellUploads={schedUploads}
                             boards={boards} onOpenBoard={onOpenBoard}
                             onSetSchedule={onSetSchedule} onAddShootDay={onAddShootDay}
-                            gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
+                            gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />
+        </Suspense>
+      );
     }
     else if (c.kind === 'shape')     inner = <ShapeCard key={`shape-${c.shape}`} shape={c.shape} stroke={c.stroke} fill={c.fill} strokeWidth={c.strokeWidth} dash={c.dash}
                                                         label={c.label} onUpdate={onUpdate}
@@ -10104,7 +11291,10 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                        pending={!!c.pending}
                                                        uploadProgress={uploadProgressById[c.id] ?? null}
+                                                       opensOnBoard
                                                        onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
+    else if (c.kind === 'shortcut')  inner = <ShortcutCard shareToken={c.shareToken} isPublic={isPublic}
+                                                           onRemove={canEdit && !isPublic ? () => doDeleteIds([c.id]) : null} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
     // Tag chips along the card's bottom edge so the user actually sees
@@ -10173,21 +11363,6 @@ export function CanvasSurface({
         {canEdit && selectedTool === 'select' && isSelected && canRotate && (
           <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate (shift = 15° steps)" />
         )}
-        {/* Touch-only "⋯" — the card context menu's new home now that a
-            long-press lifts the card for dragging instead of opening it.
-            CSS hides it except on coarse pointers (desktop keeps right-click). */}
-        {canEdit && selectedTool === 'select' && isSelected
-          && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
-          <button type="button" className="card-menu-btn" aria-label="Card options"
-            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-            onClick={(e) => {
-              e.stopPropagation();
-              const r = e.currentTarget.getBoundingClientRect();
-              setBgCtx(b => ({ ...b, open: false }));
-              if (!selected.has(c.id)) setSelected(new Set([c.id]));
-              setCtx({ open: true, x: r.left, y: r.bottom, cardId: c.id });
-            }}>⋯</button>
-        )}
         {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
           && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <GridMatrixControl onGenerate={(cols, rows) => makeGridMatrix(c.id, cols, rows)} />
@@ -10245,6 +11420,72 @@ export function CanvasSurface({
       });
     }
     if (plan.liveCopy.length) copyHereFromCluster(payload, plan.liveCopy.map((c) => c.id), at);
+  };
+
+  // What letting go of files from Files here does, where the sidebar's Files
+  // is on (lib/dropRules.js): the same decision the sidebar and the words at
+  // the pointer make about this board. The files come from the drag session
+  // (lib/springLoad.js) — a dragover can't read the payload — or, at a drop
+  // the session missed, from the payload.
+  const filesDropRules = (e, payload = null) => {
+    const s = dragSession();
+    let files = null;
+    let sourceName = '';
+    let fromWs = workspaceId || null;
+    if (s?.kind === 'files' && s.files?.length) {
+      files = s.files;
+      sourceName = s.sourceName || '';
+      fromWs = s.workspaceId || fromWs;
+    } else if (payload) {
+      // Whether each can leave its cluster isn't known here: the route refuses
+      // a move it can't make, and says so.
+      files = payload.cards.map((c) => ({ id: c.id, kind: c.kind, name: c.title || '', boardId: c.sourceBoardId || payload.sourceBoardId }));
+      sourceName = payload.sourceName || '';
+    }
+    if (!files || !board?.id) return null;
+    // Only from clusters this person has here: a drag from another page can
+    // carry our type too. Refused before the drop as well as at it.
+    files = files.filter((f) => boards?.[f.boardId]);
+    return decideDrop({
+      files, sourceName, workspaceId: fromWs, copy: copyKeyHeld(e),
+      target: {
+        boardId: board.id, where: 'board', name: board.name,
+        workspaceId: board.workspace_id || workspaceId || null, writable: !!canEdit && !isPublic,
+      },
+    });
+  };
+
+  // Its own files go where they were let go (dropFromFiles); every other
+  // cluster's move here, or are copied with the copy key, through the route
+  // (App moveFilesHere) — one request, and one Undo, per cluster they come
+  // from. Each lot lands beside the last, not on it.
+  const dropFilesByRules = (e, payload, at) => {
+    const d = filesDropRules(e, payload);
+    if (!d || d.action === 'none') return;
+    const byCluster = (list) => {
+      const out = new Map();
+      for (const f of list) { if (!out.has(f.boardId)) out.set(f.boardId, []); out.get(f.boardId).push(f); }
+      return [...out];
+    };
+    const cardOf = new Map(payload.cards.map((c) => [`${c.sourceBoardId || payload.sourceBoardId}:${c.id}`, c]));
+    const cardsOf = (fs) => fs.map((f) => cardOf.get(`${f.boardId}:${f.id}`) || { id: f.id, kind: f.kind });
+    const live = new Map((everyCard || []).map((c) => [c.id, c]));
+    const lots = [];
+    if (d.place.length) lots.push({ place: true, cards: d.place.map((f) => live.get(f.id) || cardOf.get(`${f.boardId}:${f.id}`)).filter(Boolean) });
+    for (const [copy, list] of [[false, d.move], [true, d.copy]]) {
+      for (const [from, fs] of byCluster(list)) lots.push({ copy, from, files: fs, cards: cardsOf(fs) });
+    }
+    const points = spreadDropPoints(lots.map((l) => l.cards), at);
+    lots.forEach((lot, i) => {
+      if (lot.place) {
+        dropFromFiles({ ...payload, sourceBoardId: board.id, cards: lot.cards }, points[i]);
+        return;
+      }
+      onMoveFilesHereRef.current?.(
+        { sourceBoardId: lot.from, sourceName: boards?.[lot.from]?.name || '', cards: lot.files.map((f) => ({ id: f.id })) },
+        points[i], { copy: lot.copy, what: whatOf(lot.files) },
+      );
+    });
   };
 
   // Is this pane still showing the board (and live doc) a move started on? A
@@ -10533,13 +11774,26 @@ export function CanvasSurface({
     // View-only board: accept the event (no browser navigation) but show a
     // no-drop cursor and don't highlight — the drop handler will reject it.
     if (!canEdit) { e.dataTransfer.dropEffect = 'none'; return; }
-    // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl to copy.
+    // Cross-pane card transfer defaults to MOVE; hold ⌘/Ctrl (with the drop
+    // rules, the copy key too) to copy.
     if (types.includes(CARD_TRANSFER_MIME)) {
-      e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey) ? 'copy' : 'move';
+      e.dataTransfer.dropEffect = (e.metaKey || e.ctrlKey || (!!onMoveFilesRef.current && copyKeyHeld(e))) ? 'copy' : 'move';
     } else if (types.includes(FILES_DRAG_MIME)) {
-      // From Files: this board's own files move; another cluster's are copied.
-      const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
-      e.dataTransfer.dropEffect = from === board?.id ? 'move' : 'copy';
+      // From Files, where the sidebar's Files is on: what the rules say letting
+      // go here does (a move, a copy, or nothing — then no outline either).
+      // Without it, this board's own files move; another cluster's are copied.
+      const d = onMoveFilesHereRef.current ? filesDropRules(e) : null;
+      if (d?.effect === 'none') {
+        e.dataTransfer.dropEffect = 'none';
+        if (dragOver) setDragOver(false);
+        return;
+      }
+      if (d) e.dataTransfer.dropEffect = d.effect;
+      else if (onMoveFilesHereRef.current) e.dataTransfer.dropEffect = copyKeyHeld(e) ? 'copy' : 'move';
+      else {
+        const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
+        e.dataTransfer.dropEffect = from === board?.id ? 'move' : 'copy';
+      }
     } else {
       e.dataTransfer.dropEffect = 'copy';
     }
@@ -10602,6 +11856,11 @@ export function CanvasSurface({
     // A FOLDER has to be read off the drop before this handler's first await:
     // Chrome empties dataTransfer.items the moment it yields (lib/folderWalk).
     const dropEntries = types && types.includes && types.includes('Files') ? captureDropEntries(e.dataTransfer) : [];
+    // And, for a bulk import, the same items' handles (Chromium), kept so an
+    // import a reload stops can read its folder again (lib/importResume.js).
+    const dropHandles = dropEntries.length && bulkImportAllowed()
+      && (hasDirectory(dropEntries) || Array.from(e.dataTransfer.files || []).some(isZipFile))
+      ? captureDropHandles(e.dataTransfer) : [];
 
     // Dragged out of Files (lib/filesDrag.js). Before everything else: the
     // payload is ours and nothing else in this drag means anything.
@@ -10609,7 +11868,9 @@ export function CanvasSurface({
       e.preventDefault();
       try { window.__soleilFilesDrag = null; } catch (_) {}
       const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
-      if (payload) dropFromFiles(payload, { x: cx, y: cy }, { extraCopy: e.altKey });
+      if (!payload) return;
+      if (onMoveFilesHereRef.current) { dropFilesByRules(e, payload, { x: cx, y: cy }); return; }
+      dropFromFiles(payload, { x: cx, y: cy }, { extraCopy: e.altKey });
       return;
     }
 
@@ -10716,6 +11977,7 @@ export function CanvasSurface({
       // A drag from another tab is the one "bring material from elsewhere"
       // gesture that had no intent row, so it was invisible next to paste.
       noteCreateIntent('drag_in');
+      armSecondIdeaRef.current?.(1);
       // If the URL looks like an image (file extension or content-type
       // hint via the dragged element), drop as an image card so the
       // browser image-drag flow lands as a real image rather than a
@@ -10862,7 +12124,7 @@ export function CanvasSurface({
       try { payload = JSON.parse(e.dataTransfer.getData(CARD_TRANSFER_MIME)); }
       catch (_) { return; }
       if (!payload?.card) return;
-      const isCopy = e.metaKey || e.ctrlKey;
+      const isCopy = e.metaKey || e.ctrlKey || (!!onMoveFilesRef.current && copyKeyHeld(e));
       // Pre-drop safety snapshot. Fire-and-forget; never block the actual drop.
       if (ydoc && board?.id) {
         saveBoardVersion(board.id, ydoc, {
@@ -10945,6 +12207,7 @@ export function CanvasSurface({
       if (!card) return;
       card.x = Math.max(8, Math.round(cx - card.w / 2));
       card.y = Math.max(8, Math.round(cy - card.h / 2));
+      armSecondIdeaRef.current?.(1);
       mutators.addCard?.(card);
       return;
     }
@@ -10955,7 +12218,7 @@ export function CanvasSurface({
       e.preventDefault();
       const boardWasEmpty = !(cards || []).length;
       const out = await onImportFolder({
-        entries: dropEntries, at: { x: cx, y: cy }, boardId: board?.id, mutators,
+        entries: dropEntries, handles: dropHandles, at: { x: cx, y: cy }, boardId: board?.id, mutators,
         canAttemptFiles, source: 'drop', boardWasEmpty,
       });
       if (out?.loose?.length) await ingestFiles(out.loose, cx, cy);
@@ -10976,6 +12239,17 @@ export function CanvasSurface({
         await addVersionFromFile(versionEnv(), over.id, files[0]);
         return;
       }
+    }
+    // Zips, behind the bulk import: App asks whether to unpack them into
+    // clusters or add them as they are, and hands back what lands here.
+    if (files && files.length > 0 && onImportFolder && bulkImportAllowed() && Array.from(files).some(isZipFile)) {
+      e.preventDefault();
+      const out = await onImportFolder({
+        files: Array.from(files), handles: dropHandles, at: { x: cx, y: cy }, boardId: board?.id, mutators,
+        canAttemptFiles, source: 'drop', boardWasEmpty: !(cards || []).length,
+      });
+      if (out?.loose?.length) await ingestFiles(out.loose, cx, cy);
+      return;
     }
     if (files && files.length > 0) {
       e.preventDefault();
@@ -11209,19 +12483,21 @@ export function CanvasSurface({
 
   // ── Toolbar ───────────────────────────────────────────────────────────────
   const tools = [
-    { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2 },
-    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand },
+    // `keys`: what picks it from the keyboard (the shortcut handler above),
+    // for aria-keyshortcuts. With W A S D movement on, A and D move instead.
+    { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2, keys: 'V' },
+    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand, keys: 'H' },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil },
+    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil, keys: 'N' },
     { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
-    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: Browsers },
-    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine },
-    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight },
+    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: clusterGlyph(), keys: clusterNudgesAllowed() ? 'C' : undefined },
+    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine, keys: 'G' },
+    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
     // Draw was moved off the rail deliberately — on a desktop D reaches it
     // instantly and the rail stays uncluttered. A touch device has no keyboard
     // and no right-click, which left the rail "+" submenu as the only way in,
     // for the tool people most want on a tablet. Put it back, on touch only.
-    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', label: 'Free-draw tool', icon: Scribble }] : []),
+    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
   ];
 
   // The rail "+" holds only the SECONDARY creators — anything already on the
@@ -11244,7 +12520,7 @@ export function CanvasSurface({
     ]},
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
-      ...(canPickFolder ? [{ id: 'folder', label: 'Folder', icon: Folder, tip: 'Upload a folder — its folders become clusters', action: () => addFromRegistry('folder') }] : []),
+      ...(canPickFolder ? [{ id: 'folder', label: 'Folder', icon: folderUploadGlyph(), tip: 'Upload a folder — its folders become clusters', action: () => addFromRegistry('folder') }] : []),
       { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
       ...(scheduleCreationAllowed() ? [
         { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
@@ -11611,8 +12887,6 @@ export function CanvasSurface({
   // `× zoom` scaling + pan-follow resumes the moment the first card lands.
   const boardIsEmpty = cards.length === 0 && !(strokes?.length) && !(arrows?.length);
   boardIsEmptyRef.current = boardIsEmpty;
-  const gz = Math.max(8, 80 * (boardIsEmpty ? 1 : zoom));
-  const dz = Math.max(2, 20 * (boardIsEmpty ? 1 : zoom));
   // Size-accurate eraser cursor — the red stroke preview only showed the
   // radius after you'd already erased something.
   const eraserCursor = useMemo(() => {
@@ -11632,12 +12906,22 @@ export function CanvasSurface({
     '--lift-ms': `${TOUCH_LIFT_MS}ms`,
     ...(eraserCursor ? { cursor: eraserCursor } : null),
     backgroundColor: board.bg_color || undefined,
-    backgroundImage: `linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px), radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px)`,
-    backgroundSize: `${gz}px ${gz}px, ${gz}px ${gz}px, ${dz}px ${dz}px`,
-    backgroundPosition: boardIsEmpty
-      ? '0 0, 0 0, 0 0'
-      : `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+    // The ground is a canvas (drawGround), so the box paints only its colour.
+    backgroundImage: 'none',
   };
+  // The first card on an empty board sets its ground following the camera.
+  useEffect(() => { scheduleGroundDraw(); }, [boardIsEmpty]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The tool hints, worded for the hand on the device: a finger taps and has
+  // no Escape key, so it gets a Done button where a keyboard gets "esc".
+  const clickWord = isTouch ? 'Tap' : 'Click';
+  const placeNoun = (tool) => {
+    const noun = tool === 'text' ? 'note' : tool === 'board' ? 'cluster' : tool;
+    return `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
+  };
+  const hintExit = (onExit) => (isTouch
+    ? <button className="cnv-hint-btn" onClick={onExit}>Done</button>
+    : <button className="cnv-hint-x" onClick={onExit}>esc</button>);
 
   // Viewport-centre canvas point — where the empty-state tiles drop their card
   // (same calc the old single CTA used inline).
@@ -11651,6 +12935,10 @@ export function CanvasSurface({
   return (
     <div className={`canvas-wrap ${dragOver ? 'is-drop-target' : ''} tool-${selectedTool} ${isPanMode ? 'is-pan' : ''} ${eyedropFor ? 'is-eyedrop' : ''} ${annotPlacing ? 'is-annot-place' : ''} ${multiSelectionBounds ? 'is-multi-sel' : ''} ${canEdit ? '' : 'is-readonly'}`}
          data-eyedrop={eyedropFor ? '1' : undefined}
+         data-drop-board={!isPublic && onMoveFilesHere ? board.id : undefined}
+         data-drop-where={!isPublic && onMoveFilesHere ? 'board' : undefined}
+         data-drop-name={!isPublic && onMoveFilesHere ? (board.name || undefined) : undefined}
+         data-drop-ws={!isPublic && onMoveFilesHere && board.workspace_id && workspaceId && board.workspace_id !== workspaceId ? board.workspace_id : undefined}
          ref={wrapRef}
          style={wrapStyle}
          onDragOver={handleDragOver}
@@ -11659,7 +12947,12 @@ export function CanvasSurface({
          onDragStart={(e) => e.preventDefault()}
          onPointerDown={onBackgroundPointerDown}
          onDoubleClick={onBackgroundDoubleClick}
-         onContextMenu={onBackgroundContextMenu}>
+         onContextMenu={onBackgroundContextMenu}
+         onClickCapture={touchSelecting ? onSelectingClickCapture : undefined}>
+      {/* The ground (drawGround): first, so the grain and everything else sit over it. */}
+      <canvas ref={groundRef} className="cnv-ground" aria-hidden="true" />
+      {/* A finger held on empty canvas (startTouchCanvasPress shows it). */}
+      <div ref={holdCueRef} className="cnv-hold-cue" aria-hidden="true" />
       {/* Grain texture — sits behind cards on the canvas surface
           only. Cards / popovers / modals all stack above it. */}
       <div className="grain-canvas" aria-hidden="true" />
@@ -11796,7 +13089,7 @@ export function CanvasSurface({
           const items = (cards || []).filter(c => effectiveSelectedIds.has(c.id));
           const startBounds = multiResize?.startBounds || multiSelectionBounds;
           // A little breathing room so the frame sits just outside the cards.
-          const PAD = 6;
+          const PAD = SEL_FRAME_PAD;
           return (
             <>
               <div className="sel-bbox"
@@ -11818,6 +13111,47 @@ export function CanvasSurface({
                      pointerEvents: 'auto',
                    }} />
             </>
+          );
+        })()}
+
+        {/* The selection's ⋯: the card menu's home for a finger, now that a
+            hold on a card lifts it. One for any selection, so several cards
+            get New cluster / Move / Copy / Delete at once. Drawn here, not in
+            the card: there the card's own clip (overflow: hidden; contain:
+            paint) cut more than half of it away, and it shrank with the zoom
+            to 12px on a phone. .sel-menu undoes the zoom, so it is 36px on
+            screen at every zoom; CSS shows it to coarse pointers only (a
+            mouse right-clicks). Out of the way while anything moves. */}
+        {canEdit && selectedTool === 'select' && selMenuAnchor
+          && !drag && !resize && !rotateState && !multiResize && !marquee && (() => {
+          const a = selMenuAnchor;
+          let { dx, dy } = Math.min(a.w, a.h) * zoom < SEL_MENU_OUT_BELOW_PX ? SEL_MENU_OUT : SEL_MENU_OVER;
+          // Kept on screen while the selection is: one at the edge of the
+          // view (a phone shows little else) would push it off.
+          const { w: vw, h: vh } = wrapWHRef.current;
+          const sx = pan.x + a.x * zoom, sy = pan.y + a.y * zoom;
+          if (vw && vh && sx > 0 && sx - a.w * zoom < vw && sy < vh && sy + a.h * zoom > 0) {
+            dx = Math.max(8 - sx, Math.min(dx, vw - 8 - SEL_MENU_BTN_PX - sx));
+            dy = Math.max(8 - sy, Math.min(dy, vh - 8 - SEL_MENU_BTN_PX - sy));
+          }
+          return (
+          <div className="sel-menu"
+               style={{ left: a.x, top: a.y, transform: `scale(${1 / zoom})` }}>
+            <button type="button" className="card-menu-btn" style={{ left: dx, top: dy }}
+              aria-label={selected.size > 1 ? `Options for ${selected.size} cards` : 'Card options'}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); selMenuPressRef.current = performance.now(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Only a press that began here (or a key): the tap that selects
+                // a card draws this under the finger, and that tap's own click
+                // lands on it a moment later.
+                if (e.detail > 0 && performance.now() - selMenuPressRef.current > 1500) return;
+                selMenuPressRef.current = 0;
+                const r = e.currentTarget.getBoundingClientRect();
+                setBgCtx(b => ({ ...b, open: false }));
+                setCtx({ open: true, x: r.left, y: r.bottom, cardId: a.id });
+              }}>⋯</button>
+          </div>
           );
         })()}
 
@@ -12629,32 +13963,51 @@ export function CanvasSurface({
           will not finger-scroll it. Drive it ourselves. Tapping a tool still
           works — the gesture only engages past the movement threshold. */}
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail"
-           onPointerDown={(e) => { startTouchScrollGesture(e); }}>
+           ref={railRef} role="toolbar" aria-label="Tools" aria-orientation="vertical"
+           onKeyDown={railKeys}
+           onPointerDown={(e) => {
+             railPressRef.current.scrolled = false;
+             startTouchScrollGesture(e, { onEngage: () => { railPressRef.current.scrolled = true; } });
+           }}>
         <div className="cnv-add-wrap">
           <div
+            ref={addBtnRef}
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
             data-tip="Add"
             role="button"
             tabIndex={0}
             aria-label="Add menu"
+            aria-haspopup="menu"
             aria-expanded={addMenuOpen}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+              // → opens it, toward where it opens; ↓ is the rail's.
+              if (e.key === 'Enter' || e.key === ' ' || (e.key === 'ArrowRight' && !addMenuOpen)) {
                 e.preventDefault();
-                setAddMenuOpen(open => !open);
-              } else if (e.key === 'Escape') {
+                addByKeyRef.current = true;
+                setAddMenuOpen(open => (e.key === 'ArrowRight' ? true : !open));
+              } else if (e.key === 'Escape' && addMenuOpen) {
+                // Not the canvas's ladder too: it would take the next rung.
+                e.preventDefault();
+                e.stopPropagation();
                 setAddMenuOpen(false);
               }
             }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
+            onPointerDown={(e) => onRailControlPress(e, () => {
+              addByKeyRef.current = false;
               setAddMenuOpen(open => !open);
-            }}
+            })}
+            onClick={() => onRailControlClick(() => {
+              addByKeyRef.current = false;
+              setAddMenuOpen(open => !open);
+            })}
           >
             <Icon as={Plus} size={20} />
           </div>
-          {addMenuOpen && (
-            <div className="cnv-add-menu" role="menu" aria-label="Add">
+          {/* A press in it isn't the rail's (its swipe scrolls the rail, not
+              the menu, which a finger scrolls itself out here). */}
+          {addMenuOpen && createPortal(
+            <div className="cnv-add-menu" role="menu" aria-label="Add" ref={addPop.popRef} style={addPop.style}
+                 onKeyDown={onAddMenuKeyDown} onPointerDown={(e) => e.stopPropagation()}>
               {addGroups.map(group => (
                 <Fragment key={group.title}>
                   <div className="cnv-add-group-head" aria-hidden="true">{group.title}</div>
@@ -12663,13 +14016,14 @@ export function CanvasSurface({
                       key={item.id}
                       type="button"
                       role="menuitem"
+                      // The arrows move focus through the items; Tab leaves.
+                      tabIndex={-1}
                       // Explicit label so the accessible name stays exactly the
                       // item label. Without it, Chromium folds the data-tip
                       // ::after tooltip content into the name ("Shape Draw a
                       // shape"), which also breaks getByRole('menuitem') lookups.
                       aria-label={item.label}
                       data-tip={item.tip}
-                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => {
                         setAddMenuOpen(false);
                         item.action();
@@ -12681,7 +14035,8 @@ export function CanvasSurface({
                   ))}
                 </Fragment>
               ))}
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
         <div className="cnv-tool-sep" />
@@ -12699,16 +14054,29 @@ export function CanvasSurface({
           // which broke the oldest muscle memory in the app: pick the tool, tap
           // the canvas, get a grid. The panel is a refinement — choose a shape
           // before you click and that shape is what lands — not a gate.
-          const activate = isTpl
+          const arm = isTpl
             ? () => { const next = !tplPanelOpen; setTplPanelOpen(next); setSelectedTool(next ? 'grid' : 'select'); }
             : () => setSelectedTool(t.id);
+          // The Cluster tool keeps its slot and its size; it teaches instead
+          // of shouting. A pause on it opens a card saying what a cluster IS
+          // (the plain tip said only "Add cluster"), and picking it shows the
+          // hint below the toolbar. Never on touch: there is no hover.
+          const teaches = t.id === 'board' && clusterNudgesAllowed() && !isTouch;
+          const activate = !teaches ? arm : () => {
+            if (!active) {
+              try { logEvent(EV.CLUSTER_TOOL_HINT, { action: 'picked', after_card: clusterCardRef.current.shown }); } catch (_) {}
+            }
+            disarmClusterCard();
+            arm();
+          };
           const btn = (
-            <div className={`cnv-tool ${active ? 'active' : ''}`}
-                 data-tip={t.title}
+            <div className={`cnv-tool ${active ? 'active' : ''}${teaches ? ' cnv-tool-teach' : ''}`}
+                 data-tip={teaches ? undefined : t.title}
                  data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
                  role="button"
                  tabIndex={0}
                  aria-label={t.label}
+                 aria-keyshortcuts={t.keys}
                  aria-pressed={active}
                  aria-expanded={isTpl ? tplPanelOpen : undefined}
                  onKeyDown={(e) => {
@@ -12720,8 +14088,25 @@ export function CanvasSurface({
                    // next rung — closing the panel AND disarming the tool.
                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
                  }}
-                 onPointerDown={(e) => { e.stopPropagation(); activate(); }}>
+                 onPointerDown={(e) => onRailControlPress(e, activate)}
+                 onClick={() => onRailControlClick(activate)}
+                 onPointerEnter={teaches ? (e) => { if (e.pointerType !== 'touch' && !active) armClusterCard(); } : undefined}
+                 onPointerLeave={teaches ? disarmClusterCard : undefined}
+                 onFocus={teaches ? (e) => { if (!active && e.currentTarget.matches(':focus-visible')) armClusterCard(); } : undefined}
+                 onBlur={teaches ? disarmClusterCard : undefined}>
               <Icon as={t.icon} size={20} />
+              {teaches && (
+                <span className="cnv-tool-card" role="tooltip">
+                  <span className="cnv-tool-card-mini">
+                    <span className="cnv-tool-card-cover">
+                      {CLUSTER_CARD_COVERS.map((src) => <img key={src} src={src} alt="" loading="lazy" decoding="async" />)}
+                    </span>
+                    <span className="cnv-tool-card-meta"><b>Lost Time</b><span>4 cards</span></span>
+                  </span>
+                  <span className="cnv-tool-card-title">Cluster<kbd>C</kbd></span>
+                  <span className="cnv-tool-card-body">A canvas inside this one. Make one per project, then drop cards onto it to file them.</span>
+                </span>
+              )}
             </div>
           );
           if (!isTpl) return <Fragment key={t.id}>{btn}</Fragment>;
@@ -12757,10 +14142,8 @@ export function CanvasSurface({
                  document.dispatchEvent(new CustomEvent('soleil-open-help'));
                }
              }}
-             onPointerDown={(e) => {
-               e.stopPropagation();
-               document.dispatchEvent(new CustomEvent('soleil-open-help'));
-             }}>
+             onPointerDown={(e) => onRailControlPress(e, openHelp)}
+             onClick={() => onRailControlClick(openHelp)}>
           <Icon as={Question} size={20} />
         </div>
       </div>
@@ -12798,29 +14181,46 @@ export function CanvasSurface({
         />
       )}
 
+      {/* The Studio bar (above): where the armed tools' hint goes, and only
+          while no tool is armed, so the two never stack. */}
+      {studioBarUp && selectedTool === 'select' && (
+        <div className="cnv-studio-bar" role="status">
+          <span className="cnv-studio-bar-txt">{looseOnStudio} loose cards<span className="cnv-studio-bar-where"> on {board?.name || 'Studio'}</span></span>
+          <button type="button" className="cnv-studio-bar-go" onPointerDown={(e) => e.stopPropagation()} onClick={sweepStudio}>
+            Move them into a cluster
+          </button>
+          <button type="button" className="cnv-studio-bar-x" aria-label="Dismiss" title="Dismiss"
+                  onPointerDown={(e) => e.stopPropagation()} onClick={dismissStudioBar}>
+            <Icon as={X} size={13} weight="regular" />
+          </button>
+        </div>
+      )}
       {selectedTool === 'arrow' && (
         <div className="cnv-hint">
-          {arrowFrom ? 'Click target card to connect' : 'Click a card to start, or drag on empty canvas for a free arrow'}
-          <button className="cnv-hint-x" onClick={() => { setSelectedTool('select'); setArrowFrom(null); }}>esc</button>
+          {arrowFrom ? `${clickWord} target card to connect` : `${clickWord} a card to start, or drag on empty canvas for a free arrow`}
+          {hintExit(() => { setSelectedTool('select'); setArrowFrom(null); })}
         </div>
       )}
       {selectedTool === 'draw' && (
-        <div className="cnv-hint">{drawOptions.mode === 'eraser' ? 'Drag to erase strokes' : 'Drag to draw'} <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button></div>
+        <div className="cnv-hint">{drawOptions.mode === 'eraser' ? 'Drag to erase strokes' : 'Drag to draw'} {hintExit(() => setSelectedTool('select'))}</div>
       )}
       {selectedTool === 'pan' && (
-        <div className="cnv-hint">Drag to pan <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button></div>
+        <div className="cnv-hint">Drag to pan {hintExit(() => setSelectedTool('select'))}</div>
       )}
       {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'doc' || selectedTool === 'shape' || selectedTool === 'palette') && (
         <div className="cnv-hint">
-          Click on the canvas to place a {selectedTool === 'text' ? 'note' : selectedTool === 'board' ? 'cluster' : selectedTool}
-          <button className="cnv-hint-x" onClick={() => setSelectedTool('select')}>esc</button>
+          {selectedTool === 'board' && clusterNudgesAllowed()
+            // The tool explains itself once picked, instead of standing out.
+            ? `${clickWord} to place a cluster: a canvas inside this one. Drop cards onto it to file them.`
+            : <>{clickWord} on the canvas to place {placeNoun(selectedTool)}</>}
+          {hintExit(() => setSelectedTool('select'))}
         </div>
       )}
       {/* The naming bar (lib/hints.js): a cluster placed here is still called
           "Untitled cluster" a minute later. Most of them stay that way, and a
           cluster with no name is one nobody searches for again. Yields to the
           tool bars above, which share this spot. */}
-      {nameHint && selectedTool === 'select' && !annotPlacing && (
+      {nameHint && selectedTool === 'select' && !annotPlacing && !touchSelecting && (
         <div className="cnv-hint cnv-hint-name" role="status" data-hint="name_cluster">
           Your new cluster is still “{boards?.[nameHint.id]?.name || 'Untitled cluster'}” — name it so you can find it later.
           <button className="cnv-hint-btn" onClick={() => triggerInlineEdit(nameHint.id, 'title')}>Name it</button>
@@ -12829,8 +14229,16 @@ export function CanvasSurface({
       )}
       {annotPlacing && (
         <div className="cnv-hint">
-          Click a card to attach, or empty space to drop a {annotPlacing}
-          <button className="cnv-hint-x" onClick={() => setAnnotPlacing(null)}>esc</button>
+          {clickWord} a card to attach, or empty space to drop a {annotPlacing}
+          {hintExit(() => setAnnotPlacing(null))}
+        </div>
+      )}
+      {/* Select… from the hold menu: taps add cards and take them out. Done
+          (or Escape) keeps the selection; a tap on empty canvas drops it. */}
+      {touchSelecting && selectedTool === 'select' && !annotPlacing && (
+        <div className="cnv-hint" role="status" data-hint="touch_select">
+          Tap cards to select
+          <button className="cnv-hint-btn" onClick={() => setTouchSelecting(false)}>Done</button>
         </div>
       )}
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (
@@ -12847,13 +14255,17 @@ export function CanvasSurface({
           adds a soft emphasis ring (is-escalated) + a screen-reader announce. */}
       {/* An empty board whose cluster has files waiting in Files: say so,
           rather than "Start your cluster" over a cluster that isn't empty. */}
-      {/* Only where there's a Files to open: a public link's canvas has none. */}
-      {boardIsEmpty && !firstCardPrompt && unplacedCount > 0 && onRevealUnplaced && (
+      {/* Only where there's a Files to open: a public link's canvas has none.
+          With bulk import (preview), the offer that puts them on the board. */}
+      {boardIsEmpty && !firstCardPrompt && unplacedCount > 0 && onRevealUnplaced && (bulkImportAllowed() && offerCards ? (
+        <UnplacedOffer boardId={board?.id} cards={offerCards} canPut={canEdit && !mutators.captureGuarded}
+                       onPut={putUnplacedOnBoard} onChoose={() => onRevealUnplaced([])} />
+      ) : (
         <div className="cnv-waiting" role="status">
           <span>{unplacedCount === 1 ? '1 file is' : `${unplacedCount} files are`} in Files, not on the board yet.</span>
           <button type="button" className="tb-btn" onClick={() => onRevealUnplaced([])}>Open Files</button>
         </div>
-      )}
+      ))}
       {canEdit && selectedTool === 'select' && ((boardIsEmpty && unplacedCount === 0) || firstCardPrompt) && (() => {
         // IMAGE-FIRST, but show the RANGE: adding an image drives activation, so
         // Image stays the hero — while the rotating headline + the tile row signal
@@ -12874,7 +14286,7 @@ export function CanvasSurface({
              aria-label="Add your first images"
              role={frictionStuck ? 'status' : 'group'}>
           {freshProject && !firstBoard ? (
-            <ProjectNameField board={board} onRename={(name) => mutators.renameBoardById?.(board.id, name)} />
+            <ProjectNameField board={board} onRename={(name) => mutators.renameBoardById?.(board.id, name, { via: 'project_field' })} />
           ) : (
             <div className="cnv-empty-tiles-head">
               {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstLike ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}
@@ -12913,6 +14325,20 @@ export function CanvasSurface({
           </div>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">drag an image straight in&ensp;·&ensp;paste&ensp;·&ensp;or double-click to add</span>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">drag an image in&ensp;·&ensp;or long-press the canvas to add</span>
+          {/* Under the drop area, never in its place: images stay the first
+              thing to do here, and a cluster per project is the next thing to
+              know. Only on Studio, the one canvas everything lands on. */}
+          {emptyStudioLine && (
+            <>
+              <div className="cnv-empty-rule" aria-hidden="true" />
+              <div className="cnv-empty-clusters">
+                Working on more than one thing?
+                <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={startClusterFromEmpty}>
+                  <Icon as={Plus} size={14} weight="regular" />Start a cluster for each
+                </button>
+              </div>
+            </>
+          )}
         </div>
         );
       })()}
@@ -12988,6 +14414,8 @@ export function CanvasSurface({
           { id: 'note', label: 'Note', icon: NotePencil },
           { id: 'file', label: 'Upload', icon: Upload },
           { id: 'doc', label: 'Doc', icon: FileText },
+          // "Add something here" includes a place for a project.
+          ...(clusterNudgesAllowed() ? [{ id: 'board', label: 'Cluster', icon: Folder }] : []),
         ].map((t) => ({ ...byId[t.id], ...t })).filter((t) => t.run);
         const hEst = items.length * 40 + 12;
         const left = Math.min(quickAdd.x, window.innerWidth - W - 8);
@@ -13027,11 +14455,12 @@ export function CanvasSurface({
         }} />
       )}
 
-      <div className="cnv-zoom">
+      <div className="cnv-zoom" role="group" aria-label="Zoom">
         {/* −, + and 100% keep the view's centre where it is, like ⌘−/⌘=. A bare
             setZoom scales around the board origin (transform-origin 0 0), so
             what you were looking at slid away with every click. */}
-        <button onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>−</button>
+        <button aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')}
+                onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>−</button>
         <input
           className="cnv-zoom-slider"
           type="range"
@@ -13054,14 +14483,21 @@ export function CanvasSurface({
             setPan({ x: newPanX, y: newPanY });
           }}
           title="Drag to zoom"
+          aria-label="Zoom"
+          aria-valuetext={`${Math.round(zoom * 100)}%`}
         />
-        <span className="cnv-zoom-val"
+        {/* What it shows, then what it does: Enter on it is ⌘0. (Double-click
+            fits the cluster; the keyboard has ⇧1 for that.) */}
+        <button type="button" className="cnv-zoom-val"
               title="Click: 100% · Double-click: Full Cluster"
+              aria-label={`${Math.round(zoom * 100)}% — reset to 100%`}
+              aria-keyshortcuts={ariaKeys('Mod+0')}
               onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
               onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
           {Math.round(zoom * 100)}%
-        </span>
-        <button onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>+</button>
+        </button>
+        <button aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')}
+                onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>+</button>
       </div>
 
       {/* Master comments-visibility toggle. Always rendered — left-click
@@ -13149,6 +14585,18 @@ export function CanvasSurface({
           landscape phone) so the puck never dead-ends. */}
       {mobileShell && mobileAdd && (
         <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
+          {/* A cluster for the next project leads, above the tiles — the bar
+              has no "+ New cluster" on a phone. Its tile below goes. */}
+          {clusterNudgesAllowed() && (
+            <button type="button" className="mobile-add-cluster"
+                    onClick={() => { setMobileAdd(null); newClusterPrompted({ via: 'add_sheet' }); }}>
+              <span className="mobile-add-ico" aria-hidden="true"><Icon as={Folder} size={22} /></span>
+              <span className="mobile-add-cluster-txt">
+                <span className="mobile-add-cluster-lbl">New cluster</span>
+                <span className="mobile-add-cluster-sub">A canvas inside this one. Make one per project.</span>
+              </span>
+            </button>
+          )}
           <div className="mobile-add-grid">
             {/* Photos leads on the phone sheet — camera-roll multi-select is the
                 mobile superpower and images are the activation signal. */}
@@ -13160,7 +14608,7 @@ export function CanvasSurface({
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
               <span className="mobile-add-lbl">Photos</span>
             </button>
-            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script').map(a => (
+            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script' && !(a.id === 'board' && clusterNudgesAllowed())).map(a => (
               <button
                 key={a.id}
                 type="button"
@@ -13355,11 +14803,23 @@ export function CanvasSurface({
           </button>
         </div>
       )}
-      {lightbox && (
-        <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
-                       downloadName={lightbox.downloadName || null}
-                       onClose={() => setLightbox(null)} />
-      )}
+      {lightbox && (() => {
+        // Share this one file from the viewer: same gates as the card menu.
+        // A sub-cluster's row brings its own cluster and card.
+        const fromChild = !!lightbox.shareBoardId;
+        const shareCard = fromChild ? lightbox.shareCard
+          : (lightbox.cardId ? cards.find(x => x.id === lightbox.cardId) : null);
+        const shareBoardId = fromChild ? lightbox.shareBoardId : board.id;
+        const mayEdit = fromChild ? !!canEditBoard?.(shareBoardId) : canEdit;
+        const shareTarget = (mayEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))
+          ? { boardId: shareBoardId, cardId: shareCard.id, card: shareCard,
+              boardName: fromChild ? (boards?.[shareBoardId]?.name || null) : board.name, surface: 'canvas' } : null;
+        return (
+          <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
+                         downloadName={lightbox.downloadName || null} shareTarget={shareTarget}
+                         onClose={() => setLightbox(null)} />
+        );
+      })()}
       {/* Per-card photo-adjustment SVG filter defs, referenced by id. Keyed off
           adjusted cards so the modal/lightbox resolve even when a card is culled. */}
       <ImageAdjustFilters cards={cards} />
@@ -13390,9 +14850,27 @@ export function CanvasSurface({
             onClose={() => setImageEditFull(null)} />
         );
       })()}
+      {fileView && (() => {
+        const fc = cards.find(x => x.id === fileView.cardId);
+        const item = fc ? toListItem(fc, { boards, boardId: board.id }) : null;
+        if (!item) return null;
+        return (
+          <Suspense fallback={null}>
+            <QuickLook items={[item]} index={0} onIndex={() => {}}
+                       onClose={() => setFileView(null)}
+                       onDownload={(it) => runDownload(it.card, it.kind)}
+                       boards={boards} canEdit={canEdit && !isPublic} />
+          </Suspense>
+        );
+      })()}
       {pdfViewer && (
         <Suspense fallback={<div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>}>
-          <PdfViewer src={pdfViewer.src} name={pdfViewer.name} onClose={() => setPdfViewer(null)} />
+          {(() => {
+            const shareCard = pdfViewer.cardId ? cards.find(x => x.id === pdfViewer.cardId) : null;
+            const shareTarget = (canEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))
+              ? { boardId: board.id, cardId: shareCard.id, card: shareCard, boardName: board.name, surface: 'canvas' } : null;
+            return <PdfViewer src={pdfViewer.src} name={pdfViewer.name} shareTarget={shareTarget} onClose={() => setPdfViewer(null)} />;
+          })()}
         </Suspense>
       )}
       {boardDropTarget && boardDropHoverPos && (() => {

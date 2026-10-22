@@ -32,7 +32,7 @@ test('a reopened doc resumes at the block it was closed on', async ({ page }) =>
   const before = await topText();
   expect(before).not.toBe('Paragraph 1');
 
-  await page.locator('.doc-card-close').click();
+  await page.getByRole('button', { name: 'Close document' }).click();
   await expect(page.locator('.doc-card-modal')).toHaveCount(0);
   await openDoc(page);
   await page.waitForTimeout(800);

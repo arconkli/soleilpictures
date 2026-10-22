@@ -104,6 +104,22 @@ export async function fetchConversationRange({ conversationId, from, to }) {
   return data || [];
 }
 
+// Re-read the messages a peer's nudge named (a new message, an edit, a
+// reaction, a pin, a delete or its undo), deleted ones included so the caller
+// can drop them. A broadcast's payload is never trusted for content: anyone in
+// the conversation can send anything on its channel, so the database is the
+// truth. Null on a failed read.
+export async function fetchMessagesByIds({ conversationId, ids }) {
+  const list = [...new Set((ids || []).filter(Boolean))];
+  if (!conversationId || list.length === 0) return [];
+  const { data, error } = await supabase.from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .in('id', list);
+  if (error) { console.warn('fetchMessagesByIds', error); return null; }
+  return data || [];
+}
+
 export async function fetchMessageById(id) {
   if (!id) return null;
   const { data, error } = await supabase.from('messages')
@@ -117,13 +133,17 @@ export async function fetchMessageById(id) {
 
 // ── Send / Edit / Delete ────────────────────────────────────────────
 
+// `id`, when given, is the one the sender's bubble already shows
+// (messageStore.newMessageId): a retry of a send whose answer was lost fails
+// with 23505 instead of saving the message twice.
 export async function sendMessage({
-  workspaceId, conversationId, senderId, senderEmail,
+  id = null, workspaceId, conversationId, senderId, senderEmail,
   parentId, body, attachments = [], mentions = [], kind = 'user',
 }) {
   // sender_email is also stamped server-side via the
   // messages_set_sender_email trigger (migration 0019).
   const row = {
+    ...(id ? { id } : {}),
     workspace_id: workspaceId,
     conversation_id: conversationId,
     sender_id: senderId,
@@ -182,36 +202,6 @@ export async function searchMessagesInConversation({ conversationId, query, limi
     .limit(limit);
   if (error) { console.warn('searchMessagesInConversation', error); return []; }
   return data || [];
-}
-
-// ── Threaded replies ────────────────────────────────────────────────
-
-export async function fetchReplies({ parentId }) {
-  if (!parentId) return [];
-  const { data, error } = await supabase.from('messages')
-    .select('*')
-    .eq('parent_id', parentId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
-  if (error) { console.warn('fetchReplies', error); return []; }
-  return data || [];
-}
-
-export async function replyCountsFor(parentIds) {
-  if (!Array.isArray(parentIds) || parentIds.length === 0) return new Map();
-  const { data, error } = await supabase.from('messages')
-    .select('parent_id, created_at')
-    .in('parent_id', parentIds)
-    .is('deleted_at', null);
-  if (error) { console.warn('replyCountsFor', error); return new Map(); }
-  const out = new Map();
-  for (const r of (data || [])) {
-    const cur = out.get(r.parent_id) || { count: 0, lastAt: null };
-    cur.count++;
-    if (!cur.lastAt || r.created_at > cur.lastAt) cur.lastAt = r.created_at;
-    out.set(r.parent_id, cur);
-  }
-  return out;
 }
 
 // ── Pin / unpin ─────────────────────────────────────────────────────
@@ -290,16 +280,34 @@ export async function getUnreadCounts() {
 
 // ── Read state ──────────────────────────────────────────────────────
 
+// Everyone's read position in a conversation: { user_id, last_read_at,
+// left_at } rows, readable by every participant (0058 "participants read").
+// Null on a failed read.
+export async function fetchReadState({ conversationId }) {
+  if (!conversationId) return [];
+  const { data, error } = await supabase.from('conversation_participants')
+    .select('user_id, last_read_at, left_at')
+    .eq('conversation_id', conversationId);
+  if (error) { console.warn('fetchReadState', error); return null; }
+  return data || [];
+}
+
 // Update conversation_participants.last_read_at = now() for (conv, me).
 // Returns true on success so the caller can decide to bump a refresh
 // tick (the unread badge cache lives upstream).
-export async function markRead({ conversationId, userId }) {
+// `upTo` is the newest message seen, by its server created_at — what
+// get_unread_counts compares against. A device clock used to stand in for it,
+// and a fast one marked messages read before they arrived. The write only
+// ever moves forward, so an older tab can't take a read back.
+export async function markRead({ conversationId, userId, upTo = null }) {
   if (!conversationId || !userId) return false;
+  const at = upTo || new Date().toISOString();
   const { error } = await supabase
     .from('conversation_participants')
-    .update({ last_read_at: new Date().toISOString() })
+    .update({ last_read_at: at })
     .eq('conversation_id', conversationId)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .or(`last_read_at.is.null,last_read_at.lt."${at}"`);
   if (error) { console.warn('markRead', error); return false; }
   return true;
 }

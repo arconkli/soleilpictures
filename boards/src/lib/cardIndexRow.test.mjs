@@ -17,6 +17,7 @@ import {
   htmlToText, cellsOf, isSeedCard,
 } from './cardIndexRow.js';
 import { buildCardIndexRows } from '../../scripts/lib/cardEncode.mjs';
+import { CLUSTER_CARD_COST } from './gridCount.js';
 
 const WS = 'ws-1';
 const BOARD = 'board-1';
@@ -202,7 +203,7 @@ test('an unmodelled kind gets an empty meta rather than throwing', () => {
   assert.deepEqual(rowFromPlain({ id: 'h', kind: 'hologram', title: 'x' }).meta, {});
 });
 
-test('only an EMPTY grid weighs zero — every other card is at least one', () => {
+test('only an EMPTY grid weighs zero (and a cluster, once clusters are free) — every other card is at least one', () => {
   // An empty grid is a frame with nothing in it, and the docs promise an empty
   // box adds nothing to the card count. Generate matrix stamps empty copies, and
   // each used to cost a card.
@@ -210,9 +211,13 @@ test('only an EMPTY grid weighs zero — every other card is at least one', () =
   assert.equal(cardIndexWeight('grid', () => undefined), 0);
   assert.equal(cardIndexWeight('grid', (k) => ({ gridCells: { a: { type: 'image', src: 'r2:x' } } }[k])), 1);
   // Zero is a free card, so nothing else may reach it.
-  for (const kind of ['note', 'image', 'doc', 'board', 'file', 'link', 'video', 'palette', 'vote']) {
+  for (const kind of ['note', 'image', 'doc', 'file', 'link', 'video', 'palette', 'vote']) {
     assert.equal(cardIndexWeight(kind, () => undefined), 1, kind);
   }
+  // A cluster's card weighs the one shared constant, whatever it is today; a
+  // LINKED cluster is not a cluster of yours and stays a placed card.
+  assert.equal(cardIndexWeight('board', () => undefined), CLUSTER_CARD_COST, 'board');
+  assert.equal(cardIndexWeight('boardlink', () => undefined), 1, 'boardlink');
   assert.equal(cardIndexWeight('schedule', (k) => ({ schedView: 'month', gridCells: {} }[k])), 1, 'empty schedule');
   assert.equal(cardIndexWeight('schedule', () => undefined), 1, 'legacy schedule');
 });
@@ -242,4 +247,41 @@ test('a card without a file name projects exactly what it always did', () => {
   }
   // Files and PDFs are titled by their name, as before — that is what they are.
   assert.equal(rowFromPlain({ id: 'f0', kind: 'file', fileName: 'plates.zip' }).title, 'plates.zip');
+});
+
+// ── The sidebar's additions (0419): unplaced + media size ───────────────────
+const plainRow = (card) => buildCardIndexRow({
+  workspaceId: WS, boardId: BOARD, cardId: card.id, get: (k) => card[k],
+});
+
+test('a file stored off the board says so; a placed one says nothing', () => {
+  const stored = plainRow({ id: 'f1', kind: 'image', src: 'r2:a', x: 0, y: 900, unplaced: true });
+  assert.equal(stored.meta.unplaced, true);
+  const placed = plainRow({ id: 'f2', kind: 'image', src: 'r2:a', x: 0, y: 0, unplaced: false });
+  assert.equal('unplaced' in placed.meta, false, 'placing writes false; the row must not change shape');
+  const never = plainRow({ id: 'f3', kind: 'note', html: '<p>hi</p>' });
+  assert.equal('unplaced' in never.meta, false);
+});
+
+test('media rows carry their size only when the card knows it', () => {
+  assert.equal(plainRow({ id: 'v', kind: 'video', src: 'r2:v', sizeBytes: 1048576.4 }).meta.sizeBytes, 1048576);
+  assert.equal(plainRow({ id: 'a', kind: 'audio', src: 'r2:a', sizeBytes: 2048 }).meta.sizeBytes, 2048);
+  assert.equal(plainRow({ id: 'p', kind: 'pdf', pdfSrc: 'r2:p', sizeBytes: 99 }).meta.sizeBytes, 99);
+  assert.equal(plainRow({ id: 'i1', kind: 'image', src: 'r2:i', sizeBytes: 512000 }).meta.sizeBytes, 512000,
+    'a photo with a size keeps it, so the sidebar can sort photos by size');
+  assert.equal('sizeBytes' in plainRow({ id: 'i', kind: 'image', src: 'r2:i' }).meta, false);
+  assert.equal('sizeBytes' in plainRow({ id: 'i2', kind: 'image', src: 'r2:i', sizeBytes: 'lots' }).meta, false);
+  assert.equal('sizeBytes' in plainRow({ id: 'n', kind: 'note', sizeBytes: 5 }).meta, false, 'only files have a size');
+  assert.equal(plainRow({ id: 'f', kind: 'file', fileSrc: 'r2:f', sizeBytes: 7 }).meta.sizeBytes, 7, 'file keeps its own');
+});
+
+test('the browser and the server agree on the sidebar fields too', () => {
+  const card = { id: 'u1', kind: 'video', src: 'r2:v', x: 4, y: 5, w: 10, h: 10, unplaced: true, sizeBytes: 321 };
+  const browser = buildCardIndexRow({
+    workspaceId: WS, boardId: BOARD, cardId: card.id, get: (k) => asYMap(card).get(k),
+  });
+  const [server] = buildCardIndexRows({ workspaceId: WS, boardId: BOARD, cards: [card] });
+  assert.deepEqual(browser.meta, server.meta);
+  assert.equal(server.meta.unplaced, true);
+  assert.equal(server.meta.sizeBytes, 321);
 });

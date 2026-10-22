@@ -136,13 +136,16 @@ test('Open in player is in the video’s right-click menu', async ({ page }) => 
 });
 
 // ── The rebuilt review player ──────────────────────────────────────────────
+// `versions`: true for two (v2 is "Cut 2"), or how many. They share the one
+// file, so v1, the first that holds the card's own, is the one on show.
 async function openReview(page, id, extra = {}) {
   await page.evaluate(({ data, id, extra }) => {
     const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
     const media = { fps: [24, 1], frames: 48, dur: 2, w: 64, h: 36, probed: 1, ...(extra.audio ? { audio: { codec: 'mp4a', rate: 48000, ch: 2 } } : {}) };
-    const versions = extra.versions ? {
-      versions: [{ src: url, id: 'v1', n: 1, media }, { src: url, id: 'v2', n: 2, media, label: 'Cut 2' }], verId: 'v2',
+    const n = extra.versions === true ? 2 : (extra.versions || 0);
+    const versions = n ? {
+      versions: Array.from({ length: n }, (_, i) => ({ src: url, id: `v${i + 1}`, n: i + 1, media, ...(i === 1 ? { label: 'Cut 2' } : {}) })),
     } : {};
     window.__soleilVideoLive.addVideo({ id, src: url, fileName: 'frames.mp4', x: 700, y: 500, w: 480, h: 270, media, ...versions });
   }, { data: fixture('frames-vp9.mp4'), id, extra });
@@ -527,6 +530,73 @@ test('switching versions while playing carries on from where it was', async ({ p
   await expect(review.locator('.film')).toHaveClass(/is-playing/);
   await page.keyboard.press('k');
   await expect.poll(async () => Number((await review.locator('.film-tc').textContent()).split(':').pop())).toBeGreaterThan(6);
+});
+
+// The header is one line: the title at its left, the versions in its middle,
+// the actions at its right end, at any width and with any number of versions.
+async function headerLine(review) {
+  const head = await review.locator('.frv-head').boundingBox();
+  const acts = await review.locator('.frv-actions').boundingBox();
+  return {
+    gap: Math.round(head.x + head.width - (acts.x + acts.width)),
+    onLine: acts.y >= head.y - 0.5 && acts.y + acts.height <= head.y + head.height + 0.5,
+  };
+}
+
+test('with a single version the review header keeps its actions at the right end', async ({ page }) => {
+  await go(page);
+  const review = await openReview(page, 'h-one');
+  const line = await headerLine(review);
+  expect(line.gap, 'between the actions and the header’s right end').toBeLessThan(16);
+  expect(line.onLine).toBe(true);
+});
+
+test('on a narrow screen the versions are a menu, on the header’s line', async ({ page }) => {
+  await go(page);
+  const review = await openReview(page, 'h-narrow', { versions: true });
+  await expect(review.getByRole('radio', { name: 'v2' })).toBeVisible();
+  await expect(review.getByRole('button', { name: 'Version v1' })).toBeHidden();
+  await page.setViewportSize({ width: 600, height: 900 });
+  await expect(review.getByRole('radio', { name: 'v2' })).toBeHidden();
+  const pick = review.getByRole('button', { name: 'Version v1' });
+  await expect(pick).toBeVisible();
+  const line = await headerLine(review);
+  expect(line.onLine).toBe(true);
+  expect(line.gap).toBeLessThan(16);
+  await pick.click();
+  await page.locator('.film-menu').getByRole('menuitemradio', { name: /^v2\b/ }).click();
+  await expect(review.getByRole('button', { name: 'Version v2' })).toBeVisible();
+});
+
+test('more versions than pills hold: a menu, with the actions at the line’s right end at any width', async ({ page }) => {
+  await go(page);
+  const review = await openReview(page, 'h-many', { versions: 5 });
+  for (const width of [1440, 600]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(review.getByRole('button', { name: 'Version v1' })).toBeVisible();
+    const line = await headerLine(review);
+    expect(line.onLine, `${width}px wide`).toBe(true);
+    expect(line.gap, `${width}px wide`).toBeLessThan(16);
+  }
+});
+
+test('on a narrow screen the keyboard stays in the review from either end', async ({ page }) => {
+  await go(page);
+  await openReview(page, 'h-trap', { versions: true });
+  await page.setViewportSize({ width: 600, height: 900 });
+  // The first and the last control a key can reach (the pills aren't drawn here).
+  const reach = (end) => page.evaluate((end) => {
+    const els = [...document.querySelectorAll('.frv button:not([disabled]), .frv input, .frv select, .frv [tabindex]:not([tabindex="-1"])')]
+      .filter((el) => el.getClientRects().length > 0);
+    (end === 'first' ? els[0] : els[els.length - 1]).focus();
+  }, end);
+  const inReview = () => page.evaluate(() => !!document.activeElement?.closest('.frv'));
+  await reach('first');
+  await page.keyboard.press('Shift+Tab');
+  expect(await inReview(), 'Shift+Tab from the first').toBe(true);
+  await reach('last');
+  await page.keyboard.press('Tab');
+  expect(await inReview(), 'Tab from the last').toBe(true);
 });
 
 test('Open in player from the right-click menu starts where the card is', async ({ page }) => {

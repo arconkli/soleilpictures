@@ -9,21 +9,34 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { listSharedBoards } from '../lib/boardsApi.js';
 import { supabase } from '../lib/supabase.js';
+import { takeBootResponse, peekBootRows } from '../lib/bootPrefetch.js';
 
 export function useSharedBoards(userId) {
-  const [shared, setShared] = useState([]);
+  // The read bootPrefetch started at sign-in: held from the first render when
+  // it has landed, and taken by the first fetch either way.
+  const [seed] = useState(() => (userId ? peekBootRows('shared', userId) : null));
+  const [shared, setShared] = useState(() => seed || []);
   const [loading, setLoading] = useState(false);
   // True once the first fetch has settled (either way). App prunes its
   // navigation stack of ids it can't find; before this, a reload inside a
   // shared cluster could prune it in the gap between the workspace's own list
   // arriving and this one, and land the user on their root.
-  const [loaded, setLoaded] = useState(!userId);
+  const [loaded, setLoaded] = useState(!userId || !!seed);
 
+  const bootRef = useRef(true);
   const refresh = useCallback(async () => {
     if (!userId) { setShared([]); setLoaded(true); return; }
+    const taken = bootRef.current ? takeBootResponse('shared', userId) : null;
+    bootRef.current = false;
     setLoading(true);
     try {
-      const rows = await listSharedBoards();
+      let rows;
+      if (taken) {
+        const { data, error } = await taken;
+        rows = error ? await listSharedBoards() : (data || []);
+      } else {
+        rows = await listSharedBoards();
+      }
       setShared(rows);
     } catch (e) {
       // Keep the last good list. A failed refetch (one of the realtime-driven

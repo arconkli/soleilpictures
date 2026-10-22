@@ -12,7 +12,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
-import { emitCapi, clientIpFromHeaders } from "../_shared/meta-capi.ts";
+import { emitCapi, clientIpFromHeaders, gpcFrom } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -51,6 +51,7 @@ interface Body {
   timezone?: string;
   fbp?: string;   // Meta _fbp cookie (raw) for CAPI match quality
   fbc?: string;   // Meta _fbc cookie (raw)
+  gpc?: boolean;  // navigator.globalPrivacyControl, for browsers that send no Sec-GPC
 }
 
 function randInt(min: number, max: number): number {
@@ -189,6 +190,7 @@ Deno.serve(async (req) => {
       clientIpAddress: clientIpFromHeaders(req),
       clientUserAgent: req.headers.get("user-agent"),
     },
+    optOut: gpcFrom(req, body),
   });
 
   // Fire-and-forget confirmation email. Awaiting only so Deno doesn't kill

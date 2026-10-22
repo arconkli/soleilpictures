@@ -2,7 +2,8 @@
 //
 // The live 3D universe is the centerpiece (reused verbatim from <UniverseGraph>);
 // frosted-glass panels frame the edges:
-//   • top    — hero KPI row (MRR, active-now, users, activation, cards today)
+//   • top    — hero KPI row (active now, weekly active, users, activation,
+//              cards in the last 24h, MRR)
 //   • left   — MRR trend, users-growth trend, time in app, content mix
 //   • right  — signups·30d, live pulse, activation funnel, cards created
 //   • bottom — what the renderer actually drew + the live placement tape
@@ -31,7 +32,9 @@
 //   2. EVERY PANEL DECLARES ITS POPULATION. The panels here draw from windows
 //      and filters that genuinely differ (the activation funnel excludes
 //      internal accounts, the content mix deliberately does not), so each one
-//      says so rather than letting the reader assume they match.
+//      says so rather than letting the reader assume they match. The wall
+//      counts the team everywhere but the funnel (owner, 2026-10-20), so the
+//      corner says "incl. team" once and the funnel says "team excluded".
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -62,12 +65,13 @@ import { useActivityPulse } from './useActivityPulse.js';
 // wholly inside the post-waitlist era and still covers most of the signups the
 // all-time window did.
 const ACTIVATION_DAYS = 60;
-// Content mix reads as "the corpus", not a window. 365 is the RPC's clamp.
-const CONTENT_DAYS = 365;
 // Rows past this fold into "Other" (hover it for the breakdown). Five, not
 // seven, because a rail panel is ~110px of body and a sixth row was landing
 // half-clipped at the fold.
 const MIX_ROWS = 5;
+// The database's kind names, in the interface's words where they differ.
+const MIX_LABEL = { board: 'cluster', boardlink: 'linked cluster' };
+const mixLabel = (kind) => MIX_LABEL[kind] || kind;
 
 // Poll tiers. Nothing here is arbitrary: FAST_MS is what "Active now" needs to
 // deserve its name, SLOW_MS is generous for series whose newest point is
@@ -84,7 +88,7 @@ const PULSE_MINUTES = 60;
 const KIND_ARTICLE = {
   image: 'an image', note: 'a note', link: 'a link', palette: 'a palette',
   doc: 'a doc', url: 'a URL', grid: 'a grid', video: 'a video', pdf: 'a PDF',
-  audio: 'an audio clip', shape: 'a shape', schedule: 'a schedule', file: 'a file',
+  audio: 'an audio clip', shape: 'a shape', file: 'a file',
 };
 function placementText(p) {
   return p.n > 1 ? `placed ${p.n} cards` : `placed ${KIND_ARTICLE[p.kind] || 'a card'}`;
@@ -95,14 +99,16 @@ const dotColor = (kind) => KIND_COLORS[kind] || KIND_COLORS.card;
 
 // dataSource — same dev-only override UniverseGraph takes, threaded through so
 // the ?adminpreview harness can render the wall over the synthetic corpus.
-// Production passes nothing and the backdrop uses the real party endpoints.
-export function AdminCommandCenter({ dataSource = null }) {
+// statsOverride stands in for the SSE counters, as it does for UniverseView.
+// Production passes neither and the backdrop uses the real party endpoints.
+export function AdminCommandCenter({ dataSource = null, statsOverride = null }) {
   const stageRef = useRef(null);
   const [resetSignal, setResetSignal] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [graph, setGraph] = useState(null);
 
-  const { stats: uni } = useUniverseStats();
+  const live = useUniverseStats();
+  const uni = statsOverride || live.stats;
 
   // Once the universe has loaded + settled inside its (small) box, frame every
   // node. The initial auto-fit already runs, but the box is smaller than the
@@ -132,18 +138,25 @@ export function AdminCommandCenter({ dataSource = null }) {
       supabase.rpc('admin_activation_funnel', {
         p_days: ACTIVATION_DAYS, p_exclude_internal: true, p_verified_only: true,
       }),
+      // The cards that exist now, by kind: the Cards figure's own population
+      // (0505). It was admin_card_stats over 365 days, which also counts the
+      // cards on trashed clusters, so its total ran ahead of Cards.
+      supabase.rpc('admin_live_card_mix'),
       // The wall is the "everything happening" view → include internal activity
       // so these match the live placement tape beside them.
-      supabase.rpc('admin_card_stats',    { p_days: CONTENT_DAYS, p_exclude_internal: false }),
       supabase.rpc('admin_cards_per_day', { p_days: 30, p_exclude_internal: false }),
+      // Weekly active, team included like the rest of the wall. A count of
+      // distinct people over seven days moves slowly, so it rides this tier.
+      supabase.rpc('admin_kpi_summary',   { p_days: 7, p_exclude_internal: false, p_verified_only: false }),
     ]);
     const val = (x) => (x.status === 'fulfilled' && !x.value.error ? x.value.data : null);
     return {
       history:     val(r[0]) || [],
       signups:     val(r[1]) || [],
       activation:  val(r[2]),
-      cardStats:   val(r[3]),
+      cardMix:     val(r[3]),
       cardsPerDay: val(r[4]) || [],
+      kpi:         val(r[5]),
     };
   }, [], { pollIntervalMs: SLOW_MS });
 
@@ -186,6 +199,13 @@ export function AdminCommandCenter({ dataSource = null }) {
   ];
   const activated = safeRate(act.first_card || 0, act.signed_up || 0);
 
+  // null, never 0, when the read failed: a wall showing "0 weekly active"
+  // because one RPC timed out is the kind of number that gets quoted.
+  const wauRaw  = data?.kpi?.current?.wau;
+  const wauPrevRaw = data?.kpi?.previous?.wau;
+  const wau     = wauRaw == null ? null : Number(wauRaw);
+  const wauPrev = wauPrevRaw == null ? null : Number(wauPrevRaw);
+
   // Both push-based. `liveTotal` counts only cards placed since mount, which is
   // what lets today's figures move between polls without inventing anything.
   const { items: placements, liveTotal } = useCardPlacements();
@@ -198,8 +218,8 @@ export function AdminCommandCenter({ dataSource = null }) {
   // the kind name carries identity in text and magnitude in length, so it
   // needs exactly one colour and stays readable in a 280px rail.
   const contentMix = useMemo(() => {
-    const all = Object.entries((data?.cardStats || {}).by_kind || {})
-      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+    const all = Object.entries((data?.cardMix || {}).by_kind || {})
+      .map(([kind, value]) => ({ name: mixLabel(kind), value: Number(value) || 0 }))
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value);
     if (all.length <= MIX_ROWS + 1) return all;
@@ -210,7 +230,7 @@ export function AdminCommandCenter({ dataSource = null }) {
       value: tail.reduce((a, b) => a + b.value, 0),
       tail: tail.map((t) => `${t.name} ${t.value.toLocaleString()}`).join(' · '),
     }];
-  }, [data?.cardStats]);
+  }, [data?.cardMix]);
   const contentTotal = contentMix.reduce((a, b) => a + b.value, 0);
 
   // Cards CREATED per day. Until migration 0254 this was card_index.updated_at,
@@ -306,21 +326,35 @@ export function AdminCommandCenter({ dataSource = null }) {
         <div className="cc-top">
           <Kpi label={<><span className="cc-live-dot" /> Active now</>}
                value={formatCount(data?.activeNow ?? 0)} sub="last 5 min" accent live />
+          <Kpi label="Weekly active"
+               value={wau == null ? '—' : formatCount(wau)}
+               sub={wauPrev == null ? 'last 7 days' : `${formatCount(wauPrev)} the 7 days before`}
+               title="Signed-in people seen on any of the last 7 days (UTC), the team included." />
           <Kpi label="Total users" value={formatCompact(stats?.total_users ?? 0)}
                sub={`+${formatCount(stats?.new_users_7d ?? 0)} / 7d`} />
+          {/* The funnel's population, not the wall's: the last 60 days of
+              signups with the team left out. Unlabelled, it read as every
+              account against the Total users beside it. */}
           <Kpi label="Activated"
                value={activated.hide ? '—' : formatPct(activated.rate)}
-               sub={`${formatCount(act.first_card ?? 0)} of ${formatCount(act.signed_up ?? 0)} made a card`} />
+               sub={`${formatCount(act.first_card ?? 0)} of ${formatCount(act.signed_up ?? 0)} made a card · ${ACTIVATION_DAYS}d`}
+               title={`Signups in the last ${ACTIVATION_DAYS} days who made a card, the team left out: the Activation funnel's people, not Total users.`} />
           {/* Already live at 1Hz over SSE — nothing to add on top, and adding
-              liveTotal here would double-count within the second. */}
-          <Kpi label="Cards today" value={formatCount(uni?.today?.cards ?? 0)}
-               sub={`${formatCompact(uni?.total_cards ?? 0)} all-time`} />
+              liveTotal here would double-count within the second. A rolling
+              24 hours, not "today": a UTC day ends at 5 pm in California, so
+              every evening a "today" figure read close to nothing. */}
+          <Kpi label="Cards · 24h" value={formatCount(uni?.last_24h?.cards ?? 0)}
+               sub={`${formatCompact(uni?.total_cards ?? 0)} exist now`}
+               title="Cards created in the last 24 hours on clusters that are not trashed. Below: every card on a live cluster." />
           {/* No gold accent on a zero: --soleil is reserved for live/active
               state, and dressing $0 as the hero number is the tell of a wall
               nobody trusts. It gets the accent back when it earns it. */}
+          {/* "subscribed" used to count trials, so a wall reading "1 subscribed"
+              over $0 MRR looked like a broken sum. MRR sums active
+              subscriptions only, and the sub-line now splits the same way. */}
           <Kpi label="MRR" value={formatMoney(stats?.mrr_cents ?? 0)}
                accent={(stats?.mrr_cents ?? 0) > 0}
-               sub={`${formatCount(stats?.subscribed_paid ?? 0)} subscribed · ${formatCount(stats?.comped_paid ?? 0)} comped`} />
+               sub={`${formatCount(stats?.trialing_subs ?? 0)} trialing · ${formatCount(stats?.sub_counts?.active ?? 0)} paying · ${formatCount(stats?.comped_paid ?? 0)} comped`} />
         </div>
 
         {/* Left rail — revenue + growth + mix */}
@@ -379,7 +413,7 @@ export function AdminCommandCenter({ dataSource = null }) {
             <div className="cc-bignum-note">summed across signed-in users</div>
           </CcPanel>
 
-          <CcPanel title="Content mix" sub={`${formatCount(contentTotal)} cards`}>
+          <CcPanel title="Content mix" sub={`${formatCount(contentTotal)} cards on live clusters`}>
             <RankBar rows={contentMix} total={contentTotal} />
           </CcPanel>
         </div>
@@ -387,7 +421,7 @@ export function AdminCommandCenter({ dataSource = null }) {
         {/* Right rail — funnels */}
         <div className="cc-rail cc-rail-right">
           <CcPanel title="Signups · 30d"
-                   sub={`${formatCount(signups.reduce((a, b) => a + (b.signups || 0), 0))} total`}>
+                   sub={`${formatCount(signups.reduce((a, b) => a + (b.signups || 0), 0))} total · UTC days`}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={signups} margin={{ top: 6, right: 10, bottom: 0, left: 0 }}>
                 <CartesianGrid {...CHART.grid} />
@@ -424,16 +458,16 @@ export function AdminCommandCenter({ dataSource = null }) {
             </ChartGate>
           </CcPanel>
 
-          <CcPanel title="Activation funnel" sub={`${ACTIVATION_DAYS}d`}>
+          <CcPanel title="Activation funnel" sub={`${ACTIVATION_DAYS}d · team excluded`}>
             <StageList stages={activation} />
             <PanelNote>
-              Post-waitlist signups only. Excludes internal accounts — the card
-              panels don't.
+              Post-waitlist signups only. The one panel here without the team;
+              everything else counts it.
             </PanelNote>
           </CcPanel>
 
           <CcPanel title="Cards created · 30d"
-                   sub={liveTotal > 0 ? `by creation date · ${formatCount(liveTotal)} since you opened this` : 'by creation date'}>
+                   sub={liveTotal > 0 ? `UTC days · ${formatCount(liveTotal)} since you opened this` : 'by creation date · UTC days'}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cardsDaily} margin={{ top: 6, right: 10, bottom: 0, left: 0 }}>
                 <CartesianGrid {...CHART.grid} />
@@ -458,20 +492,29 @@ export function AdminCommandCenter({ dataSource = null }) {
         {/* Bottom — what is actually on screen + the live tape */}
         <div className="cc-bottom">
           <div className="cc-uni">
-            <UniCell label="Workspaces" value={uni?.total_workspaces} delta={uni?.today?.workspaces} />
-            <UniCell label="Boards"     value={uni?.total_boards}     delta={uni?.today?.boards} />
-            <UniCell label="Cards"      value={uni?.total_cards}      delta={uni?.today?.cards} />
-            {/* Not a counter. platform_counters counts ROWS, and entity_links
-                are overwhelmingly tag attachments, which the graph draws as
-                nothing — so this cell used to read "Links" over a universe
-                containing no link edges at all. These two come from the
-                renderer, so the strip can only claim what you can see. */}
+            {/* Every count carries its own +N, and nothing sums them. "New · 24h"
+                did: accounts, workspaces, every cluster (each signup's Studio
+                included) and cards in one figure, so it sat beside Cards · 24h
+                as a bigger number for what read as the same thing. */}
+            <UniCell label="Users"      value={uni?.total_users}      delta={uni?.last_24h?.users}
+                     title="Accounts whose owner entered the emailed sign-in code. +N: created in the last 24 hours." />
+            <UniCell label="Workspaces" value={uni?.total_workspaces} delta={uni?.last_24h?.workspaces}
+                     title="Workspaces. +N: created in the last 24 hours." />
+            {/* Clusters people made. "Boards" counted every workspace's Studio
+                too, which was more than half of it. */}
+            <UniCell label="Clusters"   value={uni?.total_clusters_made} delta={uni?.last_24h?.clusters_made}
+                     title={`Clusters people made, not counting trashed ones. Plus ${formatCount(uni?.total_studios ?? 0)} Studios, the top-level cluster every workspace is born with. +N: made in the last 24 hours.`} />
+            <UniCell label="Cards"      value={uni?.total_cards}      delta={uni?.last_24h?.cards}
+                     title="Cards on clusters that are not trashed. +N: created in the last 24 hours." />
+            {/* Not a count of rows. entity_links are overwhelmingly tag
+                attachments, which the graph draws as nothing — so this cell
+                used to read "Links" over a universe containing no link edges
+                at all. These two come from the renderer, so the strip can only
+                claim what you can see. */}
             <UniCell label="Nodes"       value={graph?.nodes}
-                     title="Nodes the renderer drew. Lower than Cards + Boards: cards on soft-deleted boards keep their row but lose their board." />
+                     title="Nodes the renderer drew: everyone in a workspace, workspaces, every live cluster (Studios included) and its cards." />
             <UniCell label="Connections" value={graph?.edges}
                      title="Edges the renderer drew — hierarchy, board→card, workspace membership and shares. Tag attachments are not drawn." />
-            <UniCell label="New · 24h"  value={uni?.nodes_created_24h}
-                     title="Users + workspaces + boards + cards created in the last 24 hours." />
           </div>
 
           <div className="cc-ticker">
@@ -491,6 +534,12 @@ export function AdminCommandCenter({ dataSource = null }) {
 
         {/* Corner controls */}
         <div className="cc-controls">
+          {/* Stays up in fullscreen, unlike the clock beside it: the wall is
+              where these numbers get quoted. */}
+          <span className="cc-scope t-meta"
+                title="Every figure on this wall includes the team, our own and the test accounts, except the activation funnel, which says so.">
+            incl. team
+          </span>
           {lastUpdated && (
             <span className="cc-updated t-meta">live · {new Date(lastUpdated).toLocaleTimeString()}</span>
           )}
@@ -667,9 +716,9 @@ function CountUpDuration({ value, ratePerSec, syncedAt }) {
   );
 }
 
-function Kpi({ label, value, sub, accent, live }) {
+function Kpi({ label, value, sub, accent, live, title }) {
   return (
-    <div className={`cc-kpi ${accent ? 'is-accent' : ''} ${live ? 'is-live' : ''}`}>
+    <div className={`cc-kpi ${accent ? 'is-accent' : ''} ${live ? 'is-live' : ''}`} title={title}>
       <div className="cc-kpi-label">{label}</div>
       <div className="cc-kpi-value">{value}</div>
       {sub && <div className="cc-kpi-sub">{sub}</div>}
@@ -694,7 +743,7 @@ function UniCell({ label, value, delta, title }) {
     <div className="cc-uni-cell" title={title}>
       <div className="cc-uni-num">{formatCompact(value ?? 0)}</div>
       <div className="cc-uni-label">{label}</div>
-      {delta > 0 && <div className="cc-uni-delta">+{formatCount(delta)} today</div>}
+      {delta > 0 && <div className="cc-uni-delta">+{formatCount(delta)} · 24h</div>}
     </div>
   );
 }

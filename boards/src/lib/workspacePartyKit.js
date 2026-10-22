@@ -31,6 +31,14 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   }
 
   let destroyed = false;
+
+  // Set when the room closes with 4401 (no longer a member) or 4403
+
+  // (suspended): a reconnect would only be refused again, so nothing
+
+  // reconnects after it.
+
+  let accessEnded = false;
   let heartbeatTimer = null;
   // tabId → record. Mirror of server-side state for our local consumers.
   const peers = new Map();
@@ -77,10 +85,18 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     if (!heartbeatTimer) heartbeatTimer = setInterval(sendLocation, HEARTBEAT_MS);
   });
 
-  socket.addEventListener('close', () => {
+  socket.addEventListener('close', (event) => {
     console.log('[partykit] workspace', workspaceId, 'CLOSE');
     onStatus?.('disconnected');
     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    if (event && (event.code === 4401 || event.code === 4403)) {
+      accessEnded = true;
+      try { socket.close(); } catch (_) {}
+      try {
+        window.dispatchEvent(new CustomEvent('soleil-workspace-access-ended', { detail: { workspaceId, code: event.code } }));
+      } catch (_) { /* no window */ }
+      return;
+    }
     // partysocket auto-reconnects (with a freshly-resolved query above);
     // on reconnect we'll see another open.
   });
@@ -132,7 +148,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
       try { socket.close(); } catch (_) {}
     },
     unpark: () => {
-      if (destroyed) return;
+      if (destroyed || accessEnded) return;
       console.log('[partykit] workspace', workspaceId, 'unparked');
       try { socket.reconnect(); } catch (_) {}
     },
@@ -145,7 +161,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     if (destroyed) return;
     if (event === 'SIGNED_OUT') {
       try { socket.close(); } catch (_) {}
-    } else if (event === 'SIGNED_IN' && !parking.isParked() && socket.readyState === WebSocket.CLOSED) {
+    } else if (event === 'SIGNED_IN' && !accessEnded && !parking.isParked() && socket.readyState === WebSocket.CLOSED) {
       try { socket.reconnect(); } catch (_) {}
     }
   });

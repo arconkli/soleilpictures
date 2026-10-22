@@ -602,3 +602,18 @@ test('a cursor whose + arrived as a space (pasted unencoded) still pages', async
   const or = calls.filter((c) => c.path === 'boards').pop().query.get('or');
   assert.match(or, /updated_at\.gt\.2026-08-09T12:00:00\.123456\+00:00/);
 });
+
+test('a card move repoints stars and file shares as the caller, identical ids included', async () => {
+  putBoard(B1, [{ id: 'X', kind: 'note', x: 0, y: 0 }, { id: 'Y', kind: 'note', x: 300, y: 0 }]);
+  putBoard(B2, [{ id: 'X', kind: 'note', x: 0, y: 0 }]);
+  const r = await api('POST', `/boards/${B1}/cards/move`, { to_board_id: B2, card_ids: ['X', 'Y'] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const refs = calls.filter((c) => c.method === 'POST' && c.path === 'rpc/repoint_card_refs');
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0].body.p_from, B1);
+  assert.equal(refs[0].body.p_to, B2);
+  const pairs = refs[0].body.p_pairs;
+  assert.equal(pairs.length, 2);
+  assert.ok(pairs.some((p) => p.from === 'Y' && p.to === 'Y'), 'identical ids are included');
+  assert.ok(pairs.some((p) => p.from === 'X' && /^X-/.test(p.to)));
+});

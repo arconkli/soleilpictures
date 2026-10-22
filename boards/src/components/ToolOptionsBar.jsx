@@ -6,7 +6,7 @@
 // restores the saved selection before each command so the toolbar doesn't
 // lose what the user had highlighted.
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { memo, useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   withSelection, wrapSelectionStyle, toggleList,
@@ -27,11 +27,15 @@ import { useCustomFonts, useRecentFonts } from '../hooks/useCustomFonts.js';
 import { CustomFontsModal } from './CustomFontsModal.jsx';
 import { FontPickerDropdown } from './FontPickerDropdown.jsx';
 import { SizeInput } from './SizeInput.jsx';
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
+import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
+import { ariaKeys } from '../lib/ariaKeys.js';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
 import { getActiveNoteEditor, getActiveNoteActions, subscribeActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
 import { noteFontSizePatch } from '../lib/noteFontSize.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
 // NoteTiptapSurface while a note is being edited). When present, the note
@@ -42,6 +46,23 @@ function useActiveNoteEditor() {
   const [editor, setEditor] = useState(() => getActiveNoteEditor());
   useEffect(() => subscribeActiveNoteEditor(setEditor), []);
   return editor;
+}
+
+// The text the note bar formats: the collaborative editor, or the plain
+// contenteditable a grid's cells and a canvas with no live room (?local,
+// ?ttnotes=0) draw.
+function noteText() {
+  return getActiveNoteEditor() || document.querySelector('.note-body[contenteditable="true"]');
+}
+
+// One function for the component's whole life, calling the latest `fn` it was
+// handed. The canvas passes the bar fresh callbacks on every card change, and
+// a keystroke in a note is one, so the memoized note bar would redraw for each.
+function useStableFn(fn) {
+  const ref = useRef(fn);
+  useLayoutEffect(() => { ref.current = fn; });
+  const [stable] = useState(() => (...args) => ref.current?.(...args));
+  return stable;
 }
 
 const STROKE_COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -60,6 +81,10 @@ const FONTS = [
   { id: 'mono', name: 'Mono', css: 'JetBrains Mono, ui-monospace, monospace' },
 ];
 const SIZES = [11, 13, 15, 18, 24, 32, 48, 64];
+// The fields of a note card that its bar shows or seeds a picker with.
+const NOTE_LOOK = ['fontSize', 'fontSizeV', 'fontFamily', 'textColor', 'bgColor', 'vAlign'];
+const NO_COLORS = [];
+const TOB_PROPS = { className: 'tob' };
 
 
 // Format helpers — operate on the saved selection from RichNoteEditor.
@@ -248,6 +273,23 @@ function editorCaretStyle(editor) {
   } catch (_) { return null; }
 }
 
+// Runs `fn` at most once a frame while a Tiptap editor changes; returns the
+// unsubscribe. Typing fires a transaction and a selection update for every
+// key, and a computed-style read in the middle of one makes the browser
+// restyle the page there and then, where the next frame does it anyway.
+function onEditorChangeEachFrame(editor, fn) {
+  let raf = 0;
+  const run = () => { raf = 0; if (!editor.isDestroyed) fn(); };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(run); };
+  editor.on('selectionUpdate', schedule);
+  editor.on('transaction', schedule);
+  return () => {
+    editor.off('selectionUpdate', schedule);
+    editor.off('transaction', schedule);
+    if (raf) cancelAnimationFrame(raf);
+  };
+}
+
 // `noteBase` changes when the note's card-level look does (a caret-only pick
 // sets it), which moves the computed style without any editor transaction —
 // so it is an effect dependency, to re-sample.
@@ -260,15 +302,13 @@ function useNoteForeColor(active, noteBase = '') {
     // colour the text there actually renders in. Reading only the mark kept
     // showing the last coloured span after the caret left it (NOTES-15).
     if (editor) {
-      const update = () => {
+      const sample = () => {
         const c = editor.getAttributes('textStyle')?.color;
         const hex = c ? (rgbToHex(c) || c) : rgbToHex(editorCaretStyle(editor)?.color);
         if (hex) setColor(prev => (prev === hex ? prev : hex));
       };
-      update();
-      editor.on('selectionUpdate', update);
-      editor.on('transaction', update);
-      return () => { editor.off('selectionUpdate', update); editor.off('transaction', update); };
+      sample();
+      return onEditorChangeEachFrame(editor, sample);
     }
     // Legacy contenteditable: read the computed color at the caret.
     let raf = null;
@@ -311,7 +351,7 @@ function useNoteFormatState(active, noteBase = '') {
     if (!active) { setState(EMPTY_FMT); return undefined; }
     // Collaborative editor: derive the active state from Tiptap.
     if (editor) {
-      const update = () => {
+      const sample = () => {
         const ts = editor.getAttributes('textStyle') || {};
         const align = ['left', 'center', 'right'].find(a => editor.isActive({ textAlign: a })) || null;
         let listType = null;
@@ -351,10 +391,8 @@ function useNoteFormatState(active, noteBase = '') {
           prev.fontFamily === next.fontFamily && prev.align === next.align ? prev : next
         ));
       };
-      update();
-      editor.on('selectionUpdate', update);
-      editor.on('transaction', update);
-      return () => { editor.off('selectionUpdate', update); editor.off('transaction', update); };
+      sample();
+      return onEditorChangeEachFrame(editor, sample);
     }
     let raf = null;
     const update = () => {
@@ -433,21 +471,21 @@ export function ToolOptionsBar({
   onUpdateEditingShape,
   editingLineArrow,       // { idx, arrow } when a single line-arrow is selected
   onUpdateEditingLineArrow, // (patch) => updates that arrow
-  paletteColors = [],
+  paletteColors = NO_COLORS,
   openColorPicker,
   onOpenSketchpad,      // launch the fullscreen sketch pad from inside Draw tool
   onUndo,               // global Yjs undo — surfaced as a toolbar button on Draw
 }) {
   const recentColors = useRecentColors();
   const pointerPolicy = usePointerPolicy();
-  const { isTouch: isTouchDevice, isPhone, isTablet } = useBreakpoint();
-  // Same shape as `mobileShell` — a phone, or a touch tablet. The draw bar is
-  // the widest in the app and on an iPhone it laid out to 1319px inside a 372px
-  // strip: 72% of it, including every colour swatch and the whole thickness
-  // picker, sat past the right edge of a scroll nobody could see.
-  const compactBar = isPhone || (isTablet && isTouchDevice);
+  const { isTouch: isTouchDevice, isPhone } = useBreakpoint();
+  // A phone, or any touch screen. The draw bar is the widest in the app: on an
+  // iPhone it laid out to 1319px inside a 372px strip, 72% of it (every colour
+  // swatch, the whole thickness picker) past the right edge of a scroll nobody
+  // could see, and an iPad held sideways is still narrower than the full bar.
+  const compactBar = isPhone || isTouchDevice;
   const [drawSheet, setDrawSheet] = useState(false);
-  const openPickerAt = (e, opts) => {
+  const openPickerAt = useStableFn((e, opts) => {
     if (!openColorPicker) return;
     const r = e.currentTarget.getBoundingClientRect();
     openColorPicker({
@@ -456,33 +494,52 @@ export function ToolOptionsBar({
       y: r.top,
       paletteColors,
     });
-  };
+  });
 
   // Always render at the canvas bottom-center (CSS default in `.tob`).
   // Earlier the bar floated above the selected card; that constant
   // repositioning made the UI feel jumpy, so the bar stays put and any
   // contextual buttons swap in inline.
-  const tobProps = { className: 'tob' };
+  const tobProps = TOB_PROPS;
+  // The draw, line, shape and arrow bars are each a toolbar, one Tab stop
+  // walked by the arrows (hooks/useToolbarRoving); the note bar has its own.
+  const tobRef = useRef(null);
+  const tobKeys = useToolbarRoving(tobRef);
+  const barOf = (label) => ({ ref: tobRef, role: 'toolbar', 'aria-label': label, onKeyDown: tobKeys });
+
+  // The canvas re-renders this bar on every card change, and a keystroke in a
+  // note is one: a new card object, palette list, cell style and callbacks
+  // each time. The note bar is memoized and keeps the same ones until what
+  // they hold changes, so it draws only when what it shows does.
+  const noteLookKey = editingNoteCard ? JSON.stringify(NOTE_LOOK.map((k) => editingNoteCard[k] ?? null)) : '';
+  const noteLook = useMemo(() => (editingNoteCard
+    ? Object.fromEntries(NOTE_LOOK.map((k) => [k, editingNoteCard[k]]))
+    : null), [noteLookKey]);
+  const notePalette = useMemo(() => paletteColors, [paletteColors.join('|')]);
+  const cellStyle = useMemo(() => editingCellStyle, [JSON.stringify(editingCellStyle)]);
+  const updateNote = useStableFn(onUpdateEditingNote);
+  const styleCell = useStableFn(onCellStyle);
+  const scopeCell = useStableFn(onCellScope);
 
   // ── Note rich text bar ──────────────────────────────────────────────────
   // Also shown for a grid TEXT cell (editingCellText) — same inline formatting,
   // driven against the focused contenteditable. With no backing note card the
   // two card-level controls (card background, vertical balance) are hidden.
   if (editingNoteCard || editingCellText || selectedCellStyle) {
-    return <NoteRichTextBar
+    return <MemoNoteRichTextBar
       tobProps={tobProps}
-      paletteColors={paletteColors}
+      paletteColors={notePalette}
       openPickerAt={openPickerAt}
-      editingNoteCard={editingNoteCard}
-      onUpdateEditingNote={onUpdateEditingNote}
+      noteLook={noteLook}
+      onUpdateEditingNote={onUpdateEditingNote ? updateNote : null}
       cardLevel={!!editingNoteCard}
       cellStyleMode={!editingNoteCard && (!!editingCellText || !!selectedCellStyle)}
       cellEditing={!!editingCellText}
       cellKind={cellKind}
       cellPinned={cellPinned}
-      onCellStyle={onCellStyle}
-      onCellScope={onCellScope}
-      editingCellStyle={editingCellStyle}
+      onCellStyle={onCellStyle ? styleCell : null}
+      onCellScope={onCellScope ? scopeCell : null}
+      editingCellStyle={cellStyle}
     />;
   }
 
@@ -528,15 +585,15 @@ export function ToolOptionsBar({
 
     const modeButtons = (
       <div className="tob-segmented">
-        <button aria-label="Pen"
+        <button aria-label="Pen" aria-pressed={inking}
                 className={inking ? 'is-active' : ''}
                 onClick={() => setDrawOptions({ ...drawOptions, mode: 'pen' })}>Pen</button>
-        <button aria-label="Eraser"
+        <button aria-label="Eraser" aria-pressed={isEraser}
                 className={isEraser ? 'is-active' : ''}
                 onClick={() => setDrawOptions({ ...drawOptions, mode: 'eraser' })}>Eraser</button>
         {/* The only way to select strokes with a finger — one-finger touch on
             the select tool pans, so the marquee is mouse/stylus-only. */}
-        <button aria-label="Lasso"
+        <button aria-label="Lasso" aria-pressed={isLasso}
                 title="Circle strokes to select them"
                 className={isLasso ? 'is-active' : ''}
                 onClick={() => setDrawOptions({ ...drawOptions, mode: 'lasso' })}>Lasso</button>
@@ -568,7 +625,8 @@ export function ToolOptionsBar({
                   className={`sp-brush ${(drawOptions.brush || DEFAULT_BRUSH) === id ? 'is-active' : ''}`}
                   onClick={() => setDrawOptions({ ...drawOptions, brush: id })}
                   title={BRUSH_LABELS[id]}
-                  aria-label={`${BRUSH_LABELS[id]} brush`}>
+                  aria-label={`${BRUSH_LABELS[id]} brush`}
+                  aria-pressed={(drawOptions.brush || DEFAULT_BRUSH) === id}>
             <svg viewBox="0 0 56 26" width="46" height="22" aria-hidden="true">
               <BrushPreview brush={id} />
             </svg>
@@ -583,6 +641,7 @@ export function ToolOptionsBar({
           <button key={c}
                   className={`tob-sw ${drawOptions.color === c ? 'is-active' : ''}`}
                   aria-label={`Colour ${c}`}
+                  aria-pressed={drawOptions.color === c}
                   style={{ background: c }}
                   onClick={() => { setDrawOptions({ ...drawOptions, color: c }); addRecentColor(c); }} />
         ))}
@@ -605,6 +664,7 @@ export function ToolOptionsBar({
           <button key={w}
                   title={isEraser ? `Eraser size ${w}px` : `Stroke ${w}px`}
                   aria-label={isEraser ? `Eraser size ${w}` : `Stroke width ${w}`}
+                  aria-pressed={(isEraser ? drawOptions.eraserWidth : drawOptions.width) === w}
                   className={`tob-thick ${(isEraser ? drawOptions.eraserWidth : drawOptions.width) === w ? 'is-active' : ''}`}
                   onClick={() => setDrawOptions(isEraser ? { ...drawOptions, eraserWidth: w } : { ...drawOptions, width: w })}>
             <span style={{ width: 24, height: w, background: isEraser ? '#ef4444' : drawOptions.color, borderRadius: w/2, display: 'block' }} />
@@ -622,7 +682,7 @@ export function ToolOptionsBar({
       const activeW = isEraser ? drawOptions.eraserWidth : drawOptions.width;
       return (
         <>
-          <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+          <div {...tobProps} {...barOf('Drawing')} onPointerDown={(e) => e.stopPropagation()}>
             {sketchpadBtn}
             {sketchpadBtn && <span className="tob-sep" />}
             {undoBtn}
@@ -634,6 +694,7 @@ export function ToolOptionsBar({
               <>
                 <button className={`tob-chip ${drawSheet ? 'is-active' : ''}`}
                         aria-label={isEraser ? 'Eraser size' : 'Brush, colour and width'}
+                        aria-expanded={drawSheet}
                         title={isEraser ? 'Eraser size' : 'Brush, colour and width'}
                         onClick={() => setDrawSheet(true)}>
                   <span className="tob-chip-dot"
@@ -681,7 +742,7 @@ export function ToolOptionsBar({
     }
 
     return (
-      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+      <div {...tobProps} {...barOf('Drawing')} onPointerDown={(e) => e.stopPropagation()}>
         {/* Non-phone touch (a large tablet in landscape) still gets Canvas first:
             it used to sit at the far right end of a scrolling row — off-screen,
             for the surface people actually want to do real drawing on. On
@@ -763,13 +824,14 @@ export function ToolOptionsBar({
       onUpdateEditingLineArrow({ to: newTo });
     };
     return (
-      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+      <div {...tobProps} {...barOf('Line')} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Line</span>
         <span className="tob-sep" />
         <span className="tob-label">Color</span>
         <div className="tob-swatches">
           {[...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])].slice(0, 8).map(c => (
             <button key={c} className={`tob-sw ${stroke === c ? 'is-active' : ''}`}
+                    aria-label={`Color ${c}`} aria-pressed={stroke === c}
                     style={{ background: c }}
                     onClick={() => { onUpdateEditingLineArrow({ customStroke: c }); addRecentColor(c); }} />
           ))}
@@ -783,12 +845,13 @@ export function ToolOptionsBar({
         <span className="tob-label">Width</span>
         <LinePxInput
           value={strokeWidth}
+          label="Line width"
           onCommit={(n) => onUpdateEditingLineArrow({ customStrokeWidth: n })}
         />
         <span className="tob-label" style={{ marginLeft: -4 }}>px</span>
         <span className="tob-sep" />
         <span className="tob-label">Style</span>
-        <select className="tob-select" value={dash}
+        <select className="tob-select" value={dash} aria-label="Line style"
                 onChange={(e) => {
                   const v = e.target.value;
                   onUpdateEditingLineArrow({ customDash: v === 'solid' ? null : v });
@@ -832,9 +895,9 @@ export function ToolOptionsBar({
     const strokeChoices = [...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])];
     const fillChoices   = ['transparent', ...new Set([...recentColors, ...paletteColors, ...FILL_COLORS.filter(c => c !== 'transparent')])];
     return (
-      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+      <div {...tobProps} {...barOf('Shape')} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Shape</span>
-        <select className="tob-select" value={opts.shape}
+        <select className="tob-select" value={opts.shape} aria-label="Shape"
                 onChange={(e) => setOpts({ ...opts, shape: e.target.value })}>
           {SHAPES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
@@ -843,6 +906,7 @@ export function ToolOptionsBar({
         <div className="tob-swatches">
           {strokeChoices.slice(0, 12).map(c => (
             <button key={c} className={`tob-sw ${opts.stroke === c ? 'is-active' : ''}`}
+                    aria-label={`Stroke ${c}`} aria-pressed={opts.stroke === c}
                     style={{ background: c }}
                     onClick={() => { setOpts({ ...opts, stroke: c }); if (editing) addRecentColor(c); }} />
           ))}
@@ -858,6 +922,7 @@ export function ToolOptionsBar({
         <div className="tob-swatches">
           {fillChoices.slice(0, 12).map(c => (
             <button key={c} className={`tob-sw ${opts.fill === c ? 'is-active' : ''}`}
+                    aria-label={c === 'transparent' ? 'No fill' : `Fill ${c}`} aria-pressed={opts.fill === c}
                     style={{ background: c === 'transparent' ? 'repeating-linear-gradient(45deg,#222 0 4px,#444 4px 8px)' : c }}
                     onClick={() => { setOpts({ ...opts, fill: c }); if (editing && c !== 'transparent') addRecentColor(c); }} />
           ))}
@@ -873,12 +938,13 @@ export function ToolOptionsBar({
         <span className="tob-label">Width</span>
         <LinePxInput
           value={opts.strokeWidth ?? 2}
+          label="Stroke width"
           onCommit={(n) => setOpts({ ...opts, strokeWidth: n })}
         />
         <span className="tob-label" style={{ marginLeft: -4 }}>px</span>
         <span className="tob-sep" />
         <span className="tob-label">Style</span>
-        <select className="tob-select" value={opts.dash}
+        <select className="tob-select" value={opts.dash} aria-label="Line style"
                 onChange={(e) => setOpts({ ...opts, dash: e.target.value })}>
           {DASH_STYLES.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
         </select>
@@ -889,20 +955,20 @@ export function ToolOptionsBar({
   // ── Arrow options ───────────────────────────────────────────────────────
   if (selectedTool === 'arrow' && arrowOptions && setArrowOptions) {
     return (
-      <div {...tobProps} onPointerDown={(e) => e.stopPropagation()}>
+      <div {...tobProps} {...barOf('Arrow')} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Path</span>
         <div className="tob-segmented">
-          <button className={!arrowOptions.straight ? 'is-active' : ''}
+          <button className={!arrowOptions.straight ? 'is-active' : ''} aria-pressed={!arrowOptions.straight}
                   onClick={() => setArrowOptions({ ...arrowOptions, straight: false })}>Curved</button>
-          <button className={arrowOptions.straight ? 'is-active' : ''}
+          <button className={arrowOptions.straight ? 'is-active' : ''} aria-pressed={!!arrowOptions.straight}
                   onClick={() => setArrowOptions({ ...arrowOptions, straight: true })}>Straight</button>
         </div>
         <span className="tob-sep" />
         <span className="tob-label">Style</span>
         <div className="tob-segmented">
-          <button className={!arrowOptions.dashed ? 'is-active' : ''}
+          <button className={!arrowOptions.dashed ? 'is-active' : ''} aria-pressed={!arrowOptions.dashed}
                   onClick={() => setArrowOptions({ ...arrowOptions, dashed: false })}>Solid</button>
-          <button className={arrowOptions.dashed ? 'is-active' : ''}
+          <button className={arrowOptions.dashed ? 'is-active' : ''} aria-pressed={!!arrowOptions.dashed}
                   onClick={() => setArrowOptions({ ...arrowOptions, dashed: true })}>Dashed</button>
         </div>
       </div>
@@ -916,12 +982,12 @@ export function ToolOptionsBar({
 // selectionchange while the note is being edited). Keeping it inside the
 // main ToolOptionsBar function would mean the hook runs in every render of
 // every tool's bar.
-function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCard, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellEditing = false, cellKind = null, cellPinned = false, onCellStyle, onCellScope, editingCellStyle = null }) {
+function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, noteLook, onUpdateEditingNote, cardLevel = true, cellStyleMode = false, cellEditing = false, cellKind = null, cellPinned = false, onCellStyle, onCellScope, editingCellStyle = null }) {
   // The note's card-level look: when a caret-only pick changes it, the text
   // under the caret re-renders without an editor transaction, so the hooks
   // re-sample on this instead.
-  const noteBase = editingNoteCard
-    ? [editingNoteCard.fontSize, editingNoteCard.fontSizeV, editingNoteCard.fontFamily, editingNoteCard.textColor, editingNoteCard.bgColor].join('|')
+  const noteBase = noteLook
+    ? [noteLook.fontSize, noteLook.fontSizeV, noteLook.fontFamily, noteLook.textColor, noteLook.bgColor].join('|')
     : '';
   const currentFore = useNoteForeColor(true, noteBase);
   const fmt = useNoteFormatState(true, noteBase);
@@ -931,6 +997,9 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
   // the box's effective style instead of the (empty) selection state. For an
   // image/video/file box, typography doesn't apply → only Box background + scope.
   const selectedBox = cellStyleMode && !cellEditing;
+  // The text keeps Tab (two spaces): ⌥F10 in it comes to the bar, and Escape
+  // here goes back to the caret. A selected box has no text to go back to.
+  const barKeys = useToolbarRoving(barRef, { text: selectedBox ? null : noteText });
   const textish = !cellStyleMode || cellKind == null || cellKind === 'text' || cellKind === 'empty' || cellKind === 'link';
   const showTypography = textish;
   const showEmphasis = !selectedBox;
@@ -979,6 +1048,12 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
   return (
     <div {...tobProps}
          ref={barRef}
+         role="toolbar"
+         aria-label={selectedBox ? 'Box style' : 'Text formatting'}
+         aria-keyshortcuts={selectedBox ? undefined : 'Alt+F10'}
+         // Focus can move into the bar without ending the edit (the note
+         // counts it as part of the session), and the arrows walk it.
+         onKeyDown={barKeys}
          onPointerDown={(e) => e.stopPropagation()}
          // A press on the bar's padding, a separator or a label would move
          // focus to <body>, which the note reads as leaving it: editing ended
@@ -1000,10 +1075,10 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
       {showEmphasis && (
         <>
           <span className="tob-sep" />
-          <FormatBtn label="B" title="Bold (⌘B)" cmd="bold" bold toggle active={fmt.bold} />
-          <FormatBtn label={<i>I</i>} title="Italic (⌘I)" cmd="italic" toggle active={fmt.italic} />
-          <FormatBtn label={<u>U</u>} title="Underline (⌘U)" cmd="underline" toggle active={fmt.underline} />
-          <FormatBtn label={<s>S</s>} title="Strike" cmd="strikeThrough" toggle active={fmt.strike} />
+          <FormatBtn label="B" name="Bold" keys="Mod+B" title="Bold (⌘B)" cmd="bold" bold toggle active={fmt.bold} />
+          <FormatBtn label={<i>I</i>} name="Italic" keys="Mod+I" title="Italic (⌘I)" cmd="italic" toggle active={fmt.italic} />
+          <FormatBtn label={<u>U</u>} name="Underline" keys="Mod+U" title="Underline (⌘U)" cmd="underline" toggle active={fmt.underline} />
+          <FormatBtn label={<s>S</s>} name="Strike" title="Strike" cmd="strikeThrough" toggle active={fmt.strike} />
           <ClearFormatBtn />
           <span className="tob-sep" />
           <ListBtn label="•"  title="Bulleted list" type="ul"   active={fmt.listType === 'ul'} />
@@ -1019,10 +1094,13 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
               {/* Cell alignment is container-level (part of the shared/pinned text style)
                   so it propagates like the font — not baked per-content via execCommand. */}
               <button type="button" className={`tob-btn ${(!display.align || display.align === 'left') ? 'is-active' : ''}`.trim()}
+                aria-label="Align left" aria-pressed={!display.align || display.align === 'left'}
                 title="Align left" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'left' })}>⇤</button>
               <button type="button" className={`tob-btn ${display.align === 'center' ? 'is-active' : ''}`.trim()}
+                aria-label="Align center" aria-pressed={display.align === 'center'}
                 title="Align center" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'center' })}>≡</button>
               <button type="button" className={`tob-btn ${display.align === 'right' ? 'is-active' : ''}`.trim()}
+                aria-label="Align right" aria-pressed={display.align === 'right'}
                 title="Align right" onMouseDown={(e) => e.preventDefault()} onClick={() => onCellStyle?.({ align: 'right' })}>⇥</button>
             </>
           ) : (
@@ -1039,11 +1117,12 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
             // as container flex + text-align, so it propagates like the font.
             const balanced = cellStyleMode
               ? (display.align === 'center')
-              : (fmt.align === 'center' && editingNoteCard?.vAlign === 'center');
+              : (fmt.align === 'center' && noteLook?.vAlign === 'center');
             return (
               <button type="button"
                 className={`tob-btn ${balanced ? 'is-active' : ''}`.trim()}
                 title="Center — put the text dead-center of the box"
+                aria-label="Center in the box"
                 aria-pressed={balanced}
                 onMouseDown={(e) => e.preventDefault()}
                 onPointerDown={(e) => e.preventDefault()}
@@ -1089,7 +1168,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
               the 'transparent' swatch maps to bg:null = back to the default cell
               surface (the renderer treats null/'transparent' as unset). */}
           <ColorBtn title={cellStyleMode ? 'Box background' : 'Card background'}
-                defaultColor={(cellStyleMode ? editingCellStyle?.bg : editingNoteCard?.bgColor) || '#1c1c1f'}
+                defaultColor={(cellStyleMode ? editingCellStyle?.bg : noteLook?.bgColor) || '#1c1c1f'}
                 swatches={BG_COLORS}
                 paletteColors={paletteColors}
                 onPick={(c) => cellStyleMode
@@ -1101,7 +1180,7 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
                   // its None button emits it instead) — mirrors shape fills.
                   value: cellStyleMode
                     ? ((editingCellStyle?.bg && editingCellStyle.bg !== 'transparent') ? editingCellStyle.bg : '#1c1c1f')
-                    : ((editingNoteCard?.bgColor && editingNoteCard.bgColor !== 'transparent') ? editingNoteCard.bgColor : '#1c1c1f'),
+                    : ((noteLook?.bgColor && noteLook.bgColor !== 'transparent') ? noteLook.bgColor : '#1c1c1f'),
                   onChange: (c) => cellStyleMode
                     ? onCellStyle?.({ bg: c === 'transparent' ? null : c })
                     : onUpdateEditingNote && onUpdateEditingNote({ bgColor: c }),
@@ -1133,6 +1212,9 @@ function NoteRichTextBar({ tobProps, paletteColors, openPickerAt, editingNoteCar
     </div>
   );
 }
+// Its own hooks redraw it when the caret's formatting changes; the canvas's
+// re-renders reach it only when its props do (see ToolOptionsBar).
+const MemoNoteRichTextBar = memo(NoteRichTextBar);
 
 // ── Format buttons ────────────────────────────────────────────────────────
 
@@ -1163,6 +1245,10 @@ function LineAngleInput({ angle, onCommit }) {
   const commit = () => {
     setEditing(false);
     if (cancelRef.current) { cancelRef.current = false; setDraft(formatAngleForDisplay(angle)); return; }
+    // Passed through, nothing typed (the arrows walk the bar through this
+    // field): nothing to set. Setting the angle it shows, a tenth of a degree
+    // rounded, moved the line's end and was one more thing to undo.
+    if (draft === formatAngleForDisplay(angle)) return;
     const n = parseFloat(draft);
     if (Number.isFinite(n)) {
       onCommit(n);
@@ -1181,10 +1267,12 @@ function LineAngleInput({ angle, onCommit }) {
       onChange={(e) => { const v = e.target.value; if (v === '' || /^-?\d*\.?\d*$/.test(v)) setDraft(v); }}
       onBlur={commit}
       onKeyDown={(e) => {
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
+      aria-label="Angle"
       title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
     />
   );
@@ -1193,7 +1281,7 @@ function LineAngleInput({ angle, onCommit }) {
 // Free-form pixel input for line stroke width. Same UX shape as
 // LineAngleInput — no spinner arrows, no forced decimal display,
 // commits on blur or Enter. Clamps to >= 0 (0 means "no line").
-function LinePxInput({ value, onCommit }) {
+function LinePxInput({ value, onCommit, label = 'Width' }) {
   const [draft, setDraft] = useState(() => formatAngleForDisplay(value));
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -1203,6 +1291,7 @@ function LinePxInput({ value, onCommit }) {
   const commit = () => {
     setEditing(false);
     if (cancelRef.current) { cancelRef.current = false; setDraft(formatAngleForDisplay(value)); return; }
+    if (draft === formatAngleForDisplay(value)) return;   // nothing typed: see LineAngleInput
     const n = parseFloat(draft);
     if (Number.isFinite(n) && n >= 0) {
       const clamped = Math.min(200, n);
@@ -1222,19 +1311,25 @@ function LinePxInput({ value, onCommit }) {
       onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setDraft(v); }}
       onBlur={commit}
       onKeyDown={(e) => {
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
       style={{ width: 56, textAlign: 'right' }}
+      aria-label={label}
       title="Line width in pixels (0 = none)"
     />
   );
 }
 
-function FormatBtn({ label, title, cmd, val, bold, active = false, toggle = false }) {
+// `label` is what's drawn on it (B, ⇤); a screen reader says `name` (the
+// title, when there's no other) and hears the shortcut from aria-keyshortcuts.
+function FormatBtn({ label, name, keys, title, cmd, val, bold, active = false, toggle = false }) {
   return (
     <button className={`tob-btn ${active ? 'is-active' : ''}`.trim()}
             title={title}
+            aria-label={name || title}
+            aria-keyshortcuts={keys ? ariaKeys(keys) : undefined}
             aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
             onPointerDown={(e) => e.preventDefault()}
@@ -1255,6 +1350,7 @@ function ClearFormatBtn() {
     <button className="tob-btn"
             title="Clear formatting (⌘\)"
             aria-label="Clear formatting"
+            aria-keyshortcuts={ariaKeys('Mod+\\')}
             onMouseDown={(e) => e.preventDefault()}
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => {
@@ -1272,6 +1368,7 @@ function ListBtn({ label, title, type, active = false }) {
   return (
     <button className={`tob-btn ${active ? 'is-active' : ''}`.trim()}
             title={title}
+            aria-label={title}
             aria-pressed={active}
             onMouseDown={(e) => e.preventDefault()}
             onPointerDown={(e) => e.preventDefault()}
@@ -1295,21 +1392,21 @@ function NoteCommentBtn() {
   // Enabled-ness tracks the live selection, so subscribe to the editor's own
   // updates — the toolbar's FMT_EVT only fires after a format command runs and
   // would leave this button stale while the user was merely selecting text.
-  const [, bump] = useState(0);
+  // Only whether there is a selection is kept, so typing doesn't redraw it.
+  const [hasSelection, setHasSelection] = useState(() => !!editor && !editor.state.selection.empty);
   useEffect(() => {
     if (!editor) return undefined;
-    const tick = () => bump(n => n + 1);
-    editor.on('selectionUpdate', tick);
-    editor.on('transaction', tick);
-    return () => { editor.off('selectionUpdate', tick); editor.off('transaction', tick); };
+    const sample = () => setHasSelection(!editor.state.selection.empty);
+    sample();
+    return onEditorChangeEachFrame(editor, sample);
   }, [editor]);
   const openAddComment = getActiveNoteActions().openAddComment;
   if (!editor || !openAddComment) return null;
-  const hasSelection = !editor.state.selection.empty;
   return (
     <button className="tob-btn"
             title={hasSelection ? 'Comment on the selection (⌘⌥M)' : 'Select text to comment on'}
             aria-label="Add comment"
+            aria-keyshortcuts={ariaKeys('Mod+Alt+M')}
             disabled={!hasSelection}
             // preventDefault on both so the note keeps its selection — losing
             // it would leave the composer with nothing to anchor to.
@@ -1450,81 +1547,26 @@ function SizePicker({ value = null, onApply }) {
 
 function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, onCustom, glyph = null }) {
   const [open, setOpen] = useState(false);
-  const [popStyle, setPopStyle] = useState(null);
   const wrapRef = useRef(null);
-  const popRef = useRef(null);
   const recentColors = useRecentColors();
   const allSwatches = [...new Set([...recentColors, ...paletteColors, ...swatches])];
 
-  // Position the swatch popover relative to its trigger, clamped to the
-  // viewport so it never clips on the right/top edges of the screen.
-  useLayoutEffect(() => {
-    if (!open || !wrapRef.current || !popRef.current) return;
-    const place = () => {
-      const wrap = wrapRef.current;
-      const pop = popRef.current;
-      if (!wrap || !pop) return;
-      const wr = wrap.getBoundingClientRect();
-      const w = pop.offsetWidth;
-      const h = pop.offsetHeight;
-      const PAD = 8;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const leftAbs = Math.max(PAD, Math.min(vw - w - PAD, wr.left));
-      const preferTopAbs = wr.top - h - 6;
-      const topAbs = preferTopAbs < PAD
-        ? Math.min(vh - h - PAD, wr.bottom + 6)
-        : preferTopAbs;
-      const topClamped = Math.max(PAD, topAbs);
-      setPopStyle(prev => {
-        if (prev && prev.left === leftAbs && prev.top === topClamped) return prev;
-        return {
-          position: 'fixed',
-          left: leftAbs,
-          top: topClamped,
-          bottom: 'auto',
-          right: 'auto',
-        };
-      });
-    };
-    place();
-    const id = requestAnimationFrame(place);
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      cancelAnimationFrame(id);
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [open, allSwatches.length]);
-
-  // Outside click closes.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (popRef.current?.contains(e.target)) return;
-      if (wrapRef.current?.contains(e.target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('mousedown', onDown, true);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('mousedown', onDown, true);
-    };
-  }, [open]);
+  // Over its button (the bar sits at the bottom of the canvas), kept on
+  // screen; a press outside or Escape closes it, and only it: the note being
+  // edited stays in edit (hooks/useAnchoredPopover).
+  const pop = useAnchoredPopover({ open, onClose: () => setOpen(false), anchorRef: wrapRef, side: 'above' });
 
   // The bottom bar (.tob) has a translateX transform, which establishes a
   // containing block for position:fixed descendants. Portal to body so the
   // popover is anchored to the viewport instead of the (transformed) bar.
   const popNode = open && (
-    <span className="tob-pop" ref={popRef}
-          style={popStyle || { position: 'fixed', visibility: 'hidden' }}
+    <span className="tob-pop" ref={pop.popRef} style={pop.style}
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => e.stopPropagation()}>
       {allSwatches.slice(0, 16).map(c => (
         <button key={c} className="tob-sw" style={{ background: swatchBg(c) }}
                 title={c === 'transparent' ? 'No background' : undefined}
+                aria-label={c === 'transparent' ? 'No background' : `Color ${c}`}
                 onMouseDown={(e) => e.preventDefault()}
                 // 'transparent' stays out of recents — in the recents strip it
                 // would render as an invisible swatch on color rows that don't
@@ -1532,7 +1574,7 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
                 onClick={() => { onPick(c); if (c !== 'transparent') addRecentColor(c); setOpen(false); }} />
       ))}
       {onCustom && (
-        <button className="tob-sw tob-sw-custom" title="Custom…"
+        <button className="tob-sw tob-sw-custom" title="Custom…" aria-label="Custom color"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={(e) => { setOpen(false); onCustom(e); }}>+</button>
       )}
@@ -1542,6 +1584,7 @@ function ColorBtn({ title, swatches, paletteColors = [], defaultColor, onPick, o
   return (
     <span className="tob-pop-wrap" ref={wrapRef}>
       <button className={`tob-btn ${glyph ? 'tob-color-btn' : ''}`} title={title}
+              aria-label={title} aria-expanded={open}
               onMouseDown={(e) => e.preventDefault()}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => setOpen(o => !o)}>

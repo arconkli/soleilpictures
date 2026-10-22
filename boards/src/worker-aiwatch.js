@@ -1,5 +1,5 @@
 // The Workers AI model watch, daily at 04:00 UTC, and its new-models digest,
-// Mondays at 06:00 UTC (worker.js scheduled()). It reads the catalog through
+// Sundays at 06:00 UTC (worker.js scheduled()). It reads the catalog through
 // the AI binding, the Workers AI changelog feed, and the models' answers to a
 // tiny request, then pages the owner through ops_alert_raise (0369), which
 // emails a paged alert within a minute. What counts as a problem, and what

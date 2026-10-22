@@ -1,0 +1,426 @@
+// cluster-nudges.spec.js — making a cluster from what is already on the canvas.
+//
+// Everything here sits behind clusterNudgesAllowed() (lib/appHost.js), whose
+// hold was lifted on 2026-10-21 for the sidebar release: it is on everywhere,
+// with no opt-in. The first test pins that. The optIn() the other tests still
+// call sets the retired dev flag, which nothing reads any more.
+//
+// ?mixqa=3 seeds a bare Studio holding three images (mixqa-0..2) and no other
+// cluster — the pile this feature exists for. The move itself is the one
+// "Move to cluster…" runs (move-to-cluster.spec.js); the local harness mirrors
+// App.jsx's listener, so the undo that trashes the new cluster is checked on
+// the preview deploy.
+import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+const read = (rel) => readFileSync(new URL(rel, new URL('../', import.meta.url)), 'utf8');
+
+const card = (page, id) => page.locator(`.card[data-card-id="${id}"]`);
+const optIn = (page) => page.addInitScript(() => {
+  try { window.localStorage.setItem('soleil.dev.clusterNudges', '1'); } catch (_) {}
+});
+
+async function studio(page) {
+  await page.goto('/?local=1&reset=1&blank=1&mixqa=3');
+  await expect(card(page, 'mixqa-0')).toBeVisible();
+}
+
+// Record every move the canvas hands off, without changing what happens to it.
+async function recordMoves(page) {
+  await page.evaluate(() => {
+    window.__moves = [];
+    window.addEventListener('soleil-card-into-board-drop', (e) => {
+      const d = e.detail || {};
+      window.__moves.push({ ids: (d.cards || []).map((c) => c.id), created: d.createdBoardId || null, name: d.createdBoardName || null });
+    }, true);
+  });
+}
+
+async function nameIt(page, name, { expectMessage } = {}) {
+  const dialog = page.locator('.feedback-dialog');
+  await expect(dialog.locator('.feedback-title')).toHaveText('Name this cluster');
+  if (expectMessage) await expect(dialog.locator('.feedback-message')).toHaveText(expectMessage);
+  await dialog.locator('.feedback-field input').fill(name);
+  await dialog.locator('.btn-primary').click();
+}
+
+// The second idea: an old pile — mixqa's cards carry no createdAt, which reads
+// as made long ago — and something new arriving on it. The Studio bar is
+// marked seen, so the pile's own offer doesn't hold the hint slot.
+async function oldPile(page, n = 8) {
+  await page.addInitScript(() => {
+    try { window.localStorage.setItem('soleil.hint.studio_bar', '1'); } catch (_) {}
+  });
+  await page.goto(`/?local=1&reset=1&blank=1&mixqa=${n}`);
+  await expect(card(page, `mixqa-${n - 1}`)).toBeVisible();
+}
+
+const pasteText = (page, text) => page.evaluate((t) => {
+  const dt = new DataTransfer();
+  dt.setData('text/plain', t);
+  window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+}, text);
+
+// Pictures dropped from the desktop, drawn here so no fixture is needed.
+const dropImages = (page, n) => page.evaluate(async (n) => {
+  const files = await Promise.all(Array.from({ length: n }, (_, i) => new Promise((res) => {
+    const c = document.createElement('canvas');
+    c.width = 160; c.height = 100;
+    const g = c.getContext('2d');
+    g.fillStyle = ['#c84', '#48c', '#8c4'][i % 3];
+    g.fillRect(0, 0, 160, 100);
+    c.toBlob((b) => res(new File([b], `scout-${i + 1}.png`, { type: 'image/png' })), 'image/png');
+  })));
+  const dt = new DataTransfer();
+  for (const f of files) dt.items.add(f);
+  const wrap = document.querySelector('.canvas-wrap');
+  const r = wrap.getBoundingClientRect();
+  const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height - 160 };
+  for (const t of ['dragenter', 'dragover', 'drop']) {
+    wrap.dispatchEvent(new DragEvent(t, { bubbles: true, cancelable: true, dataTransfer: dt, ...at }));
+  }
+}, n);
+
+const secondIdea = (page) => page.locator('.toast', { hasText: 'New idea?' });
+
+test.describe('cluster nudges', () => {
+  test('released: with no opt-in, every nudge is there', async ({ page }) => {
+    await page.addInitScript(() => {
+      try { window.localStorage.removeItem('soleil.dev.clusterNudges'); } catch (_) {}
+    });
+    await studio(page);
+    // The rail's Cluster tool teaches: a hover card instead of the plain tip.
+    const tool = page.locator('.cnv-tool[data-tour="cluster-tool"]');
+    await expect(tool).not.toHaveAttribute('data-tip', /.*/);
+    await tool.hover();
+    await expect(tool.locator('.cnv-tool-card')).toBeVisible();
+    await page.mouse.move(900, 600);
+    await expect(page.locator('.tb-newcluster')).toBeVisible();
+    await card(page, 'mixqa-0').click({ button: 'right' });
+    await expect(page.locator('.ctx-menu')).toBeVisible();
+    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to a new cluster…' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await card(page, 'mixqa-0').click();
+    await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
+    await card(page, 'mixqa-1').click({ button: 'right' });
+    await expect(page.locator('.ctx-menu .ctx-item', { hasText: /^New cluster from 2 cards/ })).toBeVisible();
+    await page.keyboard.press('Escape');
+    // The empty Studio's panel ends with the line about clusters.
+    await page.goto('/?local=1&reset=1&blank=1');
+    await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
+    await expect(page.locator('.cnv-empty-clusters')).toBeVisible();
+  });
+
+
+  test('one card with nowhere to go: "Move to a new cluster…" makes the cluster it goes into', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await recordMoves(page);
+    await card(page, 'mixqa-0').click({ button: 'right' });
+    await page.locator('.ctx-menu .ctx-item', { hasText: 'Move to a new cluster…' }).click();
+    await nameIt(page, 'Kitchen refs', { expectMessage: 'The card moves into it. Undo puts it back.' });
+
+    await expect(card(page, 'mixqa-0')).toHaveCount(0);
+    await expect(card(page, 'mixqa-1')).toBeVisible();
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Kitchen refs' })).toHaveCount(1);
+    const moves = await page.evaluate(() => window.__moves);
+    expect(moves).toHaveLength(1);
+    expect(moves[0]).toMatchObject({ ids: ['mixqa-0'], name: 'Kitchen refs' });
+    expect(moves[0].created).toBeTruthy();
+  });
+
+  test('a selection: "New cluster from 2 cards" sits beside Group, and cancelling makes nothing', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await recordMoves(page);
+    await card(page, 'mixqa-0').click();
+    await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
+    await card(page, 'mixqa-1').click({ button: 'right' });
+    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Group (2)' })).toBeVisible();
+    const item = page.locator('.ctx-menu .ctx-item', { hasText: 'New cluster from 2 cards' });
+    await expect(item).toBeVisible();
+
+    // Cancel first: no cluster, nothing moved.
+    await item.click();
+    await page.locator('.feedback-dialog .btn-secondary', { hasText: 'Cancel' }).click();
+    await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    expect(await page.evaluate(() => window.__moves.length)).toBe(0);
+
+    // Start the selection over (both cards are still selected).
+    await page.locator('.canvas-wrap').first().click({ position: { x: 900, y: 650 } });
+    await card(page, 'mixqa-0').click();
+    await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
+    await card(page, 'mixqa-1').click({ button: 'right' });
+    await page.locator('.ctx-menu .ctx-item', { hasText: 'New cluster from 2 cards' }).click();
+    await nameIt(page, 'Diner', { expectMessage: 'The 2 cards move into it. Undo puts them back.' });
+    await expect(card(page, 'mixqa-0')).toHaveCount(0);
+    await expect(card(page, 'mixqa-1')).toHaveCount(0);
+    await expect(card(page, 'mixqa-2')).toBeVisible();
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Diner' })).toHaveCount(1);
+
+    // The cards arrived inside it.
+    await page.locator('.card.card-kind-board', { hasText: 'Diner' }).dblclick();
+    await expect(page.locator('.crumbs .crumb')).toHaveText(['Studio', 'Diner']);
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(2);
+  });
+
+  test('C picks the Cluster tool, and the tool says what a cluster is', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    // A pause on the tool opens a card instead of the plain tip; picking the
+    // tool closes it, and the hint below the toolbar takes over.
+    const tool = page.locator('.cnv-tool[data-tour="cluster-tool"]');
+    await expect(tool).not.toHaveAttribute('data-tip', /.*/);
+    await tool.hover();
+    const hoverCard = tool.locator('.cnv-tool-card');
+    await expect(hoverCard).toBeVisible();
+    await expect(hoverCard).toContainText('A canvas inside this one. Make one per project, then drop cards onto it to file them.');
+    await expect(hoverCard.locator('kbd')).toHaveText('C');
+    await page.mouse.move(900, 600);
+    await expect(hoverCard).toBeHidden();
+    await page.locator('.canvas-wrap').first().click({ position: { x: 900, y: 600 } });
+    await page.keyboard.press('c');
+    await expect(page.locator('.cnv-hint')).toContainText('Click to place a cluster: a canvas inside this one. Drop cards onto it to file them.');
+    await page.keyboard.press('Escape');
+  });
+
+  test('double-click offers a Cluster', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await page.locator('.canvas-wrap').first().dblclick({ position: { x: 900, y: 650 } });
+    await expect(page.locator('.cnv-quick-add .cnv-quick-add-lbl', { hasText: 'Cluster' })).toBeVisible();
+  });
+
+  test('the top bar: "+ New cluster" with nothing picked lands beside the pile, named, and opens', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    const btn = page.locator('.topbar .tb-newcluster');
+    await expect(btn).toHaveText('New cluster');
+    await expect(btn.locator('.ncl-count')).toHaveCount(0);
+    await btn.click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-pop-h')).toHaveText('Name this cluster');
+    await expect(pop.locator('.ncl-help')).toHaveText('It lands on Studio as a card and opens, ready to fill.');
+    await expect(pop.locator('.ncl-field')).toBeFocused();
+    await pop.locator('.ncl-field').fill('Short film');
+    await page.keyboard.press('Enter');
+    await expect(pop).toHaveCount(0);
+    await expect(page.locator('.crumbs .crumb')).toHaveText(['Studio', 'Short film']);
+
+    // Back on Studio: the pile is untouched and the cluster sits to its right.
+    await page.locator('.crumbs .crumb', { hasText: 'Studio' }).click();
+    const made = page.locator('.card.card-kind-board', { hasText: 'Short film' });
+    await expect(made).toHaveCount(1);
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(3);
+    const pileRight = Math.max(...await Promise.all(['mixqa-0', 'mixqa-1', 'mixqa-2'].map(async (id) => {
+      const b = await card(page, id).boundingBox();
+      return b.x + b.width;
+    })));
+    expect((await made.boundingBox()).x).toBeGreaterThan(pileRight);
+  });
+
+  test('the top bar: with cards picked it counts them and files them in, staying put', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await recordMoves(page);
+    await card(page, 'mixqa-0').click();
+    await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
+    const btn = page.locator('.topbar .tb-newcluster');
+    await expect(btn.locator('.ncl-count')).toHaveText('2');
+    await btn.click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('The 2 cards you picked move into it. Undo puts them back.');
+    await pop.locator('.ncl-field').fill('Diner');
+    await pop.locator('.ncl-create').click();
+
+    await expect(card(page, 'mixqa-0')).toHaveCount(0);
+    await expect(card(page, 'mixqa-1')).toHaveCount(0);
+    await expect(card(page, 'mixqa-2')).toBeVisible();
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Diner' })).toHaveCount(1);
+    await expect(page.locator('.crumbs .crumb')).toHaveText(['Studio']);
+    await expect(btn.locator('.ncl-count')).toHaveCount(0);
+    const moves = await page.evaluate(() => window.__moves);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].ids.sort()).toEqual(['mixqa-0', 'mixqa-1']);
+    expect(moves[0]).toMatchObject({ name: 'Diner' });
+    expect(moves[0].created).toBeTruthy();
+  });
+
+  // A move that fails at its last step, as every one on the preview did while
+  // Cloudflare refused the Worker's call to the party. The harness fails the
+  // next move through App's own failure path (lib/moveFailure.js) when
+  // window.__soleilFailNextMove is set (dev only).
+  test('the top bar: a move that fails takes the new cluster back and says so once', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await card(page, 'mixqa-0').click();
+    await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
+    await page.evaluate(() => { window.__soleilFailNextMove = true; });
+    await page.locator('.topbar .tb-newcluster').click();
+    const pop = page.locator('.ncl-pop');
+    await pop.locator('.ncl-field').fill('swag');
+    await pop.locator('.ncl-create').click();
+
+    const errors = page.locator('.toast.toast-error .toast-msg');
+    await expect(errors).toHaveText(['Couldn’t make “swag”. Your cards are still here — try again.']);
+    await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
+    for (const id of ['mixqa-0', 'mixqa-1', 'mixqa-2']) await expect(card(page, id)).toBeVisible();
+    // A beat later it is still the only one, and nothing says it was made.
+    await page.waitForTimeout(600);
+    await expect(errors).toHaveCount(1);
+    await expect(page.locator('.toast', { hasText: 'Made “swag”' })).toHaveCount(0);
+  });
+
+  test('the top bar popover: Escape and Cancel make nothing, and keys typed there never reach the canvas', async ({ page }) => {
+    await optIn(page);
+    await studio(page);
+    await card(page, 'mixqa-0').click();
+    const btn = page.locator('.topbar .tb-newcluster');
+    await expect(btn.locator('.ncl-count')).toHaveText('1');
+    await btn.click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('The card you picked moves into it. Undo puts it back.');
+    // Backspace on a focused button in the popover is not the canvas's Delete.
+    await page.keyboard.press('Tab');
+    await expect(pop.locator('.ncl-cancel')).toBeFocused();
+    await page.keyboard.press('Backspace');
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(pop).toHaveCount(0);
+    await expect(btn).toBeFocused();
+    await btn.click();
+    await pop.locator('.ncl-cancel').click();
+    await expect(pop).toHaveCount(0);
+    await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+  });
+
+  test('the empty Studio ends with a line about clusters that opens the bar\'s popover', async ({ page }) => {
+    await optIn(page);
+    await page.goto('/?local=1&reset=1&blank=1');
+    const line = page.locator('.cnv-empty-tiles .cnv-empty-clusters');
+    await expect(line).toContainText('Working on more than one thing?');
+    await line.locator('button', { hasText: 'Start a cluster for each' }).click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('It lands on Studio as a card and opens, ready to fill.');
+    await expect(pop.locator('.ncl-field')).toBeFocused();
+    await pop.locator('.ncl-field').fill('Music video');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.crumbs .crumb')).toHaveText(['Studio', 'Music video']);
+    // Inside a cluster the empty panel has no such line: it is Studio's alone.
+    await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
+    await expect(page.locator('.cnv-empty-clusters')).toHaveCount(0);
+  });
+
+  test('the Studio bar: a pile gets one offer, named in the bar\'s popover, and all of it moves', async ({ page }) => {
+    await optIn(page);
+    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    await recordMoves(page);
+    const bar = page.locator('.cnv-studio-bar');
+    await expect(bar.locator('.cnv-studio-bar-txt')).toHaveText('8 loose cards on Studio');
+    await bar.locator('.cnv-studio-bar-go').click();
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('All 8 loose cards move into it. Undo puts them back.');
+    await expect(pop.locator('.ncl-field')).toHaveValue('');
+    await expect(bar).toBeHidden();
+    await pop.locator('.ncl-field').fill('Lost Time');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(0);
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Lost Time' })).toHaveCount(1);
+    await expect(bar).toHaveCount(0);
+    const moves = await page.evaluate(() => window.__moves);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].ids).toHaveLength(8);
+    expect(moves[0]).toMatchObject({ name: 'Lost Time' });
+  });
+
+  test('the Studio bar: dismissed it is gone, and it is offered once per device', async ({ page }) => {
+    await optIn(page);
+    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+    const bar = page.locator('.cnv-studio-bar');
+    await expect(bar).toBeVisible();
+    await bar.locator('.cnv-studio-bar-x').click();
+    await expect(bar).toHaveCount(0);
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    await page.reload();
+    await expect(card(page, 'mixqa-7')).toBeVisible();
+    await page.waitForTimeout(400);
+    await expect(bar).toHaveCount(0);
+  });
+
+  test('the second idea: pictures dropped on an old pile are offered a cluster once they land, and move into it', async ({ page }) => {
+    await optIn(page);
+    await oldPile(page);
+    await recordMoves(page);
+    await dropImages(page, 2);
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(10);
+    const toast = secondIdea(page);
+    await expect(toast).toContainText('New idea? Give these 2 cards their own cluster.');
+    await toast.locator('.toast-action', { hasText: 'New cluster' }).click();
+    // The two are picked, so the bar counts them and its popover says so.
+    const pop = page.locator('.ncl-pop');
+    await expect(pop.locator('.ncl-help')).toHaveText('The 2 cards you picked move into it. Undo puts them back.');
+    await expect(page.locator('.tb-newcluster .ncl-count')).toHaveText('2');
+    await pop.locator('.ncl-field').fill('Locations');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.card.card-kind-board', { hasText: 'Locations' })).toHaveCount(1);
+    await expect(page.locator('.card.card-kind-image')).toHaveCount(8);
+    await expect(card(page, 'mixqa-0')).toBeVisible();
+    const moves = await page.evaluate(() => window.__moves);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].ids).toHaveLength(2);
+    expect(moves[0].ids.some((id) => id.startsWith('mixqa-'))).toBe(false);
+    expect(moves[0]).toMatchObject({ name: 'Locations' });
+  });
+
+  test('the second idea: dismissed, it is not offered again on this device', async ({ page }) => {
+    await optIn(page);
+    await oldPile(page);
+    await pasteText(page, 'Scout the diner on 5th');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
+    const toast = secondIdea(page);
+    await expect(toast).toContainText('New idea? Give this card its own cluster.');
+    await toast.locator('.toast-dismiss').click();
+    await expect(toast).toHaveCount(0);
+    await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
+    // Another old pile on this device: no second offer.
+    await page.goto('/?local=1&reset=1&blank=1&mixqa=8');
+    await expect(card(page, 'mixqa-7')).toBeVisible();
+    await pasteText(page, 'And the motel');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
+    await page.waitForTimeout(1500);
+    await expect(secondIdea(page)).toHaveCount(0);
+  });
+
+  test('the second idea: five cards are not a pile, and a paste in the same sitting is more of the same', async ({ page }) => {
+    await optIn(page);
+    await oldPile(page, 5);
+    await pasteText(page, 'Scout the diner on 5th');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(1);
+    await page.waitForTimeout(1500);
+    await expect(secondIdea(page)).toHaveCount(0);
+    // Six now, but one of them was added a moment ago.
+    await pasteText(page, 'And the motel');
+    await expect(page.locator('.card.card-kind-note')).toHaveCount(2);
+    await page.waitForTimeout(1500);
+    await expect(secondIdea(page)).toHaveCount(0);
+  });
+
+  // The App.jsx half the local harness doesn't mirror: the toast names the
+  // cluster that was just made (its `boards` can predate it), and the toast's
+  // undo trashes that cluster before the source reloads, then drops its card.
+  test('App: the toast names a made cluster and its undo trashes it', () => {
+    const app = read('src/App.jsx');
+    const drop = app.slice(app.indexOf('const onDrop = async (e) => {'), app.indexOf("document.addEventListener('soleil-card-into-board-drop', onDrop);"));
+    expect(drop).toMatch(/createdBoardId = null, createdBoardName = null \} = e\.detail/);
+    expect(drop).toMatch(/const targetName = createdBoardName \|\| boards\[targetBoardId\]\?\.name \|\| 'cluster';/);
+    expect(drop).toMatch(/Made “\$\{targetName\}” from \$\{movedCards\.length\} cards/);
+    const undo = drop.slice(drop.indexOf('onUndo: async () => {'));
+    const trash = undo.indexOf('await deleteBoard(createdBoardId);');
+    expect(trash).toBeGreaterThan(-1);
+    expect(trash).toBeLessThan(undo.indexOf('// 2) Restore the originals on the SOURCE'));
+    expect(undo).toMatch(/if \(createdBoardId && cm\.has\(createdBoardId\)\) cm\.delete\(createdBoardId\);/);
+  });
+});

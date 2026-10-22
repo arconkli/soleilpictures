@@ -61,10 +61,14 @@ test('a failing read is contained', async () => {
   try { r.kick(); await wait(10); } finally { console.warn = warn; r.stop(); }
 });
 
-test('the thread reads again on a rejoin and on an inbox ping for itself', () => {
+test('the thread reads again on a rejoin, and an inbox ping for itself re-reads its message', () => {
   const src = read('../hooks/useMessageThread.js');
   assert.match(src, /onSubscribed: resync\.kick/);
-  assert.match(src, /subscribeInbox\(userId,[\s\S]*?payload\?\.conversation_id === conversationId\) resync\.kick\(\)/);
+  // The ping names the message (0081's message_id); a ping without one, or a
+  // re-read that fails, falls back to reading the whole thread again.
+  assert.match(src, /subscribeInbox\(userId,[\s\S]*?payload\?\.conversation_id === conversationId\) nudge\(payload\.message_id\)/);
+  assert.match(src, /const nudge = \(id\) => \{\s*if \(!id\) \{ resync\.kick\(\); return; \}/);
+  assert.match(src, /if \(rows == null\) \{ resync\.kick\(\); return; \}/);
   const rt = read('./messageRealtime.js');
   assert.match(rt, /channel\.subscribe\(\(status\) => \{ if \(status === 'SUBSCRIBED'\) onSubscribed\?\.\(\); \}\)/);
 });

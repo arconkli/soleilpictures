@@ -82,19 +82,22 @@ for (const kind of SCOPES) {
   });
 }
 
-test('setPageExpanded toggles the flag', async ({ page }) => {
+// Folding a page is kept on the device now (hooks/useDocTreeExpansion), so
+// there is no shared flag to toggle; two entries for one page are what the
+// list has to cope with instead (docPages.concurrency.test has the races).
+test('readPages shows a page once however many entries it has, and healPages clears the extra', async ({ page }) => {
   const res = await page.evaluate(() => {
     const T = window.__soleilDocTest;
     const ydoc = new T.Y.Doc();
     const id = T.addPage(ydoc, { name: 'P' });
-    T.setPageExpanded(ydoc, id, false);
-    const collapsed = T.readPages(ydoc).find(p => p.id === id).expanded;
-    T.setPageExpanded(ydoc, id, true);
-    const expanded = T.readPages(ydoc).find(p => p.id === id).expanded;
-    return { collapsed, expanded };
+    const arr = ydoc.getArray('docPages');
+    ydoc.transact(() => arr.push([{ ...arr.get(0), name: 'P again' }]));
+    const shown = T.readPages(ydoc).filter(p => p.id === id).map(p => p.name);
+    const entries = arr.length;
+    const healed = T.healPages(ydoc);
+    return { shown, entries, healed, after: arr.length, name: T.readPages(ydoc)[0].name };
   });
-  expect(res.collapsed).toBe(false);
-  expect(res.expanded).toBe(true);
+  expect(res).toEqual({ shown: ['P again'], entries: 2, healed: 1, after: 1, name: 'P again' });
 });
 
 test('movePage reorders within siblings', async ({ page }) => {

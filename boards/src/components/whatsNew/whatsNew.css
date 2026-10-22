@@ -1,0 +1,35 @@
+/* The one-time "New" hint on the Files card (WhatsNewHint.jsx), built to the
+   owner's pick B (2026-10-20): the sidebar's own glass, as its Upload menu
+   wears it (clusterSidebar.css .sbf-upmenu), with a tail on what it names.
+   The --sbf-* materials live on <body> while the files sidebar is on. Gold
+   is only the focus ring. */
+.wn-hint{position:fixed;z-index:90;box-sizing:border-box;max-width:calc(100vw - 20px);padding:13px 15px 10px;border-radius:10px;background:var(--sbf-glass);-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);box-shadow:inset 0 0 0 1px var(--sbf-glass-line),var(--sbf-glass-shadow),0 18px 48px rgba(0,0,0,.28);color:var(--ink-0);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;animation:wn-in var(--dur-base,.2s) var(--ease,ease) both}
+[data-theme='light'] .wn-hint{box-shadow:inset 0 0 0 1px var(--sbf-glass-line),var(--sbf-glass-shadow),0 18px 40px rgba(10,10,12,.1)}
+.wn-hint :where(p,h2){margin:0}
+/* The tail: a touch more solid than the glass, which it can't blur behind, and
+   reaching 1px into the bubble so it covers the hairline where they meet. */
+.wn-tail{position:absolute;overflow:visible;pointer-events:none}
+.wn-tail path{fill:color-mix(in oklab,var(--bg-1) 94%,transparent);stroke:var(--sbf-glass-line);stroke-width:1}
+[data-theme='light'] .wn-tail path{fill:color-mix(in oklab,#fcfcfd 94%,transparent)}
+.wn-tail.is-left{left:-7.5px;width:8px;height:16px}
+.wn-tail.is-up{top:-7.5px;width:16px;height:8px}
+.wn-tail.is-down{bottom:-7.5px;width:16px;height:8px}
+.wn-eyebrow{color:var(--ink-2);font:600 10.5px/1.2 var(--font-sans);letter-spacing:.08em;text-transform:uppercase}
+.wn-h{margin-top:6px;color:var(--ink-0);font:600 15px/1.3 var(--font-sans);letter-spacing:-.005em;text-wrap:balance}
+.wn-p{margin-top:5px;color:var(--ink-1);font:400 13px/1.45 var(--font-sans);text-wrap:pretty}
+.wn-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.wn-link{display:inline-flex;align-items:center;gap:5px;min-height:28px;color:var(--ink-1);font:400 12.5px/1 var(--font-sans);text-decoration:none;white-space:nowrap}
+.wn-link:hover{color:var(--ink-0);text-decoration:underline;text-underline-offset:3px}
+.wn-chip{height:28px;padding:0 12px;border:0;border-radius:8px;background:var(--sbf-chip);box-shadow:var(--sbf-chip-shadow);color:var(--ink-0);font:600 12.5px/28px var(--font-sans);white-space:nowrap;cursor:pointer}
+.wn-chip:hover{background:color-mix(in srgb,var(--sbf-chip) 88%,var(--ink-0))}
+.wn-link:focus-visible,.wn-chip:focus-visible{outline:2px solid var(--soleil);outline-offset:2px}
+/* A phone: above the drawer (1100) and its backdrop, as the setup's tips are,
+   with a finger's room on both buttons. */
+.wn-hint.is-phone{z-index:1110;padding:14px 16px 8px}
+.wn-hint.is-phone .wn-h{font-size:16px}
+.wn-hint.is-phone .wn-p{font-size:14px}
+.wn-hint.is-phone .wn-foot{margin-top:6px}
+.wn-hint.is-phone .wn-link{min-height:44px;font-size:14px}
+.wn-hint.is-phone .wn-chip{height:44px;padding:0 18px;border-radius:10px;font-size:14px;line-height:44px}
+@keyframes wn-in{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.wn-hint{animation:none}}

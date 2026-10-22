@@ -2,13 +2,13 @@
 
 > Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, group shots into a cluster per shoot day, and share one live link with the crew.
 
-_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-10-20_
 
 Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.
 
 ## A shot list with pictures, not just rows
 
-A spreadsheet tells you what to shoot; it never shows you. In Clusters your shot list lives on a visual board, so each shot can carry its own reference frame, lens note, and movement right beside the description. Switch a board to list view when you want the clean table, and back to canvas when you want to see it.
+A spreadsheet tells you what to shoot; it never shows you. In Clusters your shot list lives on a visual board, so each shot can carry its own reference frame — or the reference clip itself, playing on the board — with the lens note and movement right beside the description. Switch a board to list view when you want the clean table, and back to canvas when you want to see it.
 
 - Every shot carries its reference frame and notes
 - Toggle between visual canvas and a clean list view
@@ -62,7 +62,7 @@ Yes. Share a live link with your crew, or export boards and docs to PDF.
 
 ### Is it free to start?
 
-Yes. The free Demo tier covers 50 cards — every cluster you make is one of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### How do I make a shot list for a short film?
 

@@ -96,3 +96,21 @@ test('reloadedRecently reads the shared reload guard', () => {
     delete globalThis.sessionStorage;
   }
 });
+
+// ── warm ───────────────────────────────────────────────────────────────
+
+test('warm fetches the chunk ahead of the first render and swallows a failure', async () => {
+  const { lazyWithReload } = await import('./lazyWithReload.js');
+  let calls = 0;
+  const ok = lazyWithReload(() => { calls += 1; return Promise.resolve({ default: () => null }); });
+  ok.warm();
+  assert.equal(calls, 1, 'the import starts at once');
+  const failing = lazyWithReload(() => Promise.reject(new Error('Failed to fetch dynamically imported module: /assets/x.js')));
+  let unhandled = null;
+  const onUnhandled = (e) => { unhandled = e; };
+  process.on('unhandledRejection', onUnhandled);
+  failing.warm();
+  await new Promise((r) => setTimeout(r, 10));
+  process.off('unhandledRejection', onUnhandled);
+  assert.equal(unhandled, null, 'a failed warm is left for the render, which recovers from it');
+});

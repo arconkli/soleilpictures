@@ -1,8 +1,8 @@
 # Cards
 
-> A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
+> A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-11_
+_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-10-21_
 
 Everything on a canvas is a card. They differ in what they hold and nothing
 else — position, size, stacking order, selection, grouping, tagging, commenting
@@ -24,7 +24,6 @@ and duplication work identically on all of them.
 | **Shape** | [Rectangle, ellipse, line, arrow, diamond, triangle, hexagon, star](/docs/canvas/shapes-and-drawing) |
 | **Art canvas** | A bounded drawing surface that lives as a card |
 | **Grid** | A [split-cell layout](/docs/canvas/grids) — storyboards, contact sheets |
-| **Schedule** | A [real-date calendar](/docs/canvas/schedule) you can drop things into |
 | **Vote** | An [up/down poll](/docs/canvas/vote-cards) anchored anywhere |
 | **Cluster** | A [nested board](/docs/clusters), opening into its own canvas |
 | **Linked cluster** | A reference to a cluster that lives elsewhere |
@@ -40,8 +39,10 @@ Four ways, in rough order of speed:
 
 Cards you add without specifying a position are placed in free space, so a batch
 of twelve images arranges rather than stacking on top of what is already there.
-Files you add in [Files](/docs/clusters/list-view#adding-files-here) are the
+Files you add in [Files](/docs/clusters/list-view#adding-files-here), or with
+**Upload** in the [sidebar](/docs/clusters/sidebar#upload-and-storage), are the
 exception: they join the cluster but wait off the board until you place them.
+Every file in a cluster is listed in the sidebar's Files, on the board or not.
 
 ## What every card does
 
@@ -59,9 +60,11 @@ menu.
 standard clipboard behavior: the cut is undoable on the board it happened on,
 the paste on the board it landed on.
 
-**Move to another cluster** — drag cards onto a cluster card, or right-click →
-**Move to cluster…** to send them to any cluster in the workspace, including one
-that isn't on this canvas. A move is one action: its toast undoes both sides at
+**Move to another cluster** — drag cards onto a cluster card, or onto a
+cluster's name in the [sidebar](/docs/clusters/sidebar#moving-and-copying-files)
+to put them in its Files, off its board, or right-click → **Move to cluster…** to
+send them to any cluster in the workspace, including one that isn't on this
+canvas. A move is one action: its toast undoes both sides at
 once. Moving cards doesn't change how many you have.
 
 **Group** — select several and press `⌘G`. See [Groups](/docs/canvas/groups).
@@ -73,6 +76,10 @@ once. Moving cards doesn't change how many you have.
 
 **Copy link** — a deep link that opens the board with that card selected. Useful
 in a message or a doc.
+
+**On a touch screen** the selection carries a gold **⋯** at its top-right
+corner. It opens the menu a right-click would, for one card or for every
+selected card at once. Touch and hold a card to pick it up and move it.
 
 ## Info
 
@@ -129,7 +136,7 @@ Creator removes the limit entirely. See [Plans](/docs/account/plans).
 ### Dropping more files than you have room for
 
 If you drag in more files than your remaining allowance — or a folder, which
-counts a card for each file and one for each cluster it becomes — Clusters
+counts a card for each file, while the clusters it becomes are free — Clusters
 asks before it uploads anything. You can add the ones that fit, upgrade to keep
 them all, or cancel — and until you answer, nothing is uploaded and
 nothing on the canvas changes. Choosing to add the ones that fit always gives

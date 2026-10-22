@@ -12,7 +12,7 @@
 // worker layout, disc/halo/sphere rendering) at sizes the live
 // corpus hasn't reached yet.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 // The harness renders the tab components directly rather than through
 // AdminPage, so it has to pull the admin stylesheet in itself.
 import '../pages/admin/admin.css';
@@ -31,6 +31,7 @@ import { AdminErrorsTab } from '../pages/admin/AdminErrorsTab.jsx';
 import { AdminApiTab } from '../pages/admin/AdminApiTab.jsx';
 import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
 import { AdminDiscoverTab } from '../pages/admin/AdminDiscoverTab.jsx';
+import { AdminEmailsTab } from '../pages/admin/AdminEmailsTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 
 // Install the fixture shim before any tab mounts + fetches.
@@ -156,7 +157,9 @@ function readQaWsTarget() {
 // the HUD would render zeros and the ticker couldn't be reviewed at all.
 const FIXTURE_UNIVERSE_STATS = {
   total_users: 1284, total_workspaces: 640, total_boards: 1810, total_cards: 18420,
+  total_clusters_made: 1170, total_studios: 640,
   total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 40_000_000,
+  last_24h: { users: 7, workspaces: 4, boards: 13, clusters_made: 9, cards: 72 },
   today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
 };
 
@@ -175,9 +178,21 @@ function UniverseQaTab() {
     return source;
   });
   const [picked, setPicked] = useState(null);
+  // A moment fired from the console (window.__universeMoment) moves these the
+  // way the stream would, so the ticker's rolling digits and "+N" can be seen.
+  const [stats, setStats] = useState(FIXTURE_UNIVERSE_STATS);
+  useEffect(() => {
+    const onBump = (e) => setStats((s) => {
+      const next = { ...s };
+      for (const [k, d] of Object.entries(e.detail || {})) next[k] = Math.max(0, (Number(next[k]) || 0) + d);
+      return next;
+    });
+    window.addEventListener('universe-qa-stats', onBump);
+    return () => window.removeEventListener('universe-qa-stats', onBump);
+  }, []);
   return (
     <div className="universe-tab">
-      <UniverseView dataSource={ds} statsOverride={FIXTURE_UNIVERSE_STATS} onPick={setPicked} />
+      <UniverseView dataSource={ds} statsOverride={stats} onPick={setPicked} />
       {picked && (
         <div className="universe-qa-picked" data-testid="universe-qa-picked">
           {picked.kind} · {picked.id}
@@ -188,14 +203,14 @@ function UniverseQaTab() {
 }
 
 // The real Command Center over fixture RPCs. Its universe backdrop is the
-// synthetic corpus; the SSE-fed bottom cells stay 0 (no party server), which
-// is a useful check of the null path — the renderer-fed Nodes/Connections
-// cells beside them still fill in.
+// synthetic corpus, and the SSE-fed figures (the bottom strip, Cards · 24h, the
+// live bar of Cards created) read the same synthetic counters as the ticker,
+// because the labels on those cells are exactly what a review has to read.
 function CommandCenterQaTab() {
   const [ds] = useState(() => makeSyntheticDataSource({ nodeTarget: readQaNodeTarget(), wsTarget: readQaWsTarget() }));
   return (
     <div className="universe-tab">
-      <AdminCommandCenter dataSource={ds} />
+      <AdminCommandCenter dataSource={ds} statsOverride={FIXTURE_UNIVERSE_STATS} />
     </div>
   );
 }
@@ -214,7 +229,7 @@ function DiscoverQaTab() {
 
 const TABS = [
   // One dashboard tab now — its four views live behind ?view= inside it.
-  { id: 'overview',  label: 'Overview',  Component: AdminAnalyticsTab },
+  { id: 'overview',  label: 'Analytics', Component: AdminAnalyticsTab },
   { id: 'users',     label: 'Users',     Component: AdminUsersTab },
   { id: 'grants',    label: 'Grants',    Component: AdminGrantsTab },
   { id: 'waitlist',  label: 'Waitlist',  Component: AdminWaitlistTab },
@@ -222,6 +237,7 @@ const TABS = [
   { id: 'errors',    label: 'Errors',    Component: AdminErrorsTab },
   { id: 'api',       label: 'API',       Component: AdminApiTab },
   { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
+  { id: 'emails',    label: 'Emails',    Component: AdminEmailsTab },
   { id: 'discover',  label: 'Discover',  Component: DiscoverQaTab },
   { id: 'universe',  label: 'Universe',  Component: UniverseQaTab },
   { id: 'command',   label: 'Command',   Component: CommandCenterQaTab },

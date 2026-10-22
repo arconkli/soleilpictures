@@ -158,7 +158,7 @@ function closedList(fn, varName) {
   const { name, body } = latestFunctionBody(fn);
   const m = body.match(new RegExp(`${varName}\\s+not\\s+in\\s*\\(([^)]*)\\)`, 'i'));
   assert.ok(m, `${fn} (${name}) has no closed list on ${varName}`);
-  const ids = [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
+  const ids = [...m[1].matchAll(/'([a-z0-9_]+)'/g)].map((x) => x[1]);
   assert.ok(ids.length > 0, `${fn}'s closed list extracted as EMPTY`);
   return { name, ids };
 }
@@ -167,7 +167,7 @@ function closedList(fn, varName) {
 function labelsOf(fn) {
   const { name, body } = latestFunctionBody(fn);
   const map = {};
-  for (const m of body.matchAll(/when\s+'([a-z_]+)'\s+then\s+'((?:[^']|'')*)'/gi)) map[m[1]] = m[2].replace(/''/g, "'");
+  for (const m of body.matchAll(/when\s+'([a-z0-9_]+)'\s+then\s+'((?:[^']|'')*)'/gi)) map[m[1]] = m[2].replace(/''/g, "'");
   assert.ok(Object.keys(map).length > 0, `${fn} labels extracted as EMPTY`);
   return { name, map };
 }
@@ -179,7 +179,7 @@ function clientList(file, constName) {
   assert.ok(start > -1, `${file} no longer declares ${constName}`);
   const end = src.indexOf('];', start);
   assert.ok(end > start, `could not find the end of ${constName}`);
-  const items = [...src.slice(start, end).matchAll(/id:\s*'([a-z_]+)',\s*label:\s*(['"])((?:(?!\2).)*)\2/g)]
+  const items = [...src.slice(start, end).matchAll(/id:\s*'([a-z0-9_]+)',\s*label:\s*(['"])((?:(?!\2).)*)\2/g)]
     .map((m) => ({ id: m[1], label: m[3] }));
   assert.ok(items.length > 0, `${constName} extracted as EMPTY`);
   return items;
@@ -304,6 +304,24 @@ test('the role step: client, RPC and labels agree', () => {
     `ReturnReasonAsk ROLES and ${name}'s closed list disagree`);
   const { map } = labelsOf('_role_label');
   for (const c of client) assert.equal(map[c.id], c.label, `role '${c.id}' reads differently on the chip and in the table`);
+});
+
+// The ids here are digits ('18_24'), which is why every id pattern in this file
+// admits them: a pattern of letters alone would extract the age list as
+// 'under_18' and 'plus' and fail on the wrong thing.
+test('the age range: client, RPC and labels agree, and the trigger can label it', () => {
+  const client = clientList('ReturnReasonAsk.jsx', 'AGES');
+  const { name, ids } = closedList('submit_age_range', 'v_range');
+  assert.deepEqual(client.map((c) => c.id).sort(), [...ids].sort(),
+    `ReturnReasonAsk AGES and ${name}'s closed list disagree`);
+  const { map } = labelsOf('_age_range_label');
+  for (const c of client) assert.equal(map[c.id], c.label, `age range '${c.id}' reads differently on the segment and in the table`);
+  // The trigger fills a tap-only answer's message from _feedback_label. Without
+  // this branch the label is null, the message becomes the bare kind, and the
+  // admin view shows 'age_range' as if somebody had written it.
+  const { name: labelFrom, body } = latestFunctionBody('_feedback_label');
+  assert.match(body, /p_kind\s*=\s*'age_range'\s+then\s+public\._age_range_label\(p_choice\)/,
+    `${labelFrom}'s _feedback_label has no branch for age_range`);
 });
 
 test('the return question\'s labels are what was tapped', () => {

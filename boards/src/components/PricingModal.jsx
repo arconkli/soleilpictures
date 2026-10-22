@@ -20,7 +20,7 @@ import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
-import { startCheckout, startPortal } from '../lib/checkout.js';
+import { startCheckout, startPortal, warmCheckout, warmPortal } from '../lib/checkout.js';
 import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -41,7 +41,7 @@ import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { useBfcacheRestore } from '../auth/useBfcacheRestore.js';
 
-export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, tierPreview = null, ownWorkPreview = null, initialPlan = null }) {
+export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, wallCards = null, tierPreview = null, ownWorkPreview = null, initialPlan = null }) {
   const { user } = useAuth();
   // `tierPreview` is the admin Surface Gallery's seam and nothing else's. Which
   // of the four headers you get is a prop, but whether the TRIAL is offered is
@@ -67,7 +67,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // re-decides this exact rule against card_index, and the threshold is an
   // exact boundary: a card placed two seconds ago is in useMyTier's delta and
   // not yet in the server's count, so using the optimistic number offers a
-  // trial that is then refused.
+  // trial that is then refused. At the wall it also counts what the person was
+  // trying to hold (the rule's at_wall arm), which the server honours only on
+  // this header.
   // Storage bytes cost an RPC, so only the two headers that are ABOUT capacity
   // pay for it. The ambient headers still name what the reader has built; they
   // just do it in cards and clusters, which are already in hand. Read before
@@ -77,6 +79,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
     storageUsed: storage.loading || storage.error ? null : storage.used,
     storageQuota: storage.loading || storage.error ? null : storage.quota,
+    wallCards: header === 'cap-hit' ? wallCards : null,
   });
   const trialOffer = !trialRefused && trialDecision.eligible;
   // Re-read the server's count the moment the offer opens. It used to be as
@@ -133,6 +136,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   const [plan, setPlan]   = useState(initialPlan === 'annual' ? 'annual' : 'monthly');
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
+  const downOnBackdropRef = useRef(false);   // the press that began on the backdrop itself
   const redirectingRef = useRef(false);   // suppress abandon while a checkout redirect is in flight
   // Back from Stripe restores the page mid-redirect: busy CTA, abandon muted.
   useBfcacheRestore(() => { setBusy(false); redirectingRef.current = false; });
@@ -193,6 +197,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // "Manage billing" would round-trip to create-portal-session's 404. Show
   // the truth on the button instead of a dead end.
   const grantBacked = alreadyPaid && Boolean(grantActive);
+  // The button's function, booted and its preflight answered while the offer
+  // is read (lib/checkout.js), so the click waits on Stripe alone.
+  useEffect(() => {
+    if (tierPreview || grantBacked) return;
+    if (alreadyPaid) warmPortal(); else warmCheckout();
+  }, [tierPreview, alreadyPaid, grantBacked]);
   const onPlanToggle = (p) => {
     const t = up.planToggle(p);
     logEvent(EV.PRICING_PLAN_TOGGLE, { plan: p, surface: 'modal', header, ...t });
@@ -213,7 +223,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     try {
       if (alreadyPaid) await startPortal({ surface });
       else {
-        const out = await startCheckout({ plan, surface, header, via, trial: trialOffer });
+        const out = await startCheckout({ plan, surface, header, via, trial: trialOffer, wallCards: header === 'cap-hit' && trialOffer ? wallCards : null });
         // Checkout opened in a new tab, because this one is holding dropped
         // files (lib/heldUploads.js): the offer has been taken up, so this
         // closes as a CTA — redirectingRef keeps it from reading as a dismiss.
@@ -275,7 +285,17 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   }, []);
 
   return createPortal(
-    <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose('backdrop'); }}>
+    <div
+      className="upgrade-backdrop"
+      onPointerDown={(e) => { downOnBackdropRef.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        // A click whose press began somewhere else (the tap that opened the
+        // wall) is not a dismissal.
+        const pressedHere = downOnBackdropRef.current;
+        downOnBackdropRef.current = false;
+        if (e.target === e.currentTarget && pressedHere) handleClose('backdrop');
+      }}
+    >
       <div className="upgrade-modal" ref={modalRef}>
         <button className="upgrade-close" onClick={() => handleClose('x')} aria-label="Close">×</button>
 

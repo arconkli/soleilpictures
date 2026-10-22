@@ -10,6 +10,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CTA, firstValueSentence } from '../lib/billingCopy.js';
+import { Icon } from './Icon.jsx';
+import { Sparkle } from '../lib/icons.js';
 
 export function FirstValueUpgradeBanner({ trialOffer = false, onSeeCreator, onDismiss }) {
   // "Not now" animates out before App.jsx unmounts us. "See Creator" stays
@@ -24,7 +26,7 @@ export function FirstValueUpgradeBanner({ trialOffer = false, onSeeCreator, onDi
   };
   return (
     <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`} role="dialog" aria-label="Upgrade to Creator">
-      <div className="fv-banner-spark" aria-hidden="true">✦</div>
+      <div className="fv-banner-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
       <div className="fv-banner-copy">
         <div className="fv-banner-title">You're building something.</div>
         {/* The offer is on the banner itself. This is the surface people read

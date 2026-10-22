@@ -25,12 +25,13 @@ const HTML = new TextEncoder().encode('<!doctype html><html><script>alert(1)</sc
 const SVG = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
 
 function world({
-  canWrite = true, quota = { allow: true, reason: 'ok' }, prior = [], insertFails = false,
+  canWrite = true, quota = { allow: true, reason: 'ok' }, prior = [], insertFails = false, reserve = true,
   serve = () => new Response(PNG, { headers: { 'content-type': 'image/png' } }),
 } = {}) {
   const bucket = new Map();
   const inserted = [];
   const fetched = [];
+  const reserved = [];
   const env = {
     IMAGES: {
       put: async (k, v, o) => { bucket.set(k, { v, o }); },
@@ -47,10 +48,15 @@ function world({
       if (table === 'images') return prior;
       throw new Error(`unexpected select ${table}`);
     },
-    userRpc: async (_env, token, fn) => {
+    userRpc: async (_env, token, fn, params) => {
       assert.equal(token, 'good');
       if (fn === 'can_write_board') return canWrite;
       if (fn === 'authorize_image_upload') return [quota];
+      if (fn === 'record_upload_intent') {
+        if (reserve instanceof Error) throw reserve;
+        if (reserve === true) reserved.push({ ...params, storedYet: bucket.size });
+        return reserve;
+      }
       throw new Error(`unexpected rpc ${fn}`);
     },
     userInsert: async (_env, token, table, rows) => {
@@ -67,7 +73,7 @@ function world({
     uuid: () => 'fixed-uuid',
     allow: () => true,
   };
-  return { env, deps, bucket, inserted, fetched };
+  return { env, deps, bucket, inserted, fetched, reserved };
 }
 
 const call = (w, body, { token = 'good', method = 'POST', path = '/api/media/save-url' } = {}) => {
@@ -97,6 +103,22 @@ test('a web picture is stored in the board\'s workspace and recorded under the c
   assert.equal(row.uploaded_by, 'user-1');
   assert.equal(row.size_bytes, PNG.length);
   assert.equal(row.source_url, 'https://cdn.example.com/refs/ext_dusk_04.png?w=1200');
+});
+
+test('the space is reserved before anything is written, and no reservation means nothing is stored (0610)', async () => {
+  const ok = world();
+  const res = await call(ok, { url: 'https://cdn.example.com/a.png', boardId: BOARD, cardId: 'image-1' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(ok.reserved, [{ p_key: 'ws-1/fixed-uuid.png', p_bytes: PNG.length, p_kind: 'put', p_board_id: BOARD, storedYet: 0 }],
+    'reserved as the caller, for the key and the real size, before the put');
+  for (const [reserve, status, code] of [[false, 402, 'over_quota'], [null, 503, 'busy'], [new Error('down'), 503, 'busy']]) {
+    const w = world({ reserve });
+    const r = await call(w, { url: 'https://cdn.example.com/a.png', boardId: BOARD, cardId: 'image-1' });
+    assert.equal(r.status, status, `reserve=${reserve}`);
+    assert.equal((await r.json()).error, code);
+    assert.equal(w.bucket.size, 0, 'nothing written');
+    assert.equal(w.inserted.length, 0, 'nothing recorded');
+  }
 });
 
 test('the bytes decide: a page or an SVG labelled image/png is refused and nothing is stored', async () => {

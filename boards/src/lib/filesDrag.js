@@ -62,6 +62,24 @@ export function plainCardForCopy(card) {
   return out;
 }
 
+// What the sidebar's copy can take (worker-clusters.js routeCopy): everything
+// but a cluster, once its bytes have arrived.
+export function canCopyCard(card) {
+  return !!card && !NEVER_DRAGGED.has(card.kind) && !isStillUploading(card);
+}
+
+// The card as a copy made on the server from its cluster's open doc: its own
+// fields and its live content (a doc's pages, a note's text, a grid's cells,
+// cloned into the destination by cardToYMap), nothing tied to its place.
+export function liveCardForCopy(card) {
+  const out = {};
+  for (const [k, v] of Object.entries(card || {})) {
+    if (PLACE_FIELDS.has(k) || typeof v === 'function') continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 // The stored file a card shows — the identity two copies share.
 export function fileKeyOf(card) {
   if (!card) return null;
@@ -83,10 +101,13 @@ export function onBoardIndex(cards) {
 // ── payload ──────────────────────────────────────────────────────────────
 // Cards are carried whole: the board they land on may never have loaded the
 // cluster they came from.
-export function buildFilesPayload({ sourceBoardId, sourceName = '', cards }) {
+// `intent: 'move'` is the sidebar's: dropped on a board that isn't theirs,
+// the files MOVE there (⌥ still copies), where a drag out of Files makes a
+// linked copy. Absent, a drop does what it always did.
+export function buildFilesPayload({ sourceBoardId, sourceName = '', cards, intent = null }) {
   const list = (cards || []).filter(canDragFromFiles).map((c) => ({ ...plainCardForCopy(c), id: c.id }));
   if (!sourceBoardId || !list.length) return null;
-  return JSON.stringify({ v: 1, sourceBoardId, sourceName, cards: list });
+  return JSON.stringify({ v: 1, sourceBoardId, sourceName, cards: list, ...(intent === 'move' ? { intent } : {}) });
 }
 
 export function parseFilesPayload(raw) {
@@ -96,7 +117,12 @@ export function parseFilesPayload(raw) {
   if (!p || p.v !== 1 || typeof p.sourceBoardId !== 'string' || !Array.isArray(p.cards)) return null;
   const cards = p.cards.filter((c) => c && typeof c.id === 'string' && typeof c.kind === 'string' && !NEVER_DRAGGED.has(c.kind));
   if (!cards.length) return null;
-  return { sourceBoardId: p.sourceBoardId, sourceName: typeof p.sourceName === 'string' ? p.sourceName : '', cards };
+  return {
+    sourceBoardId: p.sourceBoardId,
+    sourceName: typeof p.sourceName === 'string' ? p.sourceName : '',
+    cards,
+    intent: p.intent === 'move' ? 'move' : null,
+  };
 }
 
 // ── what a drop does ─────────────────────────────────────────────────────
@@ -175,6 +201,29 @@ export function planCrossDrop(cards, at, {
   const liveById = new Map((boardCards || []).map((c) => [c.id, c]));
   const moves = alreadyHere.length ? planPlaceAt(alreadyHere.map((id) => liveById.get(id)).filter(Boolean), at) : [];
   return { copies, moves, liveCopy };
+}
+
+// Several blocks let go of at once (a selection from more than one cluster,
+// each moved by its own request): side by side in one row centred on the drop
+// point, rather than in a pile on it. Each block is measured as its drop lays
+// it out (layoutDrop: photographs in justified rows, anything else a grid).
+export function spreadDropPoints(blocks, at, { gap = 48 } = {}) {
+  const list = blocks || [];
+  if (!Number.isFinite(at?.x) || !Number.isFinite(at?.y)) return list.map(() => at);
+  if (list.length < 2) return list.map(() => ({ x: at.x, y: at.y }));
+  const widths = list.map((cards) => {
+    const sized = (cards || []).map((c, i) => ({ id: c?.id || String(i), kind: c?.kind, w: num(c?.w, 240), h: num(c?.h, 200) }));
+    const allImages = sized.length > 1 && sized.every((c) => c.kind === 'image');
+    const laid = sized.length ? layoutDrop(sized, { at: { x: 0, y: 0 }, layout: allImages ? 'justified' : 'grid' }) : [];
+    return laid.length ? Math.max(...laid.map((c) => c.x + c.w)) - Math.min(...laid.map((c) => c.x)) : 0;
+  });
+  const total = widths.reduce((s, w) => s + w, 0) + gap * (list.length - 1);
+  let x = at.x - total / 2;
+  return widths.map((w) => {
+    const p = { x: Math.round(x + w / 2), y: at.y };
+    x += w + gap;
+    return p;
+  });
 }
 
 export function summarizeDrop({ copied = 0, moved = 0, sourceName = '' }) {

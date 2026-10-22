@@ -1,12 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { ChevronDown } from '../lib/icons.js';
 import { ensureGoogleFontLoaded } from '../lib/googleFonts.js';
+import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 
 const POP_WIDTH = 280;
-const POP_GAP = 6;     // gap between trigger and popover
-const VIEWPORT_PAD = 8;
 
 // Custom font dropdown with hover-preview.
 //
@@ -39,76 +38,17 @@ export function FontPickerDropdown({
   align = 'left',
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0, maxHeight: 400 });
   const committedRef = useRef(false);
   const buttonRef = useRef(null);
-  const popRef = useRef(null);
 
-  // Smart-position the popover: prefer below the trigger, flip above when
-  // there isn't room. Clamp horizontally to the viewport. Cap height so the
-  // list scrolls inside instead of falling off-screen.
-  useLayoutEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const measure = () => {
-      const r = buttonRef.current.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const popH = popRef.current?.scrollHeight || 320;
-
-      const spaceBelow = vh - r.bottom - VIEWPORT_PAD;
-      const spaceAbove = r.top - VIEWPORT_PAD;
-      const placeAbove = spaceBelow < 240 && spaceAbove > spaceBelow;
-
-      const maxHeight = Math.min(
-        Math.max(placeAbove ? spaceAbove : spaceBelow, 200) - POP_GAP,
-        Math.round(vh * 0.7),
-      );
-
-      const desiredH = Math.min(popH, maxHeight);
-      const top = placeAbove
-        ? Math.max(VIEWPORT_PAD, r.top - desiredH - POP_GAP)
-        : Math.min(vh - desiredH - VIEWPORT_PAD, r.bottom + POP_GAP);
-
-      const baseLeft = align === 'right' ? r.right - POP_WIDTH : r.left;
-      const left = Math.min(
-        Math.max(VIEWPORT_PAD, baseLeft),
-        vw - POP_WIDTH - VIEWPORT_PAD,
-      );
-
-      setPos({ top, left, maxHeight });
-    };
-    measure();
-    // Re-measure once the popover has rendered (so popH is accurate) and on
-    // window resize.
-    const id = requestAnimationFrame(measure);
-    window.addEventListener('resize', measure);
-    return () => {
-      cancelAnimationFrame(id);
-      window.removeEventListener('resize', measure);
-    };
-  }, [open, align]);
-
-  // Outside click + Escape — cancel (revert preview).
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (popRef.current?.contains(e.target)) return;
-      if (buttonRef.current?.contains(e.target)) return;
-      close(false);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') close(false); };
-    // pointerdown (capture) AND mousedown — pointerdown fires first on most
-    // platforms and isn't swallowed by inner stopPropagation, matching the
-    // dismissal pattern the color picker uses.
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  // Under the trigger, or over it when that has more room (the note bar sits
+  // at the bottom of the canvas), capped to the room it gets so the list
+  // scrolls inside instead of falling off-screen. A press outside or Escape
+  // cancels, reverting the preview (hooks/useAnchoredPopover).
+  const pop = useAnchoredPopover({
+    open, onClose: () => close(false), anchorRef: buttonRef,
+    align: align === 'right' ? 'end' : 'start', fitHeight: true,
+  });
 
   function close(committed) {
     setOpen(false);
@@ -135,6 +75,9 @@ export function FontPickerDropdown({
         type="button"
         className="doc-tb-pill"
         title="Font family"
+        // The font it shows is in its name: "Font: Inter", not "Inter".
+        aria-label={currentLabel && currentLabel !== 'Font' ? `Font: ${currentLabel}` : 'Font'}
+        aria-expanded={open}
         disabled={disabled}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen(o => !o)}
@@ -145,9 +88,9 @@ export function FontPickerDropdown({
 
       {open && createPortal(
         <div
-          ref={popRef}
+          ref={pop.popRef}
           className="font-pop surface-frosted"
-          style={{ top: pos.top, left: pos.left, maxHeight: pos.maxHeight, width: POP_WIDTH }}
+          style={{ ...pop.style, width: POP_WIDTH }}
           onMouseLeave={() => onPreview?.(null)}
           // Rows already keep the editor's focus; a press on a section label
           // or a divider would hand it to <body> instead, which ends a note

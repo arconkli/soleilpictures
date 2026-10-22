@@ -33,12 +33,19 @@ import { SoleilMark } from './primitives.jsx';
 import { ClustersMark } from './SoleilWordmark.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { CanvasSurface } from './CanvasSurface.jsx';
+import { FilesLookContext } from './clusterBrowser/filesLook.js';
+import { filesPageLookAllowed } from '../lib/appHost.js';
 // Lazy: only a cluster whose owner set it to LIST needs the browser, and this
 // is the SEO surface — a canvas pack must not pay for list-view code it will
 // never render. lazyWithReload rather than bare React.lazy so a stale deploy
-// recovers instead of white-screening (see lib/lazyWithReload.js).
-const ListSurface = lazyWithReload(() =>
-  import('./ListSurface.jsx').then(m => ({ default: m.ListSurface })));
+// recovers instead of white-screening (see lib/lazyWithReload.js). The full
+// Files page's look brings the sidebar's controls and materials with it,
+// asked first: each import puts its stylesheet in as it starts, so the page's
+// own comes after them, as in the app.
+const ListSurface = lazyWithReload(() => Promise.all([
+  filesPageLookAllowed() ? import('./clusterBrowser/filesPagePublic.css') : null,
+  import('./ListSurface.jsx'),
+]).then(([, m]) => ({ default: m.ListSurface })));
 import { SharePrompt } from './SharePrompt.jsx';
 import { JoinBoardCard } from './JoinBoardCard.jsx';
 import PublicArticle from './PublicArticle.jsx';
@@ -133,9 +140,11 @@ function remixHref(ctx) {
 // bar on /c/<slug> — it never synthesizes a token.
 export function PublicBoardView({ token, slug }) {
   // Stable identity helpers for the two modes. ctx drives URL/CTA building;
-  // attrib is spread into every analytics event; linkKey de-dupes once-events.
+  // attrib is spread into every analytics event — a public board's slug, never
+  // a share link's token, which opens the board (linkTokens.js); linkKey
+  // de-dupes once-events.
   const ctx = useMemo(() => ({ token, slug }), [token, slug]);
-  const attrib = useMemo(() => (slug ? { public_slug: slug } : { share_token: token }), [slug, token]);
+  const attrib = useMemo(() => (slug ? { public_slug: slug } : {}), [slug]);
   const linkKey = slug || token;
 
   // Does this viewer already have a session? /share bypasses AuthGate, so the
@@ -224,8 +233,9 @@ export function PublicBoardView({ token, slug }) {
   }));
 
   // Seed share attribution into the session first-touch source BEFORE the
-  // first event of this pageload, so share_token (+ utm_source=share_link)
-  // rides on every row and lands in profiles.first_source at signup.
+  // first event of this pageload, so utm_source=share_link rides on every row
+  // and share_token lands in profiles.first_source at signup — the one place
+  // the token is kept (buildRow drops it from the rows).
   useEffect(() => {
     if (slug) seedPublicBoardFirstSource(slug);
     else seedShareFirstSource(token);
@@ -644,6 +654,9 @@ export function PublicBoardView({ token, slug }) {
   // ReferenceError and white-screen the whole public page. `boards.view` is
   // NOT NULL DEFAULT 'canvas' today, which is the only reason it never fired.
   const isListView = cur?.board?.view === 'list';
+  // And as the full Files page a member sees signed in (direction A's look),
+  // from the same switch App reads (lib/appHost.js), without what changes it.
+  const filesLook = isListView && filesPageLookAllowed() ? 'sb' : null;
 
   // ListSurface renders sub-clusters as tiles from childBoards, which the
   // public bundle expresses as the flat navBoards map plus board cards.
@@ -842,7 +855,7 @@ export function PublicBoardView({ token, slug }) {
       ) : (
       <EntityNavigateContext.Provider value={EMPTY_OBJ}>
         <OpenDmContext.Provider value={NOOP}>
-          <div className={`public-canvas-host${navBusy ? ' is-nav-busy' : ''}`} aria-busy={navBusy}
+          <div className={`public-canvas-host${navBusy ? ' is-nav-busy' : ''}${filesLook ? ' is-files' : ''}`} aria-busy={navBusy}
                onPointerDownCapture={heroTouched ? undefined : () => setHeroTouched(true)}>
             {pageModel && stack.length <= 1 && (
               <div className={`pa-hero-hint${heroTouched ? ' is-gone' : ''}`} aria-hidden="true">
@@ -860,6 +873,7 @@ export function PublicBoardView({ token, slug }) {
                 canEdit alone: no mutators, no presence, no file drop. */}
             {isListView ? (
               <Suspense fallback={<div className="public-board-listwait" />}>
+              <FilesLookContext.Provider value={filesLook}>
               <ListSurface
                 board={board}
                 boards={boardsMap}
@@ -877,7 +891,9 @@ export function PublicBoardView({ token, slug }) {
                 onRevealOnCanvas={null}
                 showStorageUpsell={false}
                 showPlacement={false}
+                clusterSwitch={false}
               />
+              </FilesLookContext.Provider>
               </Suspense>
             ) : (
             <CanvasSurface

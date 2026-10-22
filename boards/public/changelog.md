@@ -4,6 +4,164 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-10-22 — A visual refresh, and a home for every file
+
+A new sidebar keeps your clusters on one card and every file on the other, whole folders and zips come in as clusters, clusters cost no cards, and one file or one doc can be shared on its own.
+
+### A new look
+
+- The sidebar is two cards that float over the board: one with Home, Messages
+  and your clusters, and one with **Files**. The board shows through around
+  them, and the controls along the top sit in two floating islands. See
+  [the sidebar](/docs/clusters/sidebar).
+- Each card sizes from its own edges, and the two stack or sit side by side.
+  ⌘\ hides and shows the files.
+- The board's ground moves with your cards, and zooming with a mouse wheel
+  glides.
+- The bell is at the top right of the board, after the theme switch (on a
+  phone, in the top bar before **Share**). Its number counts what you haven't
+  read, and its list opens under it, with **Mark all read**. See
+  [notifications](/docs/collaborate/notifications).
+- Notices, confirmations, tips and ⌘K match the new look. Notices sit under
+  the top-right controls and step aside while the bell's list is open.
+
+### Files
+
+- Upload any file and it stays in the cluster's **Files**, whether or not it's
+  on the board. The Files card lists everything in a cluster, with **Recent**
+  and **Starred**, a search box, the **All files** menu to show one kind, sort
+  and group, and Quick look on a click.
+- Drag files onto another cluster in the sidebar to move them there. Hold
+  Option on a Mac, or Ctrl on Windows, to copy them instead.
+- **Put on board** lays out the files you've picked in one undo step.
+- Press **F**, or ⤢ on the Files card, for the full Files page: the Files
+  card grown full screen, with the same search and **All files** menu, photos
+  and video as a gallery, and a classic list with sortable columns. While it's
+  open the sidebar's Files card folds to a bar, so your files are listed once,
+  and **Shrink**, F or ⌘\ brings the board back. Info opens as a card beside
+  your files, and Quick look has a new floating bar. See
+  [Files](/docs/clusters/list-view).
+- A shared or published link to a cluster that opens in Files shows this page
+  too, read-only.
+- PDFs show their first page even when it couldn't be drawn on upload, and a
+  video upload no longer gets stuck on Uploading.
+
+### Folders and zips
+
+- Drop a folder or a zip, or use **Add → Folder…**, and every folder becomes a
+  nested cluster, its files in Files under their own names and dates. A zip
+  asks whether to unpack it into clusters or keep it as one file, and the
+  parts of one Google Takeout or Drive download become one tree.
+- A tray shows the progress, with Pause and Cancel, and an import that stopped
+  offers Resume. An import bigger than your plan brings in what fits, and the
+  rest waits until there's room.
+- **Bring files from another app…** in the Upload menu gives the download steps
+  for Google Drive, Google Photos, Dropbox, OneDrive and iCloud Drive. See
+  [importing folders and zips](/docs/clusters#importing-folders-and-zips).
+
+### Clusters
+
+- Clusters cost none of your cards, on every plan: a cluster's card on its
+  parent's canvas is free, and only what is inside it counts. A linked cluster
+  still counts as a card.
+- **+ New cluster** sits after the cluster's name at the top of the window,
+  `C` picks the Cluster tool, and on a phone it's **New cluster** at the top
+  of the **+** sheet.
+- Pick two or more cards and right-click → **New cluster from N cards**, or
+  turn a group into a cluster, and one undo puts it all back. When loose cards
+  pile up, Clusters may offer once to move them into a cluster of their own.
+  See [clusters](/docs/clusters#making-a-cluster-from-cards-you-already-have).
+
+### Sharing
+
+- Share a single file from **Share file…** or any full-screen viewer. Its link
+  opens a page with just that file, where people view it or comment on it,
+  pinned to a moment or a page, and you choose whether they can download it.
+- Share one doc on its own, from **Share doc…** in its header: people you add
+  read it or edit it with you, live, and a link can let anyone read it. See
+  [sharing a doc](/docs/collaborate/sharing#sharing-a-doc).
+- Files shared with you open inside Clusters, and **Shared files**, under
+  Shared with me, lists them all. **Save a copy** puts one in your own
+  cluster's Files, and **Add shortcut** puts a live card on your board. See
+  [files shared with you](/docs/collaborate/sharing#files-shared-with-you).
+- A workspace's invite link brings someone into the whole workspace at once.
+  See [inviting a whole workspace](/docs/collaborate/sharing#inviting-a-whole-workspace).
+
+### Getting started
+
+- Some new accounts start with a short setup: name the workspace, say who's in
+  it and what kind of work it is, and invite people, then a few tips once
+  something is on the board. See [getting started](/docs/getting-started).
+
+### Messages
+
+- A new look: your messages are coloured bubbles joined into runs, photos,
+  files and clusters show as cards, and a reply quotes what it answers.
+- Sending, reacting, editing and deleting show at once, a delete offers Undo,
+  direct messages say **Seen**, and a **New** line marks where you left off.
+- The box grows as you type, files upload while you keep typing, and each
+  conversation keeps its own draft. Press and hold a message for its actions.
+
+### Docs
+
+- A doc opens on a double tap on phones and tablets.
+- Images go into a doc with their progress showing, and people a cluster is
+  shared with can add them too.
+- A doc that hits a problem stays open, and replying to or resolving a comment
+  never wipes out someone else's.
+- ⌘Z on the board undoes the board while a doc is docked beside it.
+- With a doc docked beside the board, open another and it takes the board's
+  place, so two docs sit side by side. See
+  [two documents side by side](/docs/documents#two-documents-side-by-side).
+- Typing in a long doc keeps up, in pages and in screenplays too.
+- In find and replace, **All** says how many it replaced, and **Undo** puts
+  them all back.
+- If the cluster is restored to an earlier version while you have a doc open,
+  the doc reopens where you were and says what happened. If the restore took
+  away something you'd written, it offers to copy the page as you had it.
+
+### Phones and tablets
+
+- A tap clears the selection, a hold opens the menus that used to need a right
+  click, and a card's ⋯ is finger-sized at any zoom.
+- In Files, a tap opens a file and a hold opens its menu.
+- In Safari on an iPhone or iPad, a picture in the Files grid fills its tile
+  instead of slipping down inside it.
+- Controls are at least 40px under a finger, most toolbars' buttons included,
+  and tapping into a field, a toolbar's too, no longer zooms the page in on an
+  iPhone or iPad.
+- On a phone the sidebar is the drawer; on a tablet held sideways, clusters
+  and files sit side by side. See [phones and tablets](/docs/account/mobile).
+- A swipe along the tool rail scrolls the rail instead of picking a tool, and
+  its **+** menu fits on a phone and an upright iPad. On a phone, a menu in
+  the review player switches between a clip's versions.
+
+### Keyboard
+
+- Every toolbar is one Tab stop, and the arrow keys move along it. `⌥F10`
+  (`Alt+F10` on Windows) takes you from a doc's or a note's text to its
+  toolbar, and Esc brings you back. See
+  [keyboard shortcuts](/docs/keyboard-shortcuts#toolbars).
+- Typing with an input method, such as Korean, no longer posts a comment, ends
+  a rename or closes the tag picker on the Enter that picks a character.
+
+### Faster
+
+- The app starts loading while the page is still arriving, and an open fetches
+  only what its first screen needs. A reload inside a cluster opens that
+  cluster first.
+- Signing in shows the code step the moment you send your address.
+
+### Plans
+
+- When a drop is more than your free card limit holds, Clusters now offers the
+  Creator trial right there, even before anything has landed on the board.
+
+### Privacy
+
+- Clusters honours Global Privacy Control: with it on, there is no Meta Pixel
+  and nothing is sent to Meta. The [privacy policy](/legal/privacy) says so.
+
 ## 2026-10-18 — Sharing leads with inviting, and an invitation pays you both
 
 The Share panel opens on inviting people and says exactly how far an invitation reaches, everyone with access is in one list, and inviting someone new earns you both extra free cards and storage.
@@ -87,7 +245,7 @@ depending on the page it came from.
   after it, each folder inside it a nested cluster in the same shape, and every
   file a card in the cluster it was in. **Add → Folder…** does the same from a
   picker, on a desktop browser. See
-  [dropping a folder](/docs/clusters#dropping-a-folder).
+  [dropping a folder](/docs/clusters#importing-folders-and-zips).
 - It runs with a progress bar and a **Cancel** that keeps what has landed, and
   its Undo takes every cluster it made to Trash. One drop reads up to
   500 files and makes up to 60

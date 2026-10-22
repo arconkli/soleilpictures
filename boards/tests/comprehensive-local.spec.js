@@ -146,7 +146,7 @@ test.describe('Canvas tools', () => {
     await page.locator('.canvas-wrap').click({ position: { x: 180, y: 180 } });
     const before = await page.locator('.card').count();
     await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
-    await expect(page.getByText('Click on the canvas to place a cluster')).toBeVisible();
+    await expect(page.getByText('Click to place a cluster: a canvas inside this one.')).toBeVisible();
     await page.locator('.canvas-wrap').click({ position: { x: 380, y: 320 } });
     await expect(page.locator('.card')).toHaveCount(before + 1);
   });

@@ -10,25 +10,36 @@ import { relativeTimeShort } from './relativeTime.js';
 // "Mar 12"). Accepts an ISO string or a ms epoch number.
 export const relativeTime = relativeTimeShort;
 
+// A bare 'YYYY-MM-DD' is a calendar day, not an instant. new Date() reads it
+// as UTC midnight, which is the previous evening anywhere west of Greenwich, so
+// every day-grain axis label here (the RPCs' `day` columns are UTC days) read
+// one day early in the US. As a local date it is the day it names. Anything
+// else is still an instant.
+const DAY_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+function asDate(v) {
+  const m = typeof v === 'string' ? DAY_ONLY.exec(v) : null;
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(v);
+}
+
 // Full, unambiguous timestamp — use as the title= tooltip on any
 // relative/abbreviated time so hovering reveals the exact moment.
 export function fmtDateTime(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const d = asDate(iso);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString();
 }
 
 // Calendar date only (no time). "—" for missing/invalid.
 export function fmtDate(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
+  const d = asDate(iso);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
 }
 
 // Compact axis label, e.g. "5/18". Guarded so a bad value never renders
 // the literal "NaN/NaN" onto a chart axis.
 export function shortDate(d) {
-  const dt = new Date(d);
+  const dt = asDate(d);
   if (Number.isNaN(dt.getTime())) return '';
   return `${dt.getMonth() + 1}/${dt.getDate()}`;
 }
@@ -74,6 +85,17 @@ export function localInputToIso(local) {
 // Whole-number-grouped count. "12,431".
 export function formatCount(n) {
   return (Number(n) || 0).toLocaleString();
+}
+
+// A segment value as the admin names it. The sign-up links on a shared
+// cluster, file or template page set utm_campaign to the link's token, and
+// since 0474 the token is never stored: lib/linkTokens.js and the database both
+// write REDACTED_CAMPAIGN in its place, so every such link is this one value.
+// Only its name changes; the funnel still filters on the value as stored.
+export const REDACTED_CAMPAIGN = ':token';
+
+export function segmentLabel(value) {
+  return value === REDACTED_CAMPAIGN ? 'shared link · token not kept' : value;
 }
 
 // Money from cents → "$25" (no cents when whole, else two decimals).

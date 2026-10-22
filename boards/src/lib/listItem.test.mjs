@@ -195,3 +195,32 @@ test('a plain-text note: the first line is its title', async () => {
   const { noteParts } = await import('./listItem.js');
   assert.deepEqual(noteParts('', 'Studio inbox\n\nDrop projects here.'), { title: 'Studio inbox', body: 'Drop projects here.' });
 });
+
+test('an imported file is Modified by its own date, until a version replaces it here', () => {
+  const day = (d) => Date.parse(`2019-06-${d}T10:00:00Z`);
+  const came = '2026-10-20T10:00:00.000Z';
+  // The import finished them in another order than the files were made.
+  const items = [
+    { id: 'b', kind: 'image', fileModified: day(12), createdAt: came, updatedAt: '2026-10-20T10:05:00.000Z' },
+    { id: 'a', kind: 'image', fileModified: day(11), createdAt: came, updatedAt: '2026-10-20T10:09:00.000Z' },
+    { id: 'c', kind: 'image', fileModified: day(13), createdAt: came, updatedAt: '2026-10-20T10:01:00.000Z' },
+  ].map((c) => toListItem(c));
+  assert.deepEqual(sortItems(items, 'updated', 'desc').map((i) => i.id), ['c', 'b', 'a']);
+  assert.deepEqual(sortItems(items, 'updated', 'asc').map((i) => i.id), ['a', 'b', 'c']);
+  assert.equal(items[1].updatedAt, '2019-06-11T10:00:00.000Z');
+  // Added is still when it came in.
+  assert.equal(items[1].createdAt, came);
+
+  const v2 = toListItem({
+    id: 'v', kind: 'image', src: 'r2:w/b.jpg', fileModified: day(11), updatedAt: '2026-10-21T08:00:00.000Z',
+    versions: [{ n: 1, src: 'r2:w/a.jpg' }, { n: 2, src: 'r2:w/b.jpg' }],
+  });
+  assert.equal(v2.updatedAt, '2026-10-21T08:00:00.000Z');
+
+  // No date, or one no clock can hold, leaves the card's own stamp.
+  for (const bad of [0, -5, NaN, Infinity, 1e20, '2019', null]) {
+    assert.equal(toListItem({ id: 'x', kind: 'file', fileModified: bad, updatedAt: came }).updatedAt, came);
+  }
+  // A card nothing imported is unchanged.
+  assert.equal(toListItem({ id: 'n', kind: 'note', createdAt: came }).updatedAt, came);
+});

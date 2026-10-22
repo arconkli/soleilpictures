@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.
 
-_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-20_
 
 Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.
 
@@ -11,6 +11,7 @@ Miro is a whiteboard for everything. Clusters is a canvas built specifically for
 Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.
 
 - Image-first cards with photo adjustments and palettes
+- Video, audio, PDFs and any other file on the board, at any size
 - Docs and screenplay mode built in
 - Tags and a relationship graph across boards
 
@@ -44,7 +45,7 @@ Different tools for different jobs:
 | Client view without a workspace invite | Yes | Account for editing |
 | Flat pricing, not per-seat | Yes ($25/mo Creator) | Per-member |
 | Diagramming & integrations marketplace | Focused | Extensive |
-| Free tier | Yes | Yes |
+| Free tier | Yes — 50 cards or 5GB of files | Yes |
 
 ## What it costs
 
@@ -54,13 +55,13 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- A 1TB drive, on a 1TB drive
+- A 1TB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -82,7 +83,7 @@ Yes. Share a link and they see a clean, interactive read-only preview — no wor
 
 ### Does Clusters have a free tier?
 
-Yes. The Demo tier is free; Creator is $25/mo for unlimited cards and a 1TB drive.
+Yes. The Demo tier is free for 50 cards or 5GB of files, whichever comes first; Creator is $25/mo for unlimited cards and a 1TB drive.
 
 ### Is there a simpler Miro alternative for mood boards?
 

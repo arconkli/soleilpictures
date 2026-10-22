@@ -33,8 +33,14 @@
 // RPC all along and appeared nowhere except a hover tooltip, and it is the more
 // honest of the two at this end: one person having a very busy Tuesday should
 // not make Tuesday look like a popular day.
+//
+// NOW. With `markNow` the cell for this weekday and hour carries a ring, so a
+// live page says where in its own week it is reading. Local time, because the
+// cells are: the Overview asks for them in the browser's zone. The ring is a
+// gap and then a line, where the peak's is a plain outline, so the two differ
+// in shape and not only in colour.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { VAR } from './palette.js';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -43,13 +49,34 @@ const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
 /** 12a / 6a / 12p / 6p — enough to orient, few enough to read. */
 const HOUR_TICKS = { 0: '12a', 6: '6a', 12: '12p', 18: '6p' };
 
+/** This weekday (1=Mon…7=Sun) and hour, local, kept current to the minute. */
+function useNowCell(on) {
+  const read = () => {
+    const d = new Date();
+    return { dow: ((d.getDay() + 6) % 7) + 1, hour: d.getHours() };
+  };
+  const [now, setNow] = useState(read);
+  useEffect(() => {
+    if (!on) return undefined;
+    const id = setInterval(() => {
+      const n = read();
+      setNow((p) => (p.dow === n.dow && p.hour === n.hour ? p : n));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [on]);
+  return on ? now : null;
+}
+
 export function Heatmap({
   /** [{ dow (1=Mon…7=Sun), hour (0-23), events, actors }] */
   cells = [],
   formatValue = (v) => `${v.toLocaleString()} events`,
   emptyLabel = 'No activity recorded in this window.',
+  /** Ring this weekday and hour (see NOW above). */
+  markNow = false,
 }) {
   const [hover, setHover] = useState(null);
+  const nowCell = useNowCell(markNow);
 
   const byKey = new Map(cells.map((c) => [`${num(c.dow)}-${num(c.hour)}`, c]));
   const peak = Math.max(0, ...cells.map((c) => num(c.events)));
@@ -108,18 +135,19 @@ export function Heatmap({
           const v = num(c?.events);
           const si = step(v);
           const isPeak = v === peak;
+          const isNow = nowCell != null && nowCell.dow === di + 1 && nowCell.hour === h;
           return (
             <button
               type="button"
               key={`${di}-${h}`}
-              className={`adm-heat-cell ${isPeak ? 'is-peak' : ''} ${si < 0 ? 'is-zero' : ''}`}
+              className={`adm-heat-cell ${isPeak ? 'is-peak' : ''} ${si < 0 ? 'is-zero' : ''}${isNow ? ' is-now' : ''}`}
               style={{
                 gridColumn: h + 2,
                 gridRow: di + 3,
                 background: si < 0 ? 'var(--adm-heat-zero)' : VAR.seq[si],
               }}
               onPointerEnter={() => setHover({ day, h, v, actors: num(c?.actors) })}
-              aria-label={`${day} ${h}:00 — ${formatValue(v)}`}
+              aria-label={`${day} ${h}:00 — ${formatValue(v)}${isNow ? ', this hour' : ''}`}
             />
           );
         }))}
@@ -153,7 +181,9 @@ export function Heatmap({
                 {' · '}{formatValue(hover.v)}
                 {hover.actors > 0 && <> · {hover.actors} {hover.actors === 1 ? 'person' : 'people'}</>}
               </>
-            : <span className="adm-heat-hint">peak {formatValue(peak)} in one hour</span>}
+            : <span className="adm-heat-hint">
+                peak {formatValue(peak)} in one hour{nowCell ? ' · the ringed hour is now' : ''}
+              </span>}
         </div>
       </div>
     </div>

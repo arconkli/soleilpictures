@@ -13,9 +13,9 @@ const read = (rel) => readFileSync(new URL(rel, new URL('../', import.meta.url))
 test.describe('creator trial wiring', () => {
   test('the modal offers the trial from the shared rule and sends the flag to checkout', () => {
     const s = read('src/components/PricingModal.jsx');
-    expect(s).toMatch(/const trialDecision = creatorTrialEligibility\(\{\s*tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,?\s*\}\);/);
+    expect(s).toMatch(/const trialDecision = creatorTrialEligibility\(\{\s*tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,[\s\S]*?\}\);/);
     expect(s).toMatch(/const trialOffer = !trialRefused && trialDecision\.eligible;/);
-    expect(s).toMatch(/startCheckout\(\{ plan, surface, header, via, trial: trialOffer \}\)/);
+    expect(s).toMatch(/startCheckout\(\{ plan, surface, header, via, trial: trialOffer, wallCards: header === 'cap-hit' && trialOffer \? wallCards : null \}\)/);
     expect(s).toMatch(/trial: trialOffer,/);                       // on pricing_creator_intent
     expect(s).toMatch(/trialOffer \? CTA\.tryCreator : CTA\.getCreator/);
     expect(s).toMatch(/upgrade-trial-note/);
@@ -38,7 +38,7 @@ test.describe('creator trial wiring', () => {
 
   test('checkout carries the flag and a refusal has honest copy', () => {
     const c = read('src/lib/checkout.js');
-    expect(c).toMatch(/startCheckout\(\{ plan, surface, header = null, via = null, trial = false \}\)/);
+    expect(c).toMatch(/startCheckout\(\{ plan, surface, header = null, via = null, trial = false, wallCards = null \}\)/);
     expect(c).toMatch(/trial: Boolean\(trial\)/);
     const e = read('src/lib/checkoutErrors.js');
     expect(e).toMatch(/trial_not_available:/);
@@ -126,7 +126,7 @@ test.describe('creator trial wiring', () => {
     // Same rule, same input as the modal. demoCardCount is optimistic and runs
     // BACKWARDS on delete, so a chip keyed on it would offer a trial the
     // server then refuses — a broken button.
-    expect(c).toMatch(/const trialDecision = creatorTrialEligibility\(\{\s*tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,?\s*\}\);/);
+    expect(c).toMatch(/const trialDecision = creatorTrialEligibility\(\{\s*tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,[\s\S]*?\}\);/);
     expect(c).toMatch(/const trialOffer = trialDecision\.eligible;/);
     // The two offers are mutually exclusive by construction — an invitation
     // beside a request reads as a discount rather than a gift.

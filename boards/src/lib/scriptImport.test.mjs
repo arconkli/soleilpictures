@@ -158,7 +158,7 @@ test('the card is made with its title page and body, and a refused card is never
   assert.match(fn, /afterInsert: \(cardYM\) => \{[\s\S]*setTitlePage\(ydoc, scope, \{ enabled: true, \.\.\.script\.titlePage \}\)[\s\S]*writeScriptBody\(ydoc, scope, script\.body, \{ name: title \}\)/,
     'inside the creation transaction, so one undo takes back the whole import');
   assert.match(fn, /if \(!placed\) return null;\s*setAutoFocusId\(placed\);\s*return placed;/);
-  const add = app.slice(app.indexOf('const addCard = (card, { afterInsert = null } = {}) => {'), app.indexOf('const guardWeightedAdd = '));
+  const add = app.slice(app.indexOf('const addCard = (card, { afterInsert = null, untracked = false } = {}) => {'), app.indexOf('const guardWeightedAdd = '));
   assert.match(add, /surfaceCapHit\(cs\);\s*return null;/, 'a cap refusal places nothing and says so');
   assert.match(add, /tourFireRef\.current\?\.\([^)]*\);\s*\}\s*\}\s*return placedId;\s*\};/, 'a placed card names itself');
   const drop = read('./dropOutcomes.js');

@@ -58,7 +58,7 @@ It reads what you wrote. Text "Scene 4 diner" with five photos and it titles the
 
 ### Is it free?
 
-Yes, to start. The free tier covers 50 cards or 5GB of files, whichever comes first — each cluster is one — with free collaborators. Creator ($25/mo) lifts the cap and gives you a 1TB drive.
+Yes, to start. The free tier covers 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free collaborators. Creator ($25/mo) lifts the cap and gives you a 1TB drive.
 
 ### Can I use it with a board I already have?
 

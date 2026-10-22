@@ -26,11 +26,11 @@ import { CREATOR_FEATURE_KEYS } from '../src/lib/billingCopy.js';
 const byName = (rows, name) => rows.filter((r) => r.event === name);
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/functions/v1/verify-checkout-session', (route) =>
+  await page.route('**/functions/v1/verify-checkout-session*', (route) =>
     route.fulfill({ json: { activated: false, reason: 'not_paid_yet' } }));
-  await page.route('**/functions/v1/create-checkout-session', (route) =>
+  await page.route('**/functions/v1/create-checkout-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/pricing' } }));
-  await page.route('**/functions/v1/create-portal-session', (route) =>
+  await page.route('**/functions/v1/create-portal-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/settings/billing' } }));
 });
 

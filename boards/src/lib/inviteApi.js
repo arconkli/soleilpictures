@@ -55,3 +55,56 @@ export async function claimCollabLink(token) {
   const row = Array.isArray(data) ? data[0] : data;
   return row || null;
 }
+
+// Anon-callable (0450). Previews a whole-workspace invite link (?wsjoin=).
+// Returns { status, workspace_name, inviter_name, role } or null. status is
+// 'live' | 'member' | 'dead'; the names come back cleaned and only while the
+// link is live, and must still be rendered as plain text.
+export async function peekWorkspaceInviteLink(token) {
+  const { data, error } = await supabase
+    .rpc('peek_workspace_invite_link', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row || null;
+}
+
+// Authed call — join the whole workspace through a ?wsjoin= link (0450).
+// Returns { workspace_id, role, status } where status is 'joined' | 'member'
+// | 'dead', or null. Raises when signed out or suspended. Safe to repeat.
+export async function claimWorkspaceInviteLink(token) {
+  const { data, error } = await supabase
+    .rpc('claim_workspace_invite_link', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row || null;
+}
+
+// Authed call — make (or fetch) the workspace's invite link. Returns the uuid
+// token. A second call returns the same live link; past the day's cap it
+// raises with hint 'link_limit' (decide by error.hint / error.code, never the
+// HTTP status).
+export async function createWorkspaceInviteLink(workspaceId, role = 'editor') {
+  const { data, error } = await supabase
+    .rpc('create_workspace_invite_link', { p_workspace_id: workspaceId, p_role: role });
+  if (error) throw error;
+  return data;
+}
+
+// Authed call — what a link does, for the owner or a co-owner of its
+// workspace (0451): { role, expires_at, max_uses, uses, live }, or null for
+// anyone else. A new account's link is shorter and smaller than an older
+// one's, so the copy reads these rather than typing them in.
+export async function getWorkspaceInviteLinkTerms(token) {
+  const { data, error } = await supabase
+    .rpc('get_workspace_invite_link_terms', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row || null;
+}
+
+// Authed call — the owner or a co-owner turns a link off for good. Returns nothing.
+export async function revokeWorkspaceInviteLink(token) {
+  const { error } = await supabase
+    .rpc('revoke_workspace_invite_link', { p_token: token });
+  if (error) throw error;
+}

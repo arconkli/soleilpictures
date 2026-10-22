@@ -1,6 +1,7 @@
 // Doc fixes from the platform audit (group G5), driven through the ?docqa=1
 // harness (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
+import { pageListButton, setScreenplay } from './helpers/docFrame.js';
 
 async function openDoc(page, query = '') {
   await page.goto('/?docqa=1' + query);
@@ -210,7 +211,7 @@ test('SHARE-13: a comment dot follows its text when a paragraph is added above',
 // ── DOCS-20 ───────────────────────────────────────────────────────────────
 test('DOCS-20: renaming a cue updates the on-screen "(CONT\'D)" page-break marker', async ({ page }) => {
   await openDoc(page);
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await page.waitForFunction(() =>
     window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
   null, { timeout: 10000 });
@@ -240,7 +241,7 @@ test('DOCS-21: on a phone, "+" keeps the page drawer open to name the new page',
   await page.setViewportSize({ width: 390, height: 844 });
   await openDoc(page);
   const surface = page.locator('.doc-card-modal .doc-surface');
-  await page.locator('.doc-card-modal .doc-mobile-pages-btn').click();
+  await pageListButton(page.locator('.doc-card-modal')).click();
   await expect(surface).toHaveClass(/mobile-rail-open/);
   await page.locator('.doc-card-modal .doc-tree-add-root').click();
   const name = page.locator('.doc-card-modal .doc-tree-rename');

@@ -12,6 +12,8 @@ test('on a phone, the code step and its inbox shortcut survive a reload', async 
   await page.getByLabel('Email address').fill('e2e-phone-step@gmail.com');
   await page.getByRole('button', { name: /Continue with email/ }).click();
   await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 15000 });
+  // Remembered once the code has gone, not while it is still on its way.
+  await expect(page.getByText(/Check your inbox for the 6-digit code/)).toBeVisible();
 
   await page.reload();
   await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 15000 });

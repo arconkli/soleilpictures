@@ -12,13 +12,16 @@ import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dragMimes.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
-import { boardRecency } from '../lib/projectsHome.js';
+import { sortSiblings } from '../lib/clusterSwitchList.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { boardClipboardSize } from '../lib/boardClipboard.js';
 import { openInfo } from '../lib/infoBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
+import { INDENT } from '../lib/sidebarRows.js';
+import { Icon } from './Icon.jsx';
+import { ChevronRight } from '../lib/icons.js';
 
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -61,6 +64,19 @@ export function SidebarBoardTree({
   peersHereByBoard,
   peersBelowByBoard,
   onJumpToPeer,
+  // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx,
+  // behind sidebarFilesAllowed). When set it owns unfolding ("follow me"),
+  // draws each row as its name alone (no cover, no count: the owner's call,
+  // 2026-10-18) plus an upload's progress, hides rows a search or filter rules
+  // out, and renders an unfolded cluster's shelves after its sub-clusters:
+  //   { isExpanded(id), toggle(id), hasContents(id), isHidden(id),
+  //     statusOf(id) → '↑ 3' | null, renderContents(board, depth, hasChildren),
+  //     dropEffect(event, boardId) → 'move' | 'copy' | null, onDrop(boardId, event),
+  //     menuItems(board, canEdit) → extra row-menu items }
+  // dropEffect says whether a drag of FILES (not clusters) may land on a row;
+  // cluster drags still reparent exactly as before.
+  // Without it the tree is exactly what it was.
+  filesView = null,
 }) {
   const [expanded, setExpanded] = useState(() => loadExpanded(workspaceId, rootId));
   // Inline rename: { boardId, draft }. Double-click a row to enter,
@@ -197,6 +213,8 @@ export function SidebarBoardTree({
     const openItems = [
       { id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) },
       { id: 'share', label: 'Share…', run: () => onShareBoard?.(board.id) },
+      // The files sidebar's own: Star, and "Always open in Files".
+      ...(filesView?.menuItems?.(board, canEdit) || []),
     ];
     const editItems = [];
     const clipboardItems = [{ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) }];
@@ -277,6 +295,7 @@ export function SidebarBoardTree({
   }, [workspaceId]);
 
   const toggle = (id) => {
+    if (filesView) { filesView.toggle(id); return; }
     setExpanded(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -296,7 +315,7 @@ export function SidebarBoardTree({
     return set;
   }, [boards, activeBoardId]);
   useEffect(() => {
-    if (activeAncestors.size === 0) return;
+    if (filesView || activeAncestors.size === 0) return;
     setExpanded(prev => {
       let changed = false;
       const next = new Set(prev);
@@ -323,8 +342,8 @@ export function SidebarBoardTree({
       // the project they are in now is at the top rather than wherever its
       // creation date put it. Deeper levels keep creation order — a project's
       // own structure should not reshuffle every time a card moves.
-      if (rootId && key === rootId) arr.sort((a, b) => boardRecency(b) - boardRecency(a));
-      else arr.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+      // (lib/clusterSwitchList.js: the cluster tab's list keeps the same order.)
+      sortSiblings(arr, key, rootId);
     }
     return out;
   })();
@@ -336,8 +355,9 @@ export function SidebarBoardTree({
     const out = [];
     const walk = (arr) => {
       for (const b of arr) {
+        if (filesView?.isHidden?.(b.id)) continue;
         out.push(b.id);
-        if (expanded.has(b.id)) walk(childrenByParent.get(b.id) || []);
+        if (filesView ? filesView.isExpanded(b.id) : expanded.has(b.id)) walk(childrenByParent.get(b.id) || []);
       }
     };
     walk(roots);
@@ -377,9 +397,10 @@ export function SidebarBoardTree({
   };
 
   const renderRow = (board, depth) => {
+    if (filesView?.isHidden?.(board.id)) return null;
     const kids = childrenByParent.get(board.id) || [];
-    const hasKids = kids.length > 0;
-    const isOpen = expanded.has(board.id);
+    const hasKids = kids.length > 0 || !!filesView?.hasContents?.(board.id);
+    const isOpen = filesView ? filesView.isExpanded(board.id) : expanded.has(board.id);
     const isActive = board.id === activeBoardId;
     const tint = COVER_TINTS[board.cover || 'neutral'] || COVER_TINTS.neutral;
     // Dedup peers by user.id with "exact" preferred over "nested" so the
@@ -405,9 +426,10 @@ export function SidebarBoardTree({
     const isSelected = selectedTreeBoards.has(board.id);
     return (
       <div key={board.id} className="sb-tree-node">
-        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}`}
-             style={{ paddingLeft: 6 + depth * 14 }}
+        <div className={`sb-row sb-tree-row ${isActive ? 'active' : ''} ${activeAncestors.has(board.id) ? 'is-ancestor' : ''} ${isRenaming ? 'is-renaming' : ''} ${isDropTarget ? 'is-drop-target' : ''} ${isSelected ? 'is-selected' : ''}${filesView ? ' is-files' : ''}`}
+             style={{ paddingLeft: filesView ? 8 + depth * INDENT : 6 + depth * 14 }}
              data-board-id={board.id}
+             {...(filesView ? { 'data-drop-board': board.id, 'data-drop-where': 'files' } : {})}
              draggable={!isRenaming}
              onDragStart={(e) => {
                dragGestureRef.current.dragged = true;
@@ -431,6 +453,16 @@ export function SidebarBoardTree({
              }}
              onDragOver={(e) => {
                const t = e.dataTransfer.types;
+               // Held over a folded cluster with clusters inside, a drag from
+               // Files opens it, whether or not it can take the drop itself.
+               if (hasKids && !isOpen) filesView?.springOpen?.(board.id);
+               const fileEffect = filesView?.dropEffect?.(e, board.id);
+               if (fileEffect) {
+                 e.preventDefault();
+                 try { e.dataTransfer.dropEffect = fileEffect; } catch (_) {}
+                 if (dropTargetId !== board.id) setDropTargetId(board.id);
+                 return;
+               }
                if (!t.includes(BOARD_REF_MIME) && !t.includes(BOARD_REF_LIST_MIME)) return;
                // Read the dragged ids from the side-channel (dataTransfer.getData
                // isn't readable during dragover) to reject self / descendant /
@@ -445,10 +477,17 @@ export function SidebarBoardTree({
              }}
              onDragLeave={(e) => {
                if (e.currentTarget.contains?.(e.relatedTarget)) return;
+               filesView?.springLeave?.(board.id, e);
                setDropTargetId(prev => (prev === board.id ? null : prev));
              }}
              onDrop={(e) => {
                setDropTargetId(null);
+               if (filesView?.dropEffect?.(e, board.id)) {
+                 e.preventDefault();
+                 e.stopPropagation();
+                 filesView.onDrop(board.id, e);
+                 return;
+               }
                const childIds = readBoardRefIds(e.dataTransfer);
                if (!childIds.length) return;
                e.preventDefault();
@@ -513,16 +552,18 @@ export function SidebarBoardTree({
                beginRename(board);
              }}
              title={isRenaming ? '' : 'Click to open · double-click to rename · drag onto another board to nest it'}>
-          <button className="sb-tree-chev"
+          <button className={`sb-tree-chev${filesView && isOpen ? ' is-open' : ''}`}
                   onClick={(e) => { e.stopPropagation(); if (hasKids) toggle(board.id); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}
                   /* The row itself takes focus and handles →/←, so the chevron
                      would only be a second tab stop per row. */
                   tabIndex={-1}
                   aria-hidden="true">
-            {isOpen ? '▾' : '▸'}
+            {/* The files sidebar's chevron is the icon its section heads use (it turns
+                when open); the old sidebar keeps its triangles. */}
+            {filesView ? <Icon as={ChevronRight} size={10} weight="regular" /> : (isOpen ? '▾' : '▸')}
           </button>
-          <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />
+          {!filesView && <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : tint }} />}
           {isRenaming ? (
             <input ref={renameInputRef}
                    className="sb-tree-rename-input"
@@ -538,6 +579,10 @@ export function SidebarBoardTree({
           ) : (
             <span className="sb-row-label">{board.name || 'Untitled'}</span>
           )}
+          {filesView && !isRenaming && (() => {
+            const status = filesView.statusOf?.(board.id);
+            return status ? <span className="sbf-status">{status}</span> : null;
+          })()}
           {presence.length > 0 && (
             <span className="bc-toc-peers">
               {presence.slice(0, 3).map(p => (
@@ -559,6 +604,7 @@ export function SidebarBoardTree({
         {hasKids && isOpen && (
           <div className="sb-tree-children" role="group">
             {kids.map(c => renderRow(c, depth + 1))}
+            {filesView?.renderContents?.(board, depth + 1, kids.length > 0)}
           </div>
         )}
       </div>

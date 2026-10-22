@@ -19,6 +19,9 @@ import { cardHeightForBody } from '../lib/noteMeasure.js';
 import { surfaceTone } from '../lib/paletteLayout.js';
 import { readableOn } from '../lib/readableColor.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
+import { inertContainer } from '../lib/inertHtml.js';
 
 // Tags kept when pasting rich content into a note. Everything else is unwrapped
 // (children preserved) and every attribute is stripped except a safe href on
@@ -33,8 +36,7 @@ const PASTE_ALLOWED = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'A'
 // than the note's light-on-dark theme color, which is invisible on a white
 // page. `background-color` is never kept on either path.
 function scrubNoteHtml(html, { dropChrome = false } = {}) {
-  const root = document.createElement('div');
-  root.innerHTML = html;
+  const root = inertContainer(html);
   root.querySelectorAll('script,style,meta,link,iframe,object,embed,img,svg,video,audio,form,input,button').forEach(el => el.remove());
   if (dropChrome) root.querySelectorAll('.note-link-preview,.note-preview-hidden,.ck-box').forEach(el => el.remove());
   // Unwrap disallowed elements (repeat until stable to handle nesting).
@@ -135,7 +137,10 @@ export function RichNoteEditor({
     // note right now (peerLiveHtml from awareness), otherwise the committed
     // html from Y.Doc. peerLiveHtml clears on the peer's blur and falls
     // back to the canonical html.
-    const next = peerLiveHtml ?? (html || (body ? `<div>${escapeHtml(body)}</div>` : ''));
+    // Both arrive from other people (the doc, or a peer's live edit), so they
+    // go through the same sanitizer as the read-only note before the editor
+    // shows them.
+    const next = sanitizeNoteHtml(peerLiveHtml ?? (html || (body ? `<div>${escapeHtml(body)}</div>` : '')));
     if (ref.current.innerHTML !== next) ref.current.innerHTML = next;
     initialRef.current = ref.current.innerHTML;
     seededRef.current = true;
@@ -329,6 +334,9 @@ export function RichNoteEditor({
   };
 
   const onKey = (e) => {
+    // Mid-syllable, a key is the input method's: its Escape would cancel the
+    // whole edit, and its Enter or Backspace reach the checklist rules.
+    if (isComposingKey(e)) return;
     // Format parity with docs: Cmd/Ctrl+B/I/U apply inline formatting to the
     // live selection. Notes previously had NO keyboard formatting at all even
     // though the toolbar advertises "Bold (⌘B)" — the classic "⌘B works in
@@ -782,8 +790,7 @@ function normalizeChecklists(root) {
 }
 
 function linkifyNoteHtml(html) {
-  const root = document.createElement('div');
-  root.innerHTML = html || '';
+  const root = inertContainer(html);
   normalizeChecklists(root);
   root.querySelectorAll('.note-link-preview').forEach(node => node.remove());
   const hidden = new Set(Array.from(root.querySelectorAll('.note-preview-hidden')).map(node => node.dataset.url));

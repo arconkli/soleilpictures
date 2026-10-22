@@ -51,7 +51,8 @@ function sizes() {
   } catch (_) {}
   return sizeCache;
 }
-function rememberSize(src, w, h) {
+// Exported for a doc upload, which knows the shape before the image node mounts.
+export function rememberSize(src, w, h) {
   if (!src || !(w > 0) || !(h > 0)) return;
   const m = sizes();
   const prev = m.get(src);
@@ -122,6 +123,8 @@ export const ImageResizable = Image.extend({
       const mkBtn = (label, val, title) => {
         const b = document.createElement('button');
         b.type = 'button'; b.title = title; b.textContent = label;
+        // The glyph alone named it "⇤" to a screen reader.
+        b.setAttribute('aria-label', title);
         b.className = 'tt-img-tb-btn';
         b.addEventListener('mousedown', (e) => e.preventDefault());
         b.addEventListener('click', (e) => {
@@ -148,6 +151,58 @@ export const ImageResizable = Image.extend({
       });
       tb.appendChild(remove);
       frame.appendChild(tb);
+
+      // Where the bar goes: above the image while the view it scrolls in has
+      // room for it there. Without room (the image opens the doc, or its top
+      // has scrolled out of view, where a click on a half-seen image scrolls
+      // it) the bar hung there anyway, clipped, and the selected image showed
+      // none. Then it goes below, and with neither edge in view it rides at the
+      // top of the part that shows. Measured while the image is selected.
+      const GAP = 6;
+      let clip = null;      // the ancestor that clips the page (.doc-paper)
+      let placing = 0;
+      const findClip = () => {
+        for (let el = dom.parentElement; el && el !== document.body; el = el.parentElement) {
+          if (getComputedStyle(el).overflowY !== 'visible') return el;
+        }
+        return null;
+      };
+      const placeBar = () => {
+        placing = 0;
+        const view = clip ? clip.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        const f = frame.getBoundingClientRect();
+        // Screen px per page px: the doc's zoom scales the page, bar included.
+        const k = frame.offsetHeight ? f.height / frame.offsetHeight : 1;
+        const h = tb.offsetHeight * k;
+        let place = 'above';
+        let top = '';
+        if (f.top - h < view.top) {
+          if (f.bottom + h <= view.bottom) place = 'below';
+          else {
+            place = 'inside';
+            const inset = (Math.max(view.top, f.top) - f.top) / k + GAP;
+            top = `${Math.round(Math.max(0, Math.min(inset, frame.offsetHeight - tb.offsetHeight - GAP)))}px`;
+          }
+        }
+        if (tb.dataset.place !== place) tb.dataset.place = place;
+        if (tb.style.top !== top) tb.style.top = top;
+      };
+      const schedulePlace = () => { if (!placing) placing = requestAnimationFrame(placeBar); };
+      const watchPlace = (on) => {
+        if (on === !!clip) return;
+        if (on) {
+          clip = findClip() || document.documentElement;
+          document.addEventListener('scroll', schedulePlace, { capture: true, passive: true });
+          window.addEventListener('resize', schedulePlace);
+          placeBar();
+        } else {
+          clip = null;
+          document.removeEventListener('scroll', schedulePlace, { capture: true });
+          window.removeEventListener('resize', schedulePlace);
+          if (placing) cancelAnimationFrame(placing);
+          placing = 0;
+        }
+      };
 
       // ── Resize logic ────────────────────────────────────────────────────
       // Widths are CSS px; the pointer moves in screen px. Under the doc's
@@ -210,14 +265,19 @@ export const ImageResizable = Image.extend({
             cancelR2 = applyR2Src(img, curSrc);
           }
           if (updatedNode.attrs.width !== img.style.width) img.style.width = updatedNode.attrs.width || '';
-          dom.className = `tt-img-wrap tt-img-align-${updatedNode.attrs.align || 'center'}`;
+          dom.className = `tt-img-wrap tt-img-align-${updatedNode.attrs.align || 'center'}${clip ? ' is-selected' : ''}`;
+          if (clip) schedulePlace();
           return true;
         },
         // No handles or align bar for a reader — they could only no-op.
-        selectNode() { if (editor.isEditable) dom.classList.add('is-selected'); },
-        deselectNode() { dom.classList.remove('is-selected'); },
+        selectNode() {
+          if (!editor.isEditable) return;
+          dom.classList.add('is-selected');
+          watchPlace(true);
+        },
+        deselectNode() { dom.classList.remove('is-selected'); watchPlace(false); },
         stopEvent(e) { return handle.contains(e.target) || tb.contains(e.target); },
-        destroy() { cancelR2?.(); },
+        destroy() { cancelR2?.(); watchPlace(false); },
       };
     };
   },

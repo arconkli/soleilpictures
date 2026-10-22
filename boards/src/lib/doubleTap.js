@@ -25,3 +25,34 @@ export function tapIsDouble(ref, e, { maxMs = 320, maxDist = 24, key = null } = 
   ref.current = { t: e.timeStamp, x: e.clientX, y: e.clientY, key };
   return false;
 }
+
+// The mouse events and the click a tap still owes the page. The browser sends
+// them just after the finger lifts, to whatever is under it by then — so when a
+// double tap opens something over that spot (a doc), they land inside it: in
+// its editor, on a toolbar button, on the backdrop that closes it. Call this
+// from the pointerup that opens it: for `ms` it swallows that tap's mousedown,
+// mouseup, click and dblclick near (x, y), once each, in the capture phase,
+// then gets out of the way. Returns a function that stops it early.
+const GHOST_TYPES = ['mousedown', 'mouseup', 'click', 'dblclick'];
+export function swallowGhostClick({ x, y }, { ms = 600, maxDist = 30 } = {}) {
+  if (typeof window === 'undefined') return () => {};
+  const seen = new Set();
+  let timer = 0;
+  const onEvent = (ev) => {
+    if (seen.has(ev.type)) return;
+    if (Math.abs(ev.clientX - x) > maxDist || Math.abs(ev.clientY - y) > maxDist) return;
+    seen.add(ev.type);
+    ev.preventDefault();
+    ev.stopPropagation();
+  };
+  // The options object, not a bare `true`: Node's EventTarget (the unit test's
+  // window) won't remove a listener by the boolean form. Browsers take either.
+  const capture = { capture: true };
+  const stop = () => {
+    clearTimeout(timer);
+    for (const t of GHOST_TYPES) window.removeEventListener(t, onEvent, capture);
+  };
+  for (const t of GHOST_TYPES) window.addEventListener(t, onEvent, capture);
+  timer = setTimeout(stop, ms);
+  return stop;
+}

@@ -1,0 +1,172 @@
+/* The first-run setup ("I tuned", owner 2026-10-20): a frosted card over the
+   workspace it is setting up, with the workspace itself as a card above it.
+   Phones get the card as a bottom sheet under the same workspace card.
+   Gold appears only where something is chosen or focused. */
+
+.su{position:fixed;inset:0;z-index:60;overflow:hidden;background:var(--bg-0);color:var(--ink-1);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+.su :where(button,input){font-family:inherit}
+.su :where(button){cursor:pointer}
+.su :where(fieldset){border:0;margin:0;padding:0;min-width:0}
+.su :where(legend){padding:0}
+.su :where(p,h1,h2,ul){margin:0}
+
+/* ── Behind: the workspace being set up, out of focus ───────────────────── */
+.su-behind{position:absolute;inset:0;z-index:0;filter:blur(5px) saturate(.9);transform:scale(1.03);pointer-events:none;
+  background-color:var(--bg-0);background-image:radial-gradient(circle,var(--line-2) 1px,transparent 1.4px);background-size:20px 20px}
+.su-scrim{position:absolute;inset:0;z-index:1;background:rgba(10,10,12,.34)}
+:root[data-theme="light"] .su-scrim{background:rgba(245,245,247,.42)}
+.su-bd-side{position:absolute;left:12px;top:12px;bottom:12px;width:264px;border-radius:14px;background:var(--bg-1);box-shadow:0 0 0 1px var(--line-1);padding:18px 16px;box-sizing:border-box}
+.su-bd-ws{display:flex;align-items:center;gap:10px;margin-bottom:26px}
+.su-bd-av{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;background:var(--bg-4);color:var(--ink-0);font:700 13px/1 var(--font-sans)}
+.su-bd-name{color:var(--ink-0);font:600 14px/1.2 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.su-bd-eyebrow{margin:18px 0 10px;color:var(--ink-2);font:600 11px/1 var(--font-sans);letter-spacing:.06em;text-transform:uppercase}
+.su-bd-row{height:30px;margin-bottom:4px;border-radius:7px;background:var(--bg-2)}
+.su-bd-row.is-on{background:var(--bg-3)}
+.su-bd-row.is-short{width:62%}
+.su-bd-top{position:absolute;top:18px;right:22px;display:flex;gap:8px}
+.su-bd-pill{width:84px;height:30px;border-radius:999px;background:var(--bg-1);box-shadow:0 0 0 1px var(--line-1)}
+.su-bd-pill.is-round{width:30px}
+.su-bd-hero{position:absolute;left:calc(50% + 138px);top:50%;transform:translate(-50%,-50%);width:min(440px,40vw);text-align:center}
+.su-bd-h{height:22px;margin:0 auto 12px;width:62%;border-radius:6px;background:var(--bg-2)}
+.su-bd-p{height:12px;margin:0 auto 8px;width:80%;border-radius:6px;background:var(--bg-1)}
+.su.is-phone .su-bd-side,.su.is-phone .su-bd-top{display:none}
+.su.is-phone .su-bd-hero{left:50%;width:76vw}
+
+/* ── The card stack ─────────────────────────────────────────────────────── */
+.su-shell{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:clamp(24px,9vh,84px) 16px 32px;box-sizing:border-box}
+.su-strip{display:flex;align-items:center;gap:12px;width:528px;max-width:100%;box-sizing:border-box;padding:14px 16px;border-radius:14px;flex:0 0 auto;
+  background:var(--msg-surface);backdrop-filter:blur(24px) saturate(1.1);-webkit-backdrop-filter:blur(24px) saturate(1.1);box-shadow:0 0 0 1px var(--msg-border),var(--shadow-3)}
+.su-strip-av{width:36px;height:36px;flex:0 0 auto;border-radius:8px;display:grid;place-items:center;background:var(--bg-4);color:var(--ink-0);font:700 15px/1 var(--font-sans)}
+.su-strip-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.su-strip-name{color:var(--ink-0);font:600 15px/1.2 var(--font-sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.su-strip-name.is-empty{color:var(--ink-2);font-style:italic}
+.su-strip-line{color:var(--ink-2);font:400 12px/1.2 var(--font-sans)}
+.su-strip-faces{display:flex}
+.su-face{width:26px;height:26px;margin-left:-6px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px var(--bg-1);background:var(--bg-4);color:rgba(10,10,12,.84);font:700 10px/1 var(--font-sans)}
+.su-face:first-child{margin-left:0}
+.su-face.is-invited{box-shadow:0 0 0 2px var(--bg-1),0 0 0 3px var(--ink-3);opacity:.9}
+.su-face.is-seat{box-sizing:border-box;background:transparent;box-shadow:none;border:1.5px dashed var(--ink-3)}
+
+.su-panel{position:relative;width:528px;max-width:100%;box-sizing:border-box;margin-top:36px;padding:32px 32px 28px;border-radius:var(--radius-xl);flex:0 0 auto;
+  background:var(--msg-surface);backdrop-filter:blur(24px) saturate(1.1);-webkit-backdrop-filter:blur(24px) saturate(1.1);box-shadow:0 0 0 1px var(--msg-border),var(--shadow-3)}
+.su-panel:focus{outline:none}
+/* A step's heading takes focus when the step opens, so a screen reader starts
+   there; it is not a control, so it never draws a ring. */
+.su-h[tabindex]:focus{outline:none}
+
+/* Phone: the workspace card on top, the step as a sheet at the bottom. */
+.su.is-phone .su-shell{padding:max(16px,env(safe-area-inset-top)) 16px 0;justify-content:space-between}
+.su.is-phone .su-strip{width:100%;margin-top:28px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 0 0 1px var(--msg-border),var(--shadow-2)}
+.su.is-phone .su-strip-av{width:32px;height:32px;font-size:14px}
+.su.is-phone .su-strip-name{font-size:14px}
+.su.is-phone .su-panel{width:calc(100% + 32px);max-width:none;margin:24px -16px 0;padding:26px 20px calc(30px + env(safe-area-inset-bottom));border-radius:16px 16px 0 0;
+  background:var(--bg-1);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:0 0 0 1px var(--msg-border),var(--shadow-3)}
+
+/* ── Inside a step ──────────────────────────────────────────────────────── */
+.su-back{display:inline-flex;align-items:center;gap:4px;margin:0 0 14px -2px;padding:6px 2px;border:0;background:none;color:var(--ink-2);font:500 13px/1 var(--font-sans)}
+.su-back:hover{color:var(--ink-0)}
+.su-steps{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.su-bars{display:flex;gap:4px}
+.su-bar{width:24px;height:3px;border-radius:2px;background:var(--line-2)}
+.su-bar.is-done{background:var(--ink-2)}
+.su-bar.is-now{background:var(--soleil)}
+.su-stepof{color:var(--ink-2);font:500 12px/1 var(--font-sans)}
+.su-h{color:var(--ink-0);font:600 26px/1.15 var(--font-sans);letter-spacing:-.01em}
+.su.is-phone .su-h{font-size:23px}
+.su-sub{margin-top:10px;max-width:440px;color:var(--ink-2);font:400 15px/1.5 var(--font-sans)}
+.su-field{margin-top:28px}
+.su-label{display:block;margin-bottom:8px;color:var(--ink-2);font:500 12px/1 var(--font-sans)}
+.su-input{box-sizing:border-box;width:100%;height:44px;padding:0 14px;border:1px solid var(--line-2);border-radius:var(--radius);background:var(--bg-3);color:var(--ink-0);font:500 15px/1.4 var(--font-sans);outline:none;
+  transition:box-shadow var(--dur-base) var(--ease),border-color var(--dur-base) var(--ease)}
+.su-input::placeholder{color:var(--ink-2)}
+.su-input:focus{border-color:transparent;box-shadow:var(--shadow-glow)}
+/* iOS Safari (iPhone and iPad) zooms the page onto any field under 16px when it
+   takes focus, as .auth-input in styles.css notes for the sign-in form. */
+@media (pointer: coarse){.su-input{font-size:16px}}
+.su-error{margin-top:10px;color:var(--msg-warn);font:500 13px/1.4 var(--font-sans)}
+.su-actions{display:flex;flex-direction:row-reverse;justify-content:flex-start;align-items:center;gap:12px;margin-top:28px}
+.su-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:var(--radius);font:600 14px/1 var(--font-sans);white-space:nowrap;
+  transition:transform var(--dur-fast) var(--ease),box-shadow var(--dur-base) var(--ease),opacity var(--dur-fast) var(--ease)}
+.su-primary{background:var(--ink-0);color:var(--bg-0)}
+.su-primary:hover:not(:disabled){box-shadow:var(--shadow-1);transform:translateY(-1px)}
+.su-primary:disabled{opacity:.42;cursor:not-allowed}
+.su-secondary{background:transparent;color:var(--ink-0);box-shadow:inset 0 0 0 1px var(--line-3)}
+.su-secondary:hover:not(:disabled){box-shadow:inset 0 0 0 1px var(--ink-2)}
+.su-quiet{padding:0 14px;background:transparent;color:var(--ink-2)}
+.su-quiet:hover{color:var(--ink-0)}
+.su-btn:focus-visible,.su-opt:focus-visible,.su-chip:focus-visible,.su-role:focus-visible,.su-skip:focus-visible,.su-add:focus-visible,.su-back:focus-visible,.su-x:focus-visible{outline:2px solid var(--soleil);outline-offset:2px}
+.su-enter{color:var(--ink-2);font:400 12px/1 var(--font-sans)}
+.su kbd{display:inline-block;margin:0 2px;padding:3px 6px;border-radius:4px;background:var(--bg-2);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-1);font:500 11px/1 var(--font-sans)}
+.su.is-phone .su-enter{display:none}
+
+.su-group{margin-top:26px}
+.su-legend{display:flex;align-items:baseline;margin-bottom:10px;color:var(--ink-0);font:600 13px/1.3 var(--font-sans)}
+.su-opt-note{margin-left:8px;color:var(--ink-2);font-weight:400}
+.su-opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.su-opt{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px 14px 13px;border:0;border-radius:8px;background:var(--bg-2);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-1);font:500 14px/1.2 var(--font-sans);text-align:left}
+.su-opt:hover{box-shadow:inset 0 0 0 1px var(--line-3)}
+.su-opt-ico{color:var(--ink-2)}
+.su-opt.is-on{background:var(--soleil-soft);box-shadow:inset 0 0 0 1px var(--soleil);color:var(--ink-0)}
+.su-opt.is-on .su-opt-ico{color:var(--soleil)}
+.su.is-phone .su-opts{gap:6px}
+.su.is-phone .su-opt{padding:12px 10px;font-size:13px}
+.su-chips{display:flex;flex-wrap:wrap;gap:8px}
+.su-chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px 0 12px;border:0;border-radius:999px;background:var(--bg-2);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-1);font:500 13px/1 var(--font-sans)}
+.su-chip:hover{box-shadow:inset 0 0 0 1px var(--line-3)}
+.su-chip-ico{color:var(--ink-2)}
+.su-chip.is-on{background:var(--soleil-soft);box-shadow:inset 0 0 0 1px var(--soleil);color:var(--ink-0)}
+.su-chip.is-on .su-chip-ico{color:var(--soleil)}
+
+/* ── The invite: the link first, one email row second ───────────────────── */
+.su-link{display:flex;align-items:center;gap:10px;margin-top:22px;padding:5px 5px 5px 14px;border:1px solid var(--line-2);border-radius:var(--radius);background:var(--bg-3)}
+.su-link-ico{flex:0 0 auto;color:var(--ink-2)}
+.su-link-url{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--ink-1);font:500 14px/1.2 var(--font-sans)}
+.su-link-url.is-waiting{color:var(--ink-3)}
+.su-link .su-btn{flex:0 0 auto;height:34px;padding:0 14px;font-size:13px}
+.su-link .su-btn.is-done{box-shadow:none;background:var(--bg-2);color:var(--ink-0)}
+.su-link .su-btn.is-done svg{color:var(--msg-ok)}
+.su-share-btn{width:100%;margin-top:20px}
+.su-linknote{margin-top:10px;max-width:440px;color:var(--ink-2);font:400 13px/1.5 var(--font-sans)}
+.su.is-phone .su-linknote{font-size:12px}
+.su-or{display:flex;align-items:center;gap:12px;margin-top:22px;color:var(--ink-2);font:500 12px/1 var(--font-sans);white-space:nowrap}
+.su-or::before,.su-or::after{content:'';flex:1;height:1px;background:var(--line-2)}
+.su.is-phone .su-or{margin-top:18px}
+.su-rows{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.su-row{display:flex;align-items:center;gap:8px}
+.su-email{flex:1;min-width:0}
+.su-role{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px;border:1px solid var(--line-2);border-radius:var(--radius);background:var(--bg-3);color:var(--ink-1);font:500 13px/1 var(--font-sans)}
+.su-x{flex:0 0 auto;display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:var(--radius);background:none;color:var(--ink-2)}
+.su-x:hover{background:var(--bg-hov);color:var(--ink-0)}
+.su-email-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.su-add{display:inline-flex;align-items:center;gap:6px;padding:6px 0;border:0;background:none;color:var(--ink-1);font:500 13px/1 var(--font-sans)}
+.su-add:hover{color:var(--ink-0)}
+.su-add:disabled{visibility:hidden}
+.su-email-actions .su-btn{height:36px;padding:0 14px;font-size:13px}
+.su-send:disabled{opacity:1;background:transparent;color:var(--ink-3);box-shadow:inset 0 0 0 1px var(--line-2);cursor:not-allowed}
+.su-reward{display:flex;align-items:center;gap:9px;margin-top:22px;padding:10px 12px;border-radius:6px;background:var(--bg-2);color:var(--ink-1);font:500 13px/1.4 var(--font-sans)}
+.su-reward svg{flex:0 0 auto;color:var(--ink-1)}
+.su.is-phone .su-reward{margin-top:16px}
+.su-results{list-style:none;margin-top:14px;padding:0;border-radius:8px;background:var(--bg-1);box-shadow:inset 0 0 0 1px var(--line-1);overflow:hidden}
+.su-res{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;padding:0 14px;border-top:1px solid var(--line-1);font:400 13px/1.3 var(--font-sans)}
+.su-res:first-child{border-top:0}
+.su-res-mail{color:var(--ink-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.su-res-st{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;color:var(--ink-2);font-weight:500}
+.su-res-st svg{color:var(--msg-ok)}
+.su-res.is-no .su-res-st{color:var(--msg-warn)}
+.su-note{display:flex;gap:9px;margin-top:14px;max-width:460px;color:var(--ink-1);font:400 13px/1.5 var(--font-sans)}
+.su-note svg{flex:0 0 auto;margin-top:2px;color:var(--msg-warn)}
+.su-actions-lf{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:20px}
+.su-skip{display:inline-block;height:40px;padding:0 4px;border:0;background:none;color:var(--ink-2);font:500 13px/1 var(--font-sans)}
+.su-skip:hover{color:var(--ink-0)}
+.su.is-phone .su-actions-lf{justify-content:center;margin-top:10px}
+.su.is-phone .su-actions-lf .su-primary{width:100%}
+
+/* ── Joining someone's workspace ────────────────────────────────────────── */
+.su-joining{display:flex;margin-bottom:20px}
+.su-jface{width:34px;height:34px;margin-left:-8px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 3px var(--bg-1);background:var(--bg-4);color:rgba(10,10,12,.84);font:700 13px/1 var(--font-sans)}
+.su-jface:first-child{margin-left:0}
+
+@media (prefers-reduced-motion: reduce){
+  .su-btn,.su-input{transition:none}
+  .su-primary:hover:not(:disabled){transform:none}
+}

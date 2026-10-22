@@ -95,7 +95,7 @@ function RetentionCurvePanel({ rows, windowDays, work }) {
       title="Return curve"
       meta={`n=${formatCount(eligible)} · ${windowDays}d`}
       foot={work
-        ? 'Work-days, not app-open days — user_active_day carries no work event on 54% of its rows. Starts at the first day work was recorded.'
+        ? 'Work-days, not app-open days: many user_active_day rows carry no work event. Starts at the first day work was recorded.'
         : 'App-open days (presence), not work — this database predates the work-gated curve, so it reads higher than the panels beside it.'}
     >
       <TrendLine
@@ -234,7 +234,9 @@ export function RetentionView() {
       supabase.rpc('admin_return_fixed_horizon', { p_since: '2026-08-17', p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Only to size the intake for the power note — how long a change would
       // take to become readable depends on how fast people arrive.
-      supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly }),
+      // Under "Internal: excluded" the intake leaves the team out too (0460
+      // gave this RPC the parameter); it used to size the note on everyone.
+      supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly, p_exclude_internal: f.excludeInternal }),
       // 0361. The same fixed horizon, but only a later visit that MADE something
       // counts — about half of the any-visit returners came back to look for a
       // few seconds, and a change that produces glances must not grade as a win.
@@ -393,7 +395,7 @@ export function RetentionView() {
         </Deck>
 
         {/* On the plot ground with the matrix under it, for the same reason
-            Today's hero rail is: a headline readout floating on the bare page
+            Overview's hero rail is: a headline readout floating on the bare page
             between two instrumented sections reads as a caption, not a gauge. */}
         <Deck>
           <Well span={12} className="adm-rail" title="Return rate" meta="work-days, within the window">

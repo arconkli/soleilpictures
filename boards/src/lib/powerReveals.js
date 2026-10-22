@@ -4,8 +4,8 @@
 // Upfront feature tours underperformed just-in-time discovery here — power
 // TOLD is power ignored.
 // These reveals surface one capability at the exact moment the user's own
-// content makes it relevant (4 images → Grids; a crowded root → clusters; a
-// full cluster → List-as-drive; a pile of notes → Docs; a dense board → ⌘K).
+// content makes it relevant (4 images → Grids; a full cluster →
+// List-as-drive; a pile of notes → Docs; a dense board → ⌘K).
 // Discipline: once-ever per reveal (localStorage, read-fail = seen), at most
 // ONE reveal per session (sessionStorage — a reload must NOT re-arm), never
 // while a tour is showing, and each reveal self-suppresses when the feature is
@@ -26,19 +26,15 @@ export const POWER_REVEALS = [
     actionLabel: 'Try a Grid',
     eligible: (s) => s.imageCards >= 4 && s.gridCards === 0,
   },
-  {
-    // The organize AHA (nesting) — pitched on the root when it gets crowded.
-    key: 'group',
-    message: 'Boards nest infinitely — make a cluster and drag these cards in.',
-    actionLabel: 'Make a cluster',
-    eligible: (s) => s.isRoot && s.nonBoardCards >= 6 && s.clusterCards === 0,
-  },
+  // The organize pitch for a crowded root ('group') was retired with the
+  // cluster-adoption release (2026-10-21): the Studio bar (CanvasSurface,
+  // claimHint('studio_bar')) makes that offer now, and moves the pile itself.
   {
     // The storage power (the old tour's closing pitch, relocated to the moment
-    // a real cluster fills up). Root is group's territory — and the copy says
-    // "cluster", so it only fires inside one.
+    // a real cluster fills up). The copy says "cluster", so it only fires
+    // inside one, never on the root.
     key: 'list_drive',
-    message: 'This cluster is also a drive — open Files and everything you added is lined up in one place. Press F any time.',
+    message: 'This cluster is also a drive — everything you added is in Files, in the sidebar. Open it full screen to see it lined up in one place. Press F any time.',
     actionLabel: 'Open Files',
     eligible: (s) => !s.isRoot && s.nonBoardCards >= 4 && s.view === 'canvas' && !s.viewEverSwitched,
   },

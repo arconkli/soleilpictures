@@ -22,6 +22,7 @@ import { noteExtensions } from '../components/noteExtensions/noteExtensions.js';
 import { pageFragmentToText } from './docState.js';
 import { noteSourceHtml, htmlHasText, bodyHasText } from './noteBody.js';
 import { hiddenPreviewMarkers } from './noteLinkify.js';
+import { inertContainer } from './inertHtml.js';
 
 // Origin for note STRUCTURAL ops (fragment create/seed) and the derived-html
 // write-through. Deliberately NOT 'local' so the board-level Y.UndoManager
@@ -138,8 +139,7 @@ export function noteCommentScope(ydoc, cardYMap) {
 // markers are tracked as a card field — neither belongs in the fragment.
 export function stripNoteChromeForSeed(html) {
   if (!html || typeof document === 'undefined') return html || '';
-  const root = document.createElement('div');
-  root.innerHTML = html;
+  const root = inertContainer(html);
   root.querySelectorAll('.note-link-preview, .note-preview-hidden').forEach((el) => el.remove());
   // An auto-link (an anchor whose text IS its URL) is linkify's own output,
   // not something the author made: keep it as the plain URL text the editor

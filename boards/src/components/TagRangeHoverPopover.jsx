@@ -35,6 +35,7 @@ import { R2Image } from './R2Image.jsx';
 import { ImageLightbox } from './ImageLightbox.jsx';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { fetchTagVisuals } from '../lib/tagVisuals.js';
+import { shareTargetForRef } from '../lib/fileShareBus.js';
 import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -141,7 +142,9 @@ export function TagRangeHoverPopover({
         }
         return;
       }
-      if (e.key === 'Escape') onClose?.();
+      // Claimed: the open doc is a layer (lib/modalGuard) that would close
+      // on the same Escape at the window.
+      if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
     };
     const onDown = (e) => {
       if (!popRef.current) return;
@@ -269,6 +272,7 @@ export function TagRangeHoverPopover({
         src={data.images[lightboxIdx].src}
         title={data.images[lightboxIdx].title || ''}
         alt={data.images[lightboxIdx].title || ''}
+        shareTarget={shareTargetForRef({ ...data.images[lightboxIdx], kind: 'image', name: data.images[lightboxIdx].title }, 'tag_popover')}
         onClose={() => setLightboxIdx(null)}
       />
     )}

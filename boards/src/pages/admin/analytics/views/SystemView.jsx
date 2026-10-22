@@ -38,12 +38,18 @@ const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
  * should live next to the honesty contract instead of inside a retention view.
  */
 function Instrumentation({ rows }) {
-  const data = (rows || []).map((r) => ({
-    label: r.milestone,
-    value: num(r.coverage_pct) * 100,
-    server: num(r.server_truth),
-    client: num(r.client_event),
-  }));
+  const data = (rows || []).map((r) => {
+    const server = num(r.server_truth);
+    return {
+      label: r.milestone,
+      value: num(r.coverage_pct) * 100,
+      server,
+      client: num(r.client_event),
+      // Nobody reached it, so there is nothing to cover: a red 0% would say
+      // the instrument is broken when the feature is only unused.
+      none: server === 0,
+    };
+  });
 
   return (
     <Well
@@ -54,13 +60,16 @@ function Instrumentation({ rows }) {
       <BarRows
         rows={data}
         max={100}
-        formatValue={(v) => `${v.toFixed(0)}%`}
-        secondary={(r) => (
+        formatValue={(v, r) => (r.none ? '—' : `${v.toFixed(0)}%`)}
+        secondary={(r) => (r.none ? (
+          <span className="admin-muted">nobody yet</span>
+        ) : (
           <span title="client events / server truth">
             {formatCount(r.client)} / {formatCount(r.server)}
           </span>
-        )}
+        ))}
         colors={(r) => (r.value < 80 ? VAR.bad : VAR.ink)}
+        isMuted={(r) => r.none}
         emptyLabel="No milestones reached in this window."
       />
     </Well>
@@ -119,7 +128,26 @@ function OnboardingErrors({ rows, days }) {
  * the tree, which means it was known and invisible. Someone reading a number on
  * this dashboard deserves to find out here rather than by re-deriving it.
  */
-function KnownLimits({ excludeInternal }) {
+// Revenue in one line, from the live subscription counts rather than typed
+// once and left to go stale: "no subscription has ever existed" stayed up
+// after the first trial began.
+function revenueLimit(stats) {
+  const subs = stats?.sub_counts;
+  const paying = num(subs?.active);
+  const trialing = num(subs?.trialing);
+  const trials = trialing > 0
+    ? `${formatCount(trialing)} subscription${trialing === 1 ? ' is a trial' : 's are trials'}: paid access, no money yet, never counted as revenue.`
+    : 'A trial is paid access with no money in it yet, and is never counted as revenue.';
+  if (!subs || paying > 0) return { head: 'Revenue is charges that cleared.', body: trials };
+  return {
+    head: 'Revenue is empty by absence.',
+    body: 'Nobody has paid yet, so MRR, ARPU and every conversion rate have a zero numerator because nothing '
+      + `happened, not because measurement failed.${trialing > 0 ? ` ${trials}` : ''}`,
+  };
+}
+
+function KnownLimits({ excludeInternal, stats }) {
+  const revenue = revenueLimit(stats);
   // A plate, not a well: six paragraphs reversed onto near-black is heavy and
   // prose does not need graph paper under it. Same radius, ticks and register,
   // so it still belongs to the deck.
@@ -138,7 +166,8 @@ function KnownLimits({ excludeInternal }) {
               {excludeInternal ? 'Internal traffic excluded' : 'Internal traffic included'}
             </span>
             Founder, admin and test accounts are {excludeInternal ? 'removed from' : 'counted in'} every
-            product metric. Toggle in the toolbar to compare.
+            Analytics figure. Toggle in the toolbar to compare. Universe always counts them, and says
+            &ldquo;incl. team&rdquo;.
           </li>
           <li>
             <strong>&ldquo;Sessions&rdquo; in the funnel are browsers.</strong> The funnel RPCs count distinct
@@ -147,15 +176,13 @@ function KnownLimits({ excludeInternal }) {
             is <code>app_session_id</code>, and it is NULL for every row written before that migration.
           </li>
           <li>
-            <strong>Presence is not work.</strong> 54% of <code>user_active_day</code> rows contain no work
-            event at all. Panels that say &ldquo;did work&rdquo; pass <code>p_require_work</code>; those that
-            say &ldquo;active&rdquo; do not. <code>did_work</code> cannot be backfilled, so it is false for
+            <strong>Presence is not work.</strong> A <code>user_active_day</code> row says the app was open,
+            and many hold no work event at all. Panels that say &ldquo;did work&rdquo; pass
+            <code> p_require_work</code>; those that say &ldquo;active&rdquo; do not. <code>did_work</code> cannot be backfilled, so it is false for
             everything before 2026-08-17.
           </li>
           <li>
-            <strong>Revenue is empty by absence.</strong> No subscription has ever existed, so MRR, ARPU and
-            every conversion rate have a zero numerator because nothing happened — not because measurement
-            failed.
+            <strong>{revenue.head}</strong> {revenue.body}
           </li>
           <li>
             <strong>Two windows in the history are contaminated.</strong> Events before migration 0230 include
@@ -166,8 +193,9 @@ function KnownLimits({ excludeInternal }) {
           <li>
             <strong>Rates are sample-size gated.</strong> Solid at n ≥ {MIN_RATE_FLAG}; from {MIN_RATE_SHOW}
             –{MIN_RATE_FLAG - 1} flagged <em>directional</em>; below {MIN_RATE_SHOW} hidden. Trend lines need
-            ≥ {MIN_POINTS} real points, and <code>metrics_daily</code> has no backfill — so a gap in a
-            sparkline is a missing day, not a zero.
+            ≥ {MIN_POINTS} real points. <code>metrics_daily</code> has a row for every day: since 0460 its
+            signups and active users are recomputed when the day closes, while tier counts and MRR are what
+            they were that night.
           </li>
         </ul>
       </div>
@@ -197,7 +225,7 @@ export function SystemView() {
       <div className="adm-view">
         <h2 className="admin-section-title">Honesty</h2>
         <Deck>
-          <KnownLimits excludeInternal={f.excludeInternal} />
+          <KnownLimits excludeInternal={f.excludeInternal} stats={f.stats} />
         </Deck>
 
         <h2 className="admin-section-title">Instrumentation</h2>

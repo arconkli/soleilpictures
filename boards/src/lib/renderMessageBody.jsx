@@ -20,6 +20,8 @@
 
 import React from 'react';
 import { EntityLink } from '../components/EntityLink.jsx';
+import { ClusterPillCover } from '../components/MessageThings.jsx';
+import { coerceRef } from './entityRef.js';
 import { scanForAutoLinks } from './scanForAutoLinks.js';
 import { scanMentions, hasUnresolvedMention } from './messageMentions.js';
 
@@ -65,7 +67,12 @@ function renderInline(str, ctx, keyPrefix = 'i') {
       out.push(...renderTextSegment(seg.text, ctx, `${keyPrefix}-${counter++}`));
     } else {
       const kind = seg.mention?.kind || 'user';
-      out.push(<span key={`${keyPrefix}-mn${counter++}`} className={`msg-pill msg-pill-${kind}`}>{seg.text}</span>);
+      const boardId = kind === 'board' ? coerceRef(seg.mention.ref)?.id : null;
+      out.push(
+        <span key={`${keyPrefix}-mn${counter++}`} className={`msg-pill msg-pill-${kind}`}>
+          {boardId && <ClusterPillCover boardId={boardId} />}{seg.text}
+        </span>,
+      );
     }
   }
   return out;

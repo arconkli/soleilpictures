@@ -15,6 +15,7 @@
 //    to be synthesized anyway, crediting whoever exported).
 
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 import { createRequire } from 'module';
 import { readFileSync } from 'fs';
 
@@ -45,7 +46,7 @@ async function openScreenplayDoc(page) {
   await expect(page.locator('.doc-card-modal')).toBeVisible();
   await expect(page.locator('.tt-editor').first()).toBeVisible();
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
 }
 

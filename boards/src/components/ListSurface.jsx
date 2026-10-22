@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
-import { canDragFromFiles, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
-import { beginDragSession, onDragSession } from '../lib/springLoad.js';
+import { canDragFromFiles, canCopyCard, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
+import { beginDragSession, dragSession, onDragSession } from '../lib/springLoad.js';
+import { decideDrop, copyKeyHeld, whatOf } from '../lib/dropRules.js';
+import { BLANK_DRAG_IMAGE, dragLabelShown } from './sidebar/DragLabel.jsx';
 import { useSpring } from '../hooks/useSpring.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { PathBar } from './clusterBrowser/PathBar.jsx';
@@ -29,18 +31,18 @@ import { formatDuration } from '../lib/loopMeta.js';
 import { searchEntities } from '../lib/entitySearch.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import { usePeerSelections } from '../hooks/usePeerSelections.js';
-import { ClusterBrowserToolbar } from './clusterBrowser/ClusterBrowserToolbar.jsx';
-import { FolderTile } from './clusterBrowser/FolderTiles.jsx';
+import { ClusterBrowserToolbar, StorageUpsell } from './clusterBrowser/ClusterBrowserToolbar.jsx';
+import { FolderTile, FolderRow } from './clusterBrowser/FolderTiles.jsx';
 import { ClusterTable } from './clusterBrowser/ClusterTable.jsx';
 import { JustifiedGallery } from './clusterBrowser/JustifiedGallery.jsx';
 import { readTileSize, writeTileSize } from '../lib/justifiedGrid.js';
 import { DetailPanel } from './clusterBrowser/DetailPanel.jsx';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
 
-// Quick look ships in its own chunk: most visits to Files never open it.
 // Files' scroll position per cluster (and size of Files), for this session.
 const SCROLL_MEMORY = new Map();
 
+// Quick look ships in its own chunk: most visits to Files never open it.
 const QuickLook = lazy(() => import('./clusterBrowser/QuickLook.jsx'));
 
 // Info (the detail panel) is opt-in — ⌘I or Info — and the choice is this
@@ -54,18 +56,43 @@ function writeInfoPref(on) {
 }
 import { groupGridFamilies } from '../lib/gridFamilies.js';
 import * as audioBus from '../lib/audioBus.js';
+import { fileSharesAllowed, clusterNudgesAllowed, touchPassAllowed } from '../lib/appHost.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
+import { captureDropEntries, captureDropHandles, hasDirectory } from '../lib/folderWalk.js';
+import { isZipFile } from '../lib/importZips.js';
+import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
+import { publishNewClusterPick } from '../lib/newClusterPick.js';
+import { spotBesideContent } from '../lib/projectsHome.js';
+import { openFileShare, docShareLabel } from '../lib/fileShareBus.js';
+import { isShareableCard } from '../lib/fileShares.js';
 import { addVersionFromFile, pickVersionFile } from '../lib/versionActions.js';
 import { canVersion, liveVersions } from '../lib/cardVersions.js';
 import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
 import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
-import { Icon } from './Icon.jsx';
-import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload } from '../lib/icons.js';
+import { Icon, IconWeightContext } from './Icon.jsx';
+import { useFilesLook } from './clusterBrowser/filesLook.js';
+import { FilesPageHead, FilesPageTools } from './clusterBrowser/FilesPageHead.jsx';
+import { FilesShelves, FilesShelfHead } from './clusterBrowser/FilesShelves.jsx';
+import {
+  SORT_TO_PAGE, SORT_LABELS, sidebarSortOf, sortLabelOf, chipToFilter, filterToChip, chipCountsOf, pageChipsOf, chipLabelOf,
+  sectionsOf, shelfClosed, shelfFoldable, screenOrderOf, navStep,
+} from '../lib/filesView.js';
+import { SORTS } from '../lib/sidebarSort.js';
+import { shellOf } from '../lib/deviceShell.js';
+import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy, DownloadSimple, UploadSimple, FolderSimplePlus } from '../lib/icons.js';
 import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError, isPublicSurface,
 } from '../lib/cardDownload.js';
+// The page in the files sidebar's look is built from the sidebar's controls
+// (the search, "All files ⌄", the tabs, the shelves) and materials, which the
+// app has from ClusterSidebar and a shared link from PublicBoardView
+// (clusterBrowser/filesPagePublic.css), never from here.
+import './clusterBrowser/filesPage.css';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
@@ -131,6 +158,9 @@ export function ListSurface({
   board, boards, boardsReady = true, cards, childBoards,
   onOpenBoard, onOpenPicker, onDropInboxItem,
   canEdit = true,
+  // (boardId) => bool. Quick look asks it per file, because a browsed cluster
+  // is not always one this pane can edit.
+  canEditBoard = null,
   mutators = {},
   peersHereByBoard, peersBelowByBoard,
   // For nested list-mode previews — let inner BoardCards render
@@ -138,6 +168,9 @@ export function ListSurface({
   onJumpToPeer,
   // Drop / picked OS files → into the cluster, waiting in Files off the board.
   onDropFilesToCluster,
+  // A dropped folder or zips → bulk import into the cluster (lib/importStart.js):
+  // (input, { boardId }) => Promise<{ loose }>. Null where bulk import is off.
+  onImportTree = null,
   // Set of card ids just added via a list drop — flashes those rows.
   recentlyAddedIds,
   // Live presence: awareness handle + identity for per-row highlight.
@@ -157,6 +190,10 @@ export function ListSurface({
   onPickCluster = null,
   // { ids, token } — pick out files that aren't on the board (App.revealInFiles).
   revealRequest = null,
+  // { buckets, unplacedOnly, token } — open narrowed to these type buckets
+  // (the sidebar's shelf ⤢); a new token applies it again.
+  filterRequest = null,
+  onFilterApplied = null,  // the request is used up once applied, so a remount doesn't re-narrow
   onRevealDone = null,   // (token) => the shell forgets the request once shown
   // Quiet "Any file, any size — Creator" toolbar nudge for free workspace
   // owners; opens the storage upgrade modal. Off in the ?local harness.
@@ -170,11 +207,14 @@ export function ListSurface({
   // (components/FilesDock.jsx): compact header, folders as compact tiles, no
   // side detail panel, and double-click flies the board to the card.
   mode = 'full',
-  // { canShrink, onExpand, onShrink, onClose } — the ⤢ ⤡ × controls of the
-  // dock, from the shell that owns the mode. Null in the split pane / harness.
+  // { canShrink, onExpand, onShrink, onClose, shrinkLabel, shrinkTitle } — the
+  // ⤢ ⤡ × controls of the dock, from the shell that owns the mode; the label
+  // and title are what ⤡ says ('Beside board' without them). Null in the split
+  // pane without the files sidebar, and in LocalBoardsApp.
   dockControls = null,
   // The panel's path bar (FilesPane): { path, boards, onNavigate, onBack,
-  // canBack, onGoTo }. Absent in full Files, where the topbar breadcrumb rules.
+  // canBack, onGoTo }. Absent in full Files, which draws its own trail above
+  // its title (fullPathBar).
   pathBar = null,
   // Set when the panel is browsing a cluster other than the board's own (a
   // read-only snapshot) — the board it came from.
@@ -186,6 +226,11 @@ export function ListSurface({
   // waiting files are just files to them. PublicBoardView says so outright;
   // the path check is the fallback for a mount that doesn't.
   showPlacement = !isPublicSurface(),
+  // The page's title opens the cluster switch: the workspace's clusters. A
+  // visitor on a public link has no workspace, only the link's own clusters,
+  // which its trail walks, so the title is the name alone. PublicBoardView
+  // says so outright; the path check is the fallback, as above.
+  clusterSwitch = !isPublicSurface(),
   // The board this Files belongs to — its live cards and mutators — kept when
   // browsing another cluster replaces board/cards/mutators. After a drag has
   // sprung into another cluster, a drop moves the files from here.
@@ -194,9 +239,18 @@ export function ListSurface({
   spring = null,
   // Full Files: the way back up (PathBar trail), above the title.
   fullPathBar = null,
+  // With the sidebar's Files, the drop rules (lib/dropRules.js): files dropped
+  // on a folder or on this list, Move to… and Copy to… go by the route (App
+  // moveFilesBetween) — kept in that cluster's Files, ids and all.
+  // ({ from, to, cardIds, copy, what, kinds }) => Promise<bool>.
+  onMoveFiles = null,
 }) {
   const feedback = useFeedback();
   const isPanel = mode === 'panel';
+  // Direction A's look (clusterBrowser/filesLook.js): App decides it; the
+  // panel beside the board never wears it.
+  const look = useFilesLook();
+  const sb = look === 'sb' && !isPanel;
   const subBoards = childBoards || [];
   const linkedCards = (cards || []).filter(c => c.kind === 'boardlink');
   const otherCards = (cards || []).filter(c => c.kind !== 'board' && c.kind !== 'boardlink');
@@ -284,14 +338,25 @@ export function ListSurface({
   const [layoutChoice, setLayoutChoice] = useState({});
   const [query, setQuery] = useState('');
   // Board order (the canvas, read like a page) until someone picks a sort.
-  const [sortKey, setSortKey] = useState(prefs0.sortKey || 'board');
-  const [sortDir, setSortDir] = useState(prefs0.sortKey ? (prefs0.sortDir || 'desc') : 'asc');
+  // The page in the files sidebar's look sorts as the sidebar's card does
+  // until then: newest first.
+  const sort0 = sb ? SORT_TO_PAGE.newest : { key: 'board', dir: 'asc' };
+  const [sortKey, setSortKey] = useState(prefs0.sortKey || sort0.key);
+  const [sortDir, setSortDir] = useState(prefs0.sortKey ? (prefs0.sortDir || 'desc') : sort0.dir);
   const [filters, setFilters] = useState(() => new Set());
   // A search or filter belongs to the cluster it was typed in — stepping into a
   // folder used to carry it along and could hide every file there.
   // "Not on board": files in the cluster that aren't on its board yet.
   const [unplacedOnly, setUnplacedOnly] = useState(false);
   useEffect(() => { setQuery(''); setFilters(new Set()); setUnplacedOnly(false); }, [board?.id]);
+  // Declared after the reset above so that, landing on a new cluster, the
+  // request wins over the reset in the same commit.
+  useEffect(() => {
+    if (!filterRequest?.token) return;
+    setFilters(new Set(filterRequest.buckets || []));
+    setUnplacedOnly(!!filterRequest.unplacedOnly);
+    onFilterApplied?.(filterRequest.token);
+  }, [filterRequest?.token]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Which linked-grid families are expanded (collapsed by default). Persisted.
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(prefs0.expandedGroups || []));
   // A grid family selected for the detail popout (family view). Card selection
@@ -332,6 +397,9 @@ export function ListSurface({
     }).filter(Boolean),
     [otherCards, boards, board.id, gridTemplates, getGridModel]
   );
+  // A file's name as its tile shows it: what a move says it moved.
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
+  const itemNameOf = (c) => itemById.get(c?.id)?.name || '';
 
   // Grid or List: this session's pick for the cluster, else what this device
   // remembers for it, else Grid (List for a mostly-audio pack).
@@ -364,6 +432,14 @@ export function ListSurface({
   const unplacedTotal = useMemo(
     () => (markUnplaced ? items.filter((it) => it.unplaced).length : 0), [items, markUnplaced]);
   useEffect(() => { if (unplacedOnly && !unplacedTotal) setUnplacedOnly(false); }, [unplacedOnly, unplacedTotal]);
+  // The page in the files sidebar's look opens the card's "All files ⌄"
+  // (FilesShowMenu): the card's chips and sorts over this page's filters and
+  // sort keys (lib/filesView.js).
+  const pageChip = filterToChip(filters, unplacedOnly);
+  const chipCounts = useMemo(
+    () => (sb ? chipCountsOf(items, { placement: markUnplaced }) : null), [sb, items, markUnplaced]);
+  const pickChip = (id) => { const f = chipToFilter(id); setFilters(new Set(f.buckets)); setUnplacedOnly(f.unplacedOnly); };
+  const setPageSort = ({ key, dir }) => { setSortKey(key); setSortDir(dir); writeBrowserPrefs({ sortKey: key, sortDir: dir }); };
 
   // Collapse linked-grid families into expandable group nodes (tens of grids →
   // a few rows). Pure; members render only when their family is expanded.
@@ -379,6 +455,24 @@ export function ListSurface({
       return next;
     });
   }, []);
+
+  // The page in the files sidebar's look lays Grid out on the card's shelves
+  // (lib/filesView.js): photos and video in a justified grid, the rest in
+  // rows, Notes, Links and Other closed until opened this session.
+  const shelfGrid = sb && viewMode === 'gallery';
+  const sections = useMemo(() => (shelfGrid ? sectionsOf(displayItems) : []), [shelfGrid, displayItems]);
+  const [openedShelves, setOpenedShelves] = useState(() => new Set());
+  const closedShelves = useMemo(
+    () => new Set(sections.filter((sec) => shelfClosed(sec, { chip: pageChip, query, opened: openedShelves })).map((sec) => sec.id)),
+    [sections, pageChip, query, openedShelves]);
+  const toggleShelf = useCallback((id) => setOpenedShelves((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  }), []);
+  // Each shelf's laid-out tiles, for the arrows (navStep).
+  const shelfNavRef = useRef(new Map());
+  const onShelfLayout = useCallback((id, nav) => { shelfNavRef.current.set(id, nav); }, []);
 
   // Loop-browser columns: Time / BPM / Key / Format in place of Type + Size.
   //
@@ -402,11 +496,11 @@ export function ListSurface({
   useEffect(() => {
     if (loading || !visibleItems.length) return;
     if (!audioMode && ['duration', 'bpm', 'key', 'format'].includes(sortKey)) {
-      setSortKey('board');
-      setSortDir('asc');
-      writeBrowserPrefs({ sortKey: 'board', sortDir: 'asc' });
+      setSortKey(sort0.key);
+      setSortDir(sort0.dir);
+      writeBrowserPrefs({ sortKey: sort0.key, sortDir: sort0.dir });
     }
-  }, [audioMode, sortKey, loading, visibleItems.length]);
+  }, [audioMode, sortKey, loading, visibleItems.length, sb]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // A one-line read on the pack, assembled from the rows already on screen:
   // how many, what tempo range, how much material. It follows the search and
@@ -436,13 +530,17 @@ export function ListSurface({
   // group headers plus the members of EXPANDED families, inlined, so index ↔
   // row is 1:1 and a cursor never points at a row that isn't rendered.
   const navItems = useMemo(() => {
+    // On the shelves, shelf by shelf, closed ones skipped.
+    if (shelfGrid) return screenOrderOf(sections, { closed: closedShelves, expandedGroups });
     const out = [];
     for (const it of displayItems) {
       out.push(it);
       if (it.isGroup && expandedGroups.has(it.id)) out.push(...(it.members || []));
     }
     return out;
-  }, [displayItems, expandedGroups]);
+  }, [displayItems, expandedGroups, shelfGrid, sections, closedShelves]);
+  // What a ⇧-click range and ⌘A pick from, in the order on screen.
+  const pickOrder = shelfGrid ? navItems.filter((it) => !it.isGroup) : visibleItems;
 
   // Cursor for ↑/↓ and Space. Separate from SELECTION: moving through a pack
   // auditioning it should not be building a forty-item selection you then have
@@ -769,11 +867,25 @@ export function ListSurface({
   }, [isPanel, toggleInfo, board.id, infoFollow, browsedCards]);
   useEffect(() => () => { closeInfo({ follow: infoFollow }); clearSelection(infoFollow); }, [infoFollow]);
 
+  // Touch (lib/appHost touchPassAllowed). A tap opens what it lands on,
+  // as the iPad's Files app does: a folder opens, a file opens in Quick look.
+  // Holding one opens its menu, and the menu's Select puts a check on
+  // everything, so taps pick several for the bar below to act on. Read per
+  // input, not per device: an iPad's trackpad clicks the way a mouse does.
+  const touchPass = useMemo(() => touchPassAllowed(), []);
+  const bp = useBreakpoint();
+  const { isTouch } = bp;
+  const phoneShell = shellOf(bp).mobileShell;
+  const lastPtrRef = useRef('mouse');
+  const [selecting, setSelecting] = useState(false);
+  const touchTap = (e) => touchPass && e?.type === 'click' && e.detail > 0 && lastPtrRef.current === 'touch';
+
   // Reset selection on board switch.
   useEffect(() => {
     setSelectedBoards(new Set());
     setSelectedCards(new Set());
     setSelectedGroupId(null);
+    setSelecting(false);
   }, [board.id]);
 
   // Files deleted or moved elsewhere — on the canvas, by a collaborator —
@@ -849,8 +961,11 @@ export function ListSurface({
   const onTileClick = (e, kind, id) => {
     if (e.target.closest && e.target.closest('.editable')) return;
     e.stopPropagation();
+    // A finger's tap opens it, unless Select is picking several.
+    const tapped = touchTap(e);
+    if (tapped && !selecting) { onTileDoubleClick(e, kind, id); return; }
     setSelectedGroupId(null); // selecting an item exits any family view
-    const additive = e.metaKey || e.ctrlKey;
+    const additive = e.metaKey || e.ctrlKey || tapped;
     const ranged = e.shiftKey && anchorRef.current.kind === kind && anchorRef.current.id;
     if (kind === 'board') {
       if (ranged) {
@@ -862,7 +977,7 @@ export function ListSurface({
       else { setSelectedBoards(new Set([id])); setSelectedCards(new Set()); }
     } else {
       if (ranged) {
-        setSelectedCards(prev => new Set([...prev, ...selectRange(visibleItems.map(it => it.id), anchorRef.current.id, id)]));
+        setSelectedCards(prev => new Set([...prev, ...selectRange(pickOrder.map(it => it.id), anchorRef.current.id, id)]));
         setSelectedBoards(new Set());
         return;
       }
@@ -880,6 +995,8 @@ export function ListSurface({
 
   const onTileDoubleClick = (e, kind, id) => {
     if (e.target.closest && e.target.closest('.editable')) return;
+    // A tap has already opened it: the dblclick of a second tap would again.
+    if (touchPass && e?.type === 'dblclick' && lastPtrRef.current === 'touch') return;
     if (kind === 'board') onOpenBoard(id);
     else if (kind === 'boardlink') {
       const c = (cards || []).find(c => c.id === id);
@@ -975,7 +1092,9 @@ export function ListSurface({
   // Moves cards into another cluster. `src` is where they come from — this
   // board, or (after a drag has sprung into another cluster) the home board.
   // Resolves whether anything moved.
-  const moveCardsTo = useCallback(async (ids, targetId, src = null) => {
+  // `extra` rides on the event: a cluster made for this move (createdBoardId,
+  // createdBoardName) is named by the toast and trashed by its undo.
+  const moveCardsTo = useCallback(async (ids, targetId, src = null, extra = null) => {
     const from = src || { boardId: board.id, cards, mutators, canEdit };
     if (!from.canEdit || !targetId || targetId === from.boardId) return false;
     const idSet = new Set(ids || []);
@@ -985,19 +1104,113 @@ export function ListSurface({
       feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
     }
     if (!moving.length) return false;
+    // With the drop rules, by the route: the same cards, kept in the other
+    // cluster's Files, with Undo and Put on board in App's toast. A cluster
+    // made for this move (`extra`) is filled on its board, as before.
+    if (onMoveFiles && !extra) {
+      const ok = await onMoveFiles({
+        from: from.boardId, to: targetId, cardIds: moving.map((c) => c.id),
+        what: whatOf(moving.map((c) => ({ kind: c.kind, name: itemNameOf(c) }))), kinds: moving.map((c) => c.kind),
+      });
+      if (ok) {
+        setSelectedCards(new Set());
+        try { invalidateBoardPreview(targetId); invalidateBoardPreview(from.boardId); } catch (_) {}
+      }
+      return ok;
+    }
     try {
       await new Promise((resolve, reject) => {
         document.dispatchEvent(new CustomEvent('soleil-card-into-board-drop', {
-          detail: { sourceBoardId: from.boardId, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu' },
+          detail: { sourceBoardId: from.boardId, targetBoardId: targetId, cards: moving, onTargetSaved: resolve, onTargetFailed: reject, via: 'menu', ...(extra || {}) },
         }));
       });
-    } catch (_) { return false; } // App said why; nothing left this cluster
+    } catch (err) {
+      // App said why; nothing left this cluster. A cluster made for this move
+      // went to the trash there, and its card goes from here (lib/moveFailure.js).
+      if (extra?.createdBoardId && err?.createdBoardTrashed) {
+        from.mutators?.deleteCardsForMove?.([extra.createdBoardId], { refund: true });
+      }
+      return false;
+    }
     from.mutators?.deleteCardsForMove?.(moving.map((c) => c.id));
     setSelectedCards(new Set());
     // A browsed cluster shows its saved snapshot: fetch it again with them in.
     try { invalidateBoardPreview(targetId); } catch (_) {}
     return true;
-  }, [canEdit, board.id, cards, feedback, mutators]);
+  }, [canEdit, board.id, cards, feedback, mutators, onMoveFiles, itemById]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // New cluster from the selected cards: named at birth, made where they sit
+  // on the board, filled through moveCardsTo, and undone by its toast — which
+  // also trashes the cluster. The canvas does the same from its menu
+  // (CanvasSurface createClusterFrom); clusterFromSelection plans both.
+  // The top bar's popover has already asked the name: it passes `name` (null
+  // for the default), and no second prompt opens.
+  const newClusterFromSelection = useCallback(async ({ name: given, via = 'from_list_selection', clusters = 'refuse' } = {}) => {
+    if (!canEdit || !mutators.addNewBoard) return;
+    const plan = planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false, clusters });
+    if (plan.held.length) {
+      feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
+    }
+    if (plan.refused || !plan.ids.length) return;
+    let name = given;
+    if (given === undefined) {
+      const n = plan.ids.length;
+      const typed = await feedback.prompt({
+        title: 'Name this cluster',
+        message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
+        label: 'Name',
+        placeholder: 'e.g. Kitchen refs',
+        defaultValue: suggestClusterName({ cards: plan.cards }) || '',
+        confirmLabel: 'Create cluster',
+      });
+      if (typed == null) return;
+      name = String(typed).trim().slice(0, 200) || null;
+    }
+    const newId = await mutators.addNewBoard(plan.center, { via, ...(name ? { name } : {}), untracked: true });
+    if (!newId) return;
+    await moveCardsTo(plan.ids, newId, null, { createdBoardId: newId, createdBoardName: name || 'Untitled cluster' });
+  }, [canEdit, mutators, cards, selectedCards, feedback, moveCardsTo]);
+
+  // The top bar's "+ New cluster" (NewClusterButton), when this list is what
+  // the pane shows. The files picked here go into it, exactly as selected (a
+  // cluster among them stays where it is); with none picked, it lands beside
+  // what is on the board and opens. The count it shows comes from here too
+  // (lib/newClusterPick.js). Not the docked panel, and not while browsing
+  // another cluster: the canvas beside the panel answers for its pane.
+  const listOwnsPane = !isPanel && !browsingFrom && !!board?.id;
+  useEffect(() => {
+    if (!listOwnsPane || !clusterNudgesAllowed()) return;
+    if (!selectedCards.size) { publishNewClusterPick(paneId, null); return; }
+    const plan = planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false, clusters: 'skip' });
+    publishNewClusterPick(paneId, {
+      boardId: board.id,
+      count: plan.ids.length,
+      suggestion: plan.ids.length ? suggestClusterName({ cards: plan.cards }) : null,
+    });
+  }, [listOwnsPane, selectedCards, cards, board?.id, paneId]);
+  useEffect(() => () => { if (listOwnsPane) publishNewClusterPick(paneId, null); }, [listOwnsPane, paneId]);
+  const newClusterHereRef = useRef(null);
+  newClusterHereRef.current = async ({ name = null, via = 'topbar' } = {}) => {
+    if (planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false, clusters: 'skip' }).ids.length) {
+      return newClusterFromSelection({ name, via, clusters: 'skip' });
+    }
+    const spot = spotBesideContent(cards);
+    const newId = await mutators.addNewBoard?.({ x: spot.x + 140, y: spot.y + 110 },
+      { via, ...(name ? { name } : {}), openAfter: paneId === 'main' });
+    if (newId && paneId !== 'main') onOpenBoard?.(newId);
+    return newId || null;
+  };
+  useEffect(() => {
+    if (!listOwnsPane) return undefined;
+    const onNew = (e) => {
+      const d = e.detail;
+      if (!d || d.handled || d.boardId !== board?.id || d.paneId !== paneId || !canEdit) return;
+      d.handled = true;
+      newClusterHereRef.current?.(d);
+    };
+    document.addEventListener('soleil-new-cluster', onNew);
+    return () => document.removeEventListener('soleil-new-cluster', onNew);
+  }, [listOwnsPane, board?.id, paneId, canEdit]);
 
   // Put on board: files waiting in Files go onto the board as one block where
   // its canvas was last looking (lib/viewCenter.js), or beside its content.
@@ -1037,6 +1250,27 @@ export function ListSurface({
     if (cIds.length) await moveCardsTo(cIds, picked.id);
   }, [onPickCluster, selectedBoards, selectedCards, board.id, moveCardsTo]);
 
+  // "Copy to…" (the drop rules): the selected files, copied into the pick's
+  // Files — a new card on the same stored file. Out of a cluster you can only
+  // view, too. A cluster copies with its own Copy and Paste, not here.
+  const copySelection = useCallback(async () => {
+    if (!onPickCluster || !onMoveFiles) return;
+    const ids = new Set(selectedCards);
+    const list = (cards || []).filter((c) => ids.has(c.id) && c.kind !== 'boardlink');
+    const ready = list.filter(canCopyCard);
+    if (!ready.length) {
+      if (list.length) feedback.toast({ type: 'info', message: 'Those files are still uploading. Copy them when they finish.' });
+      return;
+    }
+    const picked = await onPickCluster({ placeholder: 'Copy to cluster…', excludeIds: [board.id] });
+    if (!picked?.id) return;
+    const ok = await onMoveFiles({
+      from: board.id, to: picked.id, cardIds: ready.map((c) => c.id), copy: true,
+      what: whatOf(ready.map((c) => ({ kind: c.kind, name: itemNameOf(c) }))), kinds: ready.map((c) => c.kind),
+    });
+    if (ok) { try { invalidateBoardPreview(picked.id); } catch (_) {} }
+  }, [onPickCluster, onMoveFiles, selectedCards, cards, board.id, feedback, itemById]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // Rename in place (F2, the right-click menu). Files rename the field their
   // name shows from (lib/fileRename.js) — downloads keep the original name;
   // folders rename the cluster.
@@ -1051,7 +1285,7 @@ export function ListSurface({
     setRenamingId(null);
     if (subBoards.some((b) => b.id === id)) {
       const name = cleanName(value);
-      if (name && name !== boards[id]?.name) mutators.renameBoardById?.(id, name);
+      if (name && name !== boards[id]?.name) mutators.renameBoardById?.(id, name, { via: 'list' });
       return;
     }
     const c = (cards || []).find((x) => x.id === id);
@@ -1077,7 +1311,7 @@ export function ListSurface({
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
       // So does an open menu — right-click, View, the path ▾, sort: Escape
       // closes the menu alone and arrows stay in it.
-      if (document.querySelector('.ctx-menu, .cbt-menu')) return;
+      if (document.querySelector('.ctx-menu, .cbt-menu, .sbf-menu, .sbf-switch')) return;
       if (hasSplit && getActivePane() !== paneId) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
       // Keys typed in the Info drawer are its own (lib/infoBus.inInfoDrawer) —
@@ -1119,13 +1353,15 @@ export function ListSurface({
       // ⌘A selects every file showing (search and filters apply).
       if (mod && !e.altKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
-        setSelectedCards(new Set(visibleItems.map((it) => it.id)));
+        setSelectedCards(new Set(pickOrder.map((it) => it.id)));
         setSelectedBoards(new Set());
         setSelectedGroupId(null);
         return;
       }
-      // Esc clears the selection (and with it the detail panel).
+      // Esc clears the selection (and with it the detail panel), and puts
+      // Select's checks away.
       if (e.key === 'Escape') {
+        if (selecting) setSelecting(false);
         if (selectedCards.size || selectedBoards.size || selectedGroupId) {
           e.preventDefault();
           setSelectedCards(new Set());
@@ -1142,10 +1378,29 @@ export function ListSurface({
       const arrow = e.key === 'ArrowDown' ? 'down' : e.key === 'ArrowUp' ? 'up'
         : e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : null;
       if (arrow && !mod && navItems.length) {
+        // On the page in the files sidebar's look the first arrow goes on
+        // from the file last clicked, as Finder's do; elsewhere it starts at
+        // the top.
+        const from = activeId || (sb && anchorRef.current.kind === 'file' ? anchorRef.current.id : null);
+        // On the shelves: one walk across them all, from the last tile of one
+        // into the first of the next (lib/filesView.js navStep).
+        if (shelfGrid) {
+          const parts = sections.filter((sec) => !closedShelves.has(sec.id)).map((sec) => {
+            const nav = shelfNavRef.current.get(sec.id);
+            return sec.layout === 'grid' && nav
+              ? { layout: 'grid', ids: nav.ids, tiles: nav.tiles }
+              : { layout: 'rows', ids: screenOrderOf([sec], { expandedGroups }).map((it) => it.id) };
+          });
+          const next = navStep(parts, from, arrow);
+          if (next == null || next === activeId) return;
+          e.preventDefault();
+          setActiveId(next);
+          return;
+        }
         if (isTable) {
           if (arrow !== 'down' && arrow !== 'up') return;
           e.preventDefault();
-          const i = activeId ? navItems.findIndex(it => it.id === activeId) : -1;
+          const i = from ? navItems.findIndex(it => it.id === from) : -1;
           const step = arrow === 'down' ? 1 : -1;
           const next = i < 0
             ? (step > 0 ? 0 : navItems.length - 1)
@@ -1183,7 +1438,7 @@ export function ListSurface({
         const it = target && navItems.find(n => n.id === target);
         if (!it || it.isGroup || onControl) return;
         e.preventDefault();
-        if (it.kind === 'audio' && isTable) { setActiveId(it.id); auditionCard(it.id); return; }
+        if (it.kind === 'audio' && (isTable || shelfGrid)) { setActiveId(it.id); auditionCard(it.id); return; }
         setQuickId(it.id);
         return;
       }
@@ -1215,7 +1470,7 @@ export function ListSurface({
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedBoards, selectedCards, selectedGroupId, mutators, hasSplit, paneId, visibleItems,
       navItems, activeId, auditionCard, canEdit, viewMode, deleteSelection, onToggleGroup, toggleInfo, showInfo,
-      renamable, startRename]);
+      renamable, startRename, selecting, shelfGrid, sections, closedShelves, expandedGroups, pickOrder, sb]);
 
   // Board order puts a fresh upload last (it waits off the board, after
   // everything on it), so bring the first new row or tile into view rather
@@ -1250,6 +1505,61 @@ export function ListSurface({
     if (!types?.includes?.(FILES_DRAG_MIME) || !browsingFrom || !homeSrc?.canEdit) return false;
     const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
     return from === homeSrc.boardId && board?.id && board.id !== homeSrc.boardId;
+  };
+  // ── The drop rules, with the sidebar's Files (lib/dropRules.js) ───────────
+  // What letting go of files over a folder, or over this list, does: the
+  // decision the sidebar, the board and the label at the pointer make. The
+  // files come from the drag session (a dragover can't read the payload) or,
+  // at a drop the session missed, from the payload.
+  const rulesOn = !!onMoveFiles;
+  const canEditId = (id) => (canEditBoard ? !!canEditBoard(id) : canEdit);
+  const filesDecision = (e, target, payload = null) => {
+    const sess = dragSession();
+    let list = null;
+    let sourceName = '';
+    let fromWs = workspaceId || null;
+    if (sess?.kind === 'files' && sess.files?.length) {
+      list = sess.files;
+      sourceName = sess.sourceName || '';
+      fromWs = sess.workspaceId || fromWs;
+    } else if (payload) {
+      list = payload.cards.map((c) => {
+        const from = c.sourceBoardId || payload.sourceBoardId;
+        return { id: c.id, kind: c.kind, name: c.title || '', boardId: from, canMove: canEditId(from) };
+      });
+      sourceName = payload.sourceName || '';
+    }
+    if (!list || !target?.boardId) return null;
+    return decideDrop({ files: list, sourceName, workspaceId: fromWs, copy: copyKeyHeld(e), target });
+  };
+  const filesTarget = (b) => ({
+    boardId: b.id, where: 'files', name: b.name,
+    workspaceId: b.workspace_id || workspaceId || null, writable: canEditId(b.id),
+  });
+  // Each lot from its own cluster: one request, and one Undo, per cluster.
+  const runFilesDrop = async (d, to) => {
+    const lots = new Map();
+    for (const [copy, list] of [[false, d.move], [true, d.copy]]) {
+      for (const f of list) {
+        const k = `${copy ? 'c' : 'm'}:${f.boardId}`;
+        if (!lots.has(k)) lots.set(k, { copy, from: f.boardId, files: [] });
+        lots.get(k).files.push(f);
+      }
+    }
+    let any = false;
+    for (const lot of lots.values()) {
+      const ok = await onMoveFiles({
+        from: lot.from, to, cardIds: lot.files.map((f) => f.id), copy: lot.copy,
+        what: whatOf(lot.files), kinds: lot.files.map((f) => f.kind),
+      });
+      if (ok) {
+        any = true;
+        try { invalidateBoardPreview(lot.from); } catch (_) {}
+      }
+    }
+    try { invalidateBoardPreview(to); } catch (_) {}
+    if (any) setSelectedCards(new Set());
+    return any;
   };
   // Clusters dragged in after a spring: they can be nested here.
   const foldersHere = (types) => !!browsingFrom && !!homeSrc?.canEdit
@@ -1297,6 +1607,18 @@ export function ListSurface({
   };
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
+    // Files from Files, by the rules: into this cluster's Files.
+    if (rulesOn && types.includes(FILES_DRAG_MIME)) {
+      e.preventDefault();
+      const d = filesDecision(e, filesTarget(board));
+      const effect = d ? d.effect : (copyKeyHeld(e) ? 'copy' : 'move');
+      try { e.dataTransfer.dropEffect = effect; } catch (_) {}
+      const ok = effect !== 'none';
+      if (ok !== dragOver) setDragOver(ok);
+      const note = ok ? (d?.action === 'copy' ? 'copy' : 'move') : null;
+      if (note !== dragNote) setDragNote(note);
+      return;
+    }
     if (homeFilesHere(types) || foldersHere(types)) {
       e.preventDefault();
       try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
@@ -1333,6 +1655,14 @@ export function ListSurface({
     const versionEl = versionTileRef.current;
     markVersionTile(null);
     const t = e.dataTransfer.types;
+    if (rulesOn && t.includes(FILES_DRAG_MIME)) {
+      e.preventDefault();
+      const d = filesDecision(e, filesTarget(board), parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME)));
+      if (!d || !(d.move.length || d.copy.length)) return;
+      const done = runFilesDrop(d, board.id);
+      spring?.drop?.(done);
+      return;
+    }
     if (homeFilesHere(t)) {
       e.preventDefault();
       const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
@@ -1381,6 +1711,19 @@ export function ListSurface({
       onDropInboxItem && onDropInboxItem(item.id, { ...card, x: spot.x, y: spot.y, unplaced: true });
       return;
     }
+    // A folder, or zips, is a bulk import into this cluster, as on the board:
+    // folders become clusters and their files wait in Files. Read off the
+    // drop while it is still being dispatched (Chrome empties its items
+    // after), the handles too, so an import a reload stops can go on. Loose
+    // files beside them go in as below.
+    const tree = (input) => {
+      const handles = captureDropHandles(e.dataTransfer);
+      Promise.resolve(onImportTree({ ...input, handles, source: 'list' }, { boardId: board.id }))
+        .then((out) => { if (out?.loose?.length) onDropFilesToCluster?.(out.loose, { boardId: board.id }); })
+        .catch(() => {});
+    };
+    const entries = onImportTree ? captureDropEntries(e.dataTransfer) : [];
+    if (hasDirectory(entries)) { tree({ entries }); return; }
     // OS files (or a picked FileList) → the cluster's file-ingest mutator. They
     // join the cluster but not its board: they wait here, marked Not on board,
     // until dragged onto the canvas or Put on board (App.ingestFilesArranged).
@@ -1394,6 +1737,8 @@ export function ListSurface({
         return;
       }
     }
+    // Zips get the bulk import's question: unpack into clusters, or keep them.
+    if (onImportTree && Array.from(dropped || []).some(isZipFile)) { tree({ files: Array.from(dropped) }); return; }
     if (e.dataTransfer.files && e.dataTransfer.files.length) {
       try { logEvent(EV.LIST_ADD_FILES, { board_id: board.id, n: e.dataTransfer.files.length, via: 'drop' }); } catch (_) {}
       onDropFilesToCluster?.(e.dataTransfer.files, { boardId: board.id });
@@ -1426,7 +1771,7 @@ export function ListSurface({
     const ro = new ResizeObserver(set);
     ro.observe(head);
     return () => { ro.disconnect(); wrap.style.removeProperty('--lp-head-h'); };
-  }, [isPanel, filesBlockShown]);
+  }, [isPanel, filesBlockShown, sb]);
   useEffect(() => {
     const el = headSentinelRef.current;
     const root = el?.closest?.('.list-wrap');
@@ -1434,14 +1779,17 @@ export function ListSurface({
     const io = new IntersectionObserver(([e]) => setHeadStuck(!e.isIntersecting), { root, threshold: 0 });
     io.observe(el);
     return () => io.disconnect();
-  }, [isPanel, filesBlockShown]);
+  }, [isPanel, filesBlockShown, sb]);
 
   // Files → board. A tile or row drags the selection it belongs to (or just
   // itself); the board it lands on decides what the drop means (lib/filesDrag).
   // Beside the board it always can — browsing another cluster included, where
   // dragging in is how a file gets onto this board. Full Files drags when
   // there's a board to drop on: an editable cluster, or a split pane.
-  const filesDraggable = !!board?.id && (isPanel || canEdit || hasSplit);
+  // A hold on a touch screen opens the menu, so it can't also start a drag:
+  // iPadOS lifts a draggable thing that's held, and cancels the press under it.
+  const noTouchDrag = touchPass && isTouch;
+  const filesDraggable = !!board?.id && (isPanel || canEdit || hasSplit) && !noTouchDrag;
   const onFilesDragStart = (e) => {
     const el = e.target?.closest?.('[data-item-id]');
     const id = el?.getAttribute?.('data-item-id');
@@ -1449,17 +1797,33 @@ export function ListSurface({
     const ids = selectedCards.has(id) && selectedCards.size > 1 ? [...selectedCards] : [id];
     const byId = new Map((cards || []).map((c) => [c.id, c]));
     const list = ids.map((i) => byId.get(i)).filter(canDragFromFiles);
-    const raw = buildFilesPayload({ sourceBoardId: board.id, sourceName: board.name || '', cards: list });
+    const raw = buildFilesPayload({ sourceBoardId: board.id, sourceName: board.name || '', cards: list, intent: rulesOn ? 'move' : null });
     if (!raw) { e.preventDefault(); return; }
+    // With the rules, the label at the pointer (DragLabel.jsx) speaks for the
+    // drag, where one is up: the browser's own image is blank under it.
+    const labelled = rulesOn && dragLabelShown() && !!BLANK_DRAG_IMAGE;
     try {
       e.dataTransfer.setData(FILES_DRAG_MIME, raw);
       e.dataTransfer.effectAllowed = 'copyMove';
+      if (labelled) e.dataTransfer.setDragImage(BLANK_DRAG_IMAGE, 0, 0);
     } catch (_) {}
     // dragover can only see types, not data: the board reads where the drag
     // came from here, to show move vs copy before the drop.
     try { window.__soleilFilesDrag = { sourceBoardId: board.id, n: list.length }; } catch (_) {}
-    beginDragSession(el, { kind: 'files', sourceBoardId: board.id });
-    if (list.length > 1) {
+    // The session tells every target what's in the drag (the rules need each
+    // file's cluster, and whether it can leave it: not from one you only view).
+    const thumbs = rulesOn ? list.slice(0, 3).map((c) => {
+      try { return document.querySelector(`[data-item-id="${CSS.escape(c.id)}"] img`)?.currentSrc || null; } catch (_) { return null; }
+    }).filter(Boolean) : [];
+    beginDragSession(el, rulesOn ? {
+      kind: 'files', sourceBoardId: board.id, sourceName: board.name || '',
+      workspaceId: board.workspace_id || workspaceId || null, thumbs,
+      files: list.map((c) => ({
+        id: c.id, kind: c.kind, name: itemNameOf(c), boardId: board.id, uploading: false,
+        canMove: canEditId(board.id), workspaceId: board.workspace_id || workspaceId || null,
+      })),
+    } : { kind: 'files', sourceBoardId: board.id });
+    if (list.length > 1 && !labelled) {
       const ghost = document.createElement('div');
       ghost.className = 'files-drag-ghost';
       ghost.textContent = `${list.length} files`;
@@ -1610,10 +1974,12 @@ export function ListSurface({
     () => visibleItems.filter(it => DOWNLOADABLE.has(it.kind)),
     [visibleItems]);
   const narrowed = !!query || filters.size > 0 || unplacedOnly;
+  const emptyHere = sb && visibleItems.length === 0 && !loading && !narrowed;
   const canDownloadAll = downloadableVisible.length > 1 && bulkDownloadSupported();
   // Full Files' page header: what's in the cluster, in one line.
   const pageMeta = [
-    `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
+    sb && !otherCards.length ? (loading ? null : 'No files')
+      : `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
     subBoards.length ? `${subBoards.length} ${subBoards.length === 1 ? 'cluster' : 'clusters'}` : null,
     unplacedTotal ? `${unplacedTotal} not on board` : null,
   ].filter(Boolean).join(' · ');
@@ -1657,6 +2023,7 @@ export function ListSurface({
   });
   const folderProps = (b) => ({
     'data-folder-id': b.id,
+    ...(rulesOn ? { 'data-drop-board': b.id, 'data-drop-where': 'files', 'data-drop-name': b.name || undefined } : {}),
     onClick: (e) => onTileClick(e, 'board', b.id),
     onDoubleClick: (e) => onTileDoubleClick(e, 'board', b.id),
     ...folderKeys('board', b.id),
@@ -1678,6 +2045,20 @@ export function ListSurface({
       armFolder(b.id);
       // This cluster's files dropped on one of its folders move into it — and
       // so do the home cluster's, after a drag has sprung in here.
+      if (t.includes(FILES_DRAG_MIME) && rulesOn) {
+        // Refused here is refused: not passed on to the list around it.
+        e.preventDefault();
+        e.stopPropagation();
+        const d = filesDecision(e, filesTarget(b));
+        const effect = d ? d.effect : (copyKeyHeld(e) ? 'copy' : 'move');
+        try { e.dataTransfer.dropEffect = effect; } catch (_) {}
+        const lit = effect === 'none' ? null : b.id;
+        if (dropTileId !== lit) setDropTileId(lit);
+        // The folder is where they'd go, not the list around it.
+        if (dragOver) setDragOver(false);
+        if (dragNote) setDragNote(null);
+        return;
+      }
       if (t.includes(FILES_DRAG_MIME)) {
         const from = (typeof window !== 'undefined' && window.__soleilFilesDrag?.sourceBoardId) || null;
         const own = canEdit && from === board.id;
@@ -1706,6 +2087,15 @@ export function ListSurface({
     onDrop: (e) => {
       setDropTileId(null);
       springTimer.cancel();
+      if (e.dataTransfer.types.includes(FILES_DRAG_MIME) && rulesOn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const d = filesDecision(e, filesTarget(b), parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME)));
+        if (!d || !(d.move.length || d.copy.length)) return;
+        const done = runFilesDrop(d, b.id);
+        spring?.drop?.(done);
+        return;
+      }
       if (e.dataTransfer.types.includes(FILES_DRAG_MIME)) {
         const payload = parseFilesPayload(e.dataTransfer.getData(FILES_DRAG_MIME));
         if (!payload) return;
@@ -1728,36 +2118,118 @@ export function ListSurface({
     },
   });
 
-  const renderSubFolder = (b) => (
-    <FolderTile key={b.id} board={b} compact={isPanel}
-                selected={selectedBoards.has(b.id)}
-                dropTarget={dropTileId === b.id}
-                springing={springTimer.armed === `folder:${b.id}`}
-                peers={isPanel ? null : (peersHereByBoard?.get?.(b.id) || [])}
-                draggable={canEdit}
-                rename={renameFor(b.id)}
-                {...folderProps(b)} />
-  );
-  const renderLinkedFolder = (c) => {
+  // A folder's props, the same for its tile and, in the classic List, its row.
+  const subFolderProps = (b) => ({
+    board: b,
+    selected: selectedBoards.has(b.id),
+    dropTarget: dropTileId === b.id,
+    springing: springTimer.armed === `folder:${b.id}`,
+    peers: isPanel ? null : (peersHereByBoard?.get?.(b.id) || []),
+    draggable: canEdit && !noTouchDrag,
+    checks: selecting,
+    rename: renameFor(b.id),
+    ...folderProps(b),
+  });
+  const linkedFolderProps = (c) => {
     const t = boards[c.target];
-    return (
-      <FolderTile key={c.id} board={t} linked compact={isPanel}
-                  name={t?.name || c.name}
-                  missing={!t && boardsReady}
-                  selected={selectedCards.has(c.id)}
-                  springing={springTimer.armed === `folder:${c.target}`}
-                  // Hold a drag over it and Files opens the cluster it links to.
-                  onDragEnter={t && spring ? () => armFolder(c.target) : undefined}
-                  onDragOver={t && spring ? () => armFolder(c.target) : undefined}
-                  onDragLeave={t && spring ? (e) => springTimer.leave(`folder:${c.target}`, e) : undefined}
-                  data-link-id={c.id}
-                  onClick={(e) => onTileClick(e, 'boardlink', c.id)}
-                  onDoubleClick={(e) => onTileDoubleClick(e, 'boardlink', c.id)}
-                  {...folderKeys('boardlink', c.id)} />
-    );
+    return {
+      board: t, linked: true,
+      name: t?.name || c.name,
+      missing: !t && boardsReady,
+      selected: selectedCards.has(c.id),
+      checks: selecting,
+      springing: springTimer.armed === `folder:${c.target}`,
+      // Hold a drag over it and Files opens the cluster it links to.
+      onDragEnter: t && spring ? () => armFolder(c.target) : undefined,
+      onDragOver: t && spring ? () => armFolder(c.target) : undefined,
+      onDragLeave: t && spring ? (e) => springTimer.leave(`folder:${c.target}`, e) : undefined,
+      'data-link-id': c.id,
+      onClick: (e) => onTileClick(e, 'boardlink', c.id),
+      onDoubleClick: (e) => onTileDoubleClick(e, 'boardlink', c.id),
+      ...folderKeys('boardlink', c.id),
+    };
+  };
+  const renderSubFolder = (b) => <FolderTile key={b.id} compact={isPanel} {...subFolderProps(b)} />;
+  const renderLinkedFolder = (c) => <FolderTile key={c.id} compact={isPanel} {...linkedFolderProps(c)} />;
+  // On the page in the files sidebar's look the clusters in this one, and
+  // those linked into it, come first, as one shelf: those whose name matches
+  // a search, none while a chip filters to a kind of file.
+  const shownFolders = !sb || pageChip !== 'all' ? [] : (() => {
+    const q = query.trim().toLowerCase();
+    const all = [
+      ...subBoards.map((b) => ({ kind: 'sub', b, name: b.name || '' })),
+      ...linkedCards.map((c) => ({ kind: 'link', c, name: boards[c.target]?.name || c.name || '' })),
+    ];
+    return q ? all.filter((f) => f.name.toLowerCase().includes(q)) : all;
+  })();
+  const folderShelf = sb
+    ? { count: shownFolders.length, nodes: shownFolders.map((f) => (f.kind === 'sub' ? renderSubFolder(f.b) : renderLinkedFolder(f.c))) }
+    : null;
+  // In the List the same clusters are the table's first rows, as folders are
+  // in Finder.
+  const folderRows = sb && viewMode === 'table'
+    ? shownFolders.map((f, i) => {
+      const row = { audioMode, dateKey: sortKey === 'created' ? 'created' : 'updated', zebra: i % 2 === 1 };
+      return f.kind === 'sub'
+        ? <FolderRow key={f.b.id} {...subFolderProps(f.b)} {...row} />
+        : <FolderRow key={f.c.id} {...linkedFolderProps(f.c)} {...row} />;
+    })
+    : null;
+
+  // What the grid and the table are given, wherever they're drawn: once in
+  // production, once per shelf on the page in the files sidebar's look.
+  const onAudition = (it) => { setActiveId(it.id); auditionCard(it.id); };
+  const onFileClick = (e, id) => onTileClick(e, 'file', id);
+  const onFileDoubleClick = (e, id) => onTileDoubleClick(e, 'file', id);
+  const galleryProps = {
+    activeId, registerRow, renameFor, markUnplaced,
+    selectedCards, peerMap, recentlyAddedIds,
+    expandedGroups, selectedGroupId, onGroupClick,
+    onDownload: downloadOne, onAudition, playingId,
+    draggableItems: filesDraggable, onBoardIds,
+    onRowClick: onFileClick, onRowDoubleClick: onFileDoubleClick,
+  };
+  const tableProps = {
+    selectedCards, peerMap, sortKey, sortDir, onSort, recentlyAddedIds,
+    expandedGroups, selectedGroupId, onGroupClick,
+    onDownload: downloadOne, onAudition, onSeek: seekCard,
+    activeId, playingId, registerRow, audioMode,
+    draggableItems: filesDraggable, onBoardIds, renameFor,
+    markUnplaced, checks: selecting,
+    onRowClick: onFileClick, onRowDoubleClick: onFileDoubleClick,
+  };
+  const detailJsx = detailTarget && (
+    <DetailPanel
+      target={detailTarget} boards={boards} canEdit={canEdit}
+      selfId={selfId} gridTemplates={gridTemplates}
+      writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
+      versionEnv={canVersionHere ? versionEnv() : null}
+      onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
+      onClose={toggleInfo}
+      onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
+      onPutOnBoard={canEdit && !browsingFrom ? (id) => putOnBoard([id]) : null}
+      onDelete={onDeleteItems} />
+  );
+
+  // While files are dragged over Files: what a drop does, said in the header
+  // in place of the search row.
+  const dropLine = dragNote === 'move'
+    ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
+    : dragNote === 'copy'
+    ? { text: `Drop to copy to ${board?.name || 'this cluster'}` }
+    : dragNote === 'version'
+    ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
+    : dragNote === 'files'
+    ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
+    : dragNote === 'blocked'
+      ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
+      : null;
+  const onUpsell = () => {
+    try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
+    onStorageUpsell?.();
   };
 
-  // One toolbar, two placements: in full Files it sits under the Files label;
+  // One toolbar, two placements: in full Files it sits under the page's title;
   // beside the board it is the panel's header — compact, always present (it
   // carries the dock's ⤢ and ×), and first in the panel.
   const toolbarJsx = (
@@ -1773,25 +2245,14 @@ export function ListSurface({
       onToggleUnplaced={() => setUnplacedOnly((v) => !v)}
       onAddFiles={openAddPicker} canEdit={canEdit}
       showUpsell={!isPanel && showStorageUpsell && !!onStorageUpsell}
-      onUpsell={() => {
-        try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
-        onStorageUpsell?.();
-      }}
+      onUpsell={onUpsell}
       facePeers={isPanel ? [] : facePeers}
       searchRef={searchRef}
       compact={isPanel}
       clusterName={board?.name}
       pathBar={isPanel ? pathBar : null}
       readOnlyNote={isPanel && browsingFrom ? 'Viewing another cluster' : ''}
-      dropBanner={dragNote === 'move'
-        ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
-        : dragNote === 'version'
-        ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
-        : dragNote === 'files'
-        ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
-        : dragNote === 'blocked'
-          ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
-          : null}
+      dropBanner={dropLine}
       dockControls={dockControls ? { ...dockControls, mode } : null}
     />
   );
@@ -1799,27 +2260,55 @@ export function ListSurface({
   // ── Right-click menu ──────────────────────────────────────────────────────
   // It acts on the selection; right-clicking something outside the selection
   // selects just that first, as Finder does. ⇧F10 opens it from the keyboard.
-  const onListContextMenu = (e) => {
-    if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
-    const fileId = e.target.closest?.('[data-item-id]')?.getAttribute('data-item-id')
-      || e.target.closest?.('[data-link-id]')?.getAttribute('data-link-id');
-    const folderId = e.target.closest?.('[data-folder-id]')?.getAttribute('data-folder-id');
-    if (!fileId && !folderId) return;   // empty floor keeps the browser's menu
-    if (fileId && navItems.find((n) => n.id === fileId)?.isGroup) return;
-    e.preventDefault();
+  // On a touch screen a hold asks the same (touchPass): the menu opens at the
+  // finger, and the tap that ends the hold is eaten, so it can neither open
+  // the file under the menu nor pick from it. Android raises a contextmenu of
+  // its own on a hold, which lands here and opens the same menu.
+  const openListMenuAt = (target, x, y, { viaTouch = false } = {}) => {
+    if (target.closest?.('input, textarea, [contenteditable="true"], [role="dialog"]')) return false;
+    const fileId = target.closest?.('[data-item-id]')?.getAttribute('data-item-id')
+      || target.closest?.('[data-link-id]')?.getAttribute('data-link-id');
+    const folderId = target.closest?.('[data-folder-id]')?.getAttribute('data-folder-id');
+    if (!fileId && !folderId) return false;   // empty floor keeps the browser's menu
+    if (fileId && navItems.find((n) => n.id === fileId)?.isGroup) return false;
+    // Picking several, a hold adds what it's on rather than starting over.
     if (folderId) {
-      if (!selectedBoards.has(folderId)) { setSelectedBoards(new Set([folderId])); setSelectedCards(new Set()); }
+      if (selecting) setSelectedBoards((prev) => new Set([...prev, folderId]));
+      else if (!selectedBoards.has(folderId)) { setSelectedBoards(new Set([folderId])); setSelectedCards(new Set()); }
+    } else if (selecting) {
+      setSelectedCards((prev) => new Set([...prev, fileId]));
     } else if (!selectedCards.has(fileId)) {
       setSelectedCards(new Set([fileId])); setSelectedBoards(new Set());
     }
     setSelectedGroupId(null);
-    setCtxMenu({ x: e.clientX, y: e.clientY });
+    setCtxMenu({ x, y, viaTouch });
+    return true;
   };
+  const onListContextMenu = (e) => {
+    const viaTouch = touchPass && lastPtrRef.current === 'touch';
+    if (!openListMenuAt(e.target, e.clientX, e.clientY, { viaTouch })) return;
+    e.preventDefault();
+    if (viaTouch) swallowNextClick({ held: true });
+  };
+  useLongPress(listInnerRef, (x, y, e) => {
+    if (touchPass && openListMenuAt(e.target, x, y, { viaTouch: true })) swallowNextClick({ held: true });
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  // Files copy (the rules); a cluster copies with its own Copy and Paste.
+  const canCopyTo = !!onMoveFiles && !!onPickCluster && selectedCards.size > 0 && !selectedBoards.size
+    && [...selectedCards].some((id) => { const c = (cards || []).find((x) => x.id === id); return c && c.kind !== 'boardlink'; });
   const menuItems = () => {
     const cIds = [...selectedCards];
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
     const canMove = canEdit && !!onPickCluster && movableSel > 0;
+    const copyTo = canCopyTo && { id: 'copy-to', label: 'Copy to…', run: copySelection };
+    // A hold's menu starts with Select: a check on everything, for a finger to
+    // pick several (what ⌘-click and ⇧-click are to a keyboard).
+    const selectItem = ctxMenu?.viaTouch && !selecting && { id: 'select', label: 'Select', run: () => {
+      setSelecting(true);
+      try { logEvent(EV.TOUCH_SELECT, { where: 'files', via: 'menu', n }); } catch (_) {}
+    } };
+    const select = { items: [selectItem] };
     // The menu's header already says how many; Delete needn't repeat it.
     const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
     // Info on anything: in full Files it's the panel beside the list, which
@@ -1830,6 +2319,7 @@ export function ListSurface({
     if (n === 1 && bIds.length) {
       const id = bIds[0];
       return composeMenuSections([
+        select,
         { items: [{ id: 'open', label: 'Open', run: () => onOpenBoard(id) }] },
         { items: [
           renamable(id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(id) },
@@ -1842,6 +2332,7 @@ export function ListSurface({
     const card = n === 1 ? (cards || []).find((c) => c.id === cIds[0]) : null;
     if (card?.kind === 'boardlink') {
       return composeMenuSections([
+        select,
         { items: [boards[card.target] && { id: 'open', label: 'Open', run: () => onOpenBoard(card.target) }] },
         { items: [boards[card.target] && info({ clusterId: card.target })] },
         { items: [canEdit && { id: 'unlink', label: 'Remove link', danger: true, run: deleteSelection }] },
@@ -1850,6 +2341,7 @@ export function ListSurface({
     const item = card ? items.find((it) => it.id === card.id) : null;
     if (item) {
       return composeMenuSections([
+        select,
         { items: [
           { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
           item.kind === 'video' && card.src && !item.pending && onRevealOnCanvas && { id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: card.id, card }) },
@@ -1860,9 +2352,12 @@ export function ListSurface({
           renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
           canVersionHere && canVersion(card) && { id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), card.id) },
           DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: 'Download', run: () => downloadOne(item) },
+          fileSharesAllowed() && canEdit && isShareableCard(card) && { id: 'share', label: 'Share file…', run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
+          canEdit && docShareLabel(card) && { id: 'share-doc', label: docShareLabel(card), run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
           // An app action: a signed-out visitor's link wouldn't resolve.
           onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
           canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          copyTo,
           info({ boardId: board.id, cardIds: [item.id] }),
         ] },
         // "Linked from N places" — placed, so Delete stays last and the menu's
@@ -1873,12 +2368,14 @@ export function ListSurface({
     const offSel = cIds.filter((id) => items.find((it) => it.id === id)?.unplaced);
     return composeMenuSections([
       { header: `${n} selected`, items: [
+        selectItem,
         canEdit && offSel.length > 0 && { id: 'put', label: offSel.length === 1 ? 'Put 1 on board' : `Put ${offSel.length} on board`, run: () => putOnBoard(offSel) },
         downloadableSelected.length > 0 && {
           // "Download" when it's all of them; else say which part can go.
           id: 'dl', label: downloadableSelected.length === n ? 'Download' : `Download ${downloadableSelected.length} of ${n}`, run: downloadSelected,
         },
         canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+        copyTo,
         info({ boardId: board.id, cardIds: cIds, clusterIds: bIds }),
       ] },
       { items: [del] },
@@ -1888,24 +2385,207 @@ export function ListSurface({
     ? (cards || []).find((c) => c.id === [...selectedCards][0] && c.kind !== 'boardlink') || null
     : null;
 
+  // The selection's actions. Production floats them at the foot of the list,
+  // in this order; the page in the files sidebar's look sets them in its head
+  // in the controls' place: Clear first, then the count, Delete in red, Info
+  // last.
+  const renderSelbar = () => {
+    const count = (
+      <span className="list-selbar-count" aria-live="polite"
+            title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel || !selecting ? `${totalSel} selected` : 'Select items'}</span>
+    );
+    const download = downloadableSelected.length > 0 && (
+      <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
+              title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
+              aria-label={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
+        <Icon as={sb ? DownloadSimple : Download} size={14} weight="light" />
+        <span>{zipping ? 'Preparing…'
+             : downloadableSelected.length === 1 ? 'Download'
+             : `Download ${downloadableSelected.length}`}</span>
+      </button>
+    );
+    // A visitor on a shared link can't move or delete, so those aren't offered.
+    const put = canEdit && selectedUnplaced.length > 0 && (
+      <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
+              title="Put on the board" aria-label="Put on board">
+        <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
+      </button>
+    );
+    const move = canEdit && onPickCluster && movableSel > 0 && (
+      <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
+        <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
+      </button>
+    );
+    // With no right-click to find it, a finger gets Copy to… here.
+    const copy = touchPass && (selecting || isTouch) && canCopyTo && (
+      <button type="button" className="list-selbar-act" onClick={copySelection} title="Copy to…" aria-label="Copy to…">
+        <Icon as={Copy} size={14} weight="light" /><span>Copy to…</span>
+      </button>
+    );
+    const newCluster = canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
+      <button type="button" className="list-selbar-act" onClick={() => newClusterFromSelection()}
+              title="Move them into a new cluster" aria-label="New cluster">
+        <Icon as={sb ? FolderSimplePlus : Folder} size={14} weight="light" /><span>New cluster</span>
+      </button>
+    );
+    const del = canEdit && totalSel > 0 && (
+      <button type="button" className={`list-selbar-act${sb ? ' is-danger' : ''}`} onClick={deleteSelection} title="Delete" aria-label="Delete">
+        <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
+      </button>
+    );
+    const info = totalSel > 0 && (
+      <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
+              aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`} aria-label="Info">
+        <Icon as={Info} size={14} weight="light" /><span>Info</span>
+      </button>
+    );
+    const done = selecting ? (
+      <button type="button" className="list-selbar-act list-selbar-done"
+              onClick={() => { setSelecting(false); setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
+        Done
+      </button>
+    ) : (
+      <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
+              onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
+        <Icon as={X} size={14} weight="light" />
+      </button>
+    );
+    // Keys to teach a keyboard; a finger has none of them.
+    const hint = !isPanel && !multiHintSeen && !isTouch && (
+      <span className="list-selbar-hint">
+        <kbd>{isMac ? '⌘A' : 'Ctrl+A'}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{isMac ? '⇧' : 'Shift'}</kbd>-click range
+      </span>
+    );
+    return (
+      <div className="list-selbar" ref={selbarRef}>
+        {sb ? (
+          <>{done}{count}<span className="list-selbar-sep" aria-hidden="true" />{download}{put}{move}{copy}{newCluster}{del}<span className="list-selbar-spacer" />{hint}{info}</>
+        ) : (
+          <>{count}{download}{put}{move}{copy}{newCluster}{del}{info}{done}{hint}</>
+        )}
+      </div>
+    );
+  };
+  const selbarJsx = totalSel > 0 || selecting ? renderSelbar() : null;
+
+  // The card's "All files ⌄" as the page's (FilesShowMenu): Show and Sort in
+  // the card's words, and in Grid the tile Size, which leaves it open.
+  const pageSort = sidebarSortOf(sortKey, sortDir);
+  const menuLabel = chipLabelOf(pageChip);
+  const pageMenu = sb ? {
+    label: menuLabel, on: pageChip !== 'all', ariaLabel: 'Show and sort',
+    title: `Showing ${menuLabel.toLowerCase()} · sorted by ${(pageSort ? SORT_LABELS[pageSort] : sortLabelOf(sortKey, sortDir)).toLowerCase()}`,
+    sections: [
+      { id: 'show', label: 'Show', items: pageChipsOf(chipCounts, pageChip).map((c) => ({
+        key: c.id, label: c.id === 'all' ? 'All files' : c.label, count: chipCounts?.[c.id] || 0,
+        checked: pageChip === c.id, onPick: () => pickChip(c.id) })) },
+      { id: 'sort', label: 'Sort', items: [
+        ...SORTS.map((so) => ({ key: so, label: SORT_LABELS[so], checked: pageSort === so, onPick: () => setPageSort(SORT_TO_PAGE[so]) })),
+        // A column head's sort the menu has no word for: shown, in force.
+        ...(pageSort ? [] : [{ key: 'custom', label: sortLabelOf(sortKey, sortDir), checked: true, onPick: () => {} }]),
+      ] },
+    ],
+    extra: phoneShell || viewMode === 'gallery' ? (
+      <>
+        <div className="sbf-menu-sep" role="separator" />
+        {/* A phone's line has no room for Grid | List: it's here. */}
+        {phoneShell && (
+          <div className="fp-size-row" role="group" aria-label="Layout">
+            <span className="fp-size-label">Layout</span>
+            <div className="sbf-tabs">
+              {[['gallery', 'Grid'], ['table', 'List']].map(([id, label]) => (
+                <button type="button" key={id} role="menuitemradio" aria-checked={viewMode === id}
+                        className={`sbf-tab${viewMode === id ? ' is-on' : ''}`} onClick={() => onViewMode(id)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {viewMode === 'gallery' && (
+          <div className="fp-size-row" role="group" aria-label="Tile size">
+            <span className="fp-size-label">Size</span>
+            <div className="sbf-tabs">
+              {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
+                <button type="button" key={k} role="menuitemradio" aria-checked={tileSize === k} aria-label={label}
+                        className={`sbf-tab${tileSize === k ? ' is-on' : ''}`} onClick={() => onTileSize(k)}>
+                  {k.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    ) : null,
+  } : null;
+
   return (
-    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}`} ref={listWrapRef}
+    <IconWeightContext.Provider value={sb ? 'regular' : null}>
+    <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}${selecting ? ' is-selecting' : ''}${noTouchDrag ? ' is-touch' : ''}${sb && detailTarget && !phoneShell ? ' has-info' : ''}${emptyHere ? ' is-empty' : ''}`} ref={listWrapRef}
+         data-look={sb ? look : undefined}
+         // The look's phone rules key on this, not on App's shell classes, so
+         // a page outside App (a shared link) gets them too (filesPage.css).
+         data-shell={sb && phoneShell ? 'mobile' : undefined}
+         data-drop-board={rulesOn ? board.id : undefined} data-drop-where={rulesOn ? 'files' : undefined}
+         data-drop-name={rulesOn ? (board.name || undefined) : undefined}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-         onPointerDownCapture={() => setActivePane(paneId)}
+         onPointerDownCapture={(e) => { setActivePane(paneId); lastPtrRef.current = e.pointerType || 'mouse'; }}
          onPointerEnter={() => setActivePane(paneId)}
          onFocus={onListFocus}
          onClick={(e) => {
            // A click on empty floor clears the selection; one on a control,
-           // a tile or a menu is that thing's business.
+           // a tile or a menu is that thing's business. Picking several, a
+           // finger that lands between two tiles mustn't drop them all.
+           if (selecting) return;
            if (e.target.closest?.('button, a, input, select, label, [role="menu"], [role="dialog"], .ct-tile, .ct-row, .ft, .cbt, .list-selbar, .cb-detail')) return;
            setSelectedBoards(new Set()); setSelectedCards(new Set()); setSelectedGroupId(null);
          }}>
       <div className="list-inner" ref={listInnerRef} onContextMenu={onListContextMenu}>
         {isPanel && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
         {isPanel && <div className={`lp-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
+        {/* The page in the files sidebar's look: the card's head grown, sticky
+            in the sheet — the cluster's name, then the card's controls, or the
+            selection's actions, or what a drop does. */}
+        {sb && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {sb && (
+          <div className={`fp-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>
+            <FilesPageHead board={board} boards={boards} phone={phoneShell}
+              meta={phoneShell ? '' : pageMeta}
+              download={canDownloadAll && !phoneShell ? {
+                label: zipping ? 'Preparing…' : narrowed ? `Download ${downloadableVisible.length}` : 'Download all',
+                busy: zipping, onClick: downloadAll } : null}
+              shrink={dockControls?.canShrink && dockControls?.onShrink ? {
+                label: dockControls.shrinkLabel || 'Beside board', title: dockControls.shrinkTitle, onClick: dockControls.onShrink } : null}
+              trail={hasTrail ? fullPathBar : null}
+              switchable={clusterSwitch}
+              onOpenBoard={onOpenBoard} />
+            {selbarJsx || (dropLine ? (
+              <div className="fp-drop-line">
+                <div className={`fp-drop${dropLine.blocked ? ' is-blocked' : ''}`} role="status">
+                  <Icon as={UploadSimple} size={15} weight="regular" />{dropLine.text}
+                </div>
+              </div>
+            ) : otherCards.length > 0 ? (
+              <FilesPageTools query={query} onQuery={setQuery} searchRef={searchRef}
+                placeholder={`Search ${board?.name || 'this cluster'}`}
+                menu={pageMenu}
+                // A pack is read whenever there is one, narrowed or not: it
+                // re-reads what's showing, so narrowing to 128 says what that
+                // leaves. Otherwise a search or filter says how many it leaves.
+                found={loading ? '' : packSummary || (narrowed ? `${visibleItems.length} of ${otherCards.length}` : '')}
+                foundPack={!loading && !!packSummary}
+                faces={phoneShell ? null : facePeers}
+                viewMode={phoneShell ? null : viewMode} onViewMode={onViewMode}
+                upsell={canEdit && showStorageUpsell && onStorageUpsell ? <StorageUpsell onUpsell={onUpsell} /> : null}
+                // On a phone the bottom bar's + adds files here (see the
+                // effect on soleil-mobile-add-card): the line keeps the search.
+                onAddFiles={canEdit && !phoneShell ? openAddPicker : null} />
+            ) : null)}
+          </div>
+        )}
         {/* Full Files opens on the cluster's name and what's in it — then the
             toolbar, sticky, above everything it searches and sorts. */}
-        {!isPanel && (
+        {!isPanel && !sb && (
           <header className={`cb-pagehead${hasTrail ? ' has-trail' : ''}`}>
             {hasTrail && <div className="cb-pagehead-trail"><PathBar {...fullPathBar} /></div>}
             <h1 className="cb-pagehead-title">{board?.name || 'Untitled cluster'}</h1>
@@ -1920,15 +2600,16 @@ export function ListSurface({
             )}
             {dockControls?.canShrink && dockControls?.onShrink && (
               <button type="button" className="cbt-iconbtn cbt-shrink" onClick={dockControls.onShrink}
-                      aria-label="Beside board" title="Put Files beside the board">
+                      aria-label={dockControls.shrinkLabel || 'Beside board'}
+                      title={dockControls.shrinkTitle || dockControls.shrinkLabel || 'Put Files beside the board'}>
                 <Icon as={ArrowsInSimple} size={16} weight="light" />
               </button>
             )}
           </header>
         )}
-        {!isPanel && filesBlockShown && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
-        {!isPanel && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
-        {!isPanel && clusterEmpty && (
+        {!isPanel && !sb && filesBlockShown && <div className="lp-sentinel" ref={headSentinelRef} aria-hidden="true" />}
+        {!isPanel && !sb && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
+        {!isPanel && !sb && clusterEmpty && (
           <div className="list-empty">
             <div className="list-empty-title">Empty cluster</div>
             <div className="list-empty-sub">
@@ -1937,7 +2618,7 @@ export function ListSurface({
             {canEdit && (
               <div className="list-empty-acts">
                 <button className="tb-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" /> Add files</button>
-                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard()}>New cluster</button>}
+                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}>New cluster</button>}
                 {onOpenPicker && <button className="tb-btn" onClick={onOpenPicker}><Icon as={LinkIcon} size={16} weight="light" /> Link a cluster</button>}
               </div>
             )}
@@ -1960,7 +2641,7 @@ export function ListSurface({
             )}
           </>
         )}
-        {!isPanel && subBoards.length > 0 && (
+        {!isPanel && !sb && subBoards.length > 0 && (
           <>
             <div className="list-section">
               <span>Clusters</span><span className="list-section-count">{subBoards.length}</span>
@@ -1968,7 +2649,7 @@ export function ListSurface({
             <div className="ft-grid is-full">{subBoards.map(renderSubFolder)}</div>
           </>
         )}
-        {!isPanel && linkedCards.length > 0 && (
+        {!isPanel && !sb && linkedCards.length > 0 && (
           <>
             <div className="list-section">
               <span>Linked</span><span className="list-section-count">{linkedCards.length}</span>
@@ -1976,7 +2657,78 @@ export function ListSurface({
             <div className="ft-grid is-full">{linkedCards.map(renderLinkedFolder)}</div>
           </>
         )}
-        {filesBlockShown && (
+        {/* The page in the files sidebar's look, under the head: the card's
+            shelves in Grid, Finder's table in List. */}
+        {sb && (
+          <div className="cluster-browser">
+            <div className={`cb-split ${detailTarget ? 'has-detail' : ''}`}>
+              <div className="cb-main"
+                   onDragStart={filesDraggable ? onFilesDragStart : undefined}
+                   onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
+                {viewMode === 'gallery' ? (
+                  <FilesShelves folders={folderShelf} sections={sections} closedShelves={closedShelves}
+                    foldable={(sec) => shelfFoldable(sec, { chip: pageChip, query })} onToggle={toggleShelf}
+                    galleryProps={galleryProps} tableProps={tableProps} tileSize={tileSize} phone={bp.isPhone}
+                    onShelfLayout={onShelfLayout} />
+                ) : (visibleItems.length > 0 || folderRows.length > 0) && (
+                  <ClusterTable {...tableProps} items={displayItems} variant="classic" leadRows={folderRows} />
+                )}
+                {visibleItems.length === 0 && (loading ? (
+                  <div className="fp-loading" role="status">Loading files…</div>
+                ) : narrowed ? (
+                  descHits.length === 0 && shownFolders.length === 0 && (
+                    <div className="fp-nomatch">
+                      <span>No files match.</span>
+                      <button type="button" className="fp-word" onClick={() => { setQuery(''); onClearFilters(); }}>Clear filters</button>
+                    </div>
+                  )
+                ) : (
+                  <div className={`fp-empty${canEdit ? '' : ' is-readonly'}`}>
+                    {canEdit && <span className="fp-empty-ico" aria-hidden="true"><Icon as={UploadSimple} size={20} weight="regular" /></span>}
+                    <div className="fp-empty-title">No files in {board?.name || 'this cluster'}</div>
+                    <div className="fp-empty-sub">
+                      {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
+                        : browsingFrom ? `Open ${board?.name || 'it'} to add files.` : 'Nothing here yet.'}
+                    </div>
+                    {canEdit ? (
+                      <div className="fp-empty-acts">
+                        <button type="button" className="sbf-upload fp-add" onClick={openAddPicker}>
+                          <Icon as={Plus} size={14} weight="regular" /><span className="fp-add-label">Add files</span>
+                        </button>
+                        {!shownFolders.length && mutators.addNewBoard && (
+                          <button type="button" className="fp-word" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}>New cluster</button>
+                        )}
+                        {!shownFolders.length && onOpenPicker && (
+                          <button type="button" className="fp-word" onClick={onOpenPicker}>Link a cluster</button>
+                        )}
+                      </div>
+                    ) : browsingFrom && dockControls?.onExpand ? (
+                      <button type="button" className="fp-word" onClick={dockControls.onExpand}>Open {board?.name || 'cluster'}</button>
+                    ) : null}
+                  </div>
+                ))}
+                {/* Hits in clusters under this one aren't loaded cards: rows
+                    that open the cluster they're in. */}
+                {descHits.length > 0 && (
+                  <>
+                    <FilesShelfHead id="desc" label="In sub-clusters" count={descHits.length}
+                      first={visibleItems.length === 0 && shownFolders.length === 0} />
+                    <div className="fp-desc">
+                      {descHits.map((h) => (
+                        <button key={`${h.boardId}:${h.id}`} type="button" className="fp-desc-row" onClick={() => onOpenBoard(h.boardId)}>
+                          <span className="fp-desc-name">{h.name}</span>
+                          <span className="fp-desc-where">{h.clusterName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              {detailJsx}
+            </div>
+          </div>
+        )}
+        {!sb && filesBlockShown && (
           <div className="cluster-browser">
             {(hasFolders || (!isPanel && packSummary)) && (
               <div className="list-section list-section-files">
@@ -2014,35 +2766,9 @@ export function ListSurface({
                     </div>
                   )
                 ) : visibleItems.length === 0 ? null : viewMode === 'gallery' ? (
-                  <JustifiedGallery tileSize={tileSize}
-                    activeId={activeId} registerRow={registerRow} onLayout={onGalleryLayout}
-                    renameFor={renameFor} markUnplaced={markUnplaced}
-                    items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
-                    recentlyAddedIds={recentlyAddedIds}
-                    expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
-                    onGroupClick={onGroupClick}
-                    onDownload={downloadOne}
-                    onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
-                    playingId={playingId}
-                    draggableItems={filesDraggable} onBoardIds={onBoardIds}
-                    onRowClick={(e, id) => onTileClick(e, 'file', id)}
-                    onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+                  <JustifiedGallery {...galleryProps} tileSize={tileSize} onLayout={onGalleryLayout} items={displayItems} />
                 ) : (
-                  <ClusterTable
-                    items={displayItems} selectedCards={selectedCards} peerMap={peerMap}
-                    sortKey={sortKey} sortDir={sortDir} onSort={onSort}
-                    recentlyAddedIds={recentlyAddedIds}
-                    expandedGroups={expandedGroups} selectedGroupId={selectedGroupId}
-                    onGroupClick={onGroupClick}
-                    onDownload={downloadOne}
-                    onAudition={(it) => { setActiveId(it.id); auditionCard(it.id); }}
-                    onSeek={seekCard}
-                    activeId={activeId} playingId={playingId} registerRow={registerRow}
-                    audioMode={audioMode}
-                    draggableItems={filesDraggable} onBoardIds={onBoardIds} renameFor={renameFor}
-                    markUnplaced={markUnplaced}
-                    onRowClick={(e, id) => onTileClick(e, 'file', id)}
-                    onRowDoubleClick={(e, id) => onTileDoubleClick(e, 'file', id)} />
+                  <ClusterTable {...tableProps} items={displayItems} />
                 )}
                 {descHits.length > 0 && (
                   <div className="cb-descendants">
@@ -2056,18 +2782,7 @@ export function ListSurface({
                   </div>
                 )}
               </div>
-              {detailTarget && (
-                <DetailPanel
-                  target={detailTarget} boards={boards} canEdit={canEdit}
-                  selfId={selfId} gridTemplates={gridTemplates}
-                  writeMeta={canEdit && !browsingFrom ? mutators?.updateCardMeta : null}
-                  versionEnv={canVersionHere ? versionEnv() : null}
-                  onOpenCluster={detailTarget.type === 'cluster' && detailTarget.board?.id !== board.id ? onOpenBoard : null}
-                  onClose={toggleInfo}
-                  onReveal={onRevealOnCanvas ? ((id) => onRevealOnCanvas([id])) : null}
-                  onPutOnBoard={canEdit && !browsingFrom ? (id) => putOnBoard([id]) : null}
-                  onDelete={onDeleteItems} />
-              )}
+              {detailJsx}
             </div>
           </div>
         )}
@@ -2102,6 +2817,7 @@ export function ListSurface({
               onPutOnBoard={canEdit && !browsingFrom ? (it) => { setQuickId(null); putOnBoard([it.id]); } : null}
               infoOpen={infoOpen} onToggleInfo={toggleInfo}
               boards={boards} canEdit={canEdit}
+              canEditItem={canEditBoard ? (it) => !!canEditBoard(it.boardId) : null}
               onDelete={async (ids) => {
                 const next = quickItems[quickIndex + 1] || quickItems[quickIndex - 1] || null;
                 if (!(await onDeleteItems(ids))) return;
@@ -2120,57 +2836,11 @@ export function ListSurface({
                }} />
         {/* Rendered LAST inside .list-inner and stuck to the bottom of the
             scrollport, so the actions for a selection are still on screen once
-            you have scrolled past the rows you made it from. */}
-        {totalSel > 0 && (
-          <div className="list-selbar" ref={selbarRef}>
-            <span className="list-selbar-count" aria-live="polite"
-                  title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel} selected</span>
-            {downloadableSelected.length > 0 && (
-              <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
-                      title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
-                      aria-label={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
-                <Icon as={Download} size={14} weight="light" />
-                <span>{zipping ? 'Preparing…'
-                     : downloadableSelected.length === 1 ? 'Download'
-                     : `Download ${downloadableSelected.length}`}</span>
-              </button>
-            )}
-            {/* A visitor on a shared link can't move or delete, so those
-                aren't offered. */}
-            {canEdit && selectedUnplaced.length > 0 && (
-              <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
-                      title="Put on the board" aria-label="Put on board">
-                <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
-              </button>
-            )}
-            {canEdit && onPickCluster && movableSel > 0 && (
-              <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
-                <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
-              </button>
-            )}
-            {canEdit && (
-              <button type="button" className="list-selbar-act" onClick={deleteSelection} title="Delete" aria-label="Delete">
-                <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
-              </button>
-            )}
-            {totalSel > 0 && (
-              <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
-                      aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`} aria-label="Info">
-                <Icon as={Info} size={14} weight="light" /><span>Info</span>
-              </button>
-            )}
-            <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
-                    onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
-              <Icon as={X} size={14} weight="light" />
-            </button>
-            {!isPanel && !multiHintSeen && (
-              <span className="list-selbar-hint">
-                <kbd>{isMac ? '⌘A' : 'Ctrl+A'}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{isMac ? '⇧' : 'Shift'}</kbd>-click range
-              </span>
-            )}
-          </div>
-        )}
+            you have scrolled past the rows you made it from. The page in the
+            files sidebar's look sets them in its head instead. */}
+        {!sb && selbarJsx}
       </div>
     </div>
+    </IconWeightContext.Provider>
   );
 }

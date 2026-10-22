@@ -22,6 +22,7 @@ const SHARED_WITH_CLEAN_MODE = [
   '.ws-presence', '.canvas-comment-layer', '.msg-panel',
   '.mb-nav', '.board-tags-strip', '.presence-stack-wrap',
   '.upgrade-chip', '.feedback-trigger', '.fv-banner', '.onboarding-coachmark',
+  '.imptray', '.imptray-chip',
 ];
 
 // Capture-only. These MUST stay visible in ordinary clean mode — hiding live

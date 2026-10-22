@@ -17,9 +17,9 @@ import assert from 'node:assert/strict';
 import { DEFINITION_BREAKS, WEEKLY_SERIES_KEYS } from './adminDefinitionBreaks.js';
 
 // Every name a break may carry in `series`: the four weekly columns, plus the
-// two feeds that have definition changes worth a marker but are not trended
-// weekly (the raw event stream and the daily metrics table).
-const KNOWN_SERIES = ['signups', 'active_users', 'work_users', 'cards', 'events', 'metrics_daily'];
+// feeds that have definition changes worth a marker but are not trended weekly
+// (the raw event stream, the daily metrics table, and per-day time in app).
+const KNOWN_SERIES = ['signups', 'active_users', 'work_users', 'cards', 'events', 'metrics_daily', 'seconds_in_app'];
 
 // A real calendar day, not just something shaped like one: '2026-02-30' matches
 // the pattern and would roll over to March in a naive Date.

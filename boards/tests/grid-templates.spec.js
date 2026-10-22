@@ -367,6 +367,8 @@ test.describe('grid templates — the rail panel', () => {
   test('the panel lists built-ins with a shape preview each', async ({ page }) => {
     await gridTool(page).click();
     const items = panel(page).getByRole('menuitem');
+    // The panel's chunk loads at its first open, so wait for it before counting.
+    await expect(items.first()).toBeVisible();
     expect(await items.count()).toBeGreaterThanOrEqual(5);
     await expect(panel(page).locator('.tplt-thumb')).toHaveCount(await items.count());
     // The 2x2 tile's preview draws exactly four cells.

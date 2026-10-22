@@ -60,7 +60,7 @@ test.describe('admin header (VS-ADMIN-02)', () => {
 
   test('a tab row too long for the header never runs under the right-hand controls', async ({ page }) => {
     await openAdmin(page);
-    await expect(page.getByRole('tab', { name: /^overview$/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('tab', { name: /^analytics$/i })).toBeVisible({ timeout: 15000 });
     const overlap = await page.evaluate(() => {
       const right = document.querySelector('.admin-header-right').getBoundingClientRect();
       return [...document.querySelectorAll('.admin-header .admin-tab')].some((t) => {
@@ -133,7 +133,7 @@ test.describe('stat strips that wrap (VS-ADMIN-03)', () => {
 test.describe('the 8/4 deck between 1001 and 1400px (VS-ADMIN-04)', () => {
   test.use({ viewport: { width: 1024, height: 768 } });
 
-  for (const view of ['today', 'funnel']) {
+  for (const view of ['overview', 'funnel']) {
     test(`${view}: a third paired with a full-width chart is not left alone at half width`, async ({ page }) => {
       await openAdmin(page, { view });
       const thirds = page.locator('.adm-deck > .adm-c4');

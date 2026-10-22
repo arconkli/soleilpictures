@@ -2,10 +2,11 @@ import { memo } from 'react';
 import { CardPreview } from './CardPreview.jsx';
 import { Avatar } from '../primitives.jsx';
 import { Icon } from '../Icon.jsx';
-import { Download, Check } from '../../lib/icons.js';
+import { Download, Check, Play } from '../../lib/icons.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { InlineRename } from './InlineRename.jsx';
 import { captionOf } from '../../lib/listItem.js';
+import { formatDuration } from '../../lib/loopMeta.js';
 
 // One gallery tile: a large preview, name + type badge, and a live presence
 // overlay (peer color border + avatar) when a teammate has this card open.
@@ -22,24 +23,31 @@ export const ClusterTile = memo(function ClusterTile({
   // Inline rename: when set, the name is a field ({ onCommit, onCancel }).
   rename = null,
   markUnplaced = false,   // mark files that aren't on the board (lib/placement.js)
+  captionless = false,    // the Files page in the files sidebar's look: the picture is the name
 }) {
   const peer = peers && peers[0];
   const caption = captionOf(item.name, item.ext);
-  // Where the file stands with the board, as a mark by its name — never on the
-  // picture: once most tiles carry it, anything on the art repeats across the
-  // whole grid. Dashed: in the cluster, not on its board. Solid: a copy is on
-  // this board (seen while browsing another cluster).
+  // Where the file stands with the board. Under a caption, a mark by the name
+  // — never on the picture: once most tiles carry it, anything on the art
+  // repeats across the whole grid. Hollow: in the cluster, not on its board.
+  // Solid: a copy is on this board (seen while browsing another cluster).
+  // Without a caption there is no name to sit by, so "not on board" is a
+  // small ring in the picture's corner, the sidebar's mark; "a copy is on
+  // board" is left to Info there.
   const flag = markUnplaced && item.unplaced
     ? { cls: 'is-off', label: 'Not on board', title: 'Not on board — in this cluster, not placed on its board' }
     : onBoard ? { cls: 'is-on', label: 'On board', title: 'A copy of this file is already on the board' } : null;
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
   const canAudition = !!onAudition && item.kind === 'audio' && !item.pending;
+  const off = captionless && markUnplaced && item.unplaced;
+  const dur = captionless && item.kind === 'video' && item.durationSec > 0 ? formatDuration(item.durationSec) : '';
   return (
     <div
       ref={tileRef}
-      className={`ct-tile${member ? ' ct-member' : ''}${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}`}
+      className={`ct-tile${member ? ' ct-member' : ''}${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${isNew ? ' is-new' : ''}${item.pending ? ' is-pending' : ''}${peer ? ' is-peer' : ''}${playing ? ' is-playing' : ''}${captionless ? ' is-captionless' : ''}${captionless && rename ? ' is-renaming' : ''}`}
       style={peer || style || previewH ? { ...(style || {}), ...(previewH ? { '--jg-h': `${previewH}px` } : {}), ...(peer ? { '--peer-color': peer.user.color } : {}) } : undefined}
       data-item-id={item.id}
+      title={captionless && !rename ? `${item.name}${off ? ' · not on the board' : ''}` : undefined}
       draggable={draggable && !item.pending && !rename ? true : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -47,6 +55,9 @@ export const ClusterTile = memo(function ClusterTile({
       <div className="ct-tile-preview" data-face={['r2', 'swatches'].includes(item.preview?.mode) ? 'photo' : 'paper'}>
         <CardPreview item={item} size="tile" px={px} />
         {item.pending && <span className="ct-thumb-spin ct-tile-spin" aria-hidden="true" />}
+        {captionless && item.pending && <span className="ct-tile-pend">Uploading…</span>}
+        {off && <span className="ct-tile-off" role="img" aria-label="Not on board"><i /></span>}
+        {dur && <span className="ct-tile-dur"><Icon as={Play} size={9} weight="fill" />{dur}</span>}
         {/* Add to (or take out of) the selection without a modifier key —
             the way to multi-select on a trackpad or a touchscreen. */}
         <button type="button" className="ct-tile-check" tabIndex={-1}
@@ -96,13 +107,15 @@ export const ClusterTile = memo(function ClusterTile({
           </div>
         )}
       </div>
-      <div className="ct-tile-meta">
-        {flag && !rename && <span className={`ct-tile-flag ${flag.cls}`} role="img" aria-label={flag.label} title={flag.title} />}
-        {rename
-          ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
-          : <div className="ct-tile-name" title={item.name}>{caption}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
-        <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
-      </div>
+      {(!captionless || rename) && (
+        <div className="ct-tile-meta">
+          {flag && !rename && <span className={`ct-tile-flag ${flag.cls}`} role="img" aria-label={flag.label} title={flag.title} />}
+          {rename
+            ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
+            : <div className="ct-tile-name" title={item.name}>{caption}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
+          <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
+        </div>
+      )}
     </div>
   );
 });

@@ -3,7 +3,8 @@
 //
 //   1. Invite — email, then "Can edit ▾ in This cluster | Whole workspace", a
 //      line saying by name what that grants, and what inviting someone NEW
-//      earns (InviteRewardNote)
+//      earns (InviteRewardNote). Above it, near or at the 10-editor limit, a
+//      note says so (EditorLimitNote, the owner's pick B, 2026-10-21)
 //   2. Who has access — one list, every row the same shape (who on the left,
 //      what they can do on the right), ending with the link: "Anyone with
 //      the link"
@@ -36,7 +37,7 @@ import {
   setPublicLinkSubboards, setPublicLinkIndexing,
   inviteWorkspaceMember,
   listPendingInvitesForBoard, listPendingInvitesForWorkspace,
-  revokePendingInvite,
+  revokePendingInvite, askOwnerForEditorSlot,
 } from '../lib/boardsApi.js';
 import {
   activeLinks, deriveAccessMode, inheritedAccessRows, linkForMode, linkKind, otherModeLinks,
@@ -44,6 +45,14 @@ import {
 } from '../lib/shareAccess.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { ASSIGNABLE_ROLES } from '../lib/workspaceRoles.js';
+import { parseEmails } from '../lib/inviteSubmit.js';
+import {
+  editorLimitNote, editorLimitFull, editorLimitRefusal, editorLimitRefusalMessage,
+  firstName, holdsPlace, ownerPlan,
+} from '../lib/editorLimit.js';
+import { editorLimitAllowed } from '../lib/appHost.js';
+import { useEditorLimit } from '../hooks/useEditorLimit.js';
+import { EditorLimitNote } from './EditorLimitNote.jsx';
 import { maskName, maskEmail } from '../lib/captureIdentity.js';
 import { undoToast } from '../lib/undoToast.js';
 import * as userProfiles from '../lib/userProfiles.js';
@@ -100,6 +109,10 @@ export function ShareModal({
   rewardTier = null,
   loadReferralStats = null,
   onOpenInvites = null,
+  // The editor limit's See who: the app closes the panel and opens Settings ›
+  // Members, where the owner's list of people who can edit is. Takes the id
+  // of the workspace the panel is about.
+  onSeeEditors = null,
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
@@ -115,6 +128,12 @@ export function ShareModal({
   // Which reward sentence the invite note shows (InviteRewardNote): carried on
   // INVITE_SENT so the invite rate can be read by the wording people saw.
   const rewardNote = rewardTier === 'demo' ? 'free' : 'paid';
+  // The 10-editor limit (0520, held: editorLimitAllowed). Only people who can
+  // invite read it; null while unknown or off, which reads as room.
+  const editorLimit = useEditorLimit({ boardId: board?.id || null, enabled: canInvite });
+  const limitCap = editorLimit.cap;
+  const editFull = editorLimitFull(limitCap);
+  const [askState, setAskState] = useState(null);   // null | 'asking' | 'sent'
   const workspaceScope = scope === 'workspace';
   const [shares, setShares] = useState([]);          // per-board shares
   // Shares on an ANCESTOR cluster: access cascades down the tree, so these
@@ -146,9 +165,17 @@ export function ShareModal({
   // The role the invite path sends, in the vocabulary it has always used:
   // 'editor' / 'viewer' for this cluster, 'workspace' / 'workspaceviewer' for
   // the whole workspace. The role a workspace invite carries is workspaceRole.
+  // While the account has no room, "Can edit" is off for anyone new and the
+  // invite goes out to view. Addresses that already hold a place (the owner's
+  // list says so) can still be asked to edit: that takes no place.
+  const typedEmails = parseEmails(inviteEmail).valid;
+  const typedHoldPlaces = typedEmails.length > 0
+    && typedEmails.every((e) => holdsPlace(editorLimit.holders, { email: e }));
+  const editLocked = editFull && !typedHoldPlaces;
+  const access = editLocked ? 'viewer' : inviteAccess;
   const inviteRole = isManager && inviteScope === 'workspace'
-    ? (inviteAccess === 'viewer' ? 'workspaceviewer' : 'workspace')
-    : inviteAccess;
+    ? (access === 'viewer' ? 'workspaceviewer' : 'workspace')
+    : access;
   const isWorkspaceInvite = inviteRole === 'workspace' || inviteRole === 'workspaceviewer';
   const workspaceRole = inviteRole === 'workspaceviewer' ? 'viewer' : 'editor';
   const [inviting, setInviting] = useState(false);
@@ -360,7 +387,9 @@ export function ShareModal({
       feedback.toast(copied
         ? { type: 'success',
             message: kind === 'invite'
-              ? 'Invite link copied — anyone with it can join as an editor.'
+              ? (editFull
+                  ? `Invite link copied — while ${planWord} is full, anyone with it joins as a viewer.`
+                  : 'Invite link copied — anyone with it can join as an editor.')
               : 'Link copied — anyone with it can view this cluster.' }
         : { type: 'warning', message: 'Link ready — copying failed, use Copy under Link settings.', ttl: 7000 });
       await refreshLinks();
@@ -517,24 +546,55 @@ export function ShareModal({
     };
   };
 
-  // Parse a free-form email field that may contain one or many
-  // addresses separated by commas, semicolons, whitespace, or newlines.
-  // Loose validation: anything with "@" and a dot in the domain part.
-  // Invalid entries are surfaced (not silently dropped) so a typo'd
-  // address never looks like it was invited.
-  const parseEmails = (raw) => {
-    const parts = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
-    const valid = parts.filter(s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s));
-    const invalid = parts.filter(s => !valid.includes(s));
-    // The same address twice in a paste is one person, and one invite.
-    const seen = new Set();
-    const unique = valid.filter(s => {
-      const k = s.toLowerCase();
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-    return { valid: unique, invalid };
+  // Whose plan it is, by first name, for anyone but its owner: "Alex’s plan".
+  // A workspace the panel knows only by a share (created_by null) says "the
+  // owner".
+  const ownerName = !limitCap?.isAccountOwner && workspace?.created_by
+    ? firstName(userMeta(workspace.created_by).name) : null;
+  const planWord = limitCap?.isAccountOwner ? 'your plan' : ownerPlan(ownerName);
+  const limitNote = editorLimitNote(limitCap, { ownerName, asked: askState === 'sent' });
+
+  // Once per stage a panel shows, so the read can tell how many people the
+  // note reached, and at which stage.
+  const seenStage = useRef(null);
+  useEffect(() => {
+    if (!limitNote || seenStage.current === limitNote.stage) return;
+    seenStage.current = limitNote.stage;
+    try {
+      logEventNow(EV.EDITOR_LIMIT_SEEN, { surface: 'share_modal', stage: limitNote.stage, owner: !!limitCap?.isAccountOwner });
+    } catch (_) {}
+  }, [limitNote?.stage, limitCap?.isAccountOwner]);
+
+  const seeEditors = () => {
+    try { logEventNow(EV.EDITOR_LIMIT_SEE_WHO, { surface: 'share_modal', stage: limitNote?.stage || null }); } catch (_) {}
+    onSeeEditors?.(workspace?.id || board?.workspace_id || null);
+  };
+
+  // "Ask Alex for room". A door that refuses rolls its own notice back, so
+  // asking is a call of its own (0520 ask_owner_for_editor_slot).
+  const askForRoom = async () => {
+    if (askState) return;
+    setAskState('asking');
+    // Settings › Preview's pretend numbers: nobody to tell, so it just says so.
+    if (editorLimit.previewing) { setAskState('sent'); return; }
+    let result = 'error';
+    try { result = await askOwnerForEditorSlot({ boardId: board?.id || null }); } catch (_) { result = 'error'; }
+    try { logEventNow(EV.EDITOR_LIMIT_ASK_SENT, { result, surface: 'share_modal' }); } catch (_) {}
+    if (result === 'sent' || result === 'already_sent') { setAskState('sent'); return; }
+    setAskState(null);
+    if (result === 'error') {
+      feedback.toast({ type: 'error', message: 'Could not ask — check your connection and try again.' });
+      return;
+    }
+    editorLimit.refresh();   // 'not_full' or 'owner': there is room after all
+  };
+
+  // A door said no for want of room the panel didn't know about. Say so in
+  // the panel's words, and read the numbers again so the note shows.
+  const onEditorLimitRefused = (refusal, door) => {
+    feedback.toast({ type: 'warning', message: editorLimitRefusalMessage(refusal, { ownerName }), ttl: 9000 });
+    try { logEventNow(EV.EDITOR_LIMIT_REFUSED, { door, ask: !!refusal.ask, surface: 'share_modal' }); } catch (_) {}
+    editorLimit.refresh();
   };
 
   const submitInvite = async () => {
@@ -555,6 +615,9 @@ export function ShareModal({
     // remaining address would be refused the same way, so the loop stops there
     // and the sentence is shown once instead of once per address.
     let limitMsg = null; let limitIdx = -1;
+    // 0521: the account has no room for another editor. Every address after
+    // it would be refused the same way, so the loop stops there too.
+    let editorStop = null;
 
     for (let i = 0; i < emails.length; i++) {
       const email = emails[i];
@@ -592,6 +655,8 @@ export function ShareModal({
       } catch (e) {
         const msg = e?.message || String(e);
         if (/invite limit reached/i.test(msg)) { limitMsg = msg; limitIdx = i; break; }
+        const full = editorLimitRefusal(e);
+        if (full) { editorStop = full; limitIdx = i; break; }
         fail.push({ email, reason: msg });
       }
     }
@@ -621,6 +686,30 @@ export function ShareModal({
         setPendingBoardInvites(pendingRows);
       } catch (_) {}
       onSharesChanged?.();
+    }
+
+    if (editorStop) {
+      const sent = granted.length + pending.length;
+      const unsent = emails.slice(limitIdx);
+      const why = editorLimitRefusalMessage(editorStop, { ownerName });
+      const failed = fail.length
+        ? ` Also failed: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`
+        : '';
+      feedback.toast({
+        type: 'warning',
+        message: sent > 0 ? `Sent ${sent}; ${unsent.length} not sent. ${why}${failed}` : `${why}${failed}`,
+        ttl: 9000,
+      });
+      try {
+        logEventNow(EV.EDITOR_LIMIT_REFUSED, {
+          door: isWorkspaceInvite ? 'workspace_invite' : 'share', ask: !!editorStop.ask, surface: 'share_modal',
+        });
+      } catch (_) {}
+      editorLimit.refresh();
+      // The addresses it never reached stay in the box, to send to view.
+      setInviteEmail(unsent.join(', '));
+      setInviting(false);
+      return;
     }
 
     if (limitMsg) {
@@ -717,6 +806,8 @@ export function ShareModal({
       setShares(rows);
       onSharesChanged?.();
     } catch (e) {
+      const full = editorLimitRefusal(e);
+      if (full) { onEditorLimitRefused(full, 'share_role'); return; }
       feedback.toast({ type: 'error', message: 'Could not change role: ' + (e.message || e) });
     }
   };
@@ -746,6 +837,8 @@ export function ShareModal({
             setShares(s => (s.some(x => x.user_id === share.user_id) ? s : [...s, share]));
             onSharesChanged?.();
           } catch (e) {
+            const full = editorLimitRefusal(e);
+            if (full) { onEditorLimitRefused(full, 'restore'); return; }
             feedback.toast({ type: 'error', message: 'Could not restore access: ' + (e.message || e) });
           }
         },
@@ -828,6 +921,8 @@ export function ShareModal({
       onMembersChanged?.();
       onWorkspacesChanged?.();
     } catch (e) {
+      const full = editorLimitRefusal(e);
+      if (full) { onEditorLimitRefused(full, 'member_role'); return; }
       feedback.toast({ type: 'error', message: 'Could not change their access: ' + (e.message || e) });
     }
   };
@@ -882,6 +977,8 @@ export function ShareModal({
         : { type: 'warning', message: `Added ${share.email} to "${workspace.name}", but their separate access to this cluster is still listed — remove it from their row.`, ttl: 8000 });
     } catch (e) {
       const msg = e?.message || String(e);
+      const full = editorLimitRefusal(e);
+      if (full) { onEditorLimitRefused(full, 'widen'); return; }
       feedback.toast(/invite limit reached/i.test(msg)
         ? { type: 'warning', message: msg.replace(/^invite limit reached:\s*/i, '') }
         : { type: 'error', message: 'Could not add them to the workspace: ' + msg });
@@ -903,13 +1000,15 @@ export function ShareModal({
   // name — this cluster's or the workspace's — so the reach is never a guess.
   const wsName = workspace?.name || 'this workspace';
   const boardName = board?.name || 'this cluster';
+  // "Editors are free" stops being true with the editor limit (held).
+  const freeEditors = editorLimitAllowed() ? '' : ' Editors are free on every plan.';
   const roleHint = inviteRole === 'viewer'
     ? `They can open “${boardName}” and its sub-clusters, comment and vote, but can’t change anything.`
     : inviteRole === 'workspace'
-      ? `They can add, move and delete cards in every cluster in “${wsName}”. Editors are free on every plan.`
+      ? `They can add, move and delete cards in every cluster in “${wsName}”.${freeEditors}`
       : inviteRole === 'workspaceviewer'
         ? `They can open every cluster in “${wsName}”, comment and vote, but can’t change anything.`
-        : `They can add, move and delete cards in “${boardName}” and its sub-clusters. Editors are free on every plan.`;
+        : `They can add, move and delete cards in “${boardName}” and its sub-clusters.${freeEditors}`;
 
   // Gold marks the action the panel is about to take, and only one control
   // carries it. At rest that is Copy link — it has focus, so Share → Enter
@@ -929,7 +1028,10 @@ export function ShareModal({
         ? `Only the people above, plus ${live.length} link${live.length === 1 ? '' : 's'} still live`
         : 'Only the people above can open it';
     }
-    const what = accessMode === 'edit' ? 'They sign in, then join as editors' : 'No account needed';
+    // While the plan is full, an edit link lets people in to view (0521).
+    const what = accessMode === 'edit'
+      ? (editFull ? `They sign in, then join as viewers while ${planWord} is full` : 'They sign in, then join as editors')
+      : 'No account needed';
     if (!currentLink) return `${what} · no link yet`;
     const expiry = currentLink.expires_at
       ? `expires ${new Date(currentLink.expires_at).toLocaleDateString()}` : 'never expires';
@@ -1055,6 +1157,10 @@ export function ShareModal({
             and the note under that says what inviting someone new earns. */}
         {canInvite && (
           <div className="share-section share-invite">
+            <EditorLimitNote note={limitNote}
+                             onSeeWho={onSeeEditors ? seeEditors : null}
+                             onAsk={askForRoom}
+                             asking={askState === 'asking'} />
             <div className="share-invite-row">
               <input className="share-input"
                      type="text"
@@ -1071,10 +1177,19 @@ export function ShareModal({
             </div>
             <div className="share-invite-access">
               <select className="share-role-select" aria-label="Access level for invitees"
-                      value={inviteAccess}
+                      value={access}
                       onChange={(e) => setInviteAccess(e.target.value)}>
-                <option value="editor">Can edit</option>
-                <option value="viewer">Can view</option>
+                {editLocked ? (
+                  <>
+                    <option value="viewer">Can view</option>
+                    <option value="editor" disabled>Can edit — full</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="editor">Can edit</option>
+                    <option value="viewer">Can view</option>
+                  </>
+                )}
               </select>
               <span className="share-invite-in">in</span>
               {/* Workspace membership grants access to every board, so only
@@ -1129,6 +1244,10 @@ export function ShareModal({
               // admin member keeps theirs but can still be removed or made owner.
               const changeable = isManager && !isSelf && !isWsOwner && m.role !== 'service';
               const levelPickable = ASSIGNABLE_ROLES.includes(m.role);
+              // A viewer made an editor or co-owner takes a place, unless they
+              // hold one already somewhere else in the account.
+              const lockEdit = editFull && m.role === 'viewer'
+                && !holdsPlace(editorLimit.holders, { userId: m.user_id });
               return personRow({
                 key: m.user_id,
                 avatar: avatarFor(m.user_id, meta.name),
@@ -1141,9 +1260,9 @@ export function ShareModal({
                           onChange={(e) => onMemberAccess(m, e.target.value)}>
                     {levelPickable ? (
                       <>
-                        <option value="editor">Workspace · can edit</option>
+                        <option value="editor" disabled={lockEdit}>{lockEdit ? 'Workspace · can edit — full' : 'Workspace · can edit'}</option>
                         <option value="viewer">Workspace · can view</option>
-                        <option value="coowner">Co-owner</option>
+                        <option value="coowner" disabled={lockEdit}>{lockEdit ? 'Co-owner — full' : 'Co-owner'}</option>
                       </>
                     ) : (
                       <option value={m.role}>{MEMBER_ACCESS[m.role] || m.role}</option>
@@ -1182,6 +1301,8 @@ export function ShareModal({
               const canChange = isManager || s.invited_by === selfUserId;
               // Already a member: their workspace row is where their reach changes.
               const canWiden = isManager && !workspaceMembers.some(m => m.user_id === s.user_id);
+              const lockEdit = editFull && s.role === 'viewer'
+                && !holdsPlace(editorLimit.holders, { userId: s.user_id, email: s.email });
               return personRow({
                 key: s.user_id,
                 avatar: avatarFor(s.user_id, displayName),
@@ -1191,9 +1312,9 @@ export function ShareModal({
                   <select className="share-access-pick" aria-label={`Access for ${displayName}`}
                           value={s.role}
                           onChange={(e) => onShareAccess(s, e.target.value)}>
-                    <option value="editor">Can edit</option>
+                    <option value="editor" disabled={lockEdit}>{lockEdit ? 'Can edit — full' : 'Can edit'}</option>
                     <option value="viewer">Can view</option>
-                    {canWiden && <option value="workspace">Whole workspace · can edit</option>}
+                    {canWiden && <option value="workspace" disabled={lockEdit}>{lockEdit ? 'Whole workspace · can edit — full' : 'Whole workspace · can edit'}</option>}
                     {canWiden && <option value="workspaceviewer">Whole workspace · can view</option>}
                     <option disabled>──────────</option>
                     <option value="__remove">Remove access…</option>

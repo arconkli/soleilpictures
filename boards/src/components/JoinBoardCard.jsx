@@ -14,13 +14,14 @@
 import { useEffect, useState } from 'react';
 import { logEventOnce, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { editorLimitAllowed } from '../lib/appHost.js';
 
 export function JoinBoardCard({ role, boardName, href, token, onJoinClick }) {
   const [closed, setClosed] = useState(false);
   const roleLabel = role === 'editor' ? 'edit' : 'view';
 
   useEffect(() => {
-    logEventOnce(`invite-link-view-${token}`, EV.INVITE_LINK_VIEW, { share_token: token, role });
+    logEventOnce(`invite-link-view-${token}`, EV.INVITE_LINK_VIEW, { role });
   }, [token, role]);
 
   useEffect(() => {
@@ -40,13 +41,15 @@ export function JoinBoardCard({ role, boardName, href, token, onJoinClick }) {
       </div>
       <div className="share-prompt-sub">
         {role === 'editor'
-          ? 'Add cards, notes, and ideas right alongside them — free.'
+          // With the editor limit (held), an edit link can let its holder in
+          // to view, so editing isn't promised as free.
+          ? (editorLimitAllowed() ? 'Add cards, notes, and ideas right alongside them.' : 'Add cards, notes, and ideas right alongside them — free.')
           : `You'll be able to ${roleLabel} everything here, live — free.`}
       </div>
       <a className="public-cta share-prompt-cta"
          href={href}
          onClick={() => {
-           logEventNow(EV.INVITE_LINK_JOIN_CLICK, { share_token: token, role });
+           logEventNow(EV.INVITE_LINK_JOIN_CLICK, { role });
            onJoinClick?.();
          }}>
         Join as {role === 'editor' ? 'editor' : 'viewer'}

@@ -1,8 +1,8 @@
-// The video-poster and audio-peaks backfills keep their work when the cards
-// array changes mid-download (PERF-05). The hooks need React to run, so this
-// pins the shape that makes it true: the job is cancelled by a scope that only
-// the board/workspace/user/role deps bump, never by the `cards` effect's
-// cleanup, and results go through refs that see the latest cards.
+// The video-poster, audio-peaks and PDF page-1 backfills keep their work when
+// the cards array changes mid-download (PERF-05). The hooks need React to run,
+// so this pins the shape that makes it true: the job is cancelled by a scope
+// that only the board/workspace/user/role deps bump, never by the `cards`
+// effect's cleanup, and results go through refs that see the latest cards.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-for (const name of ['useVideoPosterBackfill.js', 'useAudioPeaksBackfill.js']) {
+for (const name of ['useVideoPosterBackfill.js', 'useAudioPeaksBackfill.js', 'usePdfThumbBackfill.js']) {
   test(`${name}: an edit mid-download does not discard the job`, () => {
     const src = readFileSync(join(here, '..', 'hooks', name), 'utf8');
     // The effect that depends on `cards` returns no cleanup at all.

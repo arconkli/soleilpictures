@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { assembleGraph } from '../lib/graphData.js';
+import { GraphFixtureContext } from '../lib/graphFixture.js';
+import { cardPlacement, labelRank, viewOffset, visibleLabels } from '../lib/homeMap.js';
 import { HomeGraphDetailDrawer } from './HomeGraphDetailDrawer.jsx';
 import { HomeEmptyState } from './HomeEmptyState.jsx';
 import { HomeGraph2DFallback } from './HomeGraph2DFallback.jsx';
 import { prefetchEntity } from '../lib/prefetchKinds.js';
 import { orbitJitter, targetId } from '../lib/hashJitter.js';
+import { useMatchMedia } from '../hooks/useMatchMedia.js';
 
 // All entity kinds visible by default; users navigate the graph by hovering
 // + right-clicking to open. The HUD/filter chips were removed — they were
@@ -48,7 +51,24 @@ const HALO_TEXTURE = (() => {
 // the graph is scenery that can still be orbited and clicked, so its own
 // messages (the empty state, the "link things with @" hint) stay out of the way
 // of the panel, which is what Home is saying.
-export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
+// `scenery`: kept for a Home that lays its own cards over the graph, where it
+// takes no pointer. Nothing stays selected there: a planet's drawer would sit
+// under Home out of reach, and would hold the drift still.
+//
+// The map (`labels` given — the files sidebar's Home, preview only, the owner's
+// pick of 2026-10-19): the universe IS Home. Every cluster's star carries its
+// name; clicking a star or its name picks it (`onSelect`), the camera glides to
+// it and `card` is drawn beside it, kept inside the open area; double-clicking
+// opens it (`onOpenStar`). `litIds` (a search) keeps those clusters and their
+// cards lit and dims the rest. `insets` are what covers the window's edges (the
+// sidebar, the top bar, the find bar): the universe is framed into what's left.
+// Cards and docs keep their drawer. With `labels` null nothing here changes.
+export function HomeGraph({
+  workspaceId, onNavigate, backdrop = false, scenery = false,
+  labels = null, selectedId = null, onSelect, onOpenStar, litIds = null, insets = null, refreshKey = 0, card = null,
+}) {
+  const fixture = useContext(GraphFixtureContext);
+  const mapMode = Array.isArray(labels);
   const fgRef = useRef(null);
   const containerRef = useRef(null);
   const [data, setData] = useState({ nodes: [], links: [] });
@@ -60,6 +80,7 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
   const structural = true;
   const kinds = KIND_FILTER_DEFAULT;
   const [selected, setSelected] = useState(null);
+  useEffect(() => { if (scenery) setSelected(null); }, [scenery]);
   const [supportsWebGL, setSupportsWebGL] = useState(true);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [theme, setTheme] = useState(readTheme);
@@ -69,6 +90,16 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
   // feel. Combined with the bumped d3AlphaDecay/warmupTicks below,
   // the user sees a clean reveal of the already-stable layout.
   const [graphReady, setGraphReady] = useState(false);
+
+  // The map's live values, read by the frame loops without re-attaching them.
+  const mapRef = useRef({});
+  mapRef.current = { labels, selectedId, litIds, insets };
+  const hoverRef = useRef(null);          // the cluster whose star or name the pointer is on
+  const touch = useMatchMedia('(hover: none) and (pointer: coarse)');
+  const objectsRef = useRef(new Map());   // node id → its planet, so a search can dim it
+  const lastClickRef = useRef({ id: null, t: 0 });
+  const reduceMotionRef = useRef(false);
+  try { reduceMotionRef.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
 
   // Watch html[data-theme] so the canvas bg flips with the rest of the app.
   useEffect(() => {
@@ -239,7 +270,9 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
         const now = performance.now();
         const dt = Math.min(0.05, (now - lastT) / 1000);
         lastT = now;
-        if (!selected && !interacting && !reduceMotion) {
+        // On the map it holds still while a cluster is picked or pointed at:
+        // a name you're reaching for shouldn't drift out from under you.
+        if (!selected && !mapRef.current.selectedId && !hoverRef.current && !interacting && !reduceMotion) {
           // ~0.085 rad/s around a tilted axis = leisurely diagonal drift.
           const rel = camera.position.clone().sub(controls.target);
           rel.applyAxisAngle(tiltAxis, 0.085 * dt);
@@ -303,35 +336,57 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
     };
   }, [measure]);
 
-  // Load graph data; refresh when workspace / structural toggle changes.
+  // Load graph data; refresh when workspace / structural toggle changes, and
+  // on the map when its clusters change (`refreshKey`: one made, moved or
+  // deleted). A refresh of the same workspace keeps what's on screen and where
+  // every star already is; only another workspace starts over.
+  const shownWsRef = useRef(null);
+  const fittedRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
-    setLoaded(false);
+    const refresh = shownWsRef.current === workspaceId;
+    shownWsRef.current = workspaceId;
+    if (!refresh) { setLoaded(false); fittedRef.current = false; }
     // Local QA workspaces don't have rows in Supabase; skip the (hanging) fetch.
     if (workspaceId === 'local-workspace') {
       setData({ nodes: [], links: [] });
       setLoaded(true);
       return () => {};
     }
-    setGraphReady(false);
+    if (!refresh) setGraphReady(false);
+    const settle = (g) => {
+      if (cancelled) return;
+      setData((prev) => (refresh ? keepPlaces(prev, g) : g));
+      setLoaded(true);
+    };
+    if (fixture?.graph) { settle(copyGraph(fixture.graph)); return () => { cancelled = true; }; }
     (async () => {
       let g = { nodes: [], links: [] };
       try { g = await assembleGraph({ workspaceId, options: { structural } }); }
-      catch (e) { console.warn('assembleGraph failed', e); }
-      if (!cancelled) { setData(g); setLoaded(true); }
+      catch (e) {
+        console.warn('assembleGraph failed', e);
+        // A refresh that fails keeps the universe on screen; only a first
+        // load falls back to an empty one.
+        if (refresh) { if (!cancelled) setLoaded(true); return; }
+      }
+      settle(g);
     })();
     return () => { cancelled = true; };
-  }, [workspaceId, structural]);
+  }, [workspaceId, structural, refreshKey, fixture]);
 
   // Reveal after the simulation has had time to settle. With the bumped
   // warmupTicks=200 + d3AlphaDecay=0.04 below, the layout converges
-  // well before this timer fires.
+  // well before this timer fires. The map frames it into the open area first,
+  // so the reveal shows it already there.
   useEffect(() => {
     if (!loaded) return;
     if (data.nodes.length === 0) { setGraphReady(true); return; }
-    const t = setTimeout(() => setGraphReady(true), 650);
+    const t = setTimeout(() => {
+      if (mapMode && !fittedRef.current) { fittedRef.current = true; fitToOpenArea(0); }
+      setGraphReady(true);
+    }, 650);
     return () => clearTimeout(t);
-  }, [loaded, data]);
+  }, [loaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Kind filter is fixed (no HUD). Memoize so layout algorithms see stable refs.
   // The id set is built once, not per link — rebuilding it inside the filter
@@ -365,18 +420,219 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
     if (typeof link.links === 'function') link.links(link.links()); // recompute cached distances
   }, [filtered]);
 
+  // ── The map ──────────────────────────────────────────────────────────────
+  const nodeById = useMemo(() => new Map(filtered.nodes.map(n => [n.id, n])), [filtered]);
+  const nodeByIdRef = useRef(nodeById);
+  nodeByIdRef.current = nodeById;
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
+
+  // The open area: the window less what covers its edges.
+  const areaOf = () => {
+    const { w, h } = sizeRef.current;
+    const i = mapRef.current.insets || {};
+    return { left: (i.left || 0) + 8, top: (i.top || 0) + 4, right: w - (i.right || 0) - 8, bottom: h - (i.bottom || 0) - 4 };
+  };
+
+  // Frame the universe into the open area: the camera's view offset puts its
+  // centre there, and the camera stands back far enough that it all fits.
+  useEffect(() => {
+    if (!mapMode || !graphReady) return;
+    const cam = fgRef.current?.camera?.();
+    if (!cam?.setViewOffset) return;
+    const off = viewOffset(insets);
+    cam.setViewOffset(size.w, size.h, off.x, off.y, size.w, size.h);
+    cam.updateProjectionMatrix();
+  }, [mapMode, graphReady, size.w, size.h, insets?.left, insets?.top, insets?.right, insets?.bottom]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function fitToOpenArea(ms = 800) {
+    const fg = fgRef.current;
+    const cam = fg?.camera?.();
+    const controls = fg?.controls?.();
+    const box = fg?.getGraphBbox?.();
+    if (!cam || !controls || !box) return;
+    const c = { x: (box.x[0] + box.x[1]) / 2, y: (box.y[0] + box.y[1]) / 2, z: (box.z[0] + box.z[1]) / 2 };
+    // Fit by the widest side, not the box's diagonal: the universe is wider
+    // than it is deep, and the diagonal left it small in the middle.
+    // A workspace of one or two stars still stands back: a single star up
+    // close is a ball, not a star.
+    const r = Math.max(260, (Math.max(box.x[1] - box.x[0], box.y[1] - box.y[0], box.z[1] - box.z[0]) / 2) * 1.12);
+    const a = areaOf();
+    const half = Math.max(120, Math.min(a.right - a.left, a.bottom - a.top) / 2 - 24);
+    const d = r * (sizeRef.current.h / 2) / (half * Math.tan((cam.fov * Math.PI) / 360));
+    const dir = cam.position.clone().sub(controls.target);
+    if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
+    dir.normalize();
+    fg.cameraPosition({ x: c.x + dir.x * d, y: c.y + dir.y * d, z: c.z + dir.z * d }, c, ms);
+  }
+
+  // A picked cluster: the camera glides toward its star, keeping the angle it
+  // was looking from, close enough to read its neighbours. Put down, it glides
+  // back out to the whole map.
+  const hadSelRef = useRef(false);
+  useEffect(() => {
+    if (!mapMode) return;
+    if (!selectedId) {
+      if (hadSelRef.current && graphReady) fitToOpenArea(reduceMotionRef.current ? 0 : 900);
+      hadSelRef.current = false;
+      return;
+    }
+    hadSelRef.current = true;
+    // Not at once: a double-click's second click has to land where the first
+    // did, on the star, before the camera carries it off.
+    const t = setTimeout(() => {
+      const fg = fgRef.current;
+      const n = nodeByIdRef.current.get(`board:${selectedId}`);
+      const cam = fg?.camera?.();
+      const controls = fg?.controls?.();
+      if (!n || !cam || !controls || n.x == null) return;
+      const dir = cam.position.clone().sub(controls.target);
+      const dist = Math.max(180, Math.min(dir.length() * 0.8, 900));
+      dir.normalize();
+      fg.cameraPosition(
+        { x: n.x + dir.x * dist, y: n.y + dir.y * dist, z: n.z + dir.z * dist },
+        { x: n.x, y: n.y, z: n.z },
+        reduceMotionRef.current ? 0 : 1000,
+      );
+    }, 450);
+    return () => clearTimeout(t);
+  }, [mapMode, selectedId, graphReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The card comes with the glide, not at once: a double-click's second click
+  // lands on the star's name, where the card would otherwise already be.
+  const [cardFor, setCardFor] = useState(null);
+  useEffect(() => {
+    if (!mapMode || !selectedId) { setCardFor(null); return undefined; }
+    setCardFor(null);
+    const t = setTimeout(() => setCardFor(selectedId), 450);
+    return () => clearTimeout(t);
+  }, [mapMode, selectedId]);
+
+  // A search: what it found, and their cards, stay lit; the rest dims.
+  useEffect(() => {
+    if (!mapMode) return;
+    for (const [id, group] of objectsRef.current) dimPlanet(group, !litIds || litIds.has(clusterOf(id)));
+  }, [mapMode, litIds, filtered]); // eslint-disable-line react-hooks/exhaustive-deps
+  const linkColor = useCallback((l) => {
+    const base = l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(255,165,0,.55)';
+    if (!litIds) return base;
+    const s = clusterOf(typeof l.source === 'object' ? l.source.id : l.source);
+    const t = clusterOf(typeof l.target === 'object' ? l.target.id : l.target);
+    return litIds.has(s) && litIds.has(t) ? base : 'rgba(91,87,78,.08)';
+  }, [litIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The names and the picked cluster's card follow their stars, every frame:
+  // projected through the camera (its view offset included), laid out so no
+  // name covers another (the one that matters more keeps its place), and kept
+  // inside the open area.
+  const labelEls = useRef(new Map());
+  const shownRef = useRef(null);
+  const widthOf = useRef(new Map());
+  const cardRef = useRef(null);
+  const leadRef = useRef(null);
+  useEffect(() => {
+    if (!mapMode || !graphReady) return undefined;
+    let raf = 0;
+    let frame = 0;
+    const v = new THREE.Vector3();
+    const project = (n, cam) => {
+      v.set(n.x, n.y, n.z).project(cam);
+      if (v.z > 1 || v.z < -1) return null;
+      const { w, h } = sizeRef.current;
+      return { x: (v.x + 1) * w / 2, y: (1 - v.y) * h / 2 };
+    };
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const cam = fgRef.current?.camera?.();
+      if (!cam) return;
+      const { labels: ls, selectedId: sel, litIds: lit } = mapRef.current;
+      const area = areaOf();
+      const items = [];
+      for (const l of ls || []) {
+        const el = labelEls.current.get(l.id);
+        if (!el) continue;
+        const n = nodeByIdRef.current.get(l.id);
+        const p = n && n.x != null ? project(n, cam) : null;
+        if (!p) { el.dataset.off = '1'; continue; }
+        el.style.transform = `translate3d(${Math.round(p.x - 13)}px, ${Math.round(p.y - 13)}px, 0)`;
+        let w = widthOf.current.get(l.id);
+        if (w == null || frame % 30 === 0) { w = el.offsetWidth; widthOf.current.set(l.id, w); }
+        items.push({ id: l.id, el, x: p.x - 13, y: p.y - 13, w, h: 26,
+          rank: labelRank({ kind: l.kind, selected: l.boardId === sel, hover: l.boardId === hoverRef.current, hit: !!lit?.has(l.boardId) }) });
+      }
+      // Which names give way: every frame for a usual workspace, every few
+      // frames for one with hundreds of clusters (it's a pass over every pair).
+      if (!shownRef.current || frame % (items.length > 120 ? 4 : 1) === 0) shownRef.current = visibleLabels(items, area);
+      const shown = shownRef.current;
+      for (const it of items) {
+        const off = !shown.has(it.id);
+        if ((it.el.dataset.off === '1') !== off) it.el.dataset.off = off ? '1' : '';
+        const isHover = it.el.dataset.board === hoverRef.current;
+        if (it.el.classList.contains('is-hover') !== isHover) it.el.classList.toggle('is-hover', isHover);
+      }
+      const cardEl = cardRef.current;
+      if (cardEl) {
+        const n = sel ? nodeByIdRef.current.get(`board:${sel}`) : null;
+        const p = n && n.x != null ? project(n, cam) : null;
+        if (!p) { cardEl.dataset.off = '1'; }
+        else {
+          const box = { w: cardEl.offsetWidth, h: cardEl.offsetHeight };
+          const at = cardPlacement(p, box, area);
+          cardEl.style.transform = `translate3d(${at.left}px, ${at.top}px, 0)`;
+          cardEl.dataset.off = '';
+          const lead = leadRef.current;
+          if (lead) {
+            const x0 = at.side === 'right' ? p.x + 13 : at.left + box.w;
+            const x1 = at.side === 'right' ? at.left : p.x - 13;
+            lead.style.transform = `translate3d(${Math.round(x0)}px, ${Math.round(p.y)}px, 0)`;
+            lead.style.width = `${Math.max(0, Math.round(x1 - x0))}px`;
+          }
+        }
+      }
+      frame++;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [mapMode, graphReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A star picked from the keyboard takes focus on to its card once it shows,
+  // rather than leaving it behind every other name in the tab order.
+  const focusCardRef = useRef(false);
+  useEffect(() => {
+    if (!cardFor || !focusCardRef.current) return;
+    focusCardRef.current = false;
+    cardRef.current?.querySelector('.ch-primary')?.focus({ preventScroll: true });
+  }, [cardFor]);
+
+  const pickStar = (boardId, { keyboard = false } = {}) => {
+    const now = performance.now();
+    const last = lastClickRef.current;
+    if (last.id === boardId && now - last.t < 420) {
+      lastClickRef.current = { id: null, t: 0 };
+      onOpenStar?.(boardId);
+      return;
+    }
+    lastClickRef.current = { id: boardId, t: now };
+    focusCardRef.current = keyboard;
+    setSelected(null);
+    onSelect?.(boardId);
+    try { prefetchEntity({ kind: 'board', id: boardId }, { lane: 'high' }); } catch (_) {}
+  };
+
   // Build each node as a tinted "planet": solid core sphere + an additive
   // halo sprite in the same hue. The halo gives the node a soft glow that
   // reads as planetary against the dark canvas, and because the sprite is
   // tinted by the node color, each card type ends up with its own
   // distinct atmosphere.
-  const nodeThree = (node) => {
+  const nodeThree = useCallback((node) => {
     const r = (node.val || 8) * 0.4;
     const color = node.color || '#ffa500';
     const group = new THREE.Group();
+    // On the map a core can be dimmed by a search, so it is born transparent:
+    // three.js bakes an opaque material's alpha into its shader.
     const core = new THREE.Mesh(
       new THREE.SphereGeometry(r, 20, 20),
-      new THREE.MeshBasicMaterial({ color }),
+      new THREE.MeshBasicMaterial(mapMode ? { color, transparent: true } : { color }),
     );
     group.add(core);
     if (HALO_TEXTURE) {
@@ -392,8 +648,13 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
       halo.scale.set(haloScale, haloScale, 1);
       group.add(halo);
     }
+    if (mapMode) {
+      objectsRef.current.set(node.id, group);
+      const lit = mapRef.current.litIds;
+      if (lit) dimPlanet(group, lit.has(clusterOf(node.id)));
+    }
     return group;
-  };
+  }, [mapMode]);
 
   // Show the canvas as soon as we have nodes. Empty state only after we've
   // confirmed the workspace is genuinely empty (graph load resolved + 0 nodes).
@@ -446,7 +707,8 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
   }
 
   return (
-    <div className="home-graph-wrap" ref={setContainer}>
+    <div className="home-graph-wrap" ref={setContainer}
+         onPointerLeave={mapMode ? () => { hoverRef.current = null; } : undefined}>
       <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
       <div className={`home-graph-stage ${graphReady ? 'is-ready' : ''}`}>
       <ForceGraph3D
@@ -456,8 +718,9 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
         height={size.h}
         backgroundColor={BG_FOR[theme]}
         nodeThreeObject={nodeThree}
-        nodeLabel={n => n.name}
-        linkColor={l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(255,165,0,.55)'}
+        // On the map a cluster's name is on its star already.
+        nodeLabel={mapMode ? (n => (n.kind === 'board' ? '' : n.name)) : (n => n.name)}
+        linkColor={mapMode ? linkColor : (l => l.kind === 'structural' ? 'rgba(91,87,78,.45)' : 'rgba(255,165,0,.55)')}
         linkOpacity={0.7}
         linkCurvature={0.18}
         // Settle fast so the user sees an already-stable layout when
@@ -473,6 +736,9 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
         // node so the user knows they hit the right one.
         onNodeClick={(n) => {
           if (!n) return;
+          // On the map a cluster's star picks it (twice, opens it); cards and
+          // docs keep their drawer.
+          if (mapMode && n.kind === 'board') { pickStar(n.id.slice(6)); return; }
           setSelected(n);
           if (fgRef.current) {
             const dist = 200;
@@ -487,7 +753,12 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
           try { prefetchEntity(nodeToTarget(n), { lane: 'high' }); } catch (_) {}
         }}
         // Hover the planet → start warming its target.
-        onNodeHover={(n) => { if (n) prefetchEntity(nodeToTarget(n)); }}
+        onNodeHover={(n) => {
+          if (mapMode) hoverRef.current = n?.kind === 'board' ? n.id.slice(6) : null;
+          if (n) prefetchEntity(nodeToTarget(n));
+        }}
+        // The empty sky puts down whatever was picked.
+        onBackgroundClick={mapMode ? () => { setSelected(null); onSelect?.(null); } : undefined}
         // Right-click is the legacy "open immediately" gesture. Keep
         // it for power users.
         onNodeRightClick={(n) => onNavigate?.(nodeToTarget(n))}
@@ -500,10 +771,80 @@ export function HomeGraph({ workspaceId, onNavigate, backdrop = false }) {
         showNavInfo={false}
       />
       </div>
+      {mapMode && (
+        <div className={`hg-map${graphReady ? ' is-ready' : ''}${selectedId ? ' has-sel' : ''}`}>
+          {labels.map((l) => (
+            <button key={l.id} type="button" data-board={l.boardId} data-off="1"
+                    ref={(el) => {
+                      if (el) { labelEls.current.set(l.id, el); return; }
+                      labelEls.current.delete(l.id);
+                      if (hoverRef.current === l.boardId) hoverRef.current = null;   // its cluster gone
+                    }}
+                    className={`hg-name is-${l.kind}${selectedId === l.boardId ? ' is-sel' : ''}${litIds ? (litIds.has(l.boardId) ? ' is-hit' : ' is-faded') : ''}`}
+                    aria-pressed={selectedId === l.boardId}
+                    title={l.kind === 'nested' ? undefined : touch ? 'Tap to see it · double-tap to open it' : 'Click to see it · double-click to open it'}
+                    onClick={(e) => pickStar(l.boardId, { keyboard: e.detail === 0 })}
+                    onPointerEnter={() => { hoverRef.current = l.boardId; }}
+                    onPointerLeave={() => { if (hoverRef.current === l.boardId) hoverRef.current = null; }}
+                    onFocus={() => { hoverRef.current = l.boardId; }}
+                    onBlur={() => { if (hoverRef.current === l.boardId) hoverRef.current = null; }}>
+              <span className="hg-ring" aria-hidden="true" />
+              <span className="hg-name-text">{l.name}</span>
+            </button>
+          ))}
+          {card && selectedId && cardFor === selectedId && (
+            <>
+              <span className="hg-lead" ref={leadRef} aria-hidden="true" />
+              <div className="hg-card" ref={cardRef} data-off="1" onPointerEnter={() => { hoverRef.current = null; }}>{card}</div>
+            </>
+          )}
+        </div>
+      )}
       {sparseHint}
       {detailDrawer}
     </div>
   );
+}
+
+// Which cluster a node belongs to: a cluster's star is its own; a card or doc
+// is its cluster's ('card:<boardId>:<cardId>').
+function clusterOf(id) {
+  if (id.startsWith('board:')) return id.slice(6);
+  if (id.startsWith('card:')) return id.split(':')[1];
+  return null;
+}
+
+// Dim a planet (its core, then its halo) or bring it back.
+function dimPlanet(group, on) {
+  group.children.forEach((o, i) => {
+    const m = o.material;
+    if (!m) return;
+    if (!m.transparent) { m.transparent = true; m.needsUpdate = true; }
+    m.opacity = i === 0 ? (on ? 1 : 0.16) : (on ? 0.22 : 0.035);
+  });
+}
+
+// A refresh of the same workspace keeps every star where it is: the new graph's
+// nodes take the old ones' places (and speeds), so only what changed moves.
+function keepPlaces(prev, next) {
+  const was = new Map((prev?.nodes || []).map(n => [n.id, n]));
+  return {
+    links: next.links,
+    nodes: next.nodes.map((n) => {
+      const o = was.get(n.id);
+      return o && o.x != null ? { ...n, x: o.x, y: o.y, z: o.z, vx: 0, vy: 0, vz: 0 } : n;
+    }),
+  };
+}
+
+// The force engine writes positions into the nodes and swaps a link's ends for
+// the nodes themselves, so a fixture's graph is copied before it is handed in.
+function copyGraph(g) {
+  const end = (e) => (e && typeof e === 'object' ? e.id : e);
+  return {
+    nodes: (g?.nodes || []).map(n => ({ ...n })),
+    links: (g?.links || []).map(l => ({ ...l, source: end(l.source), target: end(l.target) })),
+  };
 }
 
 function nodeToTarget(n) {

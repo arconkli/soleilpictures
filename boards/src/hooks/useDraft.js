@@ -1,51 +1,27 @@
-// Per-thread message draft, persisted to localStorage.
+// A conversation's message draft (see lib/draftStore.js): text, staged files,
+// dropped cards, mentions and the reply it answers. The composer and the
+// thread both read it, so "Replying to …" comes back with the text when you
+// return to the conversation.
 //
-// threadKey is the conversation id (optionally with a "r:<parentId>"
-// suffix when composing a threaded reply). The draft lives in the
-// user's browser; never synced. Cleared on successful send.
+//   const [draft, update] = useDraft(key);
+//   update((d) => ({ ...d, body: 'hi' }));
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { getDraft, subscribeDraft, updateDraft, flushDrafts } from '../lib/draftStore.js';
 
-const PREFIX = 'soleil.boards.msg.draft.';
-
-function readDraft(threadKey) {
-  if (!threadKey || typeof localStorage === 'undefined') return '';
-  try { return localStorage.getItem(PREFIX + threadKey) || ''; }
-  catch (_) { return ''; }
-}
-function writeDraft(threadKey, value) {
-  if (!threadKey || typeof localStorage === 'undefined') return;
-  try {
-    if (value && value.trim()) localStorage.setItem(PREFIX + threadKey, value);
-    else                       localStorage.removeItem(PREFIX + threadKey);
-  } catch (_) {}
+// One part of a draft, re-rendering only when that part changes: the thread
+// watches the reply target without re-rendering on every keystroke.
+export function useDraftValue(key, pick) {
+  const subscribe = useCallback((fn) => subscribeDraft(key, fn), [key]);
+  const get = () => pick(getDraft(key));
+  return useSyncExternalStore(subscribe, get, get);
 }
 
-export function useDraft(threadKey) {
-  const [value, setValue] = useState(() => readDraft(threadKey));
-  const flushTimer = useRef(null);
-  const lastKeyRef = useRef(threadKey);
-
-  // When the thread changes, swap to the new draft. Don't carry over
-  // the previous in-memory value (which belongs to the old thread).
-  useEffect(() => {
-    if (lastKeyRef.current === threadKey) return;
-    lastKeyRef.current = threadKey;
-    setValue(readDraft(threadKey));
-  }, [threadKey]);
-
-  // Persist on every change (debounced 300ms so we don't thrash
-  // localStorage while the user is typing).
-  useEffect(() => {
-    if (flushTimer.current) clearTimeout(flushTimer.current);
-    flushTimer.current = setTimeout(() => writeDraft(threadKey, value), 300);
-    return () => { if (flushTimer.current) clearTimeout(flushTimer.current); };
-  }, [threadKey, value]);
-
-  const clear = useCallback(() => {
-    setValue('');
-    writeDraft(threadKey, '');
-  }, [threadKey]);
-
-  return [value, setValue, clear];
+export function useDraft(key) {
+  const subscribe = useCallback((fn) => subscribeDraft(key, fn), [key]);
+  const draft = useSyncExternalStore(subscribe, () => getDraft(key), () => getDraft(key));
+  const update = useCallback((fn, opts) => updateDraft(key, fn, opts), [key]);
+  // Leaving the conversation writes the stored copy now, not 300ms later.
+  useEffect(() => () => flushDrafts(key), [key]);
+  return [draft, update];
 }

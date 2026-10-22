@@ -2,6 +2,1097 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-22": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "A new look",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A new look"
+    }
+   ],
+   "id": "2026-10-22-a-new-look"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The sidebar is two cards that float over the board: one with Home, Messages and your clusters, and one with "
+     },
+     {
+      "t": "strong",
+      "v": "Files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". The board shows through around them, and the controls along the top sit in two floating islands. See "
+     },
+     {
+      "t": "link",
+      "v": "the sidebar",
+      "href": "/docs/clusters/sidebar",
+      "children": [
+       {
+        "t": "text",
+        "v": "the sidebar"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Each card sizes from its own edges, and the two stack or sit side by side. ⌘\\ hides and shows the files."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The board's ground moves with your cards, and zooming with a mouse wheel glides."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The bell is at the top right of the board, after the theme switch (on a phone, in the top bar before "
+     },
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "). Its number counts what you haven't read, and its list opens under it, with "
+     },
+     {
+      "t": "strong",
+      "v": "Mark all read",
+      "children": [
+       {
+        "t": "text",
+        "v": "Mark all read"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "notifications",
+      "href": "/docs/collaborate/notifications",
+      "children": [
+       {
+        "t": "text",
+        "v": "notifications"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Notices, confirmations, tips and ⌘K match the new look. Notices sit under the top-right controls and step aside while the bell's list is open."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Files",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files"
+    }
+   ],
+   "id": "2026-10-22-files"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Upload any file and it stays in the cluster's "
+     },
+     {
+      "t": "strong",
+      "v": "Files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", whether or not it's on the board. The Files card lists everything in a cluster, with "
+     },
+     {
+      "t": "strong",
+      "v": "Recent",
+      "children": [
+       {
+        "t": "text",
+        "v": "Recent"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Starred",
+      "children": [
+       {
+        "t": "text",
+        "v": "Starred"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", a search box, the "
+     },
+     {
+      "t": "strong",
+      "v": "All files",
+      "children": [
+       {
+        "t": "text",
+        "v": "All files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu to show one kind, sort and group, and Quick look on a click."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Drag files onto another cluster in the sidebar to move them there. Hold Option on a Mac, or Ctrl on Windows, to copy them instead."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Put on board",
+      "children": [
+       {
+        "t": "text",
+        "v": "Put on board"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " lays out the files you've picked in one undo step."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Press "
+     },
+     {
+      "t": "strong",
+      "v": "F",
+      "children": [
+       {
+        "t": "text",
+        "v": "F"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or ⤢ on the Files card, for the full Files page: the Files card grown full screen, with the same search and "
+     },
+     {
+      "t": "strong",
+      "v": "All files",
+      "children": [
+       {
+        "t": "text",
+        "v": "All files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu, photos and video as a gallery, and a classic list with sortable columns. While it's open the sidebar's Files card folds to a bar, so your files are listed once, and "
+     },
+     {
+      "t": "strong",
+      "v": "Shrink",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shrink"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", F or ⌘\\ brings the board back. Info opens as a card beside your files, and Quick look has a new floating bar. See "
+     },
+     {
+      "t": "link",
+      "v": "Files",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A shared or published link to a cluster that opens in Files shows this page too, read-only."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "PDFs show their first page even when it couldn't be drawn on upload, and a video upload no longer gets stuck on Uploading."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Folders and zips",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Folders and zips"
+    }
+   ],
+   "id": "2026-10-22-folders-and-zips"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Drop a folder or a zip, or use "
+     },
+     {
+      "t": "strong",
+      "v": "Add → Folder…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add → Folder…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and every folder becomes a nested cluster, its files in Files under their own names and dates. A zip asks whether to unpack it into clusters or keep it as one file, and the parts of one Google Takeout or Drive download become one tree."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A tray shows the progress, with Pause and Cancel, and an import that stopped offers Resume. An import bigger than your plan brings in what fits, and the rest waits until there's room."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Bring files from another app…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Bring files from another app…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the Upload menu gives the download steps for Google Drive, Google Photos, Dropbox, OneDrive and iCloud Drive. See "
+     },
+     {
+      "t": "link",
+      "v": "importing folders and zips",
+      "href": "/docs/clusters#importing-folders-and-zips",
+      "children": [
+       {
+        "t": "text",
+        "v": "importing folders and zips"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Clusters",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters"
+    }
+   ],
+   "id": "2026-10-22-clusters"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Clusters cost none of your cards, on every plan: a cluster's card on its parent's canvas is free, and only what is inside it counts. A linked cluster still counts as a card."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "+ New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "+ New cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " sits after the cluster's name at the top of the window, "
+     },
+     {
+      "t": "code",
+      "v": "C"
+     },
+     {
+      "t": "text",
+      "v": " picks the Cluster tool, and on a phone it's "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the top of the "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " sheet."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Pick two or more cards and right-click → "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster from N cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster from N cards"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or turn a group into a cluster, and one undo puts it all back. When loose cards pile up, Clusters may offer once to move them into a cluster of their own. See "
+     },
+     {
+      "t": "link",
+      "v": "clusters",
+      "href": "/docs/clusters#making-a-cluster-from-cards-you-already-have",
+      "children": [
+       {
+        "t": "text",
+        "v": "clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Sharing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing"
+    }
+   ],
+   "id": "2026-10-22-sharing"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Share a single file from "
+     },
+     {
+      "t": "strong",
+      "v": "Share file…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share file…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or any full-screen viewer. Its link opens a page with just that file, where people view it or comment on it, pinned to a moment or a page, and you choose whether they can download it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Share one doc on its own, from "
+     },
+     {
+      "t": "strong",
+      "v": "Share doc…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share doc…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in its header: people you add read it or edit it with you, live, and a link can let anyone read it. See "
+     },
+     {
+      "t": "link",
+      "v": "sharing a doc",
+      "href": "/docs/collaborate/sharing#sharing-a-doc",
+      "children": [
+       {
+        "t": "text",
+        "v": "sharing a doc"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Files shared with you open inside Clusters, and "
+     },
+     {
+      "t": "strong",
+      "v": "Shared files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", under Shared with me, lists them all. "
+     },
+     {
+      "t": "strong",
+      "v": "Save a copy",
+      "children": [
+       {
+        "t": "text",
+        "v": "Save a copy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts one in your own cluster's Files, and "
+     },
+     {
+      "t": "strong",
+      "v": "Add shortcut",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add shortcut"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts a live card on your board. See "
+     },
+     {
+      "t": "link",
+      "v": "files shared with you",
+      "href": "/docs/collaborate/sharing#files-shared-with-you",
+      "children": [
+       {
+        "t": "text",
+        "v": "files shared with you"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A workspace's invite link brings someone into the whole workspace at once. See "
+     },
+     {
+      "t": "link",
+      "v": "inviting a whole workspace",
+      "href": "/docs/collaborate/sharing#inviting-a-whole-workspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "inviting a whole workspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Getting started",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Getting started"
+    }
+   ],
+   "id": "2026-10-22-getting-started"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Some new accounts start with a short setup: name the workspace, say who's in it and what kind of work it is, and invite people, then a few tips once something is on the board. See "
+     },
+     {
+      "t": "link",
+      "v": "getting started",
+      "href": "/docs/getting-started",
+      "children": [
+       {
+        "t": "text",
+        "v": "getting started"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Messages",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Messages"
+    }
+   ],
+   "id": "2026-10-22-messages"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A new look: your messages are coloured bubbles joined into runs, photos, files and clusters show as cards, and a reply quotes what it answers."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Sending, reacting, editing and deleting show at once, a delete offers Undo, direct messages say "
+     },
+     {
+      "t": "strong",
+      "v": "Seen",
+      "children": [
+       {
+        "t": "text",
+        "v": "Seen"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and a "
+     },
+     {
+      "t": "strong",
+      "v": "New",
+      "children": [
+       {
+        "t": "text",
+        "v": "New"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " line marks where you left off."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The box grows as you type, files upload while you keep typing, and each conversation keeps its own draft. Press and hold a message for its actions."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Docs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Docs"
+    }
+   ],
+   "id": "2026-10-22-docs"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A doc opens on a double tap on phones and tablets."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Images go into a doc with their progress showing, and people a cluster is shared with can add them too."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A doc that hits a problem stays open, and replying to or resolving a comment never wipes out someone else's."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "⌘Z on the board undoes the board while a doc is docked beside it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "With a doc docked beside the board, open another and it takes the board's place, so two docs sit side by side. See "
+     },
+     {
+      "t": "link",
+      "v": "two documents side by side",
+      "href": "/docs/documents#two-documents-side-by-side",
+      "children": [
+       {
+        "t": "text",
+        "v": "two documents side by side"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Typing in a long doc keeps up, in pages and in screenplays too."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In find and replace, "
+     },
+     {
+      "t": "strong",
+      "v": "All",
+      "children": [
+       {
+        "t": "text",
+        "v": "All"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " says how many it replaced, and "
+     },
+     {
+      "t": "strong",
+      "v": "Undo",
+      "children": [
+       {
+        "t": "text",
+        "v": "Undo"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts them all back."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "If the cluster is restored to an earlier version while you have a doc open, the doc reopens where you were and says what happened. If the restore took away something you'd written, it offers to copy the page as you had it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Phones and tablets",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Phones and tablets"
+    }
+   ],
+   "id": "2026-10-22-phones-and-tablets"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A tap clears the selection, a hold opens the menus that used to need a right click, and a card's ⋯ is finger-sized at any zoom."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In Files, a tap opens a file and a hold opens its menu."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In Safari on an iPhone or iPad, a picture in the Files grid fills its tile instead of slipping down inside it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Controls are at least 40px under a finger, most toolbars' buttons included, and tapping into a field, a toolbar's too, no longer zooms the page in on an iPhone or iPad."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone the sidebar is the drawer; on a tablet held sideways, clusters and files sit side by side. See "
+     },
+     {
+      "t": "link",
+      "v": "phones and tablets",
+      "href": "/docs/account/mobile",
+      "children": [
+       {
+        "t": "text",
+        "v": "phones and tablets"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A swipe along the tool rail scrolls the rail instead of picking a tool, and its "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu fits on a phone and an upright iPad. On a phone, a menu in the review player switches between a clip's versions."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Keyboard",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keyboard"
+    }
+   ],
+   "id": "2026-10-22-keyboard"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Every toolbar is one Tab stop, and the arrow keys move along it. "
+     },
+     {
+      "t": "code",
+      "v": "⌥F10"
+     },
+     {
+      "t": "text",
+      "v": " ("
+     },
+     {
+      "t": "code",
+      "v": "Alt+F10"
+     },
+     {
+      "t": "text",
+      "v": " on Windows) takes you from a doc's or a note's text to its toolbar, and Esc brings you back. See "
+     },
+     {
+      "t": "link",
+      "v": "keyboard shortcuts",
+      "href": "/docs/keyboard-shortcuts#toolbars",
+      "children": [
+       {
+        "t": "text",
+        "v": "keyboard shortcuts"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Typing with an input method, such as Korean, no longer posts a comment, ends a rename or closes the tag picker on the Enter that picks a character."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Faster",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Faster"
+    }
+   ],
+   "id": "2026-10-22-faster"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The app starts loading while the page is still arriving, and an open fetches only what its first screen needs. A reload inside a cluster opens that cluster first."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Signing in shows the code step the moment you send your address."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Plans",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Plans"
+    }
+   ],
+   "id": "2026-10-22-plans"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "When a drop is more than your free card limit holds, Clusters now offers the Creator trial right there, even before anything has landed on the board."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Privacy",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Privacy"
+    }
+   ],
+   "id": "2026-10-22-privacy"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Clusters honours Global Privacy Control: with it on, there is no Meta Pixel and nothing is sent to Meta. The "
+     },
+     {
+      "t": "link",
+      "v": "privacy policy",
+      "href": "/legal/privacy",
+      "children": [
+       {
+        "t": "text",
+        "v": "privacy policy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " says so."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-18": [
   {
    "type": "heading",
@@ -467,7 +1558,7 @@ export const CHANGELOG_CONTENT = {
      {
       "t": "link",
       "v": "dropping a folder",
-      "href": "/docs/clusters#dropping-a-folder",
+      "href": "/docs/clusters#importing-folders-and-zips",
       "children": [
        {
         "t": "text",

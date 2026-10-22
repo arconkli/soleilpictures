@@ -8,7 +8,10 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const party = readFileSync(join(here, '..', '..', 'party', 'upload.ts'), 'utf8');
-const presign = party.slice(party.indexOf('const isDerivedKey = '), party.indexOf('record_upload_intent'));
+// From the presign's derived-key check to ITS intent (other routes record
+// intents too, earlier in the file).
+const presignAt = party.indexOf('const isDerivedKey = ');
+const presign = party.slice(presignAt, party.indexOf('record_upload_intent', presignAt));
 
 test('main content is quota-checked whether or not a board is named', () => {
   assert.match(presign, /if \(!isDerivedKey\) \{/);

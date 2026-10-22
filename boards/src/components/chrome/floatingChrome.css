@@ -1,0 +1,118 @@
+/* The desktop top bar as two floating islands (FloatingChrome.jsx). Held:
+   only with the files sidebar, never on a phone.
+
+   --chrome-band is the strip the islands float in: 8px above, 36px of island,
+   6px below. The canvas runs underneath it — only the controls along the
+   canvas's own top edge step down by it — and every other surface (full-page
+   Files, Home, a tag) starts below it, so the islands never cover a heading.
+   Gold stays for focus. */
+
+.app.is-floating-chrome { --chrome-band: 50px; }
+
+.chrome-layer {
+  position: relative; height: 0; flex-shrink: 0; z-index: 30;
+  --chrome-left-max: min(46%, 640px, calc(100% - 28px - var(--upgrade-chip-gutter, 0px) - var(--chrome-right-w, 0px)));
+}
+
+.chrome-island {
+  position: absolute; top: 8px; height: 36px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 2px; padding: 0 4px;
+  border-radius: 10px; border: 1px solid var(--line-1);
+  background: color-mix(in oklab, var(--bg-1) 86%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+          backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--shadow-1);
+}
+/* Never under the right island: what it leaves, less a gap (FloatingChrome
+   publishes its width). .chrome-room is that width, empty, for FloatingChrome
+   to measure. */
+.chrome-left { left: 10px; min-width: 0; max-width: var(--chrome-left-max); }
+.chrome-room { position: absolute; left: 10px; top: 0; width: var(--chrome-left-max); height: 0; visibility: hidden; pointer-events: none; }
+/* Too narrow for the trail and the words both (FloatingChrome): the words go,
+   New cluster is its + in a finger-wide pill, and the trail is the name of
+   the cluster you're in (the sidebar's tree goes up). Narrower still, Back
+   and Forward go too, before the name is down to a letter. */
+.chrome-layer.is-tight .chrome-left .tb-btn-label,
+.chrome-layer.is-tight .chrome-left :is(.crumb.clk, .crumb-sep) { display: none; }
+.chrome-layer.is-tight .chrome-left .tb-btn { min-width: 40px; padding: 0 10px; justify-content: center; }
+.chrome-layer.is-tighter .chrome-left .tb-hist { display: none; }
+/* Clear of the free plan's upgrade chip, which sits fixed at the top right and
+   publishes its own width (UpgradeChip.jsx). */
+.chrome-right { right: calc(10px + var(--upgrade-chip-gutter, 0px)); }
+
+.chrome-island .tb-icon { width: 30px; height: 30px; border-radius: 7px; }
+.chrome-island .tb-brand { height: 30px; padding: 0 6px; border-radius: 7px; }
+.chrome-island .tb-btn.tb-share { height: 28px; margin-left: 4px; }
+.chrome-island .tb-viewonly { margin: 0 4px 0 2px; flex-shrink: 0; }
+.chrome-island .tb-admin-btn { margin: 0 4px 0 2px; flex-shrink: 0; }
+.chrome-island .crumbs { flex: 1 1 auto; }
+.chrome-island .crumb { padding: 5px 7px; }
+.chrome-island .tb-icon:focus-visible,
+.chrome-island .tb-brand:focus-visible,
+.chrome-island .tb-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.chrome-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; flex-shrink: 0; }
+
+/* ⋯ and what it holds. */
+.chrome-more { position: relative; }
+.chrome-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
+  min-width: 220px; padding: 4px;
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+.chrome-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 32px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer;
+  color: var(--ink-1); font: 400 13px/1 var(--font-sans); text-align: left;
+}
+.chrome-menu-item:hover, .chrome-menu-item:focus-visible { background: var(--bg-hov); color: var(--ink-0); outline: none; }
+.chrome-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--soleil); }
+.chrome-menu-noicon { width: 15px; flex-shrink: 0; }
+.chrome-menu-label { flex: 1; min-width: 0; }
+.chrome-menu-hint { color: var(--ink-3); font: 500 11px/1 var(--font-mono); }
+.chrome-menu-sep { height: 1px; margin: 4px 6px; background: var(--line-1); }
+
+/* ── Making room for the islands ─────────────────────────────────────────── */
+/* The canvas: only what sits along its own top edge steps down. */
+.app.is-floating-chrome :is(.cnv-comments-eye, .cnv-hint, .cnv-selcount) { top: calc(var(--chrome-band) + 14px); }
+.app.is-floating-chrome :is(.board-tags-strip, .canvas-presence-roster) { top: calc(var(--chrome-band) + 12px); }
+.app.is-floating-chrome .split-close { top: calc(var(--chrome-band) + 10px); }
+/* Every other surface starts below the band. */
+.app.is-floating-chrome .surface-wrap:not(.is-canvas),
+.app.is-floating-chrome .ph-root,
+.app.is-floating-chrome .tag-detail { padding-top: var(--chrome-band); box-sizing: border-box; }
+.app.is-floating-chrome .home-graph-hud { top: calc(var(--chrome-band) + 16px); }
+/* A split pane showing Files: its band is painted as the Files floor below
+   it, grain and all, not as the pane's --bg-1, so the page doesn't start
+   under a lighter strip. */
+.app.is-floating-chrome .surface-wrap.is-split:not(.is-canvas):not(.is-doc-pane) {
+  --files-wash: color-mix(in srgb, var(--files-floor) 97.5%, transparent);
+  background-color: var(--files-floor);
+  background-image: linear-gradient(var(--files-wash), var(--files-wash)), var(--grain-url);
+  background-size: auto, 320px 240px;
+}
+/* Info's drawer hangs 8px under the islands, as the Messages card does; it
+   sat at the old topbar's 56px. A phone keeps its sheet. */
+@media (min-width: 641px) {
+  .app.is-floating-chrome .cb-detail.is-drawer {
+    top: calc(var(--chrome-band) + 2px + env(safe-area-inset-top, 0px));
+    max-height: calc(100dvh - var(--chrome-band) - 10px - env(safe-area-inset-top, 0px));
+  }
+}
+
+/* ── Under a finger (a tablet held sideways) ─────────────────────────────── */
+/* The islands grow to 44px so the 40px buttons a finger gets sit inside them
+   (at 36 they poked out), and the band they float in grows with them. What
+   is drawn smaller, Share and New cluster, takes a finger with a clear
+   ::before, so the bar keeps its look. */
+@media (hover: none) and (pointer: coarse) {
+  .app.is-floating-chrome { --chrome-band: 58px; }
+  .chrome-island { height: 44px; }
+  .chrome-island .tb-icon { width: 40px; height: 40px; }
+  .chrome-island .tb-brand { height: 40px; min-width: 40px; justify-content: center; }
+  .chrome-island .crumb { padding-top: 14px; padding-bottom: 13px; }
+  .chrome-island .tb-btn { position: relative; }
+  .chrome-island .tb-btn::before { content: ''; position: absolute; inset: -8px 0; }
+  .chrome-island .crumb.clk { min-width: 40px; }
+  .chrome-menu-item { height: 44px; font-size: 15px; }
+}

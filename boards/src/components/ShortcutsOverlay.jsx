@@ -14,6 +14,11 @@ import { EV } from '../lib/analyticsEvents.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 const CMD = isMac ? '⌘' : 'Ctrl';
+// The key that turns a files drag into a copy (lib/dropRules.js copyKeyHeld):
+// Option on a Mac; Ctrl elsewhere, where Alt copies too.
+const COPY = isMac ? '⌥' : 'Ctrl';
+// From a doc's or a note's text to its toolbar (hooks/useToolbarRoving).
+const TO_BAR = isMac ? '⌥F10' : 'Alt+F10';
 
 const SECTIONS = [
   {
@@ -25,6 +30,7 @@ const SECTIONS = [
       [['D'], 'Free-draw'],
       [['A'], 'Arrow'],
       [['G'], 'Add a grid'],
+      [['C'], 'Add a cluster'],
       [['Esc'], 'Back to select · close what is on top'],
     ],
   },
@@ -43,6 +49,11 @@ const SECTIONS = [
       [['→', '←'], 'Expand · collapse'],
       [['F2'], 'Rename the cluster'],
       [['⇧F10', 'Menu'], 'The row menu'],
+      [['↑', '↓'], 'Move through the clusters, or the files'],
+      [['Space'], 'Quick look at the focused file'],
+      [['Enter'], 'Go to the focused file: on its board, or in Files'],
+      [[`${CMD}\\`], 'Hide · show Files'],
+      [[`${COPY}-drag`], 'Copy files instead of moving them'],
     ],
   },
   {
@@ -60,7 +71,7 @@ const SECTIONS = [
   {
     title: 'View',
     rows: [
-      [['F'], 'Show or hide Files beside the board'],
+      [['F'], 'Open or close the full Files page'],
       [[`${CMD}I`], 'Info — the selection, or the cluster when nothing is selected'],
       [[`${CMD}0`], 'Reset zoom'],
       [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],
@@ -151,6 +162,17 @@ const SECTIONS = [
       [[`${CMD}K`, `${CMD}⌥M`], 'Link · comment'],
       [[`${CMD}F`], 'Find in document'],
       [['Tab', '⇧Tab'], 'Indent · outdent (screenplay: cycle element)'],
+    ],
+  },
+  {
+    // Every role="toolbar" (hooks/useToolbarRoving), and the rail's +.
+    title: 'Toolbars',
+    rows: [
+      [['Tab'], 'To the next toolbar: each is one stop'],
+      [[TO_BAR, 'Esc'], 'From a doc’s or a note’s text to its toolbar · back to the text'],
+      [['←', '→'], 'The previous · next control in it (↑ ↓ on the tool rail)'],
+      [['Home', 'End'], 'Its first · last control'],
+      [['→', '←'], 'Open · close the tool rail’s + menu'],
     ],
   },
 ];

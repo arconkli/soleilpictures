@@ -27,6 +27,14 @@ export async function assembleGraph({ workspaceId, options = {} }) {
     .select('*')
     .eq('source_workspace_id', workspaceId);
 
+  return graphFromRows(rawBoards, cards, bls, options);
+}
+
+// The same graph from rows already in hand: the boards, their card_index rows
+// and the workspace's doc_backlinks. assembleGraph reads them from the
+// database; the dev-only sidebar QA harness hands in its fixtures, so Home's
+// real universe can be drawn and tested with no backend.
+export function graphFromRows(rawBoards = [], cards = [], bls = [], options = {}) {
   // Reachability filter — only include boards that can be reached by
   // walking parent_board_id from a root (parent_board_id IS NULL),
   // matching what the sidebar tree shows. The boards table can

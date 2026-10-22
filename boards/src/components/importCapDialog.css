@@ -79,6 +79,7 @@
 .impcap-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
 .impcap-btn-primary { background: var(--soleil); border-color: var(--soleil); color: #1a1205; }
 .impcap-btn-primary:hover { filter: brightness(1.06); background: var(--soleil); color: #1a1205; }
+@media (hover: none) and (pointer: coarse) { .impcap-btn { min-height: 40px; } }
 
 /* Three actions do not fit one phone row; stack them so the two real choices
    stay full-width targets rather than 90px slivers. */

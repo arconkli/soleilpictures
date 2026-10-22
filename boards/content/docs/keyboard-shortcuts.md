@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-10-19
+updated: 2026-10-21
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -34,6 +34,7 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 | `D` | Free-draw — unless [W A S D movement](#moving-with-w-a-s-d) is on |
 | `A` | Arrow — unless [W A S D movement](#moving-with-w-a-s-d) is on |
 | `G` | Add a grid |
+| `C` | Add a cluster — click where it goes |
 | `Esc` | Back to select · close whatever is on top — a menu, a dialog, Settings |
 
 
@@ -52,7 +53,8 @@ contents, notes, docs and tags, and it also runs commands — "share", "trash",
 
 ## Sidebar
 
-In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused one.
+In the [sidebar](/docs/clusters/sidebar): its cluster tree and its Files.
+`Tab` reaches the rows; these act on the focused one.
 
 | Key | Action |
 |---|---|
@@ -60,6 +62,12 @@ In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused 
 | `→` / `←` | Expand · collapse the clusters inside it |
 | `F2` | Rename the cluster — `Enter` saves, `Esc` cancels |
 | `⇧F10` or `Menu` | The row's menu — the same one right-click opens |
+| `↑` / `↓` | Move through the clusters, or through the files |
+| `Space` | Quick look at the focused file |
+| `Enter` | Go to the focused file — on its board, or in Files when it isn't on the board |
+| `←` / `→` | On the Files tabs: the cluster, Recent, Starred. `↓` on the cluster's tab lists the other clusters |
+| `⌘\` | Hide · show Files — outside a note or a doc, where it clears formatting |
+| `⌥` while dragging files | Copy them instead of moving them — `Ctrl` (or `Alt`) on Windows |
 
 ## Edit
 
@@ -81,7 +89,7 @@ In the sidebar's cluster tree. `Tab` reaches the rows; these act on the focused 
 
 | Key | Action |
 |---|---|
-| `F` | Show or hide [Files](/docs/clusters/list-view) beside the board |
+| `F` | Open or close the [full Files page](/docs/clusters/list-view) |
 | `⌘I` | [Info](/docs/canvas/cards#info) — the selection, or the cluster when nothing is selected |
 | `⌘0` | Reset zoom |
 | `⌘+` / `⌘−` | Zoom in · out |
@@ -130,8 +138,7 @@ your account to every device.
 
 ## Files
 
-In [Files](/docs/clusters/list-view), beside the board or full screen. Beside
-the board, these keys go to whichever side the pointer was last over.
+On the [full Files page](/docs/clusters/list-view).
 
 | Key | Action |
 |---|---|
@@ -157,9 +164,9 @@ the board, these keys go to whichever side the pointer was last over.
 | `Space` | Audition the highlighted row (Files, list layout) |
 
 `Enter` rather than `Space` on the canvas, because `Space` is already the pan
-modifier there and arrows already move cards. In [Files](/docs/clusters/list-view)
-neither is taken, so auditioning a pack is `↓` and `Space` — and when a clip
-finishes, the next one starts on its own.
+modifier there. In [Files](/docs/clusters/list-view) it isn't, so auditioning a
+pack is `↓` and `Space` — and when a clip finishes, the next one starts on its
+own.
 
 Both canvas keys only fire when exactly one audio card is selected; otherwise
 they fall through to whatever else is listening.
@@ -241,6 +248,29 @@ These apply inside a [document](/docs/documents), not on the canvas.
 | `⌘⇧L` / `⌘⇧E` / `⌘⇧R` | Align left · center · right |
 | `⌘K` / `⌘⌥M` | Link · comment |
 | `⌘F` | Find and replace |
+| `⌘=` / `⌘−` / `⌘0` | Zoom in · out · back to 100% — a screenplay too wide for its space goes back to fitting it |
+| `Esc` | Close a full-screen document, when you aren't typing in it |
+
+## Toolbars
+
+Every toolbar is one `Tab` stop, and the arrow keys move inside it: the tool
+rail, the bar a note, a drawing or a shape brings up, a document's toolbar, and
+the bar over selected files.
+
+| Key | Action |
+|---|---|
+| `Tab` | To the next toolbar — each is one stop |
+| `⌥F10` / `Esc` | From a document's or a note's text to its toolbar · back to the text — `Alt+F10` on Windows |
+| `←` / `→` | The previous · next control in it — `↑` / `↓` on the tool rail |
+| `Home` / `End` | Its first · last control |
+| `→` / `←` | Open · close the tool rail's **+** menu |
+
+In a document or a note, `Tab` belongs to the text (it indents), so `⌥F10` is
+the way from the words to the toolbar, and `Esc` takes you back with the caret
+where you left it. In a field inside a toolbar, like a font size, `←` and `→`
+move the caret, and step out of the field at either end. A screen reader hears
+each control by its name, whether a toggle is on, and the shortcut it has, if
+any.
 
 ## Gestures
 
@@ -249,5 +279,6 @@ Not keys, but worth knowing:
 - **Double-click empty canvas** opens an add menu at your cursor.
 - **Right-click** anything for its full menu — cards, groups, and the canvas background each have their own.
 - **Hold `Alt` while dragging** to bypass [snapping](/docs/canvas/snapping-and-alignment).
+- **Hold `⌥` while dragging files** to another cluster to [copy them instead of moving them](/docs/clusters/sidebar#moving-and-copying-files) — `Ctrl` on Windows.
 - **Paste a URL** onto the canvas to create a link card that unfurls its preview.
 - **Drag files from your desktop** straight onto the canvas.

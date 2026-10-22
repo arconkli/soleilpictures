@@ -22,7 +22,7 @@
 
 import { PricingModal } from './PricingModal.jsx';
 
-export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null, initialPlan = null }) {
+export function UpgradeModal({ onClose, reason = null, clusterCount = null, rejected = null, wallCards = null, initialPlan = null }) {
   const header = reason === 'cap-hit' ? 'cap-hit'
                : reason === 'near-cap' ? 'near-cap'
                : reason === 'first-value' ? 'first-value'
@@ -41,5 +41,5 @@ export function UpgradeModal({ onClose, reason = null, clusterCount = null, reje
   // Only the cap-hit variant uses these (to name what the user has built, and
   // what the cap just cost them), but they are passed through unconditionally
   // so callers don't have to know which reasons consume them.
-  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} rejected={rejected} initialPlan={initialPlan} />;
+  return <PricingModal onClose={onClose} header={header} surface={surface} via={via} clusterCount={clusterCount} rejected={rejected} wallCards={wallCards} initialPlan={initialPlan} />;
 }

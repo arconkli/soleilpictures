@@ -2,7 +2,7 @@
 
 > GET /boards/:id/export returns a whole board in one call. The default format is complete JSON, including the internal form of every card, so nothing is lost for kinds the API does not otherwise describe. Pass format=omc for MovieLabs OMC-JSON, which models the board as an ordered assetGroup of assets using the film industry's own controlled vocabulary for creative reference material.
 
-_Source: https://clusters.soleilpictures.com/docs/api/export · Updated 2026-08-09_
+_Source: https://clusters.soleilpictures.com/docs/api/export · Updated 2026-10-20_
 
 ```sh
 curl "$SOLEIL_API/boards/$BOARD/export" -H "Authorization: Bearer $SOLEIL_TOKEN"
@@ -33,7 +33,7 @@ The default. Every card **exactly as stored**, alongside the normal
 
 `raw` is there because the ordinary card read is a deliberately narrow
 twelve-field projection, and the app has kinds it does not describe — a grid
-carries its cells and template, a palette its swatches, a schedule its rows.
+carries its cells and template and a palette its swatches.
 Those read back through the projection with their interiors missing, which for
 anyone taking a backup is data loss that looks like success.
 

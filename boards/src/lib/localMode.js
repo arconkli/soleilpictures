@@ -115,6 +115,13 @@ export function isGridQaMode() {
   return new URLSearchParams(window.location.search).get('gridqa') === '1';
 }
 
+// Dev-only bulk-import QA page (?importqa=1): the tray, chip and ask dialog in
+// every state with no backend. See ../local/ImportQaHarness.jsx.
+export function isImportQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('importqa') === '1';
+}
+
 // Dev-only Schedule QA bridge. Active ONLY in a DEV build with ?schedqa=1
 // (same trust boundary as isGridQaMode). Publishes the PURE schedule date
 // math + slot-key grammar + calendar layout + graft helpers on
@@ -157,6 +164,42 @@ export function qaFirstBoardKind() {
 export function isRevealQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('revealqa') === '1';
+}
+
+// Sidebar-files QA (?sidebarqa=1): the real ClusterSidebar over fixtures.
+export function isSidebarQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('sidebarqa') === '1';
+}
+
+// Toolbar QA (?toolbarqa=1): the toolbar look's parts, as the mockup's parts
+// sheet and live (local/ToolbarQaHarness.jsx).
+export function isToolbarQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('toolbarqa') === '1';
+}
+
+// First-run setup QA (?setupqa=1): the real AuthGate, TierRouter and setup
+// steps, and the workspace link's banner and join card, over an in-memory fake
+// of the Supabase client (local/SetupQaHarness.jsx).
+export function isSetupQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('setupqa') === '1';
+}
+
+// Messages QA (?msgqa=1): the real MessagesPanel over an in-memory fake of the
+// Supabase client (local/MessagesQaHarness.jsx).
+export function isMsgQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('msgqa') === '1';
+}
+
+// Dev-only single-file share QA (?fileshareqa=<fixture>): the real
+// <FileSharePage> over a fake api (local/FileShareQaHarness.jsx). Returns the
+// fixture name, or '' when off.
+export function isFileShareQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('fileshareqa') || '';
 }
 
 // Dev-only photo-adjustment QA bridge. Active ONLY in a DEV build with
@@ -216,13 +259,14 @@ export function isReadOnlyQaMode() {
 const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
   'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
-  'presenceqa', 'shareqa', 'roqa',
+  'presenceqa', 'shareqa', 'roqa', 'msgqa', 'setupqa', 'sidebarqa', 'importqa',
+  'toolbarqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   try {
     const q = new URLSearchParams(window.location.search);
-    return QA_MODE_PARAMS.some((k) => q.get(k) === '1');
+    return QA_MODE_PARAMS.some((k) => q.get(k) === '1') || !!q.get('fileshareqa');
   } catch (_) { return false; }
 }
 
@@ -336,6 +380,7 @@ export function qaForceCapWall() {
 // ?local=1 (same trust boundary as qaTierOverride). Returns { n, take, count,
 // limit } to render, or null when not forcing:
 //   /?local=1&tier=demo&importask=76,50,0,50      (files, take, count, limit)
+// A fifth value 0 makes it someone else's cluster (a collaborator): own=false.
 //
 // Same reason qaForceCapWall exists: the real path runs through App.jsx's
 // preflightImport, and App.jsx early-returns to LocalBoardsApp in QA mode, so
@@ -349,10 +394,10 @@ export function qaForceImportAsk() {
   const raw = q.get('importask');
   // Bounded like qaForceCapWall: an unbounded digit run is a free integer
   // overflow into whatever renders the number.
-  if (!raw || !/^\d{1,4}(,\d{1,4}){3}$/.test(raw)) return null;
-  const [n, take, count, limit] = raw.split(',').map(Number);
+  if (!raw || !/^\d{1,4}(,\d{1,4}){3}(,[01])?$/.test(raw)) return null;
+  const [n, take, count, limit, ownFlag] = raw.split(',').map(Number);
   if (take > n) return null;
-  return { n, take, over: n - take, count, limit };
+  return { n, take, over: n - take, count, limit, own: ownFlag !== 0 };
 }
 
 // Dev-only waitlist-status override. Active ONLY in a DEV build with ?local=1

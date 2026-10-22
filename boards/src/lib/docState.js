@@ -14,6 +14,12 @@
 import * as Y from 'yjs';
 import { cloneYXmlNode } from './yhelpers.js';
 import { fragmentText } from './docText.js';
+import {
+  mergePageEntries, holdsWholePage, pageStamp, pageOrder, byPageOrder, placeStrays,
+} from './docPageEntries.js';
+import {
+  commentReplyKey, commentStateKey, parseCommentKey, isPlainEntry, isFiledReply, isFiledState,
+} from './commentKeys.js';
 import { convertFragmentDocMode } from '../components/docExtensions/screenplay/screenplayModeSwitch.js';
 
 // Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
@@ -319,10 +325,18 @@ export function setTitlePage(ydoc, scope, patch) {
   }, DOC_ORIGIN);
 }
 
+// An entry may be a Y.Map rather than a plain object.
+const entryOf = (v) => ((v && typeof v.toJSON === 'function') ? v.toJSON() : v);
+
+// The page list as people see it: each page once, however many entries edits
+// that met have left it, and a page whose place is gone where placeStrays puts
+// it (lib/docPageEntries.js). Every reader of docPages goes through this.
 export function readPages(ydoc, scope) {
   const arr = pagesArray(ydoc, scope);
   if (!arr) return [];
-  return arr.toArray().map(p => (p && p.toJSON) ? p.toJSON() : p);
+  const content = pageContentMap(ydoc, scope);
+  return placeStrays(mergePageEntries(arr.toArray().map(entryOf)),
+    content ? (id) => content.has(id) : () => true);
 }
 
 export function readBookmarks(ydoc, scope) {
@@ -333,13 +347,78 @@ export function readBookmarks(ydoc, scope) {
   return out;
 }
 
+// Every thread as people should see it (see readThread), newest first.
 export function readComments(ydoc, scope) {
-  const out = [];
   const map = commentsMap(ydoc, scope);
-  if (!map) return out;
-  map.forEach((v, k) => { out.push({ id: k, ...v }); });
-  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  if (!map) return [];
+  return gatherThreads(map).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+}
+
+// One thread as people should see it: as it was started, with its replies —
+// the ones written into it by builds from before and the ones filed beside
+// it, each once, oldest first — and whether it is resolved. Null when there
+// is no such thread (or what is there is not one).
+export function readThread(ydoc, threadId, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !threadId) return null;
+  return gatherThreads(map, threadId)[0] || null;
+}
+
+// One pass over the map: the threads (or the one asked for), each with what
+// is filed under it. An entry whose thread is gone is left alone, unread: an
+// undo of that delete brings the thread back and the entry with it.
+function gatherThreads(map, only = null) {
+  const heads = new Map();
+  const replies = new Map();
+  const states = new Map();
+  map.forEach((v, k) => {
+    const p = parseCommentKey(k);
+    if (!p || (only && p.threadId !== only)) return;
+    if (p.kind === 'thread') { if (isPlainEntry(v)) heads.set(k, v); }
+    else if (p.kind === 'reply') {
+      if (isFiledReply(k, v)) {
+        if (!replies.has(p.threadId)) replies.set(p.threadId, []);
+        replies.get(p.threadId).push(v);
+      }
+    } else if (isFiledState(k, v)) states.set(p.threadId, v);
+  });
+  const out = [];
+  heads.forEach((head, id) => out.push(composeThread(id, head, replies.get(id) || [], states.get(id) || null)));
   return out;
+}
+
+function composeThread(id, head, filed, state) {
+  const { replies: written, resolved: headResolved, ...rest } = head;
+  const seen = new Set();
+  const replies = [];
+  for (const r of [...(Array.isArray(written) ? written : []), ...filed]) {
+    if (!isPlainEntry(r)) continue;
+    if (r.id) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+    }
+    const { kind, threadId, ...reply } = r;
+    replies.push(reply);
+  }
+  const order = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+  replies.sort((a, b) => (a.ts || 0) - (b.ts || 0) || order(String(a.id || ''), String(b.id || '')));
+  // The state entry speaks for the thread unless a build that writes resolves
+  // into the thread changed it after that entry was written (it records the
+  // thread's own flag as it saw it). A tab on such a build that toggles twice
+  // in a row ends where the entry saw it and loses the second toggle; the
+  // Worker's MIN_CLIENT_BUILD reloads those tabs (COMMENT_LOG_WRITES).
+  const own = !!headResolved;
+  const speaks = !!state && own === !!state.headerSeen;
+  const resolved = speaks ? state.resolved : own;
+  // Who resolved it and when, as the state entry has it (the old way, in the
+  // thread itself, recorded neither).
+  const by = resolved && speaks ? state : null;
+  return {
+    id, ...rest, replies, resolved,
+    resolvedBy: by && typeof by.by === 'string' ? by.by : null,
+    resolvedByName: by && typeof by.byName === 'string' && by.byName ? by.byName : null,
+    resolvedAt: by && Number.isFinite(by.ts) ? by.ts : null,
+  };
 }
 
 // Extract plain text of a single page's Y.XmlFragment. Used by the
@@ -352,6 +431,15 @@ export function readPageText(ydoc, pageId, scope) {
   const map = pageContentMap(ydoc, scope);
   if (!map) return '';
   try { return fragmentText(map.get(pageId)); } catch (_) { return ''; }
+}
+
+// The text of each block on a page, in order, or null when the doc has no such
+// page: what lib/docResets.js compares across a reload, to tell whether the
+// reload took anything off the page.
+export function readPageBlocks(ydoc, pageId, scope) {
+  if (!readPages(ydoc, scope).some((p) => p.id === pageId)) return null;
+  const frag = pageContentMap(ydoc, scope)?.get(pageId);
+  try { return frag && typeof frag.toArray === 'function' ? frag.toArray().map(fragmentText) : []; } catch (_) { return []; }
 }
 
 // Read every page (from this scope) along with its plain text body.
@@ -372,15 +460,10 @@ export function readPagesWithText(ydoc, scope) {
 // fragment as a DOC_ORIGIN write: an orphan in the doc, and a fresh undo step
 // on top of the delete, so the delete toast's Undo could only report that
 // "the board changed since".
+// Live means listed: what a delete left behind is not, so opening it can't
+// bring it back.
 function pageIsLive(ydoc, pageId, scope) {
-  const arr = pagesArray(ydoc, scope);
-  if (!arr) return false;
-  // Same tolerance as readPages: an entry may be a Y.Map rather than a plain object.
-  for (let i = 0; i < arr.length; i++) {
-    const e = arr.get(i);
-    if ((e && e.toJSON ? e.toJSON() : e)?.id === pageId) return true;
-  }
-  return false;
+  return readPages(ydoc, scope).some((p) => p.id === pageId);
 }
 
 export function getOrCreatePageContent(ydoc, pageId, scope) {
@@ -507,33 +590,40 @@ export function addPage(ydoc, opts = {}) {
   const content = pageContentMap(ydoc, scope);
   if (!arr || !content) return id;
   ydoc.transact(() => {
-    const siblings = arr.toArray().filter(p => p.parent_id === parent_id);
-    const order = siblings.length > 0
-      ? Math.max(...siblings.map(p => p.order ?? 0)) + 1
-      : 0;
+    const siblings = readPages(ydoc, scope).filter(p => (p.parent_id ?? null) === parent_id);
+    const order = siblings.length > 0 ? Math.max(...siblings.map(pageOrder)) + 1 : 0;
+    // `expanded` is only where the page starts out folded or not, for tabs
+    // from before folding stayed on the device (hooks/useDocTreeExpansion).
     arr.push([{ id, name, parent_id, order, expanded: true }]);
     content.set(id, new Y.XmlFragment());
   }, DOC_ORIGIN);
   return id;
 }
 
-export function renamePage(ydoc, id, name, scope) {
-  const arr = pagesArray(ydoc, scope); if (!arr) return;
-  ydoc.transact(() => {
-    for (let i = 0; i < arr.length; i++) {
-      const p = arr.get(i);
-      if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, name }]); return; }
-    }
-  }, DOC_ORIGIN);
+// Every edit to a page goes through here: it takes out every entry the page
+// has and puts back one, the page as it shows with `patch(page)` over it,
+// where its first entry was. So an edit also clears what earlier edits that
+// met left behind, and the stamp an edit bumps (nameV for the name, posV for
+// where it sits) is one past the highest the page has.
+function rewritePage(arr, id, patch) {
+  const at = [];
+  const copies = [];
+  arr.toArray().forEach((v, i) => {
+    const e = entryOf(v);
+    if (e?.id === id) { at.push(i); copies.push(e); }
+  });
+  if (!at.length) return false;
+  const [page] = mergePageEntries(copies);
+  for (let i = at.length - 1; i >= 0; i--) arr.delete(at[i], 1);
+  arr.insert(at[0], [{ ...page, ...patch(page) }]);
+  return true;
 }
 
-export function setPageExpanded(ydoc, id, expanded, scope) {
+export function renamePage(ydoc, id, name, scope) {
   const arr = pagesArray(ydoc, scope); if (!arr) return;
+  if (readPages(ydoc, scope).find(p => p.id === id)?.name === name) return;
   ydoc.transact(() => {
-    for (let i = 0; i < arr.length; i++) {
-      const p = arr.get(i);
-      if (p.id === id) { arr.delete(i, 1); arr.insert(i, [{ ...p, expanded }]); return; }
-    }
+    rewritePage(arr, id, (page) => ({ name, nameV: pageStamp(page.nameV) + 1 }));
   }, DOC_ORIGIN);
 }
 
@@ -546,15 +636,23 @@ export function deletePage(ydoc, id, scope) {
   const comments = commentsMap(ydoc, scope);
   if (!arr || !content || !bookmarks) return;
   ydoc.transact(() => {
-    const all = arr.toArray();
+    // The page and what shows under it, then every entry any of them has.
+    const kids = new Map();
+    for (const p of readPages(ydoc, scope)) {
+      const k = p.parent_id ?? null;
+      if (!kids.has(k)) kids.set(k, []);
+      kids.get(k).push(p.id);
+    }
     const toRemove = new Set();
-    const collect = (pid) => {
+    for (const stack = [id]; stack.length;) {
+      const pid = stack.pop();
+      if (toRemove.has(pid)) continue;
       toRemove.add(pid);
-      all.forEach(p => { if (p.parent_id === pid) collect(p.id); });
-    };
-    collect(id);
-    for (let i = arr.length - 1; i >= 0; i--) {
-      if (toRemove.has(arr.get(i).id)) arr.delete(i, 1);
+      stack.push(...(kids.get(pid) || []));
+    }
+    const all = arr.toArray().map(entryOf);
+    for (let i = all.length - 1; i >= 0; i--) {
+      if (toRemove.has(all[i]?.id)) arr.delete(i, 1);
     }
     toRemove.forEach(pid => {
       content.delete(pid);
@@ -567,36 +665,89 @@ export function deletePage(ydoc, id, scope) {
       sheets?.delete(pid);
     });
     bookmarks.forEach((v, k) => { if (toRemove.has(v.pageId)) bookmarks.delete(k); });
-    // Drop comment threads anchored to removed pages so they don't orphan.
-    comments?.forEach((v, k) => { if (toRemove.has(v.pageId)) comments.delete(k); });
+    // Drop comment threads anchored to removed pages, and what is filed under
+    // them, so they don't orphan.
+    if (comments) {
+      const threads = new Set();
+      comments.forEach((v, k) => { if (parseCommentKey(k)?.kind === 'thread' && toRemove.has(v?.pageId)) threads.add(k); });
+      for (const k of [...comments.keys()]) if (threads.has(parseCommentKey(k)?.threadId)) comments.delete(k);
+    }
   }, DOC_ORIGIN);
 }
 
+// Closer than this, two neighbours leave no room between them, and the row is
+// numbered again.
+const ORDER_ROOM = 1e-9;
+
+// Moves a page to `newIndex` among `newParentId`'s pages (as the list shows
+// them, without the page itself). Only the moved page is written: it takes an
+// order halfway between its new neighbours. Writing every sibling, as this did
+// before, turned two moves at once into copies of whole branches.
 export function movePage(ydoc, id, newParentId, newIndex, scope) {
   const arr = pagesArray(ydoc, scope); if (!arr) return;
+  const parent = newParentId ?? null;
   ydoc.transact(() => {
-    const all = arr.toArray();
-    const moving = all.find(p => p.id === id);
+    const pages = readPages(ydoc, scope);
+    const moving = pages.find(p => p.id === id);
     if (!moving) return;
-    const isDescendantOf = (target, ancestor) => {
-      if (target === ancestor) return true;
-      const t = all.find(p => p.id === target);
-      if (!t || t.parent_id == null) return false;
-      return isDescendantOf(t.parent_id, ancestor);
-    };
-    if (newParentId && isDescendantOf(newParentId, id)) return;
-    const siblings = all
-      .filter(p => p.parent_id === newParentId && p.id !== id)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    siblings.splice(Math.max(0, Math.min(newIndex, siblings.length)), 0, { ...moving, parent_id: newParentId });
-    const renumbered = new Map();
-    siblings.forEach((p, i) => renumbered.set(p.id, { ...p, order: i }));
-    const changedIds = new Set([...renumbered.keys()]);
-    for (let i = arr.length - 1; i >= 0; i--) {
-      if (changedIds.has(arr.get(i).id)) arr.delete(i, 1);
+    if (parent != null) {
+      // Into a page that shows, never into itself or a page under it.
+      if (!pages.some(p => p.id === parent)) return;
+      const up = new Map(pages.map(p => [p.id, p.parent_id ?? null]));
+      for (let at = parent, hops = 0; at != null && hops <= pages.length; at = up.get(at) ?? null, hops++) {
+        if (at === id) return;
+      }
     }
-    renumbered.forEach(p => arr.push([p]));
+    const siblings = pages
+      .filter(p => (p.parent_id ?? null) === parent && p.id !== id)
+      .sort(byPageOrder);
+    const at = Math.max(0, Math.min(newIndex, siblings.length));
+    const lo = at > 0 ? pageOrder(siblings[at - 1]) : null;
+    const hi = at < siblings.length ? pageOrder(siblings[at]) : null;
+    const here = pageOrder(moving);
+    if ((moving.parent_id ?? null) === parent && (lo == null || lo < here) && (hi == null || here < hi)) return;
+    const place = (order) => (page) => ({ parent_id: parent, order, posV: pageStamp(page.posV) + 1 });
+    if (lo != null && hi != null && !(hi - lo > ORDER_ROOM)) {
+      const row = [...siblings];
+      row.splice(at, 0, moving);
+      row.forEach((p, i) => { if (p.id === id || pageOrder(p) !== i) rewritePage(arr, p.id, place(i)); });
+      return;
+    }
+    const order = lo == null && hi == null ? 0 : lo == null ? hi - 1 : hi == null ? lo + 1 : (lo + hi) / 2;
+    rewritePage(arr, id, place(order));
   }, DOC_ORIGIN);
+}
+
+// Clearing the extra entries a page is left with when two edits to it meet,
+// or when tabs from before readPages merged them rewrote it. Out of both undo
+// stacks (neither tracks this origin): it changes nothing anyone sees.
+export const DOC_HEAL_ORIGIN = 'doc-heal';
+
+// Deletes only, and only where a page's LAST entry already holds the whole
+// page as it shows: two devices healing at once, even each with entries the
+// other hasn't seen yet, can never between them delete every entry a page
+// has, because neither ever deletes the last one it sees. Where the last entry
+// doesn't hold the whole page, the entries stay until the page's next edit
+// (rewritePage) folds them into one. Returns how many entries went.
+export function healPages(ydoc, scope) {
+  const arr = pagesArray(ydoc, scope); if (!arr) return 0;
+  const all = arr.toArray().map(entryOf);
+  const at = new Map();
+  all.forEach((e, i) => {
+    if (!e || typeof e !== 'object' || !e.id) return;
+    if (!at.has(e.id)) at.set(e.id, []);
+    at.get(e.id).push(i);
+  });
+  const drop = [];
+  for (const idx of at.values()) {
+    if (idx.length < 2) continue;
+    const [page] = mergePageEntries(idx.map(i => all[i]));
+    if (holdsWholePage(all[idx[idx.length - 1]], page)) drop.push(...idx.slice(0, -1));
+  }
+  if (!drop.length) return 0;
+  drop.sort((a, b) => b - a);
+  ydoc.transact(() => { for (const i of drop) arr.delete(i, 1); }, DOC_HEAL_ORIGIN);
+  return drop.length;
 }
 
 // Comments ──────────────────────────────────────────────────────────────────
@@ -605,6 +756,20 @@ export function movePage(ydoc, id, newParentId, newIndex, scope) {
 // peers whose profile hasn't resolved yet — never drop it. `mentions` is the
 // set of user ids @-named in the body; notification is the caller's job (see
 // lib/commentMentions.js), this only records who was named.
+//
+// How they are filed is lib/commentKeys.js: a reply and a resolve are each an
+// entry beside the thread, so two people writing at once both keep theirs.
+// Every build since these readers reads both that and the old shape (a reply
+// or a resolve rewriting the whole thread), but builds from before read only
+// the old one, and preview and production tabs share every room. So filing
+// beside the thread is on only with the Worker's MIN_CLIENT_BUILD past the
+// readers' landing (2026-10-20), which reloads every tab without them
+// (docState.concurrency.test holds the two together). The readers and this
+// flag may reach production in the same promote: a tab open from before it
+// shows a reply or a resolve filed here once it reloads, and nothing it
+// writes meanwhile overwrites one.
+export const COMMENT_LOG_WRITES = true;
+
 export function addCommentThread(ydoc, opts) {
   const { pageId, body, author, authorId, authorColor, mentions, scope } = opts;
   const id = 'cm_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
@@ -623,12 +788,14 @@ export function addCommentThread(ydoc, opts) {
   return id;
 }
 
+// `log` is how it is written: filed beside the thread, or into it the old way
+// (see COMMENT_LOG_WRITES). Returns the reply's id.
 export function addCommentReply(ydoc, id, opts) {
-  const { body, author, authorId, authorColor, mentions, scope } = opts;
+  const { body, author, authorId, authorColor, mentions, scope, log = COMMENT_LOG_WRITES } = opts;
   const map = commentsMap(ydoc, scope);
-  const cur = map?.get(id); if (!cur) return;
+  const cur = map?.get(id); if (!isPlainEntry(cur)) return null;
   const reply = {
-    id: 'cr_' + Math.random().toString(36).slice(2, 8),
+    id: 'cr_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3),
     ts: Date.now(),
     author: author || 'Someone',
     authorId: authorId || null,
@@ -636,18 +803,54 @@ export function addCommentReply(ydoc, id, opts) {
     body: String(body || '').slice(0, 4000),
     mentions: Array.isArray(mentions) ? mentions : [],
   };
-  ydoc.transact(() => { map.set(id, { ...cur, replies: [...(cur.replies || []), reply] }); }, DOC_ORIGIN);
+  ydoc.transact(() => {
+    if (log) map.set(commentReplyKey(id, reply.id), { kind: 'reply', threadId: id, ...reply });
+    else map.set(id, { ...cur, replies: [...(cur.replies || []), reply] });
+  }, DOC_ORIGIN);
+  return reply.id;
 }
 
-export function resolveComment(ydoc, id, resolved = true, scope) {
+// `by` is who resolved or reopened it (their auth.users id), and `byName` the
+// name to show for them ("Resolved by Jon Park"), filed with it when given.
+export function resolveComment(ydoc, id, resolved = true, scope, { by = null, byName = null, log = COMMENT_LOG_WRITES } = {}) {
   const map = commentsMap(ydoc, scope);
-  const cur = map?.get(id); if (!cur) return;
-  ydoc.transact(() => { map.set(id, { ...cur, resolved }); }, DOC_ORIGIN);
+  const cur = map?.get(id); if (!isPlainEntry(cur)) return;
+  const key = commentStateKey(id);
+  const name = typeof byName === 'string' && byName.trim() ? { byName: byName.trim().slice(0, 80) } : null;
+  const file = (headerSeen) => map.set(key, { kind: 'state', threadId: id, resolved: !!resolved, by, ...name, ts: Date.now(), headerSeen });
+  ydoc.transact(() => {
+    if (log) { file(!!cur.resolved); return; }
+    map.set(id, { ...cur, resolved });
+    // A newer build may have filed a state for it already, which would
+    // outrank the thread's own flag: say the same there.
+    if (map.has(key)) file(!!resolved);
+  }, DOC_ORIGIN);
 }
 
+// The thread and everything filed under it, in one step (one undo).
 export function deleteCommentThread(ydoc, id, scope) {
-  const map = commentsMap(ydoc, scope); if (!map) return;
-  ydoc.transact(() => { map.delete(id); }, DOC_ORIGIN);
+  const map = commentsMap(ydoc, scope); if (!map || !id) return;
+  ydoc.transact(() => { for (const k of threadKeys(map, id)) map.delete(k); }, DOC_ORIGIN);
+}
+
+function threadKeys(map, id) {
+  return [...map.keys()].filter((k) => parseCommentKey(k)?.threadId === id);
+}
+
+// For a scope with no structural undo (a note's comments): what a delete's
+// Undo puts back. restoreThread puts back every entry that isn't there.
+export function snapshotThread(ydoc, id, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !id) return null;
+  return { id, entries: threadKeys(map, id).map((k) => [k, map.get(k)]) };
+}
+
+export function restoreThread(ydoc, snapshot, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !snapshot?.entries?.length) return;
+  ydoc.transact(() => {
+    for (const [k, v] of snapshot.entries) if (!map.has(k)) map.set(k, v);
+  }, DOC_ORIGIN);
 }
 
 // Bookmarks ─────────────────────────────────────────────────────────────────
@@ -725,7 +928,7 @@ export function pageFragmentToText(fragment, max = 240) {
 }
 
 export function readDocSummary(ydoc, max = 240, scope) {
-  const pages = readPages(ydoc, scope).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const pages = readPages(ydoc, scope).sort(byPageOrder);
   const firstPage = pages.find(p => p.parent_id == null) || pages[0];
   let firstText = '';
   if (firstPage) {
@@ -746,7 +949,7 @@ export function followTitle(ydoc, scope, prevTitle, nextTitle) {
   if (!nextTitle || nextTitle === prevTitle) return false;
   const primary = readPages(ydoc, scope)
     .filter((p) => p.parent_id == null)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+    .sort(byPageOrder)[0];
   if (!primary) return false;
   const tracking = primary.name === prevTitle || TRACKING_DEFAULT_NAMES.has(primary.name || '');
   if (tracking) renamePage(ydoc, primary.id, nextTitle, scope);
@@ -810,7 +1013,7 @@ export function buildPageTree(pages) {
     if (!byParent.has(k)) byParent.set(k, []);
     byParent.get(k).push(p);
   }
-  byParent.forEach(arr => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+  byParent.forEach(arr => arr.sort(byPageOrder));
   const attach = (node) => ({ ...node, children: (byParent.get(node.id) || []).map(attach) });
   return (byParent.get(null) || []).map(attach);
 }

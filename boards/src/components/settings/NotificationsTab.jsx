@@ -103,14 +103,8 @@ export function NotificationsTab({ user }) {
         onChange={(v) => togglePref('email_invite_accepted', v)} />
 
       <Toggle
-        label="Schedule changes"
-        desc="When a day you can see moves, or its call sheet is published. Only sent if you're not already in the app."
-        value={isOn('email_schedule')}
-        onChange={(v) => togglePref('email_schedule', v)} />
-
-      <Toggle
         label="Product tips & check-ins"
-        desc="Occasional nudges to help you get started and get back in when it's been a while."
+        desc="Occasional nudges to help you get started and get back in when it's been a while, and a short note when something new ships."
         value={isOn('email_lifecycle')}
         onChange={(v) => togglePref('email_lifecycle', v)} />
 

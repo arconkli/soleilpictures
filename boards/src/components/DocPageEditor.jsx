@@ -8,7 +8,7 @@
 
 import { scrubPastedHtml } from '../lib/pasteScrub.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -16,8 +16,8 @@ import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
-import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
-import { uploadImage } from '../lib/uploads.js';
+import { ImageUploadPlaceholders, uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
+import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -31,9 +31,12 @@ import { applyCards } from '../lib/tagsClient.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { makeTagRangePlugin, TAG_RANGE_KEY } from './docExtensions/TagRangePlugin.js';
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
+import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
+import { ariaKeys } from '../lib/ariaKeys.js';
 import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
+import { rangeBoxes } from '../lib/paragraphHash.js';
 import { DocCandidateGutter } from './DocCandidateGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin, AUTO_DETECT_KEY } from './docExtensions/AutoDetectPlugin.js';
@@ -183,7 +186,11 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false, guestMode = false,
+  // The doc look shows a thread in its side panel: given, a click on commented
+  // words (or a thread's margin dot) hands it the thread instead of opening
+  // the popover here.
+  onShowThread = null }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -337,31 +344,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     if (doc && key.doc === doc && key.ranges === ranges) return appliedRangeBoxesRef.current;
     appliedBoxesKeyRef.current = { doc: doc || null, ranges };
     if (!doc || ranges.length === 0) { appliedRangeBoxesRef.current = []; return appliedRangeBoxesRef.current; }
-    // Walk the doc, hash each paragraph, look up matching ranges.
-    const byHash = new Map();
-    doc.descendants((node, pos) => {
-      if (node.type?.name !== 'paragraph') return true;
-      const text = (node.textContent || '').trim();
-      if (text.length < 20) return false;
-      // Re-import contentHash here would be heavy; use the same FNV-1a
-      // by reusing what the plugin already does. Cheap to compute.
-      let h = 2166136261;
-      for (let i = 0; i < text.length; i++) {
-        h ^= text.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      const hash = (h >>> 0).toString(16);
-      if (!byHash.has(hash)) byHash.set(hash, pos + 1);
-      return false;
-    });
-    const boxes = [];
-    for (const r of ranges) {
-      const paraFrom = byHash.get(r.pHash);
-      if (paraFrom == null) continue;
-      boxes.push({ from: paraFrom + r.startOffset, to: paraFrom + r.startOffset + r.length });
-    }
-    appliedRangeBoxesRef.current = boxes;
-    return boxes;
+    // Found by the paragraph's hash as its ranges stored it (this hashed
+    // without contentHash's zero padding, so a paragraph in sixteen lost
+    // its box and drew both underlines).
+    appliedRangeBoxesRef.current = rangeBoxes(doc, ranges);
+    return appliedRangeBoxesRef.current;
   };
 
   // Per-doc ignore set: terms the user has marked "don't auto-link
@@ -537,7 +524,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     if (commentEl && !isPublic) {
       e.preventDefault();
       setLinkHover(null);
-      setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
+      if (onShowThread) onShowThread(commentEl.dataset.commentId);
+      else setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
       return;
     }
     // Manual link spans (rendered with data-link-id by LinkRenderer).
@@ -689,26 +677,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // "See all references" → open the side drawer for the first ref.
   const [backlinksRef, setBacklinksRef] = useState(null);
 
-  // Upload an image File and insert it at `pos` (or current selection if null).
-  const uploadAndInsert = async (editor, file, pos = null) => {
-    if (!file || !file.type?.startsWith('image/')) return;
+  // Upload an image File into the doc at `pos` (the caret when null) — the
+  // drop and paste half of the one path the toolbar uses too
+  // (docExtensions/ImageUpload.js).
+  const uploadAndInsert = (editor, file, pos = null) => {
     if (!workspaceId || !userId) return;
-    // The drop point as a Yjs relative anchor: typing (ours or a
-    // collaborator's) during the upload moves the text, and a raw position
-    // then landed mid-sentence — or past the end ("Position out of range").
-    const anchor = pos != null ? encodeAnchor(editor, pos) : null;
-    try {
-      const payload = await uploadImage({ file, workspaceId, userId });
-      if (pos != null) {
-        const at = Math.max(0, Math.min(resolveAnchor(editor, anchor) ?? pos, editor.state.doc.content.size));
-        editor.chain().focus().insertContentAt(at, { type: 'image', attrs: { src: payload.publicUrl } }).run();
-      } else {
-        editor.chain().focus().setImage({ src: payload.publicUrl }).run();
-      }
-    } catch (e) {
-      console.error('image upload failed', e);
-      feedback.toast({ type: 'error', message: `Image upload failed: ${e?.message || e}` });
-    }
+    uploadImageIntoDoc(editor, file, { pos, workspaceId, userId, scope, toast: (t) => feedback.toast(t) });
   };
 
   // Prose pagination (DocPagination) reports how many 8.5×11 pages the content
@@ -719,6 +693,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
 
   const editor = useEditor({
+    // Not a re-render of this whole editor (its gutters, menus, popovers) on
+    // every keystroke and caret move — TipTap's legacy default. What shows
+    // the editor's state reads it for itself: the toolbar and the bubble
+    // (useEditorState), the gutters (their own listeners).
+    shouldRerenderOnTransaction: false,
     extensions: [
       ...baseDocExtensions,
       // ⌘K → link picker (URL or entity picker).
@@ -792,6 +771,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // custom DocPresence overlay that uses the same awareness-based
       // cursor system as the canvas (LiveCursor with rAF-lerp).
       FindHighlightExtension,
+      // An image on its way up: where it will land, how far it has got.
+      ImageUploadPlaceholders,
       // BlockHandleExtension removed — per-block drag handles felt
       // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,
@@ -810,7 +791,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // Keep user-chosen text colors readable on the page sheet in both themes
       // (scoped stylesheet override; never mutates content).
       ReadableColors,
-      mentionExt,
+      // A guest in a shared doc names nothing in a workspace they are not in.
+      ...(guestMode ? [] : [mentionExt]),
     ],
     // Don't steal focus from an active text field (e.g. the page-rename
     // input in the sidebar) or another editor. A newly-mounted sheet —
@@ -848,6 +830,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // insert at the drop point (or current cursor for paste).
       handleDrop: (view, event, _slice, moved) => {
         if (moved) return false;
+        // A guest's drop is a paste (transformPasted below): no entity links,
+        // no uploads.
+        if (guestMode) return false;
         // Universal entity-ref drop → insert as a manual link mark at
         // the drop position. Picker rows / canvas chips / message
         // attachment chips all use this mime type so any of them can
@@ -877,11 +862,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       // font, size, default black ink, backgrounds — so they take the doc's
       // own formatting instead of planting 11pt Arial marks. See pasteScrub.
       transformPastedHTML: scrubPastedHtml,
+      // A guest's paste keeps its words and loses what the doc's room would
+      // refuse from them (lib/guestPaste.js).
+      ...(guestMode ? { transformPasted: guestPasteSlice } : {}),
       handlePaste: (_view, event) => {
         const items = Array.from(event.clipboardData?.items || []);
         const imgs = items.filter(it => it.type.startsWith('image/'));
         if (!imgs.length) return false;
         event.preventDefault();
+        if (guestMode) {
+          feedback.toast({ type: 'info', message: "Images can't be added to a doc shared with you." });
+          return true;
+        }
         const ed = editorRef.current;
         if (ed) imgs.forEach(it => { const f = it.getAsFile(); if (f) uploadAndInsert(ed, f); });
         return true;
@@ -1333,26 +1325,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
       {!isPublic && editable && bubble && (
-        <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
-             style={{ position: 'fixed', top: Math.max(8, bubble.top - 46),
-                      left: Math.max(8, Math.min(bubble.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
-                      zIndex: 2147483647 }}>
-          <button className={editor.isActive('bold') ? 'is-active' : ''} aria-label="Bold"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
-          <button className={editor.isActive('italic') ? 'is-active' : ''} aria-label="Italic"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
-          <button className={editor.isActive('underline') ? 'is-active' : ''} aria-label="Underline"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
-          <button className={editor.isActive('highlight') ? 'is-active' : ''} aria-label="Highlight"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
-          <button aria-label="Link"
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => openLinkPicker(editor)}><LinkIcon /></button>
-        </div>
+        <DocSelectionBubble editor={editor} at={bubble} onLink={() => openLinkPicker(editor)} />
       )}
       <DocTagGutter
         editor={editor}
@@ -1553,8 +1526,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         ydoc={ydoc}
         scope={scope}
         pageId={activePageId}
-        editor={editorRef.current}
+        editor={editor}
         onOpenThread={(id) => {
+          if (onShowThread) { onShowThread(id); return; }
           const dot = document.querySelector(`.comment-gutter-dot[data-thread="${id}"]`);
           setOpenThread({ id, anchor: dot?.getBoundingClientRect() });
         }}
@@ -1571,6 +1545,51 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           onClose={() => setOpenThread(null)}
         />
       )}
+    </div>
+  );
+}
+
+// The touch selection bubble. It lights from the editor's state, which it
+// reads for itself (useEditorState): the editor above it no longer re-renders
+// on every transaction, and bolding a selection changes no selection to
+// re-render on.
+function DocSelectionBubble({ editor, at, onLink }) {
+  const lit = useEditorState({
+    editor,
+    selector: () => ({
+      bold: editor.isActive('bold'),
+      italic: editor.isActive('italic'),
+      underline: editor.isActive('underline'),
+      highlight: editor.isActive('highlight'),
+    }),
+  });
+  const barRef = useRef(null);
+  const onBarKeys = useToolbarRoving(barRef);
+  return (
+    <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
+         ref={barRef} onKeyDown={onBarKeys}
+         style={{ position: 'fixed', top: Math.max(8, at.top - 46),
+                  left: Math.max(8, Math.min(at.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
+                  zIndex: 2147483647 }}>
+      <button className={lit.bold ? 'is-active' : ''} aria-label="Bold" aria-pressed={lit.bold}
+              aria-keyshortcuts={ariaKeys('Mod+B')}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
+      <button className={lit.italic ? 'is-active' : ''} aria-label="Italic" aria-pressed={lit.italic}
+              aria-keyshortcuts={ariaKeys('Mod+I')}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
+      <button className={lit.underline ? 'is-active' : ''} aria-label="Underline" aria-pressed={lit.underline}
+              aria-keyshortcuts={ariaKeys('Mod+U')}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
+      <button className={lit.highlight ? 'is-active' : ''} aria-label="Highlight" aria-pressed={lit.highlight}
+              aria-keyshortcuts={ariaKeys('Mod+Shift+H')}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
+      <button aria-label="Link" aria-keyshortcuts={ariaKeys('Mod+K')}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={onLink}><LinkIcon /></button>
     </div>
   );
 }
@@ -1647,12 +1666,14 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     const onDown = (e) => {
       if (!e.target?.closest?.('.doc-ctx')) setPos(null);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setPos(null); };
+    // On document, claimed: the open doc is a layer (lib/modalGuard) that
+    // would close on the same Escape at the window.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); setPos(null); } };
     document.addEventListener('pointerdown', onDown, true);
-    window.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
-      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey);
     };
   }, [pos]);
 

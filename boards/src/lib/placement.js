@@ -50,6 +50,14 @@ export function canUnplace(card) {
   return !!card && !isUnplaced(card) && !card.locked && UNPLACEABLE.has(card.kind);
 }
 
+// Whether a card can be kept off a board at all: what landing it in another
+// cluster's Files asks. canUnplace() asks whether one ON the board can come off
+// it now, which is false for a card that's already off — so a stored file
+// moved by that test landed on the destination's board.
+export function canStore(card) {
+  return !!card && !card.locked && UNPLACEABLE.has(card.kind);
+}
+
 // Where unplaced files wait: free space over EVERY card, placed or not, so on
 // a client that ignores the flag a batch from Files never lands on the board's
 // content or on an earlier batch.
@@ -59,15 +67,17 @@ export function positionUnplaced(allCards, items, opts = {}) {
 
 // Put on board: lay the unplaced cards among `ids` out as one block in the
 // free space nearest `at` (or beside the board's content when there's no
-// point), keeping their sizes. Unlike a drop, nobody pointed at a spot, so the
-// block never lands on what's already there. Returns
-// [{ id, patch: { x, y, unplaced: false } }].
-export function planPutOnBoard(allCards, ids, at = null, gap = 24) {
+// point). Unlike a drop, nobody pointed at a spot, so the block never lands on
+// what's already there. `layout` 'grid' keeps their sizes; 'justified' is the
+// rows a drop of photographs gets (layoutForPut), which resizes them, so its
+// patch carries w and h too. Returns [{ id, patch: { x, y, unplaced: false } }].
+export function planPutOnBoard(allCards, ids, at = null, { gap = 24, layout = 'grid' } = {}) {
   const idSet = new Set(ids || []);
   const moving = (allCards || []).filter((c) => idSet.has(c?.id) && isUnplaced(c));
   if (!moving.length) return [];
   const solid = withGeometry(allCards);
-  const block = layoutDrop(moving, { at: { x: 0, y: 0 }, layout: 'grid' });
+  const sized = layout === 'justified';
+  const block = layoutDrop(moving, { at: { x: 0, y: 0 }, layout: sized ? 'justified' : 'grid' });
   const left = Math.min(...block.map((c) => c.x)), top = Math.min(...block.map((c) => c.y));
   const w = Math.max(...block.map((c) => c.x + c.w)) - left;
   const h = Math.max(...block.map((c) => c.y + c.h)) - top;
@@ -77,9 +87,25 @@ export function planPutOnBoard(allCards, ids, at = null, gap = 24) {
   const spot = nearestFreeSpot(solid, want, w, h, gap) || besideContent(solid, gap + 16);
   return block.map((c) => ({
     id: c.id,
-    patch: { x: Math.round(c.x - left + spot.x), y: Math.round(c.y - top + spot.y), unplaced: false },
+    patch: {
+      x: Math.round(c.x - left + spot.x), y: Math.round(c.y - top + spot.y),
+      ...(sized ? { w: Math.round(c.w), h: Math.round(c.h) } : {}),
+      unplaced: false,
+    },
   }));
 }
+
+// The canvas drop's rule: photographs get justified rows; anything mixed keeps
+// the uniform grid, where an image beside a PDF beside a clip reads as a set.
+export function layoutForPut(cards) {
+  return cards?.length && cards.every((c) => c?.kind === 'image') ? 'justified' : 'grid';
+}
+
+// The most one Put lays out at once: what a folder drop laid out before bulk
+// import (folderWalk FOLDER_LIMITS.maxFiles). A bigger set at once is the M4
+// question (the canvas's GPU tile budget) and waits on that measurement; the
+// rest stay in Files to put on from there.
+export const PUT_ON_BOARD_MAX = 500;
 
 // The top-left nearest `want` where a w×h block clears every card by `gap`.
 // Candidates are `want` itself and the four sides of each card (lined up with

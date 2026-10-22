@@ -1,5 +1,6 @@
-// shareWorkspaceProbe — mounts the workspace switcher menu and the Share panel
-// with fixtures, for tests/share-workspace-menu.spec.js.
+// shareWorkspaceProbe — mounts the workspace switcher menu, the Share panel
+// and Settings › Members with fixtures, for tests/share-workspace-menu.spec.js
+// and tests/editor-limit.spec.js.
 //
 // Why a probe: local QA mode (?local=1) renders its own simplified sidebar with
 // no workspace switcher, so the real menu is unreachable there. Lives in src/
@@ -12,6 +13,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import { WorkspaceMenu } from '../components/WorkspaceMenu.jsx';
 import { ShareModal } from '../components/ShareModal.jsx';
+import { MembersTab } from '../components/settings/MembersTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 
 const host = () => {
@@ -41,5 +43,16 @@ export function mountWorkspaceMenu(props) {
 export function mountShareModal(props) {
   ReactDOM.createRoot(host()).render(React.createElement(FeedbackProvider, null,
     React.createElement(ShareModal, { onClose: () => {}, ...props })));
+  return true;
+}
+
+// Settings is a layer over the app, so the tab gets one: under it the local-QA
+// canvas takes the pointer and a hover never reaches a row. Below the
+// confirm and the toasts, which portal to <body> on the top tier.
+export function mountMembersTab(props) {
+  ReactDOM.createRoot(host()).render(React.createElement(FeedbackProvider, null,
+    React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 9999, overflow: 'auto', background: 'var(--bg-0)' } },
+      React.createElement('div', { style: { width: 680, padding: 16 } },
+        React.createElement(MembersTab, props)))));
   return true;
 }

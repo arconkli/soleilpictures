@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import * as Y from 'yjs';
 import { CanvasSurface } from '../components/CanvasSurface.jsx';
+import { initCardDocStore } from '../lib/docState.js';
 import { ListSurface } from '../components/ListSurface.jsx';
 import { CommandPalette } from '../components/CommandPalette.jsx';
 import { Avatar, SoleilMark } from '../components/primitives.jsx';
@@ -10,11 +12,12 @@ import { HelpHost, HelpButton, openHelpHub } from '../components/HelpHub.jsx';
 import { useRecents } from '../hooks/useRecents.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { ViewSwitch } from '../components/ViewSwitch.jsx';
+import { NewClusterButton } from '../components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from '../components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } from '../lib/filesDock.js';
 import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
-import { scheduleCreationAllowed } from '../lib/appHost.js';
+import { scheduleCreationAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
 import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
 import { CURATED_TEMPLATES } from '../lib/gridTemplateIndex.js';
@@ -52,13 +55,18 @@ import { layoutDrop } from '../lib/layoutEngine.js';
 import { placedOf, positionUnplaced } from '../lib/placement.js';
 import { classifyDropFile, fileMetaFor } from '../lib/fileIngest.js';
 import { useFeedback } from '../components/AppFeedback.jsx';
+import { failMove } from '../lib/moveFailure.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from '../components/OnboardingTour.jsx';
 import { useOnboardingTour } from '../hooks/useOnboardingTour.js';
 import { PROJECT_INTENTS } from '../lib/onboardingTour.js';
 import { supabase } from '../lib/supabase.js';
+import { DragLabel } from '../components/sidebar/DragLabel.jsx';
+import { decideDrop, copyKeyHeld } from '../lib/dropRules.js';
+import { dragSession } from '../lib/springLoad.js';
 import { decodeShowcaseCards } from '../lib/showcaseClone.js';
 import { ShortcutsHost } from '../components/ShortcutsOverlay.jsx';
 import { probeFile } from '../lib/mediaProbe.js';
@@ -180,6 +188,17 @@ const ONBOARD_PREVIEW = typeof window !== 'undefined'
 const BLANK_SEED = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('blank') === '1';
 
+// Dev/test-only: ?local=1&richdocs=1 gives the doc tool's cards the real doc
+// store, as App's addDocCard does: an in-memory Y.Doc holding each new doc
+// card's Y.Map, handed to CanvasSurface. The canvas then renders RichDocCard on
+// its own card wrapper and the editor opens, so a spec can open a doc from the
+// canvas the way someone does, not only from the ?docqa harness's bare card.
+// Off, the doc tool keeps placing the static stand-in and the canvas gets no
+// ydoc, exactly as before. DEV-gated from the outside, as MIX_QA_COUNT is.
+const RICH_DOCS_QA = typeof window !== 'undefined' && import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('richdocs') === '1'
+  : false;
+
 // Dev/test-only: ?local=1&reset=1&mixqa=4 boots a Studio root holding N image
 // cards and NOTHING else — the day-one photo dump. That board shape is the one
 // the mix prompt exists for (see lib/mixPrompt.js) and the one the harness
@@ -203,6 +222,54 @@ const MIX_QA_COUNT = typeof window !== 'undefined' && import.meta.env.DEV
       return /^\d{1,2}$/.test(raw || '') ? Number(raw) : 0;
     })()
   : 0;
+
+// Dev/test-only: ?local=1&filesrules=1 hands the board the sidebar's Files
+// drop (App.jsx moveFilesHere) as a recorder, so a spec can drive the board's
+// half of the drop rules (lib/dropRules.js) without the route: each move or
+// copy a drop asks for lands in window.__filesRulesQa.calls. DEV-gated from
+// the outside, as MIX_QA_COUNT is, so the bundler drops it.
+const FILES_RULES_QA = typeof window !== 'undefined' && import.meta.env.DEV
+  ? new URLSearchParams(window.location.search).get('filesrules') === '1'
+  : false;
+// …and &viewonly=1: the board as one this person may only look at (not a
+// public link): what's left is copying out.
+const FILES_RULES_VIEW_ONLY = FILES_RULES_QA && new URLSearchParams(window.location.search).get('viewonly') === '1';
+const filesRulesQaMove = FILES_RULES_QA
+  ? (payload, at, opts = {}) => {
+      const qa = (window.__filesRulesQa ||= { calls: [] });
+      qa.calls.push({
+        from: payload?.sourceBoardId, cardIds: (payload?.cards || []).map((c) => c.id),
+        at, copy: !!opts.copy, what: opts.what || null,
+      });
+    }
+  : null;
+// …and full Files' and the card menu's (App.jsx moveFilesBetween), with a
+// picker that answers window.__filesRulesQa.pick for Move to… / Copy to….
+const filesRulesQaBetween = FILES_RULES_QA
+  ? async ({ from, to, cardIds, copy = false, what = null }) => {
+      const qa = (window.__filesRulesQa ||= { calls: [] });
+      qa.calls.push({ from, to, cardIds, copy: !!copy, what });
+      return true;
+    }
+  : null;
+const filesRulesQaPick = FILES_RULES_QA
+  ? async () => { const id = window.__filesRulesQa?.pick; return id ? { id } : null; }
+  : null;
+// A card dragged off the board needs a sidebar to go to: two stand-in cluster
+// rows, one of them view only, and the real drag label answering for them
+// with the rules, as ClusterSidebar's resolveDrop does.
+const filesRulesQaResolve = FILES_RULES_QA
+  ? (el, e, handed) => {
+      const id = el.getAttribute('data-drop-board');
+      const sess = handed ? null : dragSession();
+      const drag = handed || (sess?.kind === 'files' ? sess : null);
+      return decideDrop({
+        files: drag?.files || [], sourceName: drag?.sourceName || '', workspaceId: 'local-workspace',
+        copy: copyKeyHeld(e),
+        target: { boardId: id, where: 'files', name: el.getAttribute('data-drop-name'), workspaceId: 'local-workspace', writable: !el.hasAttribute('data-qa-viewonly') },
+      });
+    }
+  : null;
 
 // Dev-only: add &tour=1 (best alongside &blank=1) to walk the REAL first-run
 // guided tour on a live local canvas — no Supabase / arm enrollment needed.
@@ -406,12 +473,13 @@ export function LocalBoardsApp({ user, signOut }) {
   // portrait, ≤1024). Must match the global shell CSS query in styles.css —
   // otherwise the sidebar styles as a hidden drawer on a tablet with no
   // hamburger to open it.
-  const { isPhone, isTablet, isTouch } = useBreakpoint();
-  const mobileShell = isPhone || (isTablet && isTouch);
+  const { mobileShell } = shellOf(useBreakpoint());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
+  // ?richdocs=1: where the doc tool's cards keep their doc store (RICH_DOCS_QA).
+  const [docYdoc] = useState(() => (RICH_DOCS_QA ? new Y.Doc() : null));
   const [currentSurface, setCurrentSurface] = useState('board');
   const [homeExploring, setHomeExploring] = useState(false);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph
@@ -501,6 +569,8 @@ export function LocalBoardsApp({ user, signOut }) {
     [boards, currentId],
   );
   const crumbs = stack.map(id => ({ id, name: boards[id]?.name || id }));
+  // "+ New cluster" after the trail, where App.jsx's bar has it.
+  const showNewCluster = clusterNudgesAllowed() && !mobileShell && currentSurface === 'board' && !readOnlyQa;
 
   // Real (if simple) undo for the local shell: a bounded snapshot stack per
   // board. Production runs the Yjs UndoManager; ?local=1 used to stub
@@ -909,7 +979,8 @@ export function LocalBoardsApp({ user, signOut }) {
   // Minimal doc card for the local QA harness — enough for the rail "Doc"
   // tool + the + / right-click Doc entries to place a card. There's no
   // ydoc-backed doc store here, so CanvasSurface renders the static
-  // <DocCard> fallback (kind:'doc' without docPages). Not a full editor.
+  // <DocCard> fallback (kind:'doc' without docPages). Not a full editor —
+  // unless ?richdocs=1, which gives the card its doc store (RICH_DOCS_QA).
   const addDocCard = (clickPos = null) => {
     const id = createId('doc');
     const w = 320;
@@ -924,6 +995,15 @@ export function LocalBoardsApp({ user, signOut }) {
       w,
       h,
     });
+    if (docYdoc) {
+      const cardYMap = new Y.Map();
+      docYdoc.transact(() => {
+        cardYMap.set('id', id);
+        cardYMap.set('kind', 'doc');
+        docYdoc.getMap('cards').set(id, cardYMap);
+      }, 'local');
+      initCardDocStore(docYdoc, cardYMap);
+    }
     setAutoFocusId(id);
   };
 
@@ -1713,6 +1793,29 @@ export function LocalBoardsApp({ user, signOut }) {
         return;
       }
       if (sourceBoardId === targetBoardId) { try { onTargetSaved?.(); } catch (_) {} return; }
+      // A move that fails at its last step, as every one on the preview did
+      // while Cloudflare refused the Worker's call to the party: a spec sets
+      // window.__soleilFailNextMove. App's failure path (lib/moveFailure.js),
+      // with a trash that leaves the cluster's card on the source, as the real
+      // soft delete does: the source drops it itself.
+      if (import.meta.env.DEV && window.__soleilFailNextMove) {
+        window.__soleilFailNextMove = false;
+        const { createdBoardId = null, createdBoardName = null } = e.detail || {};
+        failMove({
+          err: new Error('reset failed (QA)'),
+          message: 'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.',
+          createdBoardId, createdBoardName,
+          trash: async (id) => setLocalState(prev => {
+            const nextBoards = { ...prev.boards };
+            const nextBoardState = { ...prev.boardState };
+            delete nextBoards[id];
+            delete nextBoardState[id];
+            return { ...prev, boards: nextBoards, boardState: nextBoardState };
+          }),
+          toast: (t) => feedback.toast(t),
+        }).then((err) => { try { onTargetFailed?.(err); } catch (_) {} });
+        return;
+      }
       const idMap = {};
       for (const c of moved) idMap[c.id] = createId(c.kind || 'card');
       const minX = Math.min(...moved.map(c => c.x ?? 0));
@@ -1746,7 +1849,7 @@ export function LocalBoardsApp({ user, signOut }) {
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);
     return () => document.removeEventListener('soleil-card-into-board-drop', onDrop);
-  }, [boards]);
+  }, [boards, feedback]);
 
   // ⌘K / Ctrl-K (and "/" when not typing) — open the global search palette.
   // App.jsx has its own; the local shell had no global keydown handler at all.
@@ -1912,7 +2015,7 @@ export function LocalBoardsApp({ user, signOut }) {
       </aside>
 
       <main className="main">
-        <div className="topbar">
+        <div className={`topbar${showNewCluster ? ' topbar-centered' : ''}`}>
           <div className="tb-left">
             {mobileShell && (
               <button className="tb-icon" title="Open menu" aria-label="Open menu"
@@ -1928,6 +2031,9 @@ export function LocalBoardsApp({ user, signOut }) {
                 </React.Fragment>
               ))}
             </div>
+            {showNewCluster && (
+              <NewClusterButton boardId={currentId} paneId="main" boardName={crumbs[crumbs.length - 1]?.name} />
+            )}
           </div>
 
           <div className="tb-center">
@@ -1993,7 +2099,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 // view-only, public — so the read-only interaction rules can be
                 // driven by Playwright without a share token. DEV-only (the
                 // predicate is import.meta.env.DEV-guarded), default false.
-                canEdit={!readOnlyQa}
+                canEdit={!readOnlyQa && !FILES_RULES_VIEW_ONLY}
                 isPublic={readOnlyQa}
                 /* ?firstboard=1|<kind> — the first-board panel variant. Dead code in production. */
                 boardReady={true}
@@ -2008,6 +2114,8 @@ export function LocalBoardsApp({ user, signOut }) {
                 cards={placedOf(framedState.cards)}
                 allCards={framedState.cards}
                 onRevealUnplaced={(ids) => revealInFilesLocal(ids)}
+                onMoveFilesHere={filesRulesQaMove}
+                onMoveFiles={filesRulesQaBetween}
                 focusRequest={focusRequest?.boardId === currentBoard?.id ? focusRequest : null}
                 clearFocusRequest={() => setFocusRequest(null)}
                 arrows={currentState.arrows}
@@ -2034,6 +2142,8 @@ export function LocalBoardsApp({ user, signOut }) {
                 })}
                 workspaceId="local-workspace"
                 userId={user?.id ?? 'local-user'}
+                /* ?richdocs=1 — see RICH_DOCS_QA. Absent otherwise, as before. */
+                {...(docYdoc ? { ydoc: docYdoc, currentUser: { id: user?.id ?? 'local-user', name: 'Local Tester', color: '#d98c2b' } } : null)}
                 personalWorkspaceId="local-workspace"
                 selectedTool={selectedTool}
                 setSelectedTool={setSelectedTool}
@@ -2092,6 +2202,8 @@ export function LocalBoardsApp({ user, signOut }) {
                     dockControls={localDockControls}
                     mutators={surfaceMutators}
                     homeSrc={currentBoard ? { boardId: currentBoard.id, cards: framedState.cards, mutators: surfaceMutators, canEdit: true } : null}
+                    onMoveFiles={filesRulesQaBetween}
+                    onPickCluster={filesRulesQaPick}
                     {...o}
                   />
                 )}
@@ -2100,6 +2212,13 @@ export function LocalBoardsApp({ user, signOut }) {
           />
         )}
       </main>
+      {FILES_RULES_QA && (
+        <div className="sbqa-rules-rows" style={{ position: 'fixed', right: 24, top: 140, width: 220, zIndex: 60, padding: 8, borderRadius: 12, background: 'var(--bg-2)' }}>
+          <div className="sb-row sb-tree-row is-files" data-drop-board="b-sundown" data-drop-where="files" data-drop-name="Sundown Highway" style={{ height: 32 }}>Sundown Highway</div>
+          <div className="sb-row sb-tree-row is-files" data-drop-board="b-stills" data-drop-where="files" data-drop-name="Stills" data-qa-viewonly="" style={{ height: 32 }}>Stills</div>
+        </div>
+      )}
+      {FILES_RULES_QA && <DragLabel resolve={filesRulesQaResolve} />}
 
       {/* Boards-only "link a board" picker — command palette in pick mode. */}
       <CommandPalette

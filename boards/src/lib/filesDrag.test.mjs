@@ -8,7 +8,7 @@ import * as Y from 'yjs';
 import {
   COPYABLE_KINDS, canDragFromFiles, plainCardForCopy, fileKeyOf, onBoardIndex,
   buildFilesPayload, parseFilesPayload, planMoveToPoint, planCrossDrop, summarizeDrop, arrowsBetween,
-  planPlaceAt, planSameClusterDrop,
+  planPlaceAt, planSameClusterDrop, spreadDropPoints,
 } from './filesDrag.js';
 
 const img = (id, src, extra = {}) => ({ id, kind: 'image', src, x: 0, y: 0, w: 200, h: 100, ...extra });
@@ -161,4 +161,24 @@ test('from another cluster, a copy already waiting in this one is put on the boa
 test('a linked copy is always on the board, whatever the original was', () => {
   const { copies } = planCrossDrop([img('src', 'r2:5', { unplaced: true })], { x: 0, y: 0 }, { sourceBoardId: 'S' });
   assert.equal('unplaced' in copies[0], false);
+});
+
+test('a sidebar drag says it means to move; a drag out of Files says nothing', () => {
+  const cards = [{ id: 'p1', kind: 'image', src: 'r2:a', w: 10, h: 10 }];
+  const moving = parseFilesPayload(buildFilesPayload({ sourceBoardId: 'b1', cards, intent: 'move' }));
+  assert.equal(moving.intent, 'move');
+  const plain = parseFilesPayload(buildFilesPayload({ sourceBoardId: 'b1', cards }));
+  assert.equal(plain.intent, null);
+  assert.equal(JSON.parse(buildFilesPayload({ sourceBoardId: 'b1', cards })).intent, undefined, 'old payloads unchanged');
+  const forged = parseFilesPayload(JSON.stringify({ v: 1, sourceBoardId: 'b', cards, intent: 'delete-everything' }));
+  assert.equal(forged.intent, null);
+});
+
+test('blocks let go of together land side by side, centred on the drop point, not in a pile', () => {
+  const one = spreadDropPoints([[img('a', 'r2:a')]], { x: 500, y: 300 });
+  assert.deepEqual(one, [{ x: 500, y: 300 }], 'one block: right where it was let go');
+  const two = spreadDropPoints([[img('a', 'r2:a')], [img('b', 'r2:b')]], { x: 500, y: 300 }, { gap: 50 });
+  // Two 200-wide blocks and a 50 gap: 450 wide, centred on x 500.
+  assert.deepEqual(two, [{ x: 375, y: 300 }, { x: 625, y: 300 }]);
+  assert.deepEqual(spreadDropPoints([[img('a', 'r2:a')], []], null), [null, null], 'no point, nothing to spread');
 });

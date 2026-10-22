@@ -15,6 +15,7 @@
 // Pure (yjs only), so it tests under node with real Y.Docs.
 
 import * as Y from 'yjs';
+import { mergePageEntries, placeStrays } from './docPageEntries.js';
 
 export function fragmentText(node) {
   const out = [];
@@ -45,9 +46,11 @@ export function docPagesText(cardYMap) {
   const sheets = get('docPageSheets');
   const sheetContent = get('docSheetContent');
   const out = [];
-  for (const raw of pages.toArray()) {
-    const page = raw && typeof raw.toJSON === 'function' ? raw.toJSON() : raw;
-    if (!page?.id) continue;
+  // Each page once, and only the pages the list shows (lib/docPageEntries.js).
+  const entries = pages.toArray().map((raw) => (raw && typeof raw.toJSON === 'function' ? raw.toJSON() : raw));
+  const listed = placeStrays(mergePageEntries(entries),
+    typeof content?.has === 'function' ? (id) => content.has(id) : () => true);
+  for (const page of listed) {
     const parts = [fragmentText(content?.get?.(page.id))];
     const list = sheets?.get?.(page.id);
     for (const s of (list && typeof list.toArray === 'function' ? list.toArray() : [])) {

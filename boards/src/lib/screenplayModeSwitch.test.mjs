@@ -224,6 +224,6 @@ test('no editor converts on mount any more, and only an editor can switch', () =
 test('only one editor heals, so two clients never convert the same lines', () => {
   const ds = read('../components/DocSurface.jsx');
   const heal = ds.slice(ds.indexOf('// Heal content'), ds.indexOf('healDocMode(ydoc, scope)') + 30);
-  assert.match(heal, /if \(!canEdit \|\| !awareness\) return/, 'viewers write nothing');
+  assert.match(heal, /if \(!canEdit \|\| !awareness \|\| guestMode\) return/, 'viewers write nothing, and nor does a guest in a shared doc');
   assert.match(heal, /Math\.min\(\.\.\.awareness\.getStates\(\)\.keys\(\)\)/, 'the lowest client id heals');
 });

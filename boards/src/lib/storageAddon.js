@@ -9,7 +9,10 @@
 import { supabase } from './supabase.js';
 import { STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_HELD, STORAGE_ADDON_MAX_BLOCKS } from './billingCopy.js';
 
-const ADDON_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/storage-addon';
+// Run where the database is, as the checkout functions are (lib/checkout.js
+// says why). The sheet's preview on opening also warms the apply: same URL, so
+// the function is up and its preflight remembered when the button is pressed.
+const ADDON_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/storage-addon?forceFunctionRegion=us-west-2';
 
 async function call(body) {
   const { data } = await supabase.auth.getSession();
@@ -73,7 +76,7 @@ export function storageAddonErrorMessage(answer) {
     case 'schedule_attached':
     case 'discounted_subscription':
     case 'not_active':
-      return 'Extra storage can’t be added to this plan here. Write to hello@clusters.soleilpictures.com and we’ll sort it out.';
+      return 'Extra storage can’t be added to this plan here. Write to hello@soleilpictures.com and we’ll sort it out.';
     case 'not_configured':
       return 'Extra storage isn’t available yet.';
     case 'network':

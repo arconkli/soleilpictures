@@ -63,6 +63,7 @@ export function PlayerHost({ resolveBoard, renderRail = null }) {
         initialTime={Number.isFinite(req.time) ? req.time : null}
         autoPlay={req.playing != null ? !!req.playing : !hasPos}
         boardId={req.boardId} cardId={req.cardId}
+        canEdit={live?.canEdit === true}
         onClose={close}
         playerRef={playerRef}
         {...(renderRail ? renderRail({ req, card, live, close }) : {})}

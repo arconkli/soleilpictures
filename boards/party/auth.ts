@@ -215,6 +215,71 @@ export async function bannedAmong(serviceKey: string | undefined, userIds: strin
   return out;
 }
 
+// accessAmong — what each of these people may do in this board room now, from
+// party_board_access (0620), which asks can_read_board / can_write_board as
+// each of them. The room calls it once a minute so a removal, an unshare or a
+// downgrade reaches sockets that are already open. A person missing from the
+// answer (an RPC failure) keeps their socket as it is, like bannedAmong.
+export async function accessAmong(
+  serviceKey: string | undefined,
+  boardId: string,
+  userIds: string[],
+): Promise<Map<string, { canRead: boolean; canWrite: boolean }>> {
+  const out = new Map<string, { canRead: boolean; canWrite: boolean }>();
+  const ids = [...new Set(userIds)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 200);
+  if (!serviceKey || ids.length === 0 || !/^[0-9a-f-]{36}$/i.test(boardId)) return out;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/party_board_access`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_board: boardId, p_users: ids }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return out;
+    for (const row of (await res.json()) as Array<{ user_id: string; can_read: boolean; can_write: boolean }>) {
+      out.set(row.user_id, { canRead: row.can_read === true, canWrite: row.can_write === true });
+    }
+  } catch (_) { /* fail open */ }
+  return out;
+}
+
+// workspaceAccessAmong — accessAmong's twin for the workspace presence room:
+// may each of these people still be in it (party_workspace_access, 0622: a
+// member, not suspended)? false means close; a person missing from the answer
+// (an RPC failure) keeps their socket.
+export async function workspaceAccessAmong(
+  serviceKey: string | undefined,
+  workspaceId: string,
+  userIds: string[],
+): Promise<Map<string, boolean>> {
+  const out = new Map<string, boolean>();
+  const ids = [...new Set(userIds)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 200);
+  if (!serviceKey || ids.length === 0 || !/^[0-9a-f-]{36}$/i.test(workspaceId)) return out;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/party_workspace_access`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_workspace: workspaceId, p_users: ids }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return out;
+    for (const row of (await res.json()) as Array<{ user_id: string; can_open: boolean }>) {
+      out.set(row.user_id, row.can_open === true);
+    }
+  } catch (_) { /* fail open */ }
+  return out;
+}
+
 // authAdmin — verify that the bearer is an authenticated user whose
 // profile carries tier='admin'. Used by the universe party to gate
 // every endpoint to platform admins. Returns { ok, userId } so the
@@ -256,4 +321,29 @@ async function authWorkspaceUncached(
   if (rows === null) return { ok: false, reason: "auth check failed" };
   if (rows.length === 0) return { ok: false, reason: "not a member of this workspace" };
   return { ok: true, userId: claims.sub, email: claims.email };
+}
+
+// A shared doc's room (party/doc.ts): may this caller come in? 0426
+// doc_room_access, run AS the caller (their bearer, or the anon key for
+// someone signed out on a view link). `share` is the share's token when they
+// came by its link. → its answer, or null when it can't be had.
+export async function docRoomAccess(accessToken: string, room: string, share: string): Promise<any> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/doc_room_access`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken || SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_room: room, p_token: /^[0-9a-f-]{36}$/i.test(share) ? share : null }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.status === 401 && accessToken) return { status: "auth_expired" };
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
 }

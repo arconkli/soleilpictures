@@ -28,26 +28,33 @@ test('the block is on every comparison page and every flagged page — and nowhe
     if (spec) assert.equal(hasPlanBlock(spec), false, `${p} is a solo/hobbyist page — no price block (see planBlock.js)`);
   }
   assert.ok(SEO_LANDING_PAGES.some(hasPlanBlock), 'no page carries the block at all');
-  // Held by the owner (2026-10-01): /vs/pureref converts best, so it gets the
-  // block only two weeks after its corrected copy is live on production.
+  // Held by the owner 2026-10-01 until two weeks after its corrected copy was
+  // live on production; turned on 2026-10-20 as the page's only change. A
+  // stray `planBlock: false` coming back would quietly end planBlock.js's read.
   const pureref = SEO_LANDING_PAGES.find((s) => s.path === '/vs/pureref');
   assert.equal(pureref?.kind, 'compare');
-  assert.equal(hasPlanBlock(pureref), false, '/vs/pureref is held without the block — see planBlock.js');
+  assert.equal(hasPlanBlock(pureref), true, '/vs/pureref carries the block — see planBlock.js');
   // And an explicit false beats kind:'compare' in the predicate itself.
   assert.equal(hasPlanBlock({ kind: 'compare', planBlock: false }), false);
   assert.equal(hasPlanBlock({ kind: 'compare' }), true);
 });
 
-test('the size line names the drive, and the workspace line is not said twice', () => {
+test('the storage line names the drive once, and the workspace line is not said twice', () => {
   const m = planBlockModel();
   const storage = CREATOR_BENEFITS.find((b) => b.key === 'storage');
-  assert.ok(m.creator.lines.includes(`${storage.title}, on a ${CREATOR_STORAGE_LABEL} drive`),
-    'a bare "No size limits" reads as no limit at all — name the drive behind it');
+  // A bare "No size limits" read as no limit at all, so the line must name the
+  // drive. Once: since 0413 the title IS the drive, and the old suffix printed
+  // "A 1TB drive, on a 1TB drive" on every page carrying the block.
+  assert.ok(m.creator.lines.includes(storage.title), 'the storage title is shown as it stands');
+  const drive = m.creator.lines.filter((l) => l.includes(CREATOR_STORAGE_LABEL));
+  assert.equal(drive.length, 1, 'one line names the drive');
+  assert.equal(drive[0].split(CREATOR_STORAGE_LABEL).length - 1, 1, `the drive is named once: "${drive[0]}"`);
   const workspace = CREATOR_BENEFITS.find((b) => b.key === 'workspace');
   assert.ok(!m.creator.lines.includes(workspace.title), 'the closing note already says it');
   assert.ok(m.note.includes('whole workspace'));
   for (const out of [planBlockHtml('/x'), planBlockMarkdown().join('\n')]) {
-    assert.ok(out.includes(`on a ${CREATOR_STORAGE_LABEL} drive`));
+    assert.ok(out.includes(`${CREATOR_STORAGE_LABEL} drive`));
+    assert.ok(!out.includes(`drive, on a ${CREATOR_STORAGE_LABEL} drive`), 'the drive is not said twice');
     assert.equal(out.split('whole workspace').length - 1, 1, 'the workspace claim appears exactly once');
   }
 });

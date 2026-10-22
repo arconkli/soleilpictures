@@ -1,0 +1,629 @@
+/* Messages in the files sidebar's card (preview only). The look is "A + C,
+   made ours", the owner's pick on 2026-10-20 ("an A and C combo. but it needs
+   to feel like US instead of just copying imessage"): A's colour and warmth,
+   C's calm, built from the sidebar's own materials. Canvas
+   5T5Cs9DyXdryYKYHVuhejo, the top row.
+
+   - Yours on the right in blue hour (the hue A's blue and C's slate share,
+     between them, a step toward slate); theirs on the left in the sidebar's
+     raised chip. Never gold: gold is focus and selection (here, the one ring
+     on the box you type in).
+   - A run's bubbles join at the corners (lib/messageFeed.js says which); no
+     tails. A group names the person over their run, no face beside it.
+   - What a message carries is not a bubble but a card from the board: a
+     picture, a file, a link or a cluster with its cover, with the board's
+     8px corner and hairline, whoever sent it.
+   - One quiet line under a run: its time where the talk had paused, and
+     what's news (Edited, Pinned, Seen). Days and the New line in the
+     sidebar's capitals.
+   - Faces as the sidebar draws "Maya and Jon are here".
+
+   App sets body[data-sb-files] while the files sidebar is on (the look) and
+   body[data-sb-float] while the chrome floats (the placement; a phone keeps
+   its sheet), and tells the components through MessagesLookContext. Every
+   rule here hangs off one of those, so the drawer production has is as it was.
+   The materials (--sbf-*) are the sidebar's, set on body by clusterSidebar.css. */
+
+/* ── The look's own colours ────────────────────────────────────────────── */
+body[data-sb-files] {
+  --mc-own: #34557f;
+  --mc-own-ink: #fff;
+  --mc-own-sh: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4);
+  --mc-own-soft: color-mix(in oklab, #34557f 42%, transparent);
+  --mc-own-edge: color-mix(in oklab, #34557f 70%, #ffffff 12%);
+  --mc-their: var(--sbf-chip);
+  --mc-their-sh: var(--sbf-chip-shadow);
+  --mc-quote: rgba(255, 255, 255, .07);
+  --mc-quote-own: rgba(0, 0, 0, .2);
+  --mc-hair: rgba(255, 255, 255, .08);
+  --mc-card-edge: rgba(255, 255, 255, .1);
+  --mc-card-sh: 0 1px 2px rgba(0, 0, 0, .45);
+  /* Quiet words that still read at 11px: 5.4:1 on the glass. */
+  --mc-quiet: #8a8a92;
+  --mc-ring: var(--bg-1);
+  --mc-menu: var(--bg-1);
+  --mc-menu-sh: inset 0 0 0 1px var(--line-2), 0 12px 32px rgba(0, 0, 0, .38), 0 2px 8px rgba(0, 0, 0, .22);
+  --mc-count: #3a3a40;
+}
+[data-theme='light'] body[data-sb-files] {
+  --mc-own: #3a5d96;
+  --mc-own-sh: 0 1px 2px rgba(10, 10, 12, .14);
+  --mc-own-soft: color-mix(in oklab, #3a5d96 14%, #ffffff);
+  --mc-own-edge: color-mix(in oklab, #3a5d96 45%, transparent);
+  --mc-quote: rgba(10, 10, 12, .06);
+  --mc-quote-own: rgba(255, 255, 255, .14);
+  --mc-hair: rgba(10, 10, 12, .09);
+  --mc-card-edge: rgba(10, 10, 12, .1);
+  --mc-card-sh: 0 1px 2px rgba(10, 10, 12, .1);
+  --mc-quiet: #6e6e76;
+  --mc-menu: #ffffff;
+  --mc-menu-sh: inset 0 0 0 1px var(--line-2), 0 12px 32px rgba(10, 10, 12, .12), 0 2px 8px rgba(10, 10, 12, .06);
+  --mc-count: #e4e4e8;
+}
+
+/* ── The card ─────────────────────────────────────────────────────────────
+   8px in from the right, below the islands (they end 44px down), the
+   sidebar's glass with its hairline drawn inside (::after is the grain). */
+body[data-sb-float] .msg-panel {
+  top: 52px; right: 8px; bottom: 8px; width: 400px;
+  max-width: calc(100vw - 16px);
+  border: 0; border-radius: 12px;
+  background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 48px rgba(0, 0, 0, .28);
+}
+[data-theme='light'] body[data-sb-float] .msg-panel {
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 40px rgba(10, 10, 12, .1);
+}
+body[data-sb-float] .msg-panel::after { border-radius: inherit; }
+
+/* ── Faces: the sidebar's "Maya and Jon are here" ─────────────────────── */
+body[data-sb-files] .msg-faces { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
+body[data-sb-files] .msg-face {
+  width: var(--msg-face); height: var(--msg-face); border-radius: 50%;
+  display: grid; place-items: center; flex-shrink: 0;
+  background: var(--bg-4); color: rgba(10, 10, 12, .84);
+  font: 700 calc(var(--msg-face) * .4)/1 var(--font-sans);
+}
+body[data-sb-files] .msg-faces.is-pair .msg-face {
+  width: calc(var(--msg-face) * .72); height: calc(var(--msg-face) * .72);
+  font-size: calc(var(--msg-face) * .3);
+  box-shadow: 0 0 0 1.5px var(--mc-ring);
+}
+body[data-sb-files] .msg-faces.is-pair .msg-face + .msg-face { margin-left: calc(var(--msg-face) * -.2); }
+
+/* ── Heads: a face, the name, who it's with; quiet icons that wake on hover ── */
+body[data-sb-files] .msg-panel-head {
+  box-sizing: border-box; height: 48px; padding: 0 8px 0 15px; gap: 2px; border-bottom: 0;
+}
+body[data-sb-files] .msg-panel-head:has(> .msg-panel-icon:first-child),
+body[data-sb-files] .msg-panel-head:has(> .msg-search.is-head) { height: 54px; padding-left: 6px; }
+body[data-sb-files] .msg-panel-head > .msg-panel-icon:first-child { margin-right: 2px; }
+body[data-sb-files] .msg-panel-faces { margin: 0 8px 0 2px; }
+body[data-sb-files] .msg-panel-title { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+body[data-sb-files] .msg-panel-name {
+  max-width: 100%; padding: 0; border: 0; background: none; text-align: left;
+  font: 600 14px/1.2 var(--font-sans); color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-sb-files] .msg-panel-name-input { font: 600 14px/1.2 var(--font-sans); border-radius: 7px; }
+.msg-panel-sub {
+  max-width: 100%; font: 400 12px/1.2 var(--font-sans); color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-sb-files] .msg-panel-icon {
+  width: 28px; height: 28px; border-radius: 7px; color: var(--ink-2);
+  transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+body[data-sb-files] .msg-panel-icon:hover { color: var(--ink-0); background: var(--bg-hov); }
+body[data-sb-files] .msg-panel-icon.is-active { color: var(--ink-0); background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
+body[data-sb-files] .msg-panel-icon:disabled { opacity: .3; }
+/* The pinned count, a chip that opens the pinned list. */
+body[data-sb-files] .msg-pins-chip {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  height: 28px; margin-right: 2px; padding: 0 10px 0 8px; border: 0; border-radius: 14px;
+  background: var(--sbf-field); color: var(--ink-1); cursor: pointer;
+  font: 500 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+body[data-sb-files] .msg-pins-chip svg { color: var(--ink-2); }
+body[data-sb-files] .msg-pins-chip:hover { color: var(--ink-0); }
+body[data-sb-files] .msg-pins-chip.is-active { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+
+/* Finding a conversation, and a thread's own search: the files card's line.
+   The thread's sits in its head, with Done. */
+.msg-find, body[data-sb-files] .msg-search {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0; box-sizing: border-box;
+  height: 32px; margin: 0 8px 6px; padding: 0 8px; border: 0; border-radius: 8px;
+  background: var(--sbf-field); color: var(--ink-3);
+}
+.msg-find:focus-within, body[data-sb-files] .msg-search:focus-within { box-shadow: inset 0 0 0 1px var(--soleil); }
+body[data-sb-files] .msg-search.is-head { flex: 1; min-width: 0; height: 34px; margin: 0 2px 0 2px; padding: 0 4px 0 10px; border-radius: 10px; }
+.msg-find input {
+  flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent;
+  color: var(--ink-0); font: 500 13px/1 var(--font-sans);
+}
+.msg-find input::placeholder { color: var(--ink-3); }
+.msg-find input::-webkit-search-cancel-button { display: none; }
+body[data-sb-files] .msg-search-input { font: 500 13px/1 var(--font-sans); }
+body[data-sb-files] .msg-search-input:focus { outline: none; box-shadow: none; }
+body[data-sb-files] .msg-search.is-head .msg-search-input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; color: var(--ink-0); }
+body[data-sb-files] .msg-search.is-head .msg-search-clear {
+  width: 26px; height: 26px; flex-shrink: 0; display: grid; place-items: center;
+  border: 0; border-radius: 7px; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+body[data-sb-files] .msg-search.is-head .msg-search-clear:hover { color: var(--ink-0); background: var(--bg-hov); }
+body[data-sb-files] .msg-search-done {
+  flex-shrink: 0; height: 32px; padding: 0 8px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--ink-1); cursor: pointer; font: 600 13px/1 var(--font-sans);
+}
+body[data-sb-files] .msg-search-done:hover { color: var(--ink-0); background: var(--bg-hov); }
+/* Under a finger: 16px, or iOS zooms the page in on focus and leaves it so. */
+@media (pointer: coarse) {
+  .msg-find input, body[data-sb-files] .msg-search-input { font-size: 16px; }
+}
+body[data-sb-files] .msg-search-summary { padding: 2px 2px 8px; font: 400 12px/1.3 var(--font-sans); color: var(--mc-quiet); }
+body[data-sb-files] .msg-search-result {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 10px; row-gap: 3px; align-items: start;
+  padding: 9px 10px; border-radius: 10px;
+}
+body[data-sb-files] .msg-search-result > .msg-faces { grid-row: span 2; }
+body[data-sb-files] .msg-search-result-who { font: 600 12.5px/1.25 var(--font-sans); color: var(--ink-0); }
+body[data-sb-files] .msg-search-result-time { font: 400 11.5px/1.25 var(--font-sans); color: var(--mc-quiet); }
+body[data-sb-files] .msg-search-result-body { font: 400 13px/1.4 var(--font-sans); color: var(--ink-1); }
+
+/* ── The list: two lines, the person first; unread is weight and a pill ── */
+body[data-sb-files] .msg-panel-body { padding: 2px 7px 8px; }
+body[data-sb-files] .msg-row.is-card {
+  box-sizing: border-box; height: 58px; padding: 0 8px; gap: 10px; border-radius: 10px;
+}
+body[data-sb-files] .msg-row.is-card:hover { background: var(--bg-hov); }
+body[data-sb-files] .msg-row.is-card:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+body[data-sb-files] .msg-row.is-card .msg-row-avatar {
+  position: relative; width: 38px; height: 34px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 0; background: none; color: inherit;
+}
+body[data-sb-files] .msg-row.is-card .msg-row-avatar-chip {
+  width: 34px; height: 34px; margin: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; flex-shrink: 0;
+  color: rgba(10, 10, 12, .84); font: 700 13px/1 var(--font-sans);
+}
+body[data-sb-files] .msg-row.is-card .msg-row-avatar.is-stack { justify-content: flex-start; }
+body[data-sb-files] .msg-row.is-card .msg-row-avatar.is-stack .msg-row-avatar-chip {
+  width: 22px; height: 22px; font-size: 9.5px; box-shadow: 0 0 0 1.5px var(--mc-ring);
+}
+body[data-sb-files] .msg-row.is-card .msg-row-avatar.is-stack .msg-row-avatar-chip + .msg-row-avatar-chip { margin-left: -6px; }
+body[data-sb-files] .msg-row.is-card .msg-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.msg-row-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.msg-row-line + .msg-row-line { align-items: center; }
+body[data-sb-files] .msg-row.is-card .msg-row-name {
+  flex: 1; min-width: 0; font: 500 13.5px/1.15 var(--font-sans); color: var(--ink-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-sb-files] .msg-row.is-card .msg-row-time { flex-shrink: 0; font: 400 11.5px/1 var(--font-sans); color: var(--mc-quiet); }
+body[data-sb-files] .msg-row.is-card .msg-row-preview {
+  flex: 1; min-width: 0; min-height: 15px; font: 400 12.5px/1.2 var(--font-sans); color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-sb-files] .msg-row.is-card .msg-row-count {
+  flex-shrink: 0; box-sizing: border-box; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  display: grid; place-items: center; background: var(--sbf-count); color: var(--ink-0);
+  font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+body[data-sb-files] .msg-row.is-card.is-unread .msg-row-name { color: var(--ink-0); font-weight: 600; }
+body[data-sb-files] .msg-row.is-card.is-unread .msg-row-preview { color: var(--ink-1); }
+
+/* ── The thread ────────────────────────────────────────────────────────── */
+/* A conversation slides in over the list (the list stays under it). */
+body[data-sb-files] .msg-pane-thread { animation: mc-push-in 240ms var(--ease); }
+@keyframes mc-push-in { from { opacity: 0; transform: translateX(14px); } }
+@media (prefers-reduced-motion: reduce) {
+  body[data-sb-files] .msg-pane-thread { animation: none; }
+}
+body[data-sb-files] .msg-thread-body {
+  padding: 8px 4px 8px;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 28px); mask-image: linear-gradient(transparent 0, #000 28px);
+}
+body[data-sb-files] .msg-day-divider {
+  justify-content: center; margin: 20px 0 8px;
+  font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--mc-quiet);
+}
+body[data-sb-files] .msg-day-divider::before,
+body[data-sb-files] .msg-day-divider::after { display: none; }
+body[data-sb-files] .msg-new-divider {
+  margin: 20px 10px 6px;
+  font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-1);
+}
+body[data-sb-files] .msg-new-divider::before,
+body[data-sb-files] .msg-new-divider::after { opacity: .3; }
+body[data-sb-files] .msg-system-row { margin: 12px 0 4px; font: 400 12px/1.35 var(--font-sans); color: var(--mc-quiet); }
+body[data-sb-files] .msg-load-older {
+  margin: 4px 0 8px; padding: 6px 12px; border: 0; border-radius: 14px;
+  background: var(--sbf-field); color: var(--ink-2); font: 500 12px/1 var(--font-sans);
+}
+body[data-sb-files] .msg-load-older:hover:not(:disabled) { color: var(--ink-0); }
+
+/* A message: the name over a group's run, its bubble, what it carries, its
+   reactions, one quiet line. Yours to the right. */
+body[data-sb-files] .msg-bubble.is-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+  margin: 10px 0 0; padding: 0 10px; border-radius: 0; background: transparent;
+}
+body[data-sb-files] .msg-bubble.is-card.is-continuation { margin-top: 2px; }
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--mine { align-items: flex-end; }
+body[data-sb-files] .msg-bubble.is-card:hover,
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--pinned,
+body[data-sb-files] .msg-bubble.is-card.is-flashed { background: transparent; }
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--focused { outline: 0; }
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--pending { opacity: 1; }
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-author {
+  margin: 0 0 3px 12px; font: 500 11.5px/1.3 var(--font-sans); color: var(--ink-2);
+}
+body[data-sb-files] .msg-bubble-line {
+  display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 86%;
+}
+body[data-sb-files] .msg-bubble--mine .msg-bubble-line { flex-direction: row-reverse; }
+
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body {
+  box-sizing: border-box; min-width: 0; max-width: 100%;
+  padding: 8px 12px; border-radius: 16px;
+  background: var(--mc-their); box-shadow: var(--mc-their-sh); color: var(--ink-0);
+  font: 400 14px/20px var(--font-sans); overflow-wrap: anywhere;
+  transition: box-shadow 1.2s var(--ease);
+}
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--mine .msg-bubble-body {
+  background: var(--mc-own); box-shadow: var(--mc-own-sh); color: var(--mc-own-ink);
+}
+/* A run's bubbles meet at the corners on the speaker's side. */
+body[data-sb-files] .msg-bubble.is-card.joins-down:not(.msg-bubble--mine) .msg-bubble-body { border-bottom-left-radius: 5px; }
+body[data-sb-files] .msg-bubble.is-card.joins-up:not(.msg-bubble--mine) .msg-bubble-body { border-top-left-radius: 5px; }
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--mine.joins-down .msg-bubble-body { border-bottom-right-radius: 5px; }
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--mine.joins-up .msg-bubble-body { border-top-right-radius: 5px; }
+body[data-sb-files] .msg-bubble.is-card.is-sending .msg-bubble-body { opacity: .78; }
+/* Being edited in the box below: outlined, neutral (the box has the gold). */
+body[data-sb-files] .msg-bubble.is-card.is-editing .msg-bubble-body {
+  box-shadow: 0 0 0 2px var(--mc-ring), 0 0 0 3.5px var(--ink-2);
+}
+/* A jump lands here (a pin, a search hit, a quote, a link): a gold ring that fades. */
+body[data-sb-files] .msg-bubble.is-card.is-flashed .msg-bubble-body,
+body[data-sb-files] .msg-bubble.is-card.msg-bubble--focused .msg-bubble-body {
+  box-shadow: 0 0 0 2px var(--mc-ring), 0 0 0 3.5px var(--soleil); transition: none;
+}
+/* What it says, inside the bubble. */
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body p.msg-line + p.msg-line { margin-top: 4px; }
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body .msg-bold { color: inherit; }
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body .msg-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body .msg-inline-code,
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body .msg-code-block {
+  background: var(--mc-quote); color: inherit; border: 0;
+}
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body .msg-code-block { margin: 6px -4px 2px; padding: 8px 10px; border-radius: 10px; }
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body .msg-quote { border-left-color: currentColor; opacity: .85; }
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-body .msg-pill {
+  padding: 0 4px; margin: 0 -1px; border-radius: 5px; background: var(--mc-quote); color: inherit; font-weight: 600;
+}
+/* A cluster named in it shows its cover before its name. */
+body[data-sb-files] .msg-pill-cover {
+  display: inline-block; width: 15px; height: 15px; margin: 0 4px 0 -1px; vertical-align: -2px;
+  border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--mc-card-edge);
+}
+body[data-sb-files] .msg-pill-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+body[data-sb-files] .msg-bubble--mine.is-card .msg-bubble-body .msg-inline-code,
+body[data-sb-files] .msg-bubble--mine.is-card .msg-bubble-body .msg-code-block,
+body[data-sb-files] .msg-bubble--mine.is-card .msg-bubble-body .msg-pill { background: var(--mc-quote-own); }
+/* The message it answers, quoted at the top of the bubble. */
+body[data-sb-files] .msg-reply-quote {
+  display: flex; flex-direction: column; gap: 2px; box-sizing: border-box;
+  width: calc(100% + 10px); max-width: calc(100% + 10px); margin: -2px -5px 6px; padding: 6px 10px;
+  border: 0; border-radius: 10px; background: var(--mc-quote); color: inherit;
+  text-align: left; cursor: pointer; font: inherit;
+}
+body[data-sb-files] .msg-bubble--mine .msg-reply-quote { background: var(--mc-quote-own); }
+body[data-sb-files] .msg-reply-quote-who { font: 600 12px/1.25 var(--font-sans); }
+body[data-sb-files] .msg-reply-quote-text {
+  font: 400 12.5px/1.3 var(--font-sans); opacity: .82;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-sb-files] .msg-reply-quote.is-gone { display: block; cursor: default; font: italic 400 12.5px/1.3 var(--font-sans); opacity: .8; }
+
+/* The ⋯ beside a bubble, on hover: its actions are one menu. Under a finger
+   a press and hold opens them instead. */
+body[data-sb-files] .msg-bubble-more {
+  width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center;
+  border: 0; padding: 0; border-radius: 8px; background: transparent; color: var(--ink-2);
+  cursor: pointer; opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+}
+body[data-sb-files] .msg-bubble.is-card:hover .msg-bubble-more,
+body[data-sb-files] .msg-bubble.is-card:focus-within .msg-bubble-more { opacity: 1; }
+body[data-sb-files] .msg-bubble-more:hover { color: var(--ink-0); background: var(--bg-hov); }
+@media (hover: none) {
+  body[data-sb-files] .msg-bubble-more { display: none; }
+}
+
+/* What a message carries: cards from the board. */
+body[data-sb-files] .msg-things { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 86%; margin-top: 6px; }
+body[data-sb-files] .msg-bubble--mine .msg-things { align-items: flex-end; }
+body[data-sb-files] .msg-bubble-line > .msg-things { margin-top: 0; max-width: 100%; }
+body[data-sb-files] .msg-thing { position: relative; max-width: 100%; border-radius: 8px; cursor: grab; }
+body[data-sb-files] .msg-thing:active { cursor: grabbing; }
+body[data-sb-files] .msg-thing.is-image::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--mc-card-edge);
+}
+body[data-sb-files] .msg-thing-pic { display: block; border-radius: 8px; overflow: hidden; box-shadow: var(--mc-card-sh); }
+body[data-sb-files] .msg-thing-pic img {
+  display: block; max-width: 240px; max-height: 260px; object-fit: cover; border-radius: 0;
+}
+body[data-sb-files] .msg-thing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 268px; max-width: 100%; }
+body[data-sb-files] .msg-thing.is-tile .msg-thing-pic img { width: 100%; height: 132px; max-width: none; }
+body[data-sb-files] .msg-thing-body {
+  display: flex; align-items: center; gap: 10px; box-sizing: border-box;
+  min-width: 200px; max-width: 260px; padding: 8px 14px 8px 8px; border: 0; border-radius: 8px;
+  background: var(--mc-their); box-shadow: var(--mc-their-sh), var(--mc-card-sh); color: var(--ink-0);
+  text-decoration: none; text-align: left; font: inherit; cursor: pointer;
+}
+body[data-sb-files] .msg-thing-body:hover { background: color-mix(in srgb, var(--mc-their) 92%, var(--ink-0)); }
+body[data-sb-files] .msg-thing-icon {
+  width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center;
+  border-radius: 6px; background: var(--mc-quote); color: var(--ink-1);
+}
+body[data-sb-files] .msg-thing-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+body[data-sb-files] .msg-thing-name {
+  font: 600 13px/1.3 var(--font-sans); color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-sb-files] .msg-thing-meta {
+  font: 400 11.5px/1.3 var(--font-sans); color: var(--mc-quiet);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* A card or a document is a link to it: the card's look, not the link's tint. */
+body[data-sb-files] .msg-thing .tt-link,
+body[data-sb-files] .msg-thing .tt-link:hover {
+  margin: 0; padding: 8px 14px 8px 8px; border-radius: 8px; color: var(--ink-0); font-weight: inherit;
+}
+body[data-sb-files] .msg-thing .tt-link:hover { background: color-mix(in srgb, var(--mc-their) 92%, var(--ink-0)); }
+/* A cluster with its cover, as Home shows one. */
+body[data-sb-files] .msg-thing.is-cluster.has-cover .msg-thing-body {
+  flex-direction: column; align-items: stretch; gap: 0; width: 248px; padding: 0; overflow: hidden;
+}
+body[data-sb-files] .msg-thing-cover { display: block; height: 124px; background: var(--bg-2); overflow: hidden; }
+body[data-sb-files] .msg-thing-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+body[data-sb-files] .msg-thing.is-cluster.has-cover .msg-thing-text { padding: 8px 11px 10px; }
+body[data-sb-files] .msg-thing.is-cluster::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--mc-card-edge);
+}
+
+/* Reactions: chips under the bubble, yours in your colour. */
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 2px 0; padding: 0; }
+body[data-sb-files] .msg-bubble.is-card .msg-reaction {
+  display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px;
+  border: 0; border-radius: 12px; background: var(--sbf-field); box-shadow: inset 0 0 0 1px var(--mc-hair);
+  color: var(--ink-1); font: 500 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+body[data-sb-files] .msg-bubble.is-card .msg-reaction.own {
+  background: var(--mc-own-soft); box-shadow: inset 0 0 0 1px var(--mc-own-edge); color: var(--ink-0);
+}
+body[data-sb-files] .msg-bubble.is-card .msg-reaction-count { color: inherit; }
+
+/* One quiet line: the time where the talk paused, and the news. */
+body[data-sb-files] .msg-bubble-meta {
+  margin: 4px 6px 0; font: 400 11px/1.3 var(--font-sans); color: var(--mc-quiet);
+  font-variant-numeric: tabular-nums;
+}
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-failed {
+  display: flex; align-items: center; gap: 8px; margin: 4px 6px 0;
+  font: 400 12px/1.3 var(--font-sans); color: var(--danger);
+}
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-failed svg { margin-right: -4px; }
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-failed button {
+  padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink-1); cursor: pointer;
+  font: 600 11.5px/1.3 var(--font-sans); text-decoration: underline; text-underline-offset: 2px;
+}
+body[data-sb-files] .msg-bubble.is-card .msg-bubble-failed button:hover { color: var(--ink-0); }
+
+/* Someone typing: a bubble of dots from them, named in a group. */
+body[data-sb-files] .msg-typing.is-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+  margin-top: 10px; padding: 0 10px; color: inherit;
+}
+body[data-sb-files] .msg-typing.is-card .msg-bubble-author { margin: 0 0 3px 12px; font: 500 11.5px/1.3 var(--font-sans); color: var(--ink-2); }
+body[data-sb-files] .msg-typing-bubble {
+  display: inline-flex; padding: 14px; border-radius: 16px;
+  background: var(--mc-their); box-shadow: var(--mc-their-sh);
+}
+body[data-sb-files] .msg-typing.is-card .msg-typing-dots { gap: 4px; }
+body[data-sb-files] .msg-typing.is-card .msg-typing-dots span { width: 7px; height: 7px; background: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) {
+  body[data-sb-files] .msg-typing-dots span { animation: none; }
+}
+
+/* Back to the newest: a round chip, how many are new on its corner. */
+body[data-sb-files] .msg-jump-pill.is-round {
+  left: auto; right: 12px; bottom: 10px; margin: 0;
+  width: 36px; height: 36px; padding: 0; border: 0; border-radius: 18px;
+  display: grid; place-items: center;
+  background: var(--sbf-chip); color: var(--ink-0);
+  box-shadow: var(--sbf-chip-shadow), 0 6px 16px rgba(0, 0, 0, .3);
+}
+body[data-sb-files] .msg-jump-n {
+  position: absolute; top: -6px; right: -6px; box-sizing: border-box;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--mc-count); color: var(--ink-0); box-shadow: 0 0 0 2px var(--mc-ring);
+  font: 600 11px/18px var(--font-sans); text-align: center; font-variant-numeric: tabular-nums;
+}
+
+/* The pinned row of the drawer is the header's count here; its list a popover. */
+body[data-sb-files] .msg-pins-pop {
+  position: fixed; z-index: 60; width: 320px; max-width: calc(100vw - 16px); max-height: min(420px, 70vh);
+  display: flex; flex-direction: column; overflow: hidden; border-radius: 12px;
+  background: var(--mc-menu); box-shadow: var(--mc-menu-sh);
+}
+body[data-doc-overlay='1'] .msg-pins-pop,
+body[data-doc-overlay='1'] .msg-menu { z-index: 2147483603; }
+body[data-sb-files] .msg-pins-head { display: flex; align-items: center; gap: 8px; height: 44px; flex-shrink: 0; padding: 0 6px 0 14px; }
+body[data-sb-files] .msg-pins-title { flex: 1; min-width: 0; font: 600 13.5px/1 var(--font-sans); color: var(--ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body[data-sb-files] .msg-pins-list { overflow-y: auto; }
+body[data-sb-files] .msg-pins-row { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 4px; border-top: 1px solid var(--line-1); }
+body[data-sb-files] .msg-pins-go {
+  flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; cursor: pointer;
+}
+body[data-sb-files] .msg-pins-go:hover { background: var(--bg-hov); }
+body[data-sb-files] .msg-pins-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+body[data-sb-files] .msg-pins-top { display: flex; gap: 8px; min-width: 0; font: 600 12.5px/1.2 var(--font-sans); color: var(--ink-0); }
+body[data-sb-files] .msg-pins-who { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body[data-sb-files] .msg-pins-when { flex-shrink: 0; font-weight: 400; color: var(--mc-quiet); white-space: nowrap; }
+body[data-sb-files] .msg-pins-body {
+  font: 400 13px/1.4 var(--font-sans); color: var(--ink-1);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+body[data-sb-files] .msg-pins-unpin {
+  flex-shrink: 0; height: 28px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: var(--sbf-field); color: var(--ink-0); cursor: pointer; font: 600 12px/1 var(--font-sans);
+}
+body[data-sb-files] .msg-pins-unpin:hover { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
+
+/* A message's actions: one menu, the reactions its first row. */
+body[data-sb-files] .msg-menu {
+  position: fixed; z-index: 60; box-sizing: border-box; width: 248px; padding: 4px;
+  border-radius: 10px; background: var(--mc-menu); box-shadow: var(--mc-menu-sh);
+}
+body[data-sb-files] .msg-menu-reacts { display: flex; justify-content: space-between; padding: 2px 2px 4px; }
+body[data-sb-files] .msg-menu-emoji {
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent;
+  font-size: 16px; line-height: 28px; text-align: center; cursor: pointer;
+}
+body[data-sb-files] .msg-menu-emoji:hover,
+body[data-sb-files] .msg-menu-emoji:focus-visible { background: var(--bg-hov); outline: 0; }
+body[data-sb-files] .msg-menu-emoji.is-on { background: var(--mc-own-soft); box-shadow: inset 0 0 0 1px var(--mc-own-edge); }
+body[data-sb-files] .msg-menu-sep { height: 1px; margin: 4px 6px; background: var(--line-1); }
+body[data-sb-files] .msg-menu-item {
+  display: flex; align-items: center; gap: 10px; box-sizing: border-box; width: 100%; height: 32px;
+  padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-0);
+  font: 500 13px/1 var(--font-sans); text-align: left; cursor: pointer;
+}
+body[data-sb-files] .msg-menu-item svg { flex-shrink: 0; color: var(--ink-2); }
+body[data-sb-files] .msg-menu-item:hover,
+body[data-sb-files] .msg-menu-item:focus-visible { background: var(--bg-hov); outline: 0; }
+body[data-sb-files] .msg-menu-key { margin-left: auto; font: 400 11.5px/1 var(--font-sans); color: var(--mc-quiet); }
+body[data-sb-files] .msg-menu-item.is-danger,
+body[data-sb-files] .msg-menu-item.is-danger svg { color: var(--danger); }
+
+/* A new conversation, and the first moments of one. */
+body[data-sb-files] .msg-empty-hero.is-card { flex: 1; justify-content: center; gap: 6px; padding: 0 40px; text-align: center; }
+body[data-sb-files] .msg-empty-hero.is-card .msg-faces { margin-bottom: 8px; }
+body[data-sb-files] .msg-empty-title { font: 600 16px/1.25 var(--font-sans); color: var(--ink-0); }
+body[data-sb-files] .msg-empty-sub { font: 400 13px/1.45 var(--font-sans); color: var(--ink-2); }
+body[data-sb-files] .msg-thread-skel { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; padding: 14px 10px; }
+body[data-sb-files] .msg-skel-bubble {
+  height: 36px; border-radius: 16px; background: var(--mc-their); opacity: .6;
+  animation: mc-skel 1.4s var(--ease) infinite;
+}
+body[data-sb-files] .msg-skel-bubble.is-mine { align-self: flex-end; }
+@keyframes mc-skel { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  body[data-sb-files] .msg-skel-bubble { animation: none; }
+}
+
+/* ── Writing: one rounded field; + on the left, the emoji and Send on the
+   right; Send in your colour once there's something to send. ───────────── */
+body[data-sb-files] .msg-composer {
+  gap: 8px; margin: 0; padding: 6px 8px 8px;
+  border: 0; border-radius: 0; background: transparent;
+}
+body[data-sb-files] .msg-composer::after { border-radius: inherit; }
+body[data-sb-files] .msg-composer-field {
+  display: flex; align-items: flex-end; gap: 2px; box-sizing: border-box;
+  min-height: 40px; padding: 4px; border-radius: 12px; background: var(--sbf-field);
+}
+body[data-sb-files] .msg-composer-field:focus-within { box-shadow: inset 0 0 0 1px var(--soleil); }
+body[data-sb-files] .msg-composer .msg-composer-input {
+  flex: 1; min-width: 0; align-self: center; box-sizing: border-box;
+  min-height: 32px; padding: 6px 4px; border: 0; border-radius: 0; background: transparent;
+  color: var(--ink-0); font: 400 14px/20px var(--font-sans);
+}
+body[data-sb-files] .msg-composer .msg-composer-input:focus { border-color: transparent; box-shadow: none; }
+/* Under a finger: 16px, as in the drawer (this file's 14px came later and won). */
+@media (pointer: coarse) {
+  body[data-sb-files] .msg-composer .msg-composer-input { font-size: 16px; }
+}
+body[data-sb-files] .msg-composer-field .msg-composer-btn {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; color: var(--ink-2); opacity: 1;
+}
+body[data-sb-files] .msg-composer-field .msg-composer-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
+body[data-sb-files] .msg-composer-field .msg-composer-btn.is-active { color: var(--ink-0); background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
+body[data-sb-files] .msg-composer-send.is-icon {
+  width: 32px; height: 32px; flex-shrink: 0; padding: 0; border: 0; border-radius: 9px;
+  display: grid; place-items: center; background: transparent; box-shadow: none; color: var(--ink-3);
+  cursor: default;
+}
+body[data-sb-files] .msg-composer-send.is-icon.is-armed { background: var(--mc-own); color: var(--mc-own-ink); cursor: pointer; }
+body[data-sb-files] .msg-composer-send.is-icon:hover:not(:disabled) { filter: brightness(1.08); }
+/* Replying to someone, or editing your message: a bar over the field. */
+body[data-sb-files] .msg-reply-bar {
+  gap: 10px; min-height: 38px; box-sizing: border-box;
+  padding: 4px 2px 4px 11px; border-radius: 10px; background: var(--sbf-field);
+}
+body[data-sb-files] .msg-reply-bar > svg { flex-shrink: 0; color: var(--ink-2); }
+body[data-sb-files] .msg-reply-bar-who { font: 600 12px/1.25 var(--font-sans); color: var(--ink-1); }
+body[data-sb-files] .msg-reply-bar-body { font: 400 12px/1.25 var(--font-sans); color: var(--ink-2); }
+body[data-sb-files] .msg-reply-bar-x { width: 28px; height: 28px; border-radius: 8px; }
+/* Files on their way: a card each, a picture's own thumbnail. */
+body[data-sb-files] .msg-composer-attachments { display: flex; flex-wrap: wrap; gap: 6px; }
+body[data-sb-files] .msg-composer-att-chip {
+  position: relative; display: flex; align-items: center; gap: 8px; box-sizing: border-box;
+  max-width: 240px; height: 44px; padding: 0 30px 0 6px; border: 0; border-radius: 10px;
+  background: var(--sbf-field); color: var(--ink-1); font: 500 12.5px/1.2 var(--font-sans);
+}
+body[data-sb-files] .msg-composer-att-chip.is-failed { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger) 60%, transparent); }
+body[data-sb-files] .msg-composer-att-thumb { width: 32px; height: 32px; flex-shrink: 0; border-radius: 6px; object-fit: cover; }
+body[data-sb-files] .msg-composer-att-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body[data-sb-files] .msg-composer-att-state { flex-shrink: 0; color: var(--ink-2); font-size: 11.5px; }
+body[data-sb-files] .msg-composer-att-chip.is-failed .msg-composer-att-state { color: var(--danger); }
+body[data-sb-files] .msg-composer-att-retry {
+  flex-shrink: 0; padding: 0; border: 0; background: none; color: var(--ink-1); cursor: pointer;
+  font: 600 11.5px/1 var(--font-sans); text-decoration: underline; text-underline-offset: 2px;
+}
+body[data-sb-files] .msg-composer-att-x {
+  position: absolute; top: 50%; right: 4px; width: 22px; height: 22px; margin-top: -11px;
+  display: grid; place-items: center; border: 0; border-radius: 11px; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+body[data-sb-files] .msg-composer-att-x:hover { color: var(--ink-0); background: var(--bg-hov); }
+body[data-sb-files] .msg-composer-readonly {
+  margin: 6px 8px 8px; padding: 11px 12px; border: 0; border-radius: 12px; background: var(--sbf-field);
+}
+
+/* ── New chat, and the menus: the app's menu material ─────────────────── */
+body[data-sb-files] .msg-newconv-pop,
+body[data-sb-files] .msg-group-menu {
+  border: 0; background: var(--mc-menu); box-shadow: var(--mc-menu-sh);
+}
+body[data-sb-files] .msg-newconv-pop { border-radius: 12px; }
+body[data-sb-files] .msg-group-menu { border-radius: 10px; }
+body[data-sb-files] .msg-group-menu-item { height: 32px; padding: 0 10px; font: 500 13px/1 var(--font-sans); color: var(--ink-0); }
+body[data-sb-files] .msg-group-menu-item.is-danger { color: var(--danger); }
+body[data-sb-files] .msg-group-menu-item.is-danger:hover { background: color-mix(in oklab, var(--danger) 10%, transparent); }
+body[data-sb-files] .msg-newconv-head { min-height: 44px; box-sizing: border-box; padding: 0 8px 0 15px; border-bottom: 0; }
+body[data-sb-files] .msg-newconv-pop .t-eyebrow,
+body[data-sb-files] .msg-newconv-sectionhead {
+  font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; color: var(--sbf-quiet);
+}
+body[data-sb-files] .msg-newconv-search { margin: 0 8px 4px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--sbf-field); }
+body[data-sb-files] .msg-newconv-row { border-radius: 7px; }
+body[data-sb-files] .msg-newconv-row .msg-row-avatar { border-radius: 50%; color: rgba(10, 10, 12, .84); }
+body[data-sb-files] .msg-newconv-foot { border-top: 1px solid var(--line-1); }
+body[data-sb-files] .msg-newconv-btn { border: 0; border-radius: 7px; background: transparent; color: var(--ink-1); }
+body[data-sb-files] .msg-newconv-btn:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+body[data-sb-files] .msg-newconv-btn.primary { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+
+/* ── Press and hold under a finger: the same actions, a finger's size ──── */
+body[data-sb-files] .sheet-root.msg-sheet .msg-sheet-quote {
+  margin: 0 0 14px; padding: 10px 12px; border-radius: 12px;
+  background: var(--sbf-field); color: var(--ink-0); font: 400 15px/1.35 var(--font-sans);
+}
+body[data-sb-files] .sheet-root.msg-sheet .msg-sheet-emoji {
+  width: 44px; height: 44px; border: 0; border-radius: 22px; background: var(--sbf-field); font-size: 22px;
+}
+body[data-sb-files] .sheet-root.msg-sheet .msg-sheet-emoji.is-on { background: var(--mc-own-soft); box-shadow: inset 0 0 0 1px var(--mc-own-edge); }
+body[data-sb-files] .sheet-root.msg-sheet .msg-sheet-actions button { min-height: 50px; font: 500 16px/1 var(--font-sans); }

@@ -4,8 +4,8 @@
 // updates as the file does — falling back to cards the caller sent along (a
 // cluster browsed in Files) or to the board row alone (a cluster that isn't
 // open). Opened with `follow`, it keeps up with that surface's selection.
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { DetailPanel } from '../clusterBrowser/DetailPanel.jsx';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { toListItem } from '../../lib/listItem.js';
 import { getMeta } from '../../lib/imageMeta.js';
 // A namespace import: production's modal guard predates registerBackLayer.
@@ -17,6 +17,10 @@ import { planPutOnBoard } from '../../lib/placement.js';
 import { getViewCenter } from '../../lib/viewCenter.js';
 import { undoToast } from '../../lib/undoToast.js';
 import { uploadContext } from '../../lib/uploadContext.js';
+
+// The drawer's panel is its own chunk, fetched the first time Info opens: the
+// host is mounted with every app shell, the panel only when something asks.
+const DetailPanel = lazyWithReload(() => import('../clusterBrowser/DetailPanel.jsx').then((m) => ({ default: m.DetailPanel })));
 
 function sameRequest(a, b) {
   if (!a || !b) return false;
@@ -120,13 +124,24 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
   }, [req, target]);
 
   // Focus moves in when it opens, so Esc reaches it; back where it was after.
+  // On the first open the panel may still be on its way: focus it on arrival.
   const wasOpen = useRef(false);
   useEffect(() => {
     if (open && !wasOpen.current) {
       const prev = document.activeElement;
-      hostRef.current?.querySelector('.cb-detail')?.focus?.({ preventScroll: true });
+      const focusIn = () => {
+        const panel = hostRef.current?.querySelector('.cb-detail');
+        panel?.focus?.({ preventScroll: true });
+        return !!panel;
+      };
+      let arrival = null;
+      if (!focusIn() && hostRef.current && typeof MutationObserver === 'function') {
+        arrival = new MutationObserver(() => { if (focusIn()) { arrival.disconnect(); arrival = null; } });
+        arrival.observe(hostRef.current, { childList: true, subtree: true });
+      }
       wasOpen.current = true;
       return () => {
+        arrival?.disconnect();
         wasOpen.current = false;
         if (prev && prev.isConnected && typeof prev.focus === 'function') { try { prev.focus({ preventScroll: true }); } catch (_) {} }
       };
@@ -187,6 +202,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
   } : null;
   return (
     <div className="info-host" ref={hostRef} onContextMenu={swallowContextMenu}>
+      <Suspense fallback={null}>
       <DetailPanel
         variant="drawer"
         target={target}
@@ -202,6 +218,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
         onPutOnBoard={putOnBoard}
         onDelete={deleteCards}
       />
+      </Suspense>
     </div>
   );
 }

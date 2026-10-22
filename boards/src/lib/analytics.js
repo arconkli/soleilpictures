@@ -22,13 +22,22 @@ import { isCaptureActive } from './captureState.js';
 import { isGalleryActive } from './galleryState.js';
 import { touchAppSession, noteAuthChange, persistAppSession,
          getAppSession, setSessionRotateHandler } from './appSession.js';
-import { createSummary, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
+import { createSummary, noteCounter, noteEvent, noteFocus, noteVisibility, summaryProps, worthEmitting } from './sessionSummary.js';
+import { perfTotals } from './perfReport.js';
+import { frameStatsSince } from './frameStats.js';
 import { BUILD_SHA } from './buildInfo.js';
+import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
+import { createArmCache } from './armCache.js';
+import { readSessionContext, contextDue, CTX_SENT_KEY } from './sessionContext.js';
+import { featureFlags, onProdHost, onPreviewHost } from './appHost.js';
+import { parseEdgeContext } from './edgeContext.js';
+import { getWebviewInfo } from './webview.js';
 // Safe to import: analyticsEvents.js is a leaf module with no imports of its
 // own, so there is no cycle back into this file. (An older comment here claimed
 // otherwise and used a raw literal to avoid one that doesn't exist.)
-import { EV, WORK_EVENTS } from './analyticsEvents.js';
+import { EV, isWorkEvent } from './analyticsEvents.js';
 import { noteWorkOp } from './workSignal.js';
+import { redactLinkTokens, redactLinkText } from './linkTokens.js';
 import {
   FLUSH_INTERVAL_MS, MAX_QUEUE, MAX_BATCH, MAX_BEACON_BYTES, MAX_ROW_AGE_MS,
   beaconChunks, backoffFor, pruneStale, capQueue, partitionRetries, wireRow,
@@ -246,8 +255,10 @@ let firstSourceStamping = false;
 function stampDone(key) { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } }
 async function stampFirstSourceIfNeeded() {
   if (firstSourceStamping || !supabase) return;
-  const src = getFirstSource();
-  if (!src || Object.keys(src).length === 0) return;
+  // Off production it also carries the build, so a new account made on a
+  // preview or dev build becomes internal (0470). Never stored.
+  const src = firstSourcePayload(getFirstSource(), ENV);
+  if (Object.keys(src).length === 0) return;
   const { data } = await supabase.auth.getSession();
   const uid = data?.session?.user?.id;
   if (!uid) return;                                  // no session yet — retry on next SIGNED_IN
@@ -256,7 +267,10 @@ async function stampFirstSourceIfNeeded() {
   firstSourceStamping = true;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      await supabase.rpc('set_first_source', { p_source: src });
+      // supabase-js resolves an error rather than throwing, so without this a
+      // failed stamp was marked done and never tried again.
+      const { error } = await supabase.rpc('set_first_source', { p_source: src });
+      if (error) throw error;
       try { localStorage.setItem(doneKey, '1'); } catch (_) {}   // mark done only on confirmed success
       firstSourceStamping = false;
       return;
@@ -269,50 +283,45 @@ async function stampFirstSourceIfNeeded() {
   firstSourceStamping = false;
 }
 
-// Experiment arms ride every event as exp_<key>, exactly like first_source. The
-// enrolled map is written by App's seed effect (new users only) via
-// setEnrolledExperiments and cached in localStorage so it survives reloads in the
-// same browser. Existing users (no seed) have no map → no exp_* on their events,
-// keeping the event-level cohort aligned with the server-stamped one.
-const EXPERIMENTS_KEY = 'soleil_experiments';
-let cachedExperiments = null;
+// Experiment arms ride every event as exp_<key>, exactly like first_source. Each
+// account has its own map: enrollments (App's seed effect, the setup gate) merge
+// into it, and the server's stamp, read once a page load, is the truth for it,
+// so the event-level cohort matches the stamped one the readouts use. Signed out
+// there are no arms. See armCache.js.
+const armCache = createArmCache(() => (typeof localStorage === 'undefined' ? null : localStorage));
 function getExperiments() {
-  if (cachedExperiments !== null) return cachedExperiments;
-  if (typeof localStorage === 'undefined') { cachedExperiments = {}; return cachedExperiments; }
-  try { const raw = localStorage.getItem(EXPERIMENTS_KEY); cachedExperiments = raw ? JSON.parse(raw) : {}; }
-  catch (_) { cachedExperiments = {}; }
-  return cachedExperiments;
+  return armCache.arms(cachedUserId);
 }
-// Called once at enrollment (App seed effect) with { exp_<key>: arm }.
-export function setEnrolledExperiments(map) {
-  if (!map || typeof map !== 'object') return;
-  cachedExperiments = { ...map };
-  try { localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(cachedExperiments)); } catch (_) {}
+// An enrollment, { exp_<key>: arm }, merged into that account's arms. Made
+// before this module has heard who is signed in, it asks the auth client, so it
+// lands on the account that made it; with no session at all it does nothing.
+export function setEnrolledExperiments(map, uid = cachedUserId) {
+  if (uid) { armCache.enroll(map, uid); return; }
+  supabase?.auth.getSession().then(({ data }) => armCache.enroll(map, data?.session?.user?.id), () => {});
 }
 
 // Synchronous read of the caller's stamped arm for one experiment. Consumers use
 // this (NOT assignArm) because bandit assignment is randomized — the arm is only
 // knowable from the stamp/cache, never recomputable from the user id.
-export function getEnrolledArm(key) {
-  return getExperiments()[`exp_${key}`] || null;
+export function getEnrolledArm(key, uid = cachedUserId) {
+  return armCache.arm(uid, key);
 }
 
-// Cross-browser backfill: a returning user on a fresh device has no cache, but the
-// server has their stamped arms. Best-effort, once per page-load, never blocks
-// render. Only seeds the cache when it's EMPTY (a seed-written map always wins).
-let experimentsPrimed = false;
-async function primeEnrolledExperiments() {
-  if (experimentsPrimed || !supabase) return;
-  experimentsPrimed = true;
+// The server's stamp for the account that just signed in: best-effort, once a
+// page load per account, never blocks render. A failed read is tried again at
+// the next auth event (a token refresh at the latest).
+const primedFor = new Set();
+async function primeEnrolledExperiments(uid) {
+  if (!uid || !supabase || primedFor.has(uid)) return;
+  primedFor.add(uid);
   try {
-    if (Object.keys(getExperiments()).length > 0) return;   // cache already warm
-    const { data } = await supabase.rpc('get_my_experiments');
-    if (data && typeof data === 'object' && Object.keys(data).length) {
-      const map = {};
-      for (const k in data) map[`exp_${k}`] = data[k];
-      if (Object.keys(getExperiments()).length === 0) setEnrolledExperiments(map);
-    }
-  } catch (_) {}
+    const { data, error } = await supabase.rpc('get_my_experiments');
+    // supabase-js resolves an error rather than throwing, and the read ran with
+    // whichever session was current; only a clean answer for this account may
+    // replace its arms.
+    if (error || cachedUserId !== uid) throw error || new Error('identity changed');
+    armCache.adoptServer(data, uid);
+  } catch (_) { primedFor.delete(uid); }
 }
 
 // The DEVICE id. Named "session" for historical reasons and deliberately left
@@ -375,7 +384,7 @@ if (supabase) {
         try { flushBeacon(); } catch (_) {}
         try { noteAuthChange(); } catch (_) {}
       }
-      if (session?.user?.id) { stampFirstSourceIfNeeded(); primeEnrolledExperiments(); }
+      if (session?.user?.id) { stampFirstSourceIfNeeded(); primeEnrolledExperiments(session.user.id); }
     });
   } catch (_) {}
 }
@@ -427,6 +436,12 @@ export function getAnalyticsContext() { return { ...ctx }; }
 // compares against. 'dev' means an unstamped local build; it is dropped rather
 // than stored so the column stays meaningful.
 const BUILD = BUILD_SHA && BUILD_SHA !== 'dev' && BUILD_SHA !== 'unknown' ? BUILD_SHA : null;
+
+// Which build this page is, and the marks its rows carry: none on production,
+// env + synthetic_reason on a preview deploy or a dev build, which the divert
+// trigger keeps out of the live table (eventEnv.js, 0470).
+const ENV = eventEnv(import.meta.env.DEV);
+const ENV_MARKS = envMarks(ENV);
 
 // ── Batched, redirect-safe delivery ────────────────────────────────────
 // Maximal instrumentation means many small events (scroll/field/dwell), and
@@ -566,6 +581,8 @@ function buildRow(name, props) {
   // monetization read grades on, and a handful of preview exposures against a
   // funnel whose CTA count is zero would not be noise, it would be the finding.
   if (isAnyQaMode() || isCaptureActive() || isGalleryActive()) merged.synthetic = true;
+  // Forced over caller props: whether a row is kept is not a call site's choice.
+  if (ENV_MARKS) Object.assign(merged, ENV_MARKS);
   // Ambient context: where they are, what they're paying, which build. Merged
   // last and never over caller props, so an explicit board_id at the call site
   // still wins over the one the app happens to have open.
@@ -584,8 +601,11 @@ function buildRow(name, props) {
     app_session_id: sess.id,
     user_id:     cachedUserId,   // best-effort; backfilled at flush if it resolves late
     event:       name,
-    props:       merged,
-    path:        typeof window !== 'undefined' ? window.location.pathname : null,
+    // A share, file or template link's token opens what it points at, and the
+    // bags above carry it on every row of a visit that came through one. It is
+    // a key, not a measurement: dropped here, and again by the database (0474).
+    props:       redactLinkTokens(merged),
+    path:        typeof window !== 'undefined' ? redactLinkText(window.location.pathname) : null,
     // Client-stamped so a batched/beaconed row keeps its TRUE event time (the
     // column defaults to now() = insert time, which can be seconds later).
     occurred_at: new Date().toISOString(),
@@ -597,6 +617,50 @@ function enqueue(row) {
   applyCap();
   saveQueue();
   if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
+  sendContextIfDue(row);
+}
+
+// The setup this session runs on, once per app session (sessionContext.js),
+// riding the session's first real row so every way a session starts is covered
+// — a load, an idle rotation, a sign-in — without claiming the single rotate
+// slot. The id is mirrored to storage so a reload inside the session does not
+// send it again.
+let ctxSentFor;
+function sendContextIfDue(row) {
+  if (ctxSentFor === undefined) {
+    try { ctxSentFor = localStorage.getItem(CTX_SENT_KEY); } catch (_) { ctxSentFor = null; }
+  }
+  if (!contextDue(row, ctxSentFor)) return;
+  ctxSentFor = row.app_session_id;
+  try { localStorage.setItem(CTX_SENT_KEY, ctxSentFor); } catch (_) {}
+  try {
+    const props = readSessionContext(window, { flags: featureFlags(), webview: getWebviewInfo() });
+    const ctxRow = buildRow(EV.SESSION_CONTEXT, props);
+    enqueue(ctxRow);
+    if (!props.edge_src && (onProdHost() || onPreviewHost())) fillEdgeContext(ctxRow);
+  } catch (_) { /* context must never cost the row that called for it */ }
+}
+
+// A page the Worker did not answer has no soleil-ctx tag. `/` was one until
+// run_worker_first (wrangler.toml) sent it through the Worker; anything the
+// static assets serve directly still is. Ask the Worker for the same codes and
+// fill them into the row while it waits in the queue (the flush is 5s off). A
+// row already beaconed by then goes without, as it would have anyway.
+function fillEdgeContext(ctxRow) {
+  try {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = setTimeout(() => { try { ctl?.abort(); } catch (_) {} }, 3000);
+    fetch('/api/ctx', { cache: 'no-store', credentials: 'omit', signal: ctl?.signal })
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((text) => {
+        const edge = parseEdgeContext(text);
+        if (!edge.region && !edge.net_kind) return;
+        Object.assign(ctxRow.props, edge, { edge_src: 'api' });
+        if (queue.includes(ctxRow)) saveQueue();
+      })
+      .catch(() => {})
+      .finally(() => clearTimeout(timer));
+  } catch (_) {}
 }
 
 // Loss used to be invisible: the queue silently dropped its oldest rows and a
@@ -695,7 +759,7 @@ export function logEvent(name, props = {}) {
   // work/presence distinction stays correct as events are added, instead of
   // depending on someone remembering a second call. WORK_EVENTS is the
   // definition; see analyticsEvents.js for where the bar is drawn.
-  try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
+  try { if (isWorkEvent(name, props)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); } catch (_) {}
   // AFTER buildRow, never inside it: buildRow advances the session clock and can
   // therefore rotate, which fires the summary handler. Folding the event in
@@ -716,7 +780,7 @@ export function logEventOnce(key, name, props = {}) {
 // survives the navigation even though we don't await it.
 export function logEventNow(name, props = {}) {
   if (!supabase || !name) return;
-  try { if (WORK_EVENTS.has(name)) noteWorkOp(); } catch (_) {}
+  try { if (isWorkEvent(name, props)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); } catch (_) {}
   try { noteEvent(ensureSummary(), name, props); } catch (_) {}
   try { flushBeacon(); } catch (_) {}
@@ -753,9 +817,15 @@ function currentView() {
   } catch (_) { return null; }
 }
 
+// perfTotals() as the summary's session began: null for a page load's first,
+// which owns everything since the load.
+let summaryPerfBase = null;
 function ensureSummary(now) {
   const sess = getAppSession();
-  if (!summaryAcc || summaryAcc.id !== sess.id) summaryAcc = createSummary(sess, now, currentView());
+  if (!summaryAcc || summaryAcc.id !== sess.id) {
+    if (summaryAcc) summaryPerfBase = perfTotals();
+    summaryAcc = createSummary(sess, now, currentView());
+  }
   return summaryAcc;
 }
 
@@ -781,11 +851,23 @@ export function currentSessionShape() {
   }
 }
 
+/**
+ * Count something too frequent to log one by one — a tab switch, a wheel zoom —
+ * into this session's session_summary row, which carries the totals as
+ * `counters` (sessionSummary.js noteCounter). Never throws.
+ */
+export function noteSessionCounter(key, n = 1) {
+  try { noteCounter(ensureSummary(), key, n); } catch (_) {}
+}
+
 function emitSessionSummary(ended) {
   try {
     const acc = summaryAcc;
     if (!worthEmitting(acc)) return;
     const props = summaryProps(acc, ended);
+    // How smoothly it ran while in use (lib/frameStats.js), when anything ran.
+    const perf = frameStatsSince(perfTotals(), summaryPerfBase);
+    if (perf) props.perf = perf;
     // Straight to the queue: going through logEvent would fold this row into
     // the very accumulator it is reporting on.
     enqueue(buildRow(EV.SESSION_SUMMARY, props));
@@ -801,6 +883,7 @@ try {
     // one that ended, which is why of_session rides in props.
     emitSessionSummary('rotate');
     summaryAcc = createSummary(next, undefined, currentView());
+    summaryPerfBase = perfTotals();
   });
 } catch (_) { /* non-browser import */ }
 
@@ -818,6 +901,14 @@ if (typeof document !== 'undefined') {
   window.addEventListener('focus', () => { try { noteFocus(ensureSummary(), true); } catch (_) {} });
   window.addEventListener('blur', () => { try { noteFocus(ensureSummary(), false); } catch (_) {} });
   window.addEventListener('pagehide', () => { emitSessionSummary('pagehide'); flushBeacon(); });
+  // What this session was used with: every press counted by pointer type
+  // (input.mouse / input.touch / input.pen), so an iPad with a Pencil, or a
+  // touchscreen laptop driven by a mouse, reads as it was used. session_context
+  // says what the device can do; this says what it did.
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.pointerType;
+    if (t === 'mouse' || t === 'touch' || t === 'pen') noteSessionCounter(`input.${t}`);
+  }, { capture: true, passive: true });
   window.addEventListener('beforeunload', flushBeacon);
 }
 

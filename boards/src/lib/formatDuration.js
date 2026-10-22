@@ -45,3 +45,13 @@ export function formatDurationParts(seconds) {
   while (i < out.length - 1 && out[i].value === 0) i++; // trim leading zeros, keep ≥1
   return out.slice(i);
 }
+
+// Two units, largest first: "1h 29m", "3d 4h", "45s". formatDuration rounds to
+// a single unit because it is built for a ticker cell, which is wrong wherever
+// the figure itself is the point: a profile read "1h" for 1h 29m. A zero
+// second unit is dropped, so two days is "2d", not "2d 0h".
+export function formatDurationPrecise(seconds) {
+  const parts = formatDurationParts(seconds).slice(0, 2);
+  const shown = parts.length === 2 && parts[1].value === 0 ? parts.slice(0, 1) : parts;
+  return shown.map((p) => `${p.value}${p.unit}`).join(' ');
+}

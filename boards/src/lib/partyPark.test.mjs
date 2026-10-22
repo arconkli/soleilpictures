@@ -107,11 +107,11 @@ test('the default delay is five minutes', () => {
 test('both party clients park, and nothing reconnects a parked socket behind its back', () => {
   const y = readFileSync(new URL('./yPartyKit.js', import.meta.url), 'utf8');
   assert.match(y, /parkWhileHidden\(\{/);
-  assert.match(y, /refresh: \(\) => \{\s*if \(destroyed \|\| parking\.isParked\(\)\) return;/);
+  assert.match(y, /refresh: \(\) => \{\s*if \(destroyed \|\| accessEnded \|\| parking\.isParked\(\)\) return;/);
   assert.match(y, /parking\.dispose\(\)/);
   const w = readFileSync(new URL('./workspacePartyKit.js', import.meta.url), 'utf8');
   assert.match(w, /parkWhileHidden\(\{/);
-  assert.match(w, /event === 'SIGNED_IN' && !parking\.isParked\(\)/);
+  assert.match(w, /event === 'SIGNED_IN' && !accessEnded && !parking\.isParked\(\)/);
   assert.match(w, /parking\.dispose\(\)/);
 });
 

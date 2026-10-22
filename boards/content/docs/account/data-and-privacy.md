@@ -5,7 +5,7 @@ h1: Data and privacy
 navLabel: Data and privacy
 section: account
 order: 5
-updated: 2026-10-07
+updated: 2026-10-20
 answer: Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 faq:
   - q: How do I delete my account?
@@ -124,6 +124,62 @@ Errors are recorded first-party, in Clusters' own infrastructure, to fix
 crashes. There is no Google Analytics and no third-party error monitoring
 service in the app.
 
+## What the app records as you use it
+
+Clusters records what you do, not what you make: that a card was placed, a
+cluster opened, a message sent or a search run, with counts and timings. It
+never records the words, file names or search terms inside your clusters.
+Messages are measured the same way: roughly how long a message was, in one of
+four sizes, how many attachments and mentions it had, whether it was a reply,
+and whether it was delivered. Never what it said or who it mentioned.
+Videos are measured the same way: that one started playing, for how many
+seconds, and roughly how far into it, never which video it was.
+
+Once per visit, one record describes the setup you are using, so we know which
+devices and conditions the app has to work well on:
+
+- your time zone and the languages your browser asks for
+- your region, such as a state or province, and the kind of network you are
+  on: a home or mobile provider, a university or research network, a VPN or
+  relay service, or a data center. Clusters' own servers work both out from the
+  connection itself. Your city and the network's name are never recorded.
+- your screen and window size, rounded, and whether the screen shows wide colour
+- whether your device has touch, a mouse or a trackpad
+- dark mode, reduced motion, high contrast and the app's own theme
+- roughly how much memory and how many processor cores the device has, and the
+  connection type your browser reports
+- your browser's version, and whether you are in the installed app or in a
+  browser inside another app
+- which features that version of Clusters had switched on
+
+This record stays in Clusters' own database and is not sent to advertising
+partners. To build it, Clusters does not probe your graphics card, your fonts or
+your audio hardware.
+
+From the email address you sign in with, Clusters works out only what kind of
+address it is: a personal email service, a school or university, or an
+organization's own domain, and for a school or university, which one. It reads
+this from the address it already has and stores nothing new.
+
+### Private links
+
+The address of a shared cluster, file or template, an invitation, or a sign-in
+link from an email holds a private key that opens what it points to. Clusters
+keeps that key out of its record of how the app is used and out of error
+reports: it records that you arrived through a shared link, and nothing that
+would open it. If you sign up after opening one, the link stays with your
+account so the person who shared it is credited. Meta's pixel is not loaded on
+a page opened from one of these links, or on the next page you open from it,
+so the address never reaches Meta.
+
+### Global Privacy Control
+
+If your browser sends **Global Privacy Control**, Clusters treats it as a
+request not to share what it learns about you for advertising, wherever you
+are. Meta's pixel is not loaded, and your sign-up, a purchase or the start of a
+checkout is not sent to Meta's Conversions API. What Clusters records for
+itself, described above, is the same either way.
+
 ## When Clusters asks you a question
 
 Clusters asks two questions, each **once per account**, and Send feedback is
@@ -141,9 +197,15 @@ through what you have got, showing it to someone. Alongside them sit *Nothing
 in particular*, which is a real answer, and *Not now*, which is not.
 
 After you tap, it asks **what best describes you** — filmmaker, photographer,
-designer, artist or illustrator, student, or something else — and offers a
-single follow-up in your own words. Both are optional: the first tap has already
-been recorded either way. Your role is asked for once per account too.
+designer, artist or illustrator, student, or something else. Under that it asks
+for **your age**, marked optional, as one of five ranges: under 18, 18–24,
+25–34, 35–44, or 45 and over. It never asks for your date of birth. Then it
+offers a single follow-up in your own words. All of these are optional: the
+first tap has already been recorded either way. Your role and your age range
+are each asked for once per account too.
+
+The age range you pick is stored with your answers and nowhere else. The app's
+usage records note only that an age range was given, never which one.
 
 - It is asked **once per account, ever**. Answering closes it permanently and
   that is recorded on the server, so it will not return if you clear your

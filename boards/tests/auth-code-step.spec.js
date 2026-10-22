@@ -28,6 +28,8 @@ test('the code step survives a reload, with the address and an inbox shortcut', 
   await page.getByLabel('Email address').fill('e2e-code-step@gmail.com');
   await page.getByRole('button', { name: /Continue with email/ }).click();
   await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 15000 });
+  // Remembered once the code has gone, not while it is still on its way.
+  await expect(page.getByText(/Check your inbox for the 6-digit code/)).toBeVisible();
 
   await page.reload();
   await expect(page.locator('.auth-code-input')).toBeVisible({ timeout: 15000 });
@@ -43,6 +45,56 @@ test('the code step survives a reload, with the address and an inbox shortcut', 
 
   // "edit" forgets the step: a reload is back on the email field.
   await page.getByRole('button', { name: 'edit' }).click();
+  await page.reload();
+  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('.auth-code-input')).toHaveCount(0);
+});
+
+// Sending a code took a second or more, all of it on the email field behind a
+// "Sending…" button. The step shows at once now, and the request runs under it.
+async function holdTheSend(page, answer) {
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route('**/auth/v1/otp**', async (route) => { await held; await route.fulfill(answer); });
+  await page.route('**/rest/v1/analytics_events**', (route) =>
+    route.fulfill({ status: 201, contentType: 'application/json', body: '[]' }));
+  return release;
+}
+
+test('the code step shows the moment the address goes, and settles once the code has', async ({ page }) => {
+  const release = await holdTheSend(page, { status: 200, contentType: 'application/json', body: '{}' });
+  await page.goto('/');
+  await page.getByLabel('Email address').fill('e2e-at-once@gmail.com');
+  await page.getByRole('button', { name: /Continue with email/ }).click();
+  const input = page.locator('.auth-code-input');
+  await expect(input).toBeVisible();
+  await expect(input).toBeEnabled();
+  await expect(page.getByText('Sending your code…')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'edit' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Resend/ })).toHaveCount(0);
+  await expect(page.locator('a.auth-mailbox')).toHaveText('Open Gmail');
+
+  release();
+  await expect(page.getByText(/Check your inbox for the 6-digit code/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Resend in \d+s/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'edit' })).toBeEnabled();
+});
+
+test('a send that fails goes back to the email field with its reason', async ({ page }) => {
+  const release = await holdTheSend(page, {
+    status: 429, contentType: 'application/json',
+    body: JSON.stringify({ code: 429, error_code: 'over_email_send_rate_limit', msg: 'email rate limit exceeded' }),
+  });
+  await page.goto('/');
+  await page.getByLabel('Email address').fill('e2e-send-fails@gmail.com');
+  await page.getByRole('button', { name: /Continue with email/ }).click();
+  await expect(page.getByText('Sending your code…')).toBeVisible();
+
+  release();
+  await expect(page.getByLabel('Email address')).toHaveValue('e2e-send-fails@gmail.com');
+  await expect(page.locator('.auth-error')).toHaveText('Hold on — too many attempts. Try again in a minute.');
+  await expect(page.locator('.auth-code-input')).toHaveCount(0);
+  // Nothing was sent, so nothing is remembered: a reload is the email field.
   await page.reload();
   await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.auth-code-input')).toHaveCount(0);

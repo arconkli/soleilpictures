@@ -1,5 +1,5 @@
 // AnalyticsFiltersContext — shared state for the merged Analytics tab's five
-// sub-tabs (Overview / Acquisition / Engagement / Revenue / System).
+// sub-tabs (Overview / Funnel / Retention / Money / System).
 //
 // The five views mount lazily and remount by key on switch, so prop-drilling
 // the time range / funnel segment filters / internal-traffic toggle into them
@@ -29,21 +29,24 @@ const LS_VERIFIED = 'admin.analytics.verifiedOnly';
  * dashboard left open on a second monitor overnight costs nothing until it is
  * looked at again.
  *
- * The intervals are not uniform because the views are not: Today is nine
+ * The intervals are not uniform because the views are not: Overview is nine
  * windowed RPCs and is the one people leave open, while System reads storage
  * and coverage figures that move on the order of hours. Polling those as often
- * as Today would be work nobody asked for and nobody would see.
+ * as Overview would be work nobody asked for and nobody would see.
  *
- * `today` was 30s, which is a live-ops cadence applied to a view whose inputs
+ * `overview` (then `today`) was 30s, which is a live-ops cadence applied to a view whose inputs
  * are daily rollups. Eleven concurrent RPCs twice a minute was the largest
  * single driver of call volume on the instance; the one genuinely live number
  * (admin_active_now, ~30ms) is cheap enough to poll on its own if it ever
  * needs to be finer than this.
  */
 export const POLL_MS = {
-  today: 300_000,
+  overview: 300_000,
   funnel: 120_000,
   retention: 120_000,
+  // Money's reads scan every price event since the first one, and what they
+  // count moves a few times a day.
+  money: 300_000,
   system: 180_000,
   shell: 60_000,
 };
@@ -61,20 +64,27 @@ export function useAnalyticsFilters() {
 // toolbar remounting on every sub-tab switch.
 //
 // `status` is what the view knows about its own calendar, for the status strip:
-// { weeks, partialDays } (complete weeks read, and days of this UTC week so far).
-// The effect is keyed on those two numbers, never on the object. A caller that
+// { weeks, partialDays } (complete weeks read, and days of this UTC week so far)
+// on Overview, { since } (the UTC day its window starts) on Money.
+// The effect is keyed on those values, never on the object. A caller that
 // builds the object inline hands over a new one every render, and registering it
 // re-renders the provider, which re-renders the caller, without end.
-export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, status }) {
+//
+// `stream` is the state of a realtime stream the view lives on, as
+// useActivityPulse reports it ('connecting' | 'live' | 'error'), or null for a
+// view that only polls. While it is 'live' the toolbar says Live instead of when
+// the last read was, and the status strip names the poll as the backstop.
+export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, status, stream = null }) {
   const { registerRuntime } = useAnalyticsFilters();
   const weeks = status?.weeks ?? null;
   const partialDays = status?.partialDays ?? null;
+  const since = status?.since ?? null;
   useEffect(() => {
     registerRuntime({
-      refresh, lastUpdated, refreshing,
-      status: weeks == null && partialDays == null ? null : { weeks, partialDays },
+      refresh, lastUpdated, refreshing, stream,
+      status: weeks == null && partialDays == null && since == null ? null : { weeks, partialDays, since },
     });
-  }, [registerRuntime, refresh, lastUpdated, refreshing, weeks, partialDays]);
+  }, [registerRuntime, refresh, lastUpdated, refreshing, stream, weeks, partialDays, since]);
 }
 
 function getParam(name) {
@@ -143,7 +153,7 @@ export function AnalyticsFiltersProvider({ children }) {
   // on the order of days. The comment above used to call it "cheap".
   //
   // So the two are split by how fast their data actually moves:
-  //   stats    — MRR/ARPU/tier counts. Today renders these in a hero tile, so
+  //   stats    — MRR/ARPU/tier counts. Overview renders these in a hero tile, so
   //              they keep the shell's poll and the focus refetch.
   //   segments — dropdown options only. Fetched once per filter change, never
   //              polled, never refetched on focus.
@@ -158,7 +168,7 @@ export function AnalyticsFiltersProvider({ children }) {
     return sg.error ? [] : (sg.data || []);
   }, [days, excludeInternal]);
 
-  const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false, status: null });
+  const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false, status: null, stream: null });
   const registerRuntime = useCallback((r) => setRuntime(r), []);
 
   const value = useMemo(() => ({

@@ -35,12 +35,14 @@ import { ConnectionsTab } from './settings/ConnectionsTab.jsx';
 import { BillingTab } from './settings/BillingTab.jsx';
 import { InviteTab } from './settings/InviteTab.jsx';
 import { WorkspaceGeneralTab, CardDefaultsTab } from './settings/WorkspaceTab.jsx';
+import { editorLimitPreviewAvailable } from '../lib/editorLimitPreview.js';
 import { MembersTab } from './settings/MembersTab.jsx';
 import { DocsTab } from './settings/DocsTab.jsx';
 // Lazy so nobody but an admin who opens the tab ever downloads it — the same
 // reason AdminPage is lazy in TierRouter.
 const CaptureTab = lazyWithReload(() => import('./settings/CaptureTab.jsx').then(m => ({ default: m.CaptureTab })));
 const GalleryTab = lazyWithReload(() => import('./settings/GalleryTab.jsx').then(m => ({ default: m.GalleryTab })));
+const PreviewTab = lazyWithReload(() => import('./settings/PreviewTab.jsx').then(m => ({ default: m.PreviewTab })));
 const SecurityTab = lazyWithReload(() => import('./settings/SecurityTab.jsx').then(m => ({ default: m.SecurityTab })));
 
 // `group` decides which heading a tab sits under. Ids are load-bearing beyond
@@ -81,6 +83,8 @@ const ADMIN_TABS = [
   { id: 'gallery', label: 'Gallery', group: 'admin' },
   // Where every security alert email lands (?settings=security, 0369).
   { id: 'security', label: 'Security', group: 'admin' },
+  // Show my own account in a launch's states (preview and dev only).
+  { id: 'preview', label: 'Preview', group: 'admin' },
 ];
 
 const GROUPS = [
@@ -143,7 +147,7 @@ export function SettingsPanel({
   const { isPhone, isTablet, isTouch } = useBreakpoint();
   const stacked = isPhone || (isTablet && isTouch);
   const { save, saving, savedAt } = useSettingsSaveState();
-  const tabs = isAdmin ? [...TABS, ...ADMIN_TABS] : TABS;
+  const tabs = isAdmin ? [...TABS, ...ADMIN_TABS.filter((t) => t.id !== 'preview' || editorLimitPreviewAvailable())] : TABS;
   // Only headings that actually have a tab under them. Without this a
   // non-admin gets a bare "Admin" label with nothing beneath it.
   const groups = GROUPS.filter(g => tabs.some(t => t.group === g.id));
@@ -373,6 +377,9 @@ export function SettingsPanel({
               )}
               {tab === 'security' && isAdmin && (
                 <Suspense fallback={null}><SecurityTab /></Suspense>
+              )}
+              {tab === 'preview' && isAdmin && (
+                <Suspense fallback={null}><PreviewTab onClose={onClose} /></Suspense>
               )}
             </SettingsSaveProvider>
           </div>

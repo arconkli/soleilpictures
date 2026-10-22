@@ -37,13 +37,14 @@
 import { YServer } from "y-partyserver";
 import type { Connection, ConnectionContext } from "partyserver";
 import * as Y from "yjs";
-import { authBoard, bannedAmong, canWriteBoard } from "./auth";
+import { accessAmong, authBoard, bannedAmong, canWriteBoard } from "./auth";
 import { installOpLogCapture } from "./opLog";
 import { RoomLog, MAX_PENDING_UPDATES } from "./roomLog";
 import { DEFAULT_SUPABASE_URL, type Env } from "./env";
 import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boardStateSync.js";
 import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
+import { BoardBridge } from "./bridge";
 
 const ALARM_MS = 60_000;
 const IDLE_WATCH_MS = 15 * 60_000;
@@ -78,6 +79,8 @@ export class BoardParty extends YServer<Env> {
 
   private local!: RoomLog;
   private remote!: BoardRoomState;
+  // Shared docs' mirrors of this board's doc cards (party/bridge.ts, doc.ts).
+  private bridge: BoardBridge | null = null;
   private resetting = false;
   private opLogWired = false;
   private localHeldContent = false;
@@ -118,6 +121,17 @@ export class BoardParty extends YServer<Env> {
       }
     });
     this.compactLocal();
+    // A shared doc's mirror hears about every transaction that touches its doc;
+    // with no mirror subscribed this returns at its first line.
+    this.bridge = new BoardBridge({
+      name: this.name, env: this.env, document: this.document, ctx: this.ctx as any,
+      resetting: () => this.resetting,
+    });
+    await this.bridge.load();
+    this.document.on("afterTransaction", (tr: Y.Transaction) => this.bridge?.onTransaction(tr));
+    // And every presence change, for the doc's readers (inert with no mirror).
+    this.document.awareness.on("update", (changes: { added: number[]; updated: number[]; removed: number[] }) =>
+      this.bridge?.onAwareness(changes));
     // The local copy held something: make sure the database gets it now
     // rather than at the next edit. The write is a compare-and-set, so this can
     // only add to what is stored.
@@ -224,13 +238,29 @@ export class BoardParty extends YServer<Env> {
     if (conns.length) {
       try { await this.ctx.storage.put(ACTIVE_KEY, Date.now()); } catch (_) { /* best effort */ }
       // Audit AC-2: an account banned mid-session stops editing within a minute.
+      // And so does anyone who has lost access since they connected: no read
+      // closes the socket with 4401, after which the client stops reconnecting
+      // (lib/yPartyKit.js); a lost write closes it with 4409, and the client
+      // reconnects as read-only.
       const ids = conns.map((c) => stateOf(c).userId || "");
-      const banned = await bannedAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, ids);
+      const [banned, access] = await Promise.all([
+        bannedAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, ids),
+        accessAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, this.name, ids),
+      ]);
       const now = Date.now();
       for (const c of conns) {
         const uid = stateOf(c).userId;
         if (uid && banned.has(uid)) {
           try { c.close(4403, "account suspended"); } catch (_) { /* already gone */ }
+          continue;
+        }
+        const may = uid ? access.get(uid) : undefined;
+        if (may && !may.canRead) {
+          try { c.close(4401, "access ended"); } catch (_) { /* already gone */ }
+          continue;
+        }
+        if (may && stateOf(c).canWrite === true && !may.canWrite) {
+          try { c.close(4409, "role changed"); } catch (_) { /* already gone */ }
           continue;
         }
         const heard = this.lastHeard.get(c);
@@ -270,6 +300,8 @@ export class BoardParty extends YServer<Env> {
     } catch (e) {
       console.error(`[board ${this.name}] reset broadcast failed`, e);
     }
+    // Shared docs' rooms start over from the restored board (a new generation).
+    try { await this.bridge?.closeAll(4012, "reset"); } catch (_) { /* they rebuild on their own */ }
     await sleep(150);
     try { this.local.wipe(); } catch (_) { /* deleteAll below */ }
     try { await this.ctx.storage.deleteAll(); } catch (e) { console.error(`[board ${this.name}] deleteAll failed`, e); }
@@ -303,6 +335,12 @@ export class BoardParty extends YServer<Env> {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
     if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     const url = new URL(req.url);
+    // A shared doc's room, through its Durable Object stub (never from outside:
+    // the Worker's beforeRequest lets only /reset through).
+    if (url.pathname.includes("/bridge/") && this.bridge) {
+      const res = await this.bridge.handle(req);
+      if (res) return res;
+    }
     if (!url.pathname.endsWith("/reset")) return new Response("Not found", { status: 404, headers: corsHeaders });
 
     const auth = req.headers.get("authorization") || "";

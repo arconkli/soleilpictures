@@ -77,7 +77,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await expect(page.locator('.note').last()).toBeVisible();
 
   await page.getByRole('button', { name: 'Add cluster tool', exact: true }).click();
-  await expect(page.getByText('Click on the canvas to place a cluster')).toBeVisible();
+  await expect(page.getByText('Click to place a cluster: a canvas inside this one.')).toBeVisible();
   await canvas.click({ position: { x: 220, y: 220 } });
   await expect(page.locator('.card')).toHaveCount(initialCardCount + 2);
 

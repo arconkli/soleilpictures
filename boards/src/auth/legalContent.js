@@ -12,6 +12,7 @@
 // They are not legal advice; have counsel review before relying on them.
 
 export const CONTACT_EMAIL = 'clusters@soleilpictures.com';
+// The date a document shows unless it carries its own `updated`.
 export const LAST_UPDATED = 'June 29, 2026';
 export const COMPANY = 'Soleil Pictures';
 
@@ -25,6 +26,7 @@ export const DOC_LABELS = {
 const privacy = {
   slug: 'privacy',
   title: 'Privacy Policy',
+  updated: 'October 20, 2026',
   intro:
     "This Privacy Policy explains how Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") collects, uses, and shares information when you use Soleil Clusters (the \"Service\"), available at clusters.soleilpictures.com. By using the Service, you agree to this Policy.",
   sections: [
@@ -34,11 +36,12 @@ const privacy = {
         'We collect the following categories of information:',
         {
           list: [
-            'Account information. When you sign in we collect your email address. We use a one-time passcode (OTP) sent to your email instead of a password, so we do not collect or store a password.',
+            'Account information. When you sign in we collect your email address. We use a one-time passcode (OTP) sent to your email instead of a password, so we do not collect or store a password. To understand who uses the Service, we also group addresses by the kind of provider they come from — a personal email service, a school or university, or an organization’s own domain — and, for a school or university, by the institution.',
             'Content you create. The clusters, canvases, notes, documents, comments, tags, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas.',
             'Collaboration data. When you share a cluster, invite collaborators, or create public links, we process the information needed to provide those features, including collaborators’ email addresses and presence or activity within a shared workspace. If you take part in our referral program, we also process the email address you use to invite someone and the information needed to determine reward eligibility.',
             'Payment information. If you subscribe to a paid plan, our payment processor (Stripe) collects and processes your payment details. We do not receive or store full card numbers; we keep limited billing metadata such as your subscription status, plan, and customer and subscription identifiers.',
-            'Usage and device information. Pages and features used, actions taken, approximate time spent, referring and exit pages, browser and device type, operating system, language, IP address, and the approximate location (country only) derived from it. We collect this through our own logging and through the analytics and advertising tools described below.',
+            'Answers you choose to give. The app occasionally asks a short, optional question — such as what brings you back, what best describes you, your age range, or what is holding you back from upgrading — and stores the answer you pick, and anything you choose to write, with your account. We ask for an age range (such as 25–34), never your date of birth.',
+            'Usage and device information. Pages and features used, actions taken, approximate time spent, referring and exit pages, browser and device type and version, operating system, language and time zone, IP address, and the approximate location derived from it (country and region, such as a state or province — never a city). Once per visit we also record your device’s general setup: screen and window size, whether it has touch or a mouse, the display and accessibility preferences your browser shares (such as dark mode or reduced motion), its approximate memory, processor count and connection type, whether you are using the installed app, and the kind of network you connect from — a home or mobile provider, a university or research network, a VPN or relay service, or a data center — never the network’s name. We collect this through our own logging and through the analytics and advertising tools described below.',
             'Marketing and attribution information. When you arrive from a link or advertisement, we collect campaign parameters (such as UTM tags), referral codes, and ad-click identifiers from advertising networks — for example Google, Meta, Microsoft (Bing), TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat — so we can understand how you found us and measure the effectiveness of our marketing.',
             'Cookies and similar technologies. We and our partners use cookies, local storage, and similar identifiers. See our Cookie Policy for details.',
           ],
@@ -95,6 +98,8 @@ const privacy = {
       heading: '5. Advertising and Analytics',
       blocks: [
         'We use the Meta Pixel and the Meta Conversions API to measure the effectiveness of our advertising and to understand how visitors arrive at and use the Service. This can involve sharing limited event data — such as page views, sign-ups, and purchases, along with identifiers like a hashed email or an ad click ID — with Meta.',
+        'If your browser sends the Global Privacy Control signal, we treat it as a request to opt out of this sharing, wherever you are: we do not load the Meta Pixel, and we do not send your sign-ups, checkouts or purchases to the Meta Conversions API.',
+        'We also do not load the Meta Pixel on a page whose address holds a private link — a shared cluster, file or template, an invitation, or a sign-in link we emailed you — or on the next page you open from it, so that address is never shared with Meta.',
         'When you reach the Service from other advertising networks (for example Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, or Snapchat), we may receive and record the ad-click identifier from that link so we can attribute the visit and measure how our campaigns perform.',
         'We also use Cloudflare Web Analytics, which is designed to measure traffic without using cookies to track individuals across sites. See our Cookie Policy and the “Your Rights and Choices” section below for how to limit this.',
       ],
@@ -265,6 +270,7 @@ const terms = {
 const cookies = {
   slug: 'cookies',
   title: 'Cookie Policy',
+  updated: 'October 20, 2026',
   intro:
     'This Cookie Policy explains how Soleil Clusters uses cookies, local storage, and similar technologies (together, “cookies”) when you use the Service. For more on how we handle personal information, see our Privacy Policy.',
   sections: [
@@ -282,7 +288,7 @@ const cookies = {
             'Strictly necessary. Required for the Service to function — for example, keeping you securely signed in. Our authentication provider (Supabase) stores your session in your browser’s local storage. The Service will not work properly without these.',
             'Functional. Remember your choices to improve your experience — for example, feature preferences and recently used fonts stored locally in your browser.',
             'Analytics. Help us understand how the Service is used so we can improve it. We use Cloudflare Web Analytics, which is designed to measure traffic without using cookies to track you across other websites.',
-            'Advertising and measurement. Help us measure and optimize our marketing. We use the Meta Pixel, which may set cookies such as _fbp and store an ad click identifier (_fbc) from ad links, and we send related events to Meta through the Meta Conversions API. We also store ad-click identifiers and campaign parameters from other advertising networks (such as Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat) in your browser’s local storage to attribute visits and measure our campaigns.',
+            'Advertising and measurement. Help us measure and optimize our marketing. We use the Meta Pixel, which may set cookies such as _fbp and store an ad click identifier (_fbc) from ad links, and we send related events to Meta through the Meta Conversions API. The Meta Pixel is not loaded on a page opened from a private link, such as a shared cluster or an invitation. We also store ad-click identifiers and campaign parameters from other advertising networks (such as Google, Microsoft, TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat) in your browser’s local storage to attribute visits and measure our campaigns.',
           ],
         },
       ],
@@ -292,7 +298,7 @@ const cookies = {
       blocks: [
         'Browser settings. Most browsers let you block or delete cookies and clear local storage. Note that blocking strictly necessary cookies or storage may prevent you from signing in or using parts of the Service.',
         'Advertising opt-outs. You can manage ad preferences in your Facebook and Instagram settings, and use industry opt-out tools — such as the Digital Advertising Alliance (optout.aboutads.info) or Your Online Choices (youronlinechoices.eu) — to limit interest-based advertising.',
-        'Preference signals. Where required by law, we honor recognized browser opt-out preference signals, such as Global Privacy Control.',
+        'Preference signals. We honor Global Privacy Control wherever you are. When your browser sends it, we do not load the Meta Pixel, so it sets no Meta cookies, and we do not send your activity to Meta through the Conversions API.',
       ],
     },
     {

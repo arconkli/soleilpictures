@@ -64,7 +64,8 @@ test.describe('History tool removed, Trash kept', () => {
   test('App.jsx swaps History → Trash', () => {
     const app = read('src/App.jsx');
     expect(app).not.toMatch(/TimeTravelModal|historyOpen|setHistoryOpen|tb-icon-history/);
-    expect(app).toMatch(/import \{ TrashModal \}/);
+    // Loaded at its first open (lazyPanel), so it's a dynamic import.
+    expect(app).toMatch(/import\('\.\/components\/TrashModal\.jsx'\)/);
     expect(app).toMatch(/tb-icon-trash/);
     expect(app).toMatch(/setTrashOpen/);
   });
@@ -312,8 +313,13 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     expect(nts).toMatch(/yUndoOptions: \{ undoManager: noteUndoManager \}/);
     const nds = read('src/lib/noteDocState.js');
     expect(nds).toMatch(/export function getNoteUndoManager/);
+    // A STACK since 9df6a83c: a doc pushes its manager on open and removes it
+    // on close, so the surface beneath gets ⌘Z back. It names its pane, so a
+    // docked doc leaves the canvas beside it its own ⌘Z (lib/overlayRouting).
     const ds = read('src/components/DocSurface.jsx');
-    expect(ds).toMatch(/setDocUndoTarget\(docUndoManager\)/);
+    expect(ds).toMatch(/pushDocUndoTarget\(docUndoManager, pane\)/);
+    expect(ds).toMatch(/removeDocUndoTarget\(docUndoManager\)/);
+    expect(read('src/components/DocCard.jsx')).toMatch(/pane=\{full \? null : pane\}/);
   });
 
   test('Version history restores through the bulletproof path only', () => {
@@ -345,7 +351,8 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     // pad can never act on the board hidden behind it. The pad also
     // registers as the overlay undo owner (CanvasSurface stands down).
     expect(sp).toMatch(/\{ capture: true \}/);
-    expect(sp).toMatch(/setDocUndoTarget\(padTarget\)/);
+    expect(sp).toMatch(/pushDocUndoTarget\(padTarget\)/);
+    expect(sp).toMatch(/removeDocUndoTarget\(padTarget\)/);
   });
 
   test('dialogs shut out the board shortcuts (modalGuard)', () => {
@@ -363,7 +370,7 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     expect(read('src/components/SketchPadOverlay.jsx')).toMatch(/registerModalOpen\(\)/);
   });
 
-  test('schedule moves are discrete undo steps + revertible history', () => {
+  test('schedule moves are discrete undo steps; history no longer reverts dates', () => {
     const app = read('src/App.jsx');
     // Calendar drag-drops break the merge window like every other discrete op.
     expect(app).toMatch(/breakUndo\(\); \/\/ each drag-drop is its own ⌘Z step/);
@@ -371,10 +378,11 @@ test.describe('Undo coverage phases 1-3 (source guard)', () => {
     // The day-tile date move carries its closure undo (the schedule session's
     // own toast — keep it wired).
     expect(app).toMatch(/setBoardSchedule\(bId, prevDate, prevEnd\)/);
-    // Version history can revert schedule fields through the sanctioned RPC.
+    // Schedules are retired (owner, 2026-10-20): Version history reverts name,
+    // colour, cover and view only, so no shoot-day date comes back through it.
     const vh = read('src/components/VersionHistoryModal.jsx');
-    expect(vh).toMatch(/'scheduled_date', 'scheduled_end', 'day_label'/);
-    expect(vh).toMatch(/setBoardSchedule\(boardId, next\.date, next\.end, next\.label\)/);
+    expect(vh).toMatch(/const REVERTIBLE = new Set\(\['name', 'bg_color', 'cover', 'view'\]\);/);
+    expect(vh).not.toMatch(/setBoardSchedule/);
   });
 
   test('art-card stroke commits are their own undo steps', () => {

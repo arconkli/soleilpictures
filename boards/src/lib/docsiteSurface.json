@@ -66,11 +66,11 @@
     },
     {
       "name": "create_board",
-      "schema": "9c0a2049a6a2"
+      "schema": "732f33f976a7"
     },
     {
       "name": "create_boards",
-      "schema": "5247fe40b723"
+      "schema": "88c69d2a239f"
     },
     {
       "name": "create_group",
@@ -142,7 +142,7 @@
     },
     {
       "name": "rename_board",
-      "schema": "c3c8999756e8"
+      "schema": "0a21becb78ba"
     },
     {
       "name": "resolve_identifier",
@@ -357,14 +357,13 @@
   "powerRevealKeys": [
     "docs",
     "grids",
-    "group",
     "list_drive",
     "palette"
   ],
   "shortcutSections": [
     {
       "title": "Tools",
-      "rows": 7
+      "rows": 8
     },
     {
       "title": "Navigate",
@@ -372,7 +371,7 @@
     },
     {
       "title": "Sidebar",
-      "rows": 4
+      "rows": 9
     },
     {
       "title": "Edit",
@@ -401,6 +400,10 @@
     {
       "title": "Document",
       "rows": 8
+    },
+    {
+      "title": "Toolbars",
+      "rows": 5
     }
   ],
   "publicRoutes": {
@@ -427,6 +430,7 @@
       "/tools/shared-reference-board",
       "/tools/shot-list-maker",
       "/tools/storyboard-maker",
+      "/tools/video-reference-board",
       "/use-cases",
       "/vs/eagle",
       "/vs/google-drive",
@@ -463,6 +467,7 @@
       "changelogMatch = /^\\/changelog\\/?$/i.test(PATH)",
       "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
       "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
+      "fileShareMatch = PATH.match(/^\\/f\\/([0-9a-f-]{36})\\/?$/i)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
       "oauthConsentMatch = /^\\/oauth\\/authorize\\/?$/i.test(PATH)",
       "pricingMatch = PATH.match(/^\\/pricing\\/?$/i)",

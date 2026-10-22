@@ -1,0 +1,53 @@
+/* A doc shared on its own (DocShareView.jsx), under the /f/ page's dark bar:
+   a thin bar with its name and what you may do here, then the doc itself
+   filling the rest. Everything below the page's bar follows the reader's
+   theme (the app's tokens, not the room's --fsp-* palette). Neutral ink;
+   gold only for focus. */
+
+.fsp-main.is-doc {
+  min-height: 0;
+  height: calc(100vh - var(--fsp-top-h));
+  height: calc(100dvh - var(--fsp-top-h));
+  display: flex; flex-direction: column;
+}
+.dsv { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.dsv-bar {
+  flex: none; display: flex; align-items: center; gap: 10px; min-width: 0;
+  height: 40px; padding: 0 16px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line-1);
+  font: 500 13px/1 var(--font-sans); color: var(--ink-2);
+}
+.dsv-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-0); font-weight: 600;
+}
+.dsv-mode {
+  flex: none; padding: 4px 8px; border-radius: 999px;
+  border: 1px solid var(--line-2); color: var(--ink-1); font-size: 12px;
+}
+.dsv-notice { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-1); }
+.dsv-spacer { flex: 1 1 auto; }
+.dsv-bar .dsv-signin { height: 30px; padding: 0 12px; }
+.dsv-body {
+  flex: 1 1 auto; min-height: 0; position: relative; display: flex; flex-direction: column;
+  background: var(--bg-0); color: var(--ink-0);
+  /* The page is dark-schemed for its bar; the doc follows the theme. */
+  color-scheme: dark;
+}
+[data-theme="light"] .dsv-body { color-scheme: light; }
+.dsv-body > .doc-surface,
+.dsv-body > .surface-eb-root > .doc-surface { flex: 1 1 auto; min-height: 0; }
+.dsv-body > .fsp-state { padding-top: 14vh; }
+.dsv-wait {
+  margin: auto; display: flex; flex-direction: column; align-items: center; gap: 14px;
+  color: var(--ink-2);
+}
+.dsv-wait .fsp-spinner {
+  border-color: color-mix(in srgb, var(--ink-0) 16%, transparent);
+  border-top-color: var(--ink-0);
+}
+@media (max-width: 560px) {
+  .dsv-bar { padding: 0 12px; gap: 8px; }
+  .dsv-notice { display: none; }
+}

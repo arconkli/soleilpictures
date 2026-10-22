@@ -49,9 +49,18 @@ test('an image reserves its box from the recorded dimensions, bounded in height'
 });
 
 test('the thread opens at the bottom instantly and re-pins as images load', () => {
+  // useStickToBottom: pinned on mount, and a ResizeObserver on the content and
+  // the scroller re-pins (or holds the reader's place) whenever anything grows,
+  // an image landing included — before paint.
   const src = readFileSync(new URL('../components/MessageThread.jsx', import.meta.url), 'utf8');
-  assert.match(src, /requestAnimationFrame\(\(\) => jumpToBottom\(!!prevId\)\)/);
-  assert.match(src, /el\.addEventListener\('load', onLoad, true\)/);
+  assert.match(src, /useStickToBottom\(\{ scrollRef, contentRef, startStuck: !jumpToMessageId \}\)/);
+  assert.match(src, /<div className="msg-thread-content" ref=\{contentRef\}>/);
+  const hook = readFileSync(new URL('../hooks/useStickToBottom.js', import.meta.url), 'utf8');
+  assert.match(hook, /new ResizeObserver\(/);
+  assert.match(hook, /ro\.observe\(content\);\s*ro\.observe\(el\);/);
+  assert.match(hook, /if \(stuckRef\.current\) el\.scrollTop = el\.scrollHeight;\s*if \(typeof ResizeObserver/);
+  const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(css.slice(css.indexOf('.msg-thread-body {')), /^[^}]*overflow-anchor: none;/);
   const bubble = readFileSync(new URL('../components/MessageBubble.jsx', import.meta.url), 'utf8');
   assert.match(bubble, /style=\{imageBoxStyle\(att\) \|\| undefined\}/);
 });

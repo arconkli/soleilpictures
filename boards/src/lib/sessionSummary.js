@@ -24,14 +24,15 @@
 // Pure: an accumulator plus functions over it, no timers, no DOM, no imports —
 // same shape as upsellSlot.js and depthDock.js, and unit-testable under node.
 
-// Events that mean the person changed the contents of a cluster, mirroring
-// WORK_EVENTS in analyticsEvents.js. Kept as a literal set rather than imported
-// so this module stays dependency-free and node-testable on its own; the test
-// asserts the two do not drift.
+// Events that mean the person did work — changed the contents of a cluster, or
+// sent a message — mirroring WORK_EVENTS in analyticsEvents.js. Kept as a
+// literal set rather than imported so this module stays dependency-free and
+// node-testable on its own; the test asserts the two do not drift. One that
+// reports ok:false failed and is not work (isWorkEvent's rule).
 const WROTE = new Set([
   'card_placed', 'card_edit', 'doc_edit', 'arrow_created', 'comment_create',
   'remix_clone', 'tag_manual_apply', 'tag_confirm', 'tag_merge',
-  'tag_candidate_promote', 'tag_set_type',
+  'tag_candidate_promote', 'tag_set_type', 'msg_send',
 ]);
 
 // Anything whose name marks a failure the user could feel. Suffix match rather
@@ -68,6 +69,7 @@ export function createSummary(session, now = Date.now(), view = null) {
     visibleSince: visible ? now : null,
     focusedMs: 0,
     focusedSince: focused ? now : null,
+    counters: {},
   };
 }
 
@@ -125,9 +127,27 @@ export function noteEvent(acc, name, props, now = Date.now()) {
   if (name === 'card_create_intent') acc.intents += 1;
   if (props?.board_id) acc.boards.add(String(props.board_id));
   if (props?.surface) acc.surfaces.add(String(props.surface));
-  if (WROTE.has(name)) acc.wrote = true;
+  if (WROTE.has(name) && props?.ok !== false) acc.wrote = true;
   if (isError(name)) acc.errors += 1;
 
+  return acc;
+}
+
+// Counters: things that happen too often to be an event each — a tab switch,
+// a wheel zoom, a pen touching the screen — summed into this session's row.
+// Keys are short lowercase words; past MAX_COUNTERS keys a new one is dropped
+// rather than widening the row.
+const COUNTER_KEY = /^[a-z][a-z0-9_.]{0,39}$/;
+const MAX_COUNTERS = 48;
+
+/** Add `n` (default 1) to a counter. Never throws; a bad key or amount is ignored. */
+export function noteCounter(acc, key, n = 1) {
+  if (!acc || typeof key !== 'string' || !COUNTER_KEY.test(key)) return acc;
+  const add = Number(n);
+  if (!Number.isFinite(add) || add <= 0) return acc;
+  const c = acc.counters || (acc.counters = {});
+  if (!(key in c) && Object.keys(c).length >= MAX_COUNTERS) return acc;
+  c[key] = Math.min((c[key] || 0) + add, 1e9);
   return acc;
 }
 
@@ -164,6 +184,10 @@ export function summaryProps(acc, ended, now = Date.now()) {
     visible_ms: spanTotal(acc.visibleMs, acc.visibleSince, now),
     focused_ms: spanTotal(acc.focusedMs, acc.focusedSince, now),
     ended: ended || 'unknown',
+    // Only when something was counted, so a row without them stays as it was.
+    ...(acc.counters && Object.keys(acc.counters).length
+      ? { counters: Object.fromEntries(Object.entries(acc.counters).map(([k, v]) => [k, Math.round(v)])) }
+      : {}),
   };
 }
 

@@ -29,6 +29,7 @@ import { getImageTierScale } from '../lib/canvasScale.js';
 import { getImageTierScheduler } from '../lib/imageTierScheduler.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import './r2Image.css';
+import { bootMark } from '../lib/bootMarks.js';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
@@ -781,6 +782,15 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   }, [eager, cardId, visible, loaded, originalKey, hasPreview]);
 
   const onImgLoad = () => {
+    // Boot timing: the first picture on the canvas this load, and which size
+    // it was. An original here on a cold open is a multi-MB download that a
+    // preview would have spared; `meta` says whether the preview was known.
+    bootMark('image', {
+      tier: !(meta && meta.previewKey) ? 'original'
+        : activeSrc === `r2:${meta.previewSmKey}` ? 'sm'
+        : activeSrc === `r2:${meta.previewKey}` ? 'lg' : 'original',
+      meta: !!(meta && meta.previewKey),
+    });
     // Fade skip is decided by MEASURED fetch+decode time from the moment the
     // URL was handed to the <img> — disk-cache loads come in well under the
     // threshold, network loads don't. Set before setLoaded so the is-loaded

@@ -1,0 +1,341 @@
+/* The toolbar look (the owner's pick "A · Islands", 2026-10-21): the parts a
+   bar in it is made of. Its tokens, then the bar, its groups and buttons, a
+   field and a swatch, the menu and the tooltip. Where a bar sits stays with
+   the bar. Only the tl- classes are styled here, so this changes nothing
+   until a bar in the new look renders them (lib/looks.js). */
+
+:root {
+  /* The sidebar's glass (sidebar/clusterSidebar.css, --sbf-glass), so a bar
+     and the sidebar read as one material. */
+  --tl-glass: color-mix(in oklab, var(--bg-1) 88%, transparent);
+  --tl-glass-line: #232328;
+  --tl-glass-shadow: 0 1px 1px rgba(0, 0, 0, .28);
+  --tl-blur: blur(14px) saturate(1.2);
+  --tl-lift: 0 10px 30px rgba(0, 0, 0, .32);
+  --tl-menu-lift: 0 18px 48px rgba(0, 0, 0, .36);
+  --tl-tip-lift: 0 8px 24px rgba(0, 0, 0, .28);
+  --tl-hov: color-mix(in oklab, var(--ink-0) 8%, transparent);
+  /* What's on: a gold tint behind the glyph, and a ring. */
+  --tl-on: rgba(255, 165, 0, .14);
+  --tl-on-line: rgba(255, 165, 0, .34);
+
+  --tl-bs: 32px;      /* a button */
+  --tl-is: 18px;      /* its icon */
+  --tl-br: 8px;       /* its corners */
+  --tl-pad: 4px;      /* round a bar's buttons */
+  --tl-rad: 12px;     /* a bar's corners */
+  --tl-gap: 1px;      /* between the buttons of a group */
+  --tl-sg: 9px;       /* between groups, with a hairline in the middle */
+  --tl-sep: 16px;     /* the hairline's length */
+  --tl-fs: 13px;
+  --tl-sws: 18px;     /* a colour swatch */
+  --tl-mis: 16px;     /* a menu row's icon */
+  --tl-mrow: 32px;    /* a menu row */
+  --tl-mfs: 13px;
+}
+[data-theme='light'] {
+  --tl-glass: color-mix(in oklab, #fcfcfd 88%, transparent);
+  --tl-glass-line: rgba(10, 10, 12, .08);
+  --tl-glass-shadow: 0 1px 1px rgba(0, 0, 0, .06);
+  --tl-lift: 0 10px 30px rgba(10, 10, 12, .10);
+  --tl-menu-lift: 0 18px 48px rgba(10, 10, 12, .16);
+  --tl-hov: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  --tl-on: rgba(255, 165, 0, .13);
+  --tl-on-line: rgba(230, 140, 0, .45);
+}
+/* Under a finger. */
+@media (hover: none) and (pointer: coarse) {
+  :root {
+    --tl-bs: 44px; --tl-is: 22px; --tl-br: 10px; --tl-rad: 14px; --tl-sep: 22px;
+    --tl-fs: 15px; --tl-sws: 26px; --tl-mis: 20px; --tl-mrow: 44px; --tl-mfs: 15px;
+  }
+}
+
+/* ── A bar ── */
+.tl-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
+  padding: var(--tl-pad);
+  border-radius: var(--tl-rad);
+  isolation: isolate;
+  color: var(--ink-1);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+}
+.tl-bar.tl-vert { flex-direction: column; }
+/* The material is a layer under the controls, not the bar's own background:
+   a backdrop-filter on the bar would make it the backdrop of everything in
+   it, and a menu inside it would frost the bar instead of what's behind. */
+.tl-surf::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+
+/* A group, and the hairline between two. */
+.tl-g {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--tl-gap);
+  flex-shrink: 0;
+}
+.tl-vert .tl-g { flex-direction: column; }
+.tl-g + .tl-g { margin-left: var(--tl-sg); }
+.tl-vert .tl-g + .tl-g { margin-left: 0; margin-top: var(--tl-sg); }
+.tl-g + .tl-g::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tl-sg) / -2 - .5px);
+  top: 50%;
+  width: 1px;
+  height: var(--tl-sep);
+  margin-top: calc(var(--tl-sep) / -2);
+  background: var(--line-2);
+}
+.tl-vert .tl-g + .tl-g::before {
+  left: 50%;
+  top: calc(var(--tl-sg) / -2 - .5px);
+  width: var(--tl-sep);
+  height: 1px;
+  margin: 0 0 0 calc(var(--tl-sep) / -2);
+}
+
+/* ── A button ── */
+.tl-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--tl-bs);
+  min-width: var(--tl-bs);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tl-br);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--tl-fs);
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tl-btn svg { width: var(--tl-is); height: var(--tl-is); flex-shrink: 0; }
+/* With words: "Share", a style's name. */
+.tl-btn.has-text { padding: 0 10px; color: var(--ink-1); }
+.tl-btn.has-text svg { width: calc(var(--tl-is) - 2px); height: calc(var(--tl-is) - 2px); }
+/* A value to pick from (a font, a paragraph style): its words, then ⌄. */
+.tl-btn.is-select { justify-content: space-between; padding: 0 8px 0 10px; color: var(--ink-1); }
+.tl-btn.is-select .tl-bt { flex: 1 1 auto; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.tl-btn .tl-caret { width: 10px; height: 10px; margin-left: -2px; color: var(--ink-2); }
+.tl-btn.has-text .tl-caret, .tl-btn.is-select .tl-caret { width: 10px; height: 10px; }
+@media (hover: hover) {
+  .tl-btn:hover:not(:disabled):not(.is-on) { background: var(--tl-hov); color: var(--ink-0); }
+}
+/* A menu's button while its menu is open (not every aria-expanded: a page
+   list's toggle says whether the list shows, and that isn't a pressed look). */
+.tl-btn[aria-haspopup][aria-expanded='true']:not(.is-on) { background: var(--tl-hov); color: var(--ink-0); }
+.tl-btn.is-on {
+  background: var(--tl-on);
+  color: var(--ink-0);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+}
+.tl-btn:focus-visible {
+  outline: 2px solid var(--soleil);
+  outline-offset: 1px;
+  border-radius: var(--tl-br);
+  box-shadow: none;
+}
+.tl-btn.is-on:focus-visible { box-shadow: inset 0 0 0 1px var(--tl-on-line); }
+.tl-btn:disabled { opacity: .38; cursor: default; }
+
+/* A number in a bar (a size between − and +). */
+.tl-field {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 34px;
+  height: calc(var(--tl-bs) - 6px);
+  margin: 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: calc(var(--tl-br) - 2px);
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-0);
+  font: inherit;
+  font-size: var(--tl-fs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.tl-field:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; box-shadow: inset 0 0 0 1px var(--line-2); }
+
+/* A colour. */
+.tl-sw {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--tl-sws);
+  height: var(--tl-sws);
+  margin: 0 calc((var(--tl-bs) - var(--tl-sws)) / 5);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.tl-sw.is-on { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--soleil); }
+.tl-sw.is-add { background: none; color: var(--ink-2); box-shadow: inset 0 0 0 1.5px var(--line-3); }
+.tl-sw.is-add svg { width: 60%; height: 60%; }
+.tl-sw:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 50%; }
+
+/* ── A menu ── */
+/* Portaled to <body>, so it wears the glass itself: a layer under it, as a
+   bar has, would scroll away with a long menu's rows. */
+.tl-menu {
+  position: fixed;
+  z-index: 2147483600;
+  box-sizing: border-box;
+  min-width: 180px;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 4px;
+  border-radius: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+  color: var(--ink-1);
+  font: 400 var(--tl-mfs)/1.35 var(--font-sans);
+  text-align: left;
+  white-space: nowrap;
+  outline: none;
+}
+.tl-mh {
+  display: block;
+  padding: 9px 10px 5px;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.tl-mi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--tl-mrow);
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tl-mi.is-tall { height: max(44px, var(--tl-mrow)); }
+.tl-mi svg { width: var(--tl-mis); height: var(--tl-mis); flex-shrink: 0; color: var(--ink-2); }
+.tl-mi .tl-mind { width: var(--tl-mis); flex-shrink: 0; }
+.tl-mi .tl-mt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tl-mi .tl-mt.is-two { display: flex; flex-direction: column; gap: 1px; }
+.tl-mi .tl-mt small { overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); font-size: 11.5px; }
+.tl-mi .tl-mv { margin-left: 14px; color: var(--ink-3); }
+.tl-mi .tl-keys { margin-left: 14px; color: var(--ink-3); }
+.tl-mi .tl-sub { width: 12px; height: 12px; color: var(--ink-3); }
+.tl-mi .tl-chk { color: var(--soleil); }
+.tl-mi:hover:not(:disabled), .tl-mi:focus-visible, .tl-mi[aria-expanded='true'] {
+  background: var(--tl-hov);
+  color: var(--ink-0);
+  outline: none;
+  box-shadow: none;
+}
+.tl-mi:hover:not(:disabled) svg:not(.tl-chk), .tl-mi:focus-visible svg:not(.tl-chk) { color: var(--ink-1); }
+.tl-mi:disabled { opacity: .38; cursor: default; }
+.tl-mi.is-danger { color: var(--ink-error); }
+.tl-mi.is-danger svg { color: currentColor; }
+.tl-msep { display: block; height: 1px; margin: 4px 8px; background: var(--line-1); }
+/* A row of buttons inside a menu (zoom's − 100% +, the three aligns). */
+.tl-mrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tl-mrow);
+  padding: 2px 4px 2px 10px;
+  color: var(--ink-1);
+}
+.tl-mrow .tl-mrow-l { flex: 1 1 auto; }
+.tl-mrow .tl-seg { display: inline-flex; gap: 2px; margin-left: auto; }
+.tl-mrow .tl-btn { --tl-bs: 30px; --tl-is: 16px; }
+@media (hover: none) and (pointer: coarse) {
+  .tl-mrow .tl-btn { --tl-bs: 40px; --tl-is: 20px; }
+}
+
+/* ── A shortcut, each key in its own cap ── */
+.tl-keys { display: inline-flex; gap: 3px; }
+.tl-keys kbd {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-1);
+  font: 400 11px/1 var(--font-sans);
+}
+/* A finger has no keys: a menu doesn't list them. */
+@media (hover: none) and (pointer: coarse) {
+  .tl-mi .tl-keys { display: none; }
+}
+
+/* ── The tooltip (components/toolbar/tipHost.js) ── */
+.tl-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483640;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 5px 5px 10px;
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-tip-lift);
+  color: var(--ink-0);
+  font: 400 12px/1 var(--font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.tl-tip.is-plain { padding-right: 10px; min-height: 22px; box-sizing: border-box; }
+.tl-tip.is-shown { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .tl-tip { transition: none; }
+}

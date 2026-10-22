@@ -54,7 +54,10 @@ export function iconForFile(ext, mime) {
 
 export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
                           onUpdate, autoFocus = false, editTitleAt = 0, onAfterEdit,
-                          pending = false, uploadProgress = null }) {
+                          pending = false, uploadProgress = null,
+                          // On a board, double-click belongs to the board (it
+                          // opens the file full screen); elsewhere it downloads.
+                          opensOnBoard = false }) {
   const [editingTitle, setEditingTitle] = useState(false);
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
   const prevEdit = useRef(editingTitle);
@@ -118,7 +121,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
 
   return (
     <div className="filec ic">
-      <div className={`filec-body ${preview != null ? 'has-preview' : ''}`} onDoubleClick={download}>
+      <div className={`filec-body ${preview != null ? 'has-preview' : ''}`} onDoubleClick={opensOnBoard ? undefined : download}>
         {preview != null ? (
           <pre className={`filec-preview ${CODE_EXTS.has(e) ? 'is-code' : ''}`}>{preview}</pre>
         ) : (

@@ -72,6 +72,33 @@ test('an accent color that already reads fine is preserved in both themes', asyn
   }
 });
 
+// The toolbar's colours show where they end in either theme: the white one on
+// the light menu, the black one on the dark menu, by its fill or by its edge.
+test('every colour in the doc toolbar’s menu stands out from the menu, in either theme', async ({ page }) => {
+  await openDoc(page);
+  for (const theme of ['light', 'dark']) {
+    await setTheme(page, theme);
+    await page.locator('.doc-card-modal').getByRole('button', { name: 'Text color', exact: true }).click();
+    const pop = page.locator('.doc-tb-colorpop');
+    await expect(pop).toBeVisible();
+    const faint = await pop.evaluate((menu) => {
+      const parse = (s) => { const m = String(s).match(/[\d.]+/g) || []; return { r: +m[0], g: +m[1], b: +m[2], a: m[3] == null ? 1 : +m[3] }; };
+      const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a) });
+      const lin = (v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+      const L = (c) => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+      const ratio = (a, b) => { const [hi, lo] = [L(a), L(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+      const bg = { ...parse(getComputedStyle(menu).backgroundColor), a: 1 };
+      return [...menu.querySelectorAll('.doc-tb-sw:not(.doc-tb-sw-x)')].filter((sw) => {
+        const cs = getComputedStyle(sw);
+        return ratio(over(parse(cs.backgroundColor), bg), bg) < 1.3 && ratio(over(parse(cs.borderTopColor), bg), bg) < 1.3;
+      }).map((sw) => sw.getAttribute('aria-label'));
+    });
+    expect(faint, `${theme}: colours that vanish into the menu`).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(pop).toHaveCount(0);
+  }
+});
+
 test('the stored content is never mutated by the readability override', async ({ page }) => {
   await openDoc(page);
   await setTheme(page, 'light');

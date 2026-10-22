@@ -1,22 +1,35 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-const EMOJIS = ['👍', '❤️', '🎉', '😂', '🙏', '🔥', '👀', '✨'];
+// The quick reactions: this palette, and the row along the top of a
+// message's press-and-hold sheet.
+export const QUICK_EMOJIS = ['👍', '❤️', '🎉', '😂', '🙏', '🔥', '👀', '✨'];
 
-export function EmojiPalette({ anchor, onPick, onClose }) {
+// A row of quick emoji under the button that opened it, or above it when
+// there's no room below (the composer sits at the bottom of the screen).
+//   trigger — the opening button: pressing it again is its own toggle, not an
+//   outside press that closes the palette only for the click to reopen it.
+export function EmojiPalette({ anchor, trigger = null, onPick, onClose }) {
   const popRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState(null);
 
   useLayoutEffect(() => {
     if (!anchor) return;
-    const W = 280, PAD = 8;
-    const top = Math.min(window.innerHeight - 60 - PAD, anchor.bottom + PAD);
+    const PAD = 8;
+    const W = popRef.current?.offsetWidth || 280;
+    const H = popRef.current?.offsetHeight || 44;
+    const below = anchor.bottom + PAD;
+    const top = below + H <= window.innerHeight - PAD ? below : Math.max(PAD, anchor.top - PAD - H);
     const left = Math.min(Math.max(PAD, anchor.left), window.innerWidth - W - PAD);
     setPos({ top, left });
   }, [anchor]);
 
   useEffect(() => {
-    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
+    const onDown = (e) => {
+      if (popRef.current?.contains(e.target)) return;
+      if (trigger?.contains?.(e.target)) return;
+      onClose?.();
+    };
     // Claim Escape (preventDefault) so whatever the palette opened over (the
     // Messages panel, a comment) doesn't close on the same press.
     const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
@@ -28,11 +41,12 @@ export function EmojiPalette({ anchor, onPick, onClose }) {
       document.removeEventListener('mousedown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
-  }, [onClose]);
+  }, [onClose, trigger]);
 
   return createPortal(
-    <div ref={popRef} className="emoji-palette surface-frosted" style={{ top: pos.top, left: pos.left }}>
-      {EMOJIS.map(e => (
+    <div ref={popRef} className="emoji-palette surface-frosted"
+         style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, visibility: pos ? 'visible' : 'hidden' }}>
+      {QUICK_EMOJIS.map(e => (
         <button key={e} className="emoji-palette-btn" onClick={() => { onPick?.(e); onClose?.(); }}>{e}</button>
       ))}
     </div>,

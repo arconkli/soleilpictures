@@ -2,14 +2,14 @@
 
 > A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-10-19_
+_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-10-21_
 
 The canvas is a cluster's Board view, and where a new cluster opens. It is an unbounded surface —
 position means something here, which is the whole point. Two images side by side
 are being compared; an image with a note under it is being annotated.
 
 If you want the same contents as a sortable file browser instead, every cluster
-also has a [Files view](/docs/clusters/list-view) — press `F` and it opens beside the board.
+also has its files, listed in the [sidebar](/docs/clusters/sidebar) — press `F` and they fill the screen as the [full Files page](/docs/clusters/list-view).
 
 ## Moving around
 
@@ -48,14 +48,11 @@ Down the left edge:
 - **Add grid** (`G`) — a [grid](/docs/canvas/grids).
 - **Arrow** (`A`) — [connect two things](/docs/canvas/arrows).
 
-The **+** at the end of the rail opens the rest, grouped:
+The **+** at the top of the rail opens the rest, grouped:
 
 - *Tools* — Draw (`D`), Shape, Palette
 - *Create* — File, Folder (on a desktop browser), Link, Linked cluster
 - *Annotate* — Comment, Vote
-
-Schedule cards are being rebuilt and are not in the menu meanwhile — see
-[Schedule](/docs/canvas/schedule).
 
 ## Right-click
 
@@ -87,6 +84,11 @@ browser, so you can paste a hex code straight into the picker.
 ## Selection
 
 Click to select. Shift-click to add. Drag on empty canvas to marquee.
+
+With a finger, touch and hold empty canvas until the ring under it fills, then
+drag the box. A finger has no Shift, so holding and letting go opens the canvas
+menu with **Select…**: until **Done**, each tap adds a card or takes it out.
+See [touch on the canvas](/docs/account/mobile#touch-on-the-canvas).
 
 With several cards selected you can move them as one, align them, delete them
 together, or press `⌘G` to make them a [group](/docs/canvas/groups) — which is a

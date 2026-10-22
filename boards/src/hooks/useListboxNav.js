@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Roving-index keyboard navigation for a flat list of selectable items
 // (search results, menu rows, emoji grid). Shared so every picker gets the
@@ -32,7 +33,9 @@ export function useListboxNav(itemCount, { onSelect, resetKey } = {}) {
   const onKeyDown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, itemCount - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
-    else if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent?.isComposing) {
+    // Mid-syllable, Enter picks the syllable. Safari has ended the composition
+    // by this keydown, so only keyCode 229 says so (lib/composerKeys.js).
+    else if (e.key === 'Enter' && !e.shiftKey && !isComposingKey(e)) {
       if (itemCount > 0) { e.preventDefault(); onSelect?.(active); }
     }
   };

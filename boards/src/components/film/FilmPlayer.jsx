@@ -32,12 +32,16 @@ import { hudText, shuttleText } from '../../lib/filmHud.js';
 import { readPrefs, writePrefs } from '../../lib/playerSession.js';
 import { containRect } from '../../lib/frameAnnotation.js';
 import { codecName } from '../../lib/cardInfo.js';
+import { logEvent, logEventNow } from '../../lib/analytics.js';
+import { EV } from '../../lib/analyticsEvents.js';
+import { createWatch, watchPlay, watchTick, watchPause, watchEnded, watchSummary } from '../../lib/filmWatch.js';
 import { FilmTimeline } from './FilmTimeline.jsx';
 import { FilmDock } from './FilmDock.jsx';
 import { FilmHud } from './FilmHud.jsx';
 import { FilmMenu } from './FilmMenu.jsx';
 import { ShortcutSheet } from './ShortcutSheet.jsx';
 import { PlayGlyph, PauseGlyph, FrameBack, FrameFwd, AspectThumb } from './glyphs.jsx';
+import './filmFacade.css';
 import './film.css';
 import { useFilmClock } from './useFilmClock.js';
 import { Icon } from '../Icon.jsx';
@@ -100,6 +104,9 @@ function formatSeconds(t) {
 const APPLE_ONLY = new Set(['apch', 'apcn', 'apcs', 'apco', 'ap4h', 'ap4x', 'AVdn', 'AVdh']);
 
 let hudSeq = 0;
+// film_fail is logged once per clip and reason a page load: a board of clips
+// this browser can't decode would otherwise say so on every open.
+const filmFailsLogged = new Set();
 
 export const FilmPlayer = forwardRef(function FilmPlayer({
   src, poster = null, media: mediaProp = null, mode = 'full', title = '', markers = [], ghostMarkers = [],
@@ -121,6 +128,10 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   onOpenPlayer = null,
   // review: offer "Copy link to this frame" (FilmReview builds the link).
   canCopyLink = false,
+  // Where this player is, for film_play / film_watch / film_fail: 'file_share'
+  // on the /f/ page, 'shared_file' when that file opens inside the app;
+  // otherwise the face says it (card, quicklook, review).
+  surface = null,
 }, ref) {
   const full = mode === 'full';
   const compact = mode === 'compact';
@@ -597,6 +608,36 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     if (!compareUrl && side === 'B') flipRef.current?.();
   }, [compareUrl, side]);
 
+  // ── One viewing of this clip (lib/filmWatch.js) ──────────────────────────
+  // film_play at its first play, film_watch when the player lets go of the
+  // clip or the page goes away; film_fail once for whatever it couldn't do.
+  const where = surface || (compact ? 'card' : preview ? 'quicklook' : 'review');
+  const watchRef = useRef(null);
+  const watchCtx = useRef(null);
+  watchCtx.current = { where, autoPlay, compare: !!compareSrc };
+  useEffect(() => {
+    const w = createWatch();
+    watchRef.current = w;
+    const end = (send) => {
+      const out = watchSummary(w, performance.now());
+      if (out) { try { send(EV.FILM_WATCH, { surface: watchCtx.current.where, ...out }); } catch (_) {} }
+    };
+    const onHide = () => end(logEventNow);
+    window.addEventListener('pagehide', onHide);
+    return () => { window.removeEventListener('pagehide', onHide); end(logEvent); };
+  }, [src]);
+  const failReason = failure?.reason || (signError ? 'sign' : null);
+  useEffect(() => {
+    if (!failReason) return;
+    const key = `${src}|${failReason}`;
+    if (filmFailsLogged.has(key)) return;
+    filmFailsLogged.add(key);
+    const c = mediaProp?.codec;
+    try {
+      logEvent(EV.FILM_FAIL, { surface: where, reason: failReason, codec: typeof c === 'string' && /^[A-Za-z0-9.]{1,16}$/.test(c) ? c : null });
+    } catch (_) {}
+  }, [failReason, src]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Video element state → React (the one on show) ────────────────────────
   useEffect(() => {
     const v = activeEl;
@@ -604,9 +645,17 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     let bufTimer = null;
     const bufOn = () => { clearTimeout(bufTimer); bufTimer = setTimeout(() => { setBuffering(true); }, 250); };
     const bufOff = () => { clearTimeout(bufTimer); setBuffering(false); };
-    const onPlay = () => { setPlaying(true); };
+    const onPlay = () => {
+      setPlaying(true);
+      if (watchPlay(watchRef.current, performance.now())) {
+        const c = watchCtx.current;
+        try { logEvent(EV.FILM_PLAY, { surface: c.where, auto: !!c.autoPlay && !touchedRef.current, compare: c.compare, muted: !!v.muted }); } catch (_) {}
+      }
+    };
+    const onTime = () => watchTick(watchRef.current, v.currentTime, v.duration);
     const onPause = () => {
       if (loopJumpRef.current) return;
+      watchPause(watchRef.current, performance.now(), v.currentTime);
       if (!reverseRef.current.active) setPlaying(false);
       setFrameState(frameRef.current);
       bufOff();
@@ -619,6 +668,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
         seekFrame(r.in ?? 0);
         return;
       }
+      watchEnded(watchRef.current, v.duration);
       setPlaying(false);
       setFrameState(frameRef.current);
     };
@@ -642,7 +692,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       }
       if (v.videoWidth) setNatural({ w: v.videoWidth, h: v.videoHeight });
       else if (S.current && mediaProp?.w > 0) {
-        setFailure({ title: `This browser can’t show this video`, body: 'Its sound may play, but there is no picture — download it, or upload a version in a common format.' });
+        setFailure({ reason: 'no_picture', title: `This browser can’t show this video`, body: 'Its sound may play, but there is no picture — download it, or upload a version in a common format.' });
       }
     };
     const onResize = () => { if (v.videoWidth) setNatural({ w: v.videoWidth, h: v.videoHeight }); };
@@ -650,10 +700,11 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       const code = mediaProp?.codec;
       const name = codecName(code);
       setFailure(APPLE_ONLY.has(code)
-        ? { title: `This browser can’t play ${name}`, body: 'Safari on a Mac plays it. Or upload an H.264 version — notes stay on this file.' }
-        : { title: 'This video can’t be played here', body: name ? `It’s ${name}, which this browser doesn’t decode. Download it, or upload a version in a common format.` : 'Download it, or upload a version in a common format.' });
+        ? { reason: 'decode', title: `This browser can’t play ${name}`, body: 'Safari on a Mac plays it. Or upload an H.264 version — notes stay on this file.' }
+        : { reason: 'decode', title: 'This video can’t be played here', body: name ? `It’s ${name}, which this browser doesn’t decode. Download it, or upload a version in a common format.` : 'Download it, or upload a version in a common format.' });
     };
     v.addEventListener('play', onPlay);
+    v.addEventListener('timeupdate', onTime);
     v.addEventListener('pause', onPause);
     v.addEventListener('ended', onEnded);
     v.addEventListener('seeked', onSeeked);
@@ -668,6 +719,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     return () => {
       clearTimeout(bufTimer);
       v.removeEventListener('play', onPlay);
+      v.removeEventListener('timeupdate', onTime);
       v.removeEventListener('pause', onPause);
       v.removeEventListener('ended', onEnded);
       v.removeEventListener('seeked', onSeeked);
@@ -698,7 +750,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     if (!v || !url) return undefined;
     if (v.readyState >= 2) return undefined;
     const t = setTimeout(() => {
-      if (v.readyState < 2 && !v.error) setFailure((f) => f || { title: 'This video isn’t loading', body: 'The file may be very large or in a format this browser can’t read. Try again, or download it.' });
+      if (v.readyState < 2 && !v.error) setFailure((f) => f || { reason: 'stalled', title: 'This video isn’t loading', body: 'The file may be very large or in a format this browser can’t read. Try again, or download it.' });
     }, compact ? 15000 : 8000);
     const ok = () => clearTimeout(t);
     v.addEventListener('loadeddata', ok);
@@ -811,6 +863,15 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   }, []);
   useEffect(() => { if (isFull && playing) wake(); else { clearTimeout(idleTimer.current); setIdle(false); } }, [isFull, playing, wake]);
   useEffect(() => () => clearTimeout(idleTimer.current), []);
+  // A finger moves nothing between taps: in full screen, a tap while the
+  // controls are away brings them back and doesn't pause, as a phone's own
+  // player does. (The tap's click reads this; see onStageClick.)
+  const tapWoke = useRef(false);
+  const onRootPointerDown = (e) => {
+    hideTip(e);
+    tapWoke.current = isFull && idle && e.pointerType !== 'mouse';
+    if (isFull && e.pointerType !== 'mouse') wake();
+  };
 
   // ── Compact: sized to the card as it appears on screen ────────────────────
   // The canvas scales cards with its zoom; the controls shouldn't shrink to
@@ -1181,6 +1242,8 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     const d = downAt.current;
     downAt.current = null;
     if (e.target.closest?.('button, input, .film-error, .film-sheet-scrim, .film-overlay.is-live')) return;
+    // The tap that brought the controls back does only that.
+    if (tapWoke.current) { tapWoke.current = false; return; }
     // A drag (moving the card, or a selection) isn't a click.
     if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
     // The second click of a double-click doesn't toggle again.
@@ -1243,7 +1306,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
          style={{ '--ar': pictureAr }}
          onPointerMove={isFull ? wake : compact || preview ? onCompactMove : undefined}
          onPointerOver={compact ? undefined : onTipOver} onPointerOut={compact ? undefined : onTipOut}
-         onPointerDownCapture={compact ? undefined : hideTip}
+         onPointerDownCapture={compact ? undefined : onRootPointerDown}
          onPointerEnter={compact ? () => { ensureFacts(); measureUi(); } : undefined}>
       <div className="film-stage" ref={setStageEl}
            onPointerDown={(e) => { onStagePointerDown(e); onZoomPanDown(e); }}

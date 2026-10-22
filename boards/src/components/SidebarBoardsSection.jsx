@@ -45,6 +45,7 @@ export function SidebarBoardsSection({
   peersHereByBoard,
   peersBelowByBoard,
   onJumpToPeer,
+  filesView = null,         // the files sidebar's hook-in (SidebarBoardTree's `filesView`)
 }) {
   const [open, setOpen] = useState(() => loadOpen(workspaceId));
   const toggle = () => setOpen(v => { const next = !v; saveOpen(workspaceId, next); return next; });
@@ -59,7 +60,8 @@ export function SidebarBoardsSection({
         <span className={`sb-boards-chev ${open ? 'is-open' : ''}`} aria-hidden="true">
           <Icon as={ChevronRight} size={11} />
         </span>
-        <span className="sb-boards-head-label">CLUSTERS</span>
+        {/* Capitalised by .sb-eyebrow; the files sidebar shows it as written. */}
+        <span className="sb-boards-head-label">Clusters</span>
         {count > 0 && <span className="sb-boards-count">{count}</span>}
         {onCreateBoard && (
           <button className="sb-boards-add"
@@ -94,6 +96,7 @@ export function SidebarBoardsSection({
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={onJumpToPeer}
+            filesView={filesView}
           />
           <div className="sb-row sb-row-all" onClick={onOpenPicker}>
             <Icon as={MoreHorizontal} size={14} />

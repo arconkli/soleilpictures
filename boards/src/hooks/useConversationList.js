@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useContext, useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { listConversations, listMyConversationParticipants, getUnreadCounts } from '../lib/messages.js';
 import { supabase } from '../lib/supabase.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
 import { watchForResync } from '../lib/messageResync.js';
 import { hiddenFromInbox } from '../lib/conversationState.js';
+import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 
 // Returns the unified Messages-panel list:
 //   {
@@ -32,9 +33,18 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   // (or nothing yet), and the panel says so instead of "No conversations
   // yet" (COMMS-15).
   const [failed, setFailed] = useState(false);
+  // The dev QA harness's rows, when it provides them (lib/messagesFixture.js).
+  const fixture = useContext(MessagesFixtureContext);
 
   const refresh = useCallback(async () => {
     if (!workspaceId || !userId) return;
+    if (fixture) {
+      setConversations(fixture.conversations || []);
+      setParticipants(fixture.participants || []);
+      setCounts(fixture.counts || {});
+      setFailed(false);
+      return;
+    }
     const [convs, parts, c] = await Promise.all([
       listConversations({ workspaceId }),
       listMyConversationParticipants({ workspaceId }),
@@ -46,7 +56,7 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
     if (parts) setParticipants(parts);
     if (c) setCounts(c);
     setFailed(!convs || !parts);
-  }, [workspaceId, userId]);
+  }, [workspaceId, userId, fixture]);
 
   useEffect(() => {
     if (!workspaceId || !userId) return;
@@ -65,7 +75,7 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
   // join group chats we're not in.
   const debounceRef = useRef(null);
   useEffect(() => {
-    if (!supabase || !workspaceId || !userId) return;
+    if (!supabase || !workspaceId || !userId || fixture) return;
     const schedule = () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
@@ -91,7 +101,7 @@ export function useConversationList({ workspaceId, userId, refreshTick = 0 }) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       try { supabase.removeChannel(ch); } catch (_) {}
     };
-  }, [workspaceId, userId, refresh]);
+  }, [workspaceId, userId, refresh, fixture]);
 
   // Optimistic unread bump: when the inbox bus fires a ping for a
   // conversation in this workspace, bump the count immediately. The

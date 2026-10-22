@@ -21,11 +21,16 @@ import { PdfViewer } from '../PdfViewer.jsx';
 import { CardPreview } from './CardPreview.jsx';
 import { LinkMark } from './marks.jsx';
 import { DetailPanel } from './DetailPanel.jsx';
-import { Icon } from '../Icon.jsx';
+import { Icon, IconWeightContext } from '../Icon.jsx';
+import { useFilesLook } from './filesLook.js';
+import { fileSharesAllowed } from '../../lib/appHost.js';
+import { isShareableCard } from '../../lib/fileShares.js';
+import { FileShareButton } from '../fileShare/FileShareButton.jsx';
 import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareOut, ArrowsOutSimple } from '../../lib/icons.js';
 import { FilmPlayer } from '../film/FilmPlayer.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
+import './filesPage.css';
 
 // A signed URL for a stored file (r2:…), or the URL itself.
 function useResolved(src) {
@@ -139,10 +144,18 @@ export default function QuickLook({
   onPutOnBoard = null,   // (item) => put a file that's waiting in Files on the board
   infoOpen = false, onToggleInfo = null,
   boards = {}, canEdit = false, onDelete = null,
+  // Quick look can step across clusters (the sidebar's Recent and Starred, a
+  // browsed cluster), so edit rights are asked per file when the host knows
+  // them; `canEdit` is the fallback for a host showing one cluster.
+  canEditItem = null,
 }) {
+  // Direction A's look (filesLook.js), handed through the portal by context.
+  const look = useFilesLook();
+  const sb = look === 'sb';
   const rootRef = useRef(null);
   const item = items[index] || null;
   const n = items.length;
+  const itemCanEdit = item ? (canEditItem ? !!canEditItem(item) : canEdit) : false;
 
   // Kept: the film player in here takes its keys only while Quick look is the
   // top layer (the review player opened from it sits above), and so does
@@ -217,10 +230,58 @@ export default function QuickLook({
   if (!item) return null;
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
 
+  // The bar's actions and Close. In the files sidebar's look they float as
+  // one island, Close after a hairline; production lays them in the bar.
+  const acts = (
+    <>
+      {onShowOnBoard && (
+        <button type="button" className="ql-btn" onClick={() => onShowOnBoard(item)} title={showLabel}>
+          <Icon as={BoundingBox} size={14} weight="light" /><span>{showLabel}</span>
+        </button>
+      )}
+      {onPutOnBoard && item.unplaced && (
+        <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
+          <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
+        </button>
+      )}
+      {item.kind === 'video' && item.card?.src && item.boardId && !isPublicSurface() && (
+        <button type="button" className="ql-btn" title="Open in the review player"
+                onClick={() => {
+                  const st = playerRef.current?.getState?.();
+                  playerRef.current?.pause?.();
+                  openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
+                }}>
+          <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
+        </button>
+      )}
+      {itemCanEdit && item.boardId && !isPublicSurface() && fileSharesAllowed() && isShareableCard(item.card) && (
+        <FileShareButton key={`share:${item.boardId}:${item.id}`} variant="ql" surface="quicklook"
+                         boardId={item.boardId} cardId={item.id} card={item.card} boardName={null} />
+      )}
+      {canDownload && (
+        <button type="button" className="ql-btn" onClick={() => onDownload(item)} title="Download">
+          <Icon as={Download} size={14} weight="light" /><span>Download</span>
+        </button>
+      )}
+      {onToggleInfo && (
+        <button type="button" className={`ql-btn${infoOpen ? ' is-on' : ''}`} onClick={onToggleInfo}
+                aria-pressed={infoOpen} title="Info (⌘I)">
+          <Icon as={Info} size={14} weight="light" /><span>Info</span>
+        </button>
+      )}
+    </>
+  );
+  const close = (
+    <button type="button" className="ql-btn ql-x" onClick={onClose} aria-label="Close" title="Close (Esc)">
+      <Icon as={X} size={16} weight="light" />
+    </button>
+  );
+
   // On <body>: the list scrolls in its own stacking context (isolation), so a
   // fixed overlay inside it would sit under the board's toolbars.
   return createPortal(
-    <div className={`ql${infoOpen ? ' has-info' : ''}`} ref={rootRef} tabIndex={-1}
+    <IconWeightContext.Provider value={sb ? 'regular' : null}>
+    <div className={`ql${infoOpen ? ' has-info' : ''}`} ref={rootRef} tabIndex={-1} data-look={sb ? look : undefined}
          role="dialog" aria-modal="true" aria-label={`Quick look: ${item.name}`}
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="ql-bar">
@@ -228,40 +289,9 @@ export default function QuickLook({
           <span className="ql-name" title={item.name}>{item.name}</span>
           <span className="ql-meta">{item.typeLabel}{n > 1 ? ` · ${index + 1} of ${n}` : ''}</span>
         </div>
-        {onShowOnBoard && (
-          <button type="button" className="ql-btn" onClick={() => onShowOnBoard(item)} title={showLabel}>
-            <Icon as={BoundingBox} size={14} weight="light" /><span>{showLabel}</span>
-          </button>
-        )}
-        {onPutOnBoard && item.unplaced && (
-          <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
-            <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
-          </button>
-        )}
-        {item.kind === 'video' && item.card?.src && item.boardId && !isPublicSurface() && (
-          <button type="button" className="ql-btn" title="Open in the review player"
-                  onClick={() => {
-                    const st = playerRef.current?.getState?.();
-                    playerRef.current?.pause?.();
-                    openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
-                  }}>
-            <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
-          </button>
-        )}
-        {canDownload && (
-          <button type="button" className="ql-btn" onClick={() => onDownload(item)} title="Download">
-            <Icon as={Download} size={14} weight="light" /><span>Download</span>
-          </button>
-        )}
-        {onToggleInfo && (
-          <button type="button" className={`ql-btn${infoOpen ? ' is-on' : ''}`} onClick={onToggleInfo}
-                  aria-pressed={infoOpen} title="Info (⌘I)">
-            <Icon as={Info} size={14} weight="light" /><span>Info</span>
-          </button>
-        )}
-        <button type="button" className="ql-btn ql-x" onClick={onClose} aria-label="Close" title="Close (Esc)">
-          <Icon as={X} size={16} weight="light" />
-        </button>
+        {sb ? (
+          <div className="ql-acts">{acts}<span className="ql-acts-sep" aria-hidden="true" />{close}</div>
+        ) : <>{acts}{close}</>}
       </div>
       <div className="ql-body" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         {n > 1 && (
@@ -276,12 +306,13 @@ export default function QuickLook({
           </button>
         )}
         {infoOpen && (
-          <DetailPanel inline target={{ type: 'card', item }} boards={boards} canEdit={canEdit}
+          <DetailPanel inline target={{ type: 'card', item }} boards={boards} canEdit={itemCanEdit}
                        onClose={onToggleInfo} onReveal={onShowOnBoard ? () => onShowOnBoard(item) : null}
-                       onDelete={onDelete} />
+                       onDelete={itemCanEdit ? onDelete : null} />
         )}
       </div>
-    </div>,
+    </div>
+    </IconWeightContext.Provider>,
     document.body,
   );
 }

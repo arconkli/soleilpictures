@@ -121,7 +121,9 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
               : onAddStorage
                 ? `Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more${holds ? '' : ' and drop them again'}, or delete files or empty the trash to make room.`
                 : 'Nothing has been uploaded yet. Deleting files or emptying the trash makes room.')
-            : `Nothing has been uploaded yet. Creator removes the limit entirely${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`}
+            : !canUpgrade
+              ? 'Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit.'
+              : `Nothing has been uploaded yet. Creator removes the limit entirely${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`}
           {waits}
         </p>
       </div>

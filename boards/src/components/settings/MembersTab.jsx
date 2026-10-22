@@ -18,6 +18,14 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { SettingsCategory } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 import { WORKSPACE_ROLE_LABEL as ROLE_LABEL, ASSIGNABLE_ROLES, canManageWorkspace } from '../../lib/workspaceRoles.js';
+import { useEditorLimit } from '../../hooks/useEditorLimit.js';
+import { editorLimitAllowed } from '../../lib/appHost.js';
+import {
+  editorLimitFull, editorLimitRefusal, editorLimitRefusalMessage, firstName, holdsPlace,
+} from '../../lib/editorLimit.js';
+import { logEvent } from '../../lib/analytics.js';
+import { EV } from '../../lib/analyticsEvents.js';
+import { AccountEditorsCard } from './AccountEditorsCard.jsx';
 
 // Holds an action slot a row does not have. It is the same element as the real
 // control (a <button>), so it gets the same UA box and text metrics and the
@@ -44,6 +52,11 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
   const [loading, setLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
+  // The 10-editor limit (0520, held): the numbers for this workspace's
+  // account and, for its owner, who holds the places.
+  const editorLimit = useEditorLimit({ workspaceId, enabled: canManage, list: 'always' });
+  const limitCap = editorLimit.cap;
+  const editFull = editorLimitFull(limitCap);
 
   const load = async () => {
     if (!workspaceId) { setMembers([]); setDirectory([]); setPending([]); return; }
@@ -70,9 +83,31 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
   const byId = useMemo(() => new Map(directory.map(d => [d.user_id, d])), [directory]);
   const label = (m) => byId.get(m.user_id)?.title || byId.get(m.user_id)?.email || m.user_id.slice(0, 8);
 
+  // Whose plan it is, for a co-owner: "Alex’s plan".
+  const ownerRow = members.find((x) => x.role === 'owner');
+  const ownerName = !limitCap?.isAccountOwner && ownerRow ? firstName(byId.get(ownerRow.user_id)?.title) : null;
+  // A viewer made an editor or co-owner takes a place, unless they hold one
+  // somewhere else in the account (the owner's list says so).
+  const lockedViewer = (m) => editFull && m.role === 'viewer' && !holdsPlace(editorLimit.holders, { userId: m.user_id });
+  const inviteLocked = editFull && !holdsPlace(editorLimit.holders, { email: inviteEmail });
+  // A door said no for want of room: log it, read the numbers again, and say
+  // it in the panel's words.
+  const refused = (full, door) => {
+    try { logEvent(EV.EDITOR_LIMIT_REFUSED, { door, ask: !!full.ask, surface: 'members' }); } catch (_) {}
+    editorLimit.refresh();
+    return editorLimitRefusalMessage(full, { ownerName });
+  };
+
   const changeRole = (m, next) => save(async () => {
-    await setWorkspaceMemberRole({ workspaceId, userId: m.user_id, role: next });
+    try {
+      await setWorkspaceMemberRole({ workspaceId, userId: m.user_id, role: next });
+    } catch (e) {
+      const full = editorLimitRefusal(e);
+      if (!full) throw e;
+      throw Object.assign(new Error(e?.message || 'editor limit reached'), { userMessage: refused(full, 'member_role') });
+    }
     await load();
+    editorLimit.refresh();
   });
 
   const remove = async (m) => {
@@ -88,6 +123,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       await removeWorkspaceMember({ workspaceId, userId: m.user_id });
       feedback.toast({ type: 'success', message: `Removed ${who}.` });
       await load();
+      editorLimit.refresh();
       await onWorkspacesChanged?.();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) });
@@ -132,6 +168,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
     try {
       await revokePendingInvite(row.id);
       setPending(arr => arr.filter(x => x.id !== row.id));
+      editorLimit.refresh();
     } catch (e) {
       feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
     }
@@ -140,23 +177,32 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
   const invite = async () => {
     const email = inviteEmail.trim();
     if (!email || !canManage) return;
+    const role = inviteLocked ? 'viewer' : inviteRole;
     try {
-      const status = await inviteWorkspaceMember({ workspaceId, email, role: inviteRole });
+      const status = await inviteWorkspaceMember({ workspaceId, email, role });
       feedback.toast({
         type: status === 'already_member' ? 'warning' : 'success',
         message: status === 'pending' ? `Invited ${email} — access is waiting for them when they sign up.`
               : status === 'already_member' ? `${email} is already a member.`
-              : `Added ${email} as ${inviteRole}.`,
+              : `Added ${email} as ${role}.`,
       });
       setInviteEmail('');
       await load();
+      editorLimit.refresh();
     } catch (e) {
+      const full = editorLimitRefusal(e);
+      if (full) { feedback.toast({ type: 'warning', message: refused(full, 'workspace_invite'), ttl: 9000 }); return; }
       feedback.toast({ type: 'error', message: 'Could not invite: ' + (e.message || e) });
     }
   };
 
   return (
     <div className="settings-tab-body">
+      {editorLimitAllowed() && canManage && limitCap?.enforced && (
+        <AccountEditorsCard cap={limitCap} editors={editorLimit.editors} previewing={editorLimit.previewing} ownerName={ownerName}
+                            selfId={user?.id}
+                            onChanged={async () => { await load(); await editorLimit.refresh(); }} />
+      )}
       <SettingsCategory title="People in this workspace"
                         desc={canManage
                           ? 'Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment on the canvas, and vote; in a document they can read comments but not add them.'
@@ -173,7 +219,10 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
                 {changeable ? (
                   <select className="settings-input" aria-label={`Role for ${label(m)}`}
                           value={m.role} onChange={(e) => changeRole(m, e.target.value)}>
-                    {ASSIGNABLE_ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                    {ASSIGNABLE_ROLES.map(r => {
+                      const locked = r !== 'viewer' && lockedViewer(m);
+                      return <option key={r} value={r} disabled={locked}>{locked ? `${ROLE_LABEL[r]} — full` : ROLE_LABEL[r]}</option>;
+                    })}
                   </select>
                 ) : (
                   <span className="settings-member-role">{ROLE_LABEL[m.role] || m.role}</span>
@@ -213,15 +262,16 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
         </ul>
       </SettingsCategory>
       {canManage && (
-        <SettingsCategory title="Add someone" desc="They sign in to accept. Editors are free on every plan.">
+        <SettingsCategory title="Add someone"
+                          desc={editorLimitAllowed() ? 'They sign in to accept.' : 'They sign in to accept. Editors are free on every plan.'}>
           <div className="settings-invite-row">
             <input className="settings-input" type="email" placeholder="Email address"
                    aria-label="Email address to invite"
                    value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); invite(); } }} />
             <select className="settings-input" aria-label="Role for the new member"
-                    value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-              <option value="editor">Editor</option>
+                    value={inviteLocked ? 'viewer' : inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+              <option value="editor" disabled={inviteLocked}>{inviteLocked ? 'Editor — full' : 'Editor'}</option>
               <option value="viewer">Viewer</option>
             </select>
             <button type="button" className="settings-btn" onClick={invite} disabled={!inviteEmail.trim()}>Invite</button>

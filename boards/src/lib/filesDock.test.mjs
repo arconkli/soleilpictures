@@ -9,7 +9,7 @@ import {
   clampWidth, dragPreview, releaseDock, readDockPrefs, writeDockPrefs,
   dockHintSeen, markDockHintSeen, collapsePath, ELLIPSIS,
   FOLDER_ROWS, folderColumns, folderCap, readFoldersExpanded, writeFoldersExpanded,
-  previewOwnedBy,
+  previewOwnedBy, VIEW_PERSIST_VIAS, viewWrite,
 } from './filesDock.js';
 
 test('the panel needs a desktop pane wide enough for a board and a panel', () => {
@@ -179,4 +179,31 @@ test("browsing from one folder into another never shows the last folder's snapsh
   assert.equal(previewOwnedBy(owners, c, 'B'), null);
   assert.equal(previewOwnedBy(owners, b, 'B'), b);
   assert.equal(previewOwnedBy(owners, null, 'B'), null);
+});
+
+test('with the files sidebar, only "Always open in Files" writes how a cluster opens; looking at its files never does', () => {
+  // Without it, every switch is the stored view, as it always was.
+  for (const via of ['topbar', 'reveal', 'power_reveal', 'search_empty', 'sidebar_menu', 'keyboard']) {
+    assert.equal(viewWrite({ filesSidebar: false, via }), 'persist', via);
+  }
+  assert.equal(viewWrite({ filesSidebar: true, via: 'sidebar_menu' }), 'persist');
+  // Show on board from the page, the list_drive reveal, ⌘K's browse: this device only.
+  for (const via of ['reveal', 'power_reveal', 'search_empty', 'topbar', 'keyboard', undefined]) {
+    assert.equal(viewWrite({ filesSidebar: true, via }), 'device', String(via));
+  }
+  assert.deepEqual([...VIEW_PERSIST_VIAS], ['sidebar_menu']);
+  assert.ok(Object.isFrozen(VIEW_PERSIST_VIAS));
+});
+
+test('App.setView shows the view on this device first, then asks viewWrite before it writes boards.view', () => {
+  const app = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
+  const start = app.indexOf('const setView = (v, via');
+  assert.ok(start > 0, 'setView is where it was');
+  const body = app.slice(start, app.indexOf('\n  };', start));
+  const gate = body.indexOf("if (viewWrite({ filesSidebar, via }) === 'device') return;");
+  assert.ok(gate > 0, 'setView consults viewWrite');
+  assert.ok(body.indexOf('setViewOverride(') < gate, 'this device is shown the view either way');
+  assert.ok(gate < body.indexOf('updateBoardMeta('), 'before anything reaches the board');
+  // The cluster menu's item is the one way to write it with the files sidebar on.
+  assert.match(app, /onSetOpensAs=\{\(id, v\) => setView\(v, 'sidebar_menu', id\)\}/);
 });

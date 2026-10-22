@@ -1,0 +1,9 @@
+/* filesPagePublic.css: what a shared link's full Files page has no sidebar to
+   bring, the sidebar's controls ("All files ⌄" and its menu, the search, the
+   tabs) and its materials. The app has them from ClusterSidebar, in its own
+   stylesheet; a shared link loads this (PublicBoardView, only for a cluster
+   that opens in Files), which Vite inlines from the same file. Importing
+   clusterSidebar.css itself from outside the app would split it out of the
+   app's stylesheet into a file of its own, one more download, a kilobyte
+   heavier, on every signed-in open (scripts/bundleBudget.mjs, appCss). */
+@import '../sidebar/clusterSidebar.css';

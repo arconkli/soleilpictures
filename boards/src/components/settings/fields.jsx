@@ -314,12 +314,14 @@ export function AvatarUploadRow({ src, fallbackColor, fallbackInitial, uploading
 }
 
 // ── Layout primitives ───────────────────────────────────────────────────
-export function SettingsCategory({ title, desc, children }) {
+// aside: a number the card is about, at the head's far end ("10 of 10").
+export function SettingsCategory({ title, desc, aside = null, children }) {
   return (
     <div className="settings-cat">
       <div className="settings-cat-head">
         <span className="settings-cat-title">{title}</span>
         {desc && <span className="settings-cat-desc">{desc}</span>}
+        {aside != null && <span className="settings-cat-aside">{aside}</span>}
       </div>
       <div className="settings-cat-body">
         {children}

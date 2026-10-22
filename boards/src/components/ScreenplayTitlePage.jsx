@@ -10,6 +10,7 @@
 // the `onCommit(patch)` writer, so there is a single docMeta observer.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // One transparent, auto-growing field that looks like text typed on the page.
 function TitleField({ value, placeholder, onCommit, className, ariaLabel, editable, multiline }) {
@@ -65,6 +66,8 @@ function TitleField({ value, placeholder, onCommit, className, ariaLabel, editab
         // Don't let the doc/canvas global shortcuts (or the modal's Escape =
         // close) fire while typing in a title field.
         e.stopPropagation();
+        // Mid-syllable, a key is the input method's (lib/composerKeys.js).
+        if (isComposingKey(e)) return;
         if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur(); return; }
         // Single-line fields commit on Enter instead of inserting a newline.
         if (!multiline && e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }

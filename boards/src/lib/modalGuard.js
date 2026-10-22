@@ -74,6 +74,14 @@ export function isTopModal(unregister) {
   return !!unregister?.isTop?.();
 }
 
+// The top layer right now, or null. A toolbar's popover leaves the keyboard
+// where it was (hooks/useAnchoredPopover), so it isn't a layer of its own: it
+// notes this when it opens and takes Escape only while the same layer is still
+// on top, so a dialog opened over it gets the key.
+export function topModal() {
+  return topEntry();
+}
+
 // ── Focus stays inside the top layer ──────────────────────────────────
 //
 // One Tab trap for every dialog that keeps focus in (Modal.jsx, and Settings,

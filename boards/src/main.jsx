@@ -2,21 +2,34 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode, isMsgQaMode, isSetupQaMode, isToolbarQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startBuildWatch } from './lib/buildWatch.js';
 import { initCapacitor } from './lib/capacitorInit.js';
 import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
-import { captureFbclid, installSpaPageViews } from './lib/metaPixel.js';
+import { captureFbclid, installSpaPageViews, loadPixelLater } from './lib/metaPixel.js';
 import { logClientError } from './lib/errorReporting.js';
 import { describeReason } from './lib/describeReason.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload, isCssPreloadError, reloadedRecently } from './lib/lazyWithReload.js';
 import { installDomMutationGuard } from './lib/domMutationGuard.js';
+import { toolbarLookAllowed, docLookAllowed } from './lib/appHost.js';
 import './styles/breakpoints.css';
 import './styles.css';
+
+// The toolbar look and the doc editor's look, while they're held: marked on
+// <html> once, before anything renders, so the CSS and lib/looks.js agree
+// from the first frame.
+if (typeof document !== 'undefined') {
+  if (toolbarLookAllowed()) document.documentElement.dataset.tb = 'a';
+  if (docLookAllowed()) document.documentElement.dataset.docLook = 'a';
+  // Their one tooltip, with the shortcut's keys in caps.
+  if (toolbarLookAllowed() || docLookAllowed()) {
+    import('./components/toolbar/tipHost.js').then((m) => m.installTipHost()).catch(() => {});
+  }
+}
 
 // DEV-only logic bridge for Playwright specs (first-value-upgrade.spec.js).
 // Dynamic + DEV-guarded so it never ships in the signed-out landing chunk.
@@ -46,6 +59,7 @@ const ChangelogPage   = lazyWithReload(() => import('./pages/ChangelogPage.jsx')
 const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.jsx').then(m => ({ default: m.OAuthConsentPage })));
 const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').then(m => ({ default: m.ResumePage })));
 const TemplateSharePage = lazyWithReload(() => import('./pages/TemplateSharePage.jsx').then(m => ({ default: m.TemplateSharePage })));
+const FileSharePage = lazyWithReload(() => import('./components/fileShare/FileSharePage.jsx').then(m => ({ default: m.FileSharePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -103,9 +117,11 @@ if (typeof window !== 'undefined') {
 // reads getFbCookies(), so a conversion attributes to the ad even days later.
 // Then fire PageView on SPA route changes too — the base snippet in index.html
 // only fires the cold load. Same rationale as the CWA spa:true beacon below: our
-// hand-rolled router navigates via the History API.
+// hand-rolled router navigates via the History API. The pixel's script itself
+// waits until the page has done what the visit came for (lib/pixelSchedule.js).
 captureFbclid();
 installSpaPageViews();
+loadPixelLater({ signedIn: hasCachedSession() });
 
 // Cloudflare Web Analytics beacon. Lazy-injected when VITE_CF_ANALYTICS_TOKEN
 // is set so dev / unconfigured deploys silently skip it. The `spa: true`
@@ -177,6 +193,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined' &&
 // non-account-holders can preview a board without signing up. Any
 // other path falls through to the normal app + auth gate.
 const shareMatch = window.location.pathname.match(/^\/share\/([0-9a-f-]{36})\/?$/i);
+const fileShareMatch = window.location.pathname.match(/^\/f\/([0-9a-f-]{36})\/?$/i);
 
 // /t/<uuid> = a shared GRID TEMPLATE (migration 0265). Same trust model as
 // /share — the token in the path is the whole authorization — but a far lighter
@@ -289,7 +306,7 @@ const showPublicPricing = !!pricingMatch && !hasCachedSession();
 // are in the entry chunk, so nothing suspends on the way to it.
 const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
   || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch
-  || resumeMatch);
+  || fileShareMatch || resumeMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
@@ -385,6 +402,16 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
       </StrictMode>
     );
   });
+} else if (import.meta.env.DEV && isImportQaMode()) {
+  // Bulk-import QA (?importqa=1). Renders the tray, chip and ask dialog from
+  // fixtures. DEV guard drops it from production builds.
+  import('./local/ImportQaHarness.jsx').then(({ ImportQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ImportQaHarness />
+      </StrictMode>
+    );
+  });
 } else if (import.meta.env.DEV && isSchedQaMode()) {
   // Schedule QA (?schedqa=1). Pure logic bridge — installs
   // window.__soleilSchedTest + a ready flag the spec waits on. DEV guard drops
@@ -405,6 +432,69 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <TourQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isSidebarQaMode()) {
+  // Sidebar-files QA (?sidebarqa=1). The real <ClusterSidebar> in the real
+  // sidebar shell over fixture clusters and a fake of 0419's RPCs (the open
+  // cluster live, the rest paged), so the spec can drive shelves, Quick look,
+  // the finder, chips, sort, paging and resize. DEV guard drops it from
+  // production builds.
+  import('./local/SidebarQaHarness.jsx').then(({ SidebarQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <SidebarQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isToolbarQaMode()) {
+  // Toolbar QA (?toolbarqa=1). The toolbar look's parts as the mockup's parts
+  // sheet, and live for the primitives' spec. DEV guard drops it from
+  // production builds.
+  import('./local/ToolbarQaHarness.jsx').then(({ ToolbarQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ToolbarQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isMsgQaMode()) {
+  // Messages QA (?msgqa=1). The real <MessagesPanel> over an in-memory fake of
+  // the Supabase client (the harness installs it before it renders), so the
+  // spec can drive threads, peers, failures and screenshots with no backend.
+  // DEV guard drops it from production builds.
+  import('./local/MessagesQaHarness.jsx').then(({ MessagesQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <MessagesQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isSetupQaMode()) {
+  // First-run setup QA (?setupqa=1). The real AuthGate → TierRouter → setup
+  // steps over an in-memory fake of the Supabase client (the harness installs
+  // it before it renders). DEV guard drops it from production builds.
+  import('./local/SetupQaHarness.jsx').then(({ SetupQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <AppErrorBoundary>
+          <FeedbackProvider>
+            <SetupQaHarness />
+          </FeedbackProvider>
+        </AppErrorBoundary>
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isFileShareQaMode()) {
+  // Single-file share QA (?fileshareqa=<fixture>). The real <FileSharePage>
+  // over a fake of 0421's RPCs and the party's /file-share response, so the
+  // spec can drive every state, the viewers, the comment rail and the undo.
+  // DEV guard drops it from production builds.
+  import('./local/FileShareQaHarness.jsx').then(({ FileShareQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <FileShareQaHarness />
       </StrictMode>
     );
   });
@@ -492,6 +582,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <PublicBoardView slug={publicBoardMatch[1]} />
             ) : shareMatch ? (
               <PublicBoardView token={shareMatch[1]} />
+            ) : fileShareMatch ? (
+              <FileSharePage token={fileShareMatch[1]} />
             ) : templateShareMatch ? (
               <TemplateSharePage token={templateShareMatch[1]} />
             ) : oauthConsentMatch ? (

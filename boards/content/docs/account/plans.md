@@ -5,11 +5,11 @@ h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-10-17
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first — each cluster counts as one card — unlimited free collaborators, and any file at any size. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from {{fact:freeStorage}} to {{fact:creatorStorage}}. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+updated: 2026-10-21
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from {{fact:freeStorage}} to {{fact:creatorStorage}}. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 faq:
   - q: What is actually limited on the free plan?
-    a: Two things — total cards and total storage — {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and there is no separate limit on clusters — each one simply counts as a card.
+    a: Two things — total cards and total storage — {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
   - q: Do collaborators need to pay?
     a: No, and they never did — editors are free on every plan. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
   - q: If someone on my team upgrades, does my workspace get the higher limits?
@@ -21,7 +21,7 @@ faq:
   - q: Where do I enter a discount code?
     a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
   - q: Is there a free trial of {{fact:planName}}?
-    a: Yes, once you have built something. Accounts with a real cluster on them are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. During the trial your drive is {{fact:trialStorage}}; the full {{fact:creatorStorage}} comes with the first payment. One trial per account.
+    a: Yes, once you have built something, or the moment a drop is more than your free card limit holds. Accounts with a real cluster on them, and anyone whose drop runs past their free card limit, are offered {{fact:creatorTrialDays}} days of {{fact:planName}} inside the app — on the upgrade pill, on the prompts that appear as you build, when a drop will not fit, in Settings → Plan & billing, and on the upgrade screen itself. A card is required and nothing is charged until the trial ends; about three days before the first charge you get an email with the date and the amount, and cancelling before then costs nothing. During the trial your drive is {{fact:trialStorage}}; the full {{fact:creatorStorage}} comes with the first payment. One trial per account.
   - q: What happens to my work if I cancel, or my trial ends?
     a: Nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them.
 related:
@@ -45,7 +45,7 @@ page, drops it.
 
 - **{{fact:demoCardLimit}} cards** to build with
 - A **{{fact:freeStorage}}** drive — any file, at any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 The free plan stops at whichever limit you reach first.
@@ -168,7 +168,8 @@ plan: if {{fact:planName}} is canceled, the extra storage goes with it.
 
 ## Trying {{fact:planName}} first
 
-Once there is a real cluster on your account, Clusters offers you
+Once there is a real cluster on your account, or as soon as a drop or an import
+is more than your free card limit holds, Clusters offers you
 **{{fact:creatorTrialDays}} days of {{fact:planName}}** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
 on the prompts that show up as a cluster fills, when the files you drop will not
@@ -178,7 +179,8 @@ A card is required; nothing is charged until the trial ends, and cancelling
 before then costs nothing. About three days before the first charge, Clusters
 emails you the date and the amount, with a link to **Settings → Plan & billing**
 where you can cancel. It is one trial per account, and it is offered in the app
-rather than on this page — it is for people who have built something.
+rather than on this page — it is for people who have built something, or who
+are bringing in more than the free card limit holds.
 
 ## Billing
 

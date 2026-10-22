@@ -1,8 +1,9 @@
 // metaPixel.js — browser-side helpers for the Meta Pixel (window.fbq), plus the
 // bridge to server-side Conversions API (CAPI) for events that must be reliable.
 //
-// The base pixel snippet lives in boards/index.html and fires the initial
-// PageView on cold load. This module adds:
+// The base pixel snippet lives in boards/index.html: it queues init and the
+// cold-load PageView, and its script loads later (loadPixelLater below). This
+// module adds:
 //   • installSpaPageViews() — fire PageView on History API route changes (our
 //     hand-rolled router uses history.replaceState), so /welcome, /pricing, etc.
 //     register as pageviews. Deduped by pathname so frequent replaceState calls
@@ -19,10 +20,22 @@
 //
 // Everything is best-effort and never throws into the UI.
 
+import { urlCarriesLinkToken } from './linkTokens.js';
+import { afterBoot } from './afterBoot.js';
+
 const TRACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/track-conversion';
 
 function fbqReady() {
   return typeof window !== 'undefined' && typeof window.fbq === 'function';
+}
+
+// Global Privacy Control, honoured for everyone (2026-10-20). index.html skips
+// the pixel, so fbqReady() is false; and every body sent to a Conversions API
+// sender carries this flag, because Chrome has no GPC of its own and an
+// extension that adds it may set this property without the Sec-GPC header the
+// servers also read. src/lib/gpc.test.mjs holds both halves in place.
+export function gpcOn() {
+  try { return typeof navigator !== 'undefined' && navigator.globalPrivacyControl === true; } catch (_) { return false; }
 }
 
 // Durable _fbc fallback. The pixel sets the _fbc cookie from an fbclid on the
@@ -71,8 +84,9 @@ export function getFbCookies() {
 }
 
 // Fire a SPA route-change PageView. The base snippet already fired the cold load.
+// Never for an address holding a link's token: the pixel reports the full URL.
 export function trackPageView() {
-  if (!fbqReady()) return;
+  if (!fbqReady() || urlCarriesLinkToken(window.location)) return;
   try { window.fbq('track', 'PageView'); } catch (_) {}
 }
 
@@ -161,7 +175,7 @@ export async function trackRegistration(session, { skipAgeCheck = false } = {}) 
     await fetch(TRACK_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ event_name: 'CompleteRegistration', event_id: eventId, fbp, fbc }),
+      body: JSON.stringify({ event_name: 'CompleteRegistration', event_id: eventId, fbp, fbc, gpc: gpcOn() }),
     });
   } catch (_) {
     // Never throw into the auth flow.
@@ -196,12 +210,23 @@ export async function trackAdLead(session) {
     await fetch(TRACK_URL, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ event_name: 'Lead', event_id: eventId, fbp, fbc }),
+      body: JSON.stringify({ event_name: 'Lead', event_id: eventId, fbp, fbc, gpc: gpcOn() }),
     });
     try { localStorage.setItem(flag, '1'); } catch (_) {}
   } catch (_) {
     // Never throw into the enter-demo flow.
   }
+}
+
+// Add the pixel's script once the page has done what the visit came for (see
+// lib/afterBoot.js). Call once at startup; `signedIn` is main.jsx's
+// stored-session check. A page that skipped the pixel (GPC, a link's token) has
+// no window.__soleilPixel, so nothing loads.
+export function loadPixelLater({ signedIn = false } = {}) {
+  if (typeof window === 'undefined' || typeof window.__soleilPixel !== 'function') return;
+  afterBoot(() => { try { window.__soleilPixel(); } catch (_) {} }, {
+    signedInApp: signedIn && /^\/?$/.test(window.location.pathname),
+  });
 }
 
 // Patch the History API so SPA navigations fire PageView. Call once at startup.

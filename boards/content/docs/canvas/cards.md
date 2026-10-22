@@ -1,17 +1,17 @@
 ---
 title: Cards — Soleil Clusters
-metaDescription: Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, schedules, votes and nested clusters.
+metaDescription: Every card type in Soleil Clusters — images, notes, links, documents, PDFs, video, audio, palettes, shapes, grids, votes and nested clusters.
 h1: Cards
 navLabel: Cards
 section: canvas
 order: 1
-updated: 2026-10-11
-answer: A card is one thing on a board. Soleil Clusters has around fifteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, schedule, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
+updated: 2026-10-21
+answer: A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 faq:
   - q: How do I change what kind a card is?
     a: You do not convert cards between kinds. Create the kind you want and move the content across. The one exception is dropping a file, which picks the right kind for you automatically.
   - q: Is there a limit on cards?
-    a: The free Demo plan allows {{fact:demoCardLimit}} cards across every cluster you create. A cluster sits on its parent's canvas as a card and counts toward that total; there is no separate limit on clusters. Creator removes the limit.
+    a: The free Demo plan allows {{fact:demoCardLimit}} cards across every cluster you create. A cluster sits on its parent's canvas as a card, but that card is free, and there is no limit on clusters. Creator removes the limit.
   - q: What happens if I delete a card by accident?
     a: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster is a soft delete that stays in the trash for 30 days.
 related:
@@ -40,7 +40,6 @@ and duplication work identically on all of them.
 | **Shape** | [Rectangle, ellipse, line, arrow, diamond, triangle, hexagon, star](/docs/canvas/shapes-and-drawing) |
 | **Art canvas** | A bounded drawing surface that lives as a card |
 | **Grid** | A [split-cell layout](/docs/canvas/grids) — storyboards, contact sheets |
-| **Schedule** | A [real-date calendar](/docs/canvas/schedule) you can drop things into |
 | **Vote** | An [up/down poll](/docs/canvas/vote-cards) anchored anywhere |
 | **Cluster** | A [nested board](/docs/clusters), opening into its own canvas |
 | **Linked cluster** | A reference to a cluster that lives elsewhere |
@@ -56,8 +55,10 @@ Four ways, in rough order of speed:
 
 Cards you add without specifying a position are placed in free space, so a batch
 of twelve images arranges rather than stacking on top of what is already there.
-Files you add in [Files](/docs/clusters/list-view#adding-files-here) are the
+Files you add in [Files](/docs/clusters/list-view#adding-files-here), or with
+**Upload** in the [sidebar](/docs/clusters/sidebar#upload-and-storage), are the
 exception: they join the cluster but wait off the board until you place them.
+Every file in a cluster is listed in the sidebar's Files, on the board or not.
 
 ## What every card does
 
@@ -75,9 +76,11 @@ menu.
 standard clipboard behavior: the cut is undoable on the board it happened on,
 the paste on the board it landed on.
 
-**Move to another cluster** — drag cards onto a cluster card, or right-click →
-**Move to cluster…** to send them to any cluster in the workspace, including one
-that isn't on this canvas. A move is one action: its toast undoes both sides at
+**Move to another cluster** — drag cards onto a cluster card, or onto a
+cluster's name in the [sidebar](/docs/clusters/sidebar#moving-and-copying-files)
+to put them in its Files, off its board, or right-click → **Move to cluster…** to
+send them to any cluster in the workspace, including one that isn't on this
+canvas. A move is one action: its toast undoes both sides at
 once. Moving cards doesn't change how many you have.
 
 **Group** — select several and press `⌘G`. See [Groups](/docs/canvas/groups).
@@ -89,6 +92,10 @@ once. Moving cards doesn't change how many you have.
 
 **Copy link** — a deep link that opens the board with that card selected. Useful
 in a message or a doc.
+
+**On a touch screen** the selection carries a gold **⋯** at its top-right
+corner. It opens the menu a right-click would, for one card or for every
+selected card at once. Touch and hold a card to pick it up and move it.
 
 ## Info
 
@@ -145,7 +152,7 @@ Files waiting in Files, not on the board, are still cards and count the same.
 ### Dropping more files than you have room for
 
 If you drag in more files than your remaining allowance — or a folder, which
-counts a card for each file and one for each cluster it becomes — Clusters
+counts a card for each file, while the clusters it becomes are free — Clusters
 asks before it uploads anything. You can add the ones that fit, upgrade to keep
 them all, or cancel — and until you answer, nothing is uploaded and
 nothing on the canvas changes. Choosing to add the ones that fit always gives

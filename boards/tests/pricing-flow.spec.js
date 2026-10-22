@@ -23,11 +23,11 @@ import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL } from '../src/lib/billingCop
 // edge function's own logic.
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/functions/v1/verify-checkout-session', (route) =>
+  await page.route('**/functions/v1/verify-checkout-session*', (route) =>
     route.fulfill({ json: { activated: false, reason: 'not_paid_yet' } }));
-  await page.route('**/functions/v1/create-checkout-session', (route) =>
+  await page.route('**/functions/v1/create-checkout-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/pricing' } }));
-  await page.route('**/functions/v1/create-portal-session', (route) =>
+  await page.route('**/functions/v1/create-portal-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/settings/billing' } }));
   // /pricing now short-circuits to the SIGNED-OUT public page when no cached
   // Supabase session exists (main.jsx hasCachedSession). These specs exercise
@@ -120,14 +120,14 @@ test('pricing page states the price high, leads with the free action, and shows 
   await expect(page.locator('.pp-plan-free')).toContainText('Your current plan');
 
   // The free plan: the card cap is the only real limit. It is NOT view-only —
-  // 0188 made editor collaboration free for every tier — and there is no
-  // separate cap on clusters, but each one IS a card, so the list says that
-  // rather than "Unlimited clusters" (owner, 2026-10-01). This describes the
-  // plan a NEW account gets, so it is DEMO_CARD_LIMIT and not whatever cap the
-  // viewer's own account carries.
+  // 0188 made editor collaboration free for every tier — and clusters cost
+  // none of the cards since 0429 (CLUSTER_CARD_COST 0), so the list says that,
+  // still not "Unlimited clusters" (owner, 2026-10-01; publicClaims keeps it
+  // out). This describes the plan a NEW account gets, so it is DEMO_CARD_LIMIT
+  // and not whatever cap the viewer's own account carries.
   const free = page.locator('.pp-free-list');
   await expect(free).toContainText(`${DEMO_CARD_LIMIT} cards`);
-  await expect(free).toContainText('No separate limit on clusters');
+  await expect(free).toContainText('Clusters are free — they cost none of your cards');
   await expect(free).not.toContainText('Unlimited clusters');
   await expect(free).toContainText('Free collaboration');
   await expect(free).not.toContainText('View Mode only');
@@ -408,10 +408,21 @@ test('checkout success without a session_id shows a recovery card (no dead-end)'
 });
 
 test('a completed checkout shows a Welcome celebration before entering', async ({ page }) => {
-  await page.goto('/pricing/success?local=1&tier=paid&session_id=cs_test_celebrate');
+  // The beat is short (it enters the app ~1.2s after it shows), so look from
+  // the moment the page commits: its load event can come after the beat.
+  await page.goto('/pricing/success?local=1&tier=paid&session_id=cs_test_celebrate', { waitUntil: 'commit' });
+  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 10_000 });
+});
 
-  // Celebration appears immediately (it redirects to "/" ~2.4s later).
-  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 2000 });
+test('after the celebration the app opens in place, not on a second page load', async ({ page }) => {
+  await page.goto('/pricing/success?local=1&tier=paid&session_id=cs_test_in_place');
+  // A reload would take this with it. Set before the beat, which is short.
+  await page.evaluate(() => { window.__sameDocument = true; });
+  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 10_000 });
+  await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 });
+  expect(await page.evaluate(() => window.__sameDocument === true)).toBe(true);
+  // App was told this mount is not a page load's boot (App.jsx, bootAt('enter')).
+  expect(await page.evaluate(() => performance.getEntriesByName('boot:enter', 'mark').length)).toBe(1);
 });
 
 test('a pending waitlist user sees status + a skip-the-wait price from billingCopy', async ({ page }) => {
@@ -436,4 +447,20 @@ test('a waitlist user with no application is offered a path forward', async ({ p
 
   await expect(page.getByText('Pick a path to continue.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'See Pricing →' })).toBeVisible();
+});
+
+test('a click whose press did not begin on the backdrop does not close the screen', async ({ page }) => {
+  // On a phone the tap that opens the wall can land its click on the backdrop
+  // that has just appeared under the finger. Only a press that began there is
+  // a dismissal.
+  await page.goto('/?local=1&reset=1&tier=demo&cards=42&limit=50');
+  await page.locator('.upgrade-chip').click();
+  const modal = page.locator('.upgrade-modal');
+  await expect(modal).toBeVisible();
+
+  await page.locator('.upgrade-backdrop').dispatchEvent('click');
+  await expect(modal).toBeVisible();
+
+  await page.mouse.click(5, 5);
+  await expect(modal).toBeHidden();
 });

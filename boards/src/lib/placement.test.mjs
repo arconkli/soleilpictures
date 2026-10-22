@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isUnplaced, placedOf, countUnplaced, canUnplace, positionUnplaced, planPutOnBoard, besideContent, nearestFreeSpot,
+  layoutForPut, PUT_ON_BOARD_MAX,
 } from './placement.js';
 
 const card = (id, extra = {}) => ({ id, kind: 'image', x: 0, y: 0, w: 100, h: 100, ...extra });
@@ -72,6 +73,41 @@ test('Put on board never lands on what is already there — it takes the nearest
   // Nearest side of a 300×200 card from its own centre is above or below.
   assert.ok(Math.hypot(r.x + 100 - 1050, r.y + 75 - 500) < 300, JSON.stringify(r));
   assert.deepEqual(nearestFreeSpot([], { x: 5, y: 6 }, 10, 10), { x: 5, y: 6 });
+});
+
+test('justified Put: photographs in flush rows of one height, centred on the point, sizes in the patch', () => {
+  const all = [
+    card('a', { unplaced: true, w: 400, h: 300 }),
+    card('b', { unplaced: true, w: 300, h: 400 }),
+    card('c', { unplaced: true, w: 600, h: 300 }),
+    card('d', { unplaced: true, w: 400, h: 400 }),
+  ];
+  const plan = planPutOnBoard(all, ['a', 'b', 'c', 'd'], { x: 0, y: 0 }, { layout: 'justified' });
+  assert.equal(plan.length, 4);
+  for (const p of plan) {
+    assert.ok(p.patch.w > 0 && p.patch.h > 0, 'a resize writes the size');
+    assert.equal(p.patch.unplaced, false);
+  }
+  const src = new Map(all.map((c) => [c.id, c]));
+  for (const p of plan) {
+    const c = src.get(p.id);
+    assert.ok(Math.abs(p.patch.w / p.patch.h - c.w / c.h) < 0.05, `${p.id} keeps its shape`);
+  }
+  const rows = new Map();
+  for (const p of plan) rows.set(p.patch.y, [...(rows.get(p.patch.y) || []), p]);
+  for (const row of rows.values()) assert.equal(new Set(row.map((p) => p.patch.h)).size, 1, 'one height per row');
+  const left = Math.min(...plan.map((p) => p.patch.x)), right = Math.max(...plan.map((p) => p.patch.x + p.patch.w));
+  const top = Math.min(...plan.map((p) => p.patch.y)), bottom = Math.max(...plan.map((p) => p.patch.y + p.patch.h));
+  assert.ok(Math.abs((left + right) / 2) <= 1 && Math.abs((top + bottom) / 2) <= 1, 'centred');
+  assert.equal(planPutOnBoard(all, ['a'], { x: 0, y: 0 })[0].patch.w, undefined, 'the grid keeps sizes and leaves them out');
+});
+
+test('layoutForPut: only an all-photo set gets rows; the cap is the old folder drop\'s', () => {
+  assert.equal(layoutForPut([card('a'), card('b')]), 'justified');
+  assert.equal(layoutForPut([card('a'), card('p', { kind: 'pdf' })]), 'grid');
+  assert.equal(layoutForPut([card('v', { kind: 'video' })]), 'grid');
+  assert.equal(layoutForPut([]), 'grid');
+  assert.equal(PUT_ON_BOARD_MAX, 500);
 });
 
 test('with no point, Put on board goes just right of the board\'s content', () => {

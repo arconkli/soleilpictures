@@ -1,0 +1,1064 @@
+/* The sidebar that holds every file (ClusterSidebar.jsx). Everything here is
+   scoped under .app.sb-files or an .sbf- class, so the held build changes
+   nothing for anyone else.
+
+   Two parts: the clusters (a tree of names) and the files of one of them,
+   stacked (the files under the clusters) or side by side.
+
+   The look is the one the owner picked from four mockups (2026-10-18,
+   "B · Floating", artifact GnfNFQd8xHLebeSE6rYP5K): the sidebar is two glass
+   cards floating over the board, which runs on under them, in the material of
+   the floating top bar. The clusters' card holds the workspace, Home, Messages and the
+   tree; the files' card holds the files, the meter and the foot. Each card is
+   its own box (.sbf-card, in ClusterSidebar's .sbf-frame) and takes its own
+   size: every right and bottom edge, the corners and the gap between the
+   cards are handles (SidebarHandles; the owner picked "Each card" from a live
+   prototype, 2026-10-19). lib/sidebarLayout.js holds the sizes and gives them
+   to .sbf-frame as custom properties. The phone drawer is a panel, not cards:
+   there the frame and the cards are display:contents and .sb-mid (App's) is
+   the grid that places the parts.
+
+   The measures (fine pointer):
+   - cards 8px from the window's edges and 8px apart; radius 12; content 15px
+     inside a card's edge (23px from the sidebar's).
+   - rows 30px, 13px; headings 10.5px/600 capitals, spaced .08em, quiet ink.
+   - the cluster you're in is a raised chip (a grey fill in light) with a 3px
+     gold bar inside its left end. Gold otherwise only for focus, a filter
+     that's on, a selection and a drop target.
+   - Recent and Starred: a segmented control, a recessed track with the shown
+     source a raised chip. Search and "All files ⌄" side by side.
+   - file rows: a 24px thumbnail (radius 5, a hairline inside) or the kind's
+     icon bare, 10px before the name; length or size at the end.
+   - the meter: a 4px rounded bar over one line of 12px, Upload a raised chip.
+
+   Row heights in the files list are not decoration: ClusterShelves.jsx
+   LIST_HEIGHTS positions the rows of a long list by them, so a row here must
+   be exactly that tall (fine: shelf 36, file 30, more 30, note 30, empty 44;
+   coarse: shelf 44, file 44, more 44, note 44, empty 52). */
+
+/* ── The materials ───────────────────────────────────────────────────────── */
+.app.sb-files { grid-template-columns: var(--sb-w, 320px) 1fr; }
+/* The materials live on <body> too while the files sidebar is on (App sets
+   data-sb-files): Messages portals to <body>, outside .app, and wears them.
+   And on a page committed to the dark (.public-dark, styles.css), whose
+   shared Files list wears them (PublicBoardView): the dark ones whatever the
+   theme, as the page is. */
+.app.sb-files, body[data-sb-files], .public-dark {
+  --sbf-handle-ink: rgba(245, 245, 247, .34);
+  --sbf-glass: color-mix(in oklab, var(--bg-1) 88%, transparent);
+  --sbf-glass-line: #232328;
+  /* A hairline under each card and nothing softer. The board runs on under
+     the cards and the sidebar clips at its own edge, so a soft drop shadow
+     lifted nothing: it only darkened the board in the gaps, darkest between
+     the two cards where both fell (owner, 2026-10-19: "a weird dark tint in
+     the gaps"). */
+  --sbf-glass-shadow: 0 1px 1px rgba(0, 0, 0, .28);
+  --sbf-chip: var(--bg-4);
+  --sbf-chip-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .45);
+  --sbf-track: rgba(0, 0, 0, .3);
+  --sbf-field: rgba(0, 0, 0, .24);
+  --sbf-meter: rgba(245, 245, 247, .09);
+  --sbf-meter-fill: #a4a4ac;
+  --sbf-quiet: #74747c;
+  --sbf-count: rgba(245, 245, 247, .085);
+  --sbf-thumb-line: rgba(255, 255, 255, .11);
+  /* What floats over the board and has to read at once (a toast, a nudge,
+     ⌘K): the glass nearly solid, with a lift, since nothing holds it up. */
+  --sbf-solid: color-mix(in oklab, var(--bg-1) 96%, transparent);
+  --sbf-lift: 0 10px 30px rgba(0, 0, 0, .32);
+  --sbf-hover: color-mix(in srgb, var(--ink-0) 8%, transparent);
+}
+[data-theme='light'] .app.sb-files, [data-theme='light'] body[data-sb-files] {
+  --sbf-handle-ink: rgba(10, 10, 12, .26);
+  --sbf-glass: color-mix(in oklab, #fcfcfd 88%, transparent);
+  --sbf-glass-line: rgba(10, 10, 12, .08);
+  --sbf-glass-shadow: 0 1px 1px rgba(10, 10, 12, .06);
+  --sbf-chip: #ffffff;
+  --sbf-chip-shadow: 0 0 0 1px rgba(10, 10, 12, .07), 0 1px 2px rgba(10, 10, 12, .08);
+  --sbf-track: rgba(10, 10, 12, .055);
+  --sbf-field: rgba(10, 10, 12, .045);
+  --sbf-meter: rgba(10, 10, 12, .08);
+  --sbf-meter-fill: #7a7a82;
+  --sbf-quiet: #86868e;
+  --sbf-count: rgba(10, 10, 12, .065);
+  --sbf-thumb-line: rgba(10, 10, 12, .1);
+  --sbf-solid: color-mix(in oklab, #fcfcfd 96%, transparent);
+  --sbf-lift: 0 10px 30px rgba(10, 10, 12, .14);
+  --sbf-hover: color-mix(in srgb, var(--ink-0) 6%, transparent);
+}
+.app.sb-files.sb-collapsed { grid-template-columns: 0 1fr; }
+/* The sidebar is as wide as its cards, but the board keeps 420px of the
+   window (SIZES.room in lib/sidebarLayout.js); a narrow window takes from the
+   files first. */
+.app.sb-files.is-floating-chrome:not(.sb-collapsed) {
+  grid-template-columns: min(var(--sb-w, 320px), max(240px, calc(100vw - 420px))) 1fr;
+}
+/* The mobile shell (a phone, a portrait tablet: styles.css's query) is one
+   column, as it is without the files sidebar. The sidebar is a drawer there,
+   out of the grid, so .main is the grid's first item: under the two tracks
+   above it took the sidebar's, which the shell sets to 0px, and the board,
+   Files and Home drew nothing. */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .app.sb-files, .app.sb-files.sb-collapsed { grid-template-columns: 1fr; }
+}
+/* The handles straddle the cards' edges, but the sidebar is its own stacking
+   context (the grain layer isolates it), so their z-index can't lift them
+   over the surface next door. Lifting the sidebar does. */
+.app.sb-files > .sidebar { z-index: 2; }
+
+/* ── The parts, and the two cards ────────────────────────────────────────── */
+/* The phone drawer: .sb-mid is the grid, the frame and the cards don't box. */
+.app.sb-files .sidebar .sb-mid {
+  display: grid; padding: 0; gap: 0; overflow: hidden;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "top" "quick" "nav" "files" "meter" "foot";
+}
+.app.sb-files:not(.is-floating-chrome) .sbf-frame,
+.app.sb-files:not(.is-floating-chrome) .sbf-card { display: contents; }
+.app.sb-files .sb-mid .sb-top { grid-area: top; }
+.app.sb-files .sb-mid .sbf-quick { grid-area: quick; }
+.app.sb-files .sb-mid .sbf-nav { grid-area: nav; }
+.app.sb-files .sb-mid .sbf-files { grid-area: files; }
+.app.sb-files .sb-mid .sbf-meter { grid-area: meter; }
+.app.sb-files .sb-mid .sb-foot { grid-area: foot; }
+
+/* Floating: everywhere but the phone, two cards in .sbf-frame. Stacked, a
+   column: the clusters as tall as what's in them (their list stops at 42% of
+   the window) unless the divider set a height, the files down to the frame's
+   bottom. Side by side, a row, each card its own height. */
+.app.sb-files .sidebar:not(.is-mobile-open) { background-color: transparent; border-right-color: transparent; }
+/* No edge of its own either: a transparent border still took a pixel from the cards. */
+.app.is-floating-chrome > .sidebar { border-right-width: 0; }
+.app.is-floating-chrome .sidebar .sb-mid { display: block; position: relative; height: 100%; overflow: hidden; }
+.app.is-floating-chrome .sbf-frame {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--sbf-frame-h, 100%); max-height: 100%;
+  box-sizing: border-box; padding: 8px 0 8px 8px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+}
+.app.is-floating-chrome .sbf-frame.is-side { flex-direction: row; }
+.app.is-floating-chrome .sbf-card {
+  position: relative; box-sizing: border-box; display: flex; flex-direction: column;
+  min-width: 0; max-width: 100%; max-height: 100%; overflow: hidden;
+  border-radius: 12px; background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+          backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--sbf-glass-shadow);
+}
+/* Its hairline over everything in it, so nothing that runs to its edge covers it. */
+.app.is-floating-chrome .sbf-card::after {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  border: 1px solid var(--sbf-glass-line); border-radius: inherit;
+}
+.app.is-floating-chrome .sbf-card > * { flex: none; }
+/* The workspace menu drops from the top of the clusters' card: the card
+   doesn't clip it (nothing else in it reaches its edges), and lies over the
+   files' card so the menu does too. */
+.app.is-floating-chrome .sbf-card.is-tree {
+  flex: 0 1 auto; width: var(--sbf-tw, 312px); height: var(--sbf-th, auto); min-height: 132px;
+  overflow: visible; z-index: 2;
+}
+.app.is-floating-chrome .sbf-card.is-files { z-index: 1; }
+.app.is-floating-chrome .sbf-card.is-tree > .sbf-nav { flex: 1 1 auto; }
+/* From nothing, so the files take what the clusters leave rather than both
+   shrinking alike. */
+.app.is-floating-chrome .sbf-card.is-files { flex: 1 1 0; width: var(--sbf-fw, 312px); min-height: 220px; }
+.app.is-floating-chrome .sbf-card.is-files > .sbf-files { flex: 1 1 auto; }
+.app.is-floating-chrome .sbf-frame.is-side > .sbf-card.is-tree { min-width: 196px; }
+.app.is-floating-chrome .sbf-frame.is-side > .sbf-card.is-files { flex: 0 1 auto; height: var(--sbf-fh, 100%); min-width: 232px; }
+
+/* ── Hiding the files ─────────────────────────────────────────────────────── */
+/* The owner, 2026-10-19: "a way to hide/unhide the files bar. it needs to be
+   SUPER easy and SUPER obvious on how to get it back" (picked from four
+   mockups). The files' card has a heading like CLUSTERS with a word to hide
+   it; hidden, the card folds to that heading where it was, its word now Show,
+   with the foot under it, and the clusters' card takes the room (its list
+   uncapped: frameVars). Side by side folds the same way, under the clusters. */
+.sbf-files-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 32px; padding: 6px 9px 0 15px; box-sizing: border-box;
+}
+.sbf-files-heading + .sbf-files-head { padding-top: 4px; }
+.sbf-files-heading-label {
+  font: 600 10.5px/1.4 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sbf-quiet);
+}
+.sbf-files-hide {
+  height: 24px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  color: var(--ink-3); font: 500 12px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.sbf-files-hide:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-files-hide:focus-visible, .sbf-files-bar:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.app.is-floating-chrome .sbf-card.is-files.is-folded { flex: 0 0 auto; min-height: 0; width: var(--sbf-tw, 312px); }
+.sbf-card.is-files.is-folded > .sbf-files,
+.sbf-card.is-files.is-folded:not(.is-page-fold) > .sbf-meter { display: none; }
+.sbf-files-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; height: 42px; box-sizing: border-box; margin: 0; padding: 0 9px 0 15px;
+  border: 0; border-radius: 12px 12px 0 0; background: transparent; cursor: pointer; text-align: left;
+  transition: background-color var(--dur-fast) var(--ease);
+  animation: sbfFold var(--dur-base) var(--ease);
+}
+.sbf-files-bar:hover { background: var(--bg-hov); }
+.sbf-files-show {
+  flex-shrink: 0; display: inline-flex; align-items: center; height: 26px; padding: 0 11px; border-radius: 7px;
+  background: var(--sbf-count); color: var(--ink-0); font: 500 12px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.sbf-files-bar:hover .sbf-files-show { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
+/* Folded by the full Files page (direction A, preview only): the bar says
+   where the files are and offers the way back; the meter stays under it. */
+.sbf-files-note { margin-right: auto; margin-left: 2px; color: var(--ink-1); font: 500 12px/1 var(--font-sans); }
+.sbf-files-show.is-shrink { gap: 6px; padding: 0 10px 0 8px; }
+@keyframes sbfFold { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sbf-files-bar { animation: none; } }
+@media (pointer: coarse) {
+  .sbf-files-bar { height: 48px; }
+  .sbf-files-hide { height: 40px; padding: 0 12px; }
+  /* Its row holds the 40px Hide whole: a full list squeezed it to 32. */
+  .sbf-files-heading { flex-shrink: 0; min-height: 40px; padding-top: 2px; }
+}
+
+/* ── The handles (SidebarHandles) ────────────────────────────────────────── */
+/* Each card's right and bottom edges and corner, and the gap between the
+   cards: a line when you reach for one (after a beat, so passing over it
+   doesn't flash), gold while held or focused. They sit in a fixed layer over
+   the window, so the half of an edge outside its card isn't clipped. */
+.sbf-handles { position: fixed; inset: 0; z-index: 40; pointer-events: none; transition: opacity var(--dur-fast) var(--ease); }
+.sbf-handles.is-moving { opacity: 0; }
+/* Nor while the workspace menu is open: it may lie over an edge or the gap. */
+.app:has(.sbf-card .ws-menu) .sbf-handles { display: none; }
+.sbf-handles.is-moving .sbf-handle { pointer-events: none; }
+.sbf-handle { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: auto; touch-action: none; outline: none; }
+.sbf-handle.is-v { cursor: ew-resize; }
+.sbf-handle.is-h, .sbf-handle.is-grip { cursor: ns-resize; }
+.sbf-handle.is-corner { cursor: nwse-resize; }
+.sbf-handle::after {
+  content: ''; position: absolute; border-radius: 1px; background: var(--sbf-handle-ink);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+}
+.sbf-handle.is-v::after { top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; }
+.sbf-handle.is-h::after { left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; }
+.sbf-handle.is-grip::after { left: 50%; top: 50%; width: 28px; height: 3px; margin: -1.5px 0 0 -14px; border-radius: 2px; }
+.sbf-handle.is-corner::after { content: none; }
+.sbf-handle svg { position: absolute; left: 0; top: 0; overflow: visible; opacity: 0; transition: opacity var(--dur-fast) var(--ease); }
+.sbf-handle svg path { fill: none; stroke: var(--sbf-handle-ink); stroke-width: 2; stroke-linecap: round; }
+.sbf-handle:hover::after, .sbf-handle:hover svg { opacity: 1; transition-delay: .15s; }
+.sbf-handle.is-held::after, .sbf-handle:focus-visible::after { opacity: 1; background: var(--soleil); transition-delay: 0s; }
+.sbf-handle.is-held svg, .sbf-handle:focus-visible svg { opacity: 1; transition-delay: 0s; }
+.sbf-handle.is-held svg path, .sbf-handle:focus-visible svg path { stroke: var(--soleil); }
+/* A finger has no hover to find them by: each edge between a card and what's
+   beside it shows a grip at rest, a short pill like the stacked cards' (and a
+   tablet's own split view's), gold while held. The corner's square sits mostly
+   outside its card under a finger (lib/sidebarLayout.js), so its arc moves out
+   onto the card's corner. */
+@media (pointer: coarse) {
+  .sbf-handle.is-v::after { top: 50%; bottom: auto; height: 28px; width: 3px; margin: -14px 0 0 -1.5px; border-radius: 2px; }
+  .sbf-handle.is-v::after, .sbf-handle.is-grip::after { opacity: 1; }
+  .sbf-handle.is-corner svg { left: -10px; top: -10px; }
+}
+/* Where two edges line up while you drag one to the other: the bottoms (a
+   line across), or stacked, the right edges (a line down). */
+.sbf-guide { position: absolute; left: 0; top: 0; width: 0; height: 0; border-top: 1px dashed var(--soleil); opacity: 0; transition: opacity .1s var(--ease); }
+.sbf-guide.is-v { border-top: 0; border-left: 1px dashed var(--soleil); }
+.sbf-guide.is-on { opacity: .85; }
+body.sbf-sizing,
+body.sbf-sizing * { cursor: var(--sbf-drag-cursor, default) !important; user-select: none !important; }
+/* .app eases its columns for collapse; while dragging, the edge must stay
+   under the pointer instead of trailing it. */
+body.sbf-sizing .app,
+.app.sbf-at-once { transition: none !important; }
+
+/* The board runs on under the cards. They float over the canvas, so the gaps
+   around and between them show the board itself (owner, 2026-10-18: "we
+   should be able to see the actual board behind it in the gaps instead of
+   just black"), and a press, a scroll or a drop in a gap lands on the board.
+   Only the painting reaches under the sidebar: the canvas's box, which it
+   measures, fits and frames by, stays beside it, so nothing on the board
+   moves and a fit still centres in the part you can see. Desktop only
+   (.is-floating-chrome); the phone drawer is a panel.
+   - The sidebar paints nothing of its own (nor its grain) and lets presses
+     through; the cards and all that's on them take them back.
+   - The main pane's canvas paints past its left edge (clip-path), where its
+     ground, drawn on a canvas, widens itself under the sidebar. A strip in
+     its ::before is what a press in a gap lands on (a press on a pseudo-
+     element lands on its element); it paints nothing. The wrappers between it and
+     .app stop clipping; .app clips instead, so a card far off the board
+     can't make the page scroll. */
+.app.is-floating-chrome > .sidebar { pointer-events: none; }
+.app.is-floating-chrome > .sidebar::after { display: none; }
+.app.is-floating-chrome > .sidebar > *,
+.app.is-floating-chrome > .sidebar .sbf-card { pointer-events: auto; }
+.app.is-floating-chrome > .sidebar > .sb-mid,
+.app.is-floating-chrome > .sidebar .sbf-frame { pointer-events: none; }
+.app.is-floating-chrome { overflow: clip; }
+/* Between the surface and FilesDock sits SurfaceErrorBoundary's root, a
+   display:contents box: no clipping of its own, but a child combinator across
+   it matches nothing, which is how these first shipped doing nothing at all. */
+.app.is-floating-chrome .split-wrap,
+.app.is-floating-chrome .split-pane:first-child,
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas,
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl { overflow: visible; }
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap {
+  overflow: visible; clip-path: inset(0 0 0 -100vw);
+  /* The ground drawn on a canvas (CanvasSurface measureGround) widens itself
+     under the sidebar when this says so. CanvasSurface also holds the board
+     still on screen when this canvas's left edge moves with the sidebar's. */
+  --cnv-ground-bleed: 1;
+}
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw;
+}
+/* While a cluster loads, its loading screen covers the board; it covers the
+   ground under the sidebar too, or the gaps show a board the rest hides. */
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .board-loading-overlay::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw; background: inherit;
+}
+/* The canvas's grain lies over its ground (3%; lighter in dark, darker in light),
+   so ground drawn under the sidebar without it read as a darker strip in every
+   gap (owner, 2026-10-19). One layer, run on under the sidebar: no seam. */
+.app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap > .grain-canvas {
+  left: -100vw;
+}
+
+/* ── The top: the workspace, search everywhere, collapse ─────────────────── */
+.app.sb-files .sb-mid .sb-top { padding: 3px 7px 2px; }
+/* Whose workspace it is, under its name, and its members at the end of that
+   line rather than on one of their own. The drawer's own rows (Version
+   history, Focus view, Admin) take the whole width. */
+.app.sb-files .sb-mid .sb-top {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+}
+.app.sb-files .sb-top .sb-mid-head,
+.app.sb-files .sb-top > .sb-row { grid-column: 1 / -1; }
+.app.sb-files .sb-top .sb-mid-head { padding: 0; gap: 2px; }
+.app.sb-files .sb-top .sb-ws-trigger { flex: 0 1 auto; margin-right: auto; height: 32px; padding: 0 8px; border-radius: 7px; }
+/* ⌄ beside the name it opens, not pushed out to the icons. */
+.app.sb-files .sb-top .sb-ws-name { flex: 0 1 auto; }
+.app.sb-files .sb-top .sb-ws-avatar:not(.sb-ws-avatar-img) {
+  width: 20px; height: 20px; border-radius: 6px; background: var(--bg-4); color: var(--ink-0); font-size: 11px;
+}
+[data-theme='light'] .app.sb-files .sb-top .sb-ws-avatar:not(.sb-ws-avatar-img) { background: #e4e4e8; }
+.app.sb-files .sb-top .sb-ws-chev { color: var(--ink-3); }
+.app.sb-files .sb-top .sb-mid-collapse,
+.sb-mid-search {
+  flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px;
+  display: grid; place-items: center; background: transparent; color: var(--ink-2); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.app.sb-files .sb-top .sb-mid-collapse:hover,
+.sb-mid-search:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sb-mid-search:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+/* The line under the name says who's here (their faces, then "Maya and Jon
+   are here") or whose workspace it is, under the name's first letter (36px
+   in: the trigger's 8 and the 20px mark's 8 more), and nothing when it's
+   only yours (lib/sidebarWho.js). */
+.app.sb-files .sb-top .sbf-who {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; min-width: 0;
+  margin-top: -3px; padding: 0 8px 7px 36px;
+  font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); white-space: nowrap;
+}
+.sbf-who-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sbf-who-faces { display: flex; flex-shrink: 0; }
+.sbf-who-face {
+  width: 15px; height: 15px; margin-left: -4px; border-radius: 50%; display: grid; place-items: center;
+  box-shadow: 0 0 0 1.5px var(--bg-1); color: rgba(10, 10, 12, .84); font: 700 7.5px/1 var(--font-sans);
+}
+.sbf-who-face:first-child { margin-left: 0; }
+
+/* Home and Messages, a row of words each (ClusterSidebar QuickBtn), the words
+   in the clusters' names column: 24px in, as Studio's name is past its
+   chevron. */
+.sbf-quick { display: flex; flex-direction: column; gap: 1px; padding: 2px 7px 4px; }
+.sbf-quickbtn {
+  position: relative; display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px 0 24px;
+  border: 0; border-radius: 6px; background: transparent; text-align: left;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.sbf-quickbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-quickbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-quick-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Unread is a plain number, as the sidebar's other counts are; the row's
+   words go bright while there is any. */
+.sbf-quick-count {
+  flex-shrink: 0; color: var(--ink-0); font: 600 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.sbf-quickbtn:has(.sbf-quick-count) { color: var(--ink-0); }
+/* Messages open: pressed, the chip without the bar. */
+.sbf-quickbtn.is-pressed { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+[data-theme='light'] .sbf-quickbtn.is-pressed { background: rgba(10, 10, 12, .07); box-shadow: none; }
+
+/* What you're in: a raised chip with a gold bar inside its left end. The
+   tree's rows, Shared's, a tag's, Home's and Messages' all mark it so. */
+.app.sb-files .sb-mid .sb-row.active,
+.app.sb-files .sb-tag-row.active,
+.sbf-quickbtn.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+[data-theme='light'] .app.sb-files .sb-mid .sb-row.active,
+[data-theme='light'] .app.sb-files .sb-tag-row.active,
+[data-theme='light'] .sbf-quickbtn.is-on { background: rgba(10, 10, 12, .07); box-shadow: none; }
+.app.sb-files .sb-mid .sb-row.active::before,
+.app.sb-files .sb-tag-row.active::before,
+.sbf-quickbtn.is-on::before {
+  content: ''; position: absolute; left: 3px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 2px; background: var(--soleil);
+}
+.app.sb-files .sb-tag-row { position: relative; }
+
+/* Full Files shrinks back into the sidebar with this: shown at rest, not only
+   on hover, since it is the way back. */
+.app.sb-files .cbt-shrink { border-color: var(--line-2); background: var(--bg-3); color: var(--ink-1); }
+.app.sb-files .cbt-shrink:hover { border-color: var(--line-3); color: var(--ink-0); }
+
+/* ── The clusters ────────────────────────────────────────────────────────── */
+/* As much height as they need up to about two fifths of the window when
+   the files are under them (--sbf-nav-max; the divider changes that); side
+   by side, their card's. */
+.app.sb-files .sb-mid .sbf-nav {
+  min-height: 0; max-height: var(--sbf-nav-max, 42vh); overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain; padding: 0 7px 8px;
+}
+.app.sb-files .sb-list.sbf-nav.fade-bottom:not(.fade-top) {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+}
+
+.app.sb-files .sb-mid .sb-row { height: 30px; font-size: 13px; border-radius: 6px; }
+
+/* Section headings: small spaced capitals in a quiet ink, their fold
+   chevron after the word when you reach for it (or while folded), + too. */
+.app.sb-files .sb-mid .sb-eyebrow,
+.app.sb-files .sb-mid .sb-eyebrow span { text-transform: uppercase; letter-spacing: .08em; }
+.app.sb-files .sb-mid .sb-eyebrow { font: 600 10.5px/1.4 var(--font-sans); color: var(--sbf-quiet); }
+.app.sb-files .sb-mid .sb-boards-head,
+.app.sb-files .sb-mid .sb-tags-head,
+.app.sb-files .sb-mid .sb-shared-head { min-height: 32px; padding: 10px 8px 4px; gap: 6px; }
+.app.sb-files .sb-mid .sb-boards-head:hover,
+.app.sb-files .sb-mid .sb-tags-head:hover,
+.app.sb-files .sb-mid .sb-shared-head:hover { color: var(--ink-1); }
+.app.sb-files .sb-boards-chev,
+.app.sb-files .sb-tags-chev,
+.app.sb-files .sb-shared-chev { order: 1; transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease); }
+.app.sb-files .sb-boards-chev.is-open,
+.app.sb-files .sb-tags-chev.is-open,
+.app.sb-files .sb-shared-chev.is-open { opacity: 0; }
+.app.sb-files .sb-boards-add,
+.app.sb-files .sb-tags-add {
+  order: 2; width: 22px; height: 22px; border-radius: 6px; opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.app.sb-files .sb-boards-head:hover .sb-boards-chev,
+.app.sb-files .sb-tags-head:hover .sb-tags-chev,
+.app.sb-files .sb-shared-head:hover .sb-shared-chev,
+.app.sb-files .sb-boards-head:focus-visible .sb-boards-chev,
+.app.sb-files .sb-boards-head:hover .sb-boards-add,
+.app.sb-files .sb-tags-head:hover .sb-tags-add,
+.app.sb-files .sb-boards-add:focus-visible,
+.app.sb-files .sb-tags-add:focus-visible { opacity: 1; }
+.app.sb-files .sb-boards-count, .app.sb-files .sb-tags-head-count, .app.sb-files .sb-shared-count { display: none; }
+
+/* Cluster rows: the name alone (and an upload's ↑ 3), the chevron where the
+   text starts, a level 16px in. */
+.sb-tree-row.is-files { height: 30px; gap: 4px; padding-right: 8px; font-size: 13px; font-weight: 500; color: var(--ink-1); }
+.sb-tree-row.is-files.active { color: var(--ink-0); font-weight: 500; }
+.app.sb-files .sb-tree-row.is-files .sb-tree-chev { width: 12px; height: 12px; }
+.app.sb-files .sb-tree-row.is-files .sb-tree-chev,
+.app.sb-files .sb-row.sb-tree-row.is-ancestor .sb-tree-chev { color: var(--ink-3); opacity: 1; }
+.app.sb-files .sb-tree-row.is-files:hover .sb-tree-chev { color: var(--ink-1); }
+.sb-tree-row.is-files .sb-tree-chev svg { transition: transform var(--dur-fast) var(--ease); }
+.sb-tree-row.is-files .sb-tree-chev.is-open svg { transform: rotate(90deg); }
+.sbf-status { margin-left: auto; padding-left: 6px; color: var(--ink-2); font: 500 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sb-tree-row.is-files.is-drop-target { box-shadow: inset 0 0 0 1.5px var(--soleil); }
+
+/* "All clusters": a way out, not a cluster: quieter, and no mark of its own
+   (!important: Icon sets display:block inline). */
+.app.sb-files .sb-row-all { padding-left: 24px; gap: 6px; color: var(--ink-2); }
+.app.sb-files .sb-row-all svg { display: none !important; }
+
+/* Shared with me: names only, as the tree. */
+.app.sb-files .sb-shared-group-head { padding: 4px 8px 4px 24px; font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); }
+.app.sb-files .sb-shared-rows { padding-left: 0; }
+.app.sb-files .sb-shared-row { padding-left: 24px; }
+.app.sb-files .sb-shared-row .sb-dot { display: none; }
+
+/* Tags: the tag's colour where the chevrons are, its name with the clusters'. */
+.app.sb-files .sb-tag-row {
+  height: 30px; padding: 0 8px 0 10px; gap: 10px; border-left: 0; border-radius: 6px;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans);
+}
+.app.sb-files .sb-tag-row-count { font: 400 12px/1 var(--font-sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.app.sb-files .sb-tags-empty { padding: 4px 8px 8px; font: 400 12px/1.45 var(--font-sans); }
+
+/* ── The files ───────────────────────────────────────────────────────────── */
+.sbf-files {
+  min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px;
+  /* A row's thumbnail and the gap after it: where a file's name starts. */
+  --sbf-thumb: 24px; --sbf-gap: 10px;
+}
+.sbf-files.is-dropping { box-shadow: inset 0 0 0 2px var(--soleil); }
+/* A card dragged off the board over a cluster outside it lights the place it
+   would go, as a drag from Files does (CanvasSurface sets data-card-drop: the
+   drag is the board's, and React doesn't own the attribute). */
+.sb-tree-row.is-files[data-card-drop], .sb-shared-row[data-card-drop] { box-shadow: inset 0 0 0 1.5px var(--soleil); }
+.sbf-files[data-card-drop] { box-shadow: inset 0 0 0 2px var(--soleil); }
+.ft[data-card-drop] { border-color: var(--soleil); background: var(--soleil-soft); }
+.list-wrap[data-card-drop] { outline: 1.5px dashed color-mix(in srgb, var(--soleil) 65%, transparent); outline-offset: -6px; }
+
+/* What the files show: the cluster, Recent or Starred, a segmented control,
+   the shown one a raised chip. In a narrow card, each is as wide as its word
+   and they share what's left over; when a name is too long, only the name
+   gives way ("Recent" and "Starred" never do). In a wide one, each is as wide
+   as its word. ⤢ (the full Files page) and the split toggle sit after it,
+   quiet until you reach for the header (and full side by side, where the
+   toggle is the way back). */
+.sbf-files-head {
+  display: flex; align-items: center; gap: 4px; padding: 8px 7px 6px;
+  container-type: inline-size;
+}
+.sbf-tabs {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 2px;
+  padding: 2px; border-radius: 9px; background: var(--sbf-track);
+}
+.sbf-tab {
+  position: relative; flex: 1 1 auto; min-width: 0; height: 26px; padding: 0 8px;
+  border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+  color: var(--ink-2); font: 600 12px/1 var(--font-sans); white-space: nowrap; text-align: center;
+  transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.sbf-tab + .sbf-tab { flex-shrink: 0; }
+.sbf-tab-label { display: block; overflow: hidden; text-overflow: ellipsis; }
+.sbf-tab:hover { color: var(--ink-0); }
+.sbf-tab.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+.sbf-tab:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+@container (min-width: 360px) {
+  .sbf-tabs { flex: 0 1 auto; }
+  .sbf-tab { flex: 0 1 auto; padding: 0 14px; }
+}
+
+.sbf-iconbtn {
+  flex-shrink: 0; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--ink-2); display: grid; place-items: center; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.sbf-iconbtn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-iconbtn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-files-head .sbf-iconbtn { opacity: .5; }
+.sbf-files-head:hover .sbf-iconbtn,
+.sbf-files-head .sbf-iconbtn:focus-visible,
+.sbf-frame.is-side .sbf-files-head .sbf-iconbtn { opacity: 1; }
+/* Side by side kept by the button: a choice in force, so a gold hairline,
+   as "All files ⌄" has while it filters. */
+.sbf-files-head .sbf-iconbtn.is-kept { color: var(--ink-0); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent); }
+/* Too narrow for them, they go: the header is 298px inside the card at the
+   default 320, 218px at the narrowest. Stacked, the toggle goes first; side by
+   side it stays (it's the way back to stacked, and side by side kept by it has
+   no other) and ⤢ goes. */
+@container (max-width: 269px) {
+  .sbf-frame:not(.is-side) .sbf-files-head .sbf-iconbtn.is-reveal { display: none; }
+  .sbf-frame.is-side .sbf-files-head .sbf-iconbtn.is-expand { display: none; }
+}
+.sbf-iconbtn.is-slot { visibility: hidden; pointer-events: none; }
+@container (max-width: 235px) { .sbf-files-head .sbf-iconbtn.is-expand { display: none; } }
+
+/* The tab's panel: search and "All files ⌄" side by side, then the list. */
+.sbf-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.sbf-files-tools { display: flex; align-items: center; gap: 4px; padding: 0 7px 4px; }
+.sbf-search {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 4px 0 8px;
+  border: 0; border-radius: 8px; color: var(--ink-3); background: var(--sbf-field);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.sbf-search:focus-within { box-shadow: inset 0 0 0 1px var(--soleil); }
+.sbf-search input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; padding: 0;
+  color: var(--ink-0); font: 500 13px/1 var(--font-sans);
+}
+.sbf-search input::placeholder { color: var(--ink-3); }
+.sbf-search input:focus, .sbf-search input:focus-visible { outline: none; box-shadow: none; }
+.sbf-search input::-webkit-search-cancel-button { display: none; }
+.sbf-search-clear {
+  flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 5px; background: transparent; color: var(--ink-3); cursor: pointer;
+}
+.sbf-search-clear:hover { color: var(--ink-0); }
+
+/* What the list shows ("All files ⌄"), with the sort and the grouping in its
+   menu. A filter other than All is a choice in force: a gold hairline. */
+.sbf-filter { position: relative; flex-shrink: 0; }
+.sbf-filter-btn {
+  display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); cursor: pointer;
+  font: 500 12px/1 var(--font-sans); white-space: nowrap;
+}
+.sbf-filter-btn:hover, .sbf-filter-btn.is-open { color: var(--ink-0); background: var(--bg-hov); }
+.sbf-filter-btn.is-on { color: var(--ink-0); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent); }
+.sbf-filter-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-filter-caret { display: grid; place-items: center; color: var(--ink-3); }
+
+/* The menu, as the app's menus look (.ctx-menu, the Files page's View menu).
+   Portaled and fixed (ClusterSidebar places it), so nothing clips it. */
+.sbf-menu {
+  position: fixed; z-index: 2147483600; min-width: 184px; padding: 4px;
+  display: flex; flex-direction: column; gap: 1px; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--bg-3); border: 1px solid color-mix(in srgb, var(--ink-0) 10%, transparent);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-3);
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+}
+.sbf-menu-label { flex-shrink: 0; padding: 8px 10px 4px 28px; color: var(--ink-3); font: 600 11px/1 var(--font-sans); }
+.sbf-menu-sep { flex-shrink: 0; height: 1px; margin: 4px 6px; background: var(--line-2); }
+.sbf-menu-item {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 10px 0 28px;
+  position: relative; border: 0; border-radius: var(--radius); background: transparent;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans); text-align: left; cursor: pointer;
+}
+/* As the app's menus: a hovered item lifts by a tint of ink (they sit on
+   --bg-3, which --bg-hov is darker than in dark); the keyboard's item is gold. */
+.sbf-menu-item:hover { background: color-mix(in srgb, var(--ink-0) 7%, transparent); color: var(--ink-0); }
+.sbf-menu-item:focus-visible { background: var(--soleil-soft); color: var(--ink-0); outline: none; box-shadow: none; }
+/* The check is drawn, not read: aria-checked says it (an empty alt keeps the
+   mark out of the item's name, "All files 48", not "✓ All files 48"). */
+.sbf-menu-item.is-on::before { content: '✓'; content: '✓' / ''; position: absolute; left: 10px; color: var(--soleil); font-size: 12px; }
+.sbf-menu-count { margin-left: auto; padding-left: 16px; color: var(--ink-3); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+
+/* The list. Its edges fade only where there's more to scroll to (the
+   clusters' list does the same); a new source fades in from the top. */
+.sbf-files-list {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  padding: 0 7px 12px;
+}
+.sbf-files-list.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 32px), transparent 100%);
+}
+.sbf-files-list.fade-top:not(.fade-bottom) {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 20px);
+}
+.sbf-files-list.fade-bottom:not(.fade-top) {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent 100%);
+}
+.sbf-files-body { animation: sbf-source-in var(--dur-fast) var(--ease); }
+@keyframes sbf-source-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sbf-files-body { animation: none; } }
+.sbf-files-empty { padding: 12px 8px; color: var(--ink-3); font: 400 13px/1.5 var(--font-sans); }
+
+/* Starred clusters, by name, above the starred files, in the names' column. */
+.sbf-starred-head { padding-left: 8px; }
+.sbf-file.sbf-cluster-link { padding-left: calc(8px + var(--sbf-thumb) + var(--sbf-gap)); }
+
+/* A section per kind of file, its heading the same small capitals as the
+   clusters' sections, with some air above it. The heading opens and closes
+   its section; notes, links and the rest start closed, so under the files
+   they read as a summary: "NOTES 20 ›". The caret shows on a closed heading,
+   and on an open one only when reached for. */
+.sbf-block { position: relative; }
+.sbf-block.is-windowed .sbf-slot { position: absolute; left: 0; right: 0; }
+.sbf-shelf { box-sizing: border-box; height: 36px; display: flex; align-items: stretch; padding-right: 4px; }
+.sbf-shelf-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 6px;
+  padding: 0 0 9px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; text-align: left;
+  color: var(--sbf-quiet); font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase;
+  transition: color var(--dur-fast) var(--ease);
+}
+.sbf-shelf-toggle:not(.is-static):hover { color: var(--ink-1); }
+.sbf-shelf-toggle.is-static { cursor: default; }
+.sbf-shelf-toggle:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-shelf-count { color: var(--ink-3); font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.sbf-shelf-caret {
+  display: grid; place-items: center; width: 10px; height: 10px; margin-bottom: -1px;
+  color: var(--ink-3); opacity: 0; transform: rotate(90deg);
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.sbf-shelf.is-closed .sbf-shelf-caret { transform: none; }
+.sbf-shelf.is-closed .sbf-shelf-caret,
+.sbf-shelf:hover .sbf-shelf-caret,
+.sbf-shelf-toggle:focus-visible .sbf-shelf-caret { opacity: 1; }
+.sbf-shelf-open {
+  align-self: flex-end; margin-bottom: 3px; width: 24px; height: 24px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink-3); cursor: pointer; opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.sbf-shelf:hover .sbf-shelf-open, .sbf-shelf-open:focus-visible { opacity: 1; }
+.sbf-shelf-open:hover { color: var(--ink-1); background: var(--bg-hov); }
+
+/* One row per file: a small thumbnail (or its kind's icon, bare) beside its
+   name, its length or size at the end. */
+.sbf-file {
+  box-sizing: border-box; width: 100%; height: 30px; display: flex; align-items: center; gap: var(--sbf-gap);
+  padding: 0 8px 0 0; border: 0; border-radius: 6px; background: transparent;
+  color: var(--ink-1); font: 500 13px/1 var(--font-sans); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.sbf-file:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-file:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-file-thumb, .sbf-file-icon {
+  flex: 0 0 var(--sbf-thumb); width: var(--sbf-thumb); height: var(--sbf-thumb);
+  display: grid; place-items: center;
+}
+.sbf-file-thumb { position: relative; border-radius: 5px; overflow: hidden; background: var(--bg-3); }
+/* A hairline inside the photo, so a dark one doesn't melt into the card. */
+.sbf-file-thumb::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--sbf-thumb-line);
+}
+.sbf-file-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sbf-file-icon { color: var(--ink-2); }
+.sbf-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbf-file-where {
+  flex-shrink: 1; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-3); font: 400 12px/1 var(--font-sans);
+}
+.sbf-file-meta { flex-shrink: 0; color: var(--ink-3); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.sbf-stored-dot {
+  flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--ink-3);
+  box-sizing: border-box;
+}
+.sbf-star-mark { flex-shrink: 0; color: var(--ink-2); font-size: 10px; }
+
+/* "Show 25 more" sits under the names it adds to. */
+.sbf-more { box-sizing: border-box; height: 30px; display: flex; align-items: center; gap: 14px; }
+.sbf-more > :first-child { margin-left: calc(var(--sbf-thumb) + var(--sbf-gap)); }
+.sbf-more-btn {
+  border: 0; padding: 4px 0; background: transparent; cursor: pointer;
+  color: var(--ink-2); font: 500 12px/1 var(--font-sans);
+}
+.sbf-more-btn:hover { color: var(--ink-0); text-decoration: underline; text-underline-offset: 3px; }
+.sbf-more-btn.is-less { color: var(--ink-3); }
+.sbf-note {
+  box-sizing: border-box; height: 30px; color: var(--ink-3);
+  font: 400 13px/30px var(--font-sans);
+}
+.sbf-note.is-empty { height: 44px; display: flex; align-items: center; line-height: 1.4; }
+
+/* ── The files card's foot: room used, a way to add files ────────────────── */
+/* A 4px bar, filled as far as the nearer limit, over one line. */
+.sbf-meter { position: relative; flex-shrink: 0; padding: 10px 15px 0; border-top: 1px solid var(--line-1); }
+.sbf-meter-track { height: 4px; border-radius: 2px; background: var(--sbf-meter); overflow: hidden; }
+.sbf-meter-fill { height: 100%; border-radius: 2px; background: var(--sbf-meter-fill); transition: width .3s ease; }
+.sbf-meter-fill.is-near { background: #ef4444; }
+.sbf-meter-line { display: flex; align-items: center; gap: 8px; height: 38px; }
+.sbf-meter-text {
+  flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left;
+  color: var(--ink-2); font: 400 12px/1.3 var(--font-sans); font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sbf-meter-text:hover { color: var(--ink-0); }
+.sbf-meter-text:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 3px; }
+.sbf-upload {
+  flex-shrink: 0; margin-left: auto; display: flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px 0 9px; border: 0; border-radius: 7px;
+  background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow);
+  color: var(--ink-0); font: 600 12px/1 var(--font-sans); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.sbf-upload:hover { background: color-mix(in srgb, var(--sbf-chip) 88%, var(--ink-0)); }
+.sbf-upload:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* The Upload menu (files, a folder, zips): glass like the import tray, spanning the card just above the meter. */
+.sbf-upload-wrap { margin-left: auto; flex-shrink: 0; }
+.sbf-upload.is-open { background: var(--bg-act); }
+.sbf-upmenu {
+  position: fixed; z-index: 1300; /* left, width and bottom come from the meter's box */
+  box-sizing: border-box; padding: 4px; display: flex; flex-direction: column; gap: 1px;
+  border-radius: 10px; background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 48px rgba(0, 0, 0, .28);
+}
+[data-theme='light'] .sbf-upmenu { box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 40px rgba(10, 10, 12, .1); }
+.sbf-upitem {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--ink-1); text-align: left; cursor: pointer;
+}
+.sbf-upitem:hover, .sbf-upitem:focus-visible { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-upitem:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-upitem svg { flex: none; margin-top: 1px; color: var(--ink-2); }
+.sbf-upitem-l { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sbf-upitem-l b { font: 500 13px/1.2 var(--font-sans); color: inherit; }
+.sbf-upitem-l small { color: var(--ink-3); font: 400 12px/1.3 var(--font-sans); }
+.sbf-upsep { height: 1px; margin: 4px 6px; background: var(--line-2); }
+.sbf-upnote { padding: 6px 10px 8px; color: var(--ink-3); font: 400 12px/1.45 var(--font-sans); }
+/* Help, Settings and you, under the meter, in the same card. */
+.app.sb-files .sb-mid .sb-foot { margin: 0; padding: 0 9px 8px; gap: 2px; border-top: 0; }
+.app.sb-files .sb-foot .sb-foot-icon { color: var(--ink-2); }
+
+/* ── Selection (⌘/⇧-click) and the bar that acts on it ───────────────────── */
+.sbf-file.is-selected {
+  background: var(--bg-act); color: var(--ink-0);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 55%, transparent);
+}
+/* Two lines: how many and ✕, then one row of what to do with them, the width
+   of the bar (the bulk-import mockup's pick). */
+.sbf-bulk {
+  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 4px; padding: 8px 8px 10px 15px;
+  border-top: 1px solid var(--line-1);
+}
+.sbf-bulk-count { flex: 1; min-width: 0; color: var(--ink-1); font: 500 12px/1 var(--font-sans); white-space: nowrap; }
+/* A card narrower than the row (files can be 232px wide) wraps it, never spills. */
+.sbf-bulk-acts { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-left: -7px; }
+.sbf-bulk-btn {
+  height: 28px; padding: 0 10px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--line-2); background: transparent; color: var(--ink-1); font: 500 12px/1 var(--font-sans);
+}
+.sbf-bulk-acts .sbf-bulk-btn { flex: 1 1 auto; padding: 0 8px; }
+.sbf-bulk-btn:hover { color: var(--ink-0); background: var(--bg-hov); }
+.sbf-bulk-btn.is-clear { width: 28px; padding: 0; border-color: transparent; color: var(--ink-2); }
+/* Select's way out, where ✕ sits otherwise. */
+.sbf-bulk-btn.is-done { padding: 0 12px; color: var(--ink-0); }
+/* The one that leads, in ink: gold stays for selection and focus. */
+.sbf-bulk-btn.is-lead { border-color: color-mix(in srgb, var(--ink-0) 22%, transparent); color: var(--ink-0); }
+.sbf-bulk-btn.is-danger:hover { color: #ef4444; border-color: rgba(239,68,68,.5); }
+.sbf-bulk-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+
+/* ── Touch: the drawer, and coarse pointers anywhere ─────────────────────── */
+@media (hover: none) and (pointer: coarse) {
+  /* A held file is its menu, not iOS's Save Image sheet or a text selection. */
+  .sbf-file { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .app.sb-files .sb-mid .sb-row { height: 44px; font-size: 15px; }
+  .sb-tree-row.is-files { height: 44px; font-size: 15px; }
+  /* A finger-sized chevron that still draws where the text starts, names
+     where they are with a mouse. */
+  .app.sb-files .sb-tree-row.is-files .sb-tree-chev { width: 32px; height: 40px; margin: 0 -10px 0 -10px; }
+  .app.sb-files .sb-boards-add, .app.sb-files .sb-tags-add { opacity: 1; width: 36px; height: 36px; }
+  .sbf-quickbtn { height: 44px; font-size: 15px; }
+  .app.sb-files .sb-tag-row { height: 44px; font-size: 15px; }
+  .sb-mid-search, .app.sb-files .sb-top .sb-mid-collapse { width: 40px; height: 40px; }
+  /* A finger gets the whole 44px: the shown source's chip fills the track. */
+  .sbf-tabs { padding: 0; border-radius: 10px; }
+  .sbf-tab { height: 44px; font-size: 14px; border-radius: 10px; }
+  .sbf-iconbtn { width: 40px; height: 40px; }
+  .sbf-files-head .sbf-iconbtn { opacity: 1; }
+  .sbf-search, .sbf-filter-btn { height: 40px; }
+  .sbf-search input { font-size: 16px; }   /* under 16px, iOS zooms the page on focus */
+  .sbf-filter-btn { padding: 0 10px; font-size: 14px; }
+  .sbf-menu-item { height: 40px; font-size: 15px; }
+  .sbf-files { --sbf-thumb: 28px; --sbf-gap: 10px; }
+  .sbf-shelf { height: 44px; }
+  .sbf-shelf-toggle { font-size: 12px; padding-bottom: 10px; }
+  .sbf-shelf-caret { opacity: 1; }
+  .sbf-file { height: 44px; font-size: 15px; }
+  .sbf-more { height: 44px; }
+  .sbf-more-btn { font-size: 14px; padding: 12px 0; }
+  .sbf-note { height: 44px; line-height: 44px; font-size: 14px; }
+  .sbf-note.is-empty { height: 52px; }
+  .sbf-shelf-open { display: none; }
+  .sbf-bulk-btn { height: 40px; padding: 0 12px; font-size: 13px; }
+  .sbf-bulk-btn.is-clear { width: 40px; }
+  .sbf-meter-line { height: 48px; }
+  .sbf-meter-text { font-size: 13px; }
+  .sbf-upload { height: 36px; padding: 0 14px 0 12px; font-size: 14px; }
+  .app.sb-files .sb-foot .sb-foot-icon, .app.sb-files .sb-foot .sb-foot-avatar { width: 40px; height: 40px; }
+  /* The rest a finger met under 40px (tests/touch/touch-targets.spec.js). */
+  .app.sb-files .sb-top .sb-ws-trigger { height: 40px; }
+  .app.sb-files .sb-mid .sb-boards-head,
+  .app.sb-files .sb-mid .sb-tags-head,
+  .app.sb-files .sb-mid .sb-shared-head { min-height: 40px; }
+  .sbf-more-btn { min-height: 44px; }
+  .sbf-meter-text { align-self: stretch; }
+  .sbf-upload { height: 40px; }
+  .sbf-upitem { padding-top: 13px; padding-bottom: 13px; }
+  .sbf-search-clear { width: 40px; height: 40px; margin-right: -4px; }
+  .sbf-away { height: 44px; }
+  .sbf-away-btn { height: 40px; }
+  .sbf-switch-clear { width: 40px; height: 40px; }
+}
+
+/* ── The phone drawer: one scroll for everything ─────────────────────────── */
+/* A phone hasn't the height to share between two scrolling parts: the drawer
+   scrolls as one, clusters then files, and nothing sizes them. It is a panel
+   already, so no cards: the same rows on the drawer's own ground. */
+.app.sb-files .sidebar.is-mobile-open .sb-mid {
+  overflow-y: auto; overflow-x: hidden; padding: 0;
+  /* max-content, not auto: auto rows would be squeezed to the drawer's
+     height and the parts would spill over one another. */
+  grid-template-rows: repeat(6, max-content);
+}
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sb-top { padding-top: 10px; }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-nav { max-height: none; overflow: visible; }
+.app.sb-files .sidebar.is-mobile-open .sbf-files { overflow: visible; border-radius: 0; border-top: 1px solid var(--line-1); padding-top: 6px; }
+.app.sb-files .sidebar.is-mobile-open .sbf-files-list { overflow: visible; -webkit-mask-image: none; mask-image: none; }
+/* The meter with Upload, and the foot under it, stay at the drawer's bottom
+   while the rest scrolls under them: adding files shouldn't wait for the end
+   of every shelf. The meter sits on the foot, as tall as its icons (28px; 40
+   under a finger, below) and its 8px under them. */
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter,
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sb-foot { position: sticky; z-index: 1; background-color: var(--bg-1); }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sb-foot { bottom: 0; }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter { bottom: calc(28px + 8px); }
+@media (pointer: coarse) {
+  .app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter { bottom: calc(40px + 8px); }
+}
+
+/* ── Another cluster's files, and dragging them (owner, round 11) ─────────── */
+/* The cluster tab switches: "Feature film ⌄" opens every cluster of the
+   workspace, and Files shows the one picked while the board stays put. */
+.sbf-tab.is-cluster .sbf-tab-caret {
+  display: inline-grid; place-items: center; margin-left: 4px; color: var(--ink-2); flex-shrink: 0;
+  transition: transform 160ms var(--ease), color var(--dur-fast) var(--ease);
+}
+.sbf-tab.is-cluster.is-on .sbf-tab-caret, .sbf-tab.is-cluster.is-open .sbf-tab-caret { color: var(--ink-0); }
+.sbf-tab.is-cluster.is-open .sbf-tab-caret { transform: rotate(180deg); }
+.sbf-tab.is-cluster { display: inline-flex; align-items: center; justify-content: center; }
+
+/* The list (ClusterSwitch.jsx; owner, 2026-10-20, "A · Clean"). It hangs from
+   the tabs, lined up with the Files card's contents, and grows from the tab. */
+.sbf-switch {
+  position: fixed; z-index: 2147483600; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 10px; background: var(--bg-3); outline: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-0) 12%, transparent), 0 14px 36px rgba(0, 0, 0, .5), 0 3px 10px rgba(0, 0, 0, .32);
+  transform-origin: 40px -6px; animation: sbf-switch-in 170ms cubic-bezier(.2, .8, .2, 1);
+}
+.sbf-switch.is-above { transform-origin: 40px calc(100% + 6px); animation-name: sbf-switch-in-above; }
+.sbf-switch.is-closing { animation: sbf-switch-out 110ms ease-in forwards; pointer-events: none; }
+[data-theme='light'] .sbf-switch:not(.is-sheet) {
+  box-shadow: 0 0 0 1px rgba(10, 10, 12, .08), 0 12px 36px rgba(10, 10, 12, .12), 0 3px 10px rgba(10, 10, 12, .06);
+}
+@keyframes sbf-switch-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+@keyframes sbf-switch-in-above { from { opacity: 0; transform: translateY(6px) scale(.97); } }
+@keyframes sbf-switch-out { to { opacity: 0; transform: translateY(-4px) scale(.985); } }
+
+/* Find: a line of its own over the list, not a box inside the box. */
+.sbf-switch-find {
+  flex-shrink: 0; display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 8px 0 13px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-0) 8%, transparent); color: var(--ink-2); cursor: text;
+}
+.sbf-switch-find input {
+  flex: 1; min-width: 0; height: 100%; border: 0; padding: 0; background: transparent;
+  color: var(--ink-0); font: 400 13px/1 var(--font-sans); outline: none; box-shadow: none;
+}
+.sbf-switch-find input::placeholder { color: var(--ink-2); }
+.sbf-switch-clear {
+  flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.sbf-switch-clear:hover { color: var(--ink-0); }
+.sbf-switch-clear:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+
+/* The list scrolls inside, its edges fading where there's more (useScrollEdges). */
+.sbf-switch-list {
+  position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 5px; scrollbar-width: none;
+}
+.sbf-switch-list::-webkit-scrollbar { display: none; }
+.sbf-switch-list.fade-bottom:not(.fade-top) { mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+.sbf-switch-list.fade-top:not(.fade-bottom) { mask-image: linear-gradient(transparent, #000 28px); }
+.sbf-switch-list.fade-top.fade-bottom { mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+
+/* A row. The pointer and the arrow keys move one highlight. */
+.sbf-switch-row {
+  position: relative; display: flex; align-items: center; gap: 8px; height: 30px; padding-right: 8px;
+  border-radius: 6px; color: var(--ink-1); font: 500 13px/1 var(--font-sans); cursor: default; user-select: none;
+}
+.sbf-switch-row.is-active { background: color-mix(in srgb, var(--ink-0) 7.5%, transparent); color: var(--ink-0); }
+[data-theme='light'] .sbf-switch-row.is-active { background: rgba(10, 10, 12, .055); }
+.sbf-switch-row.is-shown { color: var(--ink-0); }
+.sbf-switch-name { flex: 0 1 auto; min-width: 0; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Found: what was typed stands out from the rest of the name, without a change of weight. */
+.sbf-switch-row.is-found .sbf-switch-name { color: var(--ink-2); }
+.sbf-switch-row.is-found .sbf-switch-hit { color: var(--ink-0); }
+.sbf-switch-where { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }
+.sbf-switch-note { flex-shrink: 0; color: var(--ink-2); font: 400 12px/1 var(--font-sans); }
+.sbf-switch-check { flex-shrink: 0; width: 14px; display: grid; place-items: center; color: var(--soleil); }
+/* Nesting, drawn as the tree's guide lines. */
+.sbf-switch-guides {
+  position: absolute; top: 0; bottom: 0; left: 18px; pointer-events: none;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink-0) 11%, transparent) 0 1px, transparent 1px 16px);
+}
+.sbf-switch-empty { padding: 12px 10px 14px 12px; color: var(--ink-2); font: 400 12.5px/1.4 var(--font-sans); }
+
+/* In the phone drawer: a sheet from the bottom, with Done. */
+.sbf-switch-scrim {
+  position: fixed; inset: 0; z-index: 2147483599; background: rgba(0, 0, 0, .45);
+  animation: sbf-switch-fade 220ms ease;
+}
+[data-theme='light'] .sbf-switch-scrim { background: rgba(10, 10, 12, .28); }
+.sbf-switch-scrim.is-closing { animation: sbf-switch-fade-out 160ms ease forwards; pointer-events: none; }
+@keyframes sbf-switch-fade { from { opacity: 0; } }
+@keyframes sbf-switch-fade-out { to { opacity: 0; } }
+.sbf-switch.is-sheet {
+  left: 0; right: 0; bottom: 0; max-height: 74vh; max-height: 74dvh;
+  padding: 6px 8px calc(16px + env(safe-area-inset-bottom, 0px)); border-radius: 16px 16px 0 0;
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--ink-0) 8%, transparent), 0 -16px 40px rgba(0, 0, 0, .35);
+  transform-origin: 50% 100%; animation: sbf-switch-sheet-in 300ms cubic-bezier(.2, .9, .25, 1);
+}
+.sbf-switch.is-sheet.is-closing { animation: sbf-switch-sheet-out 200ms ease-in forwards; }
+@keyframes sbf-switch-sheet-in { from { transform: translateY(100%); } }
+@keyframes sbf-switch-sheet-out { to { transform: translateY(100%); } }
+.sbf-switch-grabber { flex-shrink: 0; width: 36px; height: 5px; margin: 0 auto 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink-0) 18%, transparent); }
+.sbf-switch-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 4px 0 10px; }
+.sbf-switch-title { color: var(--ink-0); font: 600 16px/1 var(--font-sans); }
+.sbf-switch-done {
+  height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--ink-0); font: 600 15px/1 var(--font-sans); cursor: pointer;
+}
+.sbf-switch-done:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-switch.is-sheet .sbf-switch-find {
+  height: 44px; margin: 2px 4px 8px; padding: 0 8px 0 12px; border: 0; border-radius: 10px;
+  background: var(--sbf-field, rgba(0, 0, 0, .24)); gap: 10px;
+}
+.sbf-switch.is-sheet .sbf-switch-find input { font-size: 16px; }   /* under 16px, iOS zooms the page on focus */
+.sbf-switch.is-sheet .sbf-switch-list { padding: 0 2px; }
+.sbf-switch.is-sheet .sbf-switch-row { height: 48px; gap: 12px; padding-right: 12px; border-radius: 10px; font: 400 16px/1 var(--font-sans); }
+.sbf-switch.is-sheet .sbf-switch-row.is-shown { font-weight: 500; }
+/* A finger marks nothing: the check says which is shown (the keys' highlight still shows). */
+.sbf-switch.is-sheet:not(.by-keys) .sbf-switch-row.is-active:not(:hover) { background: transparent; }
+.sbf-switch.is-sheet .sbf-switch-check { width: 18px; }
+.sbf-switch.is-sheet .sbf-switch-where, .sbf-switch.is-sheet .sbf-switch-note { font-size: 13px; }
+
+/* A touch screen with the floating cards (a tablet): rows a finger can take. */
+@media (hover: none) and (pointer: coarse) {
+  .sbf-switch:not(.is-sheet) .sbf-switch-row { height: 40px; font-size: 15px; }
+  .sbf-switch:not(.is-sheet) .sbf-switch-find input { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sbf-switch, .sbf-switch.is-above, .sbf-switch.is-closing, .sbf-switch.is-sheet, .sbf-switch.is-sheet.is-closing,
+  .sbf-switch-scrim, .sbf-switch-scrim.is-closing { animation: none; }
+  .sbf-tab.is-cluster .sbf-tab-caret { transition: none; }
+}
+
+/* Looking at another cluster's files: back to the board's, or open this one. */
+.sbf-away { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 28px; padding: 0 9px 2px; }
+.sbf-away-btn {
+  display: inline-flex; align-items: center; gap: 3px; min-width: 0; height: 24px; padding: 0 6px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); cursor: pointer;
+  font: 500 12px/1 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sbf-away-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sbf-away-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.sbf-away-btn.is-open { flex-shrink: 1; }
+
+/* The chip at the pointer (DragLabel.jsx), above everything, never a target. */
+.sbf-draglabel {
+  position: fixed; z-index: 2147483600; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; max-width: 300px; padding: 7px 13px 7px 7px;
+  border-radius: 11px; background: color-mix(in oklab, var(--bg-3) 96%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-0) 10%, transparent), var(--shadow-3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+  font-family: var(--font-sans);
+}
+.sbf-draglabel-stack { position: relative; flex: 0 0 42px; width: 42px; height: 38px; }
+.sbf-draglabel-stack img, .sbf-draglabel-blank {
+  position: absolute; width: 30px; height: 30px; border-radius: 5px; object-fit: cover;
+  background: var(--bg-4); box-shadow: 0 0 0 1.5px var(--bg-3), 0 1px 3px rgba(0,0,0,.35);
+}
+.sbf-draglabel-stack img:nth-child(1), .sbf-draglabel-blank { left: 0; top: 6px; transform: rotate(-7deg); }
+.sbf-draglabel-stack img:nth-child(2) { left: 6px; top: 4px; transform: rotate(3deg); }
+.sbf-draglabel-stack img:nth-child(3) { left: 11px; top: 2px; }
+.sbf-draglabel-n {
+  position: absolute; right: -2px; bottom: -1px; min-width: 17px; height: 17px; padding: 0 4px; box-sizing: border-box;
+  border-radius: 9px; display: grid; place-items: center; background: var(--ink-0); color: var(--bg-0);
+  font: 700 10.5px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.sbf-draglabel-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sbf-draglabel-top { display: flex; align-items: flex-start; gap: 6px; color: var(--ink-0); font: 500 13px/1.2 var(--font-sans); }
+/* A long "Move <file> to <cluster>" wraps once, then ends in an ellipsis:
+   the file and where it goes both matter more than one tidy line. */
+.sbf-draglabel-words { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.sbf-draglabel-top svg { margin-top: 1px; }
+.sbf-draglabel-sub { color: var(--ink-2); font: 400 11.5px/1.2 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbf-draglabel.is-no .sbf-draglabel-stack { opacity: .45; }
+.sbf-draglabel.is-no .sbf-draglabel-top { color: var(--ink-1); }
+.sbf-draglabel.is-no .sbf-draglabel-top svg { flex-shrink: 0; color: var(--ink-2); }
+.sbf-draglabel.is-idle .sbf-draglabel-top { color: var(--ink-1); font-weight: 400; }

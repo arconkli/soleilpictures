@@ -16,6 +16,7 @@ import { downloadImage } from '../lib/imageExport.js';
 import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { useOptionalFeedback } from './AppFeedback.jsx';
+import { FileShareButton } from './fileShare/FileShareButton.jsx';
 
 // A portal still BUBBLES through the React tree: without this a press, drag or
 // double-click on the viewer reached the card that opened it (a grid cell's
@@ -143,7 +144,10 @@ export function ImageZoomStage({ src, alt = '', adjust, cardId, onModeChange = n
 
 // `downloadName` — the uploaded file's own name, when the card kept one; the
 // download uses it over the display title (cardDownload's rule).
-export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null }) {
+// `shareTarget` — { boardId, cardId, card, boardName } when the viewer may
+// share this file on its own: a Share button sits beside Download. The host
+// decides (it holds the gates); without it nothing changes.
+export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null, shareTarget = null }) {
   const [mode, setMode] = useState('fit');
   const [downloading, setDownloading] = useState(false);
   const feedback = useOptionalFeedback();
@@ -188,6 +192,12 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
           <path d="M8 2 V11 M4 8 L8 12 L12 8 M3 14 H13" />
         </svg>
       </button>
+      {shareTarget?.boardId && shareTarget?.cardId && (
+        <FileShareButton variant="lightbox" surface={shareTarget.surface || 'lightbox'}
+                         boardId={shareTarget.boardId} cardId={shareTarget.cardId}
+                         card={shareTarget.card || null} boardName={shareTarget.boardName || null}
+                         {...(shareTarget.api ? { api: shareTarget.api } : {})} />
+      )}
       <ImageZoomStage src={src} alt={alt || title || ''} adjust={adjust} cardId={cardId} onModeChange={setMode} />
       {title && <div className="lightbox-cap">{title}</div>}
     </div>

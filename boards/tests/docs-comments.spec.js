@@ -59,6 +59,37 @@ test('clicking commented text opens its thread', async ({ page }) => {
   await expect(pop).toContainText('Is this the right animal?');
 });
 
+// A reply and a resolve made in the thread are each filed beside it
+// (lib/commentKeys.js: `<thread>~r~<reply>`, `<thread>~s`), never written into
+// it, so two people writing at once both keep theirs; the thread shows both.
+test('a reply and a resolve typed in the thread are filed beside it and show', async ({ page }) => {
+  await openDoc(page);
+  const id = await commentOnWord(page, 'Keep the motel sign lit', 'sign', 'Which sign?');
+  await page.locator(`.tt-comment[data-comment-id="${id}"]`).click();
+  const pop = page.locator('.comment-inline-pop');
+  await expect(pop).toBeVisible();
+
+  const input = pop.getByPlaceholder(/^Reply…/);
+  await input.fill('The neon one');
+  await input.press('Enter');
+  await expect(pop.locator('.comment-inline-reply')).toContainText('The neon one');
+
+  await pop.getByTitle('Resolve').click();
+  await expect(pop.getByTitle('Reopen')).toBeVisible();
+  await expect(pop.getByPlaceholder(/^Reply…/)).toHaveCount(0);
+
+  const stored = await page.evaluate((id) => {
+    const map = window.__soleilDocTest.getScope().comments;
+    const head = map.get(id);
+    return { keys: [...map.keys()], headReplies: head.replies.length, headResolved: head.resolved };
+  }, id);
+  expect(stored.keys.some((k) => k.startsWith(`${id}~r~`))).toBe(true);
+  expect(stored.keys).toContain(`${id}~s`);
+  // The thread itself is as it was started.
+  expect(stored.headReplies).toBe(0);
+  expect(stored.headResolved).toBe(false);
+});
+
 test('the mark reads as clickable, not decorative', async ({ page }) => {
   await openDoc(page);
   const id = await commentOnWord(page, 'Readable at rest matters', 'Readable', 'note');

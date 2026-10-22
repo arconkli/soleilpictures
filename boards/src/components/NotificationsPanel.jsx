@@ -1,35 +1,28 @@
-// The bell. Two sections, and the second is the point.
-//
-// UPDATES is the notification list — what changed and when. Rows persist until
-// read (public.notifications, 0242), unlike share_notifications /
+// The bell's list: what changed and when. Rows persist until read
+// (public.notifications, 0242), unlike share_notifications /
 // mention_notifications, which are toast queues their consumers batch-dismiss
 // ~8s after rendering.
 //
-// YOUR SCHEDULE is the phrase made literal: every dated cluster you can reach,
-// from today forward, whichever production it belongs to. Without it a
-// notification saying a day moved has nowhere useful to point — you would know
-// something changed and still not know what you are called for.
+// It had a second section, YOUR SCHEDULE, every dated cluster you could reach.
+// Schedule is retired (owner, 2026-10-20: nothing related to it on
+// production), so the list is all the panel is now.
+//
+// Placement C (owner's pick, 2026-10-21): on a desktop it drops from the bell
+// in the board's right island, in the sidebar's popover glass, its right edge
+// on the island's and its top 8px under it; it closes on Escape, on a press
+// outside it and the bell, or on the bell. On a phone (or a window too narrow
+// for it) it is a full-screen sheet with its own ×. `anchorRef` is the bell.
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { X, Calendar, Check } from '../lib/icons.js';
-import { parseISO, dayTitle, shortDate, todayISO, daysBetween } from '../lib/schedDates.js';
+import { X, Check } from '../lib/icons.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
+import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
+import { openSharedFile } from '../lib/sharedFileBus.js';
+import { notificationTarget, placeUnderIsland, wantsNotificationSheet } from '../lib/notificationsBell.js';
 import './notificationsPanel.css';
-
-// "in 3 days" / "today" / "tomorrow" — a crew member reads relative time faster
-// than a date, and the date is right there next to it anyway.
-function whenLabel(iso, today = todayISO()) {
-  if (!parseISO(iso)) return '';
-  if (iso === today) return 'Today';
-  const ahead = daysBetween(today, iso);
-  if (ahead === 1) return 'Tomorrow';
-  if (ahead > 0) return `in ${ahead} day${ahead === 1 ? '' : 's'}`;
-  const back = daysBetween(iso, today);
-  return back === 1 ? 'Yesterday' : `${back} days ago`;
-}
 
 function agoLabel(ts) {
   const t = Date.parse(ts);
@@ -43,60 +36,128 @@ function agoLabel(ts) {
   return `${Math.round(h / 24)}d`;
 }
 
+const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
+
+// The box the panel hangs from: the island the bell sits in, else the bell.
+function anchorBox(el) {
+  if (!el) return null;
+  return (el.closest?.('.chrome-island') || el).getBoundingClientRect();
+}
+
 export function NotificationsPanel({
-  items = [], schedule = [], unread = 0, loading = false,
-  onOpenBoard = null, onMarkRead = null, onClose = null,
+  items = [], unread = 0, loading = false,
+  onOpenBoard = null, onOpenSettings = null, onMarkRead = null, onClose = null,
+  anchorRef = null, mobileShell = false,
 }) {
-  const today = todayISO();
-  // Escape closes the panel, as its "Close (Esc)" says — nothing handled it
-  // (COMMS-22). The panel takes focus when it opens so the key reaches it;
-  // a press meant for something outside the panel is left alone.
+  // Escape closes the panel (COMMS-22). The panel takes focus when it opens so
+  // the key reaches it; a press meant for something outside the panel is left
+  // alone.
   const rootRef = useRef(null);
+  const shellRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {
     try { rootRef.current?.focus({ preventScroll: true }); } catch (_) {}
     const onKey = (e) => { if (escapeClosesPanel(e, '.ntf-panel')) onCloseRef.current?.(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // A press outside the panel and the bell closes it (the bell toggles it
+    // itself, so a press there must not close it first and reopen it).
+    const onDown = (e) => {
+      if (shellRef.current?.contains(e.target)) return;
+      if (anchorRef?.current?.contains(e.target)) return;
+      onCloseRef.current?.();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown, true);
+      // Closing with focus still inside (Escape, a row, the ×) hands it back
+      // to the bell, not to <body>.
+      const a = document.activeElement;
+      if (!a || a === document.body || shellRef.current?.contains(a)) {
+        try { anchorRef?.current?.focus({ preventScroll: true }); } catch (_) {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // Group the schedule by date so a day with two units reads as one heading
-  // rather than two near-identical rows.
-  const byDate = useMemo(() => {
-    const out = [];
-    for (const row of schedule || []) {
-      const last = out[out.length - 1];
-      if (last && last.date === row.scheduled_date) last.rows.push(row);
-      else out.push({ date: row.scheduled_date, rows: [row] });
+
+  const [sheet, setSheet] = useState(() => wantsNotificationSheet({ mobileShell, viewportWidth: viewport().width }));
+  const [place, setPlace] = useState(() => placeUnderIsland(anchorBox(anchorRef?.current), viewport()));
+  useLayoutEffect(() => {
+    const measure = () => {
+      const vp = viewport();
+      setSheet(wantsNotificationSheet({ mobileShell, viewportWidth: vp.width }));
+      setPlace(placeUnderIsland(anchorBox(anchorRef?.current), vp));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    // The island changes width (a count appears, the upgrade chip comes or
+    // goes) without the window resizing.
+    let ro = null;
+    const island = anchorRef?.current?.closest?.('.chrome-island');
+    if (island && typeof ResizeObserver === 'function') { ro = new ResizeObserver(measure); ro.observe(island); }
+    return () => { window.removeEventListener('resize', measure); ro?.disconnect(); };
+  }, [mobileShell, anchorRef]);
+
+  const open = (n) => {
+    // `kind` says which producer a click came from: a notification nobody
+    // clicked and a bell nobody opened are different failures.
+    try {
+      logEvent(EV.NOTIF_CLICK, {
+        kind: n.kind || null,
+        was_unread: !n.read_at,
+        opened_board: !!n.board_id,
+      });
+    } catch (_) {}
+    onMarkRead?.([n.id]);
+    const target = notificationTarget(n, { fileShares: fileSharesAllowed(), sharedFiles: sharedFilesAllowed() });
+    if (!target) return;
+    if (target.kind === 'file') {
+      // Inside the app, over what you were doing; before the Shared page
+      // shipped, its page in a new tab.
+      if (target.inApp) openSharedFile({ token: target.token, via: 'bell' });
+      else window.open('/f/' + encodeURIComponent(target.token), '_blank', 'noopener');
+      return;
     }
-    return out;
-  }, [schedule]);
+    if (target.kind === 'settings') {
+      // An editor-limit row: Members, in that row's workspace. Its toast logs
+      // the same event with via 'toast' (useNotifications).
+      try { logEvent(EV.EDITOR_LIMIT_NOTICE_OPEN, { via: 'bell' }); } catch (_) {}
+      onOpenSettings?.(target.tab, target.workspaceId);
+      onCloseRef.current?.();
+      return;
+    }
+    onOpenBoard?.(target.boardId);
+  };
 
   return (
+    <div className={`ntf-shell${sheet ? ' is-sheet' : ''}`} ref={shellRef}
+      role="dialog" aria-label="Notifications"
+      style={sheet ? undefined : { top: place.top, right: place.right }}>
     <div className="ntf-panel" ref={rootRef} tabIndex={-1}>
       <div className="ntf-head">
-        <div className="ntf-title">Schedule</div>
+        <div className="ntf-title">Notifications</div>
         {unread > 0 && (
-          <button type="button" className="ntf-head-btn" onClick={() => onMarkRead?.(null)}
-            title="Mark everything read">
-            <Icon as={Check} size={12} />
-            <span>Mark read</span>
+          <button type="button" className="ntf-markall" onClick={() => onMarkRead?.(null)}>
+            <Icon as={Check} size={sheet ? 14 : 12} />
+            <span>Mark all read</span>
           </button>
         )}
-        <button type="button" className="ntf-head-icon" onClick={onClose}
-          title="Close (Esc)" aria-label="Close notifications">
-          <Icon as={X} size={13} />
-        </button>
+        {sheet && (
+          <button type="button" className="ntf-x" onClick={() => onCloseRef.current?.()}
+            title="Close" aria-label="Close notifications">
+            <Icon as={X} size={18} />
+          </button>
+        )}
       </div>
 
       <div className="ntf-body">
-        <div className="ntf-eyebrow">Updates{unread > 0 ? ` · ${unread} new` : ''}</div>
         {loading && items.length === 0 ? (
           <div className="ntf-empty">Loading…</div>
         ) : items.length === 0 ? (
           <div className="ntf-empty">
-            Nothing yet. When a day moves or a call sheet is published,
-            it lands here.
+            Nothing yet. When someone shares a file with you or comments
+            on one, it lands here.
           </div>
         ) : (
           <ul className="ntf-list">
@@ -104,29 +165,12 @@ export function NotificationsPanel({
               <li key={n.id}>
                 <button type="button"
                   className={`ntf-row${n.read_at ? '' : ' is-unread'}`}
-                  onClick={() => {
-                    // The bell shipped with no instrumentation at all, so
-                    // whether anyone acts on a notification has never been
-                    // answerable. `kind` is what separates "the schedule works"
-                    // from "share activity works" later.
-                    try {
-                      logEvent(EV.NOTIF_CLICK, {
-                        kind: n.kind || null,
-                        was_unread: !n.read_at,
-                        opened_board: !!n.board_id,
-                      });
-                    } catch (_) {}
-                    onMarkRead?.([n.id]);
-                    if (n.board_id) onOpenBoard?.(n.board_id);
-                  }}>
-                  <span className={`ntf-kind ntf-kind-${String(n.kind || '').split('.')[1] || 'other'}`}
-                    aria-hidden="true" />
+                  data-kind={n.kind || undefined}
+                  onClick={() => open(n)}>
+                  <span className="ntf-dot" aria-hidden="true" />
                   <span className="ntf-row-main">
                     <span className="ntf-row-title">{n.title}</span>
                     {n.body && <span className="ntf-row-body">{n.body}</span>}
-                    {n.data?.production_name && (
-                      <span className="ntf-row-meta">{n.data.production_name}</span>
-                    )}
                   </span>
                   <span className="ntf-row-ago">{agoLabel(n.created_at)}</span>
                 </button>
@@ -134,43 +178,8 @@ export function NotificationsPanel({
             ))}
           </ul>
         )}
-
-        <div className="ntf-eyebrow ntf-eyebrow-2">Your schedule</div>
-        {byDate.length === 0 ? (
-          <div className="ntf-empty">
-            No upcoming days. Dated clusters you can reach show up here.
-          </div>
-        ) : (
-          <ul className="ntf-sched">
-            {byDate.map(({ date, rows }) => (
-              <li key={date} className={`ntf-day${date === today ? ' is-today' : ''}`}>
-                <div className="ntf-day-head">
-                  <Icon as={Calendar} size={11} />
-                  <span className="ntf-day-date">{dayTitle(date)}</span>
-                  <span className="ntf-day-when">{whenLabel(date, today)}</span>
-                </div>
-                {rows.map((r) => (
-                  <button key={r.board_id} type="button"
-                    className={`ntf-sched-row is-${r.sched_status || 'draft'}`}
-                    onClick={() => onOpenBoard?.(r.board_id)}>
-                    <span className="ntf-sched-label">{r.day_label || r.board_name}</span>
-                    {r.scheduled_end && r.scheduled_end !== r.scheduled_date && (
-                      <span className="ntf-sched-span">→ {shortDate(r.scheduled_end)}</span>
-                    )}
-                    {r.sched_status === 'published' && r.sched_version > 0 && (
-                      <span className="ntf-sched-v">v{r.sched_version}</span>
-                    )}
-                    {r.sched_status === 'draft' && <span className="ntf-sched-tag">draft</span>}
-                    {r.sched_status === 'cancelled' && <span className="ntf-sched-tag">cancelled</span>}
-                    {r.unread_count > 0 && <span className="ntf-sched-dot" aria-label="Changed" />}
-                    <span className="ntf-sched-prod">{r.production_name || ''}</span>
-                  </button>
-                ))}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
+    </div>
     </div>
   );
 }

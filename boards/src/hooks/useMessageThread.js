@@ -1,63 +1,146 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { fetchConversationMessages, fetchConversationRange, markRead } from '../lib/messages.js';
-import { subscribeConversation } from '../lib/messageRealtime.js';
+import { useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { fetchConversationMessages, fetchConversationRange, fetchMessagesByIds, fetchReadState, markRead } from '../lib/messages.js';
+import { subscribeConversation, broadcastConversationRead } from '../lib/messageRealtime.js';
 import { MESSAGE_PAGE, mergeNewestPage, prependOlder, lastMessageId } from '../lib/messagePaging.js';
+import {
+  applyWrites, pruneWrites, splitFoldable, upsertWrite, patchWrite, removeWrite, ackWrite, updateWrite, dropWrite,
+} from '../lib/messageStore.js';
+import { getCachedThread, putCachedThread } from '../lib/threadCache.js';
 import { tabIsAttended } from '../lib/threadAttention.js';
 import { subscribeInbox } from '../lib/inboxBus.js';
 import { watchForResync } from '../lib/messageResync.js';
+import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 
 const NO_MESSAGES = [];
+// A burst of nudges (a broadcast and its inbox ping, two quick reactions)
+// becomes one read.
+const NUDGE_BATCH_MS = 50;
+const time = (m) => Date.parse(m?.created_at || '') || 0;
 
 // Returns { messages, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed, loading }
-// for a single conversation. `messages` is the newest page plus whatever
-// older history the reader has paged back to with loadOlder().
+// plus the local-write calls below, for a single conversation. `messages` is
+// the newest page plus whatever older history the reader has paged back to
+// with loadOlder(), with this tab's local writes (lib/messageStore.js)
+// replayed over it: sends in flight, optimistic changes, rows re-read after a
+// peer's nudge.
 //   conversationId — the conversation to load
 //   userId         — current user (filters self typing, marks read)
 //   onMarkedRead   — optional callback fired after a successful
 //                    last_read_at write, so the parent (useConversationList)
 //                    can refresh its unread counts. Fixes the
 //                    "stuck at 1" bug from the old useChannelList.
-export function useMessageThread({ conversationId, userId, onMarkedRead }) {
-  const [messages, setMessages] = useState([]);
+//   readGate       — false while the newest message isn't on screen (the
+//                    reader is up in history): nothing is marked read until
+//                    it has been seen. Omitted, the thread marks on arrival.
+//   isReadable     — optional live check made at the moment of marking (is
+//                    the end of the thread on screen right now?).
+export function useMessageThread({ conversationId, userId, onMarkedRead, readGate = true, isReadable = null }) {
+  // The dev QA harness's rows, when it provides them (lib/messagesFixture.js).
+  const fixture = useContext(MessagesFixtureContext);
+  // Going back to a conversation paints what it showed last time, then reads
+  // again (lib/threadCache.js).
+  const [cached] = useState(() => (fixture ? null : getCachedThread(userId, conversationId)));
+  const [messages, setMessages] = useState(() => cached?.rows || []);
+  // The local write log. The ref is the truth, updated synchronously, so a
+  // server answer that lands before React renders still finds its write;
+  // the state only makes React render it.
+  const writesRef = useRef([]);
+  const [writes, setWritesState] = useState(writesRef.current);
+  const commitWrites = useCallback((fn) => {
+    const next = fn(writesRef.current);
+    if (next === writesRef.current) return;
+    writesRef.current = next;
+    setWritesState(next);
+  }, []);
   const [typingUsers, setTypingUsers] = useState(new Map()); // userId → ts
-  const [hasOlder, setHasOlder] = useState(false);
+  // Bumped when pins may have changed beyond what's loaded: a peer's pin (of
+  // a message older than the pages on screen, too) and every resync.
+  const [pinTick, setPinTick] = useState(0);
+  const [hasOlder, setHasOlder] = useState(() => !!cached?.hasOlder);
   const [loadingOlder, setLoadingOlder] = useState(false);
   // The last newest-page read failed. The thread keeps what it shows; an
   // empty one says "Couldn't load" rather than "No messages yet" (COMMS-15).
   const [failed, setFailed] = useState(false);
   const onMarkedReadRef = useRef(onMarkedRead);
   onMarkedReadRef.current = onMarkedRead;
+  const isReadableRef = useRef(isReadable);
+  isReadableRef.current = isReadable;
   // A fetch that resolves after a conversation switch must not paint the
   // previous thread into this one.
   const convRef = useRef(conversationId);
   convRef.current = conversationId;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const hasOlderRef = useRef(hasOlder);
+  hasOlderRef.current = hasOlder;
   const loadingOlderRef = useRef(false);
   // Set once "load older" comes back short: the start of the conversation is
   // on screen, and later newest-page refetches keep it there.
-  const reachedStartRef = useRef(false);
+  const reachedStartRef = useRef(!!cached?.reachedStart);
   // created_at of the oldest row "load older" brought in: the start of the
   // history every refetch re-reads, so edits, deletes, undos and reactions
   // to old messages reach the screen (the newest page alone never covers them).
-  const historyFromRef = useRef(null);
+  const historyFromRef = useRef(cached?.historyFrom || null);
 
   // The conversation whose first read has settled — until then the thread is
-  // loading, not empty.
-  const [loadedFor, setLoadedFor] = useState(null);
+  // loading, not empty. A cached conversation has something to show already.
+  const [loadedFor, setLoadedFor] = useState(cached ? conversationId : null);
+  // A read from the server has landed since this thread mounted (a cached
+  // paint doesn't count): the newest rows are on screen.
+  const [fresh, setFresh] = useState(false);
   // Reads overlap (a send's refetch, a peer's nudge, a resync); only the
   // newest one may paint. An older snapshot landing last took back a message
   // you had just sent, after its optimistic bubble was gone (COMMS-23).
   const seqRef = useRef(0);
   const latestReadRef = useRef(null);
+  // Every acknowledgement from the server bumps the epoch, and every read is
+  // stamped with it as it starts: a write acknowledged after a read started
+  // survives that read (lib/messageStore.js pruneWrites).
+  const epochRef = useRef(0);
+  // Reads started and not landed yet. With none out, a confirmed change folds
+  // straight into the rows instead of waiting in the write log.
+  const inFlightRef = useRef(0);
+  // Everyone's read position (user_id → last_read_at), for a DM's "Seen".
+  // Read from the database on open, whenever someone says they've read, and
+  // on every resync (which covers a peer whose client never says so).
+  const [readState, setReadState] = useState(() => new Map());
+  const refreshReadState = useCallback(async () => {
+    if (!conversationId || fixture) return;
+    const rows = await fetchReadState({ conversationId });
+    if (!rows || convRef.current !== conversationId) return;
+    setReadState(new Map(rows.map(r => [r.user_id, r.last_read_at])));
+  }, [conversationId, fixture]);
+  useEffect(() => { refreshReadState(); }, [refreshReadState]);
 
+  // The newest page read that has painted, by its seq: a by-id re-read that
+  // started before it is older news and must not land on top of it.
+  const landedSeqRef = useRef(0);
+
+  // With no read out, nothing can take an acknowledged write back: fold every
+  // one that's safe into the rows and drop it from the log. Left in the log
+  // past that, an old write replayed over newer rows (an edit, a reaction, an
+  // Undo or a peer's delete would snap back).
+  const foldAcked = useCallback(() => {
+    if (inFlightRef.current !== 0) return;
+    const { fold, keep } = splitFoldable(writesRef.current);
+    if (!fold.length) return;
+    commitWrites(() => keep);
+    setMessages(prev => applyWrites(prev, fold));
+  }, [commitWrites]);
+
+  // The thread is keyed by conversation, so a switch is a fresh mount and this
+  // only runs for a caller that switches in place.
+  const initialConvRef = useRef(conversationId);
   useEffect(() => {
+    if (initialConvRef.current === conversationId) return;
+    initialConvRef.current = conversationId;
     reachedStartRef.current = false;
     historyFromRef.current = null;
     setHasOlder(false);
     setFailed(false);
-    // The thread isn't remounted on a switch: drop the last conversation's
-    // rows rather than show them under this one's header (COMMS-23).
+    commitWrites(() => []);
+    // Drop the last conversation's rows rather than show them under this
+    // one's header (COMMS-23).
     setMessages(prev => (prev.length && prev[0].conversation_id !== conversationId ? [] : prev));
   }, [conversationId]);
 
@@ -67,35 +150,54 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     // a caller awaiting refetch() (the optimistic send) still finds its row
     // on screen when it resumes.
     const superseded = () => seq !== seqRef.current;
+    // The local writes this read can't reflect: everything acknowledged after now.
+    const issuedAt = epochRef.current;
+    inFlightRef.current += 1;
     const read = (async () => {
-      if (!conversationId) { setMessages([]); setHasOlder(false); setFailed(false); return; }
-      const rows = await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
-      if (convRef.current !== conversationId) return;
-      if (superseded()) return latestReadRef.current;
-      setFailed(rows == null);
-      setLoadedFor(conversationId);
-      if (rows == null) {
-        // A failed read keeps this thread on screen, but never the previous
-        // one: the thread isn't remounted on a switch, so a failed first read
-        // would otherwise paint the last conversation under this header.
-        setMessages(prev => prev.filter(m => m.conversation_id === conversationId));
-        return;
-      }
-      const historyFrom = historyFromRef.current;
-      let history = null;
-      if (historyFrom && rows.length >= MESSAGE_PAGE) {
-        history = await fetchConversationRange({ conversationId, from: historyFrom, to: rows[0].created_at });
+      try {
+        if (!conversationId) { setMessages([]); setHasOlder(false); setFailed(false); return; }
+        const rows = fixture
+          ? (fixture.messages?.[conversationId] || [])
+          : await fetchConversationMessages({ conversationId, limit: MESSAGE_PAGE });
         if (convRef.current !== conversationId) return;
         if (superseded()) return latestReadRef.current;
+        setFailed(rows == null);
+        setLoadedFor(conversationId);
+        if (rows == null) {
+          // A failed read keeps this thread on screen, but never another
+          // conversation's rows.
+          setMessages(prev => prev.filter(m => m.conversation_id === conversationId));
+          return;
+        }
+        const historyFrom = historyFromRef.current;
+        let history = null;
+        if (historyFrom && rows.length >= MESSAGE_PAGE) {
+          history = await fetchConversationRange({ conversationId, from: historyFrom, to: rows[0].created_at });
+          if (convRef.current !== conversationId) return;
+          if (superseded()) return latestReadRef.current;
+        }
+        // Writes this read reflects leave the log. Ones aimed at rows it didn't
+        // re-read (history held over from earlier) fold into those rows first,
+        // or a reaction to an old message would vanish with its write.
+        const covered = new Set(rows.map(m => m.id));
+        if (history) history.forEach(m => covered.add(m.id));
+        const stale = writesRef.current.filter(w => w.ackedAt != null && w.ackedAt <= issuedAt
+          && !(w.op === 'upsert' && w.row?.sendState) && !covered.has(w.id));
+        setMessages(prev => applyWrites(mergeNewestPage(prev, rows, {
+          conversationId, pageSize: MESSAGE_PAGE, history, historyFrom,
+        }), stale));
+        commitWrites(ws => pruneWrites(ws, issuedAt));
+        setHasOlder(rows.length >= MESSAGE_PAGE && !reachedStartRef.current);
+        setFresh(true);
+        landedSeqRef.current = seq;
+      } finally {
+        inFlightRef.current -= 1;
+        foldAcked();
       }
-      setMessages(prev => mergeNewestPage(prev, rows, {
-        conversationId, pageSize: MESSAGE_PAGE, history, historyFrom,
-      }));
-      setHasOlder(rows.length >= MESSAGE_PAGE && !reachedStartRef.current);
     })();
     latestReadRef.current = read;
     return read;
-  }, [conversationId]);
+  }, [conversationId, fixture, commitWrites, foldAcked]);
 
   useEffect(() => { refetch(); }, [refetch]);
 
@@ -122,6 +224,57 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     }
   }, [conversationId]);
 
+  // ── Local writes ────────────────────────────────────────────────────
+  // Each returns the write's opId. settle() records the server's answer;
+  // rollback() takes a change back. A settled write folds into the rows as
+  // soon as no read is out (foldAcked), and in order behind any earlier
+  // change to the same message still waiting on its answer.
+  const addWrite = useCallback((w) => {
+    commitWrites(ws => ws.concat(w));
+    return w.opId;
+  }, [commitWrites]);
+  const settle = useCallback((opId, result = {}) => {
+    if (!writesRef.current.some(x => x.opId === opId)) return;
+    const epoch = ++epochRef.current;
+    commitWrites(ws => ackWrite(ws, opId, epoch, result));
+    foldAcked();
+  }, [commitWrites, foldAcked]);
+  const rollback = useCallback((opId) => commitWrites(ws => dropWrite(ws, opId)), [commitWrites]);
+  const sendLocal = useCallback((row) => addWrite(upsertWrite({ ...row, sendState: 'sending' })), [addWrite]);
+  const markSendState = useCallback((opId, sendState) => {
+    commitWrites(ws => updateWrite(ws, opId, w => ({ ...w, row: { ...w.row, sendState } })));
+  }, [commitWrites]);
+  const confirmSend = useCallback((opId, row) => settle(opId, { row }), [settle]);
+  const patchLocal = useCallback((id, patch) => addWrite(patchWrite(id, patch)), [addWrite]);
+  const removeLocal = useCallback((id) => addWrite(removeWrite(id)), [addWrite]);
+  // Put a known row back (a delete's Undo).
+  const upsertLocal = useCallback((row) => addWrite(upsertWrite(row)), [addWrite]);
+
+  // Rows a peer's nudge named, re-read from the database. A message older than
+  // what is loaded stays off screen until the reader pages back to it.
+  const applyServerRows = useCallback((rows, askedIds) => {
+    const byId = new Map(rows.filter(r => r.conversation_id === conversationId).map(r => [r.id, r]));
+    // What's on screen, writes included: a message that so far exists only in
+    // the log (nudged in while a read was out) still has to leave on a delete.
+    const shownNow = applyWrites(messagesRef.current, writesRef.current);
+    const shownIds = new Set(shownNow.map(m => m.id));
+    const oldest = shownNow[0];
+    const out = [];
+    for (const id of askedIds) {
+      const r = byId.get(id);
+      if (!r || r.deleted_at) {
+        if (shownIds.has(id)) out.push(removeWrite(id));
+        continue;
+      }
+      if (!shownIds.has(id) && oldest && hasOlderRef.current && time(r) < time(oldest)) continue;
+      out.push(upsertWrite(r));
+    }
+    if (!out.length) return;
+    const epoch = ++epochRef.current;
+    commitWrites(ws => ws.concat(out.map(w => ({ ...w, ackedAt: epoch }))));
+    foldAcked();
+  }, [conversationId, commitWrites, foldAcked]);
+
   // Whether anyone can see this thread: tab visible and focused. A thread
   // left open in a background tab used to mark every arrival read at once,
   // so the title badge never showed (COMMS-03). Coming back marks it read.
@@ -138,54 +291,152 @@ export function useMessageThread({ conversationId, userId, onMarkedRead }) {
     };
   }, []);
 
-  // Mark read whenever the conversation opens, a new message arrives, or the
-  // reader comes back to the tab — keyed on the newest id, not the length,
-  // which stops moving at a full page and jumps when older history loads.
-  // After marking, notify the parent so unread counts refresh.
   // Never hand out the previous conversation's rows, not even for the one
   // render before the switch effect clears them.
   const shown = messages.length && messages[0].conversation_id !== conversationId ? NO_MESSAGES : messages;
-  const lastId = lastMessageId(shown);
+  const view = useMemo(() => applyWrites(shown, writes), [shown, writes]);
+
+  // Mark read whenever the conversation opens, a new message arrives, or the
+  // reader comes back to the tab — keyed on the newest id the server has, not
+  // the length, which stops moving at a full page and jumps when older
+  // history loads — once the newest message has been on screen. Marked up to
+  // that message's SERVER time: this device's clock, ahead or behind, used to
+  // mark later messages read or leave earlier ones unread. After marking,
+  // notify the parent so unread counts refresh.
+  //
+  // Up to the newest message from someone else: your own never count as
+  // unread (get_unread_counts, 0058), so a send of yours marks nothing — no
+  // write, no re-read of the conversation list, no "read" ping that has the
+  // others check Seen again.
+  const newest = [...view].reverse().find(m => !m.sendState && m.sender_id !== userId) || null;
+  const lastId = newest?.id || null;
+  const upTo = newest?.created_at || null;
+  // On screen is checked again over the next few frames: a message that
+  // lands while you're at the bottom is laid out before the view re-pins to
+  // it, so the first look finds it just below the fold, and the read gate
+  // (an observer of the end) never flips to ask again. It stayed unread.
   useEffect(() => {
+    if (fixture) return;
     if (!userId || !conversationId || !attended) return;
+    if (!readGate) return;
+    // Nothing the server has sent yet: nothing to mark (and no server time to mark it with).
+    if (!upTo) return;
     let cancelled = false;
-    (async () => {
-      const ok = await markRead({ conversationId, userId });
+    let frame = 0;
+    let tries = 0;
+    const attempt = async () => {
       if (cancelled) return;
-      if (ok) onMarkedReadRef.current?.();
-    })();
-    return () => { cancelled = true; };
-  }, [userId, conversationId, lastId, attended]);
+      if (isReadableRef.current && !isReadableRef.current()) {
+        if (tries++ < 3) frame = requestAnimationFrame(attempt);
+        return;
+      }
+      const ok = await markRead({ conversationId, userId, upTo });
+      if (cancelled) return;
+      if (ok) {
+        onMarkedReadRef.current?.();
+        broadcastConversationRead({ conversationId, userId });
+      }
+    };
+    attempt();
+    return () => { cancelled = true; cancelAnimationFrame(frame); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, conversationId, lastId, attended, fixture, readGate]);
+
+  // Remember this conversation for a quick return: the server's rows only.
+  useEffect(() => () => {
+    if (fixture) return;
+    putCachedThread(userId, conversationId, {
+      rows: messagesRef.current.filter(m => m.conversation_id === conversationId),
+      hasOlder: hasOlderRef.current,
+      reachedStart: reachedStartRef.current,
+      historyFrom: historyFromRef.current,
+    });
+  }, [userId, conversationId, fixture]);
 
   // Realtime subscribe.
   useEffect(() => {
     if (!conversationId) return;
-    const onMessage = () => refetch();
+    if (fixture) {
+      setTypingUsers(new Map(Object.entries(fixture.typing?.[conversationId] || {})));
+      return;
+    }
+    let alive = true;
+    // Read again whenever the live feed may have dropped something: the
+    // channel (re)joining, the tab coming back, the network returning, or a
+    // nudge whose re-read failed (COMMS-04).
+    const resync = watchForResync(() => { refetch(); refreshReadState(); setPinTick((t) => t + 1); });
+    // A broadcast only says WHICH message changed. Its payload is never
+    // trusted for content (anyone in the conversation can send anything on
+    // conv:*): the named rows are read again from the database instead.
+    const queue = new Set();
+    let timer = null;
+    // One re-read at a time, in order: a slow one can't land after a newer one.
+    let chain = Promise.resolve();
+    const flush = () => {
+      timer = null;
+      const ids = [...queue];
+      queue.clear();
+      if (!ids.length) return;
+      chain = chain.then(async () => {
+        const pageSeqAtStart = seqRef.current;
+        const rows = await fetchMessagesByIds({ conversationId, ids });
+        if (!alive || convRef.current !== conversationId) return;
+        if (rows == null) { resync.kick(); return; }
+        // A page read that started after this one has painted: it's newer news.
+        if (landedSeqRef.current > pageSeqAtStart) return;
+        applyServerRows(rows, ids);
+      });
+    };
+    const nudge = (id) => {
+      if (!id) { resync.kick(); return; }
+      queue.add(id);
+      if (!timer) timer = setTimeout(flush, NUDGE_BATCH_MS);
+    };
+    const clearTyping = (uid) => setTypingUsers(m => {
+      if (!m.has(uid)) return m;
+      const next = new Map(m); next.delete(uid); return next;
+    });
+    const onMessage = (payload) => {
+      if (payload?.changed === 'participants') { resync.kick(); return; }
+      if (payload?.changed === 'pin') setPinTick((t) => t + 1);
+      // Their message landed: they've stopped typing.
+      if (payload?.sender_id) clearTyping(payload.sender_id);
+      nudge(payload?.id);
+    };
+    const typingTimers = new Set();
     const onTyping = ({ user_id, ts }) => {
       if (user_id === userId) return;
       setTypingUsers(m => { const next = new Map(m); next.set(user_id, ts); return next; });
-      setTimeout(() => {
+      const t = setTimeout(() => {
+        typingTimers.delete(t);
         setTypingUsers(m => {
           const stamp = m.get(user_id);
           if (stamp === ts) { const next = new Map(m); next.delete(user_id); return next; }
           return m;
         });
       }, 3000);
+      typingTimers.add(t);
     };
-    // Read again whenever the live feed may have dropped something: the
-    // channel (re)joining, the tab coming back, the network returning, or an
-    // inbox ping for this conversation — which also lands when the conv:
-    // join itself failed, so the thread can't freeze silently (COMMS-04).
-    const resync = watchForResync(() => refetch());
-    const unsub = subscribeConversation({ conversationId, onMessage, onTyping, onSubscribed: resync.kick });
+    // Someone read the thread: read everyone's position again (the payload
+    // is only a nudge). Your own reads change nothing that's shown.
+    const onRead = (payload) => { if (payload?.user_id !== userId) refreshReadState(); };
+    const unsub = subscribeConversation({ conversationId, onMessage, onTyping, onRead, onSubscribed: resync.kick });
+    // An inbox ping for this conversation names its new message, and lands
+    // even when the conv: join itself failed, so the thread can't freeze.
     const unsubInbox = subscribeInbox(userId, (payload) => {
-      if (payload?.conversation_id === conversationId) resync.kick();
+      if (payload?.conversation_id === conversationId) nudge(payload.message_id);
     });
-    return () => { resync.stop(); unsubInbox(); unsub(); };
-  }, [conversationId, userId, refetch]);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      typingTimers.forEach(clearTimeout);
+      resync.stop(); unsubInbox(); unsub();
+    };
+  }, [conversationId, userId, refetch, fixture, applyServerRows, refreshReadState]);
 
   return {
-    messages: shown, typingUsers, refetch, hasOlder, loadingOlder, loadOlder, failed,
-    loading: !!conversationId && loadedFor !== conversationId,
+    messages: view, typingUsers, pinTick, refetch, hasOlder, loadingOlder, loadOlder, failed,
+    loading: !!conversationId && loadedFor !== conversationId, fresh, readState,
+    sendLocal, markSendState, confirmSend, patchLocal, removeLocal, upsertLocal, settle, rollback,
   };
 }

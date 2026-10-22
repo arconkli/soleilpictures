@@ -1,0 +1,106 @@
+/* "+ New cluster" after the breadcrumb (NewClusterButton.jsx, behind
+   clusterNudgesAllowed). The raised pill Share wears (.tb-btn.tb-share), so
+   the bar's two things to press look alike, a step quieter: its label keeps
+   the trail's weight, where Share's is bolder — bold, it outweighed the name
+   of the cluster you are in. Never gold. */
+.ncl-wrap { position: relative; display: inline-flex; flex-shrink: 0; margin-left: 2px; }
+.tb-btn.tb-newcluster {
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  border-radius: 999px;
+  padding: 0 13px 0 11px;
+  gap: 6px;
+  white-space: nowrap;
+}
+.tb-btn.tb-newcluster:hover:not(:disabled),
+.tb-btn.tb-newcluster[aria-expanded="true"] {
+  background: var(--bg-4);
+  border-color: var(--line-3);
+  color: var(--ink-0);
+}
+.tb-btn.tb-newcluster:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* How many picked cards would move into it. */
+.ncl-count {
+  display: inline-grid; place-items: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 1px;
+  border-radius: 999px;
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-1);
+  font: 600 11px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The name popover, portaled to the body and placed under the button
+   (NewClusterButton) — at the context menus' height. */
+.ncl-pop {
+  position: fixed; z-index: 2147483600;
+  width: 308px; box-sizing: border-box; padding: 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  box-shadow: var(--shadow-3);
+  text-align: left;
+  cursor: default;
+  animation: ctx-menu-in var(--dur-fast) var(--ease);
+}
+.ncl-pop-h {
+  display: flex; align-items: center; gap: 8px;
+  font: 600 13px/1.2 var(--font-sans);
+  color: var(--ink-0);
+}
+.ncl-pop-h svg { color: var(--ink-2); flex-shrink: 0; }
+.ncl-field {
+  display: block; width: 100%; box-sizing: border-box;
+  height: 34px; margin-top: 12px; padding: 0 10px;
+  border-radius: 6px;
+  background: var(--bg-0);
+  border: 1px solid var(--line-2);
+  color: var(--ink-0);
+  font: 500 13.5px/1 var(--font-sans);
+  outline: 0;
+}
+.ncl-field::placeholder { color: var(--ink-3); }
+.ncl-field:focus { border-color: var(--soleil); box-shadow: 0 0 0 3px var(--soleil-soft); }
+.ncl-help {
+  margin-top: 8px;
+  font: 500 12px/1.4 var(--font-sans);
+  color: var(--ink-2);
+}
+.ncl-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.ncl-cancel, .ncl-create {
+  height: 30px; padding: 0 14px;
+  border: 0; border-radius: 4px;
+  font: 500 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.ncl-cancel { background: var(--bg-3); color: var(--ink-1); box-shadow: inset 0 0 0 1px var(--line-2); }
+.ncl-cancel:hover { background: var(--bg-4); color: var(--ink-0); }
+/* The primary in ink, not gold. */
+.ncl-create { background: var(--ink-0); color: var(--bg-0); font-weight: 600; }
+.ncl-create:hover { background: var(--ink-1); }
+.ncl-cancel:focus-visible, .ncl-create:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
+/* The bar, while it holds the button: three columns, so Board · Files stays in
+   the middle of the bar however long the trail gets. The right side never
+   shrinks below what it holds; the trail gives way first. */
+.topbar.topbar-centered {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+}
+.topbar.topbar-centered .tb-right { justify-self: end; }
+
+/* In the floating islands (FloatingChrome) it ends the left island, so it
+   sits 4px inside the island's edge on all three sides (26px of its 34px):
+   at Share's 28px it all but touched the top and bottom. */
+.chrome-island .ncl-wrap { margin-left: 6px; }
+.chrome-island .tb-btn.tb-newcluster { height: 26px; padding: 0 12px 0 10px; }
+
+/* A finger: under 16px iOS zooms the page in on focus, and the buttons are
+   40px to take. */
+@media (hover: none) and (pointer: coarse) {
+  .ncl-field { height: 40px; font-size: 16px; }
+  .ncl-cancel, .ncl-create { height: 40px; padding: 0 16px; font-size: 14px; }
+}

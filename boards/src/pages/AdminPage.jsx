@@ -1,10 +1,13 @@
 // AdminPage — /admin. Visible only to tier='admin'. Tabs:
 //   • Universe  — anonymous, real-time graph of every node every user
 //                 has created across the platform, with a stats ticker
-//   • Overview  — the dashboard: Today / Funnel / Retention / System
+//   • Analytics — the dashboard: Overview / Funnel / Retention / System
 //                 (AdminAnalyticsTab). This used to be two tabs, Overview and
 //                 Analytics, which both led with total users, signups and MRR
-//                 and disagreed about which was authoritative.
+//                 and disagreed about which was authoritative. Its id is still
+//                 'overview', so saved tabs and ?tab= links keep working; only
+//                 the label changed (2026-10-20), when its first view took the
+//                 name Overview.
 //   • Users     — paginated list with tier mutation buttons
 //   • Grants    — issue / revoke time-bound paid access
 //   • Discounts — create / deactivate Stripe discount codes (monthly only)
@@ -14,11 +17,11 @@
 //   • API       — /api/v1 + MCP traffic: tools, routes, callers, failures
 //   • Tagging   — embeddings tagger quality audit
 //
-// Opens on Overview (fast) and remembers the active tab in the URL
+// Opens on Analytics (fast) and remembers the active tab in the URL
 // (?tab=) + localStorage, so a reload / back / shared link returns to the
 // operator's tab instead of remounting the heavy WebGL Universe graph.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import './admin/admin.css';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
@@ -27,7 +30,7 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { Lock } from '../lib/icons.js';
 import { AdminError } from './admin/AdminStates.jsx';
-import { AdminUniverseTab } from './admin/AdminUniverseTab.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
 import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
 import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
@@ -50,12 +53,24 @@ import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { adminPublicBoardSubmissionCounts } from '../lib/boardsApi.js';
 
+// The Universe is three.js, bloom and a physics worker: over a megabyte that
+// every other tab downloaded and compiled too, though only this one draws it.
+// It loads when its tab opens, and its menu row starts the download as soon as
+// it is pointed at or focused.
+const loadUniverseTab = () => import('./admin/AdminUniverseTab.jsx');
+const AdminUniverseTab = lazyWithReload(() => loadUniverseTab().then((m) => ({ default: m.AdminUniverseTab })));
+// A failed prefetch is not an error: opening the tab tries again, and that
+// path owns the stale-deploy reload.
+const prefetchUniverseTab = () => { loadUniverseTab().catch(() => {}); };
+
 // Overview and Analytics were two tabs showing the same numbers: both led with
 // total users, signups and MRR, and neither was authoritative. They are one tab
-// now, with four question-shaped views inside it (Today / Funnel / Retention /
-// System) — see AdminAnalyticsTab.
+// now, with four question-shaped views inside it (Overview / Funnel / Retention /
+// System) — see AdminAnalyticsTab. The label is Analytics because the first of
+// those views is the Overview, and two "Overview"s, one inside the other, read
+// as one tab named twice.
 const TABS = [
-  { id: 'overview',  label: 'Overview' },
+  { id: 'overview',  label: 'Analytics' },
   { id: 'users',     label: 'Users' },
   { id: 'grants',    label: 'Grants' },
   { id: 'discounts', label: 'Discounts' },
@@ -79,9 +94,11 @@ const STORAGE_KEY = 'admin.tab';
 // The header shows only the daily/frequent sections as pills; the rarely-touched
 // long tail folds into a single "More" overflow so the bar isn't 11 items wide.
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
-const PRIMARY_IDS = ['overview', 'users', 'approvals', 'waitlist'];
+const PRIMARY_IDS = ['overview', 'users', 'approvals'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
-const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'tagging', 'universe'];
+// The waitlist has been switched off since 2026-06-15, so Waitlist sits with
+// Campaign among the rarely opened rather than in the pills.
+const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'waitlist', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
@@ -92,6 +109,7 @@ const OVERFLOW_ITEMS = OVERFLOW_IDS.map((id) => ({
   label: labelOf(id),
   heavy: HEAVY_IDS.has(id),
   sepAfter: id === OVERFLOW_SEP_AFTER,
+  prefetch: id === 'universe' ? prefetchUniverseTab : undefined,
 }));
 
 // Tabs that have been merged away. Old deep links and persisted prefs land on
@@ -278,7 +296,11 @@ export function AdminPage() {
       </header>
 
       <main className={`admin-body ${tab === 'universe' ? 'admin-body-flush' : ''}`}>
-        {tab === 'universe'  && <AdminUniverseTab />}
+        {tab === 'universe'  && (
+          <Suspense fallback={<div className="universe-tab" />}>
+            <AdminUniverseTab />
+          </Suspense>
+        )}
         {tab === 'overview'  && <AdminAnalyticsTab />}
         {tab === 'users'     && <AdminUsersTab />}
         {tab === 'grants'    && <AdminGrantsTab />}

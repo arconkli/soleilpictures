@@ -1,0 +1,78 @@
+/* The small things in the files sidebar's look: App sets body[data-sb-files],
+   and the materials are clusterSidebar.css's. The nudges (.fv-banner: the
+   Creator offer, the invite, the asks) and the coach mark in the chrome's
+   glass, View only as words, a comment's unread dot in ink. ?local=1 and the
+   public pages keep styles.css's. The toasts and dialogs are feedbackLook.css,
+   ⌘K commandPaletteLook.css. */
+
+/* ── Nudges and the coach mark ───────────────────────────────────────────── */
+/* The glass, with the little gold glow the owner kept (2026-10-22), quieter
+   than the old halo: the hairline warmed, a soft glow, the spark in gold. */
+body[data-sb-files] :is(.fv-banner, .onboarding-coachmark) {
+  border: 0;
+  background: var(--sbf-solid);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 11%, var(--sbf-glass-line)), var(--sbf-glass-shadow),
+              0 0 24px color-mix(in srgb, var(--soleil) 12%, transparent), var(--sbf-lift);
+}
+/* An ask is a question, not an offer: the glass without the glow. */
+body[data-sb-files] .fv-banner.rr-ask { box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), var(--sbf-lift); }
+/* Stuck: the gold ring says look here, over the same glass. */
+body[data-sb-files] .onboarding-coachmark.is-escalated:not(.is-leaving) {
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), 0 0 0 2px var(--soleil),
+              0 0 24px color-mix(in srgb, var(--soleil) 12%, transparent), var(--sbf-lift);
+}
+body[data-sb-files] :is(.fv-banner, .onboarding-coachmark) :is(.fv-banner-spark, .onboarding-coachmark-spark) {
+  display: inline-flex;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--soleil) 45%, transparent));
+}
+body[data-sb-files] :is(.fv-banner:not(.rr-ask), .onboarding-coachmark) { padding: 12px 12px 12px 14px; }
+body[data-sb-files] :is(.fv-banner:not(.rr-ask) .fv-banner-body, .onboarding-coachmark .onboarding-coachmark-body) { text-wrap: pretty; max-width: 52ch; }
+/* 8px over a bar's slot at the foot, not at a height of its own. A phone
+   keeps clear of its bottom bar (styles.css). */
+body[data-sb-float] :is(.fv-banner, .onboarding-coachmark) { bottom: calc(56px + var(--safe-bottom, 0px)); }
+/* The offer is the one ink button; an acknowledgment is the sidebar's raised chip. */
+body[data-sb-files] :is(.fv-banner-cta, .onboarding-coachmark .onboarding-coachmark-dismiss) {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  font: 600 12.5px/1 var(--font-sans);
+}
+body[data-sb-files] .fv-banner-cta { background: var(--ink-0); color: var(--bg-0); box-shadow: none; }
+body[data-sb-files] .fv-banner-cta:hover { transform: none; box-shadow: none; background: color-mix(in srgb, var(--ink-0) 88%, var(--bg-0)); }
+body[data-sb-files] .onboarding-coachmark .onboarding-coachmark-dismiss { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
+body[data-sb-files] .onboarding-coachmark .onboarding-coachmark-dismiss:hover {
+  transform: none;
+  box-shadow: var(--sbf-chip-shadow);
+  background: color-mix(in srgb, var(--ink-0) 10%, var(--sbf-chip));
+}
+body[data-sb-files] .fv-banner-dismiss { height: 30px; padding: 0 10px; border-radius: 8px; color: var(--ink-1); font: 500 12.5px/1 var(--font-sans); }
+body[data-sb-files] .fv-banner-dismiss:hover { background: var(--sbf-hover); color: var(--ink-0); }
+/* Under a finger, or full width on a phone (styles.css), each takes one. */
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  body[data-sb-files] :is(.fv-banner-cta, .fv-banner-dismiss, .onboarding-coachmark .onboarding-coachmark-dismiss) { height: 40px; }
+}
+
+/* ── Marks ───────────────────────────────────────────────────────────────── */
+/* View only: an eye and words in quiet ink, as the doc look's chip says it,
+   not a gold tag (gold marks what's active). */
+body[data-sb-files] .tb-viewonly {
+  gap: 5px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
+  letter-spacing: 0;
+}
+/* A phone's bar has no room to spare (phone-topbar-fit.spec): the cluster's
+   name keeps what the old tag left it. */
+@media (max-width: 640px) {
+  body[data-sb-files] .topbar .tb-viewonly { gap: 4px; padding: 0 2px; font-size: 11px; }
+}
+/* Unread is inverse ink, as the bell's dot and Messages' count are, inside
+   the card's corner rather than astride it. */
+body[data-sb-files] .canvas-comment-unread-dot { top: 10px; right: 10px; width: 6px; height: 6px; background: var(--ink-0); box-shadow: none; }

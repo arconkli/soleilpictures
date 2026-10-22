@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download } from '../lib/icons.js';
+import { Trash2, Edit, Smile, MessageSquare, Pin, Link as LinkIcon, Download, MoreHorizontal, WarningCircle } from '../lib/icons.js';
 import { EmojiPalette } from './EmojiPalette.jsx';
+import { GrowingTextarea } from './GrowingTextarea.jsx';
+import { isComposingKey, messageKeyAction, touchKeyboard, finePointer } from '../lib/composerKeys.js';
+import { withinEditWindow } from '../lib/messageEdit.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { renderMessageBody } from '../lib/renderMessageBody.jsx';
@@ -10,37 +13,55 @@ import { EntityLink } from './EntityLink.jsx';
 import { coerceRef } from '../lib/entityRef.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
-import { attachmentUrl, attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLinks.js';
+import { attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLinks.js';
+import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
+import { RelTime } from './RelTime.jsx';
+import { useMinuteNow } from '../hooks/useMinuteNow.js';
+import { MessageThings } from './MessageThings.jsx';
 
 // One message row in a thread.
 //   msg              — full row from messages table
 //   selfId           — current user
 //   highlight        — optional substring to <mark> inside the body (search)
-//   replyMeta        — { count, lastAt } for replies count badge
-//   parent           — when this message is a reply, the parent message row
-//                      (renders as an iMessage-style preview chip above the
-//                      bubble). Null for top-level messages.
+//   parent           — when this message is a reply, the row it quotes
+//                      (an iMessage-style preview chip above the bubble), or
+//                      { id, unavailable: 'deleted' | 'missing' }. Null for
+//                      a message that isn't a reply.
 //   onJumpToMessage  — called with an id when the user clicks the parent
 //                      preview chip; parent flashes/scrolls into view.
 //   isFocused        — keyboard-nav highlight ring
 //   onDelete, onEdit, onReact, onReply, onPin, onCopyLink — wired by parent
-export function MessageBubble({
-  msg, selfId, highlight, replyMeta, parent, onJumpToMessage, isFocused,
+//
+// The files sidebar's card look (card, messagesCard.css) draws it as a chat
+// bubble: inDm, and the run it sits in from lib/messageFeed.js (runStart,
+// joinUp / joinDown, runEnd, showTime). There its actions are one menu
+// (onOpenMenu, from the ⋯ or a right click) and an edit happens in the box
+// you type in (editingHere outlines the message being edited).
+//
+// Memoized: a thread of hundreds re-renders only the bubbles whose props
+// changed (the thread keeps its handlers and rows stable). The time moves on
+// through <RelTime>, and an edit window that closes through the shared clock.
+export const MessageBubble = memo(function MessageBubble({
+  msg, selfId, highlight, parent, onJumpToMessage, isFocused, seen = false,
   isContinuation = false, // consecutive message from the same sender — drop the header
   onDelete, onEdit, onReact, onReply, onPin, onCopyLink,
   onAttachmentDragStart,
   onRetrySend, onDiscardSend, // optimistic-send bubbles only
+  card = false, inDm = false, runStart = true, joinUp = false, joinDown = false, runEnd = true, showTime = false,
+  editingHere = false, menuOpen = false, onOpenMenu,
 }) {
   const isMine = msg.sender_id === selfId;
   // 'sending' | 'failed' | null — optimistic messages that haven't been
   // confirmed by the server yet. They render dimmed with no actions.
   const sendState = msg.sendState || null;
-  const within15min = msg.created_at && (Date.now() - new Date(msg.created_at).getTime()) < 15 * 60 * 1000;
-  const [hover, setHover] = useState(false);
+  const inEditWindow = withinEditWindow(msg.created_at);
+  // Re-check on the shared clock while it's open, so Edit goes when it shuts.
+  useMinuteNow(isMine && inEditWindow);
   const [emojiAnchor, setEmojiAnchor] = useState(null);
+  const reactBtnRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(msg.body);
-  const [, force] = useState(0);
+  const [profilesSeen, force] = useState(0);
   const openDm = useOpenDm();
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
@@ -57,23 +78,37 @@ export function MessageBubble({
   // nothing to stop at and swallowed the rest of the sentence (COMMS-05).
   // Both the display name and the address: the composer inserts whichever
   // the picker showed. Re-renders on profile load via the subscribe above.
-  const mentionNames = {};
-  for (const id of (msg.mentions || [])) {
-    const p = userProfiles.resolve(id);
-    mentionNames[id] = [p?.name, p?.email].filter(Boolean);
-  }
+  const mentionNames = useMemo(() => {
+    const names = {};
+    for (const id of (msg.mentions || [])) {
+      const p = userProfiles.resolve(id);
+      names[id] = [p?.name, p?.email].filter(Boolean);
+    }
+    return names;
+  }, [msg.mentions, profilesSeen]);
 
-  const time = formatRelTime(msg.created_at);
-  const fullTime = msg.created_at
+  // The body is parsed once per change to it, not on every render.
+  const body = useMemo(() => renderMessageBody(msg.body, {
+    mentions: msg.mentions || [],
+    userNamesById: mentionNames,
+    attachments: msg.attachments || [],
+    highlight,
+    trie,
+    workspaceId,
+  }), [msg.body, msg.mentions, msg.attachments, mentionNames, highlight, trie, workspaceId]);
+
+  const fullTime = useMemo(() => (msg.created_at
     ? new Date(msg.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-    : '';
+    : ''), [msg.created_at]);
 
   // The thread's `e` shortcut asks the focused message to edit itself; nothing
   // listened, so the advertised key did nothing (COMMS-24). Only your own
-  // message, inside the 15-minute edit window, the same rule as the button.
-  const canEdit = isMine && within15min && !sendState;
+  // message, inside the edit window, the same rule as the button. ↑ in an
+  // empty composer asks the same way (lib/messageEdit.js picks the message).
+  const canEdit = isMine && inEditWindow && !sendState;
+  // The card look edits in the box you type in: the thread listens there.
   useEffect(() => {
-    if (!canEdit) return;
+    if (!canEdit || card) return;
     const onEditRequest = (e) => {
       if (e.detail?.id !== msg.id) return;
       setEditBody(msg.body);
@@ -81,18 +116,26 @@ export function MessageBubble({
     };
     document.addEventListener('soleil-msg-edit', onEditRequest);
     return () => document.removeEventListener('soleil-msg-edit', onEditRequest);
-  }, [canEdit, msg.id, msg.body]);
+  }, [canEdit, card, msg.id, msg.body]);
 
+  // The edit closes at once and shows (the thread applies it optimistically);
+  // a save that fails reopens it with your text (onEdit resolves false).
+  const savingRef = useRef(false);
   const submitEdit = async () => {
     const v = editBody.trim();
-    if (!v) return;
-    await onEdit?.(msg, v);
+    if (!v || savingRef.current) return;
+    if (v === msg.body) { setEditing(false); return; }
+    savingRef.current = true;
     setEditing(false);
+    const ok = await onEdit?.(msg, v);
+    savingRef.current = false;
+    if (ok === false) { setEditBody(v); setEditing(true); }
   };
 
   // iMessage-style parent preview shown on replies. Click → parent flashes
   // and scrolls into view in the same feed.
-  const parentProfile = parent ? userProfiles.resolve(parent.sender_id) : null;
+  const parentGone = parent?.unavailable || null;
+  const parentProfile = parent && !parentGone ? userProfiles.resolve(parent.sender_id) : null;
   const parentName = parent
     ? (parentProfile?.name || parentProfile?.email || parent.sender_name
         || (parent.sender_email ? emailToFriendly(parent.sender_email) : null) || 'Member')
@@ -100,15 +143,107 @@ export function MessageBubble({
   const parentColor = parent ? (parentProfile?.color || pickPresenceColor(parent.sender_id || '')) : '';
   const parentExcerpt = parent ? (parent.body || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
 
+  const reactions = msg.reactions && Object.keys(msg.reactions).length > 0 && (
+    <div className="msg-bubble-reactions">
+      {Object.entries(msg.reactions).map(([emoji, ids]) => (
+        <button key={emoji} className={`msg-reaction ${ids?.includes(selfId) ? 'own' : ''}`} onClick={() => onReact?.(msg, emoji)}>
+          <span>{emoji}</span>
+          <span className="msg-reaction-count">{ids?.length || 0}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  if (card) {
+    const hasText = !!String(msg.body || '').trim();
+    const showAuthor = !isMine && !inDm && runStart;
+    // One quiet line under the run: its time where the talk had paused, and
+    // what's news (edited, pinned, seen). A message mid-run says only its news.
+    const news = [msg.edited_at ? 'Edited' : '', msg.is_pinned ? 'Pinned' : ''].filter(Boolean);
+    let meta = '';
+    if (sendState === 'sending') meta = runEnd ? 'Sending…' : '';
+    else if (!sendState && runEnd && (showTime || news.length || seen)) {
+      meta = [shortClock(msg.created_at), ...news, seen ? 'Seen' : ''].filter(Boolean).join(' · ');
+    } else if (!sendState && !runEnd && news.length) meta = news.join(' · ');
+    const openMenu = (e) => {
+      if (!onOpenMenu || sendState) return;
+      onOpenMenu(msg, e.currentTarget.getBoundingClientRect(), e.currentTarget);
+    };
+    // A right click opens the same menu where there's a mouse; on a link or a
+    // picture the browser's own stays (open in a new tab, save the image).
+    const onContext = (e) => {
+      if (!onOpenMenu || sendState || !finePointer() || e.target.closest?.('a, img')) return;
+      // A long press on a touch screen is the press-and-hold sheet's.
+      if (e.nativeEvent?.pointerType === 'touch') return;
+      e.preventDefault();
+      onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }, null);
+    };
+    const more = !sendState && onOpenMenu && (
+      <button type="button" className="msg-bubble-more" aria-label="Message actions" aria-haspopup="menu"
+              aria-expanded={menuOpen} title="Message actions" onClick={openMenu}>
+        <Icon as={MoreHorizontal} size={16} weight="regular" />
+      </button>
+    );
+    const things = <MessageThings msg={msg} workspaceId={workspaceId} onDragStart={onAttachmentDragStart} />;
+    const bubble = (hasText || parent) && (
+      <div className="msg-bubble-body">
+        {parent && (parentGone ? (
+          <span className="msg-reply-quote is-gone">
+            {parentGone === 'deleted' ? 'Original message deleted' : 'Original message unavailable'}
+          </span>
+        ) : (
+          <button type="button" className="msg-reply-quote" title={`Go to ${parentName}'s message`}
+                  onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
+            {!inDm && <span className="msg-reply-quote-who">{parent.sender_id === selfId ? 'You' : parentName}</span>}
+            <span className="msg-reply-quote-text">{parentExcerpt || 'Attachment'}</span>
+          </button>
+        ))}
+        {hasText && body}
+      </div>
+    );
+    return (
+      <div className={`msg-bubble is-card ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${joinUp ? 'joins-up' : ''} ${joinDown ? 'joins-down' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${sendState ? `msg-bubble--pending is-${sendState}` : ''} ${editingHere ? 'is-editing' : ''}`}
+           data-msg-id={msg.id}
+           id={`msg-${msg.id}`}
+           onContextMenu={onContext}>
+        {showAuthor && <div className="msg-bubble-author">{senderName}</div>}
+        {bubble ? (
+          <>
+            <div className="msg-bubble-line">{bubble}{more}</div>
+            {things}
+          </>
+        ) : (
+          <div className="msg-bubble-line">{things}{more}</div>
+        )}
+        {reactions}
+        {sendState === 'failed' && (
+          <div className="msg-bubble-failed" role="alert">
+            <Icon as={WarningCircle} size={14} weight="regular" />
+            <span>Not sent</span>
+            <button type="button" onClick={() => onRetrySend?.(msg)}>Try again</button>
+            <button type="button" onClick={() => onDiscardSend?.(msg)}>Delete</button>
+          </div>
+        )}
+        {meta && <div className="msg-bubble-meta" title={fullTime}>{meta}</div>}
+      </div>
+    );
+  }
+
   return (
-    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''}`}
+    <div className={`msg-bubble ${isMine ? 'msg-bubble--mine' : ''} ${isContinuation ? 'is-continuation' : ''} ${msg.is_pinned ? 'msg-bubble--pinned' : ''} ${isFocused ? 'msg-bubble--focused' : ''} ${parent ? 'msg-bubble--reply' : ''} ${sendState ? 'msg-bubble--pending' : ''} ${editing ? 'is-editing' : ''}`}
          data-msg-id={msg.id}
-         id={`msg-${msg.id}`}
-         onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      {parent && (
+         id={`msg-${msg.id}`}>
+      {parent && parentGone && (
+        <div className="msg-reply-preview is-gone">
+          <span className="msg-reply-preview-body">
+            {parentGone === 'deleted' ? 'Original message deleted' : 'Original message unavailable'}
+          </span>
+        </div>
+      )}
+      {parent && !parentGone && (
         <button type="button"
                 className="msg-reply-preview"
-                title={`Reply to ${parentName}`}
+                title={`Go to ${parentName}'s message`}
                 onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
           <span className="msg-reply-preview-line" style={{ background: parentColor }} aria-hidden="true" />
           <span className="msg-reply-preview-author" style={{ color: parentColor }}>{parentName}</span>
@@ -150,30 +285,32 @@ export function MessageBubble({
             {sendState ? (
               <span className="msg-bubble-time">{sendState === 'sending' ? 'Sending…' : ''}</span>
             ) : (
-              <time className="msg-bubble-time" dateTime={msg.created_at} title={fullTime}>
-                {time}{msg.edited_at ? ' · edited' : ''}
-              </time>
+              <RelTime className="msg-bubble-time" iso={msg.created_at} title={fullTime}
+                       suffix={msg.edited_at ? ' · edited' : ''} />
             )}
           </>
         )}
-        <span className={`msg-bubble-actions ${hover && !editing && !sendState ? 'is-visible' : ''}`}>
-          {onReply && <button title="Reply in thread" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
-          <button title="React" onClick={(e) => setEmojiAnchor(e.currentTarget.getBoundingClientRect())}><Icon as={Smile} size={12} /></button>
+        {/* Shown on hover or keyboard focus (CSS), never while editing or sending. */}
+        <span className="msg-bubble-actions">
+          {onReply && <button title="Reply" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
+          <button title="React" ref={reactBtnRef} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor((a) => (a ? null : r)); }}><Icon as={Smile} size={12} /></button>
           {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
           {onCopyLink && <button title="Copy link" onClick={() => onCopyLink(msg)}><Icon as={LinkIcon} size={12} /></button>}
-          {isMine && within15min && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
+          {isMine && inEditWindow && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
           {isMine               && <button title="Delete" onClick={() => onDelete?.(msg)}><Icon as={Trash2} size={12} /></button>}
         </span>
       </div>
       {editing ? (
         <form onSubmit={(e) => { e.preventDefault(); submitEdit(); }}>
-          <textarea autoFocus value={editBody}
+          <GrowingTextarea focusAtEnd value={editBody} maxLines={12}
                     onChange={(e) => setEditBody(e.target.value)}
-                    className="msg-composer-input" rows={2}
+                    className="msg-composer-input"
                     onKeyDown={(e) => {
+                      if (isComposingKey(e)) return;
                       if (e.key === 'Escape') { e.preventDefault(); setEditing(false); return; }
-                      // Enter submits (matches the main composer); Shift+Enter = newline.
-                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(); }
+                      // The composer's rule: Enter saves on a desktop keyboard,
+                      // Shift+Enter (or Enter on a touch one) makes a new line.
+                      if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); submitEdit(); }
                     }} />
           <div className="msg-bubble-edit-actions">
             <button type="button" onClick={() => setEditing(false)}>Cancel</button>
@@ -181,16 +318,7 @@ export function MessageBubble({
           </div>
         </form>
       ) : (
-        <div className="msg-bubble-body">
-          {renderMessageBody(msg.body, {
-            mentions: msg.mentions || [],
-            userNamesById: mentionNames,
-            attachments: msg.attachments || [],
-            highlight,
-            trie,
-            workspaceId,
-          })}
-        </div>
+        <div className="msg-bubble-body">{body}</div>
       )}
       {sendState === 'failed' && (
         <div className="msg-bubble-failed" role="alert">
@@ -219,7 +347,7 @@ export function MessageBubble({
               )}
               {att.kind === 'file' && (att.storage_path ? (
                 <a className="msg-attachment-file"
-                   href={attachmentUrl(SUPABASE_URL, att.storage_path, { download: att.name || 'file' })}
+                   href={publicAttachmentUrl(att.storage_path, { download: att.name || 'file' })}
                    download={att.name || 'file'}
                    target="_blank" rel="noopener noreferrer"
                    title={`Download ${att.name || 'file'}`}>
@@ -247,38 +375,19 @@ export function MessageBubble({
           ))}
         </div>
       )}
-      {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-        <div className="msg-bubble-reactions">
-          {Object.entries(msg.reactions).map(([emoji, ids]) => (
-            <button key={emoji} className={`msg-reaction ${ids?.includes(selfId) ? 'own' : ''}`} onClick={() => onReact?.(msg, emoji)}>
-              <span>{emoji}</span>
-              <span className="msg-reaction-count">{ids?.length || 0}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {/* Replies-count badge — visible when this message has replies. */}
-      {replyMeta?.count > 0 && (
-        <button className="msg-bubble-replies"
-                onClick={() => onReply?.(msg)}
-                title="Open thread">
-          <Icon as={MessageSquare} size={11} />
-          <span>{replyMeta.count} {replyMeta.count === 1 ? 'reply' : 'replies'}</span>
-          {replyMeta.lastAt && (
-            <span className="msg-bubble-replies-time">· last {formatRelTime(replyMeta.lastAt)}</span>
-          )}
-        </button>
-      )}
+      {reactions}
+      {seen && <div className="msg-bubble-seen">Seen</div>}
       {emojiAnchor && (
         <EmojiPalette
           anchor={emojiAnchor}
+          trigger={reactBtnRef.current}
           onPick={(emoji) => onReact?.(msg, emoji)}
           onClose={() => setEmojiAnchor(null)}
         />
       )}
     </div>
   );
-}
+});
 
 function emailToFriendly(email) {
   if (!email) return null;
@@ -294,9 +403,8 @@ function emailToFriendly(email) {
     .join(' ');
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 function publicUrl(path) {
-  return attachmentUrl(SUPABASE_URL, path);
+  return publicAttachmentUrl(path);
 }
 
 // Bare wall-clock (e.g. "2:14 PM") shown in the gutter on grouped
@@ -306,15 +414,3 @@ function shortClock(iso) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-function formatRelTime(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const ms = Date.now() - d.getTime();
-  const sec = Math.floor(ms / 1000);
-  if (sec < 30)    return 'just now';
-  if (sec < 60)    return `${sec}s ago`;
-  if (sec < 3600)  return `${Math.floor(sec / 60)}m ago`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
-  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}

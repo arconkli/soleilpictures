@@ -63,6 +63,26 @@ test('audio with an EMPTY mime falls back to the extension', () => {
   }
 });
 
+test('video with no mime, or the generic one, falls back to the extension', () => {
+  // A system with nothing registered for .mov or .mkv says nothing, and the
+  // clip became a file card with no player.
+  for (const name of ['Take 3.mov', 'TAKE.MOV', 'a.qt', 'a.mp4', 'a.m4v', 'a.webm', 'a.mkv', 'a.avi',
+                      'a.wmv', 'a.flv', 'a.mpg', 'a.mpeg', 'a.m2ts', 'a.3gp', 'a.3g2', 'a.ogv']) {
+    assert.equal(classifyDropFile(f(name, '')).route, 'video', `${name} with no mime`);
+    assert.equal(classifyDropFile(f(name, 'application/octet-stream')).route, 'video', `${name} as octet-stream`);
+  }
+  // Over the inline size it is still a clip, sent in parts.
+  const big = classifyDropFile(f('Edit.mov', '', FREE_VIDEO_CAP + 1));
+  assert.deepEqual([big.route, big.kind], ['largeMedia', 'video']);
+  // .ts and .mts are TypeScript as often as a camera's; a system that knows
+  // the camera's file says video/mp2t.
+  assert.equal(classifyDropFile(f('index.ts', '')).route, 'file');
+  assert.equal(classifyDropFile(f('mod.mts', '')).route, 'file');
+  assert.equal(classifyDropFile(f('00001.MTS', 'video/mp2t')).route, 'video');
+  // Typed as something else, a name doesn't win.
+  assert.equal(classifyDropFile(f('clips.mov.zip', 'application/zip')).route, 'file');
+});
+
 test('the extension fallback does NOT fire when a mime is present', () => {
   // A file genuinely typed as something else must not be hijacked by its name.
   const c = classifyDropFile(f('notes.wav.zip', 'application/zip'));

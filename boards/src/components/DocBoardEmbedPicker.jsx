@@ -9,12 +9,14 @@ export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
 
   useEffect(() => {
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    // On document, claimed: the open doc is a layer (lib/modalGuard) that
+    // would close on the same Escape at the window.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
     document.addEventListener('pointerdown', onDown, true);
-    window.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
-      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey);
     };
   }, [onClose]);
 

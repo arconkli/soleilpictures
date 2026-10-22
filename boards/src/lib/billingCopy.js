@@ -108,13 +108,14 @@ export function planBilling(plan) {
 //
 // Say it as SCOPE, never as access or seats. "Full edit access, everywhere
 // you're invited" was the line 0188 made free and this file had to delete, and
-// unlimited free collaborators are free too (collab_free_editor_cap is null) —
+// collaborators are free too (0520's editor_limit is off until Team launches) —
 // so the claim is that your LIMITS carry to the people you invite, not that
 // inviting them is free. Both are true; only one of them is Creator's.
 //
 // NOTE: clusters/boards are NOT a paid difference — there is no separate cap on
-// them. Each cluster does sit on its parent's canvas as a card (weight 1), so on
-// the free tier it counts toward the card limit like any other card.
+// them. Each cluster sits on its parent's canvas as a card, and since 0429 that
+// card weighs 0 (gridCount.CLUSTER_CARD_COST, _tg_card_weight_by_kind), so a
+// cluster costs none of the card limit on any plan. A linked cluster weighs 1.
 //
 // The storage figure mirrors the enforced default quota: app_config
 // 'storage_quota_bytes' = 1099511627776 (1 TiB, owner decision 2026-10-17,
@@ -245,7 +246,8 @@ export const CREATOR_BENEFITS = [
     // subscription raises the ceiling for everyone working in that workspace.
     // Say it as SCOPE — the LIMITS carrying over — never as access or seats:
     // editing is free on every tier (0188) and so are unlimited collaborators
-    // (collab_free_editor_cap is null). Both are true; only one is Creator's.
+    // (0520's editor_limit is off until Team launches). Both are true; only
+    // one is Creator's.
     body: 'Everyone you invite builds at your limits. There are no per-seat charges.',
   },
 ];
@@ -286,15 +288,16 @@ export const LEGACY_FEATURE_KEYS = ['studio', 'edit_access', 'tools', 'events', 
 
 // What the free tier genuinely is. It is NOT view-only: since migration 0188 a
 // free user can edit any cluster they are invited to as an editor, and there is
-// no separate cap on clusters/boards. The only real limit is cards — and a
-// cluster's own card counts toward it, which is why this list stopped saying
-// "Unlimited clusters & boards" (owner, 2026-10-01): on a capped plan that
-// reads as free room, and every cluster spends one of the cards. Same words as
+// no separate cap on clusters/boards. The only real limit is cards, and since
+// 0429 a cluster's own card costs none of them (gridCount.CLUSTER_CARD_COST).
+// The list said "each one counts as one of your cards" from 2026-10-01 until
+// clusters became free on 2026-10-21; it still does not say "unlimited
+// clusters" (publicClaims keeps that out). Same words as
 // content/docs/account/plans.md's list.
 export const DEMO_FEATURES = [
   `**${DEMO_CARD_LIMIT} cards** to build with`,
   `A **${FREE_STORAGE_LABEL}** drive — any file, any size`,
-  'No separate limit on clusters — each one counts as one of your cards',
+  'Clusters are free — they cost none of your cards',
   'Free collaboration — invite editors to any cluster',
 ];
 
@@ -554,8 +557,8 @@ export const PRICING_FAQ = [
   {
     q: 'What is actually limited on the free plan?',
     a: `Two things — how many cards you can have and how much you can store: ${freeLimitSentence()}. ` +
-       'Any file of any size is welcome on either plan. Collaborators and editing are not limited, and there is ' +
-       'no separate limit on clusters — each one simply counts as a card.',
+       'Any file of any size is welcome on either plan. Collaborators and editing are not limited, and ' +
+       'clusters are free — they cost none of your cards.',
   },
   {
     q: 'Do the people I invite need to pay?',

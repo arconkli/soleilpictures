@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { loadYBoard, purgeLocalBoardState } from '../lib/yboard.js';
 import { readCards, readArrows, readStrokes, readGroups, readGridTemplates, readGridSequences } from '../lib/yhelpers.js';
 import { watchBoardRestores } from '../lib/restoreSignal.js';
+import { announceBoardReload, noteBoardRestored } from '../lib/docResets.js';
 import { primeImageMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import * as perf from '../lib/perf.js';
 import { spreadDelayMs } from '../lib/reconnectBackoff.js';
@@ -13,10 +14,11 @@ import { PRESENCE_TUNING } from '../lib/presenceTuning.js';
 // fresh state read from the now-restored board_state.
 //
 // Window-level event so the producer (lib/boardsApi.js) doesn't need
-// a direct hook reference.
-function emitBoardReset(boardId) {
+// a direct hook reference. `reason` 'restore' when it was a version restore
+// (bulletproofRestore says so); anything else is a reset.
+function emitBoardReset(boardId, reason) {
   try {
-    window.dispatchEvent(new CustomEvent('soleil-board-reset', { detail: { boardId } }));
+    window.dispatchEvent(new CustomEvent('soleil-board-reset', { detail: { boardId, reason } }));
   } catch (_) {}
 }
 if (typeof window !== 'undefined') {
@@ -37,11 +39,11 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   const [resetEpoch, setResetEpoch] = useState(0);
   const emptySnapshot = (nextBoardId = null) => ({
     ready: false, synced: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: nextBoardId,
-    undoManager: null, canUndo: false, canRedo: false, sessionId: null,
+    undoManager: null, canUndo: false, canRedo: false, sessionId: null, paintSource: null,
   });
   const [snapshot, setSnapshot] = useState({
     ready: false, synced: false, cards: [], arrows: [], strokes: [], groups: [], gridTemplates: {}, gridSequences: {}, ydoc: null, boardId: null,
-    undoManager: null, canUndo: false, canRedo: false, sessionId: null,
+    undoManager: null, canUndo: false, canRedo: false, sessionId: null, paintSource: null,
   });
 
   // Reset signals come from THREE sources, all converging on a single
@@ -67,10 +69,16 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   // re-saved it to the draft and board_state, the remount re-applied that
   // draft, and every restore of an open cluster was silently undone
   // (APP-CORE-01). The remount after a discard then reads only the server.
+  //
+  // `kind` says what replaced it — 'restore', 'reset' (cards moved in, or a
+  // restore whose own signal hasn't come yet), 'heal' — for the docs open on
+  // the board, which are told first (lib/docResets.js): they note where they
+  // are and what their page holds while this doc still has it, reopen once
+  // the board is back, and say what happened.
   const lastResetAtRef = useRef(0);
   const resetTimerRef = useRef(0);
   const freshLoadRef = useRef(null);   // boardId whose next mount must skip local copies
-  const triggerReset = (reason, { force = false, discard = true } = {}) => {
+  const triggerReset = (reason, { force = false, discard = true, kind = 'reset' } = {}) => {
     const now = Date.now();
     // A corruption heal is its own event, not a 2nd/3rd copy of a restore
     // signal: deduping it against a restore requested <600ms earlier left the
@@ -79,6 +87,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     lastResetAtRef.current = now;   // dedupe NOW so the 3 sources still coalesce
     const h = handleRef.current;
     if (h && h.boardId === boardId) {
+      announceBoardReload(boardId, kind);
       if (discard) { try { h.discard?.(); } catch (_) {} }
       freshLoadRef.current = boardId;
     }
@@ -103,7 +112,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     if (!boardId) return;
     const onReset = (e) => {
       if (e?.detail?.boardId && e.detail.boardId !== boardId) return;
-      triggerReset('window-event');
+      triggerReset('window-event', { kind: e?.detail?.reason === 'restore' ? 'restore' : 'reset' });
     };
     window.addEventListener('soleil-board-reset', onReset);
     return () => window.removeEventListener('soleil-board-reset', onReset);
@@ -112,7 +121,8 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
   useEffect(() => {
     if (!boardId) return;
     const unsubscribe = watchBoardRestores(boardId, ({ version }) => {
-      triggerReset(`realtime-version=${version}`);
+      noteBoardRestored(boardId);
+      triggerReset(`realtime-version=${version}`, { kind: 'restore' });
     });
     return () => { try { unsubscribe(); } catch (_) {} };
   }, [boardId]);
@@ -146,7 +156,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
         window.dispatchEvent(new CustomEvent('soleil-board-selfhealed', { detail: { boardId } }));
       } catch (_) {}
       // poisoned + purged above (with the draft stashed) — no discard here
-      triggerReset('yjs-corruption', { force: true, discard: false });
+      triggerReset('yjs-corruption', { force: true, discard: false, kind: 'heal' });
     };
     window.addEventListener('soleil:yjs-corruption', onCorruption);
     return () => window.removeEventListener('soleil:yjs-corruption', onCorruption);
@@ -180,7 +190,12 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     // after the instant cache/draft paint so the board renders ahead of the
     // network snapshot.
     let earlyRefresh = () => {};
-    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb, fresh, onEarlyContent: () => earlyRefresh() });
+    // What the first paint came from: 'draft' (this device's unsaved edits),
+    // 'cache' (the last snapshot this device saw) or 'server'. Boot timing
+    // (lib/bootMarks.js) reads it; a cache paint is instant, a server one waits
+    // on board_state.
+    let paintSource = null;
+    const handle = loadYBoard(boardId, { userId, user, workspaceId, hasThumb, fresh, onEarlyContent: (source) => earlyRefresh(source) });
     handleRef.current = handle;
 
     let unmounted = false;
@@ -230,6 +245,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
         sessionId: handle.sessionId || null,
         getAwareness: handle.getAwareness,
         flushNow: handle.flushNow,
+        paintSource,
       });
       if (_t0) perf.mark('yboard.refresh.ms', performance.now() - _t0);
     };
@@ -242,7 +258,8 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
         refresh();
       });
     };
-    earlyRefresh = scheduleRefresh;   // now safe to fire the instant cache paint
+    // Now safe to fire the instant cache paint.
+    earlyRefresh = (source) => { paintSource = paintSource || source || 'cache'; scheduleRefresh(); };
 
     const onUpdate = (update, origin) => {
       perf.bump('yboard.update');
@@ -269,7 +286,7 @@ export function useYBoard(boardId, userId, user = null, workspaceId = null, hasT
     handle.undoManager.on('stack-cleared', scheduleRefresh);
 
     // Initial render: don't wait for a frame.
-    handle.ready.then(() => refresh());
+    handle.ready.then(() => { paintSource = paintSource || 'server'; refresh(); });
 
     return () => {
       unmounted = true;

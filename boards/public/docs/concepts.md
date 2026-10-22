@@ -2,7 +2,7 @@
 
 > Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.
 
-_Source: https://clusters.soleilpictures.com/docs/concepts · Updated 2026-10-08_
+_Source: https://clusters.soleilpictures.com/docs/concepts · Updated 2026-10-21_
 
 Four ideas, nested inside each other. Once these are straight, the rest of the
 product is discoverable.
@@ -39,7 +39,7 @@ becomes a folder tree without anybody deciding to build a folder tree.
 ## Card
 
 A card is one thing on a board. Images, notes, links, documents, PDFs, video,
-audio, colour palettes, shapes, grids, schedules, votes, and other clusters are
+audio, colour palettes, shapes, grids, votes, and other clusters are
 all cards.
 
 Cards carry a position, a size and a stacking order, which is what makes the
@@ -47,9 +47,9 @@ canvas a canvas rather than a list. Everything else about a card depends on
 what kind it is — see [Cards](/docs/canvas/cards).
 
 The free Demo plan allows **50 cards** in total across every
-cluster you create. There is no separate limit on clusters, but each one sits on
-its parent's canvas as a card and counts toward that total. Collaborators are
-unlimited.
+cluster you create. Clusters themselves are free: each one sits on its parent's
+canvas as a card, but that card does not count toward the total, and there is
+no limit on how many you make. Collaborators are unlimited.
 
 ## Two views of the same cluster
 
@@ -58,7 +58,7 @@ Every cluster has two views, and they are not two places:
 - **Board** — the infinite canvas. Position matters. This is where you arrange, connect, draw and compare.
 - **Files** — the same contents as a sortable, searchable file browser, as a grid of previews or a list. This is where you find a specific thing.
 
-Press `F`, or **Files** at the top of the screen, and Files opens beside the board; it can expand to fill the screen.
+A cluster's files are always listed in the [sidebar](/docs/clusters/sidebar), beside the board; press `F` and they fill the screen.
 
 Switching views does not move or convert anything. A cluster is one set of
 contents with two ways to look at it, which is why the product describes every

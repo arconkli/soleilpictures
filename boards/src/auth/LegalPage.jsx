@@ -99,7 +99,7 @@ export function LegalPage({ doc = 'privacy' }) {
         </nav>
 
         <h1 className="legal-title">{data.title}</h1>
-        <div className="legal-updated">Last updated {LAST_UPDATED}</div>
+        <div className="legal-updated">Last updated {data.updated || LAST_UPDATED}</div>
 
         {data.intro && <p className="legal-intro">{linkifyEmail(data.intro, 'intro')}</p>}
 

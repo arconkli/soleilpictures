@@ -7,7 +7,7 @@
 //   3. wire it in renderTemplate's switch
 //   4. update send-transactional-email's accepted template list
 
-import { renderEmail, renderPlainNote } from "./layout.ts";
+import { renderEmail, renderPlainNote, POSTAL_ADDRESS } from "./layout.ts";
 // Names other people typed, made safe for a subject line: no links, no
 // newlines, a length cap. See safeLabel.mjs for why (migration 0358).
 import { safeLabel, safePerson } from "./safeLabel.mjs";
@@ -28,8 +28,11 @@ export type TemplateName =
   | "board_waiting"
   | "nudge_dormant_early"
   | "whats_new"
+  | "product_update"
   | "schedule_update"
   | "share_activity"
+  | "file_shared"
+  | "file_commented"
   | "ops_alert";
 
 export const TEMPLATE_NAMES: TemplateName[] = [
@@ -48,8 +51,11 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "board_waiting",
   "nudge_dormant_early",
   "whats_new",
+  "product_update",
   "schedule_update",
   "share_activity",
+  "file_shared",
+  "file_commented",
   "ops_alert",
 ];
 
@@ -389,9 +395,18 @@ interface InviteAcceptedData {
   role?: string;
   workspaceId?: string;
   boardId?: string;
+  // 'workspace' when they joined the whole workspace (a workspace invite or
+  // its invite link): the mail names the workspace, not its first cluster.
+  scope?: string;
+  workspaceName?: string;
 }
 
+// A workspace's name in a button, while it reads as a name rather than a
+// sentence; a long one says "your workspace" instead.
+const WS_CTA_MAX = 28;
+
 function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
+  if (d.scope === "workspace" && d.workspaceName) return workspaceJoined(d);
   const role = (d.role || "editor").toLowerCase();
   const headline = `${d.joinerName} just joined you.`;
   const subtitle = `They now have ${role} access to "${d.boardName}" — go say hi and build together.`;
@@ -415,6 +430,42 @@ function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
       subtitle,
       "",
       "Open board: " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+// Someone joined the whole workspace: the mail names it, and the button opens
+// the workspace (the app picks its cluster), never the root cluster by name.
+function workspaceJoined(d: InviteAcceptedData): RenderedEmail {
+  const ws = d.workspaceName as string;
+  const viewer = (d.role || "").toLowerCase().endsWith("viewer");
+  const headline = `${d.joinerName} just joined you.`;
+  const subtitle = viewer
+    ? `They can now see everything in ${ws}, every cluster and file. Go say hi.`
+    : `They can now see and edit everything in ${ws}, every cluster and file. Go say hi and build together.`;
+  const label = [...ws].length <= WS_CTA_MAX ? `Open ${ws}` : "Open your workspace";
+  const url = deepLink(
+    { w: d.workspaceId },
+    { utm_source: "email", utm_medium: "transactional", utm_campaign: "invite_accepted" },
+  );
+  return {
+    subject: `${d.joinerName} joined ${ws}`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "They're in",
+      headline,
+      subtitle,
+      cta: { label, url },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      `${label}: ` + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -576,6 +627,106 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       d.replyPreview ? `\n  "${d.replyPreview}"` : "",
       "",
       "Open comment: " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+      unsub ? "Turn these emails off: " + unsub : "",
+    ]),
+  };
+}
+
+// Single-file sharing (0421). The link is /f/<token>; the token is a uuid the
+// render switch has already checked, so it is safe to put in a path.
+const FILE_URL_BASE = "https://clusters.soleilpictures.com/f/";
+// A share made from the preview deploy links back to the preview, so the
+// recipient can open it. Exactly these two origins; anything else is production.
+const FILE_PREVIEW_ORIGIN = "https://main-soleil-boards.arconkli.workers.dev";
+function fileUrlBase(origin: string): string {
+  return origin === FILE_PREVIEW_ORIGIN ? FILE_PREVIEW_ORIGIN + "/f/" : FILE_URL_BASE;
+}
+
+// A file's name, for an email line. safeLabel strips anything domain-shaped,
+// and most extensions are also top-level domains (.mov, .zip, .app), so the
+// extension moves out of the name: "Cut v3.mov" reads "Cut v3 (mov)".
+function fileLabel(raw: unknown): string {
+  const s = String(raw ?? "").trim();
+  const m = s.match(/^(.+)\.([A-Za-z0-9]{1,8})$/);
+  if (!m) return safeLabel(s, 60, "a file");
+  return `${safeLabel(m[1], 52, "a file")} (${m[2].toLowerCase()})`;
+}
+
+interface FileSharedData {
+  sharerName: string;
+  fileName: string;
+  role: string;
+  kind: string;
+  token: string;
+  origin: string;
+}
+
+// A doc (0426) is read or edited together; a file is viewed, or commented on.
+function fileShared(d: FileSharedData): RenderedEmail {
+  const doc = d.kind === "doc";
+  const headline = `${d.sharerName} shared ${doc ? "a document" : "a file"} with you.`;
+  const can = doc
+    ? (d.role === "edit" ? "view and edit" : "view")
+    : (d.role === "comment" ? "view and comment on" : "view");
+  const subtitle = `You can ${can} "${d.fileName}".`;
+  const open = doc ? "Open document" : "Open file";
+  const url = fileUrlBase(d.origin) + d.token;
+  return {
+    subject: `${d.sharerName} shared "${d.fileName}" with you`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: doc ? "Document shared" : "File shared",
+      headline,
+      subtitle,
+      cta: { label: open, url },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      open + ": " + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+interface FileCommentedData {
+  commenterName: string;
+  fileName: string;
+  commentPreview: string;
+  token: string;
+  origin: string;
+  unsubscribeToken?: string;
+}
+
+function fileCommented(d: FileCommentedData): RenderedEmail {
+  const subtitle = `On "${d.fileName}".`;
+  const url = fileUrlBase(d.origin) + d.token;
+  const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_comment_replies") : undefined;
+  return {
+    subject: `${d.commenterName} commented on "${d.fileName}"`,
+    html: renderEmail({
+      preheader: `${d.commenterName}: ${d.commentPreview || "left a comment"}`,
+      eyebrow: "Comment",
+      headline: `${d.commenterName} commented.`,
+      subtitle,
+      bodyHtml: quoteBlock(d.commentPreview),
+      cta: { label: "Open file", url },
+      unsubscribeUrl: unsub,
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      `${d.commenterName} commented.`,
+      subtitle,
+      d.commentPreview ? `\n  "${d.commentPreview}"` : "",
+      "",
+      "Open file: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
       unsub ? "Turn these emails off: " + unsub : "",
@@ -1314,6 +1465,104 @@ Unsubscribe: ${unsub}`,
   };
 }
 
+// ── product_update (migration 0506) ─────────────────────────────────────────
+// The release note to everyone, not only the people who left (whats_new is the
+// win-back). Every word comes from app_config 'lifecycle_product_update', read
+// by the cron and handed over as data: this builder writes no product claim of
+// its own, so an edition says exactly what its author wrote and nothing a
+// stale constant here would add.
+//
+// renderTemplate has already made each string single-line and length-capped;
+// this escapes every one of them on the way into the HTML.
+const APP_ORIGIN = "https://clusters.soleilpictures.com";
+const PRODUCT_UPDATE_MAX_ITEMS = 8;
+
+export type ProductUpdateItem = string | { lead: string; text: string };
+
+interface ProductUpdateData {
+  subject: string;
+  preheader?: string;
+  greeting?: string;
+  intro?: string;
+  items: ProductUpdateItem[];
+  ctaLabel?: string;
+  ctaPath: string;          // already checked by productUpdatePath
+  imageUrl?: string;        // a screenshot, only from EMAIL_ASSET_PREFIX
+  imageAlt?: string;
+  outro?: string;
+  signoff?: string;
+  version?: string;
+  workspaceId?: string;
+  boardId?: string;
+  unsubscribeToken: string;
+  resumeToken?: string;
+}
+
+// A path on the app's own origin, or '/'. Anything that could leave the origin
+// (a scheme, '//host', a backslash, whitespace, a query of its own) is refused
+// rather than repaired: the link sits in a mail that went to every account.
+export function productUpdatePath(v: unknown): string {
+  const p = String(v ?? "").trim();
+  if (!/^\/(?![\/\\])[A-Za-z0-9\-._~\/]*(?:#[A-Za-z0-9\-._~]*)?$/.test(p)) return "/";
+  try {
+    return new URL(p, APP_ORIGIN).origin === APP_ORIGIN ? p : "/";
+  } catch { return "/"; }
+}
+
+function productUpdateUrl(d: ProductUpdateData): string {
+  const tags = utm("product_update", d.version);
+  // The app's root takes the /resume deep link (signed in, on their cluster),
+  // like every other lifecycle CTA. Any other page is linked as itself:
+  // /resume only ever forwards to the app root.
+  if (d.ctaPath === "/") return deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, tags);
+  const hash = d.ctaPath.indexOf("#");
+  const path = hash >= 0 ? d.ctaPath.slice(0, hash) : d.ctaPath;
+  const frag = hash >= 0 ? d.ctaPath.slice(hash) : "";
+  return `${APP_ORIGIN}${path}?${new URLSearchParams(tags).toString()}${frag}`;
+}
+
+function productUpdateItemHtml(it: ProductUpdateItem): string {
+  const body = typeof it === "string"
+    ? escapeHtml(it)
+    : `<strong style="font-weight:600;">${escapeHtml(it.lead)}</strong> ${escapeHtml(it.text)}`;
+  return `<tr><td style="padding:0 0 9px; font:400 15px/1.6 ${NOTE_FONT}; color:#1a1a1a;"><span style="color:#8a8780;">&middot;</span>&nbsp;&nbsp;${body}</td></tr>`;
+}
+
+function productUpdateItemText(it: ProductUpdateItem): string {
+  return typeof it === "string" ? `· ${it}` : `· ${it.lead} ${it.text}`;
+}
+
+function productUpdate(d: ProductUpdateData): RenderedEmail {
+  const url = productUpdateUrl(d);
+  const unsub = unsubUrl(d.unsubscribeToken);
+  const items = d.items.slice(0, PRODUCT_UPDATE_MAX_ITEMS);
+  const cta = d.ctaLabel || "";
+
+  const html: string[] = [];
+  const text: string[] = [];
+  const para = (s?: string) => { if (s) { html.push(noteP(s)); text.push(s); } };
+  para(d.greeting);
+  para(d.intro);
+  // One screenshot at most, from the app's own /email/ folder as whats_new's,
+  // opening what the button opens. The text part has none.
+  if (d.imageUrl && d.imageUrl.startsWith(EMAIL_ASSET_PREFIX)) {
+    html.push(noteImg(d.imageUrl, d.imageAlt || "What's new in Clusters", url));
+  }
+  if (items.length) {
+    html.push(`<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">${items.map(productUpdateItemHtml).join("")}</table>`);
+    text.push(items.map(productUpdateItemText).join("\n"));
+  }
+  para(d.outro);
+  if (cta) { html.push(noteBtn(cta, url)); text.push(`${cta}: ${url}`); }
+  para(d.signoff);
+
+  return {
+    subject: d.subject,
+    html: renderPlainNote({ preheader: d.preheader || "", bodyHtml: html.join(""), unsubscribeUrl: unsub }),
+    text: `${text.join("\n\n")}\n\n${POSTAL_ADDRESS}\nUnsubscribe: ${unsub}`,
+  };
+}
+
 // ── share_activity (migration 0259) ─────────────────────────────────────────
 // Someone opened a cluster you shared. Not a nudge and not a campaign: it
 // reports a thing that happened, which is the one kind of mail this account has
@@ -1519,11 +1768,13 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       });
     case "invite_accepted":
       return inviteAccepted({
-        joinerName:  safePerson(data.joinerName),
-        boardName:   safeLabel(data.boardName, 60, "a board"),
-        role:        data.role != null ? String(data.role) : undefined,
-        workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
-        boardId:     data.boardId != null ? String(data.boardId) : undefined,
+        joinerName:    safePerson(data.joinerName),
+        boardName:     safeLabel(data.boardName, 60, "a board"),
+        role:          data.role != null ? String(data.role) : undefined,
+        workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:       data.boardId != null ? String(data.boardId) : undefined,
+        scope:         data.scope === "workspace" ? "workspace" : undefined,
+        workspaceName: safeLabel(data.workspaceName, 60) || undefined,
       });
     case "pending_invite":
       // The recipient has no account, so this is the email a stranger reads:
@@ -1577,6 +1828,32 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
       });
+    case "file_shared": {
+      const token = String(data.token ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("file_shared needs a token");
+      const doc = data.kind === "doc";
+      return fileShared({
+        sharerName: safePerson(data.sharerName),
+        // A doc's title has no extension to move out of the way.
+        fileName:   doc ? safeLabel(data.fileName, 60, "a document") : fileLabel(data.fileName),
+        role:       data.role === "comment" ? "comment" : data.role === "edit" ? "edit" : "view",
+        kind:       doc ? "doc" : "file",
+        token,
+        origin:     String(data.origin ?? ""),
+      });
+    }
+    case "file_commented": {
+      const token = String(data.token ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("file_commented needs a token");
+      return fileCommented({
+        commenterName:  safePerson(data.commenterName),
+        fileName:       fileLabel(data.fileName),
+        commentPreview: safeLabel(data.commentPreview, 280),
+        token,
+        origin:         String(data.origin ?? ""),
+        unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
+      });
+    }
     case "activate_nudge_1":
     case "activate_nudge_2": {
       const nudgeBoardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
@@ -1646,6 +1923,46 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
+      });
+    }
+    case "product_update": {
+      // Every field is an admin-typed app_config string on its way into a
+      // subject header or an HTML body: one line, capped, escaped downstream.
+      const line = (v: unknown, max: number) =>
+        String(v ?? "").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max).trim();
+      const subject = line(data.subject, 120);
+      if (!subject) throw new Error("product_update needs a subject");
+      const rawItems = Array.isArray(data.items) ? data.items : [];
+      const items: ProductUpdateItem[] = [];
+      for (const it of rawItems) {
+        if (items.length >= PRODUCT_UPDATE_MAX_ITEMS) break;
+        if (it && typeof it === "object") {
+          const o = it as Record<string, unknown>;
+          const lead = line(o.lead, 80), text = line(o.text, 240);
+          if (lead && text) items.push({ lead, text });
+          else if (lead || text) items.push(lead || text);
+        } else {
+          const s = line(it, 240);
+          if (s) items.push(s);
+        }
+      }
+      return productUpdate({
+        subject,
+        preheader:   line(data.preheader, 160) || undefined,
+        greeting:    line(data.greeting, 160) || undefined,
+        intro:       line(data.intro, 600) || undefined,
+        items,
+        ctaLabel:    line(data.ctaLabel, 40) || undefined,
+        ctaPath:     productUpdatePath(data.ctaPath),
+        imageUrl:    data.imageUrl != null ? String(data.imageUrl).trim() : undefined,
+        imageAlt:    line(data.imageAlt, 160) || undefined,
+        outro:       line(data.outro, 600) || undefined,
+        signoff:     line(data.signoff, 120) || undefined,
+        version:     data.version != null ? String(data.version).replace(/[^A-Za-z0-9._-]/g, "").slice(0, 32) : undefined,
+        workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:     data.boardId != null ? String(data.boardId) : undefined,
+        unsubscribeToken: String(data.unsubscribeToken ?? ""),
+        resumeToken: resumeTokenOf(data.resumeToken),
       });
     }
     case "nudge_dormant_early": {

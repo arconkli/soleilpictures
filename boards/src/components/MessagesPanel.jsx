@@ -1,8 +1,11 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Plus, X, EyeOff, LogOut } from '../lib/icons.js';
+import { Plus, X, EyeOff, LogOut, Search } from '../lib/icons.js';
 import { useConversationList } from '../hooks/useConversationList.js';
+import { useMessagesLook } from './messagesLook.js';
+import { conversationMatches, previewText } from '../lib/messagesCard.js';
+import './messagesCard.css';
 import { findOrCreateDm, leaveConversation, rejoinConversation } from '../lib/messages.js';
 import { hiddenFromInbox, isDmConversation } from '../lib/conversationState.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -13,6 +16,13 @@ import { MessageThread } from './MessageThread.jsx';
 import { readOnlyCopy } from '../lib/messageAccess.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { usePanelPresence } from './MessagesPresence.jsx';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { useKeyboardInset } from '../hooks/useKeyboardInset.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
+import { touchKeyboard } from '../lib/composerKeys.js';
+
+const NO_PARTICIPANTS = [];
 
 // Right-drawer slot. Single unified conversation list (DMs + group
 // chats interleaved by recency). Two modes: list, or thread (one open
@@ -21,13 +31,16 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 //   workspaceId, currentUser
 //   openConversationId, setOpenConversationId — controlled by App.jsx so a
 //     toast's "Open" can open a thread (which thread is on screen, for
-//     toast suppression, is threadAttention.js's job)
+//     toast suppression, is threadAttention.js's job). An open says how it
+//     came about as a second argument, for App's msg_conv_open.
 //   initialOpenConversationId — set by permalink resolver to deep-link
 //   jumpToMessageId           — passed through to MessageThread
 //   pendingOpenPeerId         — when set, find/create a DM with this
 //                               user and open it (used by avatar-click)
 //   refreshTick               — bumped externally to invalidate caches
 //   onRefreshRequested        — called by children when they need a list refresh
+//   presentUserIds            — who's in the workspace now (a Set): a DM with
+//                               one of them says "Here now" (the card look)
 //   onClose
 export function MessagesPanel({
   workspaceId, currentUser,
@@ -38,6 +51,7 @@ export function MessagesPanel({
   onClose,
   canSendMessages = true, // false → a viewer here, or on the waitlist (lib/messageAccess.js)
   readOnlyReason = null,  // why not: 'viewer' | 'waitlist'
+  presentUserIds = null,
 }) {
   const userId = currentUser?.id;
   const {
@@ -55,7 +69,7 @@ export function MessagesPanel({
   // First-mount permalink: open whatever the parent says is open.
   useEffect(() => {
     if (initialOpenConversationId) {
-      setOpenConversationId(initialOpenConversationId);
+      setOpenConversationId(initialOpenConversationId, 'link');
       setPendingJump(jumpToMessageId ? { convId: initialOpenConversationId, messageId: jumpToMessageId } : null);
     }
   }, [initialOpenConversationId, jumpToMessageId, setOpenConversationId]);
@@ -98,7 +112,7 @@ export function MessagesPanel({
         return;
       }
       if (convId) {
-        setOpenConversationId(convId);
+        setOpenConversationId(convId, 'person');
         onRefreshRequestedRef.current?.();
       }
       onPeerConsumedRef.current?.();
@@ -129,8 +143,23 @@ export function MessagesPanel({
     }));
   }, [conversations, myStateByConv, participantsByConv]);
 
+  // The card look (the files sidebar's, preview only) has a find line over
+  // the list: a conversation stays while every word is in its title, its
+  // people's names or its last message.
+  const card = useMessagesLook() === 'card';
+  const [find, setFind] = useState('');
+  const shownConversations = useMemo(() => {
+    if (!card || !find.trim()) return visibleConversations;
+    return visibleConversations.filter((c) => {
+      const names = (participantsByConv.get(c.conversation_id) || [])
+        .filter(p => p.user_id !== userId)
+        .map(p => userProfiles.get(p.user_id)?.name || userProfiles.get(p.user_id)?.email || '');
+      return conversationMatches({ title: c.title || '', names, preview: c.last_message_body || '' }, find);
+    });
+  }, [card, find, visibleConversations, participantsByConv, userId]);
+
   const handleConversationCreated = useCallback((convId) => {
-    setOpenConversationId(convId);
+    setOpenConversationId(convId, 'new');
     onRefreshRequested?.();
   }, [onRefreshRequested]);
 
@@ -189,33 +218,54 @@ export function MessagesPanel({
   // view did (COMMS-22). The list takes focus when it shows, so the key
   // reaches it straight after opening; a press claimed by a picker or menu
   // on top, or meant for something outside the panel, is left alone.
-  const listRef = useRef(null);
+  const rootRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {
     if (openConversationId) return;
-    try { listRef.current?.focus({ preventScroll: true }); } catch (_) {}
+    try { rootRef.current?.focus({ preventScroll: true }); } catch (_) {}
     const onKey = (e) => { if (escapeClosesPanel(e, '.msg-panel')) onCloseRef.current?.(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [openConversationId]);
 
-  if (openConversationId) {
-    const conv = conversations.find(c => c.conversation_id === openConversationId);
-    const parts = participantsByConv.get(openConversationId) || [];
-    return (
+  // The open thread's conversation: the same object until it changes, since
+  // the thread reads it in effects and memos.
+  const openConv = openConversationId ? conversations.find(c => c.conversation_id === openConversationId) : null;
+  const openParts = (openConversationId && participantsByConv.get(openConversationId)) || NO_PARTICIPANTS;
+  const threadConversation = useMemo(() => ({
+    id: openConversationId,
+    title: openConv?.title || null,
+    participants: openParts,
+  }), [openConversationId, openConv?.title, openParts]);
+  const openPeerId = openIsDm ? openParts.find(p => p.user_id !== userId)?.user_id || null : null;
+  const peerHere = !!(openPeerId && presentUserIds?.has?.(openPeerId));
+
+  // One panel for the list and every conversation. Opening one doesn't
+  // remount the panel (or replay its entrance): the conversation is a pane
+  // over the list, and the list stays under it, inert and hidden, keeping its
+  // place for when you come back. Closing plays an exit (MessagesPresence).
+  const presence = usePanelPresence();
+  const threadOpen = !!openConversationId;
+  // Under a finger the on-screen keyboard covers the bottom of the window,
+  // and the box you type in with it: the panel ends above the keyboard.
+  const keyboard = useKeyboardInset(presence === 'open' && touchKeyboard());
+  const thread = threadOpen && (
       <MessageThread
+        // One instance per conversation: nothing a thread holds (a reply
+        // target, staged files, search, the pinned list) can carry into the
+        // next one when a toast, an avatar or a link switches it in place.
+        key={openConversationId}
         workspaceId={workspaceId}
+        // undefined while the list is still loading: the thread reads it itself.
+        lastReadAt={myOpenState ? (myOpenState.last_read_at || null) : undefined}
         currentUser={currentUser}
         // A group you left is readable (a permalink, a toast) but not yours
         // to post in; a hidden DM is rejoined above.
         canSend={canSendMessages && !(myOpenState?.left_at && !openIsDm)}
         readOnlyReason={canSendMessages ? 'left' : readOnlyReason}
-        conversation={{
-          id: openConversationId,
-          title: conv?.title || null,
-          participants: parts,
-        }}
+        conversation={threadConversation}
+        peerHere={peerHere}
         jumpToMessageId={pendingJump?.convId === openConversationId ? pendingJump.messageId : null}
         onJumpConsumed={() => setPendingJump(null)}
         onChanged={onRefreshRequested}
@@ -226,15 +276,22 @@ export function MessagesPanel({
         }}
         onClose={() => { onPermalinkConsumed?.(); onClose?.(); }}
       />
-    );
-  }
+  );
 
   return (
-    <div className="msg-panel" ref={listRef} tabIndex={-1}>
+    <div className="msg-panel" ref={rootRef} tabIndex={-1} data-state={presence} data-view={threadOpen ? 'thread' : 'list'}
+         style={keyboard > 0 ? { bottom: keyboard + 8 } : undefined}>
+      <div className="msg-pane msg-pane-list" inert={threadOpen ? '' : undefined}>
       <div className="msg-panel-head">
         <div className="msg-panel-title">
-          <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
-          <div className="msg-panel-name">All conversations</div>
+          {card ? (
+            <div className="msg-panel-name">Messages</div>
+          ) : (
+            <>
+              <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
+              <div className="msg-panel-name">All conversations</div>
+            </>
+          )}
         </div>
         <button
           className="msg-panel-icon"
@@ -249,6 +306,18 @@ export function MessagesPanel({
           <Icon as={X} size={14} />
         </button>
       </div>
+
+      {card && visibleConversations.length > 0 && (
+        <label className="msg-find">
+          <Icon as={Search} size={14} />
+          <input type="search" value={find} placeholder="Find a conversation" aria-label="Find a conversation"
+                 onChange={(e) => setFind(e.target.value)}
+                 onKeyDown={(e) => {
+                   // Esc clears a find first; the panel closes on the next one.
+                   if (e.key === 'Escape' && find) { e.preventDefault(); setFind(''); }
+                 }} />
+        </label>
+      )}
 
       <div className="msg-panel-body">
         {!loaded && (
@@ -278,18 +347,25 @@ export function MessagesPanel({
             No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.
           </div>
         )}
-        {visibleConversations.map(conv => (
+        {card && find.trim() && visibleConversations.length > 0 && shownConversations.length === 0 && (
+          <div className="msg-empty t-meta">No conversations match “{find.trim()}”.</div>
+        )}
+        {shownConversations.map(conv => (
           <ConversationRow
             key={conv.conversation_id}
+            card={card}
             conv={conv}
             participants={participantsByConv.get(conv.conversation_id) || []}
             unreadCount={unreadByConv.get(conv.conversation_id) || 0}
             currentUserId={userId}
-            onOpen={() => setOpenConversationId(conv.conversation_id)}
+            onOpen={() => setOpenConversationId(conv.conversation_id, 'list')}
             onMenu={(x, y) => setRowMenu({ convId: conv.conversation_id, x, y })}
           />
         ))}
       </div>
+      </div>
+
+      {thread}
 
       {rowMenu && (() => {
         const isGroup = !isDmConversation(participantsByConv.get(rowMenu.convId));
@@ -317,8 +393,19 @@ export function MessagesPanel({
   );
 }
 
-function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
+function ConversationRow({ card = false, conv, participants, unreadCount, currentUserId, onOpen, onMenu }) {
   const isUnread = unreadCount > 0;
+  // Under a finger the row's menu is a press and hold away: iOS never sends a
+  // long press as contextmenu. Android does, a moment after the hold: that
+  // one is turned away, and the click the hold ends with is eaten (it would
+  // open the conversation under the menu).
+  const rowRef = useRef(null);
+  const heldAtRef = useRef(0);
+  useLongPress(rowRef, (x, y) => {
+    heldAtRef.current = Date.now();
+    swallowNextClick({ held: true });
+    onMenu(x, y);
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   const peers = participants.filter(p => p.user_id !== currentUserId && !p.left_at);
   const isDm = isDmConversation(participants); // rows, not active members (COMMS-17)
 
@@ -332,12 +419,20 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
   }));
   const title = conv.title || peerProfiles.map(p => p.name).join(', ') || 'New conversation';
 
-  // Avatar: 1 peer = single circle. Multi = stacked 2-3.
-  const avatarPeers = peerProfiles.slice(0, 3);
+  // Avatar: 1 peer = single circle. Multi = stacked 2-3 (two faces in the card look).
+  const avatarPeers = peerProfiles.slice(0, card ? 2 : 3);
 
-  // Last-message preview: prefix with sender for group chats.
+  // Last-message preview: prefix with sender for group chats. The card look
+  // shows the words without their markdown, and says when it was a file.
   let preview = conv.last_message_body || '';
-  if (conv.last_message_kind === 'system') {
+  if (card && conv.last_message_kind !== 'system') {
+    const words = previewText(conv.last_message_body);
+    const mine = conv.last_message_sender_id === currentUserId;
+    const who = mine ? 'You' : (userProfiles.get(conv.last_message_sender_id)?.name || conv.last_message_sender_email || 'Someone').split(/[\s@]/)[0];
+    preview = words
+      ? (mine ? `You: ${words}` : !isDm && conv.last_message_sender_id ? `${who}: ${words}` : words)
+      : conv.last_message_at ? `${who} sent an attachment` : '';
+  } else if (conv.last_message_kind === 'system') {
     preview = preview || '— event —';
   } else if (!isDm && conv.last_message_sender_id && conv.last_message_sender_id !== currentUserId) {
     const senderName =
@@ -351,10 +446,12 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
 
   return (
     <button
-      className={`msg-row ${isUnread ? 'is-unread' : ''}`}
+      ref={rowRef}
+      className={`msg-row ${isUnread ? 'is-unread' : ''}${card ? ' is-card' : ''}`}
       onClick={onOpen}
       onContextMenu={(e) => {
         e.preventDefault();
+        if (Date.now() - heldAtRef.current < 1500) return;
         // Keyboard context-menu key: no pointer position, so anchor on the row.
         const r = e.currentTarget.getBoundingClientRect();
         const x = e.clientX || r.left + 24;
@@ -363,7 +460,9 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
       }}
       title={title}
     >
-      {isUnread && <span className="msg-row-dot" />}
+      {/* The card look: no gold dot, the time on the name's line and the
+          count, a quiet pill, on the preview's (messagesCard.css). */}
+      {isUnread && !card && <span className="msg-row-dot" />}
       <span className={`msg-row-avatar ${avatarPeers.length > 1 ? 'is-stack' : ''}`}>
         {avatarPeers.length === 0 ? '·' : avatarPeers.map((p) => (
           <span
@@ -375,15 +474,30 @@ function ConversationRow({ conv, participants, unreadCount, currentUserId, onOpe
           </span>
         ))}
       </span>
-      <span className="msg-row-text">
-        <span className="msg-row-name">{title}</span>
-        {preview && (
-          <span className="msg-row-preview">{preview.slice(0, 60)}</span>
-        )}
-      </span>
-      {isUnread
-        ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
-        : <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>}
+      {card ? (
+        <span className="msg-row-text">
+          <span className="msg-row-line">
+            <span className="msg-row-name">{title}</span>
+            <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>
+          </span>
+          <span className="msg-row-line">
+            <span className="msg-row-preview">{preview.slice(0, 80)}</span>
+            {isUnread && <span className="msg-row-count" aria-label={`${unreadCount} unread`}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          </span>
+        </span>
+      ) : (
+        <>
+          <span className="msg-row-text">
+            <span className="msg-row-name">{title}</span>
+            {preview && (
+              <span className="msg-row-preview">{preview.slice(0, 60)}</span>
+            )}
+          </span>
+          {isUnread
+            ? <span className="msg-row-count">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            : <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>}
+        </>
+      )}
     </button>
   );
 }

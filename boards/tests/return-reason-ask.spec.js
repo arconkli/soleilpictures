@@ -151,3 +151,13 @@ test('the privacy page documents it, since the surface test cannot', () => {
   expect(doc).toMatch(/free-text/i);
   expect(doc).toMatch(/never appears on your first session/i);
 });
+
+test('show() checks the moment is quiet before it claims the slot, so a retry never opens on a dialog', () => {
+  const src = read('src/components/ReturnReasonAsk.jsx');
+  const body = src.slice(src.indexOf('const show = () => {'));
+  const quietAt = body.indexOf('quiet()');
+  const claimAt = body.indexOf("claimUpsellSlot('return-reason')");
+  expect(quietAt).toBeGreaterThan(-1);
+  expect(claimAt).toBeGreaterThan(-1);
+  expect(quietAt).toBeLessThan(claimAt);
+});

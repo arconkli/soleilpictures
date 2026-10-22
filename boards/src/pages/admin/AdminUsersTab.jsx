@@ -46,7 +46,7 @@ export function AdminUsersTab() {
   const [tierFilter, setTierFilter] = useState('');   // '' = all tiers
   const [contacted, setContacted] = useState('');     // '' = all · 'yes' · 'no'
   const [verification, setVerification] = useState('verified'); // 'verified' · 'unverified' · 'all'
-  const [activity, setActivity] = useState('active');  // 'active' hides zero-activity (no cards/boards) junk by default
+  const [activity, setActivity] = useState('active');  // 'active' = made something (0460), so dead signups are hidden by default
   const [sourceFilter, setSourceFilter] = useState(''); // '' = all acquisition channels
   const [channels, setChannels] = useState([]);          // [{channel, n}] for the source dropdown
   const [sort, setSort]        = useState('recent');
@@ -70,14 +70,17 @@ export function AdminUsersTab() {
 
   // Channel options for the source filter — distinct channels present (with
   // counts) via the same normalizer the list uses, so the dropdown values match
-  // the column exactly. Scoped to the current verification, refetched when it changes.
+  // the column exactly. Scoped to the current verification AND activity, and
+  // refetched when either changes: the "(n)" beside a channel used to count
+  // every activity while the list below it showed only one, so with no other
+  // filter set it never matched what picking the channel showed.
   useEffect(() => {
     let alive = true;
-    supabase.rpc('admin_acquisition_channels', { p_verification: verification })
+    supabase.rpc('admin_acquisition_channels', { p_verification: verification, p_activity: activity })
       .then(({ data: d }) => { if (alive && Array.isArray(d)) setChannels(d); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [verification]);
+  }, [verification, activity]);
 
   // ── List query (#1) ──
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {

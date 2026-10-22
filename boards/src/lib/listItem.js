@@ -21,7 +21,7 @@ const GRID_RECT_CAP = 64;
 export const TYPE_LABELS = {
   image: 'Image', pdf: 'PDF', video: 'Video', audio: 'Audio', file: 'File',
   note: 'Note', link: 'Link', doc: 'Doc', palette: 'Palette', schedule: 'Schedule',
-  shape: 'Shape', grid: 'Grid', board: 'Cluster', boardlink: 'Link',
+  shape: 'Shape', grid: 'Grid', board: 'Cluster', boardlink: 'Link', shortcut: 'Shortcut',
 };
 
 // Coarse buckets for the type filter. Several kinds collapse (board+boardlink →
@@ -122,6 +122,18 @@ function gridPreview(card, gridTemplates) {
   return { mode: 'grid', rects, cells };
 }
 
+// What Modified says for a file an import brought in: the file's own date
+// (importJob.pendingCard keeps it as fileModified), as Finder keeps a copied
+// file's. The import's own stamps only say when each upload happened to
+// finish, so sorting by them scattered a folder. A version uploaded here is a
+// change made here, and goes back to the card's stamp.
+function fileDateOf(card) {
+  const t = card.fileModified;
+  if (typeof t !== 'number' || !(t > 0 && t < 8.64e15)) return null;
+  if (Array.isArray(card.versions) && card.versions.length > 1) return null;
+  return new Date(t).toISOString();
+}
+
 // Normalize a card into a ListItem.
 //   opts.boards        — board map, for cluster/link names
 //   opts.getMeta       — imageMeta.getMeta(key) → { sizeBytes?, ... } for media size
@@ -138,7 +150,7 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
     preview: { mode: 'icon', kind },
     sizeBytes: null,
     createdAt: card.createdAt || null,
-    updatedAt: card.updatedAt || card.createdAt || null,
+    updatedAt: fileDateOf(card) || card.updatedAt || card.createdAt || null,
     z: card.z || 0,
     pending: !!card.pending,
     // In the cluster but not on its board (lib/placement.js).

@@ -26,7 +26,8 @@ function readOpen(key, fallback) {
   return fallback;
 }
 
-export function Detail({ id, label = 'More detail', count, defaultOpen = false, children }) {
+/** `sub` is a line under the label saying what is inside, for a section whose name alone does not. */
+export function Detail({ id, label = 'More detail', sub, count, defaultOpen = false, children }) {
   const [open, setOpen] = useState(() => readOpen(id, defaultOpen));
 
   const toggle = useCallback(() => {
@@ -46,7 +47,10 @@ export function Detail({ id, label = 'More detail', count, defaultOpen = false, 
         onClick={toggle}
       >
         <span className="adm-detail-caret" aria-hidden="true">▸</span>
-        <span>{label}</span>
+        <span className="adm-detail-label">
+          {label}
+          {sub ? <small className="adm-detail-sub">{sub}</small> : null}
+        </span>
         {count != null && <span className="adm-detail-count">{count}</span>}
       </button>
       {/* Unmounted, not hidden — these panels each run their own RPCs, and a

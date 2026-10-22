@@ -7,11 +7,13 @@
 //
 // The `hero` flag is the hierarchy. Every stat used to render at 32px display
 // type, which meant nothing on the page was bigger than anything else. Large is
-// now something you spend — on the four metrics at the top of Today, and
+// now something you spend — on the four metrics at the top of Overview, and
 // nowhere else.
 
+import { useEffect, useRef, useState } from 'react';
 import { formatCount } from '../../../lib/adminFormat.js';
 import { Spark } from './TrendLine.jsx';
+import { Rolling } from './Rolling.jsx';
 import { StreakStrip } from './StreakStrip.jsx';
 import { VAR } from './palette.js';
 
@@ -62,6 +64,46 @@ export function NFlag({ n }) {
   );
 }
 
+// How long "+N · just now" stays, and how close together two rises have to come
+// to be one chip. The fade is CSS (adm-live-chip in admin.css), on the same 8s.
+const CHIP_MS = 8000;
+const MERGE_MS = 1500;
+
+/**
+ * "+N · just now" for a figure that rose while you watched it.
+ *
+ * `value` is the number itself, not its text: 17.3K does not change when one
+ * card lands, and the chip is how you see that it did. `gen` names the
+ * population the figure counts (the toolbar's toggles). A change of `gen`, the
+ * first value, and a fall all set a new baseline without a chip: a filter
+ * change is not news, and a seven-day window sliding past last Tuesday is not
+ * something that just happened.
+ */
+export function useLiveRise(value, gen) {
+  const last = useRef({ value: null, gen: null });
+  const [chip, setChip] = useState(null);   // { id, n, start }
+  useEffect(() => {
+    const v = Number.isFinite(value) ? value : null;
+    if (v == null) return;
+    const p = last.current;
+    last.current = { value: v, gen };
+    if (p.gen !== gen || p.value == null) { setChip(null); return; }
+    const rise = v - p.value;
+    if (rise <= 0) return;
+    const now = Date.now();
+    setChip((c) => (c && now - c.start < MERGE_MS
+      ? { ...c, n: c.n + rise }
+      : { id: now, n: rise, start: now }));
+  }, [value, gen]);
+  const id = chip?.id;
+  useEffect(() => {
+    if (id == null) return undefined;
+    const t = setTimeout(() => setChip((c) => (c && c.id === id ? null : c)), CHIP_MS);
+    return () => clearTimeout(t);
+  }, [id]);
+  return chip;
+}
+
 export function Metric({
   label,
   value,
@@ -99,8 +141,17 @@ export function Metric({
   sparkColor = VAR.ink,
   title,
   onClick,
+  /** Roll the figure's digits when it changes (viz/Rolling.jsx). */
+  roll = false,
+  /**
+   * The figure as a number, for the live chip; `liveGen` is the population it
+   * counts (see useLiveRise). Leave `live` out and the tile has no chip.
+   */
+  live,
+  liveGen,
   children,
 }) {
+  const chip = useLiveRise(live, liveGen);
   const Tag = onClick ? 'button' : 'div';
   // An empty series is no series. `[]` is truthy, so it used to suppress the
   // proportion bar below while drawing nothing in its place.
@@ -128,9 +179,15 @@ export function Metric({
         <div className="admin-stat-label">{label}</div>
         {/* With a trend the head holds only the label and the directional chip. */}
         {trend ? flag : delta ? <DeltaBadge delta={delta} /> : flag}
+        {/* Over the head's right end, out of the flow, so a chip coming and
+            going never moves the figures under it. Keyed by its rise, so a
+            second rise a few seconds later fades in again. */}
+        {chip && (
+          <span className="adm-live-chip" key={chip.id}>+{formatCount(chip.n)} · just now</span>
+        )}
       </div>
       <div className="admin-stat-figures">
-        <span className="admin-stat-value">{value == null ? '—' : value}</span>
+        <span className="admin-stat-value">{value == null ? '—' : roll ? <Rolling text={value} /> : value}</span>
         {total && (
           <span className="admin-stat-total">
             <b>{total.value}</b>

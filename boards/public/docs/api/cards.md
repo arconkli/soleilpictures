@@ -2,7 +2,7 @@
 
 > Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
-_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-20_
 
 ## The card object
 
@@ -67,7 +67,7 @@ coerced — silently turning an unknown kind into a note produced boards full of
 notes that were meant to be links.
 
 This is still narrower than [what the canvas supports](/docs/canvas/cards).
-Grids, schedules, palettes and shapes are created in the app; you can read them
+Grids, palettes and shapes are created in the app; you can read them
 here, and `?include=raw` gives you their full contents.
 
 ## Writable fields
@@ -148,7 +148,7 @@ moved on this board since I last looked" without reading the board.
 
 `raw` exists because the card object above is a deliberately narrow projection,
 and the app has kinds it does not describe — a grid carries its cells and
-template, a palette its swatches, a schedule its rows. Those read back through
+template and a palette its swatches. Those read back through
 the projection with their interiors missing, which for anyone taking a backup is
 data loss that looks like success.
 
@@ -303,7 +303,7 @@ with a new id, and its identifiers and properties are not restored with it, so
 send those again in the same `POST` if you use them.
 
 Some cards cannot come back this way: any card kind this API does not create
-(grids, palettes, schedules, cluster cards and the like), and docs written in
+(grids, palettes, cluster cards and the like), and docs written in
 the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in
 `not_restorable`, with a `recover` sentence. They are not lost: every delete
 saves the board to its Version history first, and they can be restored from

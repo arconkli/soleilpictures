@@ -6,13 +6,13 @@ import { expect, test } from '@playwright/test';
 // clips or forces horizontal scroll.
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/functions/v1/verify-checkout-session', (route) =>
+  await page.route('**/functions/v1/verify-checkout-session*', (route) =>
     route.fulfill({ json: { activated: false, reason: 'not_paid_yet' } }));
 });
 
 test('the pricing page does not overflow horizontally on a phone', async ({ page }) => {
   await page.goto('/pricing?local=1&tier=demo');
-  await expect(page.locator('.pricing-card-creator')).toBeVisible();
+  await expect(page.locator('.pp-plan-creator')).toBeVisible();
 
   // No horizontal scrollbar: the document is no wider than the viewport.
   const overflow = await page.evaluate(() =>
@@ -20,7 +20,7 @@ test('the pricing page does not overflow horizontally on a phone', async ({ page
   expect(overflow).toBeLessThanOrEqual(1);
 
   // The plan toggle stays within the card.
-  const cardBox = await page.locator('.pricing-card-creator').boundingBox();
+  const cardBox = await page.locator('.pp-plan-creator').boundingBox();
   const toggleBox = await page.locator('.pricing-card-toggle').boundingBox();
   expect(toggleBox.x).toBeGreaterThanOrEqual(cardBox.x - 1);
   expect(toggleBox.x + toggleBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width + 1);

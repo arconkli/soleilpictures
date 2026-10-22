@@ -1,8 +1,8 @@
 # Referrals
 
-> Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
+> Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
 
-_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-10-17_
+_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-10-21_
 
 Invite from **Share** on any cluster, or from **Settings → Invite and earn**.
 
@@ -10,6 +10,7 @@ Invite from **Share** on any cluster, or from **Settings → Invite and earn**.
 
 Invite someone who does not have a Clusters account yet: by email from a
 cluster's [Share panel](/docs/collaborate/sharing), with one of your edit links,
+with your workspace's [invite link](/docs/collaborate/sharing#inviting-a-whole-workspace),
 or with your referral link. When they sign up they get
 **25 extra cards** and **0.5GB
 of storage** straight away. You get **25 bonus cards**
@@ -76,6 +77,7 @@ Two different things:
 
 They overlap in one place: someone who signs up because you invited them to a
 cluster by email counts as your referral, and so does someone who joins through
-one of your edit links within 7 days of signing up.
+one of your edit links, or your workspace's invite link, within
+7 days of signing up.
 The same rules apply, and each person counts once. The Share panel's
 **Details**, under its invite box, says so too.

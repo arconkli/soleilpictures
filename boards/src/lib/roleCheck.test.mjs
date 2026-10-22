@@ -136,7 +136,8 @@ test('0394: a suspended account manages no workspace', () => {
   const def = latestDefinition('can_manage_workspace');
   assert.ok(def.file >= '0394', `can_manage_workspace latest definition must be 0394 or later, got ${def.file}`);
   assert.match(def.body, /auth\.uid\(\) is not null\s+and public\._actor_active\(\)/);
-  for (const fn of ['set_workspace_member_role', 'remove_workspace_member', 'revoke_pending_invite', 'unshare_board', 'revoke_public_link']) {
+  for (const fn of ['set_workspace_member_role', 'remove_workspace_member', 'revoke_pending_invite', 'unshare_board', 'revoke_public_link',
+    'create_workspace_invite_link', 'revoke_workspace_invite_link']) {
     assert.match(latestDefinition(fn).body, /can_manage_workspace\(/, `${fn} must route the manage decision through can_manage_workspace`);
   }
 });

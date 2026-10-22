@@ -1,0 +1,209 @@
+/* ImportTray (components/ImportTray.jsx): the bulk import's tray and its corner
+   chip, the owner's pick A, 2026-10-19. Fixed bottom-right just above the zoom
+   control, in the sidebar's glass. Neutral ink throughout: gold is only on the
+   paid step (.is-primary) and on focus rings. */
+
+.imptray,
+.imptray-chip {
+  position: fixed;
+  right: calc(14px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px));
+  bottom: calc(54px + env(safe-area-inset-bottom, 0px));
+  z-index: 1150;
+  box-sizing: border-box;
+  background: var(--sbf-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+}
+.imptray.is-above-nav,
+.imptray-chip.is-above-nav { bottom: calc(68px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); }
+/* The Messages card is open at the right edge (8px in, 360px wide; see
+   messagesCard.css): left of it, the same 14px clear. */
+.imptray.is-beside-msg,
+.imptray-chip.is-beside-msg { right: calc(14px + 368px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px)); }
+
+.imptray {
+  width: 372px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 48px rgba(0, 0, 0, .28);
+}
+[data-theme='light'] .imptray {
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 40px rgba(10, 10, 12, .1);
+}
+@media (max-width: 640px) {
+  .imptray { left: 8px; right: 8px; width: auto; }
+}
+
+.imptray-head { flex: none; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px 0 16px; }
+.imptray-title {
+  flex: 1; min-width: 0; color: var(--ink-0); font: 600 13px/1 var(--font-sans);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.imptray-sum { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 0 16px 14px; }
+.imptray-line { color: var(--ink-1); font: 400 13px/1.35 var(--font-sans); font-variant-numeric: tabular-nums; }
+.imptray-line b { color: var(--ink-0); font-weight: 600; }
+.imptray-meta { color: var(--ink-2); font: 400 12px/1.4 var(--font-sans); font-variant-numeric: tabular-nums; }
+
+.imptray-bar { height: 4px; border-radius: 2px; background: var(--sbf-meter); overflow: hidden; }
+.imptray-bar span { display: block; height: 100%; min-width: 3px; border-radius: 2px; background: var(--sbf-meter-fill); }
+.imptray-bar.is-reading span { width: 28%; animation: imptray-read 1.6s ease-in-out infinite alternate; }
+@keyframes imptray-read { from { margin-left: 0; } to { margin-left: 72%; } }
+.imptray-minibar { flex: 0 0 44px; height: 3px; border-radius: 2px; background: var(--sbf-meter); overflow: hidden; }
+.imptray-minibar span { display: block; height: 100%; background: var(--sbf-meter-fill); }
+
+.imptray-row-actions { display: flex; align-items: center; gap: 8px; }
+.imptray-row-actions .imptray-meta { align-self: center; }
+
+.imptray-list {
+  display: flex; flex-direction: column; padding: 6px 8px; border-top: 1px solid var(--line-1);
+  box-sizing: content-box; max-height: 252px; overflow-y: auto; min-height: 0;
+}
+.imptray-row {
+  flex: none; display: flex; align-items: center; gap: 10px; height: 28px; padding: 0 8px; border-radius: 6px;
+  color: var(--ink-1); font: 400 13px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.imptray-row:hover { background: var(--bg-hov); }
+.imptray-row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imptray-row .c { color: var(--ink-2); font-size: 12px; }
+.imptray-row .ok { display: grid; place-items: center; width: 14px; color: var(--ink-3); }
+.imptray-row.is-now { color: var(--ink-0); }
+.imptray-row.is-now .c { color: var(--ink-1); }
+.imptray-row.is-later { color: var(--ink-3); }
+.imptray-row.is-later .c { color: var(--ink-3); }
+
+.imptray-foot { flex: none; display: flex; align-items: center; gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--line-1); flex-wrap: wrap; }
+.imptray-gap { flex: 1; }
+
+.imptray-wait {
+  flex: none; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; margin: 0 12px 12px;
+  border-radius: 9px; background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.imptray-list + .imptray-wait { margin-top: 12px; }
+.imptray-wait-text { color: var(--ink-1); font: 400 13px/1.45 var(--font-sans); }
+.imptray-wait-text b { color: var(--ink-0); font-weight: 600; }
+
+.imptray-fails { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 10px 16px 12px; border-top: 1px solid var(--line-1); }
+.imptray-fails-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: var(--ink-0); font: 600 12.5px/1.3 var(--font-sans); }
+.imptray-fails-head svg { color: var(--ink-2); }
+.imptray-fail { display: flex; flex-direction: column; gap: 2px; padding: 5px 0; }
+.imptray-fail .p { color: var(--ink-1); font: 400 12.5px/1.3 var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.imptray-fail .w { color: var(--ink-3); font: 400 12px/1.3 var(--font-sans); }
+
+/* The top of a cluster's Files while its import waits for room (ImportWaitRow,
+   mockup r5-Land-Wait). It sits in the sidebar's files card, on its count tint. */
+.imptray-waitrow {
+  flex: none; display: flex; flex-direction: column; gap: 9px; margin: 2px 8px 8px; padding: 11px 12px;
+  border-radius: 8px; background: var(--sbf-count, var(--bg-2));
+}
+.imptray-waitrow-t { color: var(--ink-0); font: 600 12.5px/1.3 var(--font-sans); font-variant-numeric: tabular-nums; }
+.imptray-waitrow-s { color: var(--ink-2); font: 400 12px/1.4 var(--font-sans); }
+
+/* Buttons, as the import dialog's (importCapDialog.css). */
+.imptray-btn {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px;
+  border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg-2); color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans); cursor: pointer; white-space: nowrap;
+}
+.imptray-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
+.imptray-btn:focus-visible,
+.imptray-ib:focus-visible,
+.imptray-chip:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.imptray-btn.is-primary { background: var(--soleil); border-color: var(--soleil); color: #1a1205; font-weight: 600; }
+.imptray-btn.is-primary:hover { filter: brightness(1.06); }
+.imptray-btn.is-default { border-color: color-mix(in srgb, var(--ink-0) 34%, transparent); color: var(--ink-0); }
+.imptray-btn.is-quiet { background: transparent; border-color: transparent; color: var(--ink-2); }
+.imptray-btn.is-quiet:hover { background: var(--bg-hov); color: var(--ink-1); }
+.imptray-btn.is-sm { padding: 6px 11px; font-size: 12px; }
+.imptray-ib {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.imptray-ib:hover { background: var(--bg-hov); color: var(--ink-0); }
+
+.imptray-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px 0 8px; border: 0; border-radius: 15px;
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 6px 18px rgba(0, 0, 0, .28);
+  color: var(--ink-1); font: 600 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; cursor: pointer;
+}
+[data-theme='light'] .imptray-chip {
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 6px 16px rgba(10, 10, 12, .1);
+}
+.imptray-chip:hover { background: color-mix(in oklab, var(--sbf-glass) 70%, var(--bg-hov)); }
+.imptray-ring-track { stroke: var(--line-3); }
+.imptray-ring-arc { stroke: currentColor; }
+.imptray-chip svg.is-spin { animation: imptray-spin 1s linear infinite; }
+@keyframes imptray-spin { to { transform: rotate(360deg); } }
+
+/* The guide (lib/importGuide.js, the owner's pick D, 2026-10-20): how to bring
+   files over from another app, in the tray's spot until something is dropped.
+   The apps are tabs and the chosen one is a neutral selection; a file dragged
+   over the tray makes it a drop target, which is an active state: gold. Its
+   body scrolls when a short window can't hold the steps. */
+.imptray.is-guide.is-over {
+  box-shadow: inset 0 0 0 1.5px var(--soleil), var(--sbf-glass-shadow), 0 18px 48px rgba(0, 0, 0, .28);
+}
+.imptray-guide-tabs { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 0 12px 12px; }
+.imptray-guide-tab {
+  display: flex; align-items: center; gap: 7px; min-width: 0; height: 32px; padding: 0 9px; border: 0; border-radius: 8px;
+  background: color-mix(in srgb, var(--ink-0) 4%, transparent); box-shadow: inset 0 0 0 1px var(--line-1);
+  color: var(--ink-2); font: 500 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+}
+.imptray-guide-tab span { overflow: hidden; text-overflow: ellipsis; }
+.imptray-guide-tab svg { flex: none; color: var(--ink-3); }
+.imptray-guide-tab:hover { background: var(--bg-hov); color: var(--ink-1); }
+.imptray-guide-tab[aria-selected='true'] {
+  background: var(--bg-act); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-0) 22%, transparent); color: var(--ink-0);
+}
+.imptray-guide-tab[aria-selected='true'] svg { color: var(--ink-1); }
+.imptray-guide-tab:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.imptray-guide-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  padding: 14px 16px; border-top: 1px solid var(--line-1);
+}
+.imptray-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.imptray-step { display: grid; grid-template-columns: 20px 1fr; gap: 9px; align-items: start; color: var(--ink-1); font: 400 12.5px/1.45 var(--font-sans); }
+.imptray-step-n {
+  display: grid; place-items: center; width: 20px; height: 20px; margin-top: -1px; border-radius: 10px;
+  background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-1);
+  font: 600 10.5px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.imptray-step b,
+.imptray-note b { color: var(--ink-0); font-weight: 600; }
+.imptray-notes {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px;
+  background: color-mix(in srgb, var(--ink-0) 4%, transparent); box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.imptray-note { position: relative; padding-left: 12px; color: var(--ink-2); font: 400 12px/1.5 var(--font-sans); }
+.imptray-note::before { content: ''; position: absolute; left: 1px; top: 8px; width: 4px; height: 4px; border-radius: 2px; background: var(--ink-4); }
+a.imptray-btn { text-decoration: none; }
+a.imptray-btn svg { color: var(--ink-2); }
+.imptray-guide-room { flex-basis: 100%; padding: 4px 2px 0; }
+.imptray-guide-room b { color: var(--ink-0); font-weight: 600; }
+
+/* On a phone the zoom pill shows only while pinching, in this same corner
+   (styles.css, .cnv-zoom under the phone shell): the tray steps aside for it. */
+.imptray.is-above-nav,
+.imptray-chip.is-above-nav { transition: opacity 220ms var(--ease); }
+body[data-zooming='1'] .imptray.is-above-nav,
+body[data-zooming='1'] .imptray-chip.is-above-nav { opacity: 0; pointer-events: none; }
+
+/* A finger: 40px buttons, as the sidebar's. */
+@media (hover: none) and (pointer: coarse) {
+  /* Above the zoom control, which is a finger's size here. */
+  .imptray, .imptray-chip { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+  .imptray-btn, .imptray-btn.is-sm { min-height: 40px; }
+  .imptray-ib { width: 40px; height: 40px; }
+  .imptray-guide-tab { height: 40px; font-size: 13px; }
+  /* The corner chip stays small; a clear rim takes the finger. */
+  .imptray-chip::before { content: ''; position: absolute; inset: -5px -2px; border-radius: inherit; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .imptray-bar.is-reading span,
+  .imptray-chip svg.is-spin { animation: none; }
+}

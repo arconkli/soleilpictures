@@ -1,5 +1,7 @@
 import { createPortal } from 'react-dom';
 import { GridLayoutThumb } from './GridLayoutThumb.jsx';
+import { Icon } from './Icon.jsx';
+import { X } from '../lib/icons.js';
 import './templateAddedPrompt.css';
 
 // "Grid template added" — now put it on the board.
@@ -66,7 +68,7 @@ export function TemplateAddedPrompt({ template, armed, onPlace, onDismiss }) {
         aria-label={armed ? 'Cancel placing this template' : 'Dismiss'}
         onClick={onDismiss}
       >
-        ×
+        <Icon as={X} size={16} weight="regular" />
       </button>
     </div>,
     document.body,

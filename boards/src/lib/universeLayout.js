@@ -308,13 +308,24 @@ export function galaxyOrbit(id, R) {
 // takes its own orbital rate (so the disk visibly shears). Both
 // default to 0, which reproduces the static layout exactly.
 export function galaxySeed(id, R, out = null, dPhi = 0, dOmega = 0) {
-  const { a, theta, hz, arm } = galaxyOrbit(id, R);
-  const th = theta + (arm >= 0 ? dOmega : dPhi);
-  const o = out || new Float32Array(3);
-  o[0] = a * Math.cos(th);
-  o[1] = hz * (hash01(id + ':gy') + hash01(id + ':gy2') - 1) * 2;
-  o[2] = a * Math.sin(th);
-  return o;
+  return galaxyPlace(galaxyStar(id, R), out || new Float32Array(3), dPhi, dOmega);
+}
+
+// galaxySeed in its two halves, for a caller that moves the same star every
+// frame. All of the hashing is in the orbit, which is fixed for a given disk
+// radius, so galaxyStar runs once and galaxyPlace only advances the phase.
+export function galaxyStar(id, R) {
+  const s = galaxyOrbit(id, R);
+  s.gy = hash01(id + ':gy') + hash01(id + ':gy2') - 1;
+  return s;
+}
+
+export function galaxyPlace(star, out, dPhi = 0, dOmega = 0) {
+  const th = star.theta + (star.arm >= 0 ? dOmega : dPhi);
+  out[0] = star.a * Math.cos(th);
+  out[1] = star.hz * star.gy * 2;
+  out[2] = star.a * Math.sin(th);
+  return out;
 }
 
 // ── Galactic rotation ────────────────────────────────────────────

@@ -448,9 +448,6 @@ export const TOOLS = [
       workspace_id: uuid('Defaults to the personal workspace'),
       parent_board_id: uuid('Nest it inside this board'),
       view: str('How it opens', { enum: ['canvas', 'list'] }),
-      scheduled_date: str('Put this board on the calendar, YYYY-MM-DD', { format: 'date' }),
-      scheduled_end: str('Inclusive end of a multi-day block, YYYY-MM-DD', { format: 'date' }),
-      day_label: str('Durable name for a scheduled day, e.g. "Day 12" — never put the date in it', { maxLength: 120 }),
       identifiers: IDENTIFIER,
       props: PROPS,
     }, ['name']),
@@ -477,9 +474,6 @@ export const TOOLS = [
           workspace_id: uuid('Overrides the default'),
           parent_board_id: uuid('Nest it inside this board'),
           view: str('How it opens', { enum: ['canvas', 'list'] }),
-          scheduled_date: str('Put this board on the calendar, YYYY-MM-DD', { format: 'date' }),
-          scheduled_end: str('Inclusive end of a multi-day block, YYYY-MM-DD', { format: 'date' }),
-          day_label: str('Durable name for a scheduled day, e.g. "Day 12" — never put the date in it', { maxLength: 120 }),
           identifiers: IDENTIFIER,
           props: PROPS,
         }, ['name']),
@@ -569,10 +563,6 @@ export const TOOLS = [
       name: str('Up to 200 characters', { minLength: 1, maxLength: 200 }),
       view: str('How it opens', { enum: ['canvas', 'list'] }),
       parent_board_id: { type: ['string', 'null'], description: 'null moves it to the top level' },
-      scheduled_date: str('Put this board on the calendar, YYYY-MM-DD', { format: 'date' }),
-      scheduled_end: str('Inclusive end of a multi-day block, YYYY-MM-DD', { format: 'date' }),
-      day_label: str('Durable name for a scheduled day, e.g. "Day 12" — never put the date in it', { maxLength: 120 }),
-      notify: { type: 'boolean', description: 'Default true. Moving a PUBLISHED day notifies everyone who can read it; set false to move one quietly.' },
       identifiers: IDENTIFIER,
       props: PROPS,
     }, ['board_id']),
@@ -705,7 +695,7 @@ export const TOOLS = [
     description: "DELETES a card from a board. This removes the user's content — confirm with "
       + 'them before calling it. The deleted card is returned, and for notes, images, links, '
       + 'files, video, audio and PDFs, passing it back to add_cards restores its content (under '
-      + 'a new id). Any other kind (grids, palettes, schedules, cluster cards, ...) and docs '
+      + 'a new id). Any other kind (grids, palettes, cluster cards, ...) and docs '
       + 'written in the app cannot be restored that way: the response lists them in '
       + 'not_restorable, and they come back only from the '
       + "board's Version history in the app — tell the user so before deleting one.",
@@ -723,7 +713,7 @@ export const TOOLS = [
     description: "DELETES many cards from one board. This removes the user's content — confirm "
       + 'with them before calling it. Every removed card is returned, and passing them back to '
       + 'add_cards restores them — except kinds add_cards does not create (grids, palettes, '
-      + 'schedules, cluster cards, ...) and docs written in the app, which the response lists '
+      + 'cluster cards, ...) and docs written in the app, which the response lists '
       + 'in not_restorable and which come back only from the '
       + "board's Version history in the app.",
     annotations: DESTROYS,

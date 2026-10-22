@@ -1,27 +1,14 @@
 import { useEffect, useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { commentsMap, addCommentReply, deleteCommentThread, resolveComment, getDocUndoManager, DOC_ORIGIN } from '../lib/docState.js';
-import { undoToast } from '../lib/undoToast.js';
+import { commentsMap, addCommentReply, resolveComment, readThread } from '../lib/docState.js';
+import { deleteCommentThreadUndoably } from '../lib/commentThreadDelete.js';
 import { notifyCommentMentions } from '../lib/commentMentions.js';
 import { EntityPicker } from './EntityPicker.jsx';
 import { caretRect } from '../lib/caretRect.js';
 import { placeCommentPopover } from '../lib/commentPopoverPlace.js';
 import { useFeedback } from './AppFeedback.jsx';
-
-// Keep only the people whose @name still appears in the final text — a user can
-// pick someone from the picker and then delete the mention again.
-function matchMentions(body, picked) {
-  return [...new Set(picked.filter(m => body.includes('@' + m.name)).map(m => m.id))];
-}
-
-// Scan back from the caret to an unbroken "@word" (same rule as
-// MessageComposer / InlineComposer).
-function detectMentionToken(text, caret) {
-  let i = caret - 1;
-  while (i >= 0 && /\S/.test(text[i]) && text[i] !== '@') i--;
-  if (i < 0 || text[i] !== '@') return null;
-  return { tokenStart: i, query: text.slice(i + 1, caret) };
-}
+import { isComposingKey } from '../lib/composerKeys.js';
+import { detectMentionToken, matchMentions } from '../lib/commentMentionText.js';
 
 const W = 320;
 
@@ -73,21 +60,9 @@ export function CommentInlinePopover({
     if (!ydoc || !threadId) return;
     const cm = commentsMap(ydoc, scope);
     if (!cm) return;
-    const refresh = () => {
-      const v = cm.get(threadId);
-      if (!v) { setThread(null); return; }
-      const get = (k) => v?.get?.(k) ?? v?.[k];
-      const repliesY = get('replies');
-      setThread({
-        id: threadId,
-        body: get('body'),
-        author: get('author'),
-        authorColor: get('authorColor'),
-        ts: get('ts'),
-        resolved: get('resolved') || false,
-        replies: repliesY?.toArray ? repliesY.toArray() : (Array.isArray(repliesY) ? repliesY : []),
-      });
-    };
+    // Its replies are filed beside it as well as in it (lib/commentKeys.js):
+    // readThread puts them together.
+    const refresh = () => setThread(readThread(ydoc, threadId, scope));
     refresh();
     cm.observeDeep(refresh);
     return () => cm.unobserveDeep(refresh);
@@ -107,7 +82,13 @@ export function CommentInlinePopover({
   }, [anchor, thread]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !confirmingRef.current) requestClose(); };
+    // Claimed: an open doc is a layer (lib/modalGuard) that would close on
+    // the same Escape at the window.
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || confirmingRef.current) return;
+      e.preventDefault();
+      requestClose();
+    };
     const onDown = (e) => {
       // Clicks inside the popover or the discard-confirm dialog don't close.
       if (e.target.closest?.('.feedback-bg')) return;
@@ -137,66 +118,15 @@ export function CommentInlinePopover({
         <button
           className="comment-inline-x"
           title={thread.resolved ? 'Reopen' : 'Resolve'}
-          onClick={() => resolveComment(ydoc, threadId, !thread.resolved, scope)}
+          onClick={() => resolveComment(ydoc, threadId, !thread.resolved, scope, { by: currentUser?.id || null, byName: currentUser?.name || null })}
         >{thread.resolved ? '↺' : '✓'}</button>
         <button
           className="comment-inline-x"
           title="Delete"
-          onClick={async () => {
-            // Docs (full scope): no confirm — the DOC_ORIGIN UndoManager makes
-            // the delete reversible, so the house delete→Undo-toast convention
-            // applies. The highlight-mark strip is DEFERRED past the undo
-            // window: an undo (toast or Cmd+Z) restores a still-anchored
-            // thread; the strip only runs once the delete has stuck.
-            const docUm = scope?.pages ? getDocUndoManager(ydoc, scope) : null;
-            if (docUm) {
-              docUm.stopCapturing();
-              deleteCommentThread(ydoc, threadId, scope);
-              const item = docUm.undoStack.length ? docUm.undoStack[docUm.undoStack.length - 1] : null;
-              docUm.stopCapturing();
-              undoToast(feedback, {
-                message: 'Comment thread deleted',
-                undoManager: docUm,
-                stackItem: item,
-                onUndo: () => { try { docUm.undo(); } catch (_) {} },
-              });
-              setTimeout(() => {
-                // Strip the dead underline only if the thread is still gone
-                // (covers toast-undo AND a Cmd+Z inside the window).
-                if (!commentsMap(ydoc, scope)?.get(threadId)) {
-                  try {
-                    window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id: threadId } }));
-                  } catch (_) {}
-                }
-              }, 6500);
-              onClose?.();
-              return;
-            }
-            // Notes (comments-only scope — no structural UndoManager): the
-            // thread value is a plain object in a Y.Map, so a closure restore
-            // IS the engine — capture it before deleting, re-set it on Undo.
-            // Same deferred mark-strip as the doc branch, so an undo restores
-            // a still-anchored thread. No confirm: delete → Undo toast.
-            const saved = commentsMap(ydoc, scope)?.get(threadId) || null;
-            deleteCommentThread(ydoc, threadId, scope);
-            undoToast(feedback, {
-              message: 'Comment thread deleted',
-              onUndo: () => {
-                try {
-                  const map = commentsMap(ydoc, scope);
-                  if (saved && map && !map.get(threadId)) {
-                    ydoc.transact(() => { map.set(threadId, saved); }, DOC_ORIGIN);
-                  }
-                } catch (_) {}
-              },
-            });
-            setTimeout(() => {
-              if (!commentsMap(ydoc, scope)?.get(threadId)) {
-                try {
-                  window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id: threadId } }));
-                } catch (_) {}
-              }
-            }, 6500);
+          onClick={() => {
+            // No confirm: the house delete → Undo toast (docs on their
+            // structural undo, notes by putting back what was filed).
+            deleteCommentThreadUndoably(ydoc, scope, threadId, feedback);
             onClose?.();
           }}
         >×</button>
@@ -237,7 +167,10 @@ export function CommentInlinePopover({
                    const tok = detectMentionToken(next, e.target.selectionStart ?? next.length);
                    setReplyMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
                  }}
-                 onKeyDown={(e) => { if (e.key === 'Enter' && replyMention) e.preventDefault(); }}
+                 onKeyDown={(e) => {
+                   if (isComposingKey(e)) return;
+                   if (e.key === 'Enter' && replyMention) e.preventDefault();
+                 }}
                  placeholder={workspaceId ? 'Reply… (@ to mention)' : 'Reply…'} />
         </form>
       )}

@@ -3,7 +3,7 @@
 // Realtime subscription happens in useCanvasComments; this file is the
 // REST surface.
 
-import { supabase } from './supabase.js';
+import { supabase, sessionUserId } from './supabase.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 
@@ -181,8 +181,7 @@ export async function unhideAllOnBoard(boardId) {
 // supabase-js can do this with a single .in() filter.
 export async function listMyCommentViews(rootIds) {
   if (!rootIds || rootIds.length === 0) return new Map();
-  const { data: userData } = await supabase.auth.getUser();
-  const uid = userData?.user?.id;
+  const uid = await sessionUserId();
   if (!uid) return new Map();
   const { data, error } = await supabase
     .from('comment_views')
@@ -199,8 +198,7 @@ export async function listMyCommentViews(rootIds) {
 // it fails the worst case is the dot reappears on next reload.
 export async function markCommentViewed(rootCommentId) {
   if (!rootCommentId) return;
-  const { data: userData } = await supabase.auth.getUser();
-  const uid = userData?.user?.id;
+  const uid = await sessionUserId();
   if (!uid) return;
   const { error } = await supabase
     .from('comment_views')

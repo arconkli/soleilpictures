@@ -31,6 +31,13 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 directory = "./dist"
 not_found_handling = "single-page-application"
 binding = "ASSETS"
+# The home page is a real file (index.html), and the assets layer answers a
+# file without running the Worker, so `/` alone went out without the nonce CSP,
+# the soleil-ctx tag (region and network kind) and ROUTE_META['/'], which
+# repeats index.html's own title, description and canonical. Every other page
+# already reaches the Worker as a miss. Only "/": the hashed /assets/* files
+# must keep skipping it. edgeContext.test.mjs holds this line in place.
+run_worker_first = ["/"]
 
 # Cloudflare Workers AI — powers the admin SEO tooling (/api/seo/*): a vision
 # model captions board images for alt text, a text model drafts SEO copy.
@@ -53,13 +60,14 @@ binding = "AI"
 #                    This is the path that carries changes made IN THE APP;
 #                    API-driven events are already delivered inline. It costs
 #                    one indexed probe when there is nothing pending.
-# Mondays 06:00 UTC: the AEO retrieval probe — asks an assistant the questions a
+# Sundays 06:00 UTC: the AEO retrieval probe — asks an assistant the questions a
 #                    buyer asks and records whether we are cited (migration
 #                    0296, src/worker-aeo.js). Weekly because retrieval moves at
 #                    the speed of index refreshes; daily would sample answer
 #                    variance and read it as movement. No-ops without
 #                    OPENAI_API_KEY. Also the week's new Workers AI models,
-#                    one email when there are any.
+#                    one email when there are any. "0 6 * * 1" is SUNDAY:
+#                    Cloudflare counts day-of-week 1 as Sunday.
 # Hourly at :45:     R2 off-site mirror — copy new image/preview/op-batch objects
 #                    into the LOCKED backup bucket (runR2Mirror). The DB dump
 #                    only holds pointers to these; this holds the bytes. No-ops
@@ -68,6 +76,15 @@ binding = "AI"
 # To enable actual writes/deletes, set HISTORY_COMPACTION_MODE=run and/or
 # R2_SWEEP_MODE=delete via `wrangler secret put`.
 crons = ["0 4 * * *", "15 * * * *", "* * * * *", "0 6 * * 1", "45 * * * *"]
+
+# The party Worker (boards/party), for this Worker's own calls into it: a
+# move's /reset and the API's multipart uploads (lib/partyFetch.js). A Worker on
+# workers.dev may not fetch another workers.dev Worker on the same account
+# (Cloudflare error 1042), which is what the preview is, so by URL every move
+# between clusters failed there.
+[[services]]
+binding = "PARTY"
+service = "soleil-boards-party"
 
 # R2 binding for the orphan sweeper. Matches PartyKit's R2_BUCKET so
 # the same bucket uploads go into is the one being swept.

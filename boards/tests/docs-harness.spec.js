@@ -172,7 +172,7 @@ test('a bookmark deep in a long paginated doc stores a durable anchor', async ({
 test('the link button opens the in-app link picker (not a native prompt)', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('link me').selectAll().run());
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add link (⌘K)' }).click();
+  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add link', exact: true }).click();
   // The live link UI is the in-app EntityPicker (URL + entity targets), not window.prompt.
   await expect(page.locator('.entity-picker')).toBeVisible();
 });
@@ -239,7 +239,7 @@ test('per-card zoom is remembered across reloads', async ({ page }) => {
 test('comment add creates a tt-comment mark', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('comment target').selectAll().run());
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add comment (⌘⌥M)' }).click();
+  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add comment', exact: true }).click();
   // The add-comment flow renders an InlineComposer; post a comment (Enter posts).
   const composer = page.locator('.inline-composer-input');
   await expect(composer).toBeVisible();
@@ -254,7 +254,7 @@ test('comment add creates a tt-comment mark', async ({ page }) => {
 test('deleting a comment thread strips its highlight mark (no dead underline)', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('mark me').selectAll().run());
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add comment (⌘⌥M)' }).click();
+  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add comment', exact: true }).click();
   const composer = page.locator('.inline-composer-input');
   await expect(composer).toBeVisible();
   await composer.fill('temp');

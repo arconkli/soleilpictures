@@ -16,8 +16,12 @@
 //      retry button and a support mailto with the session_id prefilled.
 //
 // When the tier flips, we don't hard-bounce to "/" instantly — we show a
-// brief, celebratory "Welcome to Creator" beat, then navigate. A fresh load
-// re-reads the new tier in TierRouter and drops the user into the app.
+// brief, celebratory "Welcome to Creator" beat, then enter the app. It opens
+// in place (TierRouter's onEnter), not on a second page load: this page has
+// already loaded the app, signed in, read the new tier and started the reads
+// the board needs (lib/bootPrefetch.js), and a reload threw all of that away
+// and made a buyer wait through the whole boot again. Opened without onEnter,
+// it still reloads.
 //
 // Missing session_id: if the URL has no ?session_id (stripped link, manual
 // nav), we can't call verify — show a clear recovery card instead of an
@@ -41,8 +45,8 @@ import { PLAN_NAME, CREATOR_TRIAL_DAYS, formatPeriodEnd } from '../lib/billingCo
 import { readCheckoutReturn, clearCheckoutReturn } from '../lib/checkoutReturn.js';
 import { askForHolder } from '../lib/heldUploads.js';
 import { trackPurchase } from '../lib/metaPixel.js';
+import { VERIFY_URL } from '../lib/checkout.js';
 
-const VERIFY_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/verify-checkout-session';
 const POLL_MS    = 2000;     // get_my_tier, pre-stall
 const SLOW_POLL_MS = 30000;  // get_my_tier once stalled — a tab left open must
                              // not fire an authed RPC every 2s forever
@@ -51,7 +55,9 @@ const MAX_AUTO_VERIFIES = 10; // then the manual "Verify now" button is the path
 const STALL_MS   = 30000;    // show manual-retry UI after this much waiting
 const HARD_STOP_MS = 15 * 60 * 1000; // stop ALL automatic polling; an abandoned
                              // tab was hitting Stripe + Supabase ~20k times/day
-const CELEBRATE_MS = 2400;   // dwell on the success beat before entering
+const CELEBRATE_MS = 1200;   // dwell on the success beat before entering
+const CELEBRATE_READ_MS = 2400; // the same, when the beat has a sentence to read:
+                             // the trial's first charge, or the files to drop again
 
 // Verify reasons that can never resolve by retrying — stop the automatic
 // verify loop on these (the manual button stays as the escape hatch).
@@ -68,8 +74,9 @@ function planLabel(plan) {
   return null;
 }
 
-export function PricingSuccess() {
+export function PricingSuccess({ onEnter = null }) {
   const { user, signOut } = useAuth();
+  const enter = () => { if (onEnter) onEnter(); else window.location.assign('/'); };
   const { tier, refetch, subscriptionStatus, currentPeriodEnd } = useMyTier({ userId: user?.id });
   // Was this the TRIAL? verify-checkout-session cannot say — a trial and a
   // purchase come back with the same body — so startCheckout noted it before
@@ -183,8 +190,8 @@ export function PricingSuccess() {
     return () => { cancelled = true; };
   }, [callVerify, refetch]);
 
-  // Celebration: the moment tier flips to paid/admin, dwell on a success beat
-  // then navigate so TierRouter re-reads the fresh tier on a clean load.
+  // Celebration: the moment tier flips to paid/admin, dwell on a success beat,
+  // then enter the app, which reads the tier this page just read.
   useEffect(() => {
     if (tier !== 'paid' && tier !== 'admin') return;
     if (celebrated.current) return;
@@ -205,14 +212,20 @@ export function PricingSuccess() {
   useEffect(() => {
     if (!celebrating) return undefined;
     let cancelled = false;
-    let t = null;
-    // Ask first: the answer is also what tells that tab to look now.
-    askForHolder().then((n) => {
-      if (cancelled) return;
-      if (n > 0) { setHeldElsewhere(n); return; }
-      t = setTimeout(() => { window.location.assign('/'); }, CELEBRATE_MS);
-    });
-    return () => { cancelled = true; if (t) clearTimeout(t); };
+    // Ask first: the answer is also what tells that tab to look now. The beat
+    // runs while the question is out, not after it: waiting out the ask (up to
+    // 800 ms with no other tab to answer) before starting the beat added it to
+    // every buyer's wait. Entering still waits for both.
+    const asked = askForHolder();
+    asked.then((n) => { if (!cancelled && n > 0) setHeldElsewhere(n); });
+    const dwell = isTrial || waitingFolder > 0 ? CELEBRATE_READ_MS : CELEBRATE_MS;
+    const t = setTimeout(() => {
+      asked.then((n) => { if (!cancelled && n === 0) enter(); });
+    }, dwell);
+    return () => { cancelled = true; clearTimeout(t); };
+    // enter only reads onEnter, which TierRouter keeps stable. isTrial and
+    // waitingFolder are known with the tier that started the beat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [celebrating]);
 
   // Polling: tier RPC (fast pre-stall, slow after, so a late webhook still
@@ -308,7 +321,7 @@ export function PricingSuccess() {
               <div className="welcome-cta-row">
                 <button
                   className="welcome-cta welcome-cta-primary"
-                  onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'app', from: 'checkout_held' }); window.location.assign('/'); }}
+                  onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'app', from: 'checkout_held' }); enter(); }}
                 >
                   Open Clusters here
                 </button>

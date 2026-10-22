@@ -118,12 +118,34 @@ export async function routeImageCdn(page) {
     route.fulfill({ status: 200, contentType: 'image/png', body: TINY_PNG }));
 }
 
+// A cluster that is a collection rather than an arrangement, the files its
+// owner set to open in Files: four photos, two loops, a PDF, a zip, a note,
+// and the sub-board as its one cluster.
+function listFixture() {
+  const images = imageFixture(4);
+  const at = (i) => new Date(Date.UTC(2026, 9, 1, 12) - i * 60_000).toISOString();
+  return {
+    ...images,
+    cards: {
+      ...images.cards,
+      'card-aud-0': { kind: 'audio', src: 'r2:ws1/loop-1.wav', fileName: 'loop-1.wav', duration: 8, bpm: 90, createdAt: at(5), x: 100, y: 3000, w: 240, h: 80 },
+      'card-aud-1': { kind: 'audio', src: 'r2:ws1/loop-2.wav', fileName: 'loop-2.wav', duration: 12, bpm: 91, createdAt: at(6), x: 400, y: 3000, w: 240, h: 80 },
+      'card-pdf-0': { kind: 'pdf', pdfSrc: 'r2:ws1/permit.pdf', name: 'permit.pdf', sizeBytes: 240 * 1024, createdAt: at(7), x: 700, y: 3000, w: 200, h: 260 },
+      'card-file-0': { kind: 'file', fileSrc: 'r2:ws1/selects.zip', fileName: 'selects.zip', ext: 'zip', sizeBytes: 2 * 1024 * 1024, createdAt: at(8), x: 1000, y: 3000, w: 240, h: 80 },
+      [SUB_ID]: { kind: 'board', x: 1300, y: 3000, w: 240, h: 160 },
+    },
+  };
+}
+
 // opts.withDoc adds a rich doc card to the root board; opts.dense replaces
 // the root with a 60-note grid (for the zoom-cull spec); opts.withStrokes
 // adds 120 spread-out scribbles (for the stroke-cull spec); opts.withImages
-// replaces the root with the image grid above (for the tier specs).
-export function makeBundles({ withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false, nullSnapshot = false } = {}) {
-  const images = denseImages ? imageFixture(DENSE_IMAGE_COUNT, 6, 1000, 900)
+// replaces the root with the image grid above (for the tier specs);
+// opts.listView sets the root to open in Files (board.view, as Always open in
+// Files leaves it) and fills it with the files above.
+export function makeBundles({ withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false, nullSnapshot = false, listView = false } = {}) {
+  const images = listView ? listFixture()
+    : denseImages ? imageFixture(DENSE_IMAGE_COUNT, 6, 1000, 900)
     : withImages ? imageFixture() : null;
   const rootCards = images
     ? images.cards
@@ -161,7 +183,7 @@ export function makeBundles({ withDoc = false, dense = false, withStrokes = fals
     // nullSnapshot simulates a board with NO board_state row (a data anomaly) —
     // the party would return snapshot: null. The viewer must render the calm
     // empty state, not a blank canvas.
-    [ROOT_ID]: { ...base, board: { id: ROOT_ID, name: 'Marketing Root', bg_color: null }, snapshot: nullSnapshot ? null : rootSnapshot },
+    [ROOT_ID]: { ...base, board: { id: ROOT_ID, name: 'Marketing Root', bg_color: null, ...(listView ? { view: 'list' } : {}) }, snapshot: nullSnapshot ? null : rootSnapshot },
     [SUB_ID]:  { ...base, board: { id: SUB_ID, name: 'Inside Board', bg_color: null }, snapshot: subSnapshot },
   };
 }
@@ -170,8 +192,8 @@ export function makeBundles({ withDoc = false, dense = false, withStrokes = fals
 // responses (makes the nav progress shimmer observable); opts.fail404 fails
 // every bundle request (drives the invalid-link page); opts.withDoc /
 // opts.dense select the fixture variant (see makeBundles).
-export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false, nullSnapshot = false } = {}) {
-  const bundles = makeBundles({ withDoc, dense, withStrokes, withImages, denseImages, nullSnapshot });
+export async function routeShareBundle(page, { subDelayMs = 0, fail404 = false, withDoc = false, dense = false, withStrokes = false, withImages = false, denseImages = false, nullSnapshot = false, listView = false } = {}) {
+  const bundles = makeBundles({ withDoc, dense, withStrokes, withImages, denseImages, nullSnapshot, listView });
   await page.route('**/parties/upload/share/share-bundle', async (route) => {
     if (fail404) return route.fulfill({ status: 404, body: 'not found' });
     let boardId = null;

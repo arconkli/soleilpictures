@@ -77,7 +77,12 @@ const ALWAYS_WINS = 'cap-hit';
 // sitting is the moment most predictive of coming back, and it used to arrive
 // with a fresh app session and the asks reset. It never lands on a surface
 // that already holds the minute; a refusal means no greeting this time.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent', 'resume']);
+// 'whats-new' is the one-time "New" hint on the Files card for accounts from
+// before the files sidebar (lib/whatsNew.js). Like the greeting it tells and
+// asks nothing, so it is not AMBIENT and spends no visit; it claims so the
+// ambient asks stand down while it is up, and it waits behind anything that
+// already holds the minute, since it lands on a return visit, when they do.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent', 'resume', 'whats-new']);
 
 // The surfaces that put an offer on screen. Only these may be followed. (The
 // wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then

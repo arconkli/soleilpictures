@@ -18,6 +18,7 @@ import { undoToast } from '../lib/undoToast.js';
 import { bubbleLayout } from '../lib/bubbleLayout.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const VOTE_W = 132;   // initial estimate — replaced by ResizeObserver measure
 const VOTE_H = 40;
@@ -285,6 +286,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
                  onChange={(e) => setLabelDraft(e.target.value)}
                  onBlur={commitLabel}
                  onKeyDown={(e) => {
+                   if (isComposingKey(e)) return;
                    if (e.key === 'Enter') { e.preventDefault(); commitLabel(); }
                    if (e.key === 'Escape') { setEditingLabel(false); setLabelDraft(vote.label || ''); }
                  }} />

@@ -4,6 +4,7 @@ import { GridLayoutThumb } from './GridLayoutThumb.jsx';
 import { filterSections, SOURCES } from '../lib/gridLayoutLibrary.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 import './gridTemplatePanel.css';
 
 // The Templates panel — the grid tool's flyout.
@@ -282,6 +283,9 @@ export function GridTemplatePanel({
   };
 
   const onKeyDown = (e) => {
+    // Mid-syllable in the search, a key is the input method's: Enter there
+    // picks the syllable, not the template under the cursor.
+    if (isComposingKey(e)) return;
     const dir = { ArrowDown: 'down', ArrowUp: 'up', ArrowRight: 'right', ArrowLeft: 'left' }[e.key];
     if (dir) {
       // Let Left/Right move the caret while there is text to move it through;

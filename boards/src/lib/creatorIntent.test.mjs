@@ -167,7 +167,9 @@ test('the resumed offer waits for the first run, pauses the tour, and has its ow
   // restart when useMyTier hands back a fresh onboarding object.
   assert.match(app, /if \(myTier\.loading \|\| !yb\.ready\) return undefined;\s*if \(!settleDeadlineRef\.current\) settleDeadlineRef\.current = Date\.now\(\) \+ 10_000;/);
   assert.match(app, /\}, \[firstRunSettled, onboardingSeeded, myTier\.loading, yb\.ready\]\);/);
-  assert.match(app, /enabled: tourActive && upgradeReason !== 'pricing-intent',/, 'the tour must pause under the offer');
+  // (The first-run setup also holds it until the profile says whether the
+  // setup already asked its question: workspace_setup, lib/setupGate.js.)
+  assert.match(app, /enabled: tourActive && upgradeReason !== 'pricing-intent'(?: && !setupUnread)?,/, 'the tour must pause under the offer');
   assert.match(app, /showCoachmark && !onboardingArmB && upgradeReason !== 'pricing-intent'/, 'so must the coachmark');
   const um = read('components/UpgradeModal.jsx');
   assert.match(um, /reason === 'pricing-intent' \? 'pricing-intent'/, 'pricing-intent needs its own header');

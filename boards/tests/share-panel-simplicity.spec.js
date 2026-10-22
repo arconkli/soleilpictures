@@ -233,7 +233,9 @@ test.describe('the simplification did not weaken the permissions', () => {
     // …and never for someone already in the workspace: invite_workspace_member
     // leaves a member's role alone, so the move would only take this cluster away.
     expect(s).toContain('const canWiden = isManager && !workspaceMembers.some(m => m.user_id === s.user_id);');
-    expect(s).toContain('{canWiden && <option value="workspace">Whole workspace · can edit</option>}');
+    // (While the account's editor places are full, the option stays, locked:
+    // "Whole workspace · can edit — full".)
+    expect(s).toContain(`{canWiden && <option value="workspace" disabled={lockEdit}>{lockEdit ? 'Whole workspace · can edit — full' : 'Whole workspace · can edit'}</option>}`);
     expect(s).toContain('{canWiden && <option value="workspaceviewer">Whole workspace · can view</option>}');
     expect(s).toMatch(/if \(status !== 'granted'\) \{[\s\S]{0,200}return;\s*\}[\s\S]{0,400}unshareBoard/);
   });

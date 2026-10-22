@@ -21,7 +21,7 @@ const byName = (rows, name) => rows.filter((r) => r.event === name);
 const chipOf = (page) => page.locator('.upgrade-chip');
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/functions/v1/create-checkout-session', (route) =>
+  await page.route('**/functions/v1/create-checkout-session*', (route) =>
     route.fulfill({ json: { ok: true, url: '/pricing' } }));
   await page.addInitScript(() => {
     try { localStorage.setItem('sb-local-auth-token', '1'); } catch (_) {}

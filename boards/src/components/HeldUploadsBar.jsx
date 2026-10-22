@@ -23,7 +23,10 @@ import './heldUploadsBar.css';
 // still on the person's disk, but they would have to find and drop them again.
 // Neutral ink throughout; gold is for active, selection and focus states.
 export function HeldUploadsBar({ openBoardIds = [], boardName = null, onOpenBoard = null, toast = null, raised = false, aboveNav = false }) {
-  const { entries, awaiting } = useSyncExternalStore(subscribeHeld, heldSnapshot, heldSnapshot);
+  const { entries: held, awaiting } = useSyncExternalStore(subscribeHeld, heldSnapshot, heldSnapshot);
+  // A bulk import's hold is the import tray's to show (lib/importStart.js):
+  // it only keeps a checkout in another tab while the import waits in this one.
+  const entries = held.filter((e) => e.via !== 'import');
   if (!entries.length) return null;
 
   const count = entries.reduce((n, e) => n + e.count, 0);
@@ -41,8 +44,8 @@ export function HeldUploadsBar({ openBoardIds = [], boardName = null, onOpenBoar
   else message = `${what} ${count === 1 ? 'is' : 'are'} waiting for room — keep this tab open`;
 
   const onDiscard = () => {
-    const gone = heldEntries();
-    discardHeld();
+    const gone = heldEntries().filter((e) => e.via !== 'import');
+    discardHeld(gone.map((e) => e.id));
     toast?.({
       type: 'info',
       message: `Let go of ${what}. ${count === 1 ? "It's" : "They're"} still on your computer.`,

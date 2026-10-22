@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-22",
+    "anchor": "2026-10-22",
+    "title": "A visual refresh, and a home for every file",
+    "summary": "A new sidebar keeps your clusters on one card and every file on the other, whole folders and zips come in as clusters, clusters cost no cards, and one file or one doc can be shared on its own.",
+    "headings": []
+  },
+  {
     "date": "2026-10-18",
     "anchor": "2026-10-18",
     "title": "Sharing leads with inviting, and an invitation pays you both",

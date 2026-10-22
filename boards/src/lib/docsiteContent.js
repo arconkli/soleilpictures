@@ -742,7 +742,267 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "New accounts land on a starter cluster with a few cards already on it, so the canvas is never a blank intimidating rectangle. You can delete all of it."
+     "v": "Some new accounts start with a short setup before the canvas; others go straight to their first cluster."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The setup is three screens:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Name your workspace.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Name your workspace."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " It is where your clusters, files and people live, and you can rename it any time. This is the one step you can't skip."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Tell us about it.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tell us about it."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "em",
+      "v": "Who's working in it?",
+      "children": [
+       {
+        "t": "text",
+        "v": "Who's working in it?"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (Just me, A few people or A team) and "
+     },
+     {
+      "t": "em",
+      "v": "What kind of work?",
+      "children": [
+       {
+        "t": "text",
+        "v": "What kind of work?"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — film and video, photo, design, ads and brand, music, school, personal, or something else. One tap each, or "
+     },
+     {
+      "t": "strong",
+      "v": "Skip",
+      "children": [
+       {
+        "t": "text",
+        "v": "Skip"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". The work answer changes what your first cluster says when it is empty."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Invite people.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Invite people."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " The step leads with an invite link to the whole workspace — "
+     },
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on a computer, "
+     },
+     {
+      "t": "strong",
+      "v": "Share invite link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share invite link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on a phone — and under it, "
+     },
+     {
+      "t": "strong",
+      "v": "or invite by email",
+      "children": [
+       {
+        "t": "text",
+        "v": "or invite by email"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "Inviting a whole workspace",
+      "href": "/docs/collaborate/sharing#inviting-a-whole-workspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "Inviting a whole workspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for what the link does. "
+     },
+     {
+      "t": "strong",
+      "v": "Skip for now",
+      "children": [
+       {
+        "t": "text",
+        "v": "Skip for now"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " goes straight in."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you skip the invite step, you may be asked once more in your first two weeks, after you have put a few things on the board, and never a third time."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Once something is on your board, three short tips point out where your clusters are, that Files takes any file and a pasted link becomes a card, and how to bring a folder over from Google Drive or Dropbox. "
+    },
+    {
+     "t": "strong",
+     "v": "Next",
+     "children": [
+      {
+       "t": "text",
+       "v": "Next"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " moves on, "
+    },
+    {
+     "t": "strong",
+     "v": "Skip",
+     "children": [
+      {
+       "t": "text",
+       "v": "Skip"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ends them, and the last one's "
+    },
+    {
+     "t": "strong",
+     "v": "See how",
+     "children": [
+      {
+       "t": "text",
+       "v": "See how"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the steps for downloading a folder from Google Drive and "
+    },
+    {
+     "t": "link",
+     "v": "bringing it in",
+     "href": "/docs/clusters#importing-folders-and-zips",
+     "children": [
+      {
+       "t": "text",
+       "v": "bringing it in"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". They show once."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Someone who joins your workspace through an invite is asked only what kind of work they do (optional), then opens it. If nothing is in it yet, they see whose workspace it is, so the empty board is not a mystery."
     }
    ]
   },
@@ -1176,6 +1436,22 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "The workspace invite link",
+      "children": [
+       {
+        "t": "text",
+        "v": "The workspace invite link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " from setup brings people into the whole workspace, every cluster and file in it, as editors."
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Create a public link",
       "children": [
        {
@@ -1493,7 +1769,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A card is one thing on a board. Images, notes, links, documents, PDFs, video, audio, colour palettes, shapes, grids, schedules, votes, and other clusters are all cards."
+     "v": "A card is one thing on a board. Images, notes, links, documents, PDFs, video, audio, colour palettes, shapes, grids, votes, and other clusters are all cards."
     }
    ]
   },
@@ -1540,7 +1816,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in total across every cluster you create. There is no separate limit on clusters, but each one sits on its parent's canvas as a card and counts toward that total. Collaborators are unlimited."
+     "v": " in total across every cluster you create. Clusters themselves are free: each one sits on its parent's canvas as a card, but that card does not count toward the total, and there is no limit on how many you make. Collaborators are unlimited."
     }
    ]
   },
@@ -1608,7 +1884,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Press "
+     "v": "A cluster's files are always listed in the "
+    },
+    {
+     "t": "link",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar",
+     "children": [
+      {
+       "t": "text",
+       "v": "sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", beside the board; press "
     },
     {
      "t": "code",
@@ -1616,21 +1907,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or "
-    },
-    {
-     "t": "strong",
-     "v": "Files",
-     "children": [
-      {
-       "t": "text",
-       "v": "Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " at the top of the screen, and Files opens beside the board; it can expand to fill the screen."
+     "v": " and they fill the screen."
     }
    ]
   },
@@ -1892,6 +2169,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "C"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Add a cluster — click where it goes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "Esc"
       }
      ],
@@ -2015,7 +2306,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "In the sidebar's cluster tree. "
+     "v": "In the "
+    },
+    {
+     "t": "link",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar",
+     "children": [
+      {
+       "t": "text",
+       "v": "sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": its cluster tree and its Files. "
     },
     {
      "t": "code",
@@ -2137,6 +2443,134 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "The row's menu — the same one right-click opens"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move through the clusters, or through the files"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Space"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Quick look at the focused file"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Go to the focused file — on its board, or in Files when it isn't on the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "On the Files tabs: the cluster, Recent, Starred. "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      },
+      {
+       "t": "text",
+       "v": " on the cluster's tab lists the other clusters"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘\\"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Hide · show Files — outside a note or a doc, where it clears formatting"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌥"
+      },
+      {
+       "t": "text",
+       "v": " while dragging files"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copy them instead of moving them — "
+      },
+      {
+       "t": "code",
+       "v": "Ctrl"
+      },
+      {
+       "t": "text",
+       "v": " (or "
+      },
+      {
+       "t": "code",
+       "v": "Alt"
+      },
+      {
+       "t": "text",
+       "v": ") on Windows"
       }
      ]
     ]
@@ -2360,22 +2794,18 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Show or hide "
+       "v": "Open or close the "
       },
       {
        "t": "link",
-       "v": "Files",
+       "v": "full Files page",
        "href": "/docs/clusters/list-view",
        "children": [
         {
          "t": "text",
-         "v": "Files"
+         "v": "full Files page"
         }
        ]
-      },
-      {
-       "t": "text",
-       "v": " beside the board"
       }
      ]
     ],
@@ -2952,22 +3382,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "In "
+     "v": "On the "
     },
     {
      "t": "link",
-     "v": "Files",
+     "v": "full Files page",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "Files"
+       "v": "full Files page"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", beside the board or full screen. Beside the board, these keys go to whichever side the pointer was last over."
+     "v": "."
     }
    ]
   },
@@ -3380,7 +3810,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is already the pan modifier there and arrows already move cards. In "
+     "v": " is already the pan modifier there. In "
     },
     {
      "t": "link",
@@ -3395,7 +3825,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " neither is taken, so auditioning a pack is "
+     "v": " it isn't, so auditioning a pack is "
     },
     {
      "t": "code",
@@ -4431,7 +4861,288 @@ export const DOCS_CONTENT = {
        "v": "Find and replace"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘="
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘−"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⌘0"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Zoom in · out · back to 100% — a screenplay too wide for its space goes back to fitting it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Close a full-screen document, when you aren't typing in it"
+      }
+     ]
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Toolbars",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Toolbars"
+    }
+   ],
+   "id": "toolbars"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every toolbar is one "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " stop, and the arrow keys move inside it: the tool rail, the bar a note, a drawing or a shape brings up, a document's toolbar, and the bar over selected files."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Tab"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "To the next toolbar — each is one stop"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌥F10"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "From a document's or a note's text to its toolbar · back to the text — "
+      },
+      {
+       "t": "code",
+       "v": "Alt+F10"
+      },
+      {
+       "t": "text",
+       "v": " on Windows"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The previous · next control in it — "
+      },
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      },
+      {
+       "t": "text",
+       "v": " on the tool rail"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Home"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "End"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its first · last control"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "←"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Open · close the tool rail's "
+      },
+      {
+       "t": "strong",
+       "v": "+",
+       "children": [
+        {
+         "t": "text",
+         "v": "+"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " menu"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In a document or a note, "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " belongs to the text (it indents), so "
+    },
+    {
+     "t": "code",
+     "v": "⌥F10"
+    },
+    {
+     "t": "text",
+     "v": " is the way from the words to the toolbar, and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " takes you back with the caret where you left it. In a field inside a toolbar, like a font size, "
+    },
+    {
+     "t": "code",
+     "v": "←"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "→"
+    },
+    {
+     "t": "text",
+     "v": " move the caret, and step out of the field at either end. A screen reader hears each control by its name, whether a toggle is on, and the shortcut it has, if any."
+    }
    ]
   },
   {
@@ -4533,6 +5244,53 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Hold `⌥` while dragging files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Hold "
+       },
+       {
+        "t": "code",
+        "v": "⌥"
+       },
+       {
+        "t": "text",
+        "v": " while dragging files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to another cluster to "
+     },
+     {
+      "t": "link",
+      "v": "copy them instead of moving them",
+      "href": "/docs/clusters/sidebar#moving-and-copying-files",
+      "children": [
+       {
+        "t": "text",
+        "v": "copy them instead of moving them"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — "
+     },
+     {
+      "t": "code",
+      "v": "Ctrl"
+     },
+     {
+      "t": "text",
+      "v": " on Windows."
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Paste a URL",
       "children": [
        {
@@ -4571,22 +5329,37 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no import button. For a reference board that is less of a problem than it sounds — dropping a folder takes about as long as an importer would, its folders become nested clusters, and they "
+     "v": "There is no connector to another app. That is less of a problem than it sounds — "
     },
     {
      "t": "link",
-     "v": "auto-arrange",
-     "href": "/docs/canvas/images",
+     "v": "dropping a folder or a zip",
+     "href": "/docs/clusters#importing-folders-and-zips",
      "children": [
       {
        "t": "text",
-       "v": "auto-arrange"
+       "v": "dropping a folder or a zip"
       }
      ]
     },
     {
      "t": "text",
-     "v": " on arrival."
+     "v": " takes about as long as a connector would, and its folders become nested clusters with their files in each one's Files. The steps for the usual places are "
+    },
+    {
+     "t": "link",
+     "v": "below",
+     "href": "#bringing-files-from-google-drive-dropbox-and-other-apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "below"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -4644,16 +5417,16 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Drag them in. "
+       "v": "Drag them in, folders and zips included. "
       },
       {
        "t": "link",
-       "v": "Any type on Creator",
+       "v": "Any type, at any size",
        "href": "/docs/files",
        "children": [
         {
          "t": "text",
-         "v": "Any type on Creator"
+         "v": "Any type, at any size"
         }
        ]
       },
@@ -5094,7 +5867,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — keep it for backup and sync. Download the folder a project needs (Drive hands you a zip), unzip it and drop it on a canvas: it becomes a cluster with its folders nested inside, every file under its own name."
+     "v": " — keep it for backup and sync. Download the folder a project needs (Drive hands you a zip) and drop the zip on a canvas as it is: it becomes a cluster with its folders nested inside, every file under its own name."
     }
    ]
   },
@@ -5262,22 +6035,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — production management. Clusters covers the visual and document side; it is not a call-sheet-and-crew-management system, and its "
-    },
-    {
-     "t": "link",
-     "v": "schedule cards",
-     "href": "/docs/canvas/schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "schedule cards"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " are being rebuilt. The "
+     "v": " — production management. Clusters covers the visual and document side; it is not a call-sheet-and-crew-management system. The "
     },
     {
      "t": "link",
@@ -5293,6 +6051,389 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " compares the two directly."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Bringing files from Google Drive, Dropbox and other apps",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Bringing files from Google Drive, Dropbox and other apps"
+    }
+   ],
+   "id": "bringing-files-from-google-drive-dropbox-and-other-apps"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters has no connector to these services: you download your files from them, then drop what you downloaded on a cluster. In the app, the sidebar's "
+    },
+    {
+     "t": "strong",
+     "v": "Upload",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu → "
+    },
+    {
+     "t": "strong",
+     "v": "Bring files from another app…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Bring files from another app…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shows these steps, with a place to drop and pickers, and brings what you give it into the cluster that is open, or one you pick."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Google Drive.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Drive."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " For a whole Drive, open "
+    },
+    {
+     "t": "link",
+     "v": "Google Takeout",
+     "href": "https://takeout.google.com/",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Takeout"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", choose "
+    },
+    {
+     "t": "strong",
+     "v": "Deselect all",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deselect all"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and select "
+    },
+    {
+     "t": "strong",
+     "v": "Drive",
+     "children": [
+      {
+       "t": "text",
+       "v": "Drive"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "Next step",
+     "children": [
+      {
+       "t": "text",
+       "v": "Next step"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; keep "
+    },
+    {
+     "t": "strong",
+     "v": ".zip",
+     "children": [
+      {
+       "t": "text",
+       "v": ".zip"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", set the size to "
+    },
+    {
+     "t": "strong",
+     "v": "50 GB",
+     "children": [
+      {
+       "t": "text",
+       "v": "50 GB"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Create export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Create export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Google emails a link when it is ready, which can take days for a big Drive, and the link lasts a week. Download every part, then drop all the parts at once: they become one tree. For a few folders, right-click one in Drive and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — Drive hands you a zip (a big folder comes as several) that comes in the same way."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Google Photos.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Photos."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The same Takeout steps with "
+    },
+    {
+     "t": "strong",
+     "v": "Google Photos",
+     "children": [
+      {
+       "t": "text",
+       "v": "Google Photos"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " selected. Each album and each year becomes a cluster, so a photo in an album can come in twice. The "
+    },
+    {
+     "t": "code",
+     "v": ".json"
+    },
+    {
+     "t": "text",
+     "v": " files Google puts beside each photo are left out."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Dropbox.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Dropbox."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " On dropbox.com, select the folders you want and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": Dropbox makes one zip of them, as long as it is under 250 GB and fewer than 10,000 files. For more than that, make the folder available offline in the Dropbox app on your computer and drag the folder in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "OneDrive.",
+     "children": [
+      {
+       "t": "text",
+       "v": "OneDrive."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " On onedrive.com, select the folders and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for one zip, up to 250 GB and 10,000 files. For more, set the folder to "
+    },
+    {
+     "t": "strong",
+     "v": "Always keep on this device",
+     "children": [
+      {
+       "t": "text",
+       "v": "Always keep on this device"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the OneDrive app and drag the folder in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "iCloud Drive.",
+     "children": [
+      {
+       "t": "text",
+       "v": "iCloud Drive."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " On a Mac, iCloud Drive is already a folder: in Finder, Control-click the folder, choose "
+    },
+    {
+     "t": "strong",
+     "v": "Download Now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download Now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", wait for it to finish, and drag it in. On an iPhone or iPad, touch and hold the folder in the Files app, tap "
+    },
+    {
+     "t": "strong",
+     "v": "Compress",
+     "children": [
+      {
+       "t": "text",
+       "v": "Compress"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and choose the zip."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Anything else",
+     "children": [
+      {
+       "t": "text",
+       "v": "Anything else"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — Box, Notion, an old hard drive, a camera card: if it downloads as a zip, or sits in a folder on your computer, it comes in the same way. What fits on your plan comes in at once, and the rest waits for room — see "
+    },
+    {
+     "t": "link",
+     "v": "Importing folders and zips",
+     "href": "/docs/clusters#importing-folders-and-zips",
+     "children": [
+      {
+       "t": "text",
+       "v": "Importing folders and zips"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for the limits."
     }
    ]
   },
@@ -5414,7 +6555,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Drop its reference folder onto a canvas — it becomes a cluster, with a nested one for each folder inside it."
+      "v": "Drop its reference folder, or the zip you downloaded, onto a canvas — it becomes a cluster, with a nested one for each folder inside it."
      }
     ],
     [
@@ -5566,16 +6707,16 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you want the same contents as a sortable file browser instead, every cluster also has a "
+     "v": "If you want the same contents as a sortable file browser instead, every cluster also has its files, listed in the "
     },
     {
      "t": "link",
-     "v": "Files view",
-     "href": "/docs/clusters/list-view",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar",
      "children": [
       {
        "t": "text",
-       "v": "Files view"
+       "v": "sidebar"
       }
      ]
     },
@@ -5589,7 +6730,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and it opens beside the board."
+     "v": " and they fill the screen as the "
+    },
+    {
+     "t": "link",
+     "v": "full Files page",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "full Files page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -6185,7 +7341,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the end of the rail opens the rest, grouped:"
+     "v": " at the top of the rail opens the rest, grouped:"
     }
    ]
   },
@@ -6249,30 +7405,6 @@ export const DOCS_CONTENT = {
       "v": " — Comment, Vote"
      }
     ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Schedule cards are being rebuilt and are not in the menu meanwhile — see "
-    },
-    {
-     "t": "link",
-     "v": "Schedule",
-     "href": "/docs/canvas/schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "Schedule"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
    ]
   },
   {
@@ -6424,6 +7556,58 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Click to select. Shift-click to add. Drag on empty canvas to marquee."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a finger, touch and hold empty canvas until the ring under it fills, then drag the box. A finger has no Shift, so holding and letting go opens the canvas menu with "
+    },
+    {
+     "t": "strong",
+     "v": "Select…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": until "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", each tap adds a card or takes it out. See "
+    },
+    {
+     "t": "link",
+     "v": "touch on the canvas",
+     "href": "/docs/account/mobile#touch-on-the-canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "touch on the canvas"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -7052,41 +8236,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Schedule",
-       "children": [
-        {
-         "t": "text",
-         "v": "Schedule"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A "
-      },
-      {
-       "t": "link",
-       "v": "real-date calendar",
-       "href": "/docs/canvas/schedule",
-       "children": [
-        {
-         "t": "text",
-         "v": "real-date calendar"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " you can drop things into"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
        "v": "Vote",
        "children": [
         {
@@ -7315,7 +8464,36 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are the exception: they join the cluster but wait off the board until you place them."
+     "v": ", or with "
+    },
+    {
+     "t": "strong",
+     "v": "Upload",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the "
+    },
+    {
+     "t": "link",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar#upload-and-storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", are the exception: they join the cluster but wait off the board until you place them. Every file in a cluster is listed in the sidebar's Files, on the board or not."
     }
    ]
   },
@@ -7534,7 +8712,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — drag cards onto a cluster card, or right-click → "
+     "v": " — drag cards onto a cluster card, or onto a cluster's name in the "
+    },
+    {
+     "t": "link",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar#moving-and-copying-files",
+     "children": [
+      {
+       "t": "text",
+       "v": "sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to put them in its Files, off its board, or right-click → "
     },
     {
      "t": "strong",
@@ -7678,6 +8871,39 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " — a deep link that opens the board with that card selected. Useful in a message or a doc."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "On a touch screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "On a touch screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " the selection carries a gold "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. Touch and hold a card to pick it up and move it."
     }
    ]
   },
@@ -8144,7 +9370,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you drag in more files than your remaining allowance — or a folder, which counts a card for each file and one for each cluster it becomes — Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
+     "v": "If you drag in more files than your remaining allowance — or a folder, which counts a card for each file, while the clusters it becomes are free — Clusters asks before it uploads anything. You can add the ones that fit, upgrade to keep them all, or cancel — and until you answer, nothing is uploaded and nothing on the canvas changes. Choosing to add the ones that fit always gives you every card you still have room for; the rest stay on your disk."
     }
    ]
   },
@@ -8255,16 +9481,16 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: drag a whole folder onto the canvas and it becomes a cluster of its own, or select the files you want and drop them where you are — either way they upload in parallel and lay themselves out rather than landing in a heap. See "
+     "v": "Images are the reason most boards exist. Getting them in is meant to be thoughtless: select the files you want and drop them where you are, and they upload in parallel and lay themselves out rather than landing in a heap. Drag a whole folder or a zip onto the canvas instead and it becomes a cluster of its own, with its files waiting in Files until you put them on the board. See "
     },
     {
      "t": "link",
-     "v": "dropping a folder",
-     "href": "/docs/clusters#dropping-a-folder",
+     "v": "importing folders and zips",
+     "href": "/docs/clusters#importing-folders-and-zips",
      "children": [
       {
        "t": "text",
-       "v": "dropping a folder"
+       "v": "importing folders and zips"
       }
      ]
     },
@@ -9031,7 +10257,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "), which strips the selection back to the note's own font and size while keeping links and comments."
+     "v": "), which strips the selection back to the note's own font and size while keeping links and comments. "
+    },
+    {
+     "t": "code",
+     "v": "⌥F10"
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "Alt+F10"
+    },
+    {
+     "t": "text",
+     "v": " on Windows) takes you from the note's text to that toolbar, and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " brings you back."
     }
    ]
   },
@@ -11098,6 +12348,35 @@ export const DOCS_CONTENT = {
        "v": "What is inside it"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Turn into cluster…"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move the group's cards into a new "
+      },
+      {
+       "t": "link",
+       "v": "cluster",
+       "href": "/docs/clusters#making-a-cluster-from-cards-you-already-have",
+       "children": [
+        {
+         "t": "text",
+         "v": "cluster"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " named after it"
+      }
+     ]
     ]
    ]
   },
@@ -11193,22 +12472,36 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Grouping is the main tool for keeping a large board readable. The app notices when a board's root canvas is getting crowded and will suggest it once — that prompt is the "
+     "v": "Grouping is the main tool for keeping a large board readable. When a group has grown into a project of its own, "
     },
     {
-     "t": "link",
-     "v": "power reveal",
-     "href": "/docs/canvas",
+     "t": "strong",
+     "v": "Turn into cluster…",
      "children": [
       {
        "t": "text",
-       "v": "power reveal"
+       "v": "Turn into cluster…"
       }
      ]
     },
     {
      "t": "text",
-     "v": " for groups, and it appears a single time, ever."
+     "v": " moves it into a cluster of its own. And when Studio holds a pile of loose cards, it offers once to "
+    },
+    {
+     "t": "link",
+     "v": "move them into a cluster",
+     "href": "/docs/clusters#making-a-cluster-from-cards-you-already-have",
+     "children": [
+      {
+       "t": "text",
+       "v": "move them into a cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   }
@@ -11580,103 +12873,6 @@ export const DOCS_CONTENT = {
    ]
   },
   {
-   "type": "heading",
-   "depth": 2,
-   "text": "Grids versus schedules",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Grids versus schedules"
-    }
-   ],
-   "id": "grids-versus-schedules"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "They look similar and are not the same thing:"
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "text",
-      "v": "A "
-     },
-     {
-      "t": "strong",
-      "v": "grid",
-      "children": [
-       {
-        "t": "text",
-        "v": "grid"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " is a spatial layout. Cells mean position."
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "A "
-     },
-     {
-      "t": "strong",
-      "v": "[schedule](/docs/canvas/schedule)",
-      "children": [
-       {
-        "t": "link",
-        "v": "schedule",
-        "href": "/docs/canvas/schedule",
-        "children": [
-         {
-          "t": "text",
-          "v": "schedule"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " is a calendar. Cells mean "
-     },
-     {
-      "t": "em",
-      "v": "dates",
-      "children": [
-       {
-        "t": "text",
-        "v": "dates"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — real ones, with month, week, day and hour views."
-     }
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "If the cells represent time, you want a schedule."
-    }
-   ]
-  },
-  {
    "type": "hr"
   },
   {
@@ -11700,1032 +12896,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " guide covers the whole workflow."
-    }
-   ]
-  }
- ],
- "/docs/canvas/schedule": [
-  {
-   "type": "callout",
-   "variant": "note",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Being rebuilt.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Being rebuilt."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " Schedule cards are temporarily off the Add menu while the calendar and the day view are reworked. Existing cards keep rendering and keep their content — nothing has been removed. This page describes what those cards do today; it will grow again as the rebuild lands."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A schedule card is a calendar with real dates, sitting on the canvas next to everything it refers to. Shooting days beside the location photos; a release plan beside the assets."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Three densities, one control",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Three densities, one control"
-    }
-   ],
-   "id": "three-densities-one-control"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The same calendar, shown three ways. Pick with the control in the header."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": ""
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "What you get"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Good for"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Tiles",
-       "children": [
-        {
-         "t": "text",
-         "v": "Tiles"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Weeks as rows, each day a tile showing that day's "
-      },
-      {
-       "t": "strong",
-       "v": "cluster",
-       "children": [
-        {
-         "t": "text",
-         "v": "cluster"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " — its own thumbnail and name"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A production, where nearly every day is a board"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "List",
-       "children": [
-        {
-         "t": "text",
-         "v": "List"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Day rows with a small preview and the name"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Running the week; a fortnight at a glance"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Grid",
-       "children": [
-        {
-         "t": "text",
-         "v": "Grid"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The classic month grid"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A release plan or a prep calendar — anything "
-      },
-      {
-       "t": "strong",
-       "v": "sparse",
-       "children": [
-        {
-         "t": "text",
-         "v": "sparse"
-        }
-       ]
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Tiles is the default because in a production nearly every day "
-    },
-    {
-     "t": "em",
-     "v": "is",
-     "children": [
-      {
-       "t": "text",
-       "v": "is"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " a board: a cluster holding that day's call sheet, shot list, script pages and running order. A calendar's job there is not to show events, it is to be the way into those boards — and a coloured bar with a date on it cannot carry a board's identity, but a picture of the day can."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Grid is kept rather than traded away. A month grid is built for a "
-    },
-    {
-     "t": "em",
-     "v": "sparse",
-     "children": [
-      {
-       "t": "text",
-       "v": "sparse"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " calendar, most cells empty, and that is exactly what a release plan is."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 3,
-   "text": "The wall chart",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The wall chart"
-    }
-   ],
-   "id": "the-wall-chart"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Above Tiles and List sits a strip: one row per month, one thin column per day. It spans the "
-    },
-    {
-     "t": "strong",
-     "v": "whole production",
-     "children": [
-      {
-       "t": "text",
-       "v": "whole production"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", not the month you happen to be looking at, because its only job is the shape of the schedule — ten weeks of prep, eight of production, two of wrap, in about a hundred pixels. Click any day to jump the surface below to it."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "It does not try to be readable up close. It navigates; the surface below details."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Full screen",
-     "children": [
-      {
-       "t": "text",
-       "v": "Full screen"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " (the ⤢ in the header) gives the whole window over. A production calendar is a wall chart, and on a canvas it is always negotiating for width with everything around it."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Views",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Views"
-    }
-   ],
-   "id": "views"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Three ways into the same schedule:"
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "View"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Shows"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Month",
-       "children": [
-        {
-         "t": "text",
-         "v": "Month"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A whole month — or three, or six"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Week",
-       "children": [
-        {
-         "t": "text",
-         "v": "Week"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Seven days side by side"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Day",
-       "children": [
-        {
-         "t": "text",
-         "v": "Day"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The day's running order — see below"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "In month view, the "
-    },
-    {
-     "t": "strong",
-     "v": "1 / 3 / 6",
-     "children": [
-      {
-       "t": "text",
-       "v": "1 / 3 / 6"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " control sets how many months are on the card at once. Three months is a block of principal photography; you can see the whole shoot without paging. Asking for more months grows the card to fit them — three readable months need the room, and silently shrinking each one into a grid of dots would defeat the point."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A prep week can sit at month view while the shoot day sits at day view in the same board."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "The day is a running order",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The day is a running order"
-    }
-   ],
-   "id": "the-day-is-a-running-order"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Day view is not a column of hours. It is a "
-    },
-    {
-     "t": "strong",
-     "v": "list of items, each with a length",
-     "children": [
-      {
-       "t": "text",
-       "v": "list of items, each with a length"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", and the start times work themselves out from the top down."
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": null,
-   "code": "07:00  ◆ Crew call                  0:30\n07:30    Breakfast                  0:30\n08:00    Rehearse — sc 14A          0:45\n08:45    Shoot 14A                  2:15\n11:00    Company move → Ext. Dock   0:45"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Change one length and "
-    },
-    {
-     "t": "strong",
-     "v": "everything below it moves.",
-     "children": [
-      {
-       "t": "text",
-       "v": "everything below it moves."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " That is the whole point: when rehearsal runs twenty-five minutes long you edit one number, not twelve."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Three things to do here, and nothing else:"
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "Type a length.",
-      "children": [
-       {
-        "t": "text",
-        "v": "Type a length."
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " "
-     },
-     {
-      "t": "code",
-      "v": "2:15"
-     },
-     {
-      "t": "text",
-      "v": ", "
-     },
-     {
-      "t": "code",
-      "v": "2h15"
-     },
-     {
-      "t": "text",
-      "v": " and "
-     },
-     {
-      "t": "code",
-      "v": "135"
-     },
-     {
-      "t": "text",
-      "v": " all mean the same thing."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Drag a row",
-      "children": [
-       {
-        "t": "text",
-        "v": "Drag a row"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " to move it. The times stay put and re-cascade around it."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Pin a row",
-      "children": [
-       {
-        "t": "text",
-        "v": "Pin a row"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " to lock it to a time of day. A pinned row shows its time as an editable field; everything else is calculated and cannot be typed into."
-     }
-    ]
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 3,
-   "text": "Pins, and what they cost",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Pins, and what they cost"
-    }
-   ],
-   "id": "pins-and-what-they-cost"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A crew call and a meal break happen at a time, not \"whenever we get to them\". Pin them, and the pin holds — what moves is the report:"
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "runs 12m past the pin",
-      "children": [
-       {
-        "t": "text",
-        "v": "runs 12m past the pin"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — the item above overruns it. The pin does not slide; the day after it stays on schedule and you are told what has to give."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "20m spare before the pin",
-      "children": [
-       {
-        "t": "text",
-        "v": "20m spare before the pin"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — dead air you can fill."
-     }
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The header carries the day's start and its "
-    },
-    {
-     "t": "strong",
-     "v": "estimated wrap",
-     "children": [
-      {
-       "t": "text",
-       "v": "estimated wrap"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A day can also cross midnight: an 18:00 start wrapping at 04:00 accumulates past midnight rather than reading as time travel."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A row can also be a "
-    },
-    {
-     "t": "strong",
-     "v": "cluster",
-     "children": [
-      {
-       "t": "text",
-       "v": "cluster"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — the setup's own board, with its shot list, references and pages inside — opened straight from the row."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Adding a day with "
-    },
-    {
-     "t": "strong",
-     "v": "Set up this day",
-     "children": [
-      {
-       "t": "text",
-       "v": "Set up this day"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " seeds three rows: the call, a first setup, and a meal break six hours after the call. An empty list is a blank page."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 3,
-   "text": "Navigation is yours",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Navigation is yours"
-    }
-   ],
-   "id": "navigation-is-yours"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Stepping through months, jumping to a date, and "
-    },
-    {
-     "t": "strong",
-     "v": "Go to today",
-     "children": [
-      {
-       "t": "text",
-       "v": "Go to today"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " only move "
-    },
-    {
-     "t": "em",
-     "v": "your",
-     "children": [
-      {
-       "t": "text",
-       "v": "your"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " view. The card remembers the date it opens on, but a schedule shared with fifty people does not jerk under everyone else when you page forward."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Two things live on a date",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Two things live on a date"
-    }
-   ],
-   "id": "two-things-live-on-a-date"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Loose content",
-     "children": [
-      {
-       "t": "text",
-       "v": "Loose content"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — a note, an image, a file, a link — dropped straight onto a date. This is the quick kind: a reminder on a Tuesday, a reference photo on the day it is needed."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Days",
-     "children": [
-      {
-       "t": "text",
-       "v": "Days"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — whole clusters that carry a date. A day tile on the calendar is a real cluster you can open, containing whatever the day needs: the script pages, the call sheet, the shot list, the running order. See "
-    },
-    {
-     "t": "link",
-     "v": "Production schedules",
-     "href": "/docs/clusters/production-schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "Production schedules"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Reading it",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Reading it"
-    }
-   ],
-   "id": "reading-it"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The month grid has no vertical rules — just a line between weeks, and space. Dates you can act on are bright; days from the neighbouring month and weekend dates step back. Today is a filled circle."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Where a month is too narrow for a word — a three-month strip, say — a day renders as a bar rather than a truncated name. Switch to List for names at a size you can read."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "The day panel",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The day panel"
-    }
-   ],
-   "id": "the-day-panel"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "For loose content, the month and week grids are "
-    },
-    {
-     "t": "strong",
-     "v": "read-only",
-     "children": [
-      {
-       "t": "text",
-       "v": "read-only"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". A dense calendar grid with inline editing produced constant mis-clicks: reaching for a slot and accidentally editing the one next to it."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Clicking a date "
-    },
-    {
-     "t": "strong",
-     "v": "selects",
-     "children": [
-      {
-       "t": "text",
-       "v": "selects"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " it. Double-clicking a tile opens that day's cluster (on a touch screen, tap the selected tile again); double-clicking a cell in Grid density opens the "
-    },
-    {
-     "t": "strong",
-     "v": "day panel",
-     "children": [
-      {
-       "t": "text",
-       "v": "day panel"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", where loose content is edited at a comfortable size whatever the card's size on the canvas. The day's running order lives in Day view, not here."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "What a schedule is for",
-   "inline": [
-    {
-     "t": "text",
-     "v": "What a schedule is for"
-    }
-   ],
-   "id": "what-a-schedule-is-for"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Anything where the cells mean "
-    },
-    {
-     "t": "em",
-     "v": "time",
-     "children": [
-      {
-       "t": "text",
-       "v": "time"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ":"
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "text",
-      "v": "Shoot days and unit moves"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Call sheets, with the location photo attached to the day"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Delivery and release timelines"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "A prep calendar with references attached to the day they are needed"
-     }
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "If the cells mean "
-    },
-    {
-     "t": "em",
-     "v": "position",
-     "children": [
-      {
-       "t": "text",
-       "v": "position"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " rather than time — a storyboard, a contact sheet, a comparison — you want a "
-    },
-    {
-     "t": "link",
-     "v": "grid",
-     "href": "/docs/canvas/grids",
-     "children": [
-      {
-       "t": "text",
-       "v": "grid"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
     }
    ]
   }
@@ -14078,33 +14248,6 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": " — cells are defined by dividers, and dragging a divider resizes rather than snapping."
      }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "[Schedule](/docs/canvas/schedule) slots",
-      "children": [
-       {
-        "t": "link",
-        "v": "Schedule",
-        "href": "/docs/canvas/schedule",
-        "children": [
-         {
-          "t": "text",
-          "v": "Schedule"
-         }
-        ]
-       },
-       {
-        "t": "text",
-        "v": " slots"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — a slot is a date, and dropping into it is exact by definition."
-     }
     ]
    ]
   }
@@ -14777,7 +14920,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Small text files get an inline preview on the card rather than only a download."
+     "v": "Small text files get an inline preview on the card rather than only a download. Double-click a file card to open it full screen, with "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " there."
     }
    ]
   },
@@ -15075,12 +15246,12 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "link",
-      "v": "linked copy",
-      "href": "/docs/clusters/list-view",
+      "v": "copy",
+      "href": "/docs/clusters/sidebar#moving-and-copying-files",
       "children": [
        {
         "t": "text",
-        "v": "linked copy"
+        "v": "copy"
        }
       ]
      },
@@ -15212,6 +15383,56 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Files referenced by a board are protected from cleanup for as long as the board references them. Removing the last card that uses a file stops it counting toward your storage within a few minutes; the file itself becomes eligible for deletion later, not immediately, so undo and version history can still bring it back."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "On a phone or tablet",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or tablet"
+    }
+   ],
+   "id": "on-a-phone-or-tablet"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a finger, a tap on a file in Files opens it in Quick look, and touching and holding it opens its menu, whose "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lets each tap pick another file for the selection bar: put them on the board, move, copy or delete them. See "
+    },
+    {
+     "t": "link",
+     "v": "Files with a finger",
+     "href": "/docs/account/mobile#files-with-a-finger",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files with a finger"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -15604,6 +15825,58 @@ export const DOCS_CONTENT = {
      "v": " can be downloaded from the viewer."
     }
    ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To send someone one file on its own — a page with just that file, its player and its comments, and nothing else from the cluster — use "
+    },
+    {
+     "t": "strong",
+     "v": "Share file…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share file…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "link",
+     "v": "Sharing a single file",
+     "href": "/docs/collaborate/sharing#sharing-a-single-file",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sharing a single file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), or "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " wherever the file is open full screen: the player, the image and PDF viewers, and Quick look from the sidebar or the file list."
+    }
+   ]
   }
  ],
  "/docs/files/pdf": [
@@ -15662,6 +15935,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". At a glance you can tell a two-page treatment from a ninety-page script."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A PDF whose first page couldn't be drawn as it arrived, or that came in from a message or the "
+    },
+    {
+     "t": "link",
+     "v": "API",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", gets it the next time someone who can edit opens the cluster. A password-protected PDF keeps the PDF mark."
     }
    ]
   },
@@ -15974,7 +16271,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Both play in place on the canvas — the clip is a card among the reference stills it belongs with. A video also opens in a full review player when you need to look at it frame by frame."
+     "v": "Both play in place on the canvas — the clip is a card among the reference stills it belongs with, which is what a "
+    },
+    {
+     "t": "link",
+     "v": "video reference board",
+     "href": "/tools/video-reference-board",
+     "children": [
+      {
+       "t": "text",
+       "v": "video reference board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is. A video also opens in a full review player when you need to look at it frame by frame."
     }
    ]
   },
@@ -16092,7 +16404,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in Quick look opens the clip full size in a dark room, on the frame you were on. Click the picture to play or pause; double-click for full screen. When you close it, the card shows the frame you left on."
+     "v": " in Quick look opens the clip full size in a dark room, on the frame you were on. Click the picture to play or pause; double-click for full screen. In full screen the controls step aside while it plays and come back when the pointer moves; on a touch screen, a tap brings them back without pausing. When you close it, the card shows the frame you left on."
     }
    ]
   },
@@ -16685,7 +16997,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " shows them along the top. Switching keeps the frame, in, out and loop. "
+      "v": " shows them along the top, in a menu there past four or on a narrow screen. Switching keeps the frame, in, out and loop. "
      },
      {
       "t": "strong",
@@ -17411,22 +17723,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "To take several at once, switch to "
+     "v": "To take several at once, open the "
     },
     {
      "t": "link",
-     "v": "Files",
+     "v": "full Files page",
      "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "Files"
+       "v": "full Files page"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", select the ones you want and press "
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": "), select the ones you want and press "
     },
     {
      "t": "strong",
@@ -17640,7 +17960,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Whatever the browser can play. H.264 in an MP4 container, and MP3 or WAV, are the reliable choices."
+     "v": "Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC, an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound."
     }
    ]
   },
@@ -17649,22 +17969,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file the browser cannot play still uploads — it becomes a "
-    },
-    {
-     "t": "link",
-     "v": "file card",
-     "href": "/docs/files",
-     "children": [
-      {
-       "t": "text",
-       "v": "file card"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " with a download, rather than failing."
+     "v": "A video your browser can't decode still uploads and becomes a video card: it says it can't be played here, and offers the download. A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video."
     }
    ]
   },
@@ -17918,42 +18223,43 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder."
+     "v": "A new project opens on the same panel a first board does: paste or drag images in from any tab, or drop a whole folder or zip."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Dropping a folder",
+   "text": "Importing folders and zips",
    "inline": [
     {
      "t": "text",
-     "v": "Dropping a folder"
+     "v": "Importing folders and zips"
     }
    ],
-   "id": "dropping-a-folder"
+   "id": "importing-folders-and-zips"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Drag a folder from your desktop onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file becomes a card in the cluster it was in — photos laid out in rows, everything else in a grid, each keeping its file name. "
+     "v": "Drag a folder from your computer onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file goes to the "
     },
     {
-     "t": "strong",
-     "v": "Add → Folder…",
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
      "children": [
       {
        "t": "text",
-       "v": "Add → Folder…"
+       "v": "Files"
       }
      ]
     },
     {
      "t": "text",
-     "v": " does the same from a picker, on a desktop browser."
+     "v": " of the cluster it was in, under its own name and with its own modified date. Nothing is laid out on a board for you: the canvas of each new cluster holds only the clusters nested in it."
     }
    ]
   },
@@ -17962,7 +18268,196 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "While it runs, a bar at the bottom of the screen counts the files and has a "
+     "v": "A zip comes in the same way. Drop one and you are asked first: "
+    },
+    {
+     "t": "strong",
+     "v": "Unpack into clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Unpack into clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " turns every folder in it into a cluster, or "
+    },
+    {
+     "t": "strong",
+     "v": "Add as a zip file",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add as a zip file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps it whole, as one file in Files. A Google Takeout or Google Drive export that arrives in several parts becomes one tree when you drop all the parts at once."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "You can start an import from:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "a canvas — drop a folder or a zip, or "
+     },
+     {
+      "t": "strong",
+      "v": "Add → Folder…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add → Folder…"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "link",
+      "v": "Files",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — drop a folder or a zip into the list"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a cluster in the sidebar — drop it onto the cluster's row"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the sidebar's "
+     },
+     {
+      "t": "strong",
+      "v": "Upload",
+      "children": [
+       {
+        "t": "text",
+        "v": "Upload"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu — "
+     },
+     {
+      "t": "strong",
+      "v": "A folder…",
+      "children": [
+       {
+        "t": "text",
+        "v": "A folder…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or "
+     },
+     {
+      "t": "strong",
+      "v": "A zip or Google Takeout…",
+      "children": [
+       {
+        "t": "text",
+        "v": "A zip or Google Takeout…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", which go into the cluster that is open, or one you pick"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A phone's or a tablet's browser can't pick or drag a folder, so there you choose a zip instead. To bring files over from Google Drive, Dropbox, OneDrive or iCloud, see "
+    },
+    {
+     "t": "link",
+     "v": "Coming from another tool",
+     "href": "/docs/migrating#bringing-files-from-google-drive-dropbox-and-other-apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "Coming from another tool"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "While it runs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While it runs"
+    }
+   ],
+   "id": "while-it-runs"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Before anything uploads, the import counts what you gave it. If all of it fits your plan it starts at once; if not, you are asked first (see below). While it runs, a tray in the corner shows how many files are in and roughly how long is left, with "
+    },
+    {
+     "t": "strong",
+     "v": "Pause",
+     "children": [
+      {
+       "t": "text",
+       "v": "Pause"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
     },
     {
      "t": "strong",
@@ -17976,21 +18471,67 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": what has landed is kept, and nothing empty is left behind. When it finishes, the message offers "
+     "v": ", and folds into a small chip when you minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it on screen. One import runs at a time; a second one you drop waits its turn."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If the page reloads or the tab closes part-way, the tray offers the stopped import the next time you open the app: "
     },
     {
      "t": "strong",
-     "v": "Undo",
+     "v": "Resume",
      "children": [
       {
        "t": "text",
-       "v": "Undo"
+       "v": "Resume"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", which takes every cluster it made back to "
+     "v": " where the browser kept the folder (it asks to read it again first), or drop the same folder or zip on the same cluster again — either way, files already in are skipped."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When it finishes, "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the cluster's name takes you there, and "
+    },
+    {
+     "t": "strong",
+     "v": "Remove this import",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove this import"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " moves every cluster it made to "
     },
     {
      "t": "link",
@@ -18005,7 +18546,72 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", with an undo. Files that couldn't be brought in are listed with the reason, and "
+    },
+    {
+     "t": "strong",
+     "v": "Try these again",
+     "children": [
+      {
+       "t": "text",
+       "v": "Try these again"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " retries them. A cluster made only of files gets a cover from its first pictures."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "When it doesn't all fit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When it doesn't all fit"
+    }
+   ],
+   "id": "when-it-doesn-t-all-fit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each file is one "
+    },
+    {
+     "t": "link",
+     "v": "card",
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and takes its size from your "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "/docs/files#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The clusters it makes cost nothing, as no cluster does. When the whole import won't fit your plan, it says how much would come in and how much would wait, and offers:"
     }
    ]
   },
@@ -18015,56 +18621,271 @@ export const DOCS_CONTENT = {
    "items": [
     [
      {
-      "t": "text",
-      "v": "One drop reads up to "
-     },
-     {
       "t": "strong",
-      "v": "500 files",
+      "v": "Bring … now",
       "children": [
        {
         "t": "text",
-        "v": "500 files"
+        "v": "Bring … now"
        }
       ]
      },
      {
       "t": "text",
-      "v": " and makes up to "
+      "v": " (or "
      },
      {
       "t": "strong",
-      "v": "60 clusters",
+      "v": "Keep it waiting",
       "children": [
        {
         "t": "text",
-        "v": "60 clusters"
+        "v": "Keep it waiting"
        }
       ]
      },
      {
       "t": "text",
-      "v": ". Past either, the import is partial and says so."
+      "v": ", when nothing fits yet) — makes every cluster and fills them in folder order with what fits. The rest "
+     },
+     {
+      "t": "strong",
+      "v": "waits",
+      "children": [
+       {
+        "t": "text",
+        "v": "waits"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the tray, and comes in by itself as soon as there is room — when you upgrade, add storage, delete files or empty the trash — for as long as the tab stays open. The cluster's Files says how many of its files are waiting for room."
      }
     ],
     [
      {
       "t": "text",
-      "v": "Folders nested more than "
-     },
+      "v": "an upgrade, a trial or extra storage, where one would make room"
+     }
+    ],
+    [
      {
       "t": "strong",
-      "v": "6 levels",
+      "v": "Cancel",
       "children": [
        {
         "t": "text",
-        "v": "6 levels"
+        "v": "Cancel"
+       }
+      ]
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Importing into someone else's workspace counts toward its owner's plan, and what waits comes in once the owner has room."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Putting files on the board",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Putting files on the board"
+    }
+   ],
+   "id": "putting-files-on-the-board"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The canvas of an imported cluster offers to put its files on the board: "
+    },
+    {
+     "t": "strong",
+     "v": "Put them on the board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put them on the board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lays photos out in rows and anything else in a grid, in one undo step, and "
+    },
+    {
+     "t": "strong",
+     "v": "Choose in Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Choose in Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lets you pick. One press places up to 500 files; the rest stay in Files to place from there. Files that are still uploading aren't placed until they finish. In Files, select files and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at any time — see "
+    },
+    {
+     "t": "link",
+     "v": "Not on board",
+     "href": "/docs/clusters/list-view#not-on-board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
+   "id": "limits"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "One import reads up to "
+     },
+     {
+      "t": "strong",
+      "v": "50,000 files",
+      "children": [
+       {
+        "t": "text",
+        "v": "50,000 files"
        }
       ]
      },
      {
       "t": "text",
-      "v": " deep are merged into the deepest cluster rather than left out."
+      "v": "; files past that are left out. It makes up to "
+     },
+     {
+      "t": "strong",
+      "v": "5,000 clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "5,000 clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and folders past that many, or nested more than "
+     },
+     {
+      "t": "strong",
+      "v": "12 levels",
+      "children": [
+       {
+        "t": "text",
+        "v": "12 levels"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " deep, are merged into the cluster above rather than left out."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A folder with more than "
+     },
+     {
+      "t": "strong",
+      "v": "2,000 files",
+      "children": [
+       {
+        "t": "text",
+        "v": "2,000 files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is split into several clusters."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A compressed file inside a zip is unpacked in the browser, up to "
+     },
+     {
+      "t": "strong",
+      "v": "4 GB",
+      "children": [
+       {
+        "t": "text",
+        "v": "4 GB"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " a file — "
+     },
+     {
+      "t": "strong",
+      "v": "256 MB",
+      "children": [
+       {
+        "t": "text",
+        "v": "256 MB"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on an iPhone, an iPad or another device with little memory. A bigger one is listed as too large to unpack; unzip it on your computer and drop the folder."
      }
     ],
     [
@@ -18086,82 +18907,9 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " session or a Photos library — are left out, and so are files iCloud has not downloaded yet. The message counts them."
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "On the free plan the folder is counted before anything uploads: one "
-     },
-     {
-      "t": "link",
-      "v": "card",
-      "href": "/docs/canvas/cards",
-      "children": [
-       {
-        "t": "text",
-        "v": "card"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " for each file and one for each cluster it becomes. If it will not all fit, you are asked first, and "
-     },
-     {
-      "t": "strong",
-      "v": "Add what fits",
-      "children": [
-       {
-        "t": "text",
-        "v": "Add what fits"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " takes whole folders in order rather than a scatter of half-filled ones."
+      "v": " session or a Photos library — are left out, and so are files iCloud has not downloaded yet."
      }
     ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Dropping a folder works on the canvas, on a desktop browser. A phone cannot drag a folder, and the Files view takes files rather than folders. Clusters made from a dropped folder open in "
-    },
-    {
-     "t": "link",
-     "v": "Files",
-     "href": "/docs/clusters/list-view",
-     "children": [
-      {
-       "t": "text",
-       "v": "Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " for you; "
-    },
-    {
-     "t": "strong",
-     "v": "Board",
-     "children": [
-      {
-       "t": "text",
-       "v": "Board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " at the top shows the canvas, where the cards are already laid out."
-    }
    ]
   },
   {
@@ -18182,28 +18930,114 @@ export const DOCS_CONTENT = {
    "items": [
     [
      {
-      "t": "text",
-      "v": "The "
-     },
-     {
       "t": "strong",
-      "v": "Add cluster",
+      "v": "+ New cluster",
       "children": [
        {
         "t": "text",
-        "v": "Add cluster"
+        "v": "+ New cluster"
        }
       ]
      },
      {
       "t": "text",
-      "v": " tool on any canvas creates a cluster nested inside the one you are in"
+      "v": ", after the cluster's name at the top of the window — name it and press Enter. With nothing picked it goes beside what is already on the canvas and opens; with cards picked, they move into it and you stay where you are, with an undo"
      }
     ],
     [
      {
       "t": "text",
-      "v": "Right-click a canvas → Add → Cluster does the same, under your cursor"
+      "v": "The "
+     },
+     {
+      "t": "strong",
+      "v": "Cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " tool (the folder) on the left rail, or "
+     },
+     {
+      "t": "code",
+      "v": "C"
+     },
+     {
+      "t": "text",
+      "v": " — then click where it goes"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Double-click or right-click empty canvas → "
+     },
+     {
+      "t": "strong",
+      "v": "Cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (or "
+     },
+     {
+      "t": "strong",
+      "v": "Add → Cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add → Cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), under your cursor"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone, "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the top of the sheet the "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens"
      }
     ]
    ]
@@ -18213,7 +19047,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no separate limit on how many clusters you make. Each one sits on its parent's canvas as a card, though, so on the free Demo plan every cluster counts as one of your 50 "
+     "v": "There is no limit on how many clusters you make, and they cost none of your "
     },
     {
      "t": "link",
@@ -18228,7 +19062,241 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ": a cluster's card on its parent's canvas is free on every plan. Only what is inside it counts toward the free Demo plan's"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A "
+     },
+     {
+      "t": "link",
+      "v": "linked cluster",
+      "href": "#nesting",
+      "children": [
+       {
+        "t": "text",
+        "v": "linked cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — a reference to a"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "cluster that lives elsewhere — counts as a card like any other."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Making a cluster from cards you already have",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Making a cluster from cards you already have"
+    }
+   ],
+   "id": "making-a-cluster-from-cards-you-already-have"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards that belong together can move into a cluster of their own in one step, and one undo puts them back and removes the cluster:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Pick two or more cards, right-click → "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster from N cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster from N cards"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Right-click a card → "
+     },
+     {
+      "t": "strong",
+      "v": "Move to cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move to cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " → "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — there even when this is your only cluster"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Right-click a "
+     },
+     {
+      "t": "link",
+      "v": "group",
+      "href": "/docs/canvas/groups",
+      "children": [
+       {
+        "t": "text",
+        "v": "group"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " → "
+     },
+     {
+      "t": "strong",
+      "v": "Turn into cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Turn into cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the group moves in whole, and the cluster takes its name"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In "
+     },
+     {
+      "t": "link",
+      "v": "Files",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", pick files and press "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on the selection bar"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When Studio has gathered a pile of loose cards, it offers once, on a later visit, to move them into a cluster: "
+    },
+    {
+     "t": "strong",
+     "v": "Move them into a cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move them into a cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " names one and moves the pile; the × dismisses the offer for good on that device. And when you paste or drop new things onto a board that already holds a pile from a few hours ago, the toast may ask "
+    },
+    {
+     "t": "strong",
+     "v": "New idea?",
+     "children": [
+      {
+       "t": "text",
+       "v": "New idea?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "strong",
+     "v": "New cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives them a cluster of their own. Nothing moves until you ask."
     }
    ]
   },
@@ -18660,7 +19728,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Press "
+     "v": "A cluster's files are always listed in the "
+    },
+    {
+     "t": "link",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar",
+     "children": [
+      {
+       "t": "text",
+       "v": "sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; press "
     },
     {
      "t": "code",
@@ -18668,21 +19751,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or "
-    },
-    {
-     "t": "strong",
-     "v": "Files",
-     "children": [
-      {
-       "t": "text",
-       "v": "Files"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " at the top of the screen, to open Files beside the board; expand it to fill the screen. Switching does not convert anything. Settings → "
+     "v": ", or ⤢ there, to fill the screen with them. Switching does not convert anything. Settings → "
     },
     {
      "t": "strong",
@@ -18696,7 +19765,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sets which view new clusters open in; clusters made from a dropped folder open in Files for the person who dropped them."
+     "v": " sets which view new clusters open in."
     }
    ]
   },
@@ -18752,11 +19821,26 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "The sidebar tree",
+      "v": "The [sidebar](/docs/clusters/sidebar) tree",
       "children": [
        {
         "t": "text",
-        "v": "The sidebar tree"
+        "v": "The "
+       },
+       {
+        "t": "link",
+        "v": "sidebar",
+        "href": "/docs/clusters/sidebar",
+        "children": [
+         {
+          "t": "text",
+          "v": "sidebar"
+         }
+        ]
+       },
+       {
+        "t": "text",
+        "v": " tree"
        }
       ]
      },
@@ -18873,6 +19957,1644 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/clusters/sidebar": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The sidebar is where everything in a workspace is reachable from: the places you go, the clusters you work in, and the files inside them. On a computer it floats over the left of the screen as two cards; on a phone it is the drawer."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What's in it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What's in it"
+    }
+   ],
+   "id": "what-s-in-it"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The top card:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "The workspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "The workspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — its name opens the switcher, to change workspace or start a new one. Under it, who else is here right now, or whose workspace it is when it was shared with you."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Search",
+      "children": [
+       {
+        "t": "text",
+        "v": "Search"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the magnifying glass, or "
+     },
+     {
+      "t": "code",
+      "v": "⌘K"
+     },
+     {
+      "t": "text",
+      "v": ", searches everything in the workspace. See "
+     },
+     {
+      "t": "link",
+      "v": "search",
+      "href": "/docs/organize/search",
+      "children": [
+       {
+        "t": "text",
+        "v": "search"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Home",
+      "children": [
+       {
+        "t": "text",
+        "v": "Home"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Messages",
+      "children": [
+       {
+        "t": "text",
+        "v": "Messages"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — "
+     },
+     {
+      "t": "link",
+      "v": "Home",
+      "href": "/docs/clusters/home-graph",
+      "children": [
+       {
+        "t": "text",
+        "v": "Home"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is where your projects are; "
+     },
+     {
+      "t": "link",
+      "v": "Messages",
+      "href": "/docs/collaborate/messages",
+      "children": [
+       {
+        "t": "text",
+        "v": "Messages"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens over the cluster you are in and shows an unread count."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Your clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Your clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the cluster tree, with "
+     },
+     {
+      "t": "strong",
+      "v": "Shared with me",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared with me"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and your "
+     },
+     {
+      "t": "link",
+      "v": "tags",
+      "href": "/docs/organize/tags",
+      "children": [
+       {
+        "t": "text",
+        "v": "tags"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu, which adds "
+     },
+     {
+      "t": "strong",
+      "v": "Star",
+      "children": [
+       {
+        "t": "text",
+        "v": "Star"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and, if you can edit it, "
+     },
+     {
+      "t": "strong",
+      "v": "Always open in Files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Always open in Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to the "
+     },
+     {
+      "t": "link",
+      "v": "usual cluster actions",
+      "href": "/docs/clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "usual cluster actions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The second card is "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Files",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files"
+    }
+   ],
+   "id": "files"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files lists everything in a cluster: photos, video, audio, PDFs and other files, notes, docs and links. "
+    },
+    {
+     "t": "strong",
+     "v": "A file is in Files whether or not it is on the board.",
+     "children": [
+      {
+       "t": "text",
+       "v": "A file is in Files whether or not it is on the board."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Files you add from the sidebar wait there, marked with a dot and "
+    },
+    {
+     "t": "strong",
+     "v": "Not on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", until you drag them onto the board or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — see "
+    },
+    {
+     "t": "link",
+     "v": "Not on board",
+     "href": "/docs/clusters/list-view#not-on-board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everything is sorted onto shelves — "
+    },
+    {
+     "t": "strong",
+     "v": "Photos",
+     "children": [
+      {
+       "t": "text",
+       "v": "Photos"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Video",
+     "children": [
+      {
+       "t": "text",
+       "v": "Video"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Audio",
+     "children": [
+      {
+       "t": "text",
+       "v": "Audio"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Links",
+     "children": [
+      {
+       "t": "text",
+       "v": "Links"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Other",
+     "children": [
+      {
+       "t": "text",
+       "v": "Other"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Each shelf's ⤢ opens the "
+    },
+    {
+     "t": "link",
+     "v": "full Files page",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "full Files page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on just that shelf."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The tabs",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The tabs"
+    }
+   ],
+   "id": "the-tabs"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Tab"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Shows"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "The cluster's name"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The files of the cluster you are in. Press it again for a list of every cluster — type to find one — and see its files without leaving the board. "
+      },
+      {
+       "t": "strong",
+       "v": "Back to",
+       "children": [
+        {
+         "t": "text",
+         "v": "Back to"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " returns to the cluster you are in, and "
+      },
+      {
+       "t": "strong",
+       "v": "Open",
+       "children": [
+        {
+         "t": "text",
+         "v": "Open"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " goes to the one you are looking at"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Recent",
+       "children": [
+        {
+         "t": "text",
+         "v": "Recent"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The newest things added anywhere in this workspace, by anyone"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Starred",
+       "children": [
+        {
+         "t": "text",
+         "v": "Starred"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The files and clusters you starred. Stars are yours alone; star a file or a cluster from its menu"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "←"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "→"
+    },
+    {
+     "t": "text",
+     "v": " move along the tabs, and "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " on the cluster's tab opens its list."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Search, show, sort and group",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Search, show, sort and group"
+    }
+   ],
+   "id": "search-show-sort-and-group"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The search box searches the tab you are on as you type. When nothing there matches, "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " searches the whole workspace instead ("
+    },
+    {
+     "t": "code",
+     "v": "⌘Enter"
+    },
+    {
+     "t": "text",
+     "v": " does that at any time)."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The menu beside it — it reads "
+    },
+    {
+     "t": "strong",
+     "v": "All files",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " until you change it — has three parts:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Part"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Choices"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Show",
+       "children": [
+        {
+         "t": "text",
+         "v": "Show"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "All files, or one kind: Photos, Video, Audio, Files, Notes, Links, or the files that are "
+      },
+      {
+       "t": "strong",
+       "v": "Not on board",
+       "children": [
+        {
+         "t": "text",
+         "v": "Not on board"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ". A kind with nothing in it isn't offered"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Sort",
+       "children": [
+        {
+         "t": "text",
+         "v": "Sort"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Newest first, Name, Size or Canvas order"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Group by",
+       "children": [
+        {
+         "t": "text",
+         "v": "Group by"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Type (the shelves), or Canvas groups — the "
+      },
+      {
+       "t": "link",
+       "v": "groups",
+       "href": "/docs/canvas/groups",
+       "children": [
+        {
+         "t": "text",
+         "v": "groups"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on the cluster's board"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Looking at a file",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Looking at a file"
+    }
+   ],
+   "id": "looking-at-a-file"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Click",
+      "children": [
+       {
+        "t": "text",
+        "v": "Click"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " a file for "
+     },
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": it opens large, in front of the board. "
+     },
+     {
+      "t": "code",
+      "v": "←"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "→"
+     },
+     {
+      "t": "text",
+      "v": " step through the files beside it; "
+     },
+     {
+      "t": "code",
+      "v": "Esc"
+     },
+     {
+      "t": "text",
+      "v": " closes it."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Double-click",
+      "children": [
+       {
+        "t": "text",
+        "v": "Double-click"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " it, or press "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": ", to go to it: the board flies to its card and selects it, or, for a file that isn't on the board, the full Files page opens with it picked out."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Right-click",
+      "children": [
+       {
+        "t": "text",
+        "v": "Right-click"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " it, or press "
+     },
+     {
+      "t": "code",
+      "v": "⇧F10"
+     },
+     {
+      "t": "text",
+      "v": ", for its menu: Quick look, Show on board (or Show in Files), Put on board, Star, Download, Share file…, Move to…, Copy to… and Delete. Delete has an undo."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Selecting several",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Selecting several"
+    }
+   ],
+   "id": "selecting-several"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "⌘"
+    },
+    {
+     "t": "text",
+     "v": "-click adds a file to the selection and "
+    },
+    {
+     "t": "code",
+     "v": "⇧"
+    },
+    {
+     "t": "text",
+     "v": "-click selects a run of them. A bar appears with "
+    },
+    {
+     "t": "strong",
+     "v": "Move…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Copy…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — and "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " when the selection is waiting off the board. "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " clears the selection, and "
+    },
+    {
+     "t": "code",
+     "v": "⌫"
+    },
+    {
+     "t": "text",
+     "v": " deletes it, with an undo. "
+    },
+    {
+     "t": "code",
+     "v": "↑"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " walk the files, as they walk the clusters in the card above."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The full Files page",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The full Files page"
+    }
+   ],
+   "id": "the-full-files-page"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "⤢ at the top right of Files, or "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": ", opens the cluster's files full screen: the "
+    },
+    {
+     "t": "link",
+     "v": "full Files page",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "full Files page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — this card grown, with folders, a grid or a list, Info and downloads. While it's open, this card folds to a bar, "
+    },
+    {
+     "t": "strong",
+     "v": "Files · full screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files · full screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so the files are listed once; its "
+    },
+    {
+     "t": "strong",
+     "v": "Shrink",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shrink"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "F"
+    },
+    {
+     "t": "text",
+     "v": " again or "
+    },
+    {
+     "t": "code",
+     "v": "⌘\\"
+    },
+    {
+     "t": "text",
+     "v": " brings the board back. Opening the page this way is yours alone; it never changes how the cluster opens for anyone else. To make a cluster open in Files for everyone, choose "
+    },
+    {
+     "t": "strong",
+     "v": "Always open in Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Always open in Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " from its menu in the sidebar."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Moving and copying files",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving and copying files"
+    }
+   ],
+   "id": "moving-and-copying-files"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drag files to move them between clusters. The label at the pointer says what letting go will do before you do it."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Where you let go"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What happens"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "A cluster's name in the sidebar"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The files move into that cluster's Files, off its board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "The Files card showing another cluster"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The same: into its Files, off its board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "A board, from another cluster"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The files move onto that board, where you let go, and leave the cluster they were in"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "The board they are already in"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A file waiting in Files goes onto the board there"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Hold Option (⌥) on a Mac, or Ctrl on Windows, while you let go to copy instead.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Hold Option (⌥) on a Mac, or Ctrl on Windows, while you let go to copy instead."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " On Windows, Alt copies too. "
+    },
+    {
+     "t": "strong",
+     "v": "Move to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Copy to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in a file's menu do the same with a list of clusters to pick from."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A move",
+      "children": [
+       {
+        "t": "text",
+        "v": "A move"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " takes the file's name, tags, comments, star and share link with it. The toast that follows says where it went, offers "
+     },
+     {
+      "t": "strong",
+      "v": "Put on board",
+      "children": [
+       {
+        "t": "text",
+        "v": "Put on board"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for files that landed in Files, and "
+     },
+     {
+      "t": "strong",
+      "v": "Undo",
+      "children": [
+       {
+        "t": "text",
+        "v": "Undo"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts everything back where it was."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A copy",
+      "children": [
+       {
+        "t": "text",
+        "v": "A copy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is a new card showing the same stored file: nothing is uploaded again and it takes no extra storage, but it counts toward your plan's card limit. The original stays where it was, with its comments, star and share link. A note or doc is copied whole."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Files stay in their workspace.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files stay in their workspace."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A cluster in another workspace — one shared with you, say — won't take them, and the label says why before you let go."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A cluster you can only view",
+      "children": [
+       {
+        "t": "text",
+        "v": "A cluster you can only view"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " can't take files, and its files can only be copied out of it, never moved."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Holding a file over a folded cluster in the tree for a moment unfolds it, so you can drop it into a cluster inside."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Upload and storage",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Upload and storage"
+    }
+   ],
+   "id": "upload-and-storage"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The foot of Files shows how much of your plan you have used: on the free plan, your cards and your storage on one line — the free plan stops at whichever fills first — and on a paid plan, storage alone. The bar turns red when it is nearly full. Click it for "
+    },
+    {
+     "t": "link",
+     "v": "Plan and billing",
+     "href": "/docs/account/plans",
+     "children": [
+      {
+       "t": "text",
+       "v": "Plan and billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Upload",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " beside it adds files to the cluster you are in, or, from Home, to a cluster you pick. They go in as Not on board, and you stay where you are while they upload. Dragging files from your computer onto a cluster's name in the sidebar does the same for that cluster, even one you don't have open — the row shows the upload's progress."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Hiding Files, and sizing the cards",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Hiding Files, and sizing the cards"
+    }
+   ],
+   "id": "hiding-files-and-sizing-the-cards"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Hide",
+      "children": [
+       {
+        "t": "text",
+        "v": "Hide"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", on the Files card, or "
+     },
+     {
+      "t": "code",
+      "v": "⌘\\"
+     },
+     {
+      "t": "text",
+      "v": ", folds Files to a "
+     },
+     {
+      "t": "strong",
+      "v": "Files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " bar under your clusters and gives the board the room. Press the bar, or "
+     },
+     {
+      "t": "code",
+      "v": "⌘\\"
+     },
+     {
+      "t": "text",
+      "v": " again, to bring it back. (Inside a note or a doc, "
+     },
+     {
+      "t": "code",
+      "v": "⌘\\"
+     },
+     {
+      "t": "text",
+      "v": " clears formatting instead.) "
+     },
+     {
+      "t": "code",
+      "v": "⌘K"
+     },
+     {
+      "t": "text",
+      "v": " → \"Hide files in the sidebar\" does the same. While the full Files page is open, the card is already folded, and "
+     },
+     {
+      "t": "code",
+      "v": "⌘\\"
+     },
+     {
+      "t": "text",
+      "v": " brings the board back instead."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "⌘B"
+     },
+     {
+      "t": "text",
+      "v": ", or the button at the top of the sidebar, hides the whole sidebar."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Each card has its own size.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Each card has its own size."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Drag a card's right edge, its bottom edge or its corner. Double-click a handle to put that size back."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Side by side or stacked.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Side by side or stacked."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Files sits under the clusters, or beside them. The button at the top of Files switches, and dragging a stacked card wide enough puts Files beside the clusters on its own; dragging the pair narrow enough stacks them again. Side by side chosen with the button stays that way until you press it again. A window too narrow for both keeps them stacked."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sizes and arrangement are remembered on your device, not your account: they belong to the screen."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "On a phone",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone"
+    }
+   ],
+   "id": "on-a-phone"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone the sidebar is the drawer, behind "
+    },
+    {
+     "t": "strong",
+     "v": "Open menu",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open menu"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top left. It holds the same things — Home, Messages, your clusters and Files, with the same tabs, search and menus — at full width, without the sizing handles. The list of clusters opens as a sheet from the bottom, with "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Hold a file for its menu; its "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts a check on every file, so taps pick several for the bar at the bottom of Files, which ends with "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Going to a file, or opening the full Files page, closes the drawer."
+    }
+   ]
+  }
+ ],
  "/docs/clusters/list-view": [
   {
    "type": "para",
@@ -18895,21 +21617,36 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Files beside the board",
+   "text": "Opening the full Files page",
    "inline": [
     {
      "t": "text",
-     "v": "Files beside the board"
+     "v": "Opening the full Files page"
     }
    ],
-   "id": "files-beside-the-board"
+   "id": "opening-the-full-files-page"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Press "
+     "v": "A cluster's files are always listed in the sidebar's "
+    },
+    {
+     "t": "link",
+     "v": "Files card",
+     "href": "/docs/clusters/sidebar#files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". When you want only files, press "
     },
     {
      "t": "code",
@@ -18917,35 +21654,44 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or "
+     "v": ", or ⤢ at the top right of that card, and they fill the screen. Each shelf's ⤢ in the sidebar opens the page on just that kind of file."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The page is that card grown: the cluster's name at the top, the same search and "
     },
     {
      "t": "strong",
-     "v": "Files",
+     "v": "All files ⌄",
      "children": [
       {
        "t": "text",
-       "v": "Files"
+       "v": "All files ⌄"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in "
+     "v": " menu, and the same shelves. While it's open, the card in the sidebar folds to a bar — "
     },
     {
      "t": "strong",
-     "v": "Board · Files",
+     "v": "Files · full screen",
      "children": [
       {
        "t": "text",
-       "v": "Board · Files"
+       "v": "Files · full screen"
       }
      ]
     },
     {
      "t": "text",
-     "v": " at the top of the screen, and Files opens as a panel on the right of the board. The board stays where it was and keeps working: you can pan, select and arrange while the panel is open. The Files side of the switch counts the cards inside, not counting nested clusters."
+     "v": " — so your files are listed once."
     }
    ]
   },
@@ -18970,7 +21716,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Open or close Files beside the board"
+       "v": "Open the full Files page"
       }
      ],
      [
@@ -18980,87 +21726,47 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
+       "v": ", or ⤢ on the sidebar's Files card"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Go back to the board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "F"
+      },
+      {
+       "t": "text",
+       "v": " again, "
+      },
+      {
+       "t": "code",
+       "v": "⌘\\"
+      },
+      {
+       "t": "text",
        "v": ", or "
       },
       {
        "t": "strong",
-       "v": "Files",
+       "v": "Shrink",
        "children": [
         {
          "t": "text",
-         "v": "Files"
+         "v": "Shrink"
         }
        ]
       },
       {
        "t": "text",
-       "v": " / "
-      },
-      {
-       "t": "strong",
-       "v": "Board",
-       "children": [
-        {
-         "t": "text",
-         "v": "Board"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " at the top"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Make the panel wider or narrower"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Drag its left edge; double-click the edge to reset it"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Fill the screen with Files"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The expand button in the panel, or drag the edge most of the way across"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Put full-screen Files back beside the board"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The shrink button at the top right, beside "
-      },
-      {
-       "t": "strong",
-       "v": "Download all",
-       "children": [
-        {
-         "t": "text",
-         "v": "Download all"
-        }
-       ]
+       "v": " — at the top right of the page, or on the folded Files card in the sidebar"
       }
      ]
     ],
@@ -19073,8 +21779,18 @@ export const DOCS_CONTENT = {
      ],
      [
       {
+       "t": "strong",
+       "v": "Show on board",
+       "children": [
+        {
+         "t": "text",
+         "v": "Show on board"
+        }
+       ]
+      },
+      {
        "t": "text",
-       "v": "Click it in the panel — the board brings it into view and selects it"
+       "v": " in its menu, in Quick look or in Info — the board brings it into view and selects it"
       }
      ]
     ],
@@ -19088,7 +21804,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Drag it from the panel onto the board"
+       "v": "Drag it from the sidebar's Files onto the board"
       }
      ]
     ]
@@ -19111,7 +21827,49 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Whether the panel is open, and how wide, is remembered on your device; it never changes the cluster for anyone else. Full-screen Files is the cluster's own view, so a cluster you leave in Files opens in Files for everyone, and on shared and published links."
+     "v": ". Opening the page this way is yours alone, on this device; it never changes the cluster for anyone else. To make a cluster open in Files for everyone, and on shared and published links, choose "
+    },
+    {
+     "t": "strong",
+     "v": "Always open in Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Always open in Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " from its menu in the sidebar (if you can edit it); the same menu turns it back with "
+    },
+    {
+     "t": "strong",
+     "v": "Open on the board by default",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open on the board by default"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Visitors on those links get this same page, read-only: the search, "
+    },
+    {
+     "t": "strong",
+     "v": "All files ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files ⌄"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", Grid and List, Quick look, Info and downloads, but nothing that adds, moves or deletes. The title is just the cluster's name there, and its clusters open from their tiles."
     }
    ]
   },
@@ -19120,7 +21878,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The panel needs room: in a narrow window, and on phones and tablets, Files fills the screen instead. In split view, the switch and "
+     "v": "In split view, "
     },
     {
      "t": "code",
@@ -19128,7 +21886,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " act on the pane you last worked in, and Files there fills that pane."
+     "v": " acts on the pane you last worked in, and Files there fills that pane."
     }
    ]
   },
@@ -19137,188 +21895,74 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A cluster remembers which view it was left in. Clusters made from a folder you "
+     "v": "A folder or zip you "
     },
     {
      "t": "link",
-     "v": "drop in",
-     "href": "/docs/clusters#dropping-a-folder",
+     "v": "import",
+     "href": "/docs/clusters#importing-folders-and-zips",
      "children": [
       {
        "t": "text",
-       "v": "drop in"
+       "v": "import"
       }
      ]
     },
     {
      "t": "text",
-     "v": " open in Files for you, because a dropped folder is files first; their cards are still laid out on each canvas, and on the parent board they keep their thumbnail."
+     "v": " puts its files in each new cluster's Files, off the board, and the empty canvas offers to put them on."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Dragging files onto the board",
+   "text": "Dragging files",
    "inline": [
     {
      "t": "text",
-     "v": "Dragging files onto the board"
+     "v": "Dragging files"
     }
    ],
-   "id": "dragging-files-onto-the-board"
+   "id": "dragging-files"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Drag anything from the panel onto the board and it lands where you let go. Select several first and they travel together."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Where the file is"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "What the drop does"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "text",
-       "v": "This cluster"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Moves its card to where you dropped it — or, if it was waiting in Files, puts it on the board there"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Another cluster"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Adds a "
-      },
-      {
-       "t": "strong",
-       "v": "linked copy",
-       "children": [
-        {
-         "t": "text",
-         "v": "linked copy"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": ": a new card showing the same stored file. Nothing is uploaded again and it takes no extra storage, but it is a card like any other and counts toward your plan's card limit"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Another cluster, and already copied here"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Moves the copy that's already on the board instead of adding a second one. Hold "
-      },
-      {
-       "t": "code",
-       "v": "⌥"
-      },
-      {
-       "t": "text",
-       "v": " ("
-      },
-      {
-       "t": "code",
-       "v": "Alt"
-      },
-      {
-       "t": "text",
-       "v": ") while you drop to add another"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A linked copy is its own card: retitling or captioning it leaves the original alone, and deleting either one leaves the other. While you browse another cluster in the panel, its files that already have a copy on this board are marked "
-    },
-    {
-     "t": "strong",
-     "v": "On board",
-     "children": [
-      {
-       "t": "text",
-       "v": "On board"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", and clicking one finds that copy."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Notes, docs and grids from another cluster are copied the same way — the copy takes their words, cells and pages from the cluster they live in, and the original stays where it was. A grid linked to its cluster's shared layout arrives as a standalone grid with that layout. The toast that follows offers "
-    },
-    {
-     "t": "strong",
-     "v": "Move instead",
-     "children": [
-      {
-       "t": "text",
-       "v": "Move instead"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", which takes the copy back off and moves the original here; "
+     "v": "Files dragged from this page onto a folder move into that cluster, as they do from the sidebar. Hold "
     },
     {
      "t": "code",
-     "v": "⌘Z"
+     "v": "⌥"
     },
     {
      "t": "text",
-     "v": " undoes the copy. Copies count toward your plan's card limit like any other card."
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "Ctrl"
+    },
+    {
+     "t": "text",
+     "v": " on Windows) as you let go to copy them instead: a copy is a new card showing the same stored file, so nothing is uploaded again and it takes no extra storage, but it counts toward your plan's card limit. The rules, and what a move takes with it, are on the sidebar page under "
+    },
+    {
+     "t": "link",
+     "v": "Moving and copying files",
+     "href": "/docs/clusters/sidebar#moving-and-copying-files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Moving and copying files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -19404,7 +22048,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "To put one on the board, drag it there, or right-click it in Files — or use the selection bar, or Quick look — and choose "
+     "v": "To put one on the board, drag it there from the sidebar, or right-click it in Files — or use the selection bar, or Quick look — and choose "
     },
     {
      "t": "strong",
@@ -19448,7 +22092,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A cluster's nested clusters are its folders. They sit first, as compact rows — the cluster's colour dot (or its cover), its name and how many items are inside — with the files after them."
+     "v": "A cluster's nested clusters are its folders. They come first — in the grid as tiles along the top, with the cluster's colour dot (or its cover), its name and how many items are inside, and in the list as the table's first rows — with the files after them."
     }
    ]
   },
@@ -19456,59 +22100,18 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
-     "t": "text",
-     "v": "In the panel, "
-    },
-    {
      "t": "strong",
-     "v": "double-click a folder to step into it",
+     "v": "Double-click a folder to open it.",
      "children": [
       {
        "t": "text",
-       "v": "double-click a folder to step into it"
+       "v": "Double-click a folder to open it."
       }
      ]
     },
     {
      "t": "text",
-     "v": ". The path bar at the top shows where the panel is; click any step to go back up, or use the back arrow to retrace where you have been. The ▾ on the current step lists the clusters inside it, and its "
-    },
-    {
-     "t": "strong",
-     "v": "Go to cluster…",
-     "children": [
-      {
-       "t": "text",
-       "v": "Go to cluster…"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " jumps to any cluster in the workspace. "
-    },
-    {
-     "t": "strong",
-     "v": "The board doesn't move",
-     "children": [
-      {
-       "t": "text",
-       "v": "The board doesn't move"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " while you browse — the breadcrumb at the top of the screen still says where it is."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Another cluster's files are read-only from the panel: browse, preview and download, but edits happen in that cluster. Double-click one of its files and the board goes there and flies to it. Expanding the panel while you are browsing takes you to that cluster, in Files. In full-screen Files, opening a folder goes there and stays in Files, and the cluster above it sits over the title as "
+     "v": " You go there and stay in Files, and the cluster above it sits over the title as "
     },
     {
      "t": "strong",
@@ -19580,7 +22183,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Beside the board, the panel stays where you dropped. In full-screen Files you land in that cluster once the move is saved. Let go anywhere else, or press "
+     "v": "You land in that cluster once the move is saved. Let go anywhere else, or press "
     },
     {
      "t": "code",
@@ -19619,29 +22222,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a tile per item with a real preview, laid out in rows that fill the width. Pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same. "
+     "v": " — the sidebar card's shelves, grown. "
     },
     {
      "t": "strong",
-     "v": "S",
+     "v": "Photos",
      "children": [
       {
        "t": "text",
-       "v": "S"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "M",
-     "children": [
-      {
-       "t": "text",
-       "v": "M"
+       "v": "Photos"
       }
      ]
     },
@@ -19651,17 +22240,115 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "L",
+     "v": "Video",
      "children": [
       {
        "t": "text",
-       "v": "L"
+       "v": "Video"
       }
      ]
     },
     {
      "t": "text",
-     "v": " set the tile size, remembered on your device."
+     "v": " are a gallery laid out in rows that fill the width: pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box, and the picture is the name; hover one to read it. "
+    },
+    {
+     "t": "strong",
+     "v": "Audio",
+     "children": [
+      {
+       "t": "text",
+       "v": "Audio"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " follow as rows, and "
+    },
+    {
+     "t": "strong",
+     "v": "Notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Links",
+     "children": [
+      {
+       "t": "text",
+       "v": "Links"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Other",
+     "children": [
+      {
+       "t": "text",
+       "v": "Other"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " start folded — click one's name to open it. The default, because most of what you are looking for you would recognise by sight. "
+    },
+    {
+     "t": "strong",
+     "v": "Size",
+     "children": [
+      {
+       "t": "text",
+       "v": "Size"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the "
+    },
+    {
+     "t": "strong",
+     "v": "All files ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files ⌄"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu — Small, Medium or Large — sets how big the pictures are, remembered on your device."
     }
    ]
   },
@@ -19680,7 +22367,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a row per item, with type, size and dates. Dense, scannable, sortable. A cluster that is mostly audio opens in the list, for the columns below."
+     "v": " — a classic list: one table of everything, clusters first, with "
+    },
+    {
+     "t": "strong",
+     "v": "Kind",
+     "children": [
+      {
+       "t": "text",
+       "v": "Kind"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Size",
+     "children": [
+      {
+       "t": "text",
+       "v": "Size"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the date, every other row faintly shaded. Dense, scannable, sortable — click a column's heading. A cluster that is mostly audio opens in the list, for the columns below."
     }
    ]
   },
@@ -19688,8 +22403,46 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Grid",
+     "children": [
+      {
+       "t": "text",
+       "v": "Grid"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "Your choice is remembered per cluster on the device you made it on."
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "List",
+     "children": [
+      {
+       "t": "text",
+       "v": "List"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " sit beside the search (on a phone or tablet, in the "
+    },
+    {
+     "t": "strong",
+     "v": "All files ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files ⌄"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu). Your choice is remembered per cluster on the device you made it on."
     }
    ]
   },
@@ -19714,11 +22467,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Type",
+     "v": "Kind",
      "children": [
       {
        "t": "text",
-       "v": "Type"
+       "v": "Kind"
       }
      ]
     },
@@ -19855,7 +22608,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Above the list you get the pack in one line: "
+     "v": "Beside the search — under it on a phone or tablet — you get the pack in one line: "
     },
     {
      "t": "strong",
@@ -19886,7 +22639,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "On a narrow window, in a split pane, or with Info open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room."
+     "v": "On a narrow window, in a split pane, or with Info open, the columns that matter least give way first, until on a phone only the name is left. The name is the last thing to give up room."
     }
    ]
   },
@@ -19911,17 +22664,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "View",
+     "v": "All files ⌄",
      "children": [
       {
        "t": "text",
-       "v": "View"
+       "v": "All files ⌄"
       }
      ]
     },
     {
      "t": "text",
-     "v": " menu, beside the search field."
+     "v": " menu beside the search field — the same menu, in the same words, as the sidebar's Files card."
     }
    ]
   },
@@ -19930,43 +22683,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Files opens in "
+     "v": "Files opens "
     },
     {
      "t": "strong",
-     "v": "board order",
+     "v": "newest first",
      "children": [
       {
        "t": "text",
-       "v": "board order"
+       "v": "newest first"
       }
      ]
     },
     {
      "t": "text",
-     "v": ": the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. Sort by "
+     "v": ", by date added. The menu also sorts by "
     },
     {
      "t": "strong",
-     "v": "name",
+     "v": "Name",
      "children": [
       {
        "t": "text",
-       "v": "name"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "type",
-     "children": [
-      {
-       "t": "text",
-       "v": "type"
+       "v": "Name"
       }
      ]
     },
@@ -19976,25 +22715,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "size",
+     "v": "Size",
      "children": [
       {
        "t": "text",
-       "v": "size"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "date modified",
-     "children": [
-      {
-       "t": "text",
-       "v": "date modified"
+       "v": "Size"
       }
      ]
     },
@@ -20004,25 +22729,25 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "date added",
+     "v": "Canvas order",
      "children": [
       {
        "t": "text",
-       "v": "date added"
+       "v": "Canvas order"
       }
      ]
     },
     {
      "t": "text",
-     "v": " instead — plus "
+     "v": ": the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. In the list, click a column's heading to sort by it — name, kind, size or date, plus "
     },
     {
      "t": "strong",
-     "v": "length",
+     "v": "time",
      "children": [
       {
        "t": "text",
-       "v": "length"
+       "v": "time"
       }
      ]
     },
@@ -20070,7 +22795,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " when the cluster is mostly audio."
+     "v": " when the cluster is mostly audio — and the menu shows that sort as the one in force."
     }
    ]
   },
@@ -20079,17 +22804,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Show only",
+     "v": "Show",
      "children": [
       {
        "t": "text",
-       "v": "Show only"
+       "v": "Show"
       }
      ]
     },
     {
      "t": "text",
-     "v": " narrows to a content type: Images, PDFs, Video, Audio, Files, Notes, Links, Docs, Palettes, Other — or to files that are "
+     "v": " narrows to one shelf — Photos, Video, Audio, Files, Notes or Links, whichever the cluster has — or to files that are "
     },
     {
      "t": "strong",
@@ -20098,6 +22823,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the menu takes its name: "
+    },
+    {
+     "t": "strong",
+     "v": "Photos ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "Photos ⌄"
       }
      ]
     },
@@ -20131,7 +22870,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The combination is the answer to \"where is that PDF someone dropped in here last week\" — filter to PDFs, sort by date added, done. On the canvas that is a hunting expedition."
+     "v": "The combination is the answer to \"where is that PDF someone dropped in here last week\" — show the "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shelf, newest first, done. On the canvas that is a hunting expedition."
     }
    ]
   },
@@ -20233,7 +22986,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A selection gets a bar along the bottom:"
+     "v": "Select something and the search line gives way to a bar:"
     }
    ]
   },
@@ -20341,6 +23094,126 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "heading",
+   "depth": 3,
+   "text": "With a finger",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a finger"
+    }
+   ],
+   "id": "with-a-finger"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a touch screen a tap opens what it lands on, as the iPad's Files app does: a folder opens and a file opens in "
+    },
+    {
+     "t": "link",
+     "v": "Quick look",
+     "href": "#quick-look",
+     "children": [
+      {
+       "t": "text",
+       "v": "Quick look"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Touch and hold a file or a folder for its menu, the same one a right-click opens, with "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " first. "
+    },
+    {
+     "t": "strong",
+     "v": "Select",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar gains "
+    },
+    {
+     "t": "strong",
+     "v": "Copy to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", since there is no right-click to find it, and ends with "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A hold opens the menu rather than picking a file up, so a finger moves files with "
+    },
+    {
+     "t": "strong",
+     "v": "Move to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Put on board",
+     "children": [
+      {
+       "t": "text",
+       "v": "Put on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", not by dragging. A trackpad or mouse on a tablet still clicks and selects as it does on a computer."
+    }
+   ]
+  },
+  {
    "type": "para",
    "inline": [
     {
@@ -20355,7 +23228,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Get info and Delete — or press "
+     "v": " a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Copy to…, Get info and Delete — or press "
     },
     {
      "t": "code",
@@ -20480,21 +23353,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a loop's tile "
-    },
-    {
-     "t": "em",
-     "v": "is",
-     "children": [
-      {
-       "t": "text",
-       "v": "is"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " its waveform, so a pack reads as a wall of shapes rather than a wall of identical icons."
+     "v": ", audio has a shelf of its own, as rows with the same play button and waveform."
     }
    ]
   },
@@ -20628,7 +23487,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sits above the files whenever there is more than one file to take. It follows the search and the filters, so it reads "
+     "v": " sits at the top right of the page, beside "
+    },
+    {
+     "t": "strong",
+     "v": "Shrink",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shrink"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", whenever there is more than one file to take (on a phone or tablet, select them and use "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the bar). It follows the search and the filters, so it reads "
     },
     {
      "t": "em",
@@ -20753,21 +23640,6 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "link",
-     "v": "schedules",
-     "href": "/docs/canvas/schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "schedules"
-      }
-     ]
-    },
-    {
-     "t": "text",
      "v": ", shapes, notes and links get schematic marks that indicate their shape and content."
     }
    ]
@@ -20854,7 +23726,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Along the top: "
+     "v": "A bar floats along the top: the file's name and where it is among the files ("
+    },
+    {
+     "t": "em",
+     "v": "Image · 3 of 30",
+     "children": [
+      {
+       "t": "text",
+       "v": "Image · 3 of 30"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), then "
     },
     {
      "t": "strong",
@@ -20896,7 +23782,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and "
+     "v": " and "
     },
     {
      "t": "strong",
@@ -21011,7 +23897,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " opens from the board. In full-screen Files it sits beside the list and whether it's open is remembered on your device; beside the board, where there's no room for it, it opens as a panel of its own. From there:"
+     "v": " opens from the board. On the Files page it opens as a card beside the files (on a phone or tablet, as a sheet from the bottom), and whether it's open is remembered on your device. From there:"
     }
    ]
   },
@@ -21267,7 +24153,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the toolbar. They join the cluster without going on its board: they wait in Files, marked "
+     "v": " beside the search — on a phone or tablet, the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the bottom bar. They join the cluster without going on its board: they wait in Files, marked "
     },
     {
      "t": "link",
@@ -21302,7 +24202,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". That holds beside the board and in full-screen Files alike — dropping on the canvas is how you put files straight on the board. An empty cluster offers "
+     "v": ". The same goes for "
+    },
+    {
+     "t": "strong",
+     "v": "Upload",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the sidebar — dropping on the canvas is how you put files straight on the board. An empty cluster offers "
     },
     {
      "t": "strong",
@@ -21597,18 +24511,18 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "link",
-       "v": "drop it on a canvas",
-       "href": "/docs/clusters#dropping-a-folder",
+       "v": "drop it, or its zip",
+       "href": "/docs/clusters#importing-folders-and-zips",
        "children": [
         {
          "t": "text",
-         "v": "drop it on a canvas"
+         "v": "drop it, or its zip"
         }
        ]
       },
       {
        "t": "text",
-       "v": " and its folders become nested clusters"
+       "v": ", and its folders become nested clusters with their files in Files"
       }
      ]
     ],
@@ -21664,21 +24578,32 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "No — sharing is per cluster. "
+       "v": "Yes — "
       },
       {
        "t": "strong",
-       "v": "Copy link",
+       "v": "Share file…",
        "children": [
         {
          "t": "text",
-         "v": "Copy link"
+         "v": "Share file…"
         }
        ]
       },
       {
        "t": "text",
-       "v": " opens a card on its board, for people who can already open that board"
+       "v": " gives a video, a PDF or any other file a page of its own, without the cluster around it. See "
+      },
+      {
+       "t": "link",
+       "v": "Sharing a single file",
+       "href": "/docs/collaborate/sharing#sharing-a-single-file",
+       "children": [
+        {
+         "t": "text",
+         "v": "Sharing a single file"
+        }
+       ]
       }
      ]
     ],
@@ -22376,453 +25301,6 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
- "/docs/clusters/production-schedule": [
-  {
-   "type": "callout",
-   "variant": "note",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Being rebuilt.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Being rebuilt."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " The schedule card is temporarily off the Add menu, and with it the \"Add days\" flow that lays a production out. Productions you already built keep working. Publishing a day and notifying the crew is part of the rebuild and is not available yet — this page no longer describes it."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A production runs on two questions: "
-    },
-    {
-     "t": "em",
-     "v": "what are we shooting, and when",
-     "children": [
-      {
-       "t": "text",
-       "v": "what are we shooting, and when"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". This is how Clusters answers both in one place."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "The shape",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The shape"
-    }
-   ],
-   "id": "the-shape"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "One cluster is the production. On its canvas sits a "
-    },
-    {
-     "t": "link",
-     "v": "schedule card",
-     "href": "/docs/canvas/schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "schedule card"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " set to "
-    },
-    {
-     "t": "strong",
-     "v": "3 months",
-     "children": [
-      {
-       "t": "text",
-       "v": "3 months"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — a block of principal photography you can see at once."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Each day is a "
-    },
-    {
-     "t": "strong",
-     "v": "child cluster with a date",
-     "children": [
-      {
-       "t": "text",
-       "v": "child cluster with a date"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". It appears as a tile on its day in the calendar. Open it and you are inside a normal canvas holding whatever the day needs:"
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "text",
-      "v": "the day's "
-     },
-     {
-      "t": "strong",
-      "v": "script pages",
-      "children": [
-       {
-        "t": "text",
-        "v": "script pages"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " (a PDF or a document)"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "the "
-     },
-     {
-      "t": "strong",
-      "v": "call sheet",
-      "children": [
-       {
-        "t": "text",
-        "v": "call sheet"
-       }
-      ]
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "the "
-     },
-     {
-      "t": "strong",
-      "v": "shot list",
-      "children": [
-       {
-        "t": "text",
-        "v": "shot list"
-       }
-      ]
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "the day's "
-     },
-     {
-      "t": "strong",
-      "v": "running order",
-      "children": [
-       {
-        "t": "text",
-        "v": "running order"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — every item with a length, so the day re-times itself when one runs long"
-     }
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Share the production cluster with the crew once. Everything inside it — every day, every call sheet — comes with it."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Laying it out",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Laying it out"
-    }
-   ],
-   "id": "laying-it-out"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Add days",
-     "children": [
-      {
-       "t": "text",
-       "v": "Add days"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " takes a date range, optionally skips weekends, and creates a numbered day for each date. The days arrive empty; open one and "
-    },
-    {
-     "t": "strong",
-     "v": "set up this day",
-     "children": [
-      {
-       "t": "text",
-       "v": "set up this day"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " fills it with the four cards above."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "They are created empty on purpose. Each day is a cluster, every cluster sits on its parent's canvas as a card, and cards are capped on the free plan — so scaffolding sixty days up front, with cards inside them, would spend the whole allowance before anyone had opened one."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The date is never written into a day's name. "
-    },
-    {
-     "t": "code",
-     "v": "Day 12"
-    },
-    {
-     "t": "text",
-     "v": " stays "
-    },
-    {
-     "t": "code",
-     "v": "Day 12"
-    },
-    {
-     "t": "text",
-     "v": "; the date is rendered from the calendar every time it is shown, so a day that moves twice still reads correctly everywhere."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "The running order",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The running order"
-    }
-   ],
-   "id": "the-running-order"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The part of a day that changes most during the day itself is its schedule, and it lives in the day's own schedule card, in Day view. Each item carries a length; start times cascade from the one above; a crew call or a meal break can be "
-    },
-    {
-     "t": "strong",
-     "v": "pinned",
-     "children": [
-      {
-       "t": "text",
-       "v": "pinned"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " to a wall-clock time, and the pin holds while the report of what overran it moves. An overnight day is fine: start at 18:00, wrap at 04:00."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Full detail is on the "
-    },
-    {
-     "t": "link",
-     "v": "schedule card",
-     "href": "/docs/canvas/schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "schedule card"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " page."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Driving it from another system",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Driving it from another system"
-    }
-   ],
-   "id": "driving-it-from-another-system"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Boards carry "
-    },
-    {
-     "t": "code",
-     "v": "scheduled_date"
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "code",
-     "v": "scheduled_end"
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "code",
-     "v": "day_label"
-    },
-    {
-     "t": "text",
-     "v": " over the "
-    },
-    {
-     "t": "link",
-     "v": "API",
-     "href": "/docs/api/boards",
-     "children": [
-      {
-       "t": "text",
-       "v": "API"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "link",
-     "v": "MCP",
-     "href": "/docs/mcp",
-     "children": [
-      {
-       "t": "text",
-       "v": "MCP"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", so a scheduling package or a call-sheet generator can create days and move them without anyone opening the app."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "A note on timezones",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A note on timezones"
-    }
-   ],
-   "id": "a-note-on-timezones"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Dates are plain calendar dates, with no timezone attached — a production shoots in one place, and "
-    },
-    {
-     "t": "code",
-     "v": "2026-08-18"
-    },
-    {
-     "t": "text",
-     "v": " means the same day to everyone on it. If your unit is split across a date line, that assumption is the one to watch."
-    }
-   ]
-  }
- ],
  "/docs/clusters/trash-and-recovery": [
   {
    "type": "para",
@@ -22982,21 +25460,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " puts a cluster back where it was, or "
+     "v": " puts a cluster back where it was. The workspace's owner and co-owners can also "
     },
     {
      "t": "strong",
-     "v": "remove permanently",
+     "v": "remove it permanently",
      "children": [
       {
        "t": "text",
-       "v": "remove permanently"
+       "v": "remove it permanently"
       }
      ]
     },
     {
      "t": "text",
-     "v": " if you are sure."
+     "v": " if they are sure; for everyone else, editors included, a deleted cluster waits out its 30 days and can always be brought back."
     }
    ]
   },
@@ -23024,7 +25502,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Deleting one frees its cards the moment you delete it, so if you cleared a cluster to make room, the room is there immediately."
+     "v": " Deleting one frees the cards inside it the moment you delete it, so if you cleared a cluster to make room, the room is there immediately."
     }
    ]
   },
@@ -23118,7 +25596,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " state first, so a restore is itself restorable. A second tab lists name, colour, cover, view and shoot-day date changes, each with a one-click revert — reverting a published day's date goes through the same path as moving it, so the crew is notified."
+     "v": " state first, so a restore is itself restorable. Anyone with a "
+    },
+    {
+     "t": "link",
+     "v": "document",
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " open on the board sees it reopen where they were, with a note of what happened, and if the restore changed the page they had open, a copy of that page as they had it. A second tab lists name, colour, cover and view changes, each with a one-click revert."
     }
    ]
   },
@@ -23465,7 +25958,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", so if you work docked you stay docked. The dock and full screen swap either way from the buttons in the document's header."
+     "v": ", so if you work docked you stay docked. On a phone or a tablet, tap the card twice. The dock and full screen swap either way from the buttons in the document's header."
     }
    ]
   },
@@ -23474,7 +25967,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A docked document is held by the workspace, not by the canvas underneath it. You can open other clusters, drill into nested ones, and move around the sidebar with the document still open beside you — it stays put until you close it. One document is docked at a time; opening another hands it the pane. Docking a document also takes over the "
+     "v": "A docked document is held by the workspace, not by the canvas underneath it. You can open other clusters, drill into nested ones, and move around the sidebar with the document still open beside you — it stays put until you close it. Docking a document also takes over the "
     },
     {
      "t": "link",
@@ -23532,6 +26025,84 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Two documents side by side",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Two documents side by side"
+    }
+   ],
+   "id": "two-documents-side-by-side"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a document docked, open another one on the board and it takes the board's place, so the two sit side by side: a script beside its treatment, notes beside the draft they are about. Each keeps its own toolbar, find and zoom, and "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "⌘F"
+    },
+    {
+     "t": "text",
+     "v": " act on the one you are working in. The sidebar tucks away while both are open; "
+    },
+    {
+     "t": "code",
+     "v": "⌘B"
+    },
+    {
+     "t": "text",
+     "v": " brings it back. Opening a third puts it in place of the second, and a card's "
+    },
+    {
+     "t": "strong",
+     "v": "Open beside",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open beside"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button still changes which one is docked."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "×",
+     "children": [
+      {
+       "t": "text",
+       "v": "×"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on either document brings the board back; close the docked one and the other moves into the dock. Going to another cluster closes the one from the board you left, and the docked one stays. On a phone, where there is room for one, the document you open takes the dock instead."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "Layout",
    "inline": [
@@ -23557,7 +26128,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A new page is created automatically when the current one fills up, so long-form writing does not stop to manage pagination. On a phone or a touch tablet the tree folds into a drawer: tap "
+     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A page holds as much as you write: set to real pages, its text flows from one sheet onto the next as you type, so long-form writing does not stop to manage pagination. Collapsing a page's sub-pages (the arrow beside it) is yours alone: it is remembered on this device and changes nothing for anyone else in the document. On a phone or a touch tablet the tree folds into a drawer: tap "
     },
     {
      "t": "strong",
@@ -23646,6 +26217,30 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The same goes wherever a document is narrower than a page, on any screen: docked beside the board, one of "
+    },
+    {
+     "t": "link",
+     "v": "two side by side",
+     "href": "#two-documents-side-by-side",
+     "children": [
+      {
+       "t": "text",
+       "v": "two side by side"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or in a small window. A screenplay fits its text column to the width, at full size where there is room, and its lines still break where the printed page breaks them. Prose takes narrower margins on screen. The page list tucks away to the arrow at its edge, which brings it back for as long as the document stays that narrow without changing how it opens anywhere else."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Writing and formatting",
@@ -23677,7 +26272,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". To reach the toolbar from the keyboard, press "
+    },
+    {
+     "t": "code",
+     "v": "⌥F10"
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "Alt+F10"
+    },
+    {
+     "t": "text",
+     "v": " on Windows) in the text; the arrow keys move along it, and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " brings you back to where you were typing."
     }
    ]
   },
@@ -23701,6 +26320,42 @@ export const DOCS_CONTENT = {
        "v": "find and replace"
       }
      ]
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "strong",
+     "v": "All",
+     "children": [
+      {
+       "t": "text",
+       "v": "All"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " replaces every match on the page and says how many; the toast's "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts them all back, and so does one "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
     },
     {
      "t": "text",
@@ -23785,7 +26440,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The footer shows a live word and character count, and an honest save status — it reports what has actually been persisted rather than an optimistic tick."
+     "v": "The footer shows a live word and character count, and the document's save status."
     }
    ]
   },
@@ -23914,7 +26569,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Blocks can be reordered by dragging the handle in the left margin."
+     "v": "You can also paste an image, or drop one in from your computer. While it uploads it shows in the spot it will land, with how far it has got, and you can cancel it there; if the upload fails, it says so in the same spot, with "
+    },
+    {
+     "t": "strong",
+     "v": "Retry",
+     "children": [
+      {
+       "t": "text",
+       "v": "Retry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -23936,6 +26605,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Documents are collaborative in real time, with peer cursors and selections visible as people type. Edits merge rather than overwriting."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If the cluster is "
+    },
+    {
+     "t": "link",
+     "v": "restored to an earlier version",
+     "href": "/docs/clusters/trash-and-recovery#version-history",
+     "children": [
+      {
+       "t": "text",
+       "v": "restored to an earlier version"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " while you have a document open, or someone moves cards into it, the cluster reloads, and the document reopens where you were and says what happened. If that took anything off the page you had open (a restore to before you wrote it, or your last few words before they were saved), it offers you the page as you had it, to copy and paste back what you want to keep."
     }
    ]
   },
@@ -24807,7 +27500,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", the "
+     "v": " and the "
     },
     {
      "t": "link",
@@ -24817,21 +27510,6 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "shot list"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and the "
-    },
-    {
-     "t": "link",
-     "v": "schedule",
-     "href": "/docs/canvas/schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "schedule"
       }
      ]
     },
@@ -26633,7 +29311,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A location entity ends up listing the script scene, the reference wall, the schedule entry and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally."
+     "v": "A location entity ends up listing the script scene, the reference wall and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally."
     }
    ]
   },
@@ -27298,16 +29976,16 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The "
+       "v": "Your "
       },
       {
        "t": "link",
-       "v": "messages drawer",
+       "v": "conversations",
        "href": "/docs/collaborate/messages",
        "children": [
         {
          "t": "text",
-         "v": "messages drawer"
+         "v": "conversations"
         }
        ]
       }
@@ -29260,6 +31938,339 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Inviting a whole workspace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Inviting a whole workspace"
+    }
+   ],
+   "id": "inviting-a-whole-workspace"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A new workspace's "
+    },
+    {
+     "t": "link",
+     "v": "setup",
+     "href": "/docs/getting-started#1-sign-in",
+     "children": [
+      {
+       "t": "text",
+       "v": "setup"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " offers one link that brings people into the "
+    },
+    {
+     "t": "strong",
+     "v": "whole workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "whole workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", every cluster and file in it, as editors. It is the setup's invite step, and the one time it asks again, that make it: "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a computer, "
+    },
+    {
+     "t": "strong",
+     "v": "Share invite link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share invite link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a phone. Only the workspace's owner or a co-owner can make one. Making it sends nothing to anyone."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A link lasts"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It lets in"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "An account"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "30 days"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "up to 25 people"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "An account in its first 72 hours"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "7 days"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "up to 5 people"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The line under the link says what that one does, from the link itself: who it lets in, for how long, and how many more people. Asking again for the same workspace gives back the link that is still live rather than a new one. An account makes at most 10 links a day, or 3 in its first 72 hours; past that, invite by email."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Opening one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Opening one"
+    }
+   ],
+   "id": "opening-one"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Signed out, the sign-in screen names the workspace and, if they have set one, the first name of the person who sent it — never an address. Once they sign in or sign up, they are in. Someone already signed in sees "
+    },
+    {
+     "t": "strong",
+     "v": "Join as editor",
+     "children": [
+      {
+       "t": "text",
+       "v": "Join as editor"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Not now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " first, and someone already in the workspace is offered "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it instead. A link that has expired, been used up or stopped working says so and asks them to get a new one from whoever sent it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A link stops working while the account that made it is under review or no longer the workspace's owner or a co-owner, and comes back if that changes. A link passed around far more widely than a team turns itself off for good; the people it already let in stay. There is no button to turn a link off yet: it ends when it expires or is used up. To take someone back out, remove them under "
+    },
+    {
+     "t": "strong",
+     "v": "Who has access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Who has access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When someone joins, you see \""
+    },
+    {
+     "t": "em",
+     "v": "Name",
+     "children": [
+      {
+       "t": "text",
+       "v": "Name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " joined "
+    },
+    {
+     "t": "em",
+     "v": "your workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "your workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — say hi.\" with a "
+    },
+    {
+     "t": "strong",
+     "v": "Message",
+     "children": [
+      {
+       "t": "text",
+       "v": "Message"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button, or, if you are not in the app, an email — the "
+    },
+    {
+     "t": "strong",
+     "v": "Invite accepted",
+     "children": [
+      {
+       "t": "text",
+       "v": "Invite accepted"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " one in "
+    },
+    {
+     "t": "link",
+     "v": "Notifications",
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A new account that joins through your link within 7 days of signing up counts as your "
+    },
+    {
+     "t": "link",
+     "v": "referral",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "referral"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", as on an edit link."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Who has access",
    "inline": [
     {
@@ -29367,7 +32378,16 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
+     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. The previous owner's webhooks and API service accounts are turned off, and the notice says so. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When someone is removed from a workspace, or leaves it, what they set up there goes with them: the links and invitations they made stop working, the files and docs they shared from it stop reaching people, they leave its conversations, and the webhooks and API service accounts they created are turned off. A link also stops working as soon as the person who made it can no longer edit the cluster, so unsharing a cluster from someone, or making them a viewer, ends their links too. People who already joined through one of those links keep what they were given."
     }
    ]
   },
@@ -29533,21 +32553,900 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Sharing a file instead of a link",
+   "text": "Sharing a single file",
    "inline": [
     {
      "t": "text",
-     "v": "Sharing a file instead of a link"
+     "v": "Sharing a single file"
     }
    ],
-   "id": "sharing-a-file-instead-of-a-link"
+   "id": "sharing-a-single-file"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "If the recipient needs a file rather than a live view, see "
+     "v": "A cluster link shares everything on the cluster. To send one video, one PDF or one mix and nothing else, share the file on its own: the person you send it to opens a page with just that file, and never sees the cluster it sits in."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Share file…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share file…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is wherever the file is:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "right-click the file on the canvas"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "right-click its row in "
+     },
+     {
+      "t": "link",
+      "v": "Files",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or open the row's menu"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the file's menu in the sidebar"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in Files"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button in any full-screen view — the video player, the image viewer, the PDF viewer"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Images, video, audio, PDFs and other files can all be shared this way. You need to be able to edit the cluster the file is in. A doc is shared to read or edit together instead: see "
+    },
+    {
+     "t": "link",
+     "v": "Sharing a doc",
+     "href": "#sharing-a-doc",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sharing a doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The dialog",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The dialog"
+    }
+   ],
+   "id": "the-dialog"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Part"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Add people by email",
+       "children": [
+        {
+         "t": "text",
+         "v": "Add people by email"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Each person gets an email with the link, as "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "strong",
+       "v": "Can comment",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can comment"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — up to 20 people at a time"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "People with access",
+       "children": [
+        {
+         "t": "text",
+         "v": "People with access"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everyone you added; change their role or "
+      },
+      {
+       "t": "strong",
+       "v": "Remove",
+       "children": [
+        {
+         "t": "text",
+         "v": "Remove"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " them, with an undo"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "General access",
+       "children": [
+        {
+         "t": "text",
+         "v": "General access"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "strong",
+       "v": "Only people added",
+       "children": [
+        {
+         "t": "text",
+         "v": "Only people added"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "strong",
+       "v": "Anyone with the link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Anyone with the link"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", which then has its own role: "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "strong",
+       "v": "Can comment",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can comment"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Allow downloading",
+       "children": [
+        {
+         "t": "text",
+         "v": "Allow downloading"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Whether people you share it with get a "
+      },
+      {
+       "t": "strong",
+       "v": "Download",
+       "children": [
+        {
+         "t": "text",
+         "v": "Download"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " button for the original file"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Copy link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Copy link"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copies the file's link"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The link is the file's own page. Open it yourself and anyone who can edit the cluster sees "
+    },
+    {
+     "t": "strong",
+     "v": "Manage sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage sharing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top, which opens the same dialog."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What the other person sees",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the other person sees"
+    }
+   ],
+   "id": "what-the-other-person-sees"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only the file: its name, who shared it, and the player or viewer for it — a video plays, a PDF pages, an image opens full size. Nothing else from the cluster or the workspace is on the page or reachable from it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Nobody needs an account to view a file shared with "
+    },
+    {
+     "t": "strong",
+     "v": "Anyone with the link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Anyone with the link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or to download it when downloading is allowed. A file shared with "
+    },
+    {
+     "t": "strong",
+     "v": "Only people added",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only people added"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " asks them to sign in as the address you added. To comment, they sign in with a code sent to their email, and land back on the same file."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Comments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments"
+    }
+   ],
+   "id": "comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Anyone with "
+    },
+    {
+     "t": "strong",
+     "v": "Can comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can comment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can leave comments beside the file, up to 2,000 characters each."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "On "
+     },
+     {
+      "t": "strong",
+      "v": "video and audio",
+      "children": [
+       {
+        "t": "text",
+        "v": "video and audio"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", a comment is pinned to the moment the player was at, and pressing its time jumps there. Unpin it for a comment about the whole file."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a "
+     },
+     {
+      "t": "strong",
+      "v": "PDF",
+      "children": [
+       {
+        "t": "text",
+        "v": "PDF"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", a comment is pinned to the page."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A comment takes "
+     },
+     {
+      "t": "strong",
+      "v": "replies",
+      "children": [
+       {
+        "t": "text",
+        "v": "replies"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", one level deep."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Anyone who can edit the cluster can "
+     },
+     {
+      "t": "strong",
+      "v": "Resolve",
+      "children": [
+       {
+        "t": "text",
+        "v": "Resolve"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " any comment; everyone can delete their own. Deleting has an undo."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One person can post up to 20 comments every 10 minutes on a file."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The person who shared the file is told about every comment — a toast when they are in the app, and an email when they are not: at most one email per file every 30 minutes, and only while "
+    },
+    {
+     "t": "strong",
+     "v": "Comment replies",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comment replies"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is on in "
+    },
+    {
+     "t": "link",
+     "v": "Notifications",
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Someone whose comment gets a reply is told in the app too."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "When the file changes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When the file changes"
+    }
+   ],
+   "id": "when-the-file-changes"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A new version",
+      "children": [
+       {
+        "t": "text",
+        "v": "A new version"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " shows on the same link. Comments made on an older version stay, labelled "
+     },
+     {
+      "t": "strong",
+      "v": "on an earlier version",
+      "children": [
+       {
+        "t": "text",
+        "v": "on an earlier version"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Moving the file",
+      "children": [
+       {
+        "t": "text",
+        "v": "Moving the file"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to another cluster in the same workspace keeps the link working; it follows the file."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Deleting the file",
+      "children": [
+       {
+        "t": "text",
+        "v": "Deleting the file"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or moving it to another workspace, ends the link."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Stopping sharing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Stopping sharing"
+    }
+   ],
+   "id": "stopping-sharing"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Remove a person, or switch "
+    },
+    {
+     "t": "strong",
+     "v": "General access",
+     "children": [
+      {
+       "t": "text",
+       "v": "General access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " back to "
+    },
+    {
+     "t": "strong",
+     "v": "Only people added",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only people added"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and new opens are refused at once. A page someone already has open notices within a few minutes and stops showing the file."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What it cannot do",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What it cannot do"
+    }
+   ],
+   "id": "what-it-cannot-do"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Allow downloading",
+     "children": [
+      {
+       "t": "text",
+       "v": "Allow downloading"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " off hides the "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button and stops the page handing out the original file. It cannot stop someone saving what they can see — a screenshot, a screen recording, the video as it plays. If the file must not leave, do not share it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Program and script files — an "
+    },
+    {
+     "t": "code",
+     "v": ".exe"
+    },
+    {
+     "t": "text",
+     "v": ", a "
+    },
+    {
+     "t": "code",
+     "v": ".dmg"
+    },
+    {
+     "t": "text",
+     "v": ", a shell script, an "
+    },
+    {
+     "t": "code",
+     "v": ".html"
+    },
+    {
+     "t": "text",
+     "v": " page and the like — never play or preview on a shared page. They are download-only, behind a warning that a file like this can run programs on a computer. A link to "
+    },
+    {
+     "t": "strong",
+     "v": "Anyone with the link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Anyone with the link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " set by an account less than 72 hours old does not open them at all."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "File links are never indexed by search engines, whatever the setting on the cluster."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing a file is free on every plan. The file stays where it is and counts toward its owner's "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "/docs/files#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " exactly as before; sharing it makes no copy."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To send a copy instead of a live page, see "
     },
     {
      "t": "link",
@@ -29562,7 +33461,1270 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". A link is usually better: it does not go stale."
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Sharing a doc",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing a doc"
+    }
+   ],
+   "id": "sharing-a-doc"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "doc",
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can be shared on its own too, to read or to edit together, live. The person you send it to opens a page with just that doc — they never see the cluster it sits in — and what they type lands in the doc itself, which stays in its cluster. Nothing is copied or moved."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Share doc…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share doc…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is in three places, for anyone who can edit the cluster:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button at the top of an open doc, docked or full screen"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "right-click the doc on the canvas"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the doc's row menu in the "
+     },
+     {
+      "t": "link",
+      "v": "list view",
+      "href": "/docs/clusters/list-view",
+      "children": [
+       {
+        "t": "text",
+        "v": "list view"
+       }
+      ]
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Who can view, who can edit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can view, who can edit"
+    }
+   ],
+   "id": "who-can-view-who-can-edit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The dialog is the same as a file's, with "
+    },
+    {
+     "t": "strong",
+     "v": "Can view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in place of comment roles:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Part"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Add people by email",
+       "children": [
+        {
+         "t": "text",
+         "v": "Add people by email"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Each person gets an email with the link. They join as "
+      },
+      {
+       "t": "strong",
+       "v": "Can edit",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can edit"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " unless you pick "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "General access",
+       "children": [
+        {
+         "t": "text",
+         "v": "General access"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "strong",
+       "v": "Only people added",
+       "children": [
+        {
+         "t": "text",
+         "v": "Only people added"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "strong",
+       "v": "Anyone with the link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Anyone with the link"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ": "
+      },
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "strong",
+       "v": "Can edit",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can edit"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", which still asks them to sign in before they can type"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Allow exporting",
+       "children": [
+        {
+         "t": "text",
+         "v": "Allow exporting"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Whether the people who can edit it also get "
+      },
+      {
+       "t": "strong",
+       "v": "Export",
+       "children": [
+        {
+         "t": "text",
+         "v": "Export"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in the doc's toolbar"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Whatever the dialog says, anyone who can edit the cluster can always open and manage the doc, and anyone who can only view the cluster can read it."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Can view",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can view"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " reads the doc as it is written, live. A reader sees no comment threads and has no toolbar."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Can edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " types, formats, adds pages, comments, replies and resolves, all landing in the doc in its cluster as they happen."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Anyone with the link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Anyone with the link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens it with no account. On a link that can edit, someone signed out reads it with a "
+     },
+     {
+      "t": "strong",
+      "v": "Sign in to edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sign in to edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button, and lands back on the same doc once they have signed in with a code sent to their email."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Only people added",
+      "children": [
+       {
+        "t": "text",
+        "v": "Only people added"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " asks each person to sign in as the address you added."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What the other person sees",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the other person sees"
+    }
+   ],
+   "id": "what-the-other-person-sees-2"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The doc's name, "
+    },
+    {
+     "t": "strong",
+     "v": "Editing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Editing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "View only",
+     "children": [
+      {
+       "t": "text",
+       "v": "View only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the doc, with its pages and images. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked "
+    },
+    {
+     "t": "strong",
+     "v": "(guest)",
+     "children": [
+      {
+       "t": "text",
+       "v": "(guest)"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". If they are signed in, "
+    },
+    {
+     "t": "strong",
+     "v": "Open in Clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open in Clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top opens it inside the app."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Someone editing through a link is a guest in the doc, so a few things stay with the people in its cluster:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "They cannot add images or files, embed a cluster, or link to anything in the workspace. A paste keeps its text and formatting and drops the rest; a link that is not a web or email address is dropped."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "They can start a comment, reply to any comment, and resolve or reopen one. They can delete only a comment they started, and cannot rewrite one once it is posted."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Export",
+      "children": [
+       {
+        "t": "text",
+        "v": "Export"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " ("
+     },
+     {
+      "t": "link",
+      "v": "formats",
+      "href": "/docs/documents/export",
+      "children": [
+       {
+        "t": "text",
+        "v": "formats"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ") is there only when "
+     },
+     {
+      "t": "strong",
+      "v": "Allow exporting",
+      "children": [
+       {
+        "t": "text",
+        "v": "Allow exporting"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is on. It cannot stop someone copying what they can read, or taking a screenshot."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Up to 50 people can have one doc open through its link at once. A single change larger than 1 MB is refused, and once a doc is larger than 25 MB the people outside its cluster can read it but not edit it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "When the doc changes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When the doc changes"
+    }
+   ],
+   "id": "when-the-doc-changes"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Moving the doc",
+      "children": [
+       {
+        "t": "text",
+        "v": "Moving the doc"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to another cluster in the same workspace keeps the link working. "
+     },
+     {
+      "t": "strong",
+      "v": "Deleting it",
+      "children": [
+       {
+        "t": "text",
+        "v": "Deleting it"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or moving it to another workspace, ends the link."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Restoring a version",
+      "children": [
+       {
+        "t": "text",
+        "v": "Restoring a version"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " of the cluster rolls the shared doc back too. Anyone reading or editing it through the link is moved onto the restored doc in a moment."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Removing someone",
+      "children": [
+       {
+        "t": "text",
+        "v": "Removing someone"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or changing what they can do, applies within seconds, including to a doc they already have open."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Like a file, sharing a doc is free on every plan, and its link is never indexed by search engines."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Files shared with you",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files shared with you"
+    }
+   ],
+   "id": "files-shared-with-you"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file or doc someone shares with you opens inside Clusters, over whatever you were doing, with the same player, viewer or doc as its page. You get there from:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " on the toast that tells you a file was shared with you, while you are in the app"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "its row in the list under the bell at the top right of the board (on a phone, in the top bar before "
+     },
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), which keeps every notification until you read it; see "
+     },
+     {
+      "t": "link",
+      "v": "Notifications",
+      "href": "/docs/collaborate/notifications",
+      "children": [
+       {
+        "t": "text",
+        "v": "Notifications"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the "
+     },
+     {
+      "t": "strong",
+      "v": "Shared files",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " row under "
+     },
+     {
+      "t": "strong",
+      "v": "Shared with me",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shared with me"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the sidebar, which appears once anything has been shared with you or by you, with a count of the ones you haven't opened yet"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Open in Clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open in Clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the top of a file's page, when you open the link while signed in"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The Shared page",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The Shared page"
+    }
+   ],
+   "id": "the-shared-page"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Shared files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the Shared page, with two tabs."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "With me",
+     "children": [
+      {
+       "t": "text",
+       "v": "With me"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists the files and docs people added you to, and the ones you opened from a link while signed in. Each row shows who shared it and when; a dot marks one you haven't opened yet. Click a row to open the file, or use its "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Option"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Open",
+       "children": [
+        {
+         "t": "text",
+         "v": "Open"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Opens the file in the app"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Save a copy…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Save a copy…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copies the file into one of your clusters — only when downloading is allowed"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Add shortcut…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Add shortcut…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Puts a live shortcut to the file on one of your clusters"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Remove from Shared with me",
+       "children": [
+        {
+         "t": "text",
+         "v": "Remove from Shared with me"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Takes it off your list, with an undo. It changes nothing for the person who shared it"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "By me",
+     "children": [
+      {
+       "t": "text",
+       "v": "By me"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists what you have shared that is still shared, with the cluster each file is in and who can open it. Click a row to open its sharing dialog, or use its "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu: "
+    },
+    {
+     "t": "strong",
+     "v": "Manage sharing…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage sharing…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Stop sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Stop sharing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which turns the link off and removes everyone you added, at once. Stopping has an undo that brings back the link and exactly the people it removed, and emails nobody again."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Save a copy",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Save a copy"
+    }
+   ],
+   "id": "save-a-copy"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Add to cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add to cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " → "
+    },
+    {
+     "t": "strong",
+     "v": "Save a copy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save a copy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the viewer, or "
+    },
+    {
+     "t": "strong",
+     "v": "Save a copy…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save a copy…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the Shared page, asks which of your clusters to put it in, then copies the original file there. The copy is yours: it lands in that cluster's "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", stays even if the person stops sharing, and counts toward that cluster's cards and "
+    },
+    {
+     "t": "link",
+     "v": "storage",
+     "href": "/docs/files#storage",
+     "children": [
+      {
+       "t": "text",
+       "v": "storage"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " like an upload. It is offered only when the person who shared it allows downloading, and only for files: a doc shared with you has no "
+    },
+    {
+     "t": "strong",
+     "v": "Save a copy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save a copy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Shortcuts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Shortcuts"
+    }
+   ],
+   "id": "shortcuts"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Add to cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add to cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " → "
+    },
+    {
+     "t": "strong",
+     "v": "Add shortcut",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add shortcut"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Add shortcut…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add shortcut…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the Shared page, puts a card on one of your clusters that opens the shared file or doc instead of copying it. It stays in sync with theirs — a new version they upload shows on it — and it uses no storage, though it counts as a card. Double-click it, or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " from its menu, to open the file in the app."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A shortcut carries no copy of the file and nothing that names it: it shows the file only to someone who can open it. Anyone else sees "
+    },
+    {
+     "t": "strong",
+     "v": "Shared file",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and if the person stops sharing it reads "
+    },
+    {
+     "t": "strong",
+     "v": "No longer shared",
+     "children": [
+      {
+       "t": "text",
+       "v": "No longer shared"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with a "
+    },
+    {
+     "t": "strong",
+     "v": "Remove",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button. On a "
+    },
+    {
+     "t": "link",
+     "v": "public link",
+     "href": "#the-link-what-it-grants",
+     "children": [
+      {
+       "t": "text",
+       "v": "public link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a shortcut opens nothing."
     }
    ]
   }
@@ -30635,6 +35797,52 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "A message's actions",
+      "children": [
+       {
+        "t": "text",
+        "v": "A message's actions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — point at a message and click the "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " beside it, or right-click it: react, reply, copy its text or a link to it, pin it, and edit or delete your own"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Press and hold",
+      "children": [
+       {
+        "t": "text",
+        "v": "Press and hold"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — on a phone or tablet, hold a message for the same actions. Hold a conversation in the list to hide it or leave"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Attachments",
       "children": [
        {
@@ -30645,7 +35853,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — send files, and drag one from a thread straight onto a canvas to make it a card"
+      "v": " — photos, files, links, cards and clusters sit under the words as cards, the way they look on a board. A cluster shows its cover, where it lives and how many cards it holds, and clicking it opens the cluster. Drag any of them from a thread straight onto a canvas to make it a card"
      }
     ],
     [
@@ -30692,23 +35900,117 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " a person, board, document or card; boards and cards become navigable links"
+      "v": " a person, board, document or card; boards and cards become navigable links, and a cluster's link shows its cover"
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Per-thread drafts",
+      "v": "Drafts",
       "children": [
        {
         "t": "text",
-        "v": "Per-thread drafts"
+        "v": "Drafts"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — a half-written message survives closing the drawer"
+      "v": " — a half-written message waits in its conversation, with its attachments and the message it replies to, when you switch conversations, close Messages or reload the page"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Replies",
+      "children": [
+       {
+        "t": "text",
+        "v": "Replies"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — answer one message in particular: it's quoted at the top of your reply, and clicking the quote takes you to it"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Edits and deletes",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edits and deletes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — your own messages; a deleted message goes at once, with Undo on the notice that follows"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Pins",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pins"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — once a conversation has pinned messages, the pin count at its top opens them in a list: each one takes you to its message, and "
+     },
+     {
+      "t": "strong",
+      "v": "Unpin",
+      "children": [
+       {
+        "t": "text",
+        "v": "Unpin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " takes it off"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Seen",
+      "children": [
+       {
+        "t": "text",
+        "v": "Seen"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — in a direct message, “Seen” appears under your latest message once the other person has read it"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Here now",
+      "children": [
+       {
+        "t": "text",
+        "v": "Here now"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — in a direct message, under the other person's name while they have the workspace open"
      }
     ],
     [
@@ -30726,6 +36028,434 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": " — a link to one specific message, which opens the thread scrolled to it"
      }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Writing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Writing"
+    }
+   ],
+   "id": "writing"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " sends and "
+     },
+     {
+      "t": "strong",
+      "v": "Shift+Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shift+Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " starts a new line; "
+     },
+     {
+      "t": "strong",
+      "v": "⌘/Ctrl+Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "⌘/Ctrl+Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " sends too"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone or tablet the return key starts a new line, and the "
+     },
+     {
+      "t": "strong",
+      "v": "Send",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button sends"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The box grows as you write, then scrolls once it's tall"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Attach files with the "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the start of the box, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; "
+     },
+     {
+      "t": "strong",
+      "v": "Send",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " waits until they're all in, and one that fails says so, with "
+     },
+     {
+      "t": "strong",
+      "v": "Retry",
+      "children": [
+       {
+        "t": "text",
+        "v": "Retry"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens your message in this same box, under an "
+     },
+     {
+      "t": "strong",
+      "v": "Editing your message",
+      "children": [
+       {
+        "t": "text",
+        "v": "Editing your message"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " line, and the same keys apply: "
+     },
+     {
+      "t": "strong",
+      "v": "Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " saves (on a phone or tablet, the ✓ does) and "
+     },
+     {
+      "t": "strong",
+      "v": "Esc",
+      "children": [
+       {
+        "t": "text",
+        "v": "Esc"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " cancels. Whatever you'd started writing waits until you're done"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A message that can't be sent stays in the conversation marked "
+     },
+     {
+      "t": "strong",
+      "v": "Not sent",
+      "children": [
+       {
+        "t": "text",
+        "v": "Not sent"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", with "
+     },
+     {
+      "t": "strong",
+      "v": "Try again",
+      "children": [
+       {
+        "t": "text",
+        "v": "Try again"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Keyboard",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keyboard"
+    }
+   ],
+   "id": "keyboard"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a keyboard, a conversation opens with the box you type in ready."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " · "
+      },
+      {
+       "t": "code",
+       "v": "Shift+Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Send · start a new line"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " in an empty box"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Edit your last message, up to 15 minutes after you sent it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘F"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "Ctrl+F"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Search the conversation"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Close what's on top — a menu, an edit, the reply, the search — then the panel, unless there's something typed in the box"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click anywhere in the conversation outside the box, and these move through it:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What it does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "J"
+      },
+      {
+       "t": "text",
+       "v": " · "
+      },
+      {
+       "t": "code",
+       "v": "K"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Next · previous message"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "R"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Reply to that message"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "E"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Edit it, if it's yours"
+      }
+     ]
     ]
    ]
   },
@@ -30777,6 +36507,29 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " when at least one mentions you directly, so you notice from another tab."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A conversation counts as read once its newest message has been on your screen, not just because it's open. A "
+    },
+    {
+     "t": "strong",
+     "v": "New",
+     "children": [
+      {
+       "t": "text",
+       "v": "New"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " line marks where you left off, and when more has arrived than fits, the conversation opens at that line rather than the bottom. Scrolled up in a long one, you stay where you are when something new arrives, and a button takes you back down to the latest."
     }
    ]
   },
@@ -30870,7 +36623,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Seven categories, seven independent switches, in "
+     "v": "Six categories, six independent switches, in "
     },
     {
      "t": "strong",
@@ -31009,36 +36762,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Schedule changes",
-       "children": [
-        {
-         "t": "text",
-         "v": "Schedule changes"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A shoot day you can see moves "
-      },
-      {
-       "t": "em",
-       "v": "(being rebuilt — quiet for now)",
-       "children": [
-        {
-         "t": "text",
-         "v": "(being rebuilt — quiet for now)"
-        }
-       ]
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
        "v": "Product tips and check-ins",
        "children": [
         {
@@ -31051,7 +36774,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Occasional messages about the product"
+       "v": "Occasional messages about the product, including a short note from the team when something new ships"
       }
      ]
     ]
@@ -31062,7 +36785,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you."
+     "v": "The last one is the one to switch off if you only want to hear about your own work. The other five are all consequences of something a person did that involves you."
     }
    ]
   },
@@ -31108,21 +36831,125 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Schedule notifications collect under "
+     "v": ". A "
     },
     {
-     "t": "strong",
-     "v": "Schedule",
+     "t": "link",
+     "v": "file shared with you",
+     "href": "/docs/collaborate/sharing",
      "children": [
       {
        "t": "text",
-       "v": "Schedule"
+       "v": "file shared with you"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in the sidebar and stay there until read, rather than vanishing with the toast that announced them."
+     "v": ", a comment on it and notices about your account show as a toast when they arrive while you are in the app; for a file, "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens it in the app. The share itself also reaches you by email, and every file shared with you is listed under "
+    },
+    {
+     "t": "strong",
+     "v": "Shared files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the sidebar."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "The bell",
+     "children": [
+      {
+       "t": "text",
+       "v": "The bell"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — at the top right of the board, right after the theme switch; on a phone it is in the top bar, just before "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Its number counts the notifications you haven't read. Press it and the list opens under it, newest first, with the unread ones marked; "
+    },
+    {
+     "t": "strong",
+     "v": "Mark all read",
+     "children": [
+      {
+       "t": "text",
+       "v": "Mark all read"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app. "
+    },
+    {
+     "t": "strong",
+     "v": "Esc",
+     "children": [
+      {
+       "t": "text",
+       "v": "Esc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a click outside the list or the bell again closes it; on a phone the list fills the screen and "
+    },
+    {
+     "t": "strong",
+     "v": "×",
+     "children": [
+      {
+       "t": "text",
+       "v": "×"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " closes it."
     }
    ]
   },
@@ -31141,7 +36968,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a schedule email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise."
+     "v": " — an accepted-invite email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise."
     }
    ]
   },
@@ -31289,7 +37116,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Product tips, mentions, replies and schedule emails carry a "
+     "v": "Product tips, mentions and replies carry a "
     },
     {
      "t": "strong",
@@ -31357,67 +37184,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "A busy thread cannot flood your inbox: one person's mentions reach you by email at most 5 times a day, and the same goes for their replies to your comments. Every one of them still shows up in the app."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Schedule changes",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Schedule changes"
-    }
-   ],
-   "id": "schedule-changes"
-  },
-  {
-   "type": "callout",
-   "variant": "note",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The "
-    },
-    {
-     "t": "link",
-     "v": "schedule card",
-     "href": "/docs/canvas/schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "schedule card"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " is being rebuilt, and publishing a shoot day is part of that rebuild. The switch is here and the sidebar section is here; nothing is sent yet."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "When it returns, this is the one that matters on a "
-    },
-    {
-     "t": "link",
-     "v": "production schedule",
-     "href": "/docs/clusters/production-schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "production schedule"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ": a shoot day moving, or a call sheet being published, tells everyone who can read it what changed. Nothing is sent while a schedule is being built — a day is a draft until someone publishes it, and drafts are silent, so laying out a twelve-week shoot does not page anybody."
     }
    ]
   }
@@ -33685,7 +39451,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, accepted invites, schedule changes, and product tips. Anything you turn off still reaches you in-app. See "
+     "v": "Independent switches for the emails Clusters sends you — mentions, comment replies, workspace invites, cluster shares, accepted invites and product tips. Anything you turn off still reaches you in-app. See "
     },
     {
      "t": "link",
@@ -34712,7 +40478,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "No separate limit on clusters — each one counts as one of your cards"
+      "v": "Clusters are free — they cost none of your cards"
      }
     ],
     [
@@ -35458,7 +41224,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Once there is a real cluster on your account, Clusters offers you "
+     "v": "Once there is a real cluster on your account, or as soon as a drop or an import is more than your free card limit holds, Clusters offers you "
     },
     {
      "t": "strong",
@@ -35509,7 +41275,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " where you can cancel. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something."
+     "v": " where you can cancel. It is one trial per account, and it is offered in the app rather than on this page — it is for people who have built something, or who are bringing in more than the free card limit holds."
     }
    ]
   },
@@ -36514,7 +42280,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", with one of your edit links, or with your referral link. When they sign up they get "
+     "v": ", with one of your edit links, with your workspace's "
+    },
+    {
+     "t": "link",
+     "v": "invite link",
+     "href": "/docs/collaborate/sharing#inviting-a-whole-workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "invite link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or with your referral link. When they sign up they get "
     },
     {
      "t": "strong",
@@ -36950,7 +42731,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's "
+     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links, or your workspace's invite link, within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's "
     },
     {
      "t": "strong",
@@ -37046,21 +42827,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Select"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
-       "v": "Long press"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Context menu"
+       "v": "Select a card; on empty canvas, clear the selection"
       }
      ]
     ],
@@ -37077,7 +42844,157 @@ export const DOCS_CONTENT = {
        "v": "Add menu at that point"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold empty canvas, then drag"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A selection box, as dragging one with a mouse draws"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold empty canvas, then let go"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The board's menu, with "
+      },
+      {
+       "t": "strong",
+       "v": "Select…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Select…"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold a card"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Pick it up to move it (on a cluster you can only view, its menu)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold anything else"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its menu: a group label's, an arrow's, a tag's, the comments button's archive"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "⋯",
+       "children": [
+        {
+         "t": "text",
+         "v": "⋯"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on the selection"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The menu for every selected card"
+      }
+     ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Select…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is for picking cards a box can't reach together: until you press "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the bar that says \"Tap cards to select\", each tap adds a card or takes it out, and a hold-and-drag box adds to what is picked. "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps the selection; a tap on empty canvas drops it."
+    }
    ]
   },
   {
@@ -37135,7 +43052,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " keeps what you reach for on the board: the cluster's name, the Board/Files switch, Undo, Redo, who else is here, and Share."
+     "v": " keeps what you reach for on the board: the cluster's name, Undo, Redo, who else is here, and Share."
     }
    ]
   },
@@ -37154,7 +43071,201 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " holds navigation that does not fit, including the cluster tree, Search, Version history, Focus view and Help. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
+     "v": ", behind "
+    },
+    {
+     "t": "strong",
+     "v": "Open menu",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open menu"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", holds the "
+    },
+    {
+     "t": "link",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar#on-a-phone",
+     "children": [
+      {
+       "t": "text",
+       "v": "sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — Home, Messages, the cluster tree and every cluster's Files — with Search, Version history, Focus view and Help. ⤢ on its Files opens the full Files page. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Files with a finger",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Files with a finger"
+    }
+   ],
+   "id": "files-with-a-finger"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In "
+    },
+    {
+     "t": "link",
+     "v": "Files",
+     "href": "/docs/clusters/list-view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", both the full page and the sidebar's Files card, a finger works the way the iPad's Files app does:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Gesture"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Tap a file"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Opens it in "
+      },
+      {
+       "t": "link",
+       "v": "Quick look",
+       "href": "/docs/clusters/list-view#quick-look",
+       "children": [
+        {
+         "t": "text",
+         "v": "Quick look"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Tap a folder"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Opens it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Touch and hold a file or a folder"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its menu, with "
+      },
+      {
+       "t": "strong",
+       "v": "Select",
+       "children": [
+        {
+         "t": "text",
+         "v": "Select"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " first"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Select",
+       "children": [
+        {
+         "t": "text",
+         "v": "Select"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A check on every file: each tap adds one or takes it out"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While you are selecting, the selection bar acts on what is checked — put it on the board, move it, copy it to another cluster, delete it — and "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ends it. A hold opens the menu, so on a touch screen a file isn't dragged out of Files; putting it on the board or moving it from the bar or the menu does that instead."
     }
    ]
   },
@@ -37192,7 +43303,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " replaces the tool rail's "
+     "v": ", behind the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the middle of the bottom bar, lays out everything you can add across the screen, sized for thumbs. The tool rail keeps its own "
     },
     {
      "t": "code",
@@ -37200,7 +43325,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " menu with a full-width sheet, sized for thumbs."
+     "v": ", whose menu opens beside the rail."
     }
    ]
   },
@@ -37240,7 +43365,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Tablets get closer to the desktop layout — the rail rather than the sheet — plus stylus drawing. On iPad, drawing, annotating and reviewing all work properly; long document editing is still better on a laptop."
+     "v": "Held upright, a tablet gets the phone's layout: the bottom bar, the drawer and the add sheet. On its side, most iPads are wide enough for the desktop layout, with a finger for a pointer. Either way it adds stylus drawing. On iPad, drawing, annotating and reviewing all work properly; long document editing is still better on a laptop."
     }
    ]
   },
@@ -38212,6 +44337,164 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "What the app records as you use it",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the app records as you use it"
+    }
+   ],
+   "id": "what-the-app-records-as-you-use-it"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters records what you do, not what you make: that a card was placed, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned. Videos are measured the same way: that one started playing, for how many seconds, and roughly how far into it, never which video it was."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Once per visit, one record describes the setup you are using, so we know which devices and conditions the app has to work well on:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "your time zone and the languages your browser asks for"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "your region, such as a state or province, and the kind of network you are on: a home or mobile provider, a university or research network, a VPN or relay service, or a data center. Clusters' own servers work both out from the connection itself. Your city and the network's name are never recorded."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "your screen and window size, rounded, and whether the screen shows wide colour"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "whether your device has touch, a mouse or a trackpad"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "dark mode, reduced motion, high contrast and the app's own theme"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "roughly how much memory and how many processor cores the device has, and the connection type your browser reports"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "your browser's version, and whether you are in the installed app or in a browser inside another app"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "which features that version of Clusters had switched on"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This record stays in Clusters' own database and is not sent to advertising partners. To build it, Clusters does not probe your graphics card, your fonts or your audio hardware."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "From the email address you sign in with, Clusters works out only what kind of address it is: a personal email service, a school or university, or an organization's own domain, and for a school or university, which one. It reads this from the address it already has and stores nothing new."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Private links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Private links"
+    }
+   ],
+   "id": "private-links"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The address of a shared cluster, file or template, an invitation, or a sign-in link from an email holds a private key that opens what it points to. Clusters keeps that key out of its record of how the app is used and out of error reports: it records that you arrived through a shared link, and nothing that would open it. If you sign up after opening one, the link stays with your account so the person who shared it is credited. Meta's pixel is not loaded on a page opened from one of these links, or on the next page you open from it, so the address never reaches Meta."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Global Privacy Control",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Global Privacy Control"
+    }
+   ],
+   "id": "global-privacy-control"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If your browser sends "
+    },
+    {
+     "t": "strong",
+     "v": "Global Privacy Control",
+     "children": [
+      {
+       "t": "text",
+       "v": "Global Privacy Control"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", Clusters treats it as a request not to share what it learns about you for advertising, wherever you are. Meta's pixel is not loaded, and your sign-up, a purchase or the start of a checkout is not sent to Meta's Conversions API. What Clusters records for itself, described above, is the same either way."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "When Clusters asks you a question",
    "inline": [
     {
@@ -38321,7 +44604,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — filmmaker, photographer, designer, artist or illustrator, student, or something else — and offers a single follow-up in your own words. Both are optional: the first tap has already been recorded either way. Your role is asked for once per account too."
+     "v": " — filmmaker, photographer, designer, artist or illustrator, student, or something else. Under that it asks for "
+    },
+    {
+     "t": "strong",
+     "v": "your age",
+     "children": [
+      {
+       "t": "text",
+       "v": "your age"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", marked optional, as one of five ranges: under 18, 18–24, 25–34, 35–44, or 45 and over. It never asks for your date of birth. Then it offers a single follow-up in your own words. All of these are optional: the first tap has already been recorded either way. Your role and your age range are each asked for once per account too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The age range you pick is stored with your answers and nowhere else. The app's usage records note only that an age range was given, never which one."
     }
    ]
   },
@@ -41986,7 +48292,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"id\": \"9f1c…\",\n  \"name\": \"Scene 4 — Diner\",\n  \"workspace_id\": \"3b7e…\",\n  \"parent_board_id\": null,\n  \"view\": \"canvas\",\n  \"created_at\": \"2026-08-01T09:12:44.000Z\",\n  \"updated_at\": \"2026-08-03T14:02:10.000Z\",\n  \"scheduled_date\": null,\n  \"scheduled_end\": null,\n  \"day_label\": null,\n  \"sched_status\": \"draft\",\n  \"sched_version\": 0,\n  \"sched_published_at\": null\n}"
+   "code": "{\n  \"id\": \"9f1c…\",\n  \"name\": \"Scene 4 — Diner\",\n  \"workspace_id\": \"3b7e…\",\n  \"parent_board_id\": null,\n  \"view\": \"canvas\",\n  \"created_at\": \"2026-08-01T09:12:44.000Z\",\n  \"updated_at\": \"2026-08-03T14:02:10.000Z\"\n}"
   },
   {
    "type": "table",
@@ -42090,164 +48396,16 @@ export const DOCS_CONTENT = {
        "v": "\"list\""
       }
      ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "scheduled_date"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "YYYY-MM-DD"
-      },
-      {
-       "t": "text",
-       "v": ", or "
-      },
-      {
-       "t": "code",
-       "v": "null"
-      },
-      {
-       "t": "text",
-       "v": ". Puts the board on a calendar"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "scheduled_end"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "YYYY-MM-DD"
-      },
-      {
-       "t": "text",
-       "v": ", or "
-      },
-      {
-       "t": "code",
-       "v": "null"
-      },
-      {
-       "t": "text",
-       "v": ". Inclusive end of a multi-day block"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "day_label"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The durable half of a scheduled day's name, e.g. "
-      },
-      {
-       "t": "code",
-       "v": "\"Day 12\""
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "sched_status"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "\"draft\""
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "\"published\""
-      },
-      {
-       "t": "text",
-       "v": " or "
-      },
-      {
-       "t": "code",
-       "v": "\"cancelled\""
-      },
-      {
-       "t": "text",
-       "v": " — read-only"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "sched_version"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Call-sheet version, bumped on publish — read-only"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "sched_published_at"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "ISO timestamp, or "
-      },
-      {
-       "t": "code",
-       "v": "null"
-      },
-      {
-       "t": "text",
-       "v": " — read-only"
-      }
-     ]
     ]
    ]
   },
   {
-   "type": "heading",
-   "depth": 3,
-   "text": "Scheduling a board",
+   "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Scheduling a board"
-    }
-   ],
-   "id": "scheduling-a-board"
-  },
-  {
-   "type": "para",
-   "inline": [
+     "v": "A board no longer takes a date. "
+    },
     {
      "t": "code",
      "v": "scheduled_date"
@@ -42270,107 +48428,33 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are writable on "
+     "v": " went when schedules were retired, and a "
     },
     {
      "t": "code",
-     "v": "POST /boards"
+     "v": "POST"
     },
     {
      "t": "text",
-     "v": " and "
+     "v": " or "
     },
     {
      "t": "code",
-     "v": "PATCH /boards/:id"
+     "v": "PATCH"
     },
     {
      "t": "text",
-     "v": ". They do not go straight to the column: like "
+     "v": " that sets one is refused with "
     },
     {
      "t": "code",
-     "v": "parent_board_id"
+     "v": "400 bad_request"
     },
     {
      "t": "text",
-     "v": ", they are routed through a server function, because moving a day is a thing other people need to hear about."
+     "v": " rather than accepted and dropped."
     }
    ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A board is "
-    },
-    {
-     "t": "code",
-     "v": "draft"
-    },
-    {
-     "t": "text",
-     "v": " until it is published in the app. Drafts are silent, so an import that creates sixty dated days notifies nobody. Once a day is published, changing its date notifies everyone who can read it. Pass "
-    },
-    {
-     "t": "code",
-     "v": "\"notify\": false"
-    },
-    {
-     "t": "text",
-     "v": " to move a published day quietly."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "code",
-     "v": "sched_status"
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "code",
-     "v": "sched_version"
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "code",
-     "v": "sched_published_at"
-    },
-    {
-     "t": "text",
-     "v": " are read-only over the API — publishing is a deliberate act with an audience, not a field write. See "
-    },
-    {
-     "t": "link",
-     "v": "Production schedules",
-     "href": "/docs/clusters/production-schedule",
-     "children": [
-      {
-       "t": "text",
-       "v": "Production schedules"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "PATCH /boards/9f1c…\n{ \"scheduled_date\": \"2026-09-14\", \"day_label\": \"Day 12\" }"
   },
   {
    "type": "heading",
@@ -45456,7 +51540,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Grids, schedules, palettes and shapes are created in the app; you can read them here, and "
+     "v": ". Grids, palettes and shapes are created in the app; you can read them here, and "
     },
     {
      "t": "code",
@@ -46395,7 +52479,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " exists because the card object above is a deliberately narrow projection, and the app has kinds it does not describe — a grid carries its cells and template, a palette its swatches, a schedule its rows. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success."
+     "v": " exists because the card object above is a deliberately narrow projection, and the app has kinds it does not describe — a grid carries its cells and template and a palette its swatches. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success."
     }
    ]
   },
@@ -47251,7 +53335,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Some cards cannot come back this way: any card kind this API does not create (grids, palettes, schedules, cluster cards and the like), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in "
+     "v": "Some cards cannot come back this way: any card kind this API does not create (grids, palettes, cluster cards and the like), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in "
     },
     {
      "t": "code",
@@ -51175,7 +57259,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is there because the ordinary card read is a deliberately narrow twelve-field projection, and the app has kinds it does not describe — a grid carries its cells and template, a palette its swatches, a schedule its rows. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success."
+     "v": " is there because the ordinary card read is a deliberately narrow twelve-field projection, and the app has kinds it does not describe — a grid carries its cells and template and a palette its swatches. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success."
     }
    ]
   },
@@ -53136,30 +59220,6 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "scheduled_date?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "scheduled_end?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "day_label?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
        "v": "identifiers?"
       },
       {
@@ -53194,7 +59254,11 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — build a structure in one call; each entry takes the same schedule fields"
+       "v": " — build a structure in one call; each entry takes the same fields as "
+      },
+      {
+       "t": "code",
+       "v": "create_board"
       }
      ]
     ],
@@ -53467,38 +59531,6 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "parent_board_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "scheduled_date?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "scheduled_end?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "day_label?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "notify?"
       }
      ]
     ],
@@ -54354,7 +60386,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " does not create (grids, palettes, schedules, cluster cards and the like) and docs written in the app are the exception: the response lists them in "
+     "v": " does not create (grids, palettes, cluster cards and the like) and docs written in the app are the exception: the response lists them in "
     },
     {
      "t": "code",
@@ -55624,7 +61656,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " can add, change, replay or delete its webhooks — a webhook carries every event in the workspace, so where those go is the owner's call. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old."
+     "v": " can see, add, change, replay or delete its webhooks and their deliveries — a webhook carries every event in the workspace, so where those go is the owner's call. When the workspace passes to a new owner, the previous owner's webhooks are turned off, and the new owner sets up their own. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old."
     }
    ]
   },
@@ -56826,7 +62858,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. The record itself is kept, so past entries in the "
+     "v": "Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. A service account also stops when the person who created it leaves the workspace or hands it to a new owner: its tokens are revoked, and the new owner creates their own. The record itself is kept, so past entries in the "
     },
     {
      "t": "link",

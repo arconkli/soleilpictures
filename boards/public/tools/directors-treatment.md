@@ -53,13 +53,13 @@ Start free. Pay when you outgrow it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
-- A 1TB drive, on a 1TB drive
+- A 1TB drive
 
 One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
 
@@ -89,5 +89,5 @@ The same structure works: concept, world and look, performance and casting, ward
 
 ### Is it free?
 
-Free for 50 cards — each cluster counts as one — with free editors. Image-heavy treatments can outgrow that; Creator removes the cap for the whole workspace. See “What it costs” on this page.
+Free for 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. Image-heavy treatments can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 

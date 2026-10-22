@@ -31,26 +31,36 @@ const CONTACTED = [
   { value: 'no',  label: 'Not contacted' },
   { value: 'yes', label: 'Contacted' },
 ];
+// A signup counts once the emailed code is entered (0461). The values stay
+// 'verified' / 'unverified' because the RPCs take them.
 const VERIFICATION = [
-  { value: 'verified',   label: 'Verified' },
-  { value: 'unverified', label: 'Unverified' },
-  { value: 'all',        label: 'All users' },
+  { value: 'verified',   label: 'Entered the code' },
+  { value: 'unverified', label: 'Never entered the code' },
+  { value: 'all',        label: 'All accounts' },
 ];
-// Activity = did they actually create anything? Junk/undeliverable accounts
-// (misspelled emails) still count as "signed in", so activity is the real
-// signal that separates real users from dead signups. Default hides the dead.
+// Activity = did they ever make anything? Junk/undeliverable accounts
+// (misspelled emails) still count as "signed in", so this is the signal that
+// separates real users from dead signups, and the default hides the dead.
+//
+// "Made something" is 0460's _admin_made_something(): placed a card at some
+// point, holds cards now, or made a cluster of their own. Until then it was
+// "owns a cluster", and every account owns one the moment its workspace's
+// Studio is created, so the default hid almost nobody. The values stay
+// 'active' / 'inactive' because the RPCs take them.
 const ACTIVITY = [
-  { value: 'active',   label: 'Active' },
-  { value: 'inactive', label: 'No activity' },
+  { value: 'active',   label: 'Made something' },
+  { value: 'inactive', label: 'Made nothing yet' },
   { value: 'all',      label: 'All activity' },
 ];
+const ACTIVITY_HINT = 'Made something = placed a card at some point, holds cards now, '
+  + 'or made a cluster of their own. The Studio every workspace starts with does not count.';
 
 function UserListRow({ row, selected, isSelf, onSelect }) {
   const ghost = row.tier === 'waitlist' && !row.joined_waitlist;
-  // Unverified = email not confirmed OR never signed in. email_confirmed is the
-  // new column from admin_list_users; last_sign_in_at was already returned.
-  const unverified = row.email_confirmed === false || !row.last_sign_in_at;
-  const unverifiedReason = row.email_confirmed === false ? 'Email not confirmed' : 'Never signed in';
+  // email_confirmed is 0462's: whether the owner entered the emailed code.
+  // Autoconfirm stamps every address confirmed the moment a code is asked for,
+  // so the raw stamp could not tell anyone apart.
+  const neverGotIn = row.email_confirmed === false;
   const name = row.display_name || (row.email || '').split('@')[0] || row.email;
   // Usage at a glance: paid/admin live on storage; free tiers live on the
   // card cap. Show whichever matters for the tier.
@@ -82,7 +92,7 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
           </span>
         )}
         {row.banned && <span className="admin-badge-banned" title="Account suspended">banned</span>}
-        {unverified && <span className="admin-badge-ghost" title={unverifiedReason}>unverified</span>}
+        {neverGotIn && <span className="admin-badge-ghost" title="Asked for a sign-in code and never entered it">never got in</span>}
         {ghost && <span className="admin-badge-ghost" title="Signed up but never joined the waitlist">ghost</span>}
       </div>
       <div className="admin-user-meta">
@@ -184,7 +194,7 @@ export function AdminUserList({
             value={activity}
             onChange={(e) => onActivityChange(e.target.value)}
             aria-label="Filter by activity"
-            title="Active = created at least one card or board"
+            title={ACTIVITY_HINT}
           >
             {ACTIVITY.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>

@@ -34,3 +34,10 @@ test('every tab is reachable from the header, exactly once', () => {
 test('the Audit tab is in More', () => {
   assert.ok(OVERFLOW.includes('audit'));
 });
+
+test('Waitlist and Campaign are in More: the waitlist is switched off', () => {
+  for (const id of ['waitlist', 'campaign']) {
+    assert.ok(OVERFLOW.includes(id), `${id} is in More`);
+    assert.ok(!PRIMARY.includes(id), `${id} is not a pill`);
+  }
+});

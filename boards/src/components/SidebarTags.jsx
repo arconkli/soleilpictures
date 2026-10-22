@@ -434,7 +434,7 @@ export function SidebarTags({
         <span className={`sb-tags-chev ${open ? 'is-open' : ''}`} aria-hidden="true">
           <Icon as={ChevronRight} size={11} />
         </span>
-        <span className="sb-tags-head-label">TAGS</span>
+        <span className="sb-tags-head-label">Tags</span>
         {tags.length > 0 && <span className="sb-tags-head-count">{tags.length}</span>}
         <button className="sb-tags-add"
                 title="New tag"

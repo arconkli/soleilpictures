@@ -5,7 +5,7 @@ h1: Documents
 navLabel: Overview
 section: documents
 order: 0
-updated: 2026-10-02
+updated: 2026-10-21
 answer: A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.
 faq:
   - q: When should I use a document instead of a note?
@@ -49,13 +49,13 @@ Two modes:
 - **Side** — docked beside the canvas, resizable, so you can write while looking at the board
 
 Double-clicking a document card opens it in **whichever mode you used last**, so
-if you work docked you stay docked. The dock and full screen swap either way from
-the buttons in the document's header.
+if you work docked you stay docked. On a phone or a tablet, tap the card twice.
+The dock and full screen swap either way from the buttons in the document's
+header.
 
 A docked document is held by the workspace, not by the canvas underneath it. You
 can open other clusters, drill into nested ones, and move around the sidebar with
-the document still open beside you — it stays put until you close it. One
-document is docked at a time; opening another hands it the pane. Docking a
+the document still open beside you — it stays put until you close it. Docking a
 document also takes over the [split view](/docs/clusters#side-by-side) pane, since
 there is only one.
 
@@ -64,14 +64,30 @@ spot — even after you close the tab. That position is remembered per browser,
 not synced between devices. Following a collaborator's avatar into a document
 still takes you to where *they* are.
 
+### Two documents side by side
+
+With a document docked, open another one on the board and it takes the board's
+place, so the two sit side by side: a script beside its treatment, notes beside
+the draft they are about. Each keeps its own toolbar, find and zoom, and `⌘Z` and
+`⌘F` act on the one you are working in. The sidebar tucks away while both are
+open; `⌘B` brings it back. Opening a third puts it in place of the second, and a
+card's **Open beside** button still changes which one is docked.
+
+**×** on either document brings the board back; close the docked one and the
+other moves into the dock. Going to another cluster closes the one from the
+board you left, and the docked one stays. On a phone, where there is room for
+one, the document you open takes the dock instead.
+
 ## Layout
 
 **Pages** on the left — a hierarchical tree. Documents are genuinely
-multi-page, and pages nest. A new page is created automatically when the current
-one fills up, so long-form writing does not stop to manage pagination. On a
-phone or a touch tablet the tree folds into a drawer: tap **Page list** above
-the toolbar to open it (**Scenes** in a screenplay, where the drawer also lists
-the scenes).
+multi-page, and pages nest. A page holds as much as you write: set to real
+pages, its text flows from one sheet onto the next as you type, so long-form
+writing does not stop to manage pagination. Collapsing a page's sub-pages (the
+arrow beside it) is yours alone: it is remembered on this device and changes
+nothing for anyone else in the document. On a phone or a touch tablet the tree
+folds into a drawer: tap **Page list** above the toolbar to open it (**Scenes**
+in a screenplay, where the drawer also lists the scenes).
 
 **Bookmarks** under the page tree — durable anchors into specific places in the
 text, which survive editing around them. Add one with the bookmark button in the
@@ -86,13 +102,24 @@ continuous sheet there (its exports and wider screens keep the pages), and a
 screenplay fits its text column to the screen, with the margins (and the
 comment dots in them) a swipe away.
 
+The same goes wherever a document is narrower than a page, on any screen:
+docked beside the board, one of [two side by side](#two-documents-side-by-side),
+or in a small window. A screenplay fits its text column to the width, at full
+size where there is room, and its lines still break where the printed page
+breaks them. Prose takes narrower margins on screen. The page list tucks away to
+the arrow at its edge, which brings it back for as long as the document stays
+that narrow without changing how it opens anywhere else.
+
 ## Writing and formatting
 
 The toolbar carries the usual: headings, bold, italic, underline, highlight,
 lists, task lists, alignment, colour, font and size. Every one has a
-[keyboard shortcut](/docs/keyboard-shortcuts#document).
+[keyboard shortcut](/docs/keyboard-shortcuts#document). To reach the toolbar
+from the keyboard, press `⌥F10` (`Alt+F10` on Windows) in the text; the arrow
+keys move along it, and `Esc` brings you back to where you were typing.
 
-`⌘F` opens **find and replace**.
+`⌘F` opens **find and replace**. **All** replaces every match on the page and
+says how many; the toast's **Undo** puts them all back, and so does one `⌘Z`.
 
 **Right-click** a selection for cut, copy, paste, formatting, links and
 comments. Right-click a word with nothing selected — or `⇧`-right-click
@@ -106,8 +133,8 @@ copied from another Clusters note or document keeps everything. **Clear
 formatting** (`⌘\`, or the **Tx** button) strips the selection back to plain;
 links and comments stay.
 
-The footer shows a live word and character count, and an honest save status —
-it reports what has actually been persisted rather than an optimistic tick.
+The footer shows a live word and character count, and the document's save
+status.
 
 ## Insert
 
@@ -119,12 +146,22 @@ The **Insert** menu adds:
 - **Code block**
 - **Embed board** — a whole [cluster](/docs/clusters), rendered inside the document
 
-Blocks can be reordered by dragging the handle in the left margin.
+You can also paste an image, or drop one in from your computer. While it
+uploads it shows in the spot it will land, with how far it has got, and you can
+cancel it there; if the upload fails, it says so in the same spot, with
+**Retry**.
 
 ## Working together
 
 Documents are collaborative in real time, with peer cursors and selections
 visible as people type. Edits merge rather than overwriting.
+
+If the cluster is [restored to an earlier version](/docs/clusters/trash-and-recovery#version-history)
+while you have a document open, or someone moves cards into it, the cluster
+reloads, and the document reopens where you were and says what happened. If
+that took anything off the page you had open (a restore to before you wrote
+it, or your last few words before they were saved), it offers you the page as
+you had it, to copy and paste back what you want to keep.
 
 ## Undo
 

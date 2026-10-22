@@ -1,8 +1,8 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — each cluster counts as one card — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
 
-_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-17_
+_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-21_
 
 Two plans. The difference between them is deliberately small and deliberately
 honest — two enforced limits, listed below, and nothing else. The
@@ -19,7 +19,7 @@ page, drops it.
 
 - **50 cards** to build with
 - A **5GB** drive — any file, at any size
-- No separate limit on clusters — each one counts as one of your cards
+- Clusters are free — they cost none of your cards
 - Free collaboration — invite editors to any cluster
 
 The free plan stops at whichever limit you reach first.
@@ -142,7 +142,8 @@ plan: if Creator is canceled, the extra storage goes with it.
 
 ## Trying Creator first
 
-Once there is a real cluster on your account, Clusters offers you
+Once there is a real cluster on your account, or as soon as a drop or an import
+is more than your free card limit holds, Clusters offers you
 **14 days of Creator** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
 on the prompts that show up as a cluster fills, when the files you drop will not
@@ -152,7 +153,8 @@ A card is required; nothing is charged until the trial ends, and cancelling
 before then costs nothing. About three days before the first charge, Clusters
 emails you the date and the amount, with a link to **Settings → Plan & billing**
 where you can cancel. It is one trial per account, and it is offered in the app
-rather than on this page — it is for people who have built something.
+rather than on this page — it is for people who have built something, or who
+are bringing in more than the free card limit holds.
 
 ## Billing
 

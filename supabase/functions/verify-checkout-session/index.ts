@@ -14,7 +14,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import { activateUserFromSubscription } from "../_shared/activate.ts";
-import { emitCapi } from "../_shared/meta-capi.ts";
+import { emitCapi, gpcFrom } from "../_shared/meta-capi.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -150,6 +150,8 @@ Deno.serve(async (req) => {
           plan: m.plan ?? result.plan ?? null,
           subscription_id: subscription?.id ?? null,
         },
+        // GPC at checkout (stamped by create-checkout-session), or now.
+        optOut: m.gpc === "1" || gpcFrom(req),
       });
     }
 

@@ -52,8 +52,29 @@
 //   R2_SECRET_ACCESS_KEY  R2 API token secret
 
 import { AwsClient } from "aws4fetch";
+import { getServerByName } from "partyserver";
+import { bridgeHeaders } from "./bridge";
+import type { Env } from "./env";
 import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
 import { bundleRefusalStatus } from "../src/lib/bundleRefusal.js";
+import {
+  FILE_SHARE_CACHE_CONTROL, FILE_SHARE_URL_TTL_SECONDS, FILE_TOKEN_RE, fileShareResponse,
+} from "../src/lib/fileShareBundle.js";
+import {
+  SAVE_REFUSAL_STATUS, copyKey, copyPlan, saveRefusal, savedCard, savedCardId, savedImageRow,
+} from "../src/lib/fileShareSave.js";
+import {
+  DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS, DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE, DOC_IMAGE_CACHE_CONTROL,
+  DOC_IMAGE_URL_TTL_SECONDS, alignedUrls, candidateKeys, parseDocImageRequest, plausibleKeys, rasterTypeOf,
+  roomOfAnswer,
+} from "../src/lib/docShareImages.js";
+import { makeRateLimiter } from "../src/lib/webImageSave.js";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Thumbnails on the Shared page's rows: short-lived and private, like the /f/
+// page's own URLs.
+const SHARED_THUMB_TTL_SECONDS = 60 * 60;
+const SHARED_THUMB_CACHE_CONTROL = "private, max-age=3600";
 
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_djb-_42yVCKWTNTfhhVqTQ_9TVpSNAr";
@@ -203,21 +224,52 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
 // is a SIGNED query param — it must be on the URL before signing, or R2 rejects
 // the signature. Shared by /sign-reads and /share-bundle so both paths produce
 // identical, cacheable, persistable URLs.
-async function signReadUrl(r2: AwsClient, env: R2Env, key: string, disposition: string | null = null): Promise<string> {
+// `opts` lets a caller shorten the URL's life and swap the cache header; the
+// defaults are the long-lived immutable pair every existing caller wants.
+async function signReadUrl(
+  r2: AwsClient, env: R2Env, key: string, disposition: string | null = null,
+  opts: { ttl?: number; cacheControl?: string; contentType?: string | null } = {},
+): Promise<string> {
   const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
   // X-Amz-Expires MUST be a signed query param ON THE URL before signing.
   // aws4fetch has no `expiresIn` option — if X-Amz-Expires is absent it forces
   // its own 86400 (24h) default, so a URL we believe is good for 7 days actually
   // dies in a day (the client then serves a dead URL → 403 → the "locked" image).
   // Setting it here makes aws4fetch sign + keep our 7-day value.
-  const r2Url = `${base}?response-cache-control=${encodeURIComponent(READ_RESPONSE_CACHE_CONTROL)}`
+  // contentType overrides the type the object was stored with (the bytes are
+  // served as that, whatever the uploader said they were).
+  const r2Url = `${base}?response-cache-control=${encodeURIComponent(opts.cacheControl ?? READ_RESPONSE_CACHE_CONTROL)}`
     + (disposition ? `&response-content-disposition=${encodeURIComponent(disposition)}` : "")
-    + `&X-Amz-Expires=${READ_URL_TTL_SECONDS}`;
+    + (opts.contentType ? `&response-content-type=${encodeURIComponent(opts.contentType)}` : "")
+    + `&X-Amz-Expires=${opts.ttl ?? READ_URL_TTL_SECONDS}`;
   const signed = await r2.sign(
     new Request(r2Url, { method: "GET" }),
     { aws: { signQuery: true } },
   );
   return signed.url;
+}
+
+// /share/doc-images is anon-callable: per isolate, per address and per share.
+const docImagesAllowAddress = makeRateLimiter({ perMinute: DOC_IMAGE_ASKS_PER_MINUTE_PER_ADDRESS });
+const docImagesAllowShare = makeRateLimiter({ perMinute: DOC_IMAGE_ASKS_PER_MINUTE_PER_SHARE });
+
+// The image keys a shared doc's live room holds (party/doc.ts /keys, by stub
+// with the bridge header): files a member put in the doc. A room nobody is in
+// holds none, and asking never wakes its board. Null when it could not be asked.
+async function docRoomKeys(env: Record<string, unknown>, room: string): Promise<Set<string> | null> {
+  try {
+    const stub = await getServerByName(env.Doc as any, room);
+    const res = await stub.fetch("https://bridge/keys", {
+      method: "POST",
+      headers: await bridgeHeaders(env as unknown as Env),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { keys?: unknown };
+    const keys = Array.isArray(body?.keys) ? body.keys : [];
+    return new Set(keys.filter((k): k is string => typeof k === "string"));
+  } catch (_) {
+    return null;
+  }
 }
 
 // ── Party ────────────────────────────────────────────────────────────
@@ -226,6 +278,34 @@ async function signReadUrl(r2: AwsClient, env: R2Env, key: string, disposition: 
 // index.ts builds one per request.
 export class UploadParty {
   constructor(readonly room: { id: string; env: Record<string, unknown> }) {}
+
+  // An RPC as the service role, for what only the party may read: a shared
+  // file's storage keys, once get_file_share run as the caller has said ok
+  // (0426). Null when it cannot be had.
+  private async serviceRpc(name: string, args: Record<string, unknown>): Promise<any> {
+    const key = String(this.room.env.SUPABASE_SERVICE_ROLE_KEY || "");
+    if (!key) return null;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+        method: "POST",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(args),
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // get_file_share's answer with its file's keys: since 0426 the answer
+  // carries none (a browser could call it too), so they come from the
+  // service role. Before 0426 the answer had them.
+  private async withKeys(result: any, token: string): Promise<any> {
+    if (!result || result.status !== "ok" || result.keys || result.file?.kind === "doc") return result;
+    const keys = await this.serviceRpc("_file_share_keys", { p_token: token });
+    return keys && typeof keys === "object" ? { ...result, keys } : result;
+  }
 
   async onRequest(req: Request) {
     const origin = req.headers.get("Origin");
@@ -252,6 +332,16 @@ export class UploadParty {
       return this.handlePublicBundle(req, env, origin);
     }
 
+    // /file-share is anon-callable too: get_file_share decides access as the
+    // caller (their bearer, else the anon key), so signed-out link viewers work.
+    if (url.pathname.endsWith("/file-share")) {
+      return this.handleFileShare(req, env, origin);
+    }
+    // So are a shared doc's images, on the same terms.
+    if (url.pathname.endsWith("/doc-images")) {
+      return this.handleDocImages(req, env, origin);
+    }
+
     const accessToken = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
     if (!accessToken) {
       return new Response("Missing Authorization", { status: 401, headers: corsHeaders(origin) });
@@ -260,6 +350,11 @@ export class UploadParty {
     if (!claims?.sub) {
       return new Response("Invalid token", { status: 401, headers: corsHeaders(origin) });
     }
+
+    // The Shared page (signed in only): its rows' thumbnails, and "Save a
+    // copy" of a file shared with you into a cluster of this workspace.
+    if (url.pathname.endsWith("/file-thumbs")) return this.handleFileThumbs(req, accessToken, env, origin);
+    if (url.pathname.endsWith("/file-save"))   return this.handleFileSave(req, accessToken, claims.sub, env, origin);
 
     // Multipart routes (large/arbitrary file uploads). All require the same
     // JWT auth above; each re-checks can_write_board for the specific board.
@@ -326,6 +421,381 @@ export class UploadParty {
       });
     }
     return this.respondWithBundle(bundle, env, origin);
+  }
+
+  // POST /file-share — anon-callable. Body: { token }. Runs get_file_share AS
+  // THE CALLER (their bearer when sent, else the anon key), which decides
+  // access (link, person, team) and returns the storage keys; only then are
+  // the one file's keys presigned (6h, private cache). See lib/fileShareBundle.js.
+  async handleFileShare(
+    req: Request, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const cors = corsHeaders(origin);
+    let body: { token?: string } = {};
+    try { body = (await req.json()) as { token?: string }; } catch (_) {}
+    const token = (body.token || "").trim();
+    if (!FILE_TOKEN_RE.test(token)) {
+      return Response.json({ status: "gone" }, { headers: cors });
+    }
+    const userBearer = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${userBearer || SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_token: token }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401 && userBearer) {
+        return Response.json({ status: "auth_expired" }, { headers: cors });
+      }
+      const msg = await rpcRes.text().catch(() => "");
+      const status = bundleRefusalStatus(rpcRes.status, msg);
+      if (status === 404) return Response.json({ status: "gone" }, { headers: cors });
+      return new Response("File link temporarily unavailable", { status, headers: cors });
+    }
+    const result: any = await this.withKeys(await rpcRes.json(), token);
+    const r2 = new AwsClient({
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+    const out = await fileShareResponse(
+      result,
+      (key: string, disp: string | null) => signReadUrl(r2, env, key, disp, {
+        ttl: FILE_SHARE_URL_TTL_SECONDS, cacheControl: FILE_SHARE_CACHE_CONTROL,
+      }),
+      attachmentDisposition,
+    );
+    return Response.json(out, { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
+  }
+
+  // POST /share/doc-images — anon-callable, like /file-share. Body: { token,
+  // keys: string[] (≤ 100) }. A shared doc's images, for someone reading it
+  // through its share. The rule is lib/docShareImages.js's, in its order: the
+  // share as the caller sees it, the doc's current room, the keys that room
+  // holds, the share workspace's live images rows. Each url lives an hour,
+  // private, served as its raster type. urls[i] answers keys[i]; no key is
+  // ever named in the answer.
+  async handleDocImages(
+    req: Request, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const headers = { ...(corsHeaders(origin) as Record<string, string>), "Cache-Control": "no-store" };
+    const reply = (body: unknown, status = 200) => Response.json(body, { status, headers });
+    let body: unknown = null;
+    try { body = await req.json(); } catch (_) { /* refused below */ }
+    const ask = parseDocImageRequest(body, FILE_TOKEN_RE);
+    if (!ask) return reply({ status: "bad_request" }, 400);
+    if (!docImagesAllowAddress(req.headers.get("cf-connecting-ip") || "unknown") || !docImagesAllowShare(ask.token)) {
+      return Response.json({ status: "busy" }, { status: 429, headers: { ...headers, "retry-after": "60" } });
+    }
+    const none = () => reply({ status: "ok", urls: ask.keys.map(() => null), ttl: DOC_IMAGE_URL_TTL_SECONDS });
+    // Nothing that could ever be signed: nobody is asked anything.
+    if (!plausibleKeys(ask.keys).size) return none();
+
+    // 1. As the caller: their bearer, else the anon key (the token decides).
+    const userBearer = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${userBearer || SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_token: ask.token }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401 && userBearer) return reply({ status: "auth_expired" });
+      const msg = await rpcRes.text().catch(() => "");
+      if (bundleRefusalStatus(rpcRes.status, msg) === 404) return reply({ status: "gone" });
+      return reply({ status: "unavailable" }, 503);
+    }
+    const share: any = await rpcRes.json().catch(() => null);
+    if (share?.status === "sign_in" || share?.status === "no_access") return reply({ status: share.status });
+    if (share?.status !== "ok" || share.file?.kind !== "doc") return reply({ status: "gone" });
+    const room = roomOfAnswer(share);
+    if (!room) return reply({ status: "gone" });
+
+    // 2. The doc's current room: a move or a restore made a new one.
+    const target = await this.serviceRpc("_doc_room_target", { p_share: room.shareId });
+    if (!target?.workspace_id) return reply({ status: "unavailable" }, 503);
+    if (String(target.gen || "").toLowerCase() !== room.gen) return reply({ status: "moved" });
+    // None of this workspace's files asked for: the room is not woken.
+    if (!plausibleKeys(ask.keys, target.workspace_id).size) return none();
+
+    // 3. What that room holds: files a member put in the doc.
+    const trusted = await docRoomKeys(this.room.env, room.name);
+    if (!trusted) return reply({ status: "unavailable" }, 503);
+    const candidates = candidateKeys(ask.keys, { workspaceId: target.workspace_id, trusted });
+
+    // 4. Which of those are this workspace's live files.
+    const live = candidates.size ? await this.liveImageKeys(String(target.workspace_id), [...candidates]) : new Set<string>();
+    if (!live) return reply({ status: "unavailable" }, 503);
+
+    const r2 = new AwsClient({
+      accessKeyId: env.accessKeyId,
+      secretAccessKey: env.secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+    const urlByKey = new Map<string, string>();
+    await Promise.all([...live].filter((k) => candidates.has(k)).map(async (k) => {
+      try {
+        urlByKey.set(k, await signReadUrl(r2, env, k, null, {
+          ttl: DOC_IMAGE_URL_TTL_SECONDS, cacheControl: DOC_IMAGE_CACHE_CONTROL, contentType: rasterTypeOf(k),
+        }));
+      } catch (_) { /* that one answers null */ }
+    }));
+    return reply({ status: "ok", urls: alignedUrls(ask.keys, urlByKey), ttl: DOC_IMAGE_URL_TTL_SECONDS });
+  }
+
+  // Which of these keys are live images rows of this workspace, read as the
+  // service role. Null when the table could not be read.
+  private async liveImageKeys(workspaceId: string, keys: string[]): Promise<Set<string> | null> {
+    const svc = String(this.room.env.SUPABASE_SERVICE_ROLE_KEY || "");
+    if (!svc || !UUID_RE.test(workspaceId) || !keys.length) return null;
+    // The keys passed rasterTypeOf's pattern: no quote or comma can be in one.
+    const list = encodeURIComponent(keys.map((k) => `"${k}"`).join(","));
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/images?select=storage_path&workspace_id=eq.${workspaceId}&deleted_at=is.null&storage_path=in.(${list})`,
+        { headers: { apikey: svc, Authorization: `Bearer ${svc}`, Accept: "application/json" } },
+      );
+      if (!res.ok) return null;
+      const rows = (await res.json()) as Array<{ storage_path?: unknown }>;
+      return new Set(rows.map((r) => (typeof r?.storage_path === "string" ? r.storage_path : "")).filter(Boolean));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // POST /file-thumbs — signed in. Body: { tokens: uuid[] (≤ 50) }. Presigns
+  // the poster of each shared file the caller can open, for the Shared page's
+  // rows. get_file_share_posters (SQL, as the caller) decides which; the keys
+  // never leave the Worker.
+  async handleFileThumbs(
+    req: Request, accessToken: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const cors = corsHeaders(origin);
+    let body: { tokens?: unknown } = {};
+    try { body = (await req.json()) as { tokens?: unknown }; } catch (_) {}
+    const tokens = Array.isArray(body.tokens)
+      ? [...new Set(body.tokens.map((t) => String(t || "").trim()).filter((t) => FILE_TOKEN_RE.test(t)))].slice(0, 50)
+      : [];
+    if (!tokens.length) return Response.json({ urls: {} }, { headers: cors });
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share_posters`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_tokens: tokens }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { headers: cors });
+      return new Response("Thumbnails temporarily unavailable", { status: 503, headers: cors });
+    }
+    // The caller's answer says which rows have a poster: true (since 0426), or
+    // the key itself (before). Keys for the trues come from the service role.
+    const answer: Record<string, unknown> = (await rpcRes.json().catch(() => ({}))) || {};
+    const keys: Record<string, unknown> = {};
+    const need: string[] = [];
+    for (const [t, v] of Object.entries(answer)) {
+      if (!FILE_TOKEN_RE.test(t)) continue;
+      if (v === true) need.push(t);
+      else if (typeof v === "string" && v) keys[t] = v;
+    }
+    if (need.length) {
+      const more = await this.serviceRpc("_file_share_poster_keys", { p_tokens: need });
+      if (more && typeof more === "object") for (const t of need) if (typeof more[t] === "string") keys[t] = more[t];
+    }
+    const r2 = this.mkR2Client(env);
+    const urls: Record<string, string> = {};
+    await Promise.all(Object.entries(keys).map(async ([t, k]) => {
+      if (!FILE_TOKEN_RE.test(t) || typeof k !== "string" || !k) return;
+      try {
+        urls[t] = await signReadUrl(r2, env, k, null, {
+          ttl: SHARED_THUMB_TTL_SECONDS, cacheControl: SHARED_THUMB_CACHE_CONTROL,
+        });
+      } catch (_) { /* that row keeps its kind icon */ }
+    }));
+    return Response.json({ urls, ttl: SHARED_THUMB_TTL_SECONDS },
+      { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
+  }
+
+  // POST /<workspaceId>/file-save — signed in. Body: { token, boardId }.
+  // "Save a copy" of a file shared with you into a cluster of THIS workspace:
+  //   1. the cluster is in this workspace and the caller can edit it;
+  //   2. get_file_share AS THE CALLER says they may open and download it
+  //      (lib/fileShareSave.js saveRefusal);
+  //   3. authorize_upload charges the bytes to this workspace's owner (402 is
+  //      the storage wall, as for an upload) and the intents hold them;
+  //   4. R2 copies the object server-side (CopyObject, or UploadPartCopy in
+  //      parts above the single-copy ceiling), the poster too;
+  //   5. the images rows are inserted as the caller, like an upload's.
+  // Returns { ok, card }: the client lands it through /api/clusters/append.
+  // The source keys never leave the Worker.
+  async handleFileSave(
+    req: Request, accessToken: string, userId: string, env: R2Env, origin: string | null,
+  ): Promise<Response> {
+    const workspaceId = this.room.id;
+    const cors = corsHeaders(origin);
+    const refuse = (reason: string, extra: Record<string, unknown> = {}) => Response.json(
+      { error: reason, reason, ...extra },
+      { status: (SAVE_REFUSAL_STATUS as Record<string, number>)[reason] || 400, headers: cors },
+    );
+    let body: { token?: string; boardId?: string } = {};
+    try { body = (await req.json()) as { token?: string; boardId?: string }; } catch (_) {}
+    const token = String(body.token || "").trim();
+    const boardId = String(body.boardId || "").trim();
+    if (!FILE_TOKEN_RE.test(token)) return refuse("gone");
+    if (!UUID_RE.test(boardId) || !UUID_RE.test(workspaceId)) return refuse("wrong_workspace");
+
+    // 1. Where it goes.
+    const rows = await supabaseGet(
+      `boards?id=eq.${encodeURIComponent(boardId)}&deleted_at=is.null&select=id,workspace_id`, accessToken);
+    if (!rows?.[0] || rows[0].workspace_id !== workspaceId) return refuse("wrong_workspace");
+    const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
+    if (canWrite !== true) return refuse("not_writer");
+
+    // 2. What it is, as the caller sees it.
+    const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_file_share`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_token: token }),
+    });
+    if (!rpcRes.ok) {
+      if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { status: 401, headers: cors });
+      return new Response("Saving is temporarily unavailable", { status: 503, headers: cors });
+    }
+    const result: any = await this.withKeys(await rpcRes.json().catch(() => null), token);
+    const why = saveRefusal(result);
+    if (why) return refuse(why);
+    const srcKey: string = result.keys.src;
+    // An image's poster is its preview, which the copy makes for itself; a
+    // video's poster and a PDF's page-one picture are part of the card.
+    const posterSrc: string | null = result.file.kind === "video" || result.file.kind === "pdf"
+      ? (typeof result.keys.poster === "string" && result.keys.poster ? result.keys.poster : null)
+      : null;
+
+    // 3. Room for it: the exact sizes from R2, charged to this workspace.
+    const r2 = this.mkR2Client(env);
+    const head = await r2.fetch(this.r2ObjectUrl(env, srcKey), { method: "HEAD" }).catch(() => null);
+    if (!head || !head.ok) return refuse("gone");
+    const bytes = Number(head.headers.get("content-length")) || 0;
+    const contentType = head.headers.get("content-type") || "application/octet-stream";
+    let posterBytes = 0;
+    if (posterSrc) {
+      const ph = await r2.fetch(this.r2ObjectUrl(env, posterSrc), { method: "HEAD" }).catch(() => null);
+      posterBytes = ph && ph.ok ? Number(ph.headers.get("content-length")) || 0 : 0;
+    }
+    const plan = copyPlan(bytes);
+    if (!plan) return refuse("gone");
+    const authRows = await supabaseRpc("authorize_upload",
+      { p_workspace_id: workspaceId, p_bytes: bytes + posterBytes }, accessToken);
+    const auth = Array.isArray(authRows) ? authRows[0] : authRows;
+    if (!auth || auth.allow !== true) {
+      const reason = auth?.reason === "over_quota" ? "over_quota" : "not_writer";
+      return refuse(reason, { used: auth?.used ?? null, quota: auth?.quota ?? null, remaining: auth?.remaining ?? null });
+    }
+    const dstKey = copyKey(workspaceId, srcKey, crypto.randomUUID());
+    const dstPoster = posterSrc && posterBytes > 0 ? copyKey(workspaceId, posterSrc, crypto.randomUUID()) : null;
+    const held = await supabaseRpc("record_upload_intent", {
+      p_key: dstKey, p_bytes: bytes, p_kind: plan.mode === "single" ? "put" : "multipart", p_board_id: boardId,
+    }, accessToken);
+    if (held !== true) return new Response("Could not reserve this copy", { status: 503, headers: cors });
+    // The poster is copied only once its bytes are held too; without it the
+    // card still works and makes its own.
+    const posterHeld = dstPoster
+      ? (await supabaseRpc("record_upload_intent",
+          { p_key: dstPoster, p_bytes: posterBytes, p_kind: "put", p_board_id: boardId }, accessToken)) === true
+      : false;
+
+    // 4. The bytes.
+    if (!(await this.copyObject(r2, env, srcKey, dstKey, plan, contentType))) {
+      return new Response("Could not copy the file", { status: 502, headers: cors });
+    }
+    let posterKey: string | null = null;
+    if (dstPoster && posterSrc && posterHeld) {
+      const pplan = copyPlan(posterBytes);
+      if (pplan && await this.copyObject(r2, env, posterSrc, dstPoster, pplan, "image/jpeg")) posterKey = dstPoster;
+    }
+
+    // 5. The rows that make them this workspace's files.
+    const cardId = savedCardId(result.file.kind);
+    const name = typeof result.file.name === "string" ? result.file.name : null;
+    const imageRows = [savedImageRow({ workspaceId, boardId, cardId, key: dstKey, bytes, userId, originalName: name })];
+    if (posterKey) imageRows.push(savedImageRow({ workspaceId, boardId, cardId, key: posterKey, bytes: posterBytes, userId, originalName: null }));
+    const ins = await fetch(`${SUPABASE_URL}/rest/v1/images`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(imageRows),
+    });
+    if (!ins.ok) {
+      // No images row: the object is an orphan the R2 sweep reclaims.
+      return new Response("Could not finish saving the file", { status: 503, headers: cors });
+    }
+    const card = savedCard(result, { cardId, srcKey: dstKey, posterKey });
+    return Response.json({ ok: true, card, bytes }, { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
+  }
+
+  // A server-side copy inside the bucket: one CopyObject, or a multipart
+  // upload whose parts are UploadPartCopy ranges. True when the object exists
+  // whole at dstKey.
+  async copyObject(
+    r2: AwsClient, env: R2Env, srcKey: string, dstKey: string,
+    plan: { mode: string; parts?: Array<{ partNumber: number; start: number; end: number }> },
+    contentType: string,
+  ): Promise<boolean> {
+    const source = `/${env.bucket}/${srcKey.split("/").map(encodeURIComponent).join("/")}`;
+    if (plan.mode === "single") {
+      const res = await r2.fetch(this.r2ObjectUrl(env, dstKey), {
+        method: "PUT", headers: { "x-amz-copy-source": source },
+      }).catch(() => null);
+      if (!res) return false;
+      const text = await res.text().catch(() => "");
+      return res.ok && !/<Error>/.test(text);
+    }
+    const uploadId = await this.createMultipart(r2, env, dstKey, contentType);
+    if (!uploadId) return false;
+    const parts: Array<{ partNumber: number; etag: string }> = [];
+    for (const p of plan.parts || []) {
+      const url = `${this.r2ObjectUrl(env, dstKey)}?partNumber=${p.partNumber}&uploadId=${encodeURIComponent(uploadId)}`;
+      const res = await r2.fetch(url, {
+        method: "PUT",
+        headers: { "x-amz-copy-source": source, "x-amz-copy-source-range": `bytes=${p.start}-${p.end}` },
+      }).catch(() => null);
+      const text = res ? await res.text().catch(() => "") : "";
+      const m = text.match(/<ETag>([^<]+)<\/ETag>/);
+      if (!res || !res.ok || !m) {
+        await this.abortMultipart(r2, env, dstKey, uploadId);
+        return false;
+      }
+      parts.push({ partNumber: p.partNumber, etag: m[1].replace(/&quot;/g, "") });
+    }
+    const done = await this.completeMultipart(r2, env, dstKey, uploadId, parts);
+    if (!done.ok) {
+      await this.abortMultipart(r2, env, dstKey, uploadId);
+      return false;
+    }
+    return true;
   }
 
   // POST /public-bundle — anon-callable. Body: { slug, boardId? }. Identical to

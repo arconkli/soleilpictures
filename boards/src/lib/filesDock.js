@@ -7,6 +7,9 @@
 //
 // `full` is the cluster's stored view — boards.view = 'list' — so it keeps the
 // shared, persisted meaning public links and parent cards already rely on.
+// With the files sidebar, looking at a cluster's files in full is this
+// device's own choice as well; only the cluster menu's "Always open in Files"
+// writes boards.view (viewWrite, below).
 // Whether the panel is open, and how wide, are this device's own preference:
 // opening or resizing it never writes to the board.
 
@@ -32,6 +35,16 @@ export function canDock(paneWidth, { mobileShell = false } = {}) {
 export function filesModeOf({ view, dockOpen, canDock: room }) {
   if (view === 'list') return 'full';
   return dockOpen && room ? 'panel' : 'off';
+}
+
+// Which view switches write boards.view, the view everyone gets. Without the
+// files sidebar every switch does, as it always has. With it, looking at a
+// cluster's files (Show on board from the page, the list_drive reveal, ⌘K's
+// browse) changes only what this device shows: how the cluster opens for
+// everyone is the cluster menu's "Always open in Files", never a side effect.
+export const VIEW_PERSIST_VIAS = Object.freeze(['sidebar_menu']);
+export function viewWrite({ filesSidebar, via }) {
+  return !filesSidebar || VIEW_PERSIST_VIAS.includes(via) ? 'persist' : 'device';
 }
 
 // What each control does from each mode. `next` is the mode to move to;

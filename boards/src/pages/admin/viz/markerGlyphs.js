@@ -13,7 +13,8 @@
 // Every glyph has to survive 10px in the mono face and sit on a dashed rule. An
 // alert is the plain triangle △, because the warning sign ⚠ is not in the mono
 // font and its fallback read as a "4"; a break is the double bar ║, because a
-// dashed bar ┆ vanished into the dashed rule it sat on.
+// dashed bar ┆ vanished into the dashed rule it sat on. A reading that is due
+// but not yet taken is the hollow ○: on the calendar, not yet in the data.
 //
 // The glyphs are real text, never CSS `content:`, because generated text enters
 // the accessible name. Callers mark them aria-hidden and say the kind in words.
@@ -25,6 +26,7 @@ export const GLYPH = Object.freeze({
   note: '●',
   alert: '△',
   break: '║',
+  due: '○',
 });
 
 export const MARKER_KINDS = Object.keys(GLYPH);

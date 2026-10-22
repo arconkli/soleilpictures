@@ -8,6 +8,8 @@
 // RichNoteEditor; it intentionally does NOT touch checklists (Tiptap emits
 // clean .ck markup), so it is checklist-normalization-free.
 
+import { inertContainer } from './inertHtml.js';
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, ch =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -26,8 +28,7 @@ function normalizeUrl(url) {
 // seeding moves them across.
 export function hiddenPreviewMarkers(html) {
   if (typeof document === 'undefined' || !html || html.indexOf('note-preview-hidden') < 0) return [];
-  const root = document.createElement('div');
-  root.innerHTML = html;
+  const root = inertContainer(html);
   return Array.from(root.querySelectorAll('.note-preview-hidden'))
     .map(node => node.dataset.url).filter(Boolean);
 }
@@ -36,8 +37,7 @@ export function hiddenPreviewMarkers(html) {
 // but get no preview block.
 export function linkifyNoteHtml(html, hiddenUrls = null) {
   if (typeof document === 'undefined') return html || '';
-  const root = document.createElement('div');
-  root.innerHTML = html || '';
+  const root = inertContainer(html);
   // Drop any previews already present so we never duplicate them.
   root.querySelectorAll('.note-link-preview').forEach(node => node.remove());
   const hidden = new Set([
@@ -100,8 +100,7 @@ export function linkifyNoteHtml(html, hiddenUrls = null) {
 // byte-for-byte as stored.
 export function removeLinkPreview(html, url) {
   if (typeof document === 'undefined' || !html) return html || '';
-  const root = document.createElement('div');
-  root.innerHTML = html;
+  const root = inertContainer(html);
   root.querySelectorAll('.note-link-preview').forEach((node) => {
     if (node.dataset.url === url) node.remove();
   });

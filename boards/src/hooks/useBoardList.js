@@ -4,15 +4,27 @@
 // board makes everyone else see a "No access" lock card until they
 // manually reload, because the local boards map doesn't know the
 // new row exists.
+//
+// The first load takes the list lib/bootPrefetch.js started at sign-in, and
+// when that has already landed the first render holds it: the canvas knows
+// which cluster it is opening without waiting for an effect.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listBoards } from '../lib/boardsApi.js';
 import { supabase } from '../lib/supabase.js';
 import { applyBoardEvents } from '../lib/boardListPatch.js';
+import { takeBootResponse, peekBootRows } from '../lib/bootPrefetch.js';
 
-export function useBoardList(workspaceId) {
-  const [boards, setBoards] = useState({});
-  const [loading, setLoading] = useState(true);
+function toMap(arr) {
+  const map = {};
+  for (const b of arr) map[b.id] = b;
+  return map;
+}
+
+export function useBoardList(workspaceId, userId = null) {
+  const [seed] = useState(() => (workspaceId && userId ? peekBootRows(`list:${workspaceId}`, userId) : null));
+  const [boards, setBoards] = useState(() => (seed ? toMap(seed) : {}));
+  const [loading, setLoading] = useState(!seed);
   // The map the realtime flush patches against (state is a render behind).
   const boardsRef = useRef(boards);
   boardsRef.current = boards;
@@ -21,13 +33,23 @@ export function useBoardList(workspaceId) {
   // `loading` true forever, and every stale-id cleanup in App.jsx early-returns
   // on boardsLoading — so one failed fetch quietly froze the whole board map.
   // Always clear the flag, the way useSharedBoards already does.
+  // Only the first load may take the prefetched list: every later refresh
+  // follows a change and must read the server as it is now.
+  const bootRef = useRef(true);
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
     console.log('[boards] refresh start', { workspaceId });
+    const taken = bootRef.current && userId ? takeBootResponse(`list:${workspaceId}`, userId) : null;
+    bootRef.current = false;
     try {
-      const arr = await listBoards(workspaceId);
-      const map = {};
-      for (const b of arr) map[b.id] = b;
+      let arr;
+      if (taken) {
+        const { data, error } = await taken;
+        arr = error ? await listBoards(workspaceId) : (data || []);
+      } else {
+        arr = await listBoards(workspaceId);
+      }
+      const map = toMap(arr);
       console.log('[boards] refresh done', { workspaceId, count: arr.length });
       boardsRef.current = map;
       setBoards(map);
@@ -36,7 +58,7 @@ export function useBoardList(workspaceId) {
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [workspaceId, userId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

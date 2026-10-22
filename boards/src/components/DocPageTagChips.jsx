@@ -100,7 +100,9 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
       if (e.target.closest && e.target.closest('.doc-page-tag-menu')) return;
       setMenuFor(null);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setMenuFor(null); };
+    // Claimed: the open doc is a layer (lib/modalGuard) that would close on
+    // the same Escape at the window.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); setMenuFor(null); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);

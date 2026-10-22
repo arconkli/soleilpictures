@@ -2,10 +2,11 @@
 
 > Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
 
-_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-22_
 
 Both play in place on the canvas — the clip is a card among the reference
-stills it belongs with. A video also opens in a full review player when you
+stills it belongs with, which is what a
+[video reference board](/tools/video-reference-board) is. A video also opens in a full review player when you
 need to look at it frame by frame.
 
 ## Video
@@ -27,7 +28,9 @@ Dragging the card never starts it.
 right-click menu (on the board or in [Files](/docs/clusters/list-view)), or
 **Open in player** in Quick look opens the clip full size in a dark room, on the
 frame you were on. Click the picture to play or pause; double-click for full
-screen. When you close it, the card shows the frame you left on.
+screen. In full screen the controls step aside while it plays and come back when
+the pointer moves; on a touch screen, a tap brings them back without pausing.
+When you close it, the card shows the frame you left on.
 
 Under the picture, the timeline fills the width. Below it, from left to right:
 - the timecode, the clip's length and its frame rate;
@@ -71,7 +74,8 @@ Under the picture, the timeline fills the width. Below it, from left to right:
   right-click menu, copies a link that opens this player paused on this frame,
   for anyone who can open the cluster.
 - **Versions.** A clip with [versions](/docs/files#versions) shows them along
-  the top. Switching keeps the frame, in, out and loop. **Compare** puts a second
+  the top, in a menu there past four or on a narrow screen. Switching keeps the
+  frame, in, out and loop. **Compare** puts a second
   version behind the one on show: `\` or the **A | B** buttons flip between the
   two on the same frame.
 
@@ -161,7 +165,7 @@ The file comes back under its **original name**, not the card's title. Renaming
 a card to something readable never costs you the extension, which is what makes
 the file openable.
 
-To take several at once, switch to [Files](/docs/clusters/list-view),
+To take several at once, open the [full Files page](/docs/clusters/list-view) (`F`),
 select the ones you want and press **Download** — one zip, original names
 intact. Zips are capped at **500 files** or
 **500 MB**, whichever comes first; past either, download in
@@ -201,11 +205,13 @@ in the background, a couple at a time, while you have the cluster open.
 
 ## Formats
 
-Whatever the browser can play. H.264 in an MP4 container, and MP3 or WAV, are
-the reliable choices.
+Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC,
+an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes
+plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound.
 
-A file the browser cannot play still uploads — it becomes a
-[file card](/docs/files) with a download, rather than failing.
+A video your browser can't decode still uploads and becomes a video card: it
+says it can't be played here, and offers the download. A clip that arrives
+without a file type, as some systems send a .mov or .mkv, is still a video.
 
 ## What this is not
 
