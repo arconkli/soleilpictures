@@ -50,7 +50,8 @@
 --     offer isn't made again, and the team link refuses someone an admin
 --     removed (org_removals) until an admin's invite brings them back;
 --   * a workspace made private offboards the members and viewers who opened
---     it only through the team;
+--     it only through the team, and an admin made a member or a viewer is
+--     offboarded from the private workspaces they opened only as an admin;
 --   * only the owner gives a team workspace to anyone but the owner;
 --   * a new account starts create_workspace_with_root's number of
 --     workspaces at most, team ones counted, and a view-only team gains none.
@@ -1104,6 +1105,7 @@ declare
   v_uid    uuid := auth.uid();
   v_me     text;
   v_target text;
+  v_ws     uuid;
 begin
   if v_uid is null or not public._actor_active() then
     raise exception 'sign in to do this' using errcode = '42501';
@@ -1155,6 +1157,21 @@ begin
   end if;
   if v_target = 'viewer' then
     perform public._team_seat_for(p_org_id, p_user_id, coalesce(p_add_seats, false), 'admin_add', 'team_seats_needed');
+  end if;
+  -- An admin made a member or a viewer stops reaching the team's private
+  -- workspaces, so what they set up there goes, before the role (and maybe the
+  -- seat) changes (requirement 3; set_team_workspace_private does the same).
+  -- Where they still reach a workspace, a lower role takes nothing, as
+  -- set_workspace_member_role.
+  if v_target = 'admin' then
+    for v_ws in
+      select w.id from public.workspaces w
+       where w.org_id = p_org_id and w.org_visibility = 'private'
+         and not exists (select 1 from public.workspace_members wm
+                          where wm.workspace_id = w.id and wm.user_id = p_user_id)
+    loop
+      perform public._offboard_member(v_ws, p_user_id);
+    end loop;
   end if;
   update public.org_members m set role = p_role where m.org_id = p_org_id and m.user_id = p_user_id;
 end;

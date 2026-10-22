@@ -464,6 +464,15 @@ test('offboarding runs before a seat frees, and for everyone a move-out cuts off
     'an explicit row keeps its access');
   assert.ok(body('remove_from_team').includes('public._org_remove_person(p_org_id, p_user_id, true)'));
   assert.ok(body('leave_team').includes('public._org_remove_person(p_org_id, auth.uid(), false)'));
+  // An admin made a member or a viewer stops reaching the private workspaces.
+  const s = body('set_team_role');
+  const demote = s.indexOf("if v_target = 'admin' then");
+  const leave = s.indexOf('public._offboard_member(v_ws, p_user_id)');
+  assert.ok(demote > 0 && demote < leave, 'set_team_role offboards a demoted admin');
+  assert.match(s.slice(demote, leave),
+    /w\.org_id = p_org_id and w\.org_visibility = 'private'\s+and not exists \(select 1 from public\.workspace_members wm\s+where wm\.workspace_id = w\.id and wm\.user_id = p_user_id\)/,
+    'from each private team workspace they hold no row in');
+  assert.ok(leave < s.indexOf('update public.org_members m set role = p_role'), 'before the role changes');
 });
 
 test('get_team: role first, addresses only for admins, the admin parts null for everyone else', () => {
