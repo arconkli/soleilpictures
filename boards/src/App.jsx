@@ -11545,6 +11545,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <TrashModal
         open={trashOpen}
         workspaceId={workspace.id}
+        canPurge={canManageWorkspace(workspaceRole || (workspace.created_by === user.id ? 'owner' : workspace._myRole))}
         onBoardRestored={() => refreshBoards()}
         onClose={() => setTrashOpen(false)}
       />

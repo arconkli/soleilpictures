@@ -270,7 +270,7 @@ export const RENDERERS = {
   'shortcuts': ({ close }) => <ShortcutsOverlay open onClose={close} />,
   'command-palette': ({ close }) => <CommandPalette open onClose={close} workspaceId={WORKSPACE.id} boards={[BOARD]} rootId={BOARD.id} commands={[{ id: 'c1', label: 'New cluster', keywords: ['add'], run: NOOP, available: true }]} onOpenBoard={NOOP} />,
   'command-palette-pick': ({ close }) => <CommandPalette open mode="pick" onClose={close} workspaceId={WORKSPACE.id} boards={[BOARD]} rootId={BOARD.id} onPickBoard={NOOP} placeholder="Pick a cluster…" />,
-  'trash-modal': ({ close }) => <TrashModal open workspaceId={WORKSPACE.id} onClose={close} />,
+  'trash-modal': ({ close }) => <TrashModal open workspaceId={WORKSPACE.id} canPurge onClose={close} />,
   'custom-fonts': ({ close }) => <CustomFontsModal open onClose={close} />,
   'save-template': ({ close }) => (SaveTemplateDialog
     ? <SaveTemplateDialog open layout={{ cols: 3, rows: 2, cells: [] }} size={{ w: 3, h: 2 }} defaultName="Three up" onCancel={close} onSave={close} />

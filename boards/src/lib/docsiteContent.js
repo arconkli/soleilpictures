@@ -25451,21 +25451,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " puts a cluster back where it was, or "
+     "v": " puts a cluster back where it was. The workspace's owner and co-owners can also "
     },
     {
      "t": "strong",
-     "v": "remove permanently",
+     "v": "remove it permanently",
      "children": [
       {
        "t": "text",
-       "v": "remove permanently"
+       "v": "remove it permanently"
       }
      ]
     },
     {
      "t": "text",
-     "v": " if you are sure."
+     "v": " if they are sure; for everyone else, editors included, a deleted cluster waits out its 30 days and can always be brought back."
     }
    ]
   },

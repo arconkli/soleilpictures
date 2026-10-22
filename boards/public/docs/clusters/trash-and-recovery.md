@@ -2,7 +2,7 @@
 
 > Deleting a cluster is a soft delete — it sits in the trash for 30 days and can be restored. Individual boards keep version snapshots you can look through and roll back to. If something goes badly wrong, workspace recovery rewinds every board in the workspace to a chosen moment, with a preview of exactly what would change before anything happens.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/clusters/trash-and-recovery · Updated 2026-10-22_
 
 Four layers, from smallest mistake to worst day.
 
@@ -28,8 +28,10 @@ Deleting a cluster is a **soft delete**. It goes to the workspace trash and
 stays restorable for **30 days**, then is purged.
 
 The trash is workspace-wide — open it from the sidebar or `⌘K` → "trash". From
-there, **restore** puts a cluster back where it was, or **remove permanently**
-if you are sure.
+there, **restore** puts a cluster back where it was. The workspace's owner and
+co-owners can also **remove it permanently** if they are sure; for everyone
+else, editors included, a deleted cluster waits out its 30 days and can always
+be brought back.
 
 A cluster goes to the trash with everything inside it, the clusters nested in
 it included, and it comes back the same way: restoring it brings them all back

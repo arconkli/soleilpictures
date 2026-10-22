@@ -1117,11 +1117,14 @@ export async function restoreBoard(boardId) {
   if (error) throw error;
 }
 
-// Hard-delete a board (admin-only path; not wired into the UI yet). Use
-// the existing DELETE for cases where the user explicitly wants to purge.
+// Remove a cluster in the trash for good (the Trash's Delete now). Only the
+// workspace's owner and co-owners may (0608: the boards DELETE policy), and
+// a delete the policy filters out matches no row rather than erroring, so an
+// empty result is the refusal.
 export async function hardDeleteBoard(boardId) {
-  const { error } = await supabase.from('boards').delete().eq('id', boardId);
+  const { data, error } = await supabase.from('boards').delete().eq('id', boardId).select('id');
   if (error) throw error;
+  if (!data?.length) throw new Error('Only the workspace’s owner and co-owners can delete a cluster for good.');
 }
 
 // ── Board state (Y.Doc snapshot, base64-encoded text) ───────────────────────
