@@ -77,6 +77,8 @@ export const PUREREF_FILE_RE = /\.pur$/i;
 // Photoshop documents and camera raws: image MIME types that no browser
 // decodes, Safari included (TIFF and HEIC are not here — Safari draws both).
 export const UNDRAWABLE_IMAGE_RE = /\.(psd|psb|dng|cr2|cr3|crw|nef|nrw|arw|srf|sr2|raf|orf|rw2|pef|srw|3fr|iiq|x3f)$/i;
+// Video by its name alone, for a file that arrives with no type.
+export const VIDEO_EXT_RE = /\.(mov|qt|mp4|m4v|webm|mkv|avi|wmv|flv|mpe?g|m2ts|3gp|3g2|ogv)$/i;
 
 // Decide the upload route + card kind + fallback size for a File.
 //   canAttemptFiles — false when the user OWNS this workspace and is NOT on a
@@ -110,7 +112,12 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   // have always said a .psd becomes.
   const isImage = (type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name)))
     && !UNDRAWABLE_IMAGE_RE.test(name) && !/photoshop/i.test(type);
-  const isVideo = type.startsWith('video/');
+  // The same for video: a system that has nothing registered for .mov or
+  // .mkv hands over no type (or the generic one), and the clip became a file
+  // card with no player. Not .ts or .mts — those are TypeScript as often as
+  // a camera's files, and a system that knows them says video/mp2t.
+  const isVideo = type.startsWith('video/')
+    || ((!type || type === 'application/octet-stream') && VIDEO_EXT_RE.test(name));
   // Same empty-mime problem as HEIC, and it bites hardest on the formats
   // producers actually ship: Safari reports NO type for .flac and .aiff, and
   // some pickers do the same for .wav. Without an extension fallback those

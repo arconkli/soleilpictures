@@ -2,7 +2,7 @@
 
 > Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
 
-_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/files/video-and-audio · Updated 2026-10-22_
 
 Both play in place on the canvas — the clip is a card among the reference
 stills it belongs with, which is what a
@@ -205,11 +205,13 @@ in the background, a couple at a time, while you have the cluster open.
 
 ## Formats
 
-Whatever the browser can play. H.264 in an MP4 container, and MP3 or WAV, are
-the reliable choices.
+Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC,
+an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes
+plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound.
 
-A file the browser cannot play still uploads — it becomes a
-[file card](/docs/files) with a download, rather than failing.
+A video your browser can't decode still uploads and becomes a video card: it
+says it can't be played here, and offers the download. A clip that arrives
+without a file type, as some systems send a .mov or .mkv, is still a video.
 
 ## What this is not
 

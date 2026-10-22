@@ -5,7 +5,7 @@ h1: PDFs
 navLabel: PDFs
 section: files
 order: 1
-updated: 2026-10-17
+updated: 2026-10-22
 answer: Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to {{fact:pdfViewerMax}} open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.
 faq:
   - q: Can I annotate a PDF?
@@ -27,6 +27,10 @@ A PDF on a board is a real document, not a download link.
 Dropping a PDF gives you a card showing the **first page** as a thumbnail, plus
 the **page count**. At a glance you can tell a two-page treatment from a
 ninety-page script.
+
+A PDF whose first page couldn't be drawn as it arrived, or that came in from a
+message or the [API](/docs/api/cards), gets it the next time someone who can
+edit opens the cluster. A password-protected PDF keeps the PDF mark.
 
 The card behaves like any other — move, resize, group, tag, comment, put it in a
 [grid](/docs/canvas/grids) cell.

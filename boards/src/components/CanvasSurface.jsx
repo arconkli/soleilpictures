@@ -10881,7 +10881,9 @@ export function CanvasSurface({
       if (mime.startsWith('image/')) {
         const up = await uploadImage({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'image', src: up.src, fit: 'cover' });
-      } else if (mime.startsWith('video/')) {
+      } else if (classifyDropFile(f).kind === 'video') {
+        // A clip by its type, or by its name when it came with none, as a
+        // drop on the board decides it (fileIngest).
         // canAttemptFiles, exactly as the canvas and list drop paths do it.
         // Without it this path applied the FREE 30 MB / 60 s caps to paid
         // owners too — the one upload route that never learned about the

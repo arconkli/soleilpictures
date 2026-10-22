@@ -83,3 +83,20 @@ test('uploads.js routes every single-PUT path and the multipart catch through it
   // MEDIA-12: unreadable length fails closed only under a finite limit.
   assert.match(src, /if \(unreadable && Number\.isFinite\(maxDurationSec\)\)/);
 });
+
+test('a PUT that goes quiet is cut off and retried, and a clip it cannot measure never holds the upload', () => {
+  // A dead connection that never errors read as "Uploading" until the
+  // abandoned-upload sweep removed the card a day later.
+  assert.equal(isRetryableUploadError(new Error('Upload stalled')), true);
+  assert.equal(isRetryableUploadError(new Error('Part upload stalled')), true);
+  const src = readFileSync(join(here, 'uploads.js'), 'utf8');
+  const single = src.slice(src.indexOf('function putWithProgress('), src.indexOf('function presignAndPutFile('));
+  assert.match(single, /stop = watchStall\(xhr, \(\) => settle\(reject, new Error\('Upload stalled'\)\)\)/);
+  const part = src.slice(src.indexOf('function putPartWithProgress('), src.indexOf('async function putPartWithRetry('));
+  assert.match(part, /stop = watchStall\(xhr, \(\) => settle\(reject, new Error\('Part upload stalled'\)\)\)/);
+  // The stall settles first, so its own abort doesn't read as a cancel.
+  assert.match(src, /t = setTimeout\(\(\) => \{ onStall\(\); try \{ xhr\.abort\(\); \} catch \(_\) \{\} \}, ms\);/);
+  // uploadVideo waits on readVideoMeta before it sends a byte.
+  const meta = src.slice(src.indexOf('export function readVideoMeta('), src.indexOf('export function captureVideoPoster('));
+  assert.match(meta, /setTimeout\(\(\) => done\(unread\), timeoutMs\)/);
+});

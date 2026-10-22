@@ -27,6 +27,7 @@ import { presignAndPut, retryWait, keepResumeSession } from './uploadRetry.js';
 import { runGated } from './backfillGate.js';
 import { enqueueVariant, dequeueVariant } from './variantQueue.js';
 import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from './partyHost.js';
+import { pdfCardHeight } from './pdfThumb.js';
 
 
 // Tier-1 preview spec (progressive image loading). The canvas shows this
@@ -197,12 +198,36 @@ async function presignPreview({ workspaceId, boardId, previewKey, bytes }) {
   });
 }
 
+// Nothing sent for this long and the connection is dead, not slow. XHR has no
+// timeout of its own, so a PUT whose connection died without an error never
+// failed: its card spun "Uploading" until the abandoned-upload sweep removed it
+// a day later. Cut off, it fails as a network error, which the retries take.
+export const PUT_STALL_MS = 60_000;
+
+// Abort `xhr` once it has sent nothing for PUT_STALL_MS (twice that after its
+// last byte, while storage answers), calling `onStall` first so the abort
+// reads as a stall rather than a cancel. Returns the function that stops it.
+function watchStall(xhr, onStall) {
+  let t = null;
+  const arm = (ms) => {
+    clearTimeout(t);
+    t = setTimeout(() => { onStall(); try { xhr.abort(); } catch (_) {} }, ms);
+  };
+  xhr.upload.addEventListener('progress', () => arm(PUT_STALL_MS));
+  xhr.upload.addEventListener('load', () => arm(2 * PUT_STALL_MS));
+  arm(PUT_STALL_MS);
+  return () => clearTimeout(t);
+}
+
 // XHR PUT with a real upload-progress callback. Browser fetch() doesn't
 // expose progress for a request body, so we drop down to XHR for the
 // PUT step. The presign + DB-insert steps still use fetch.
 function putWithProgress(url, file, { onProgress } = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let stop = () => {};
+    let settled = false;
+    const settle = (fn, value) => { if (settled) return; settled = true; stop(); fn(value); };
     xhr.open('PUT', url, true);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
     xhr.upload.onprogress = (ev) => {
@@ -210,11 +235,12 @@ function putWithProgress(url, file, { onProgress } = {}) {
       onProgress(ev.loaded / Math.max(1, ev.total));
     };
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+      if (xhr.status >= 200 && xhr.status < 300) settle(resolve);
+      else settle(reject, new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
     };
-    xhr.onerror = () => reject(new Error('Upload network error'));
-    xhr.onabort = () => reject(new Error('Upload aborted'));
+    xhr.onerror = () => settle(reject, new Error('Upload network error'));
+    xhr.onabort = () => settle(reject, new Error('Upload aborted'));
+    stop = watchStall(xhr, () => settle(reject, new Error('Upload stalled')));
     xhr.send(file);
   });
 }
@@ -626,25 +652,38 @@ export async function uploadBoardThumbnail({ workspaceId, boardId, blob, userId 
 // Read width/height/duration from a video File. Returns null fields if
 // the metadata can't load — caller should treat that as "skip duration
 // check" rather than fail.
-export function readVideoMeta(file) {
+// Neither loadedmetadata nor error is promised, and an upload waits on this
+// before it sends a byte: a clip the browser went quiet on left its card
+// spinning "Uploading" until the abandoned-upload sweep removed it a day later.
+// Unread is fine — uploadVideo stores a clip it can't measure.
+export function readVideoMeta(file, { timeoutMs = 10_000 } = {}) {
   return new Promise((res) => {
+    let url = null;
+    let v = null;
+    let settled = false;
+    const done = (out) => {
+      if (settled) return;
+      settled = true;
+      try { if (url) URL.revokeObjectURL(url); } catch (_) {}
+      // Let go of the decoder now rather than at garbage collection.
+      try { v?.removeAttribute('src'); v?.load(); } catch (_) {}
+      res(out);
+    };
+    const unread = { w: null, h: null, duration: null };
     try {
-      const url = URL.createObjectURL(file);
-      const v = document.createElement('video');
+      url = URL.createObjectURL(file);
+      v = document.createElement('video');
       v.preload = 'metadata';
-      v.onloadedmetadata = () => {
-        const out = {
-          w: v.videoWidth || null,
-          h: v.videoHeight || null,
-          duration: Number.isFinite(v.duration) ? v.duration : null,
-        };
-        URL.revokeObjectURL(url);
-        res(out);
-      };
-      v.onerror = () => { URL.revokeObjectURL(url); res({ w: null, h: null, duration: null }); };
+      v.onloadedmetadata = () => done({
+        w: v.videoWidth || null,
+        h: v.videoHeight || null,
+        duration: Number.isFinite(v.duration) ? v.duration : null,
+      });
+      v.onerror = () => done(unread);
+      setTimeout(() => done(unread), timeoutMs);
       v.src = url;
     } catch (_) {
-      res({ w: null, h: null, duration: null });
+      done(unread);
     }
   });
 }
@@ -894,29 +933,13 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
   // 2) Render page 1 → WebP thumbnail (best-effort) + read the page count.
   let pageCount = null;
   let thumbSrc = null;
-  let w = 300, h = 388; // US-Letter-ish portrait fallback
+  const w = 300;
+  let h = 388; // US-Letter-ish portrait fallback
   try {
-    const buf = await file.arrayBuffer();
-    const { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } = await import('./pdfEngine.js');
-    const doc = await loadPdfDocument(buf);
-    pageCount = getPageCount(doc);
-    try {
-      const vp = await getPageViewport(doc, 1, 1);
-      if (vp.width && vp.height) {
-        const aspect = vp.height / vp.width;
-        w = 300;
-        h = Math.max(80, Math.round(w * aspect));
-      }
-    } catch (_) {}
-    const canvas = await renderPageToCanvas(doc, 1, { targetWidth: 1024 });
-    const blob = await canvasToWebpBlob(canvas);
-    try { doc.destroy?.(); } catch (_) {}
-    if (blob) {
-      const base = (file.name || 'document').replace(/\.pdf$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'pdf';
-      const thumbFile = new File([blob], `${base}.webp`, { type: 'image/webp' });
-      const up = await uploadImage({ file: thumbFile, workspaceId, boardId, cardId, userId });
-      thumbSrc = up.src;
-    }
+    const page = await uploadPdfPageOne({ source: await file.arrayBuffer(), name: file.name, workspaceId, boardId, cardId, userId });
+    pageCount = page.pageCount;
+    thumbSrc = page.src;
+    h = pdfCardHeight(w, page.width, page.height) ?? h;
   } catch (err) {
     // Thumbnail/page-count are non-fatal — the card + viewer work without them.
     console.warn('[uploads] pdf thumbnail render failed (card still usable)', err);
@@ -929,6 +952,41 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
     name: file.name || 'PDF',
     w, h,
   };
+}
+
+// Draw a PDF's page 1 and store it as its card's picture: the same raster for
+// a PDF that just arrived (uploadPdf) and for one that arrived without it
+// (usePdfThumbBackfill). `source` is anything loadPdfDocument takes — the
+// file's bytes, or a signed URL. Returns { src, pageCount, width, height }
+// (page 1 in PDF points); `src` is null when the page wouldn't draw or store.
+// Throws only when the document can't be opened at all, which pdfThumb.js's
+// pdfUnreadable says is for good or not.
+export async function uploadPdfPageOne({ source, name, workspaceId, boardId, cardId = null, userId }) {
+  const { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } = await import('./pdfEngine.js');
+  const doc = await loadPdfDocument(source);
+  const out = { src: null, pageCount: getPageCount(doc) || null, width: null, height: null };
+  let blob = null;
+  try {
+    try {
+      const vp = await getPageViewport(doc, 1, 1);
+      if (vp.width && vp.height) { out.width = vp.width; out.height = vp.height; }
+    } catch (_) {}
+    blob = await canvasToWebpBlob(await renderPageToCanvas(doc, 1, { targetWidth: 1024 }));
+  } catch (err) {
+    console.warn('[uploads] pdf page-1 render failed', err);
+  } finally {
+    try { doc.destroy?.(); } catch (_) {}
+  }
+  if (blob) {
+    const base = (name || 'document').replace(/\.pdf$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'pdf';
+    try {
+      const up = await uploadImage({ file: new File([blob], `${base}.webp`, { type: 'image/webp' }), workspaceId, boardId, cardId, userId });
+      out.src = up.src || null;
+    } catch (err) {
+      console.warn('[uploads] pdf page-1 upload failed', err);
+    }
+  }
+  return out;
 }
 
 // Upload a short video to R2. Caller is expected to enforce constraints
@@ -1050,6 +1108,9 @@ async function mpuPost(path, workspaceId, payload) {
 function putPartWithProgress(url, blob, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let stop = () => {};
+    let settled = false;
+    const settle = (fn, value) => { if (settled) return; settled = true; stop(); fn(value); };
     xhr.open('PUT', url, true);
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable && onProgress) onProgress(ev.loaded);
@@ -1060,14 +1121,16 @@ function putPartWithProgress(url, blob, { onProgress, signal } = {}) {
         if (!etag) {
           // R2 must expose ETag via CORS (it does today). Without it we can't
           // complete the upload — surface a clear cause rather than a cryptic 502.
-          reject(new Error('Missing ETag on part response (R2 CORS ExposeHeaders)'));
+          settle(reject, new Error('Missing ETag on part response (R2 CORS ExposeHeaders)'));
           return;
         }
-        resolve(etag);
-      } else reject(new Error(`Part upload failed: ${xhr.status} ${xhr.statusText}`));
+        settle(resolve, etag);
+      } else settle(reject, new Error(`Part upload failed: ${xhr.status} ${xhr.statusText}`));
     };
-    xhr.onerror = () => reject(new Error('Part upload network error'));
-    xhr.onabort = () => reject(new Error('aborted'));
+    xhr.onerror = () => settle(reject, new Error('Part upload network error'));
+    xhr.onabort = () => settle(reject, new Error('aborted'));
+    // A stalled part is retried like a dropped one (putPartWithRetry).
+    stop = watchStall(xhr, () => settle(reject, new Error('Part upload stalled')));
     if (signal) {
       if (signal.aborted) { try { xhr.abort(); } catch (_) {} }
       else signal.addEventListener('abort', () => { try { xhr.abort(); } catch (_) {} }, { once: true });

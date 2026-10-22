@@ -1147,7 +1147,7 @@ export const DOCS_PAGES = [
     "answer": "Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.",
     "section": "files",
     "order": 1,
-    "updated": "2026-10-17",
+    "updated": "2026-10-22",
     "navLabel": "PDFs",
     "headings": [
       {
@@ -1199,7 +1199,7 @@ export const DOCS_PAGES = [
     "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.",
     "section": "files",
     "order": 2,
-    "updated": "2026-10-21",
+    "updated": "2026-10-22",
     "navLabel": "Video and audio",
     "headings": [
       {
@@ -1243,7 +1243,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What formats work?",
-        "a": "Whatever the browser can play — H.264 MP4 and MP3 or WAV are the safe choices. An unplayable file still uploads and becomes a downloadable file card."
+        "a": "Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere, and MP3 or WAV for sound. A video your browser can't decode still becomes a video card, which says so and offers the download."
       }
     ]
   },

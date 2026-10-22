@@ -1600,7 +1600,7 @@ A: Drop the new file onto the old one — on the board or in Files — and it be
 ========================================================================
 # PDFs
 URL: https://clusters.soleilpictures.com/docs/files/pdf
-Updated: 2026-10-17
+Updated: 2026-10-22
 
 Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.
 
@@ -1609,6 +1609,8 @@ A PDF on a board is a real document, not a download link.
 The card
 
 Dropping a PDF gives you a card showing the first page as a thumbnail, plus the page count. At a glance you can tell a two-page treatment from a ninety-page script.
+
+A PDF whose first page couldn't be drawn as it arrived, or that came in from a message or the API, gets it the next time someone who can edit opens the cluster. A password-protected PDF keeps the PDF mark.
 
 The card behaves like any other — move, resize, group, tag, comment, put it in a grid cell.
 
@@ -1655,7 +1657,7 @@ A: Not automatically. Export the pages you want from your PDF tool and drop them
 ========================================================================
 # Video and audio
 URL: https://clusters.soleilpictures.com/docs/files/video-and-audio
-Updated: 2026-10-21
+Updated: 2026-10-22
 
 Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
 
@@ -1763,9 +1765,9 @@ Cards that were uploaded before waveforms existed get theirs filled in quietly i
 
 Formats
 
-Whatever the browser can play. H.264 in an MP4 container, and MP3 or WAV, are the reliable choices.
+Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC, an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound.
 
-A file the browser cannot play still uploads — it becomes a file card with a download, rather than failing.
+A video your browser can't decode still uploads and becomes a video card: it says it can't be played here, and offers the download. A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video.
 
 What this is not
 
@@ -1791,7 +1793,7 @@ Q: Can a video loop like a GIF?
 A: Yes. Right-click the card for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen.
 
 Q: What formats work?
-A: Whatever the browser can play — H.264 MP4 and MP3 or WAV are the safe choices. An unplayable file still uploads and becomes a downloadable file card.
+A: Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere, and MP3 or WAV for sound. A video your browser can't decode still becomes a video card, which says so and offers the download.
 
 
 ========================================================================

@@ -5,7 +5,7 @@ h1: Video and audio
 navLabel: Video and audio
 section: files
 order: 2
-updated: 2026-10-21
+updated: 2026-10-22
 answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
 faq:
   - q: Why does starting one audio card stop another?
@@ -15,7 +15,7 @@ faq:
   - q: Can a video loop like a GIF?
     a: Yes. Right-click the card for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen.
   - q: What formats work?
-    a: Whatever the browser can play — H.264 MP4 and MP3 or WAV are the safe choices. An unplayable file still uploads and becomes a downloadable file card.
+    a: Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere, and MP3 or WAV for sound. A video your browser can't decode still becomes a video card, which says so and offers the download.
 related:
   - /docs/files
   - /docs/canvas/cards
@@ -223,11 +223,13 @@ in the background, a couple at a time, while you have the cluster open.
 
 ## Formats
 
-Whatever the browser can play. H.264 in an MP4 container, and MP3 or WAV, are
-the reliable choices.
+Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC,
+an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes
+plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound.
 
-A file the browser cannot play still uploads — it becomes a
-[file card](/docs/files) with a download, rather than failing.
+A video your browser can't decode still uploads and becomes a video card: it
+says it can't be played here, and offers the download. A clip that arrives
+without a file type, as some systems send a .mov or .mkv, is still a video.
 
 ## What this is not
 

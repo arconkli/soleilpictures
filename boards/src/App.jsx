@@ -154,6 +154,7 @@ import { RENDER_VERSION as THUMB_VERSION, renderMosaicBlob } from './lib/renderT
 import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
 import { useAudioPeaksBackfill } from './hooks/useAudioPeaksBackfill.js';
+import { usePdfThumbBackfill } from './hooks/usePdfThumbBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -10072,6 +10073,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // showing a waveform that was synthesized from its filename. This decodes
   // the real one. Bounded harder (2/pass) because it moves whole audio files.
   useAudioPeaksBackfill({
+    cards: currentCards, canEdit: canEditCurrent,
+    workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
+    updateCardSilent: mainMutators.updateCardMeta,
+  });
+
+  // And for PDFs: a card whose page-1 picture was never made (its upload's
+  // render failed, or it came from a message, the API or Scout) shows the PDF
+  // glyph until a writer opens its cluster, and this draws page 1 then.
+  usePdfThumbBackfill({
     cards: currentCards, canEdit: canEditCurrent,
     workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
     updateCardSilent: mainMutators.updateCardMeta,

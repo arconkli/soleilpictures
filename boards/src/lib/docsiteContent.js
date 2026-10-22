@@ -15943,6 +15943,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "A PDF whose first page couldn't be drawn as it arrived, or that came in from a message or the "
+    },
+    {
+     "t": "link",
+     "v": "API",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", gets it the next time someone who can edit opens the cluster. A password-protected PDF keeps the PDF mark."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "The card behaves like any other — move, resize, group, tag, comment, put it in a "
     },
     {
@@ -17936,7 +17960,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Whatever the browser can play. H.264 in an MP4 container, and MP3 or WAV, are the reliable choices."
+     "v": "Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC, an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound."
     }
    ]
   },
@@ -17945,22 +17969,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file the browser cannot play still uploads — it becomes a "
-    },
-    {
-     "t": "link",
-     "v": "file card",
-     "href": "/docs/files",
-     "children": [
-      {
-       "t": "text",
-       "v": "file card"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " with a download, rather than failing."
+     "v": "A video your browser can't decode still uploads and becomes a video card: it says it can't be played here, and offers the download. A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video."
     }
    ]
   },
