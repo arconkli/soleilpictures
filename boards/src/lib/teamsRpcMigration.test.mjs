@@ -117,9 +117,11 @@ test('every function lives in its file, once (no overloads, PGRST203)', () => {
   for (const f of RPCS)
     assert.deepEqual([...code(fileText(f)).matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort(),
       [...PART[f]].sort(), `${f} defines exactly its share`);
+  // S2b re-emits one helper, team-aware (pinned in teamsPayMigration.test.mjs).
+  const LATER = { _workspace_set_owner: '0536_teams_pay_meters.sql' };
   for (const fn of named) {
-    assert.equal(def(fn).file, fileOf(fn), `${fn}'s latest definition must be ${fileOf(fn)}`);
-    assert.equal(definitionsOf(fn).filter((d) => d.file >= '0522').length, 1, `${fn} is defined once in 0522+`);
+    assert.equal(def(fn).file, LATER[fn] || fileOf(fn), `${fn}'s latest definition must be ${LATER[fn] || fileOf(fn)}`);
+    assert.equal(definitionsOf(fn).filter((d) => d.file >= '0522' && d.file < '0536').length, 1, `${fn} is defined once in 0522–0535`);
   }
   for (const fn of Object.keys(READS)) {
     assert.equal(def(fn).file, READ, `${fn}'s latest definition must be 0535`);

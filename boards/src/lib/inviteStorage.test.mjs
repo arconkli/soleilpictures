@@ -50,7 +50,8 @@ test('storage rides on the referral row: the friend on insert, the inviter on pa
 
 test('every drive includes the invitation storage, on top of any plan or per-account figure', () => {
   const q = latestDefinition('_storage_quota_bytes').body;
-  assert.match(q, /\)\s*\+ coalesce\(\(select p\.bonus_storage_bytes from public\.profiles p where p\.user_id = p_owner\), 0\);/,
+  // (0537 adds the seat perk after it, pinned in teamsPayMigration.test.mjs.)
+  assert.match(q, /\)\s*\+ coalesce\(\(select p\.bonus_storage_bytes from public\.profiles p where p\.user_id = p_owner\), 0\)\s/,
     'the bonus is added outside the coalesce, so a per-account figure gets it too');
   assert.match(q, /public\._storage_addon_blocks\(p_owner\)/, '0415 extra storage still counts');
   assert.match(q, /else public\._storage_quota_free_bytes\(\)/);

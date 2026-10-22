@@ -764,10 +764,13 @@ test('an upload URL carries its size, and the images row takes that size, not th
 
   assert.match(latestDefinition('_tg_image_size_from_intent').body, /new\.size_bytes := v_bytes;/);
   assert.ok(latestMatch(/create trigger images_size_from_intent\s+before insert on public\.images/));
+  // Since 0537 through the workspace's drive: its team's, else its owner's.
   for (const fn of ['authorize_upload', 'authorize_image_upload']) {
-    assert.match(latestDefinition(fn).body, /_storage_used_bytes\(v_owner\) \+ public\._storage_pending_bytes\(v_owner\)/,
-      `${fn} counts uploads in flight`);
+    assert.match(latestDefinition(fn).body, /public\._drive_used_bytes\(v_org, v_owner\)/, `${fn} counts uploads in flight`);
   }
+  assert.match(latestDefinition('_drive_used_bytes').body,
+    /then public\._org_storage_used_bytes\(p_org\) \+ public\._org_storage_pending_bytes\(p_org\)\s+else public\._storage_used_bytes\(p_owner\) \+ public\._storage_pending_bytes\(p_owner\) end/,
+    'either drive counts uploads in flight');
   assert.match(latestDefinition('_storage_quota_bytes').body, /else public\._storage_quota_free_bytes\(\)/, 'a free owner gets the free drive');
   assert.ok(latestMatch(/add constraint images_size_bytes_nonnegative check \(size_bytes is null or size_bytes >= 0\)/));
   for (const sig of ['_storage_quota_free_bytes\\(\\)', '_storage_pending_bytes\\(uuid\\)', 'purge_old_upload_intents\\(integer\\)']) {

@@ -226,7 +226,8 @@ test('the cap prices the weight that is stored, a change of kind and a move to a
   // DB-08. A card that lands on a meter which never counted it pays in full.
   const trg = latestDefinition('enforce_demo_card_cap_trg');
   assert.match(trg.body, /new\.board_id is distinct from old\.board_id/);
-  assert.match(trg.body, /board_workspace_owner\(new\.board_id\) is distinct from public\.board_workspace_owner\(old\.board_id\)/);
+  // Since 0537 the meter is the payer's: a team's cards are on no one's.
+  assert.match(trg.body, /_board_card_payer\(new\.board_id\) is distinct from public\._board_card_payer\(old\.board_id\)/);
   // …and the API asks before writing, because the trigger refuses only after
   // moveCardsBetweenBoards has written the destination board.
   const api = readSrc('worker-api.js');

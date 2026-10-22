@@ -39,7 +39,8 @@ test('an owner\'s used bytes are the rollup, which no longer depends on the cloc
   assert.doesNotMatch(used, /interval '24 hours'/, 'an unplaced file counts however old (0412)');
   assert.match(used, /public\._image_counts\(i\.deleted_at, i\.storage_path, i\.ref_count, i\.live_board_ids, i\.first_referenced_at\)/);
   const rec = latestDefinition('reconcile_storage_usage').body;
-  assert.equal((rec.match(/public\._image_counts\(/g) || []).length, 2, 'the nightly truth and its zeroing use the same rule');
+  assert.equal((rec.match(/public\._image_counts\(/g) || []).length, 4,
+    'the nightly truth and its zeroing, for people and (0537) for teams, use the same rule');
 });
 
 test('a single PUT that never landed stops holding space after an hour', () => {
