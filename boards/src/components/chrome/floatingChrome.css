@@ -51,6 +51,10 @@
 .chrome-island .tb-brand:focus-visible,
 .chrome-island .tb-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .chrome-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; flex-shrink: 0; }
+/* Split view's button while a cluster is pinned alongside: the bell's
+   pressed chip (notificationsPanel.css), ink and never gold. */
+.chrome-island .tb-icon.tb-icon-split.is-pressed { background: var(--sbf-chip, var(--bg-4)); box-shadow: var(--sbf-chip-shadow, none); color: var(--ink-0); }
+[data-theme='light'] .chrome-island .tb-icon.tb-icon-split.is-pressed { background: rgba(10, 10, 12, .07); box-shadow: none; }
 
 /* ⋯ and what it holds. */
 .chrome-more { position: relative; }

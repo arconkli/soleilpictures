@@ -11010,10 +11010,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <button className="tb-icon" title="Search (⌘K)" aria-label="Search" onClick={() => setPaletteOpen(true)}>
                   <Icon as={Search} size={16} />
                 </button>
-                {/* The bell follows the theme switch, or Search where the
-                    theme waits in ⋯ (under a finger). */}
+                {/* Split view is one press from the bar, as it was in the old
+                    one (docs/clusters#side-by-side sends people here): it pins
+                    a cluster alongside, or closes the split, and shows pressed
+                    while one is open. The bell follows the theme switch, or
+                    Search where split view and the theme wait in ⋯ (under a
+                    finger). */}
                 {!isTouch ? (
                   <>
+                    <button className={`tb-icon tb-icon-split${splitId ? ' is-pressed' : ''}`}
+                            title={splitId ? 'Close split view' : 'Pin alongside…'}
+                            aria-label="Split view" aria-pressed={!!splitId}
+                            onClick={() => (splitId ? setSplitId(null) : setSplitPickerOpen(true))}>
+                      <Icon as={Columns2} size={16} />
+                    </button>
                     <button className="tb-icon tb-icon-theme" title="Toggle theme" aria-label="Toggle theme"
                             onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
                       <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
@@ -11040,10 +11050,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             menuItems={[
               { id: 'versions', label: 'Version history', icon: History, run: () => setVersionsOpen(true) },
               { id: 'trash', label: 'Deleted clusters', icon: Trash2, run: () => setTrashOpen(true) },
-              splitId
-                ? { id: 'split', label: 'Close split view', icon: Columns2, run: () => setSplitId(null) }
-                : { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => setSplitPickerOpen(true) },
               ...(isTouch ? [
+                splitId
+                  ? { id: 'split', label: 'Close split view', icon: Columns2, run: () => setSplitId(null) }
+                  : { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => setSplitPickerOpen(true) },
                 { id: 'theme', label: themeMode === 'dark' ? 'Light theme' : 'Dark theme', icon: themeMode === 'dark' ? Sun : Moon,
                   run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
                 ...(myTier.tier === 'admin' ? [{ id: 'admin', label: 'Admin dashboard', icon: LayoutGrid, run: () => window.location.assign('/admin') }] : []),

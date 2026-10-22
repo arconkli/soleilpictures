@@ -758,6 +758,10 @@ export function SidebarQaHarness() {
                 <button className="tb-icon" aria-label="Search"><Icon as={Search} size={16} /></button>
                 {!coarse ? (
                   <>
+                    <button className="tb-icon tb-icon-split" title="Pin alongside…" aria-label="Split view"
+                            aria-pressed={false} onClick={() => say('split')}>
+                      <Icon as={Columns2} size={16} />
+                    </button>
                     <button className="tb-icon" aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>
                     {notifBell}
                   </>
@@ -777,8 +781,8 @@ export function SidebarQaHarness() {
             menuItems={[
               { id: 'versions', label: 'Version history', icon: History, run: () => say('versions') },
               { id: 'trash', label: 'Deleted clusters', icon: Trash2, run: () => say('trash') },
-              { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => say('split') },
               ...(coarse ? [
+                { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => say('split') },
                 { id: 'theme', label: 'Light theme', icon: Sun, run: () => say('theme') },
                 { id: 'admin', label: 'Admin dashboard', icon: LayoutGrid, run: () => say('admin') },
               ] : []),
