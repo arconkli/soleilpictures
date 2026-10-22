@@ -70,3 +70,18 @@ test('mention search reads only the caller\'s conversations, matches literally a
   assert.match(def, /lim\s+int := least\(greatest\(coalesce\(p_limit, 6\), 1\), 24\);/);
   assert.ok(!/ilike '%' \|\| pat \|\| '%'/.test(def) && !/like '%' \|\| pat \|\| '%'/.test(def), 'no unescaped pattern is left');
 });
+
+// ── 0603: an image joins a cluster's reach only from its own workspace ─────
+
+test('a cluster joins an image\'s list only in the image\'s workspace, when already listed, or from a public source', () => {
+  const def = latestDefinition('recompute_image_refs').body;
+  assert.match(def, /when i\.workspace_id = \(select b\.workspace_id from boards b where b\.id = p_board_id\) then true\s+else _image_source_is_public\(i\.board_id\) end/,
+    'the per-cluster pass adds only same-workspace or public-source images');
+  assert.match(def, /when l\.board_ws = i0\.workspace_id then true\s+when l\.board_id = any\(i0\.referenced_in_board_ids\) then true\s+else _image_source_is_public\(i0\.board_id\) end/,
+    'the nightly pass follows the same rule');
+  const pub = latestDefinition('_image_source_is_public').body;
+  assert.match(pub, /from public_boards pb where pb\.board_id = p_board/);
+  assert.match(pub, /l\.revoked_at is null\s+and \(l\.expires_at is null or l\.expires_at > now\(\)\)\s+and \(c\.depth = 0 or l\.include_subboards\)/);
+  assert.ok(latestMatch(/revoke execute on function public\.recompute_image_refs\(uuid\) from public, anon, authenticated;/),
+    'signed-in clients cannot run it');
+});
