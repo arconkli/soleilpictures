@@ -251,9 +251,15 @@ test('a view-only member gets no table bar', async ({ page }) => {
   await expect(bar(page)).toHaveCount(0);
 });
 
+// Three columns 70px wide (a column's edge dragged in, as a phone's page or
+// a narrow pane leaves it): narrower than the bar with its words.
+const NARROW = '<p>Night exteriors first, in story order.</p>'
+  + '<table><tr><th colwidth="70">#</th><th colwidth="70">Shot</th><th colwidth="70">Lens</th></tr>'
+  + '<tr><td colwidth="70">1</td><td colwidth="70">Wide</td><td colwidth="70">24mm</td></tr></table>';
+
 test('over a table too narrow for its words, Row and Column are icons and Header row is in Row\'s menu', async ({ page }) => {
-  await openDoc(page, { width: 440 });
-  await setDoc(page, SHOTS);
+  await openDoc(page);
+  await setDoc(page, NARROW);
   await caretIn(page, 'Wide');
   await expect(bar(page)).toBeVisible();
   const names = await bar(page).getByRole('button').evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') || el.textContent.trim()));

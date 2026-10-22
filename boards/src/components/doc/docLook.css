@@ -96,6 +96,8 @@
 @media (hover: none) and (pointer: coarse) {
   .dl-head .doc-card-share { height: 40px; }
   .dl-dot { top: 9px; right: 9px; }
+  /* The title takes a finger: 40px to tap, the header's line no taller. */
+  .dl-head .doc-card-title-input.dl-title { padding: 10px 0; margin: -8px 0; }
 }
 
 /* ── The body: page list, page, side panel; the footer under all three ── */
@@ -696,20 +698,27 @@ button.dl-drow { cursor: pointer; }
   .dl-surface .sp-scenenav-item { height: 40px; font-size: 14.5px; }
   .dl-surface .doc-bookmarks-item { font-size: 14.5px; }
   .dl-crumb { font-size: 14.5px; }
-  .dl-seg > button { height: 34px; font-size: 13.5px; }
-  .dl-seg.is-sm > button { height: 34px; font-size: 13px; }
-  .dl-mini { height: 36px; padding: 0 11px; font-size: 13px; }
-  .dl-reply input { height: 36px; font-size: 16px; }
-  .dl-reply-send { top: 5px; right: 5px; width: 26px; height: 26px; }
-  .dl-th-del { width: 36px; height: 36px; margin: -11px -10px -11px auto; opacity: 1; }
+  .dl-seg > button { height: 40px; font-size: 13.5px; }
+  .dl-seg.is-sm > button { height: 40px; font-size: 13px; }
+  .dl-mini { height: 40px; padding: 0 12px; font-size: 13px; }
+  .dl-reply input { height: 40px; padding-right: 44px; font-size: 16px; }
+  /* 40px to tap; its square, 28px, drawn in the middle. */
+  .dl-reply-send { top: 0; right: 0; width: 40px; height: 40px; padding: 6px; border-radius: 12px; background-clip: content-box; }
+  /* A finger has no keys: the hint doesn't show them. */
+  .dl-cmts-none .tl-keys { display: none; }
+  .dl-th-del { position: relative; z-index: 1; width: 40px; height: 40px; margin: -13px -12px -13px auto; opacity: 1; }
+  /* The quote takes a finger: out to the card's top edge and over the gap
+     under it (a tap anywhere on the card does what the quote does), under
+     Delete's reach. */
+  .dl-th-q { position: relative; padding: 10px 0; margin: -10px 0 -2px; }
   .dl-field { height: 40px; }
   /* Under 16px iOS zooms the page in on focus. */
   .dl-field input { font-size: 16px; }
   .dl-fr { padding: 9px 12px; font-size: 14.5px; }
   .dl-el { height: 40px; }
   .dl-drow { min-height: 44px; font-size: 14px; }
-  .dl-foot { height: 36px; font-size: 13px; }
-  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
+  .dl-foot { height: 44px; font-size: 13px; }
+  .dl-foot .tl-btn.dl-foot-zoom { height: 40px; }
   /* The bar's widths under a finger (DOC_BAR_SIZES.touch). */
   .dl-bar .tl-btn.dl-w-doc { width: 88px; }
   .dl-bar .tl-btn.dl-w-script { width: 136px; }
@@ -747,8 +756,6 @@ button.dl-drow { cursor: pointer; }
     z-index: 30;
     box-shadow: -16px 0 48px rgba(0, 0, 0, .3);
   }
-  .dl-foot { height: 36px; font-size: 13px; }
-  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
 }
 
 /* ── On a phone the side panel is a sheet from the bottom (mockup C-phone2),
@@ -778,13 +785,14 @@ button.dl-drow { cursor: pointer; }
   animation: dl-sheet-in .24s cubic-bezier(.2, .8, .2, 1);
 }
 [data-theme='light'] .dl-panel.is-sheet { box-shadow: 0 -12px 40px rgba(10, 10, 12, .16); }
-.dl-panel.is-sheet .dl-tabs { padding-top: 2px; }
+.dl-panel.is-sheet .dl-tabs { padding-top: 0; }
+/* A finger's height to tap or drag, its handle drawn in the middle. */
 .dl-sheet-grab {
   display: grid;
   place-items: center;
   flex-shrink: 0;
   width: 100%;
-  height: 22px;
+  height: 40px;
   padding: 0;
   border: 0;
   background: none;
@@ -869,3 +877,122 @@ button.dl-drow { cursor: pointer; }
 /* Room over a table being edited (Tiptap's wrapper) for its bar, which would
    otherwise cover the line above (the mockup leaves the gap). */
 :root[data-doc-look="a"] .doc-paper .tt-editor .tableWrapper { margin-top: calc(var(--tl-bs) + 2 * var(--tl-pad) + 2px); }
+
+/* ── A phone (mockups A-phone, A-phone2, S-phone). The header is Close,
+   Pages, the title over its line, Share and ⋯ (DocHeadA's phone); the row of
+   tools rides on the keyboard while the text has the focus (DocBarA's
+   phone), and there's no footer: the line has the saving, ⋯ the zoom and
+   the counts. ── */
+.dl-head.is-phone { gap: 0; padding: 0 4px; }
+.dl-head.is-phone .tl-btn { --tl-bs: 44px; --tl-is: 22px; --tl-br: 12px; flex-shrink: 0; }
+.dl-ptitle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 4px;
+}
+.dl-head.is-phone .doc-card-title-input.dl-title {
+  width: 100%;
+  min-width: 0;
+  /* A finger's height to tap, over the line under it (which a tap goes
+     through), the header no taller. */
+  padding: 8px 0 18px;
+  margin: -8px 0 -18px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.dl-psub {
+  position: relative;
+  pointer-events: none;
+  overflow: hidden;
+  font: 400 11.5px/1.35 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dl-head.is-phone .doc-card-share { width: 44px; height: 44px; margin: 0; padding: 0; justify-content: center; box-shadow: none; }
+.dl-head.is-phone .doc-card-share span { display: none; }
+.dl-head.is-phone .dl-dot { top: 9px; right: 7px; }
+
+/* The row on the keyboard (--dl-kb, what the keyboard covers): the whole
+   width, scrolling sideways, its right edge fading while there's more, and
+   the keyboard's own button after a hairline. */
+.tl-bar.dl-acc {
+  --tl-bs: 42px; --tl-is: 22px; --tl-br: 10px; --tl-gap: 2px; --tl-sg: 9px; --tl-sep: 22px; --tl-fs: 15px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--dl-kb, 0px);
+  z-index: 50;
+  width: auto;
+  max-width: none;
+  height: 50px;
+  padding: 0 4px 0 6px;
+  border-radius: 0;
+  background: var(--bg-2);
+  box-shadow: 0 -1px 0 var(--line-2);
+}
+:root[data-theme='light'] .tl-bar.dl-acc { background: #f6f6f8; }
+.dl-acc-row {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.dl-acc-row::-webkit-scrollbar { display: none; }
+.dl-acc-row.has-more {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+}
+.dl-bar.dl-acc .tl-btn.dl-w-style { width: 86px; }
+.dl-bar.dl-acc .tl-btn.dl-w-element { width: 132px; }
+.dl-bar.dl-acc .tl-btn.dl-w-caret { width: 54px; }
+.tl-bar.dl-acc .tl-btn.dl-acc-kb { margin-left: 7px; }
+.tl-bar.dl-acc .tl-btn.dl-acc-kb::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--line-2);
+}
+@media (max-width: 640px) {
+  /* The page is the screen's width, its words 22px in (A-phone), with room
+     under the last line for the row on the keyboard (DocSurface's keyboard
+     pad adds --dl-acc-room to what the keyboard covers). */
+  .dl-surface .doc-paper { --dl-acc-room: 50px; }
+  /* Prose (a phone shows a paged doc continuous too) is one sheet the width
+     of the screen, with nothing round it. A screenplay keeps its page. */
+  .dl-surface .doc-paper:not(.is-screenplay) { padding: 0 0 96px; background: var(--bg-1); }
+  :root[data-theme='light'] .dl-surface .doc-paper:not(.is-screenplay) { background: var(--bg-3); }
+  .dl-surface .doc-paper:not(.is-screenplay):not(.is-fit-width) .doc-editor-wrap:not(.doc-flow) {
+    min-height: 0;
+    padding: 18px 22px 48px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .doc-card-modal-full.dl { border: 0; }
+  /* The row on the keyboard has the selection bubble's formats, and a tap on
+     it keeps the selection: the bubble would only cover the words, and the
+     phone's own menu over them. */
+  .dl-surface .doc-bubble { display: none; }
+  /* The pages drawer (A-phone2): 304px, its rows a finger's. */
+  .doc-surface.dl-surface.mobile-rail-open .doc-rail.doc-rail-left { width: min(82%, 304px); box-shadow: 1px 0 0 var(--line-2), 16px 0 48px rgba(0, 0, 0, .3); border-right: 0; }
+  .dl-surface .doc-tree-head { height: 48px; }
+  .dl-surface .doc-tree-kicker,
+  .dl-surface .doc-bookmarks-head,
+  .dl-surface .sp-scenenav-head { font-size: 11.5px; }
+  .dl-surface .doc-tree-row,
+  .dl-surface .doc-bookmarks-row,
+  .dl-surface .sp-scenenav-item { height: 46px; margin: 0 10px; font-size: 16px; }
+  .dl-surface .doc-bookmarks-item { font-size: 16px; }
+}

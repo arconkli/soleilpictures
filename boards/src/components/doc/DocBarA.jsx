@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useEditorState } from '@tiptap/react';
 import { Btn, Group, Swatch, Toolbar } from '../toolbar/Toolbar.jsx';
-import { MenuButton, MenuHead, MenuItem, MenuSep, useMenu } from '../toolbar/Menu.jsx';
+import { Menu, MenuButton, MenuHead, MenuItem, MenuSep, useMenu } from '../toolbar/Menu.jsx';
 import { Icon } from '../Icon.jsx';
 import { SizeInput } from '../SizeInput.jsx';
 import { CustomFontsModal } from '../CustomFontsModal.jsx';
@@ -9,15 +9,19 @@ import { insertItems } from '../DocInsertMenu.jsx';
 import { useDocExport } from '../DocExportMenu.jsx';
 import { useDocFont } from '../../hooks/useDocFont.js';
 import { useCustomFonts, useRecentFonts } from '../../hooks/useCustomFonts.js';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
+import { useMessagesUi } from '../../hooks/useOpenDm.js';
+import { ELEMENTS, ELEMENT_LABELS } from '../docExtensions/screenplay/screenplayFlow.js';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../../lib/googleFonts.js';
 import { safeRun } from '../../lib/safeEditorCmd.js';
-import { DOC_BAR_SIZES, docBarFit, docBarGroups } from '../../lib/docBarFold.js';
+import { DOC_BAR_SIZES, docBarFit, docBarGroups, docBarPhoneGroups } from '../../lib/docBarFold.js';
+import { docCounts } from '../../lib/docCounts.js';
 import { DOC_COLORS, FONTS, HEADING_OPTIONS, SIZES, readBar } from '../../lib/docBarState.js';
 import {
-  AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, BookmarkSimple, ChatCircleText, Clapperboard, Code,
-  CodeBlock, DownloadSimple, Eraser, FileHtml, FileText, Files, HighlighterCircle, Image, Italic, LayoutGrid, Link,
+  AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, BookmarkSimple, ChatCircleText, ChatsCircle, Clapperboard, Code,
+  CodeBlock, DownloadSimple, Eraser, FileHtml, FileText, Files, HighlighterCircle, Image, Italic, Keyboard, LayoutGrid, Link,
   List, ListChecks, ListOrdered, MagnifyingGlassPlus, MarkdownLogo, Minus, MoreHorizontal, PanelRight, Plus, Printer, Quote,
-  Search, Strikethrough, Table, TextAUnderline, Type, Underline, Undo, Redo,
+  Search, Strikethrough, Table, TextAUnderline, TextHOne, Type, Underline, Undo, Redo,
 } from '../../lib/icons.js';
 
 // The doc's one row of tools in the look the owner picked on 2026-10-21
@@ -32,8 +36,17 @@ import {
 //
 // It is always one row. As its room narrows (the side panel open, a pane
 // beside another doc, docked) groups fold into ⋯, in lib/docBarFold.js's
-// order, and ⋯ then lists them under Text, with Layout and Export as
-// submenus. A reader's bar is Find, the zoom and Export.
+// order (under a finger, its own: an iPad has no ⌘F, so Find stays longer),
+// and ⋯ then lists them under Text, with Layout and Export as submenus. A
+// reader's bar is Find, the zoom and Export.
+//
+// On a phone (`phone`; mockup A-phone) the row rides on the keyboard while
+// the text has the focus, and scrolls sideways rather than fold:
+//
+//   Body ▾ | B I U | • 1. ☑ | 🔗 💬 | + ⋯ ‖ ⌨
+//
+// its ⋯ the text's other tools, and ⌨ putting the keyboard away. What the
+// doc's ⋯ holds besides is the header's ⋯ there (DocMoreA, below).
 //
 // Every control runs the editor command today's bar runs (DocToolbar), on
 // the same state (lib/docBarState.js), and keeps the caret in the text: a
@@ -75,26 +88,32 @@ export function DocBarA({
   pageless = true, onTogglePageless, pagesShownContinuous = false,
   onInsertBookmark, onInsertImage, onInsertBoardEmbed, onOpenFind, onOpenLink, onAddComment,
   zoom = 1, fitEligible = false, onZoomIn, onZoomOut, onZoomReset,
-  canEdit = true, canExport = true, onOpenElements,
+  canEdit = true, canExport = true, onOpenElements, phone = false,
 }) {
   const lit = useEditorState({ editor, selector: () => readBar(editor) });
   const disabled = !editor;
   const isScreenplay = docMode === 'screenplay';
   const kind = isScreenplay ? 'script' : 'doc';
+  // On a phone the row is there while the text has the focus (the keyboard
+  // is up), over the keyboard.
+  const focused = useEditorState({
+    editor, selector: ({ editor: ed }) => !!phone && !!ed && !ed.isDestroyed && ed.isFocused,
+  });
+  const kb = useKeyboardInset(phone && focused);
 
   // How much of the row fits: measured from the room the row has, not from
   // the row (which is what changes).
   const capRef = useRef(null);
-  const coarse = useCoarse();
+  const input = useCoarse() ? 'touch' : 'desktop';
   const [level, setLevel] = useState(0);
   useLayoutEffect(() => {
     const cap = capRef.current;
     if (!cap) return undefined;
-    const sizes = DOC_BAR_SIZES[coarse ? 'touch' : 'desktop'];
+    const sizes = DOC_BAR_SIZES[input];
     const fit = () => {
       const cs = getComputedStyle(cap);
       const room = cap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-      setLevel(docBarFit(room, sizes, kind));
+      setLevel(docBarFit(room, sizes, kind, input));
       // The find bar hangs below wherever the row ends (styles.css .doc-find).
       cap.parentElement?.style.setProperty('--doc-tb-bottom', `${cap.offsetTop + cap.offsetHeight}px`);
     };
@@ -102,7 +121,22 @@ export function DocBarA({
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
     ro?.observe(cap);
     return () => ro?.disconnect();
-  }, [coarse, kind]);
+  }, [input, kind, phone]);
+
+  // The phone's row scrolls sideways: its right edge fades while there's
+  // more of it that way.
+  const accRef = useRef(null);
+  const [more, setMore] = useState(false);
+  useLayoutEffect(() => {
+    const row = accRef.current;
+    if (!row) return undefined;
+    const check = () => setMore(row.scrollLeft + row.clientWidth < row.scrollWidth - 1);
+    check();
+    row.addEventListener('scroll', check, { passive: true });
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(check);
+    ro?.observe(row);
+    return () => { row.removeEventListener('scroll', check); ro?.disconnect(); };
+  }, [phone, focused, kind]);
 
   const customFonts = useCustomFonts();
   const recentFonts = useRecentFonts();
@@ -176,11 +210,28 @@ export function DocBarA({
     );
   }
 
-  const groups = docBarGroups(level, kind);
-  const folded = new Set(docBarGroups.folded(level, kind));
+  const groups = phone ? docBarPhoneGroups(kind) : docBarGroups(level, kind, input);
+  const folded = new Set(phone ? docBarPhoneGroups.folded(kind) : docBarGroups.folded(level, kind, input));
+  // On a phone the row is at the foot of the screen, over the keyboard: its
+  // menus open up from it.
+  const side = phone ? 'above' : 'below';
   const styleName = block === 'code' ? 'Code' : block === 'quote' ? 'Quote'
     : HEADINGS.find((o) => o.value === block)?.label;
   const align = ALIGNS.find((a) => a.value === lit.align) || ALIGNS[0];
+  const styleRows = (
+    <>
+      {HEADINGS.map((o) => (
+        <MenuItem key={o.value} label={o.label} keys={o.keys} radio checked={block === o.value}
+                  className={`dl-style-${o.value}`} onSelect={() => setHeading(o.value)} />
+      ))}
+      <MenuSep />
+      <MenuItem icon={Quote} label="Quote" keys="Mod+Shift+." checked={lit.blockquote} onSelect={toggleQuote} />
+    </>
+  );
+  const docTypeRows = (
+    <DocTypeRows screenplay={isScreenplay} onToggleScreenplay={onToggleScreenplay} />
+  );
+  const toggleList = (cmd, label) => editor && safeRun(editor.chain().focus()[cmd](), label);
 
   const fontRows = (
     <FontRows font={font} current={lit.fontFamily} recentFonts={recentFonts} allFonts={allFonts}
@@ -212,12 +263,24 @@ export function DocBarA({
         const named = id === 'doc' || id === 'script';
         return (
           <MenuButton key="doc" keepFocus label="Doc type" icon={isScreenplay ? Clapperboard : FileText}
-                      text={named ? (isScreenplay ? 'Screenplay' : 'Doc') : undefined} select={named} caret
+                      text={named ? (isScreenplay ? 'Screenplay' : 'Doc') : undefined} select={named} caret side={side}
                       className={named ? `dl-w-${id}` : 'dl-w-docicon'} disabled={disabled || !onToggleScreenplay}>
-            <MenuItem icon={FileText} label="Document" sub="Headings, lists, pictures and tables" radio checked={!isScreenplay}
-                      onSelect={() => { if (isScreenplay) onToggleScreenplay(); }} />
-            <MenuItem icon={Clapperboard} label="Screenplay" sub="Scenes, characters and dialogue, set as a script"
-                      radio checked={isScreenplay} onSelect={() => { if (!isScreenplay) onToggleScreenplay(); }} />
+            {docTypeRows}
+          </MenuButton>
+        );
+      }
+      case 'element': {
+        // A screenplay's element on a phone, which has no Tab to step them:
+        // the side panel's Elements, as a menu over the keyboard.
+        const el = lit.spElement;
+        const name = el ? (ELEMENT_LABELS[el] || el) : 'Element';
+        return (
+          <MenuButton key={id} keepFocus label={`Element: ${name}`} text={name} select caret side={side}
+                      className="dl-w-element" disabled={disabled || !el}>
+            {ELEMENTS.map((e) => (
+              <MenuItem key={e} label={ELEMENT_LABELS[e] || e} radio checked={el === e}
+                        onSelect={() => editor && safeRun(editor.chain().focus().setScreenplayElement(e), 'doc:screenplay-element')} />
+            ))}
           </MenuButton>
         );
       }
@@ -227,19 +290,14 @@ export function DocBarA({
         return <Btn key={id} icon={Redo} label="Redo" keys="Mod+Shift+Z" disabled={disabled} onMouseDown={keep} onClick={() => run((c) => c.redo())} />;
       case 'style':
         return (
-          <MenuButton key={id} keepFocus label={`Text style: ${styleName}`} text={styleName} select caret
+          <MenuButton key={id} keepFocus label={`Text style: ${styleName}`} text={styleName} select caret side={side}
                       className="dl-w-style" menuClassName="dl-style-menu" disabled={disabled}>
-            {HEADINGS.map((o) => (
-              <MenuItem key={o.value} label={o.label} keys={o.keys} radio checked={block === o.value}
-                        className={`dl-style-${o.value}`} onSelect={() => setHeading(o.value)} />
-            ))}
-            <MenuSep />
-            <MenuItem icon={Quote} label="Quote" keys="Mod+Shift+." checked={lit.blockquote} onSelect={toggleQuote} />
+            {styleRows}
           </MenuButton>
         );
       case 'font':
         return (
-          <MenuButton key={id} keepFocus label={`Font: ${fontLabel}`} text={fontLabel} select caret
+          <MenuButton key={id} keepFocus label={`Font: ${fontLabel}`} text={fontLabel} select caret side={side}
                       className="dl-w-font" menuClassName="dl-font-pop" disabled={disabled}>
             {fontRows}
           </MenuButton>
@@ -262,7 +320,7 @@ export function DocBarA({
       case 'color':
         return (
           <MenuButton key={id} keepFocus label="Colour and highlight" icon={TextAUnderline} className="dl-colour"
-                      menuClassName="dl-colour-menu" disabled={disabled}
+                      menuClassName="dl-colour-menu" disabled={disabled} side={side}
                       style={lit.color ? { '--dl-ink': lit.color } : undefined}>
             {colourRows}
             <MenuSep />
@@ -273,16 +331,16 @@ export function DocBarA({
         return <Btn key={id} icon={Eraser} label="Clear formatting" keys="Mod+\" disabled={disabled} onMouseDown={keep} onClick={() => run((c) => c.clearFormatting())} />;
       case 'bullet':
         return <Btn key={id} icon={List} label="Bulleted list" keys="Mod+Shift+8" toggle on={lit.bulletList} disabled={disabled} onMouseDown={keep}
-                    onClick={() => editor && safeRun(editor.chain().focus().toggleBulletList(), 'doc-list:ul')} />;
+                    onClick={() => toggleList('toggleBulletList', 'doc-list:ul')} />;
       case 'ordered':
         return <Btn key={id} icon={ListOrdered} label="Numbered list" keys="Mod+Shift+7" toggle on={lit.orderedList} disabled={disabled} onMouseDown={keep}
-                    onClick={() => editor && safeRun(editor.chain().focus().toggleOrderedList(), 'doc-list:ol')} />;
+                    onClick={() => toggleList('toggleOrderedList', 'doc-list:ol')} />;
       case 'task':
         return <Btn key={id} icon={ListChecks} label="Task list" keys="Mod+Shift+9" toggle on={lit.taskList} disabled={disabled} onMouseDown={keep}
-                    onClick={() => editor && safeRun(editor.chain().focus().toggleTaskList(), 'doc-list:task')} />;
+                    onClick={() => toggleList('toggleTaskList', 'doc-list:task')} />;
       case 'align':
         return (
-          <MenuButton key={id} keepFocus label={`Align: ${align.label}`} icon={align.icon} caret className="dl-w-caret" disabled={disabled}>
+          <MenuButton key={id} keepFocus label={`Align: ${align.label}`} icon={align.icon} caret className="dl-w-caret" disabled={disabled} side={side}>
             {alignRows}
           </MenuButton>
         );
@@ -297,7 +355,7 @@ export function DocBarA({
       case 'insert':
         return (
           <MenuButton key={id} keepFocus label="Insert" icon={Plus} caret align="end" className="dl-w-caret"
-                      menuClassName="dl-insert-menu" disabled={disabled}>
+                      menuClassName="dl-insert-menu" disabled={disabled} side={side}>
             {insertItems({ onInsertImage, onInsertBoardEmbed }).map((it) => (
               <MenuItem key={it.id} icon={INSERT_ICONS[it.id]} label={it.title} sub={it.subtitle}
                         onSelect={() => { if (editor) it.run(editor); }} />
@@ -337,6 +395,7 @@ export function DocBarA({
           );
         }
         const text = [];
+        if (folded.has('style')) text.push(<MenuItem key="style" icon={TextHOne} label="Style" value={styleName} submenu={styleRows} submenuClassName="dl-style-menu" />);
         if (folded.has('font')) text.push(<MenuItem key="font" icon={Type} label="Font" value={fontLabel} submenu={fontRows} submenuClassName="dl-font-pop" />);
         if (folded.has('size')) {
           text.push(
@@ -353,10 +412,25 @@ export function DocBarA({
         }
         if (folded.has('clear')) text.push(<MenuItem key="clear" icon={Eraser} label="Clear formatting" keys="Mod+\" onSelect={() => run((c) => c.clearFormatting())} />);
         if (folded.has('align')) text.push(<MenuItem key="align" icon={align.icon} label="Align" value={align.label} submenu={alignRows} />);
+        if (folded.has('bullet')) text.push(<MenuItem key="bullet" icon={List} label="Bulleted list" keys="Mod+Shift+8" checked={lit.bulletList} onSelect={() => toggleList('toggleBulletList', 'doc-list:ul')} />);
+        if (folded.has('ordered')) text.push(<MenuItem key="ordered" icon={ListOrdered} label="Numbered list" keys="Mod+Shift+7" checked={lit.orderedList} onSelect={() => toggleList('toggleOrderedList', 'doc-list:ol')} />);
+        if (folded.has('task')) text.push(<MenuItem key="task" icon={ListChecks} label="Task list" keys="Mod+Shift+9" checked={lit.taskList} onSelect={() => toggleList('toggleTaskList', 'doc-list:task')} />);
         const edit = [];
         if (folded.has('undo')) edit.push(<MenuItem key="undo" icon={Undo} label="Undo" keys="Mod+Z" onSelect={() => run((c) => c.undo())} />);
         if (folded.has('redo')) edit.push(<MenuItem key="redo" icon={Redo} label="Redo" keys="Mod+Shift+Z" onSelect={() => run((c) => c.redo())} />);
+        if (folded.has('link')) edit.push(<MenuItem key="link" icon={Link} label="Link" keys="Mod+K" disabled={!lit.hasSelection} onSelect={() => onOpenLink?.(editor)} />);
+        if (folded.has('comment')) edit.push(<MenuItem key="comment" icon={ChatCircleText} label="Comment" keys="Mod+Alt+M" disabled={!lit.hasSelection} onSelect={() => onAddComment?.()} />);
         if (folded.has('find')) edit.push(<MenuItem key="find" icon={Search} label="Find" keys="Mod+F" onSelect={() => onOpenFind?.()} />);
+        // On a phone it is the text's tools alone: the rest is the header's ⋯.
+        if (phone) {
+          return (
+            <MenuButton key={id} keepFocus label="More formatting" icon={MoreHorizontal} align="end" side={side}
+                        menuClassName="dl-more" disabled={disabled}>
+              {text}
+              {edit.length > 0 && <><MenuSep />{edit}</>}
+            </MenuButton>
+          );
+        }
         const compact = text.length > 0 || edit.length > 0;
         return (
           <MenuButton key={id} keepFocus label="More" icon={MoreHorizontal} align="end" menuClassName="dl-more" disabled={disabled}>
@@ -366,6 +440,9 @@ export function DocBarA({
               <>
                 <MenuSep />
                 {onZoomIn && zoomRow}
+                {folded.has('doc') && onToggleScreenplay && (
+                  <MenuItem icon={FileText} label="Doc type" value="Document" submenu={docTypeRows} />
+                )}
                 {onTogglePageless && (
                   <MenuItem icon={pageless ? FileText : Files} label="Layout" value={pageless ? 'Pageless' : 'Pages'}
                             submenu={layoutRows} />
@@ -389,6 +466,24 @@ export function DocBarA({
     }
   };
 
+  if (phone) {
+    return (
+      <>
+        {focused && (
+          <Toolbar label="Formatting" className="dl-bar dl-acc" surface={false} text={() => editor}
+                   style={{ '--dl-kb': `${kb}px` }}>
+            <div className={more ? 'dl-acc-row has-more' : 'dl-acc-row'} ref={accRef}>
+              {groups.map((g) => <Group key={g.join(' ')}>{g.map(item)}</Group>)}
+            </div>
+            <Btn icon={Keyboard} label="Hide the keyboard" className="dl-acc-kb" onMouseDown={keep}
+                 onClick={() => { try { editor?.commands.blur(); } catch (_) {} }} />
+          </Toolbar>
+        )}
+        <CustomFontsModal open={fontsModalOpen} onClose={() => setFontsModalOpen(false)} />
+      </>
+    );
+  }
+
   return (
     <div className="dl-cap" ref={capRef}>
       <Toolbar label="Formatting" className="dl-bar" text={() => editor}>
@@ -396,6 +491,82 @@ export function DocBarA({
       </Toolbar>
       <CustomFontsModal open={fontsModalOpen} onClose={() => setFontsModalOpen(false)} />
     </div>
+  );
+}
+
+// The doc's two kinds, to pick from.
+function DocTypeRows({ screenplay, onToggleScreenplay }) {
+  return (
+    <>
+      <MenuItem icon={FileText} label="Document" sub="Headings, lists, pictures and tables" radio checked={!screenplay}
+                onSelect={() => { if (screenplay) onToggleScreenplay?.(); }} />
+      <MenuItem icon={Clapperboard} label="Screenplay" sub="Scenes, characters and dialogue, set as a script"
+                radio checked={screenplay} onSelect={() => { if (!screenplay) onToggleScreenplay?.(); }} />
+    </>
+  );
+}
+
+// A phone's ⋯, in the window's header (mockup A-phone): the side panel's
+// Comments and Find (a sheet there), Messages, and what the doc's own ⋯ holds
+// that isn't the text's: its type, its layout, the zoom, Export and the
+// counts. The same whether the keyboard is up or not, and for a reader too.
+// The surface opens it against the header's button (lib/docFrame.js), so it
+// is there only while it's open.
+export function DocMoreA({
+  open = true, byKey = false, anchorRef, onClose,
+  editor, docName, ydoc = null, scope = null, docMode = 'doc',
+  canEdit = true, canExport = true, isPublic = false,
+  openComments = 0, onOpenComments, onOpenFind, onOpenElements, onToggleScreenplay,
+  pageless = true, onTogglePageless, pagesShownContinuous = false,
+  zoom = 1, fitEligible = false, onZoomIn, onZoomOut, onZoomReset,
+}) {
+  const ex = useDocExport({ editor, docName, ydoc, scope, docMode });
+  const messagesUi = useMessagesUi();
+  const isScreenplay = docMode === 'screenplay';
+  const pct = Math.round((zoom || 1) * 100);
+  const unread = messagesUi?.unread || 0;
+  const setLayout = (wantPageless) => { if (wantPageless !== pageless) onTogglePageless?.(); };
+  return (
+    <Menu open={open} onClose={onClose} anchorRef={anchorRef} label="More" align="end" byKey={byKey}
+          className="dl-more dl-pmore">
+      {onOpenComments && (
+        <MenuItem icon={ChatCircleText} label="Comments" value={openComments > 0 ? `${openComments} open` : undefined}
+                  onSelect={onOpenComments} />
+      )}
+      <MenuItem icon={Search} label="Find" onSelect={() => onOpenFind?.()} />
+      {isScreenplay && canEdit && onOpenElements && (
+        <MenuItem icon={PanelRight} label="Elements" sub="Title page, scene numbers, dual dialogue" onSelect={onOpenElements} />
+      )}
+      {messagesUi && !isPublic && (
+        <MenuItem icon={ChatsCircle} label="Messages" value={unread > 0 ? `${unread} unread` : undefined}
+                  onSelect={() => messagesUi.toggle?.()} />
+      )}
+      <MenuSep />
+      {canEdit && onToggleScreenplay && (
+        <MenuItem icon={isScreenplay ? Clapperboard : FileText} label="Doc type" value={isScreenplay ? 'Screenplay' : 'Document'}
+                  submenu={<DocTypeRows screenplay={isScreenplay} onToggleScreenplay={onToggleScreenplay} />} />
+      )}
+      {!isScreenplay && canEdit && onTogglePageless && (
+        <MenuItem icon={pageless ? FileText : Files} label="Layout" value={pageless ? 'Pageless' : 'Pages'} submenu={(
+          <>
+            <MenuItem icon={FileText} label="Pageless" sub="One continuous sheet" radio checked={pageless}
+                      onSelect={() => setLayout(true)} />
+            <MenuItem icon={Files} label="Pages"
+                      sub={pagesShownContinuous ? '8.5 × 11 when printed; a phone shows it continuous' : '8.5 × 11, as it prints'}
+                      radio checked={!pageless} onSelect={() => setLayout(false)} />
+          </>
+        )} />
+      )}
+      {onZoomIn && (
+        <ZoomRow pct={pct} fitEligible={fitEligible} onZoomIn={onZoomIn} onZoomOut={onZoomOut} onZoomReset={onZoomReset} />
+      )}
+      {canExport && (
+        <MenuItem icon={DownloadSimple} label="Export"
+                  submenu={<ExportRows ex={ex} screenplay={isScreenplay} canEdit={canEdit} />} />
+      )}
+      <MenuSep />
+      <Counts editor={editor} />
+    </Menu>
   );
 }
 
@@ -504,11 +675,10 @@ function ZoomRow({ pct, fitEligible, onZoomIn, onZoomOut, onZoomReset }) {
 // The page's words and characters, counted as ⋯ opens.
 function Counts({ editor }) {
   if (!editor || editor.isDestroyed) return null;
-  const text = editor.state.doc.textContent || '';
-  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const { words, chars } = docCounts(editor.state.doc);
   return (
     <div className="dl-minfo" role="presentation">
-      {words.toLocaleString()} {words === 1 ? 'word' : 'words'} · {text.length.toLocaleString()} {text.length === 1 ? 'character' : 'characters'}
+      {words.toLocaleString()} {words === 1 ? 'word' : 'words'} · {chars.toLocaleString()} {chars === 1 ? 'character' : 'characters'}
     </div>
   );
 }

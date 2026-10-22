@@ -83,6 +83,8 @@ const CLIP = readFileSync(new URL('../fixtures/media/frames-vp9.mp4', import.met
 // names them as it passes; their text and their visibility are judged now.
 // Home with `drawer=0`: on a phone the harness opens the drawer over it, as
 // the menu button would.
+const DOC_LOOK = { 'soleil.dev.docLook': '1' };
+
 const PAGES = [
   { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]' },
   { name: 'home', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]' },
@@ -293,6 +295,66 @@ const PAGES = [
       await page.locator('.tt-img-wrap.is-selected .tt-img-tb').waitFor();
       return true;
     }, scope: '.tt-img-tb' },
+  // ── The doc look's (held to a dev opt-in, lib/appHost.js docLookAllowed) ──
+  { name: 'doc look', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => { await openDoc(page); return true; },
+    scope: '.doc-card-modal :is(.dl-head, .dl-bar, .dl-foot)' },
+  { name: 'doc look, the row on the keyboard', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      await page.locator('.doc-card-modal .ProseMirror p').first().tap();
+      await page.waitForTimeout(300);
+      return (await page.locator('.dl-acc').count()) > 0;
+    }, scope: '.dl-acc' },
+  { name: 'doc look more', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      const phone = page.locator('.dl-head').getByRole('button', { name: /^More/ });
+      if (await phone.count()) await phone.tap();
+      else await page.locator('.dl-bar').getByRole('button', { name: 'More', exact: true }).tap();
+      await page.locator('.dl-more').waitFor();
+      return true;
+    }, scope: '.dl-more' },
+  { name: 'doc look comments', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      // A thread on "night", its card open by a tap on the words.
+      await page.evaluate(() => {
+        const T = window.__soleilDocTest;
+        const id = T.addCommentThread(T.ydoc, { body: 'Which road?', author: 'Maya Chen', authorId: 'u-maya', scope: T.getScope() });
+        const ed = T.editor;
+        let at = null;
+        ed.state.doc.descendants((n, pos) => { if (at == null && n.isText && n.text.includes('night')) at = pos + n.text.indexOf('night'); return at == null; });
+        ed.chain().setTextSelection({ from: at, to: at + 5 }).setMark('comment', { id }).setTextSelection(1).run();
+      });
+      await page.locator('.doc-card-modal .tt-comment').first().tap();
+      await page.locator('.dl-panel .dl-th.is-on .dl-reply').waitFor();
+      return true;
+    }, scope: '.dl-panel' },
+  { name: 'doc look find', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      const phone = page.locator('.dl-head').getByRole('button', { name: /^More/ });
+      if (await phone.count()) {
+        await phone.tap();
+        await page.getByRole('menu', { name: 'More' }).getByRole('menuitem', { name: /^Find/ }).tap();
+      } else {
+        await page.locator('.dl-head').getByRole('button', { name: /^Comments/ }).tap();
+        await page.locator('.dl-panel').getByRole('tab', { name: 'Find' }).tap();
+      }
+      await page.locator('.dl-panel').getByRole('textbox', { name: 'Find', exact: true }).fill('night');
+      await page.locator('.dl-panel .dl-fr').first().waitFor();
+      return true;
+    }, scope: '.dl-panel' },
+  { name: 'doc look table', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent(
+        '<p>Shots.</p><table><tr><th>#</th><th>Shot</th></tr><tr><td>1</td><td>Wide</td></tr></table>'));
+      await page.locator('.doc-card-modal .ProseMirror td').nth(1).tap();
+      await page.locator('.dl-tbar').waitFor();
+      return true;
+    }, scope: '.dl-tbar' },
 ];
 
 // selector → why it may be smaller than a finger.
@@ -400,6 +462,11 @@ for (const p of PAGES) {
         localStorage.setItem('soleil.dev.clusterNudges', '1');
       } catch (_) {}
     });
+    if (p.storage) {
+      await page.addInitScript((kv) => {
+        try { for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v); } catch (_) {}
+      }, p.storage);
+    }
     await page.goto(p.url);
     await page.waitForSelector(p.ready, { timeout: 30000 });
     // What only the dev harness draws: the LOCAL QA banner over the bar's top

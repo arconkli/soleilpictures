@@ -27,7 +27,12 @@ async function openDoc(page, { panelOpen = false } = {}) {
 
 const modal = (page) => page.locator('.doc-card-modal');
 const sheet = (page) => page.getByRole('complementary', { name: 'Comments and find' });
-const toggle = (page) => modal(page).locator('.dl-head').getByRole('button', { name: /^Comments/ });
+// A phone's header has no Comments of its own: it's ⋯'s first row.
+const more = (page) => modal(page).locator('.dl-head').getByRole('button', { name: /^More/ });
+async function openSheet(page) {
+  await more(page).tap();
+  await page.getByRole('menu', { name: 'More' }).getByRole('menuitem', { name: /^Comments/ }).tap();
+}
 // Once it has come up, or gone back up after a short drag.
 const settled = (page) => sheet(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
 
@@ -46,12 +51,11 @@ async function comment(page, text, word, body) {
 test('a doc opens with the sheet put away, even left open on a computer', async ({ page }) => {
   await openDoc(page, { panelOpen: true });
   await expect(sheet(page)).toHaveCount(0);
-  await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('the sheet comes up from the bottom over the whole doc, and a tap on the doc puts it away', async ({ page }) => {
   await openDoc(page);
-  await toggle(page).tap();
+  await openSheet(page);
   await expect(sheet(page)).toBeVisible();
   await settled(page);
   const vp = page.viewportSize();
@@ -63,7 +67,7 @@ test('the sheet comes up from the bottom over the whole doc, and a tap on the do
   // It takes the focus, on its tab.
   await expect(sheet(page).getByRole('tab', { name: /^Comments/ })).toBeFocused();
   // The header is under the dimming too.
-  const tb = await toggle(page).boundingBox();
+  const tb = await more(page).boundingBox();
   const top = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.className, [tb.x + tb.width / 2, tb.y + tb.height / 2]);
   expect(top).toContain('dl-sheet-scrim');
   await page.touchscreen.tap(vp.width / 2, 60);
@@ -72,12 +76,12 @@ test('the sheet comes up from the bottom over the whole doc, and a tap on the do
 
 test('the grab puts the sheet away, by a tap or a drag down', async ({ page }) => {
   await openDoc(page);
-  await toggle(page).tap();
+  await openSheet(page);
   const grab = sheet(page).getByRole('button', { name: 'Close panel' });
   await grab.tap();
   await expect(sheet(page)).toHaveCount(0);
 
-  await toggle(page).tap();
+  await openSheet(page);
   await expect(sheet(page)).toBeVisible();
   await settled(page);
   const g = await sheet(page).getByRole('button', { name: 'Close panel' }).boundingBox();
@@ -100,7 +104,7 @@ test('the grab puts the sheet away, by a tap or a drag down', async ({ page }) =
 
 test('Escape puts the sheet away', async ({ page }) => {
   await openDoc(page);
-  await toggle(page).tap();
+  await openSheet(page);
   await expect(sheet(page).getByRole('tab', { name: /^Comments/ })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(sheet(page)).toHaveCount(0);
@@ -122,7 +126,7 @@ test('a tap on commented words brings the sheet up on their card, and its quote 
 test('Find in the sheet: a tapped hit puts the sheet away with its words selected', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>A night drive.</p>'));
-  await toggle(page).tap();
+  await openSheet(page);
   await sheet(page).getByRole('tab', { name: 'Find' }).tap();
   await sheet(page).getByRole('textbox', { name: 'Find', exact: true }).fill('night');
   await expect(sheet(page).locator('.dl-find-n')).toHaveText('1 of 1');

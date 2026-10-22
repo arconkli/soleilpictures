@@ -13,3 +13,9 @@ export function keyboardInset(win = typeof window !== 'undefined' ? window : nul
   if (!vv || (vv.scale || 1) > 1.01) return 0;
   return Math.max(0, Math.round(win.innerHeight - vv.height - vv.offsetTop));
 }
+
+// The window less what the keyboard covers: where a popover can be seen.
+export function visibleWindow(win = typeof window !== 'undefined' ? window : null) {
+  if (!win) return { width: 0, height: 0 };
+  return { width: win.innerWidth, height: win.innerHeight - keyboardInset(win) };
+}
