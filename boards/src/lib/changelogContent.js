@@ -114,6 +114,12 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": "."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Notices, confirmations, tips and ⌘K match the new look. Notices sit under the top-right controls and step aside while the bell's list is open."
+     }
     ]
    ]
   },

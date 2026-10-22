@@ -22,6 +22,8 @@ A new sidebar keeps your clusters on one card and every file on the other, whole
   phone, in the top bar before **Share**). Its number counts what you haven't
   read, and its list opens under it, with **Mark all read**. See
   [notifications](/docs/collaborate/notifications).
+- Notices, confirmations, tips and ⌘K match the new look. Notices sit under
+  the top-right controls and step aside while the bell's list is open.
 
 ### Files
 
