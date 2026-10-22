@@ -112,7 +112,11 @@ try {
   });
   supabase.auth.onAuthStateChange((event, session) => {
     const uid = session?.user?.id || null;
-    if (event === 'SIGNED_OUT' || !uid) { clearPersisted(); return; }
+    if (event === 'SIGNED_OUT') { clearPersisted(); return; }
+    // No session yet: the sign-in form's code step runs the app before there
+    // is one (AuthGate's warmApp). What a past session signed stays for the
+    // sign-in to come; hydrate() drops it if that is someone else.
+    if (!uid) return;
     if (_ownerUid && _ownerUid !== uid) clearPersisted();
     if (!_ownerUid) hydrate(uid);
   });

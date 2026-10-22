@@ -11,7 +11,9 @@
 //
 // It only preloads; it never imports. Evaluating the app before there is a
 // session would run its module side effects (auth subscriptions, global
-// listeners, window.perf) for someone who may never sign in.
+// listeners, window.perf) for a visitor who may never sign in. Someone on the
+// code step has asked for a code, and the step runs the app itself
+// (AuthGate's warmApp, 2026-10-22).
 //
 // The hrefs are the literal `/assets/…` paths, because Vite's preload helper
 // skips a dependency only when `link[href="<that path>"]` is already in the

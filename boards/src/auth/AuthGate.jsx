@@ -571,7 +571,9 @@ function startPersonalPrefetch(user) {
 // Only someone already signed in who opens a workspace invite link sees it.
 const WorkspaceJoinCard = lazy(() => import('../components/WorkspaceJoinCard.jsx'));
 
-export function AuthGate({ children, signedOut = null }) {
+// `warmApp` runs the app that renders once there is a session (main.jsx passes
+// AppShell's warm), so the sign-in form can start it while a code is typed.
+export function AuthGate({ children, signedOut = null, warmApp = null }) {
   const localMode = isLocalQaMode();
   const devWithoutSupabase = !isSupabaseConfigured;
   const [session, setSession] = useState(null);
@@ -722,7 +724,7 @@ export function AuthGate({ children, signedOut = null }) {
   if (loading) return <SplashLoading dark={!!signedOut || !hasStoredSession()} />;
   // `signedOut` lets a public route (main.jsx: /pricing) stand in for the wall
   // when a cached session turns out not to restore.
-  if (!session) return (!hadSession.current && signedOut) || <SignIn />;
+  if (!session) return (!hadSession.current && signedOut) || <SignIn warmApp={warmApp} />;
 
   const signOut = async () => { await supabase.auth.signOut(); };
 
@@ -756,7 +758,7 @@ function PresenceTicker({ user }) {
 
 const EXPLORE_HREF = 'https://clusters.soleilpictures.com/share/bba68b4d-7562-4ca2-96fb-817455b85fdd';
 
-function SignIn() {
+function SignIn({ warmApp = null }) {
   // The code step survives a reload (lib/pendingCode.js). A phone goes to its
   // mail app to read the code and can come back to a reloaded tab; with the
   // step held only in state, that person faced an empty email field and no sign
@@ -929,6 +931,26 @@ function SignIn() {
     }
   }, [stage]);
 
+  // On the code step the app runs as well as downloads: run only once the code
+  // was accepted, it held the first screen back while it ran (a slow phone's
+  // board painted 0.8 s after the code instead of 1.0 s, 2026-10-22). Nothing
+  // it does on loading acts before there is a session, and its styles touch
+  // nothing on this page (both checked the same day). On idle, so the
+  // step's first frame and the send go first. A load that fails is left for
+  // the render after sign-in, which recovers from it; it never reloads the page
+  // under someone typing. Not in dev, which has no preload either and would
+  // serve the whole app module by module under the step.
+  const onCodeStep = stage === 'code';
+  useEffect(() => {
+    if (!onCodeStep || !warmApp || import.meta.env.DEV) return undefined;
+    if (typeof window.requestIdleCallback === 'function') {
+      const h = window.requestIdleCallback(() => warmApp(), { timeout: 2000 });
+      return () => window.cancelIdleCallback?.(h);
+    }
+    const t = setTimeout(() => warmApp(), 300);
+    return () => clearTimeout(t);
+  }, [onCodeStep, warmApp]);
+
   const sendCode = async (resending = false) => {
     setError(null);
     // An address with no real ending (@ddsb, @a.m) passes the browser's own
@@ -947,7 +969,7 @@ function SignIn() {
     if (resending) setBusy(true);
     else { setSending(true); setStage('code'); }
     // The code takes a while to arrive and to type; the app downloads in the
-    // meantime instead of after it is accepted. Preloaded, never run.
+    // meantime instead of after it is accepted, and then runs (warmApp, above).
     if (!resending) preloadSignedInApp({ setup: workspaceSetupAllowed() });
     try {
       // If this visitor arrived via a Facebook/Instagram click, the persisted

@@ -2,7 +2,8 @@
 // `boot:<name>`. Each records once per load:
 //
 //   session    AuthGate has a session to hand the app { refreshed }
-//   shell      the AppShell chunk evaluated { cached }
+//   shell      the AppShell chunk evaluated { cached }; on a load that signs
+//              in, during the code step, before the session
 //   tier       get_my_tier answered
 //   workspace  the workspace and its root are known; Workspace mounts
 //   paint      the board the person landed on painted { source, cards }

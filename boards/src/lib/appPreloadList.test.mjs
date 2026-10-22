@@ -169,3 +169,32 @@ test('the preload helper the entry calls stays free of imports', () => {
   assert.match(gate, /if \(!resending\) preloadSignedInApp\(\{ setup: workspaceSetupAllowed\(\) \}\);[\s\S]*?signInWithOtp/,
     'sendCode preloads before the code is requested');
 });
+
+test('the code step runs the app it preloaded, through the warm that never reloads', () => {
+  const main = readFileSync(resolve(HERE, '../main.jsx'), 'utf8');
+  assert.match(main, / warmApp=\{AppShell\.warm\}>\s*<AppShell \/>/,
+    'main.jsx hands AuthGate the warm of the AppShell it renders');
+  const gate = readFileSync(resolve(HERE, '../auth/AuthGate.jsx'), 'utf8');
+  assert.match(gate, /<SignIn warmApp=\{warmApp\} \/>/);
+  const effect = gate.match(/const onCodeStep = stage === 'code';\n\s*useEffect\(\(\) => \{[\s\S]*?\}, \[onCodeStep, warmApp\]\);/)?.[0];
+  assert.ok(effect, 'SignIn warms the app from an effect on the code step');
+  assert.match(effect, /if \(!onCodeStep \|\| !warmApp \|\| import\.meta\.env\.DEV\) return undefined;/);
+  assert.match(effect, /requestIdleCallback\(\(\) => warmApp\(\)/, 'on idle, after the step has drawn');
+  // The import itself, and importWithReload's stale-chunk reload, would take
+  // the page out from under someone typing their code.
+  assert.ok(!/import\(['"]\.\.\/AppShell/.test(gate), 'AuthGate never imports AppShell itself');
+  assert.ok(!/importWithReload/.test(gate));
+  const lazy = readFileSync(resolve(HERE, 'lazyWithReload.js'), 'utf8');
+  assert.match(lazy, /Lazy\.warm = \(\) => \{ factory\(\)\.catch\(\(\) => \{\}\); \};/, 'a failed warm is swallowed');
+});
+
+test('an app run before sign-in keeps the image links a past session signed', () => {
+  // r2.js runs on the code step now; a signed-out start must not throw away
+  // what the person signing back in would reuse. hydrate() drops another uid's.
+  const r2 = readFileSync(resolve(HERE, 'r2.js'), 'utf8');
+  const listener = r2.match(/supabase\.auth\.onAuthStateChange\(\(event, session\) => \{[\s\S]*?\n  \}\);/)?.[0];
+  assert.ok(listener);
+  assert.match(listener, /if \(event === 'SIGNED_OUT'\) \{ clearPersisted\(\); return; \}/);
+  assert.match(listener, /if \(!uid\) return;/);
+  assert.match(r2, /if \(!parsed \|\| parsed\.uid !== uid\) \{ localStorage\.removeItem\(LS_KEY\); return; \}/);
+});

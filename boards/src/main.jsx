@@ -595,7 +595,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               // a guess: a revoked refresh token fails to restore, and the
               // visitor who clicked Pricing got the sign-in wall instead. Then
               // the public page is the signed-out answer.
-              <AuthGate signedOut={pricingMatch ? <PublicPricingPage /> : null}>
+              <AuthGate signedOut={pricingMatch ? <PublicPricingPage /> : null} warmApp={AppShell.warm}>
                 <AppShell />
               </AuthGate>
             )}
