@@ -145,3 +145,87 @@
   backdrop-filter: var(--tl-blur);
   box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-tip-lift);
 }
+
+/* ── Zoom (mockup A-add, bottom right): [− | slider | 60% | +] on the glass,
+   the bar's 32px buttons (44 under a finger) with Minus and Plus drawn as
+   icons, an 84px slider whose 4px track fills up to its 14px knob (--zf,
+   CanvasSurface), and the readout in the bar's type at a steady width. Where
+   it sits on a phone, and that a finger sees it only while zooming, stay
+   styles.css's. ── */
+:root[data-tb='a'] .cnv-zoom {
+  right: 12px;
+  bottom: 12px;
+  gap: var(--tl-gap);
+  padding: var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: none;
+  box-shadow: none;
+}
+:root[data-tb='a'] .cnv-zoom::after { display: none; }
+:root[data-tb='a'] .cnv-zoom::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+:root[data-tb='a'] .cnv-zoom button {
+  display: grid;
+  place-items: center;
+  width: var(--tl-bs);
+  height: var(--tl-bs);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: var(--tl-br);
+  color: var(--ink-2);
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .cnv-zoom button svg { width: var(--tl-is); height: var(--tl-is); }
+:root[data-tb='a'] .cnv-zoom .cnv-zoom-val {
+  width: auto;
+  min-width: 48px;
+  height: var(--tl-bs);
+  padding: 0 4px;
+  border-radius: var(--tl-br);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1);
+}
+@media (hover: hover) {
+  :root[data-tb='a'] .cnv-zoom button:hover,
+  :root[data-tb='a'] .cnv-zoom .cnv-zoom-val:hover { background: var(--tl-hov); color: var(--ink-0); }
+}
+:root[data-tb='a'] .cnv-zoom button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+:root[data-tb='a'] .cnv-zoom-slider { width: 84px; height: var(--tl-bs); margin: 0 6px; }
+:root[data-tb='a'] .cnv-zoom-slider:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 6px; }
+:root[data-tb='a'] .cnv-zoom-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--ink-3) var(--zf, 0%), var(--line-2) var(--zf, 0%));
+}
+:root[data-tb='a'] .cnv-zoom-slider::-webkit-slider-thumb,
+:root[data-tb='a'] .cnv-zoom-slider::-webkit-slider-thumb:active {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  background: var(--ink-0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--ink-3); }
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-thumb,
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-thumb:active {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  background: var(--ink-0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}

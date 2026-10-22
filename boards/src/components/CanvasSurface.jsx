@@ -81,10 +81,10 @@ import {
   MessageCircle, MessageCircleOff,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
-  Calendar as CalendarPh, X,
+  Calendar as CalendarPh, X, Minus,
 } from '../lib/icons.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
-import { keyCaps, tlTip, toolbarLook } from '../lib/looks.js';
+import { keyCaps, tip, tlTip, toolbarLook } from '../lib/looks.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
@@ -12505,6 +12505,8 @@ export function CanvasSurface({
   // The toolbar look (lib/looks.js): its tooltips, regular icons and the
   // menu's keys in caps; toolbarLook.css dresses the rest.
   const tbLook = toolbarLook();
+  // The zoom slider's place, 0..1000 on a log scale (ZOOM_MIN..ZOOM_MAX).
+  const zoomPos = Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN));
 
   // The rail "+" holds only the SECONDARY creators — anything already on the
   // rail (Note, Image, Doc, Cluster, Grid) is intentionally absent so the two
@@ -14474,14 +14476,20 @@ export function CanvasSurface({
         {/* −, + and 100% keep the view's centre where it is, like ⌘−/⌘=. A bare
             setZoom scales around the board origin (transform-origin 0 0), so
             what you were looking at slid away with every click. */}
+        {/* The toolbar look draws − and + as icons, and fills the slider's
+            track up to its knob (--zf, toolbarLook.css). */}
         <button aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')}
-                onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>−</button>
+                {...tip('Zoom out', 'Mod+-', null, tbLook)}
+                onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>
+          {tbLook ? <Icon as={Minus} size={18} weight="regular" /> : '−'}
+        </button>
         <input
           className="cnv-zoom-slider"
           type="range"
           min="0" max="1000" step="1"
           // log scale: 0..1000 → ZOOM_MIN..ZOOM_MAX
-          value={Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN))}
+          value={zoomPos}
+          style={tbLook ? { '--zf': `${zoomPos / 10}%` } : undefined}
           onInput={(e) => {
             markZooming();
             const v = Number(e.target.value) / 1000;
@@ -14497,14 +14505,14 @@ export function CanvasSurface({
             setZoom(z);
             setPan({ x: newPanX, y: newPanY });
           }}
-          title="Drag to zoom"
+          {...tip('Drag to zoom', null, 'Drag to zoom', tbLook)}
           aria-label="Zoom"
           aria-valuetext={`${Math.round(zoom * 100)}%`}
         />
         {/* What it shows, then what it does: Enter on it is ⌘0. (Double-click
             fits the cluster; the keyboard has ⇧1 for that.) */}
         <button type="button" className="cnv-zoom-val"
-              title="Click: 100% · Double-click: Full Cluster"
+              {...tip('Click: 100% · Double-click: Full Cluster', 'Mod+0', 'Click: 100% · Double-click: Full Cluster', tbLook)}
               aria-label={`${Math.round(zoom * 100)}% — reset to 100%`}
               aria-keyshortcuts={ariaKeys('Mod+0')}
               onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
@@ -14512,7 +14520,10 @@ export function CanvasSurface({
           {Math.round(zoom * 100)}%
         </button>
         <button aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')}
-                onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>+</button>
+                {...tip('Zoom in', 'Mod+=', null, tbLook)}
+                onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>
+          {tbLook ? <Icon as={Plus} size={18} weight="regular" /> : '+'}
+        </button>
       </div>
 
       {/* Master comments-visibility toggle. Always rendered — left-click
