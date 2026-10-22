@@ -17,6 +17,8 @@ import { v4 as uuid } from 'uuid';
 import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { ImageUploadPlaceholders, uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
+import { CaretCell } from './docExtensions/CaretCell.js';
+import { docLook } from '../lib/looks.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
@@ -773,6 +775,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       FindHighlightExtension,
       // An image on its way up: where it will land, how far it has got.
       ImageUploadPlaceholders,
+      // The doc look rings the table cell the caret is in (mockup G-table).
+      ...(docLook() ? [CaretCell] : []),
       // BlockHandleExtension removed — per-block drag handles felt
       // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,

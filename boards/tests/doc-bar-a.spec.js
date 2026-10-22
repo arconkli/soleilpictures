@@ -172,6 +172,8 @@ test('the font list sets the font, and the size field and its presets set the si
   expect(await editorDo(page, 'return ed.getAttributes("textStyle").fontSize;')).toBe('22px');
   const size = bar(page).getByRole('textbox', { name: 'Font size' });
   await expect(size).toHaveValue('22');
+  // The number shows whole in its box, its ⌄ beside it rather than taking its room.
+  expect(await size.evaluate((el) => el.scrollWidth <= el.clientWidth && el.clientWidth >= 40)).toBe(true);
   await size.fill('19');
   await size.press('Enter');
   expect(await editorDo(page, 'return ed.getAttributes("textStyle").fontSize;')).toBe('19px');

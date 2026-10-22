@@ -14296,8 +14296,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 /* De-boxed tables: hairline outline only on top + bottom of the table,
    plus quiet column dividers. No header-cell fill — the header reads as
-   a header via the bottom rule and the bold weight. */
-.tt-editor .tt-table {
+   a header via the bottom rule and the bold weight. A table being edited is
+   Tiptap's own (resizable: a wrapper that scrolls a wide one sideways, and a
+   table without the tt-table class), and looks the same as a reader's. */
+.tt-editor .tableWrapper { overflow-x: auto; }
+.tt-editor .tt-table, .tt-editor .tableWrapper > table {
   border-collapse: collapse;
   margin: 1em 0;
   width: 100%;
@@ -14306,22 +14309,45 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   border-top: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
   border-bottom: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
 }
-.tt-editor .tt-table td, .tt-editor .tt-table th {
+.tt-editor .tt-table td, .tt-editor .tt-table th,
+.tt-editor .tableWrapper td, .tt-editor .tableWrapper th {
   border: 0;
   border-right: 1px solid color-mix(in oklab, var(--soleil) 14%, transparent);
   padding: 6px 9px;
   position: relative;
   vertical-align: top;
 }
-.tt-editor .tt-table td:last-child, .tt-editor .tt-table th:last-child {
+.tt-editor .tt-table td:last-child, .tt-editor .tt-table th:last-child,
+.tt-editor .tableWrapper td:last-child, .tt-editor .tableWrapper th:last-child {
   border-right: 0;
 }
-.tt-editor .tt-table th {
+.tt-editor .tt-table th, .tt-editor .tableWrapper th {
   background: transparent;
   font-weight: 600;
   text-align: left;
   border-bottom: 1px solid color-mix(in oklab, var(--ink-3) 35%, transparent);
 }
+/* Cells dragged across (prosemirror-tables marks them), and the edge a column
+   is widened by, under the pointer. */
+.tt-editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: color-mix(in oklab, var(--soleil) 16%, transparent);
+  pointer-events: none;
+}
+.tt-editor .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: -2px;
+  z-index: 3;
+  width: 4px;
+  background: color-mix(in oklab, var(--soleil) 70%, transparent);
+  pointer-events: none;
+}
+.tt-editor.resize-cursor { cursor: col-resize; }
 .tt-editor mark {
   background: #fff7a8;
   color: #1a1300;

@@ -24,6 +24,7 @@ export { DocCommentsTab } from './DocCommentsTab.jsx';
 export { DocFindTab } from './DocFindTab.jsx';
 export { DocElementsTab } from './DocElementsTab.jsx';
 export { DocStarters } from './DocStarters.jsx';
+export { DocTableBar } from './DocTableBar.jsx';
 
 // The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
 // direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,

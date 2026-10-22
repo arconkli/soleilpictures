@@ -212,4 +212,10 @@ export {
   Printer,
   HighlighterCircle,
   MagnifyingGlassPlus,
+  // A doc table's bar (components/doc/DocTableBar.jsx).
+  Rows,
+  RowsPlusTop,
+  RowsPlusBottom,
+  ColumnsPlusLeft,
+  ColumnsPlusRight,
 } from '@phosphor-icons/react';

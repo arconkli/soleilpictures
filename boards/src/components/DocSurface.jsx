@@ -54,6 +54,7 @@ const DocCommentsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m
 const DocFindTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFindTab })));
 const DocElementsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocElementsTab })));
 const DocStarters = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocStarters })));
+const DocTableBar = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocTableBar })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -1482,6 +1483,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             <Suspense fallback={null}>
               <DocStarters editor={editorRef.current} paperRef={paperRef} ydoc={ydoc} scope={scope}
                            pageId={activePageId} onScreenplay={toggleScreenplay} onRename={onRename} />
+            </Suspense>
+          )}
+          {/* A table's own bar, with the caret in one (the doc look's, mockup
+              G-table). */}
+          {lookA && canEdit && !isPublic && editorRef.current && (
+            <Suspense fallback={null}>
+              <DocTableBar editor={editorRef.current} paperRef={paperRef} />
             </Suspense>
           )}
         </div>

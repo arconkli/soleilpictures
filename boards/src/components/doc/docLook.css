@@ -617,6 +617,9 @@ button.dl-drow { cursor: pointer; }
 .dl-bar .size-combo-wrap.is-tl .size-combo:focus { background: var(--tl-hov); box-shadow: inset 0 0 0 1px var(--line-2); }
 .dl-bar .size-combo-wrap.is-tl .size-combo:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .dl-bar .size-combo-wrap.is-tl .size-combo-arrow.tl-btn {
+  /* Over the field's right end, as .size-combo-arrow is (a .tl-btn is
+     relative, and in the row it took the field's room: "16" didn't show). */
+  position: absolute;
   right: 2px;
   width: 20px;
   min-width: 0;
@@ -833,3 +836,36 @@ button.dl-drow { cursor: pointer; }
 @media (hover: none) and (pointer: coarse) {
   .dl-starter { height: 40px; font-size: 14.5px; }
 }
+
+/* ── A table's bar (mockup G-table): in the paper, over the table's top right
+   edge, where DocTableBar places it. ── */
+.tl-bar.dl-tbar { position: absolute; z-index: 6; }
+/* Header row keeps the check's place while it's off, so turning it on and
+   off moves nothing else in the bar. */
+.dl-tbar .dl-tb-head.is-off { padding-left: calc(var(--tl-is) + 14px); }
+
+/* ── A table in the doc look (mockup G-table): a grid of hairlines, the
+   header row in the interface's type on a shade, the cell the caret is in
+   ringed (docExtensions/CaretCell.js), a reader's as an editor's. ── */
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(.tt-table, .tableWrapper > table) {
+  border-top: 0;
+  border-bottom: 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(.tt-table, .tableWrapper) :is(td, th) {
+  border: 1px solid var(--line-2);
+  padding: 7px 10px;
+}
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(.tt-table, .tableWrapper) th {
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 600 12.5px/1.45 var(--font-sans);
+}
+:root[data-doc-look="a"][data-theme='light'] .doc-paper .tt-editor :is(.tt-table, .tableWrapper) th { background: #f4f4f6; }
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(td, th) > * { margin-top: 0; margin-bottom: 0; }
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(td, th) > * + * { margin-top: .5em; }
+:root[data-doc-look="a"] .doc-paper .tt-editor .dl-cell-on { box-shadow: inset 0 0 0 2px var(--soleil); }
+/* Room over a table being edited (Tiptap's wrapper) for its bar, which would
+   otherwise cover the line above (the mockup leaves the gap). */
+:root[data-doc-look="a"] .doc-paper .tt-editor .tableWrapper { margin-top: calc(var(--tl-bs) + 2 * var(--tl-pad) + 2px); }
