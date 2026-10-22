@@ -1,6 +1,10 @@
 -- 0533: Teams, part 5 — people and seats.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migrations 20261022085817 teams_people_part1 through 20261022093833
+-- teams_people_part4c_proofs: the MCP refused calls this size, so it went in at function
+-- boundaries, each part one transaction carrying its functions' grants,
+-- the proof block last. Its 13 function bodies match this file by md5.
 --
 -- The second of the three team RPC files (0532 a team and its workspaces,
 -- 0533 people and seats, 0534 joining), applied after 0532, whose internals

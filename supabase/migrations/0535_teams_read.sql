@@ -1,6 +1,10 @@
 -- 0535: Teams, part 7 — what the Team page and the workspace menu read.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migrations 20261022094214 teams_read_part1 through 20261022094224
+-- teams_read_part2: the MCP refused calls this size, so it went in at function
+-- boundaries, each part one transaction carrying its functions' grants,
+-- the proof block last. Its 3 function bodies match this file by md5.
 --
 --   get_team(org)               the TeamSnapshot of boards/src/lib/teamModel.js,
 --                               cut to the caller's role on the server

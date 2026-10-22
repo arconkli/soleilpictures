@@ -1,6 +1,10 @@
 -- 0530: Teams, part 2 — every access path learns about teams.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migrations 20261022074410 teams_access_part1 through 20261022074530
+-- teams_access_part3: the MCP refused calls this size, so it went in at function
+-- boundaries, each part one transaction carrying its functions' grants,
+-- the proof block last. Its 21 function bodies match this file by md5.
 --
 -- One rule, in one helper: _org_ws_role_for(ws, user) is the role a person
 -- has in a team workspace through the team, in the workspace vocabulary.

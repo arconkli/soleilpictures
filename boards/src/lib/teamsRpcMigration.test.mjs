@@ -96,11 +96,11 @@ const PART = {
 };
 const fileOf = (fn) => RPCS.find((f) => PART[f].includes(fn));
 
-test('every file is written, not applied, fits one MCP call, and ends in one transaction with a grant proof', () => {
+test('every file is applied on the owner\'s go, fits one MCP call, and ends in one transaction with a grant proof', () => {
   for (const f of [...RPCS, READ]) {
     const sql = fileText(f);
     assert.ok(sql.length <= 45000, `${f}: ${sql.length} characters, more than one MCP call takes (45k)`);
-    assert.match(sql, /STATUS: written 2026-10-22\. NOT APPLIED until the owner says go\./, `${f}: header`);
+    assert.match(sql, /STATUS: written 2026-10-22\. Applied 2026-10-22 \(owner's go\), teams closed\./, `${f}: header`);
     assert.match(sql, /^begin;$/m, `${f}: begin`);
     assert.match(sql, /commit;\s*$/, `${f}: commit`);
     assert.match(sql, /has_function_privilege\('anon'/, `${f}: proves anon`);

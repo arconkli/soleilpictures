@@ -430,10 +430,7 @@ test('0522–0531 write no parent_board_id and carry no live figures', () => {
   for (const f of [TABLES, ACCESS, SEATS]) {
     const c = code(fileText(f));
     assert.doesNotMatch(c, /set\s+parent_board_id/i, `${f} must not move a board`);
-    // 0522 went live on the owner's go (2026-10-22); the rest wait for theirs.
-    const status = f === TABLES
-      ? /STATUS: written 2026-10-22\. Applied 2026-10-22 \(owner's go\), teams closed\./
-      : /STATUS: written 2026-10-22\. NOT APPLIED until the owner says go\./;
-    assert.match(fileText(f), status, `${f}: header`);
+    // All three went live on the owner's go (2026-10-22), teams still closed.
+    assert.match(fileText(f), /STATUS: written 2026-10-22\. Applied 2026-10-22 \(owner's go\), teams closed\./, `${f}: header`);
   }
 });

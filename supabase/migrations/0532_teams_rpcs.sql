@@ -1,6 +1,10 @@
 -- 0532: Teams, part 4 — a team and its workspaces.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migrations 20261022075029 teams_rpcs_part1 through 20261022085710
+-- teams_rpcs_part5_proofs: the MCP refused calls this size, so it went in at function
+-- boundaries, each part one transaction carrying its functions' grants,
+-- the proof block last. Its 14 function bodies match this file by md5.
 --
 -- The team RPCs are three files, each small enough to apply and probe in one
 -- call, applied in order: 0532 a team and its workspaces (create, rename,
