@@ -11,6 +11,8 @@ import { EDITOR_LIMIT, EDITOR_LIMIT_HINT, EDITOR_LIMIT_ASK_HINT } from './editor
 
 const CORE = '0520_editor_limit_core.sql';
 const DOORS = '0521_editor_limit_doors.sql';
+const SEATS = '0531_teams_seats.sql';   // re-emits _editor_admit, _editor_refuse, _editor_limit_fallback,
+                                        // get_editor_capacity, ask_owner_for_editor_slot, _account_editor_grants
 const fileText = (f) => readFileSync(join(MIGRATIONS_DIR, f), 'utf8');
 const code = (s) => s.replace(/--[^\n]*/g, '');   // comments are not wiring
 const def = (fn) => {
@@ -121,8 +123,11 @@ test('0520: helpers are revoked, the three calls are signed-in only, and the fil
   assert.match(sql, /has_function_privilege\('anon'/);
   assert.match(sql, /has_function_privilege\('authenticated'/);
   assert.match(sql, /commit;\s*$/);
+  // 0531 (teams) re-emits three of them with a team branch, same signature.
+  const RE_EMITTED = { get_editor_capacity: SEATS, ask_owner_for_editor_slot: SEATS, _editor_admit: SEATS };
   for (const fn of ['get_editor_capacity', 'ask_owner_for_editor_slot', 'list_my_account_editors', '_editor_admit', '_account_editor_slots'])
-    assert.equal(definitionsOf(fn).length, 1, `${fn} is defined once (no overloads)`);
+    assert.deepEqual(definitionsOf(fn).map((d) => d.file), [CORE, RE_EMITTED[fn]].filter(Boolean),
+      `${fn} is defined in 0520${RE_EMITTED[fn] ? ' and re-emitted in 0531' : ' only'} (no overloads)`);
 });
 
 test('the notices are worded as the owner picked (B): whose plan, curly quotes, names', () => {

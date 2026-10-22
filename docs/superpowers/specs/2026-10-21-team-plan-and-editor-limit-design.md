@@ -82,8 +82,11 @@ Admins choose which of these are on:
 - `/pricing` gets **three cards**: Free · Creator · Team, with a seat picker on Team, and "Need
   SSO, invoices or 100+ seats? Talk to us", a short form that lands in `/admin` with an alert
   email.
-- **SSO, audit log, invoices and purchase orders** are a later **Enterprise** tier (name
-  reserved).
+- **SSO, invoices and purchase orders** are a later **Enterprise** tier (name reserved).
+- The **audit log is no longer Enterprise**. The owner's security decision of 2026-10-21 made
+  it a security log that records from that day, readable by a workspace's owner and admins,
+  and Team uses it (an admin opening a private team workspace writes a row). The security
+  plan owns it; the Team-specific requirements are in the S2a plan's amendment E.
 
 ## How it works today
 
