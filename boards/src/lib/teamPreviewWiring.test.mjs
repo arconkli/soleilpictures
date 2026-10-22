@@ -17,8 +17,18 @@ const read = (p) => readFileSync(path.join(src, p), 'utf8');
 test('App builds the test team only for admins, from a chunk of its own', () => {
   const app = read('App.jsx');
   assert.ok(app.includes("if (!captureAllowed || !teamAs) { setTeam(null); return undefined; }"));
-  assert.ok(app.includes("import('./lib/teamSample.js').then((m) => { if (live) setTeam(m.sampleTeam(teamAs)); }, () => {});"));
+  assert.ok(app.includes("import('./lib/teamSample.js').then((m) => { if (live) setTeam(m.sampleTeam(teamAs, undefined, { name: readTeamPreviewName() })); }, () => {});"));
   assert.doesNotMatch(app, /^import[^\n]*lib\/team(Sample|Model)\.js/m);
+});
+
+test('the setup opens the page once, after the boot has landed, and only a later move closes it', () => {
+  const app = read('App.jsx');
+  // Batched with the landing fallback's setStack, so the page opens on the cluster the boot settled on.
+  assert.ok(app.includes('useEffect(() => { if (!boardsLoading && boardsReady) setTeamLanded(true); }, [boardsLoading, boardsReady]);'));
+  assert.ok(app.includes('useEffect(() => { if (team && teamLanded && consumeTeamPageOnBoot()) openTeamPage(); }, [team, teamLanded]);'));
+  assert.ok(app.includes("else if (teamOpenedAt.current !== place) closeTeamPage();"));
+  // The old "close on any move" effect fired on the boot's own landing.
+  assert.ok(!app.includes('useEffect(() => { closeTeamPage(); }, [currentId, currentSurface]);'));
 });
 
 test('App lazy-loads the Team page and never imports it statically', () => {
@@ -50,4 +60,51 @@ test('only the sample, the model, App, the probe and the page mention sampleTeam
     if (readFileSync(full, 'utf8').includes('sampleTeam(')) bad.push(r);
   }
   assert.deepEqual(bad, []);
+});
+
+// ── The buying walk-through (Team card on /pricing, /team/new) ───────────────
+test('the Team card never reaches the public pricing page', () => {
+  assert.doesNotMatch(read('auth/PublicPricingPage.jsx'), /teamCard|TeamPlanCard/);
+});
+
+test('PricingPage passes teamCard only behind the preview check', () => {
+  const page = read('auth/PricingPage.jsx');
+  assert.ok(page.includes('const teamOn = teamPreviewAvailable() && !!readTeamPreview();'));
+  assert.ok(page.includes('teamCard={teamOn ? {'));
+  assert.equal((page.match(/teamCard=/g) || []).length, 1);
+});
+
+test('PricingPageView lazy-imports the card and renders it only when teamCard is set', () => {
+  const view = read('auth/PricingPageView.jsx');
+  assert.ok(view.includes("lazy(() => import('../components/team/TeamPlanCard.jsx'))"));
+  assert.doesNotMatch(view, /^import[^\n]*components\/team\/TeamPlanCard/m);
+  assert.match(view, /\{teamCard && \(\s*<Suspense fallback=\{null\}>\s*<TeamPlanCard/);
+  assert.ok(view.includes("teamCard = null,"));
+});
+
+test('the shared pricing view never imports the team model; PricingPage loads it only for the preview', () => {
+  // PricingPageView is the signed-out page too: a static import would ship the
+  // team model to every visitor for one preview sentence.
+  const view = read('auth/PricingPageView.jsx');
+  assert.doesNotMatch(view, /lib\/teamModel/);
+  assert.ok(view.includes('{teamCard?.heroLine && ` ${teamCard.heroLine}`}'));
+  const page = read('auth/PricingPage.jsx');
+  assert.doesNotMatch(page, /^import[^\n]*lib\/teamModel/m);
+  assert.ok(page.includes("if (!teamOn) return undefined;"));
+  assert.ok(page.includes("import('../lib/teamModel.js').then((m) => { if (live) setTeamHero(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});"));
+  // The model stays a leaf: an app import there would split that module out of the app chunk.
+  assert.doesNotMatch(read('lib/teamModel.js'), /^import /m);
+});
+
+test('/team/new is a preview-only branch that lazy-loads TeamSetup', () => {
+  const router = read('auth/TierRouter.jsx');
+  assert.ok(router.includes("lazyWithReload(() => import('../components/team/TeamSetup.jsx'))"));
+  assert.match(router, /path === '\/team\/new' && teamPreviewAvailable\(\)/);
+  assert.doesNotMatch(router, /^import[^\n]*components\/team\/TeamSetup/m);
+});
+
+test('the crawlable pricing and the pricing copy carry no Team price', () => {
+  for (const f of ['lib/pricingCrawlable.js', 'lib/billingCopy.js']) {
+    assert.doesNotMatch(read(f), /a seat|\$15\b|\b144\b/, f);
+  }
 });

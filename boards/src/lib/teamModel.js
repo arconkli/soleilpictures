@@ -169,6 +169,13 @@ export function money(n) {
   });
 }
 
+// The pricing hero's Team sentence, on the preview's /pricing only. The caller
+// passes the editor limit, so this module imports nothing: the public pricing
+// page's lazy Team card pulls it, and an app import here would split the app.
+export function teamHeroLine(editorLimit) {
+  return `Teams with more than ${editorLimit} people who edit pay ${money(TEAM_SEAT_PRICE.month)} a seat.`;
+}
+
 export function seatPrice(plan) {
   return TEAM_SEAT_PRICE[plan.interval];
 }

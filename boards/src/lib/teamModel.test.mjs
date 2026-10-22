@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   teamCan, holdsSeat, seatsUsed, seatsFree, roleChoices, peopleCounts, filterPeople,
   whereLabel, lastHereLabel, adminNames, money, seatPriceLabel, proratedToday, seatAddLine,
-  approveLine, storageQuota, sizeLabel, teamReducer, TEAM_SEAT_MIN,
+  approveLine, storageQuota, sizeLabel, teamReducer, teamHeroLine, TEAM_SEAT_MIN,
 } from './teamModel.js';
 import { sampleTeam } from './teamSample.js';
 
@@ -86,6 +86,7 @@ test('money: whole dollars stay whole, a seat is prorated to the day', () => {
   assert.equal(money(2160), '$2,160');
   assert.equal(money(9.5), '$9.50');
   assert.equal(money(0), '$0');
+  assert.equal(teamHeroLine(10), 'Teams with more than 10 people who edit pay $15 a seat.');
   const plan = { interval: 'year', renewsAt: NOW + 73 * DAY };
   assert.equal(seatPriceLabel(plan), '$144 a year');
   assert.equal(proratedToday(plan, NOW), 28.8);

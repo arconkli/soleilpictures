@@ -62,7 +62,7 @@ export const LAZY_IN_APP = [
   'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette', 'TagDetailView',
   'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage',
   // TierRouter.jsx: one route's page each
-  'PricingPage', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
+  'PricingPage', 'TeamPlanCard', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
   'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel',
 ];

@@ -104,7 +104,9 @@ import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
 import { isAiTaggerEnabled } from './lib/aiTaggerFlag.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
-import { useTeamPreview, useTeamPage, openTeamPage, closeTeamPage } from './lib/teamPreview.js';
+import {
+  useTeamPreview, useTeamPage, openTeamPage, closeTeamPage, readTeamPreviewName, consumeTeamPageOnBoot,
+} from './lib/teamPreview.js';
 import {
   markHomeAfterSwitch, homeAfterSwitchFor, clearHomeAfterSwitch,
   markSettingsAfterSwitch, settingsAfterSwitchFor, clearSettingsAfterSwitch,
@@ -5977,13 +5979,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (!captureAllowed || !teamAs) { setTeam(null); return undefined; }
     let live = true;
-    import('./lib/teamSample.js').then((m) => { if (live) setTeam(m.sampleTeam(teamAs)); }, () => {});
+    import('./lib/teamSample.js').then((m) => { if (live) setTeam(m.sampleTeam(teamAs, undefined, { name: readTeamPreviewName() })); }, () => {});
     return () => { live = false; };
   }, [captureAllowed, teamAs]);
   const teamPage = useTeamPage();
   useEffect(() => { if (!team) closeTeamPage(); }, [team]);
-  // Going somewhere else leaves the page.
-  useEffect(() => { closeTeamPage(); }, [currentId, currentSurface]);
+  // The setup's "Open the team page" reloads the app and asks for the page
+  // once. Wait until the boot has landed: the landing fallback can still move
+  // the stack when the boards arrive, in the same render this flag flips.
+  const [teamLanded, setTeamLanded] = useState(false);
+  useEffect(() => { if (!boardsLoading && boardsReady) setTeamLanded(true); }, [boardsLoading, boardsReady]);
+  useEffect(() => { if (team && teamLanded && consumeTeamPageOnBoot()) openTeamPage(); }, [team, teamLanded]);
+  // Going somewhere else leaves the page: somewhere other than where it opened.
+  const teamOpenedAt = useRef(null);
+  useEffect(() => {
+    const place = `${currentId}:${currentSurface}`;
+    if (!teamPage) { teamOpenedAt.current = null; return; }
+    if (teamOpenedAt.current === null) teamOpenedAt.current = place;
+    else if (teamOpenedAt.current !== place) closeTeamPage();
+  }, [teamPage, currentId, currentSurface]);
 
   // The admin Surface Gallery rides the same tier read and the same doctrine:
   // pure client-side rendering with no server capability behind it, so this IS

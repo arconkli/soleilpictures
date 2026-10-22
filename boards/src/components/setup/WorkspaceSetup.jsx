@@ -38,7 +38,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // The workspace behind the card, out of focus. A brand-new workspace is a
 // sidebar and an empty board, so this is that, drawn plainly.
-function Behind({ name }) {
+export function Behind({ name }) {
   return (
     <>
       <div className="su-behind" aria-hidden="true">

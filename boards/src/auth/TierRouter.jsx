@@ -24,6 +24,7 @@ import { trackAdLead } from '../lib/metaPixel.js';
 import { setJourneySink, beginJourney, setJourneyState, journey } from '../lib/journey.js';
 import { useSetupGate } from '../hooks/useSetupGate.js';
 import { bootMark } from '../lib/bootMarks.js';
+import { teamPreviewAvailable } from '../lib/teamPreview.js';
 
 // Wire the post-signup journey's emitter at module load (journey.js can't import
 // analytics.js statically — it must stay node-importable for its unit test). This
@@ -36,6 +37,8 @@ setJourneySink({ logEvent, logEventNow });
 const WelcomePage = lazyWithReload(() => import('./WelcomePage.jsx').then(m => ({ default: m.WelcomePage })));
 const WaitlistConfirm = lazyWithReload(() => import('./WaitlistConfirm.jsx').then(m => ({ default: m.WaitlistConfirm })));
 const PricingPage = lazyWithReload(() => import('./PricingPage.jsx').then(m => ({ default: m.PricingPage })));
+// The team preview's buying walk-through (Settings › Preview › Team plan); preview host and dev only.
+const TeamSetup = lazyWithReload(() => import('../components/team/TeamSetup.jsx'));
 const PricingSuccess = lazyWithReload(() => import('./PricingSuccess.jsx').then(m => ({ default: m.PricingSuccess })));
 // Lazy: AdminPage pulls in recharts (~133KB gz) but only the /admin route (admins
 // only) renders it. Keeping it lazy means no other user downloads the charts lib.
@@ -197,6 +200,7 @@ export function TierRouter({ children }) {
 
   // Anyone signed in can reach these:
   if (path === '/pricing')           return <Suspense fallback={<Splash />}><PricingPage /></Suspense>;
+  if (path === '/team/new' && teamPreviewAvailable()) return <Suspense fallback={<Splash />}><TeamSetup user={user} /></Suspense>;
   if (path === '/pricing/success')   return <Suspense fallback={<Splash />}><PricingSuccess onEnter={enterApp} /></Suspense>;
 
   // tier='waitlist' is gated to the welcome/waitlist flow. /waitlist is

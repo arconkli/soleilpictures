@@ -72,12 +72,18 @@ export function PreviewTab({ onClose }) {
         <div className="settings-pill-row" style={{ marginTop: 8 }}>
           <button type="button" className="settings-btn" disabled={!teamAs}
                   onClick={() => { onClose?.(); openTeamPage(); }}>Open the team page</button>
+          <button type="button" className="settings-btn"
+                  onClick={() => {
+                    if (!teamAs) { writeTeamPreview('owner'); setTeamAs('owner'); }
+                    onClose?.();
+                    window.location.assign('/pricing');
+                  }}>Walk through buying it</button>
         </div>
       </SettingsCategory>
 
       <p className="settings-section-hint" style={{ marginTop: 8 }}>
         Northlight Films, a test team with example people, shows at the top of the workspace menu
-        and on its own page. Nothing is billed, nobody is emailed, and only you see it.
+        and on its own page. “Walk through buying it” opens the pricing page and the team setup. Nothing is billed, nobody is emailed, and only you see it.
       </p>
     </div>
   );

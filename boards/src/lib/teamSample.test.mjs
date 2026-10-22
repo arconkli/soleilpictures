@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sampleTeam } from './teamSample.js';
-import { seatsUsed, storageQuota } from './teamModel.js';
+import { sampleTeam, SAMPLE_SETUP_WORKSPACES } from './teamSample.js';
+import { seatsUsed, storageQuota, holdsSeat } from './teamModel.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
@@ -65,4 +65,22 @@ test('the preview is preview-host-and-dev only, and turning it off closes the pa
   assert.match(src, /export function readTeamPreview\(\) \{\s+if \(!teamPreviewAvailable\(\)\) return null;/);
   assert.ok(src.includes('if (!TEAM_PREVIEW_ROLES.includes(as)) closeTeamPage();'));
   assert.ok(read('lib/editorLimitPreview.js').includes('return onPreviewHost() || !!import.meta.env.DEV;'));
+});
+
+test('a typed team name replaces Northlight Films, with its first letter; empty keeps the default', () => {
+  const t = sampleTeam('owner', NOW, { name: '  lumen Pictures ' });
+  assert.equal(t.name, 'lumen Pictures');
+  assert.equal(t.letter, 'L');
+  for (const name of ['', '   ', undefined]) {
+    const d = sampleTeam('owner', NOW, { name });
+    assert.equal(d.name, 'Northlight Films');
+    assert.equal(d.letter, 'N');
+  }
+});
+
+test('the first three setup workspaces hold exactly the test team’s seat holders', () => {
+  const union = new Set(SAMPLE_SETUP_WORKSPACES.slice(0, 3).flatMap((w) => w.editors));
+  const seatHolders = sampleTeam('owner', NOW).people.filter(holdsSeat).map((p) => p.id);
+  assert.deepEqual([...union].sort(), seatHolders.sort());
+  assert.equal(SAMPLE_SETUP_WORKSPACES.length, 4);
 });

@@ -34,6 +34,41 @@ export function writeTeamPreview(as) {
   try { window.dispatchEvent(new Event(TEAM_PREVIEW_EVENT)); } catch (_) {}
 }
 
+// ── The way back from the buying walk-through (components/team/TeamSetup.jsx) ──
+// The name typed on its first step, kept per browser, and "open the team page
+// once on the next boot", kept for the tab. App.jsx reads both.
+export const TEAM_PREVIEW_NAME_KEY = 'soleil.preview.teamName';
+const OPEN_ON_BOOT_KEY = 'soleil.preview.openTeamPage';
+
+export function readTeamPreviewName() {
+  if (!teamPreviewAvailable()) return null;
+  try {
+    const v = (window.localStorage.getItem(TEAM_PREVIEW_NAME_KEY) || '').trim().slice(0, 60);
+    return v || null;
+  } catch (_) { return null; }
+}
+
+export function writeTeamPreviewName(name) {
+  try {
+    const v = String(name ?? '').trim().slice(0, 60);
+    if (v) window.localStorage.setItem(TEAM_PREVIEW_NAME_KEY, v);
+    else window.localStorage.removeItem(TEAM_PREVIEW_NAME_KEY);
+  } catch (_) {}
+}
+
+export function requestTeamPageOnBoot() {
+  try { window.sessionStorage.setItem(OPEN_ON_BOOT_KEY, '1'); } catch (_) {}
+}
+
+// True once: reads the request and removes it.
+export function consumeTeamPageOnBoot() {
+  try {
+    const on = window.sessionStorage.getItem(OPEN_ON_BOOT_KEY) === '1';
+    if (on) window.sessionStorage.removeItem(OPEN_ON_BOOT_KEY);
+    return on;
+  } catch (_) { return false; }
+}
+
 function subscribePreview(fn) {
   window.addEventListener(TEAM_PREVIEW_EVENT, fn);
   window.addEventListener('storage', fn);

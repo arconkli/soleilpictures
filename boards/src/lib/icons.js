@@ -200,4 +200,6 @@ export {
   BookmarkSimple,
   // The Team page's payment card (components/team/TeamBilling.jsx).
   CreditCard,
+  // The team setup's done step (components/team/TeamSetup.jsx).
+  CheckCircle,
 } from '@phosphor-icons/react';

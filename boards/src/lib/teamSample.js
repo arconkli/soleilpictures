@@ -16,7 +16,21 @@ const C = ['#5b8def', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
 
 export const SAMPLE_TEAM_ID = 'sample-northlight';
 
-export function sampleTeam(as = 'owner', now = Date.now()) {
+// The workspaces the buying walk-through offers to move in (TeamSetup): the
+// first three are the test team's, and their editors' union is its 12 seats.
+export const SAMPLE_SETUP_WORKSPACES = Object.freeze([
+  { id: 'sample-ws-studio', name: 'Studio', letter: 'S', color: '#5b8def',
+    editors: ['p-alex', 'p-ben', 'p-maya', 'p-jon', 'p-omar', 'p-theo', 'p-rosa', 'p-chloe'] },
+  { id: 'sample-ws-commercials', name: 'Commercials', letter: 'C', color: '#9a6b88',
+    editors: ['p-alex', 'p-ben', 'p-maya', 'p-priya', 'p-june'] },
+  { id: 'sample-ws-music', name: 'Music videos', letter: 'M', color: '#c9a577',
+    editors: ['p-alex', 'p-ben', 'p-omar', 'p-sam', 'p-kai'] },
+  { id: 'sample-ws-pitch', name: 'Pitch decks', letter: 'P', color: '#b88958',
+    editors: ['p-alex'] },
+]);
+
+// `name` (the team name typed in the walk-through) replaces "Northlight Films".
+export function sampleTeam(as = 'owner', now = Date.now(), { name } = {}) {
   const member = as === 'member';
   const unpaid = as === 'unpaid';
   const role = member ? 'member' : as === 'admin' ? 'admin' : 'owner';
@@ -66,10 +80,11 @@ export function sampleTeam(as = 'owner', now = Date.now()) {
   midnight.setHours(0, 0, 0, 0);
   const failedAt = midnight.getTime() - 17 * DAY;
 
+  const teamName = String(name ?? '').trim() || 'Northlight Films';
   const team = {
     id: SAMPLE_TEAM_ID,
-    name: 'Northlight Films',
-    letter: 'N',
+    name: teamName,
+    letter: teamName.charAt(0).toUpperCase(),
     color: '#c9a577',
     sample: true,
     status: unpaid ? 'view_only' : 'active',

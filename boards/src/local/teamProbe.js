@@ -10,7 +10,11 @@ import * as ReactDOM from 'react-dom/client';
 
 import TeamPage from '../components/team/TeamPage.jsx';
 import { WorkspaceMenu } from '../components/WorkspaceMenu.jsx';
+import TeamSetup from '../components/team/TeamSetup.jsx';
+import { PricingPageView } from '../auth/PricingPageView.jsx';
 import { sampleTeam } from '../lib/teamSample.js';
+import { teamHeroLine } from '../lib/teamModel.js';
+import { EDITOR_LIMIT } from '../lib/editorLimit.js';
 
 // Records what the page asked the app to do on window.__team.
 export function mountTeamPage({ as = 'owner', tab = 'people' } = {}) {
@@ -55,6 +59,50 @@ export function mountTeamMenu({ as = 'owner' } = {}) {
       onOpenPage: () => { calls.openPage += 1; },
       onPickWorkspace: (w) => calls.picked.push(w.id),
     },
+  }));
+  return true;
+}
+
+// /pricing as a signed-in demo user sees it, with the team preview's third card.
+// Records what the card asked for on window.__teamBuy.
+function PricingProbe({ initialPlan }) {
+  const [plan, setPlan] = React.useState(initialPlan);
+  const [seats, setSeats] = React.useState(12);
+  const [talkNote, setTalkNote] = React.useState(false);
+  return React.createElement(PricingPageView, {
+    plan,
+    onPlanToggle: setPlan,
+    freeCta: null,
+    creatorCta: { label: 'Get Creator', onClick: () => {}, disabled: false, busy: false },
+    teamCard: {
+      plan, seats, setSeats, talkNote, heroLine: teamHeroLine(EDITOR_LIMIT),
+      onStart: () => window.__teamBuy.started.push({ seats, plan }),
+      onTalk: () => { window.__teamBuy.talks += 1; setTalkNote(true); },
+    },
+  });
+}
+
+export function mountPricingTeam({ plan = 'monthly' } = {}) {
+  window.__teamBuy = { started: [], talks: 0, nav: [] };
+  const el = document.createElement('div');
+  el.className = 'team-probe-host';
+  document.body.appendChild(el);
+  ReactDOM.createRoot(el).render(React.createElement(PricingProbe, { initialPlan: plan }));
+  return true;
+}
+
+// The buying walk-through's setup at /team/new, reading ?seats= and ?billing=
+// from `search`. Navigation goes through the page's `navigate` prop and is
+// recorded on window.__teamBuy.nav.
+export function mountTeamSetup({ search = '' } = {}) {
+  window.history.replaceState(null, '', '/team/new' + search);
+  window.__teamBuy = { started: [], talks: 0, nav: [] };
+  const el = document.createElement('div');
+  el.className = 'team-probe-host';
+  document.body.appendChild(el);
+  ReactDOM.createRoot(el).render(React.createElement(TeamSetup, {
+    user: { email: 'alex@northlight.studio' },
+    navigate: (u) => window.__teamBuy.nav.push(u),
   }));
   return true;
 }

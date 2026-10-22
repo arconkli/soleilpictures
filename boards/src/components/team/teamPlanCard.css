@@ -1,0 +1,46 @@
+/* The Team card on /pricing (the owner's Buy mockup, .plan.is-team). Imported
+   by TeamPlanCard.jsx only, so it rides the card's lazy chunk and the signed-in
+   app's CSS budget doesn't move. The three-column rule lives here too: it
+   applies once the card has loaded, and the card is the only reason for three. */
+.pp-plans.is-three { grid-template-columns: 1fr 1.1fr 1.1fr; }
+.seo-main:has(.pp-plans.is-three) { max-width: 1120px; }
+.pp-plan-team .pp-plan-name { color: var(--ink-0); }
+.pp-team-tag {
+  margin-left: auto; padding: 4px 8px; border-radius: 999px; background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-2); font: 600 10.5px/1 var(--font-sans); color: var(--ink-1);
+}
+.pp-seatpick {
+  display: flex; align-items: center; gap: 10px; margin-top: 4px; padding: 8px 10px; border-radius: 8px;
+  background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.pp-seatpick-k { font: 500 12px/1 var(--font-sans); color: var(--ink-2); }
+.pp-step { display: inline-flex; align-items: center; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-2); background: var(--bg-3); }
+.pp-step button {
+  width: 28px; height: 28px; display: grid; place-items: center; border: 0; background: transparent;
+  color: var(--ink-1); padding: 0; cursor: pointer;
+}
+.pp-step button:hover:not(:disabled) { color: var(--ink-0); }
+.pp-step button:disabled { opacity: .4; cursor: not-allowed; }
+.pp-step button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.pp-step b { min-width: 34px; text-align: center; font: 600 13px/1 var(--font-sans); color: var(--ink-0); }
+.pp-seatpick-sum { margin-left: auto; font: 600 13px/1 var(--font-sans); color: var(--ink-0); white-space: nowrap; }
+.pp-team-bens { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.pp-team-bens li { display: flex; flex-direction: column; gap: 2px; }
+.pp-team-bens b { font: 600 13px/1.35 var(--font-sans); color: var(--ink-0); }
+.pp-team-bens span { font: 400 12px/1.45 var(--font-sans); color: var(--ink-2); }
+.pp-team-note { margin: 2px 0 0; text-align: center; font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); }
+
+/* Under the cards: the way to a person, not a plan. Neutral ink. */
+.pp-talk { margin: 0 0 18px; text-align: center; font: 400 13px/1.4 var(--font-sans); color: var(--ink-2); }
+.pp-talk-link {
+  border: 0; background: transparent; padding: 0; font: 600 13px/1.4 var(--font-sans); color: var(--ink-0);
+  text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; cursor: pointer;
+}
+.pp-talk-link:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.pp-talk-note { margin: -8px 0 18px; text-align: center; font: 400 12px/1.4 var(--font-sans); color: var(--ink-3); }
+
+@media (max-width: 760px) {
+  .pp-plans.is-three { grid-template-columns: 1fr; }
+  .pp-plan-team { order: -1; }   /* after Creator (also -1, earlier in the source), before Free */
+  .pp-plan-team .pp-plan-head { flex-direction: row; align-items: center; }
+}

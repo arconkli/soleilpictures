@@ -26,6 +26,8 @@ import { CTA, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
+import { teamPreviewAvailable, readTeamPreview } from '../lib/teamPreview.js';
+import { EDITOR_LIMIT } from '../lib/editorLimit.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
@@ -34,6 +36,20 @@ export function PricingPage() {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const rootRef = useRef(null);
+  // The team preview's third card (Settings › Preview › Team plan, preview
+  // host and dev only). Look only: Start opens the setup at /team/new.
+  const teamOn = teamPreviewAvailable() && !!readTeamPreview();
+  const [teamSeats, setTeamSeats] = useState(12);
+  const [talkNote, setTalkNote] = useState(false);
+  // The hero's Team sentence. The price lives in the team model, which only
+  // the preview loads (it shares a chunk with the Team card).
+  const [teamHero, setTeamHero] = useState(null);
+  useEffect(() => {
+    if (!teamOn) return undefined;
+    let live = true;
+    import('../lib/teamModel.js').then((m) => { if (live) setTeamHero(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});
+    return () => { live = false; };
+  }, [teamOn]);
   // Back from Stripe restores the page with the CTA still busy.
   useBfcacheRestore(() => setBusy(false));
 
@@ -125,6 +141,15 @@ export function PricingPage() {
           window.location.assign('/waitlist');
         },
       }}
+      teamCard={teamOn ? {
+        plan,
+        seats: teamSeats,
+        setSeats: setTeamSeats,
+        onStart: () => window.location.assign(`/team/new?seats=${teamSeats}&billing=${plan}`),
+        talkNote,
+        onTalk: () => setTalkNote(true),
+        heroLine: teamHero,
+      } : null}
       showPlanToggle={!alreadyPaid}
       showPrice={!alreadyPaid}
       stateLine={alreadyPaid ? (
