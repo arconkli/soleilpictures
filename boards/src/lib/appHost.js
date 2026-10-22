@@ -218,10 +218,13 @@ export function toolbarLookAllowed() {
 // The owner's pick "A + C's side panel" (2026-10-21): one row of tools over
 // the page, the rest under ⋯, and a side panel where a doc's comments, find
 // across its pages and a screenplay's elements live; with the start of a new
-// doc, tables that grow and a reader's Find, zoom and Export. Held as the
-// toolbar look is (soleil.dev.docLook = '1'), marked <html data-doc-look="a">.
+// doc, tables that grow, a reader's Find, zoom and Export, and its own row on
+// a phone's keyboard. Open on preview, where the owner tries it; closed on
+// production until the release that ships it with its docs; opt-in on dev
+// (localStorage soleil.dev.docLook = '1'). Marked <html data-doc-look="a">.
 export const DOC_LOOK_DEV_FLAG = 'soleil.dev.docLook';
 export function docLookAllowed() {
+  if (onPreviewHost()) return true;
   if (!import.meta.env.DEV) return false;
   try { return window.localStorage.getItem(DOC_LOOK_DEV_FLAG) === '1'; } catch (_) { return false; }
 }

@@ -16,16 +16,17 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
-for (const [fn, flag, key] of [
-  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook'],
-  ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook'],
+for (const [fn, flag, key, preview] of [
+  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook', false],
+  ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook', true],
 ]) {
-  test(`${fn} is closed outside dev, and opt-in there`, () => {
+  test(`${fn} is ${preview ? 'open on the preview, ' : ''}closed on production, and opt-in on dev`, () => {
     const body = holdBody(fn);
     assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
     assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) === '1'`));
-    // Not on the preview yet: it opens there once the owner can try it.
-    assert.doesNotMatch(body, /onPreviewHost/);
+    // On the preview once the owner can try it, ahead of everything else.
+    if (preview) assert.match(body, /^\s*if \(onPreviewHost\(\)\) return true;\n\s*if \(!import\.meta\.env\.DEV\) return false;/);
+    else assert.doesNotMatch(body, /onPreviewHost/);
     assert.match(read('lib/appHost.js'), new RegExp(`^\\s*${key}: ${fn},$`, 'm'));
   });
 }
