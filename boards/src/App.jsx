@@ -340,6 +340,7 @@ function loadImportStart() {
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
+import { openableUrl } from './lib/openableUrl.js';
 
 // A cluster with nothing on its board but files in Files gets a cover of its
 // pictures (lib/coverMosaic.js). Stored covers reach every host, so only where
@@ -5612,7 +5613,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (ref?.id) openDmWith(ref.id);
         else setTweak('showMessages', true);
       },
-      url: (ref) => { window.open(ref.href, '_blank', 'noopener,noreferrer'); },
+      url: (ref) => { const u = openableUrl(ref?.href); if (u) window.open(u, '_blank', 'noopener,noreferrer'); },
       group: async (ref) => {
         // Resolve boardId via group_index if not provided.
         let boardId = ref.boardId;
@@ -11222,7 +11223,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               workspaceId: workspace.id,
               onNavigate: (target) => {
                 if (!target || target.kind === 'url') {
-                  if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');
+                  { const u = openableUrl(target?.href); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }
                   return;
                 }
                 setCurrentSurface('board');
@@ -11332,7 +11333,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     // A link opens in its own tab and leaves you on Home; it
                     // used to switch this tab to whatever cluster was last open.
                     if (!target || target.kind === 'url') {
-                      if (target?.href) window.open(target.href, '_blank', 'noopener,noreferrer');
+                      { const u = openableUrl(target?.href); if (u) window.open(u, '_blank', 'noopener,noreferrer'); }
                       return;
                     }
                     // Everything else goes through navHandlers, like any other

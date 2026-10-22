@@ -31,6 +31,7 @@ import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { FeedbackKindPill, FeedbackChoicePill } from './AdminPills.jsx';
 import { MessageSquare, Image as ImageIcon } from '../../lib/icons.js';
 import { describeFeedbackContext } from '../../lib/feedbackContext.js';
+import { safeExternalHref } from '../../lib/safeExternalHref.js';
 
 // Asserted against the table's CHECK by src/lib/feedbackContract.test.mjs — a
 // kind the database can store and this array cannot ask for is a row written
@@ -211,7 +212,7 @@ export function AdminFeedbackTab() {
                       <span className="fbk-ctx" title={JSON.stringify(r.context)}>{describeFeedbackContext(r.context)}</span>
                     )}
                     {r.url && (
-                      <a className="fbk-path" href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                      <a className="fbk-path" href={safeExternalHref(r.url) || undefined} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                         {(() => { try { return new URL(r.url).pathname; } catch { return r.url; } })()}
                       </a>
                     )}

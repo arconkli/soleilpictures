@@ -41,6 +41,7 @@ import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { IconWeightContext } from './Icon.jsx';
 import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
+import { openableUrl } from '../lib/openableUrl.js';
 
 // The doc look's side panel, footer and one row of tools (held;
 // components/doc/DocFrameA.jsx): lazy, so the doc as it is never downloads
@@ -809,9 +810,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
 
   const handleNavigateTarget = (target) => {
     switch (target?.kind) {
-      case 'url':
-        window.open(target.href, '_blank', 'noopener,noreferrer');
+      case 'url': {
+        const u = openableUrl(target.href);
+        if (u) window.open(u, '_blank', 'noopener,noreferrer');
         break;
+      }
       // Internal navigation (board/card/doc/docPos) is wired up by App.jsx's
       // navigation in a follow-up wiring task; for Phase 2 we just log.
       default:

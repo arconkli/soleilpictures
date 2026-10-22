@@ -94,3 +94,45 @@ test('iframes are rendered only where an embed is vetted first', () => {
     assert.ok(text.includes(guard), `${file} must vet its embed: ${guard}`);
   }
 });
+
+// Every window.open in the client, with why its address is safe. An address
+// that comes from card, doc, link or entity data goes through openableUrl
+// (http, https or mailto only) first.
+const OPENERS = [
+  ['App.jsx', "const u = openableUrl(ref?.href); if (u) window.open(u,", 'entity link, vetted'],
+  ['App.jsx', "const u = openableUrl(target?.href); if (u) window.open(u,", 'Home graph link, vetted'],
+  ['App.jsx', "window.open(`/c/${slug}`,", 'our own page'],
+  ['App.jsx', "window.open('/docs',", 'our own page'],
+  ['components/DocSurface.jsx', "if (u) window.open(u,", 'doc link, vetted'],
+  ['components/cards.jsx', "if (u) window.open(u,", 'list item link, vetted'],
+  ['components/cards.jsx', "window.open(openHref,", 'link card, vetted by openableUrl'],
+  ['components/CanvasSurface.jsx', "window.open('/templates',", 'our own page'],
+  ['components/CanvasSurface.jsx', "if (href) window.open(href,", 'link card menu, vetted by openableUrl'],
+  ['components/StorageAddonSheet.jsx', "window.open(answer.hosted_invoice_url,", 'Stripe invoice address from our server'],
+  ['components/NotificationsPanel.jsx', "window.open('/f/' + encodeURIComponent(", 'our own page'],
+  ['hooks/useNotifications.js', "window.open('/f/' + encodeURIComponent(", 'our own page'],
+  ['components/HelpHub.jsx', "window.open(path,", 'a help path from the built-in list'],
+  ['components/gallery/SurfaceGallery.jsx', "window.open(url,", 'admin gallery route from its registry'],
+  ['components/fileShare/FileShareDialog.jsx', "window.open(fileShareUrl(s.token),", 'our own page'],
+  ['lib/exportBoard.js', "window.open('', '_blank')", 'a blank print window'],
+  ['lib/checkout.js', "window.open('', '_blank')", 'a blank tab for Stripe checkout'],
+  ['lib/cardDownload.js', "window.open(url,", 'download fallback, vetted by openableUrl'],
+];
+
+test('every window.open in the client is reviewed', () => {
+  const unreviewed = [];
+  const used = new Set();
+  for (const { rel, lines } of FILES) {
+    lines.forEach((line, i) => {
+      if (!/window\.open\(/.test(line) || /^\s*(\/\/|\*)/.test(line)) return;
+      const hit = OPENERS.findIndex(([file, frag]) => file === rel && line.includes(frag));
+      if (hit < 0) unreviewed.push(`${rel}:${i + 1}: ${line.trim().slice(0, 120)}`);
+      else used.add(hit);
+    });
+  }
+  assert.deepEqual(unreviewed, [], 'Pass data-derived addresses through openableUrl, then add the line to OPENERS with its reason.');
+  const stale = OPENERS.filter((_, i) => !used.has(i)).map(([file, frag]) => `${file}: ${frag}`);
+  assert.deepEqual(stale, [], 'OPENERS entries that match no line any more: remove them.');
+  const download = FILES.find((f) => f.rel === 'lib/cardDownload.js').lines.join('\n');
+  assert.match(download, /const url = openableUrl\(await resolveSrc\(src\)\);/, 'the download fallback vets the address');
+});

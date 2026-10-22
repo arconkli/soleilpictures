@@ -30,6 +30,7 @@ import { getDeviceInfo } from './device.js';
 import { DOWNLOADABLE, assetSrcFor, assetFilename } from './cardAssetName.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
+import { openableUrl } from './openableUrl.js';
 
 export { ZipLimitError, ZIP_MAX_BYTES, ZIP_MAX_ENTRIES, DIRECT_DOWNLOAD_MIN_BYTES };
 
@@ -202,7 +203,7 @@ async function downloadCardAssetNow(card, kind, { surface = null } = {}) {
     // until someone selects two files. The `fallback` field is here so that
     // stops being invisible in the numbers.
     try {
-      const url = await resolveSrc(src);
+      const url = openableUrl(await resolveSrc(src));
       if (url) {
         logEvent(EV.FILE_DOWNLOAD, {
           kind, is_public: isPublicSurface(), surface, bulk: false, fallback: 'open_url',
