@@ -25,7 +25,7 @@
 -- _org_add_seats is the one writer of organizations.seats in S2a; every
 -- change is a row in org_seat_changes, which S3 bills (billed_at).
 --
--- _team_request is the one request core (amendment D): 0532's RPCs call it,
+-- _team_request is the one request core (amendment D): 0534's RPCs call it,
 -- and no later migration re-defines it.
 --
 -- The S1 helpers each gain a team branch, so S1's six doors (0521) admit by

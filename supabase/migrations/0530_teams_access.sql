@@ -65,7 +65,7 @@
 --     neither DM each other nor see each other's addresses through them until
 --     S4 decides.
 --   * claim_collab_link: a team viewer opening an edit link gets today's
---     'noop'; asking to edit goes through the team (ask_team_for_edit, 0532).
+--     'noop'; asking to edit goes through the team (ask_team_for_edit, 0534).
 --
 -- New: can_open_workspace (the workspace room's door) and my_workspace_role.
 -- The party's minute re-checks are the security session's (PTY-1):

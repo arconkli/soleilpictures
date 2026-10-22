@@ -1,4 +1,4 @@
--- 0533: Teams, part 5 — what the Team page and the workspace menu read.
+-- 0535: Teams, part 7 — what the Team page and the workspace menu read.
 --
 -- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
 --
@@ -351,17 +351,17 @@ begin
   foreach v_fn in array array['public.get_team(uuid)', 'public.list_my_teams()',
                               'public.list_my_team_workspaces()'] loop
     if has_function_privilege('anon', v_fn, 'execute') then
-      raise exception '0533: % is callable signed out', v_fn;
+      raise exception '0535: % is callable signed out', v_fn;
     end if;
     if not has_function_privilege('authenticated', v_fn, 'execute') then
-      raise exception '0533: % is not callable signed in', v_fn;
+      raise exception '0535: % is not callable signed in', v_fn;
     end if;
   end loop;
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
               where n.nspname = 'public'
                 and p.proname in ('get_team', 'list_my_teams', 'list_my_team_workspaces')
               group by p.proname having count(*) > 1) then
-    raise exception '0533: an overload exists (PGRST203)';
+    raise exception '0535: an overload exists (PGRST203)';
   end if;
 end $$;
 
