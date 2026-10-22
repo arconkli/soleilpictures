@@ -170,6 +170,37 @@ export function detectEmbed(url) {
   return null;
 }
 
+// The hosts the detectors above build embedUrl on, and the iframe features
+// they ask for. Keep both in step with DETECTORS.
+const EMBED_HOSTS = new Set([
+  'www.youtube.com',
+  'open.spotify.com',
+  'player.vimeo.com',
+  'www.tiktok.com',
+  'www.instagram.com',
+  'platform.twitter.com',
+]);
+const EMBED_FEATURES = new Set([
+  'accelerometer', 'autoplay', 'clipboard-write', 'encrypted-media',
+  'fullscreen', 'gyroscope', 'picture-in-picture', 'web-share',
+]);
+
+// A card carries its embed as data, and data can come from anywhere that can
+// write the card. Before an embed becomes an iframe it must be https on one of
+// the hosts above, with no credentials in the address; `allow` keeps only the
+// features above. Returns the embed to render (with embedUrl as parsed), or
+// null to show the card as a plain link.
+export function safeEmbed(embed) {
+  if (!embed || typeof embed !== 'object' || typeof embed.embedUrl !== 'string') return null;
+  let u;
+  try { u = new URL(embed.embedUrl); } catch (_) { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password || !EMBED_HOSTS.has(u.hostname)) return null;
+  const allow = typeof embed.allow === 'string'
+    ? embed.allow.split(';').map((t) => t.trim()).filter((t) => EMBED_FEATURES.has(t)).join('; ')
+    : '';
+  return { ...embed, embedUrl: u.href, allow: allow || undefined };
+}
+
 // Convenience: text → first URL → embed.
 export function detectEmbedFromText(text) {
   if (!text) return null;

@@ -67,7 +67,8 @@ import {
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
-import { detectEmbed } from '../lib/oembed.js';
+import { detectEmbed, safeEmbed } from '../lib/oembed.js';
+import { inertContainer } from '../lib/inertHtml.js';
 import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
@@ -129,9 +130,8 @@ export const KIND_DOTS = {
 };
 function htmlToText(html, max = 80) {
   if (!html) return '';
-  const tmp = typeof document !== 'undefined' ? document.createElement('div') : null;
-  if (!tmp) return html.slice(0, max);
-  tmp.innerHTML = html;
+  if (typeof document === 'undefined') return html.slice(0, max);
+  const tmp = inertContainer(html);
   const txt = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
   return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
 }
@@ -1305,12 +1305,16 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSi
   );
 }
 
-function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, description, favicon, embed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, description, favicon, embed: storedEmbed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
   // The app writes the address to `source` (and `link`); cards made through
   // /api/v1 or a manifest import carry it only as `url`. Reading just `source`
   // left those cards with no address, no open button and no way to fix it
   // short of retyping the link (API-05).
   const source = sourceProp || link || url || null;
+  // The card's stored embed renders only when it points at one of the
+  // providers oembed.js knows (https, known host); anything else shows as a
+  // plain link card.
+  const embed = useMemo(() => safeEmbed(storedEmbed), [storedEmbed]);
   // Title editing is controlled here (not by EditableText's internal state) so
   // dbl-click ANYWHERE on the card body — not just on the title text — can
   // re-enter edit mode. Bumped via editTitleAt from the canvas.
