@@ -1,10 +1,14 @@
 import { expect, test } from '@playwright/test';
+import { todaysLook } from '../helpers/docFrame.js';
 
 // Touch: the format toolbar scrolls off-screen on a phone and tapping it can
 // drop the selection, so a selection shows an in-place bubble with the core
 // inline formats. (Coarse-pointer only — desktop keeps the toolbar.)
 
 async function openDoc(page) {
+  // The doc look has no bubble on a phone: the row on the keyboard has its
+  // formats (doc-look-phone.spec.js). A tablet's bubble is the same in both.
+  if (page.viewportSize().width <= 640) await todaysLook(page);
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());

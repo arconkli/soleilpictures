@@ -6,6 +6,7 @@
 // neither edge is in view it rides at the top of the part that is.
 // ?docqa=1 harness (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
+import { zoomIn } from './helpers/docFrame.js';
 
 async function openDoc(page) {
   await page.goto('/?docqa=1');
@@ -94,8 +95,7 @@ test('the bar and the handle stay after an align or a resize', async ({ page }) 
 test('with neither edge of a tall image in view, the bar rides at the top of what shows, at any zoom', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 560 });
   await openDoc(page);
-  const zoomIn = page.locator('.doc-card-modal .doc-tb button[aria-label="Zoom in"]');
-  for (let i = 0; i < 2; i++) await zoomIn.click();
+  await zoomIn(page.locator('.doc-card-modal'), 2);
   await setDocAndSelect(page, `${'<p>Before.</p>'.repeat(10)}${image(700)}${'<p>After.</p>'.repeat(10)}`);
   await scrollImageTo(page, -120);
   const g = await geo(page);

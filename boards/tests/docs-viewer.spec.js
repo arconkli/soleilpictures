@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
 
 // A view-only member's Y.Doc writes never leave the tab: the board room marks
 // their socket readOnly and drops every update. So any doc control that writes
@@ -32,6 +33,8 @@ async function seedComment(page, text, word, body) {
 }
 
 test('SHARE-3: a viewer can read a comment thread but not reply, resolve or delete it', async ({ page }) => {
+  // Today's thread popover. The look's threads are the side panel's cards: doc-panel-comments.spec.js.
+  await todaysLook(page);
   await openDoc(page, '&viewer=1');
   const id = await seedComment(page, 'The quick brown fox', 'brown', 'Right animal?');
   await page.locator(`.tt-comment[data-comment-id="${id}"]`).click();
@@ -45,6 +48,8 @@ test('SHARE-3: a viewer can read a comment thread but not reply, resolve or dele
 });
 
 test('SHARE-3: an editor still gets the reply form, Resolve and Delete', async ({ page }) => {
+  // Today's thread popover. The look's threads are the side panel's cards: doc-panel-comments.spec.js.
+  await todaysLook(page);
   await openDoc(page);
   const id = await seedComment(page, 'The quick brown fox', 'brown', 'Right animal?');
   await page.locator(`.tt-comment[data-comment-id="${id}"]`).click();
@@ -56,7 +61,7 @@ test('SHARE-3: an editor still gets the reply form, Resolve and Delete', async (
   await expect(pop.locator('.comment-inline-viewonly')).toHaveCount(0);
 });
 
-test('DOCS-09: a viewer gets no page-tree, toolbar or find writes', async ({ page }) => {
+test('DOCS-09: a viewer gets no page-tree writes', async ({ page }) => {
   await openDoc(page, '&viewer=1');
   const modal = page.locator('.doc-card-modal');
   // Page tree: rows are listed, but nothing that creates, renames or moves.
@@ -68,6 +73,14 @@ test('DOCS-09: a viewer gets no page-tree, toolbar or find writes', async ({ pag
   await expect(modal.locator('.doc-tree-rename')).toHaveCount(0);
   await modal.locator('.doc-tree-row').first().click({ button: 'right' });
   await expect(page.getByRole('menuitem', { name: 'Delete' })).toHaveCount(0);
+});
+
+test('DOCS-09: a viewer gets no toolbar or find writes', async ({ page }) => {
+  // Today's bar. The look's reader's bar is doc-bar-a.spec.js's, its Find with
+  // no Replace doc-panel-find.spec.js's.
+  await todaysLook(page);
+  await openDoc(page, '&viewer=1');
+  const modal = page.locator('.doc-card-modal');
   // Toolbar: Find, Export and zoom stay; the editing controls are gone.
   const tb = modal.locator('.doc-tb');
   await expect(tb.locator('button[title="Find (⌘F)"]')).toHaveCount(1);
@@ -83,10 +96,16 @@ test('DOCS-09: a viewer gets no page-tree, toolbar or find writes', async ({ pag
   await expect(page.locator('.doc-find button[aria-label="Toggle replace"]')).toHaveCount(0);
 });
 
-test('DOCS-09: an editor keeps the page tree and toolbar controls', async ({ page }) => {
+test('DOCS-09: an editor keeps the page tree', async ({ page }) => {
+  await openDoc(page);
+  await expect(page.locator('.doc-card-modal .doc-tree-add-root')).toHaveCount(1);
+});
+
+test('DOCS-09: an editor keeps the toolbar controls', async ({ page }) => {
+  // Today's bar. The look's is doc-bar-a.spec.js's.
+  await todaysLook(page);
   await openDoc(page);
   const modal = page.locator('.doc-card-modal');
-  await expect(modal.locator('.doc-tree-add-root')).toHaveCount(1);
   await expect(modal.locator('.doc-tb .doc-tb-screenplay-toggle')).toHaveCount(1);
   await expect(modal.locator('.doc-tb button[title="Bold (⌘B)"]')).toHaveCount(1);
 });

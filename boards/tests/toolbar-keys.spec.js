@@ -8,6 +8,7 @@
 // A doc's and a note's text keep Tab for themselves, so ⌥F10 is the way from
 // the words to their bar, and Esc the way back to the caret.
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
 
 // Tab stops inside a bar: what Tab can land on, outside a menu of its own.
 const stops = (bar) => bar.evaluate((el) => [...el.querySelectorAll('button, [role="button"], input, select, textarea, a[href], [tabindex]')]
@@ -52,6 +53,9 @@ async function openDoc(page) {
 }
 
 test.describe('the doc toolbar', () => {
+  // Today's bar. The look's keys are doc-bar-a.spec.js's.
+  test.beforeEach(({ page }) => todaysLook(page));
+
   test('is one Tab stop, and ← → Home End walk it, round from either end', async ({ page }) => {
     await openDoc(page);
     const bar = page.locator('.doc-card-modal .doc-tb');

@@ -5,6 +5,7 @@
 // too, and after a while that it is still connecting, with a reload and, where
 // nothing else on screen closes it, a close (components/DocOpening.jsx).
 import { expect, test } from '@playwright/test';
+import { dockFromCard } from './helpers/docFrame.js';
 
 const STALL_MS = 10000; // DocOpening's DOC_OPENING_STALL_MS
 
@@ -61,7 +62,7 @@ test('a docked doc whose cluster is still loading says so, and its pane closes f
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?docqa=1&panes=1&cold=1');
   await page.waitForSelector('[data-docqa-panes-ready]');
-  await page.locator('[data-docqa-card="doc-a"] .doc-card').getByRole('button', { name: 'Open beside' }).click();
+  await dockFromCard(page.locator('[data-docqa-card="doc-a"] .doc-card'));
   const dock = page.locator('[data-doc-pane="split"]');
   await expect(dock.getByRole('status')).toHaveText('Opening document…');
   await expect(dock.getByText('Still connecting…')).toBeVisible({ timeout: STALL_MS + 5000 });

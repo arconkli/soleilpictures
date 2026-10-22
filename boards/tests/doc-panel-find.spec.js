@@ -271,6 +271,24 @@ test('Replace all with nothing says it deleted them; the toast\'s Undo won\'t ta
   await expect.poll(() => editorText(page)).toBe('a, a Then.');
 });
 
+test('⌘Z takes Replace all back as one step, leaving the typing just before it', async ({ page }) => {
+  await openDoc(page);
+  await write(page, '<p>night one, night two</p>');
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.focus('end'));
+  await focused(page);
+  await page.keyboard.type(' Then.');
+  await page.keyboard.press('ControlOrMeta+f');
+  await expect(field(page)).toBeFocused();
+  await field(page).fill('night');
+  await replaceField(page).fill('day');
+  await button(page, 'Replace all 2').click();
+  await expect.poll(() => editorText(page)).toBe('day one, day two Then.');
+  await modal(page).locator('.ProseMirror').first().click();
+  // The harness's Chrome reports Windows, so the editor's Mod is Control.
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => editorText(page)).toBe('night one, night two Then.');
+});
+
 test('a page that runs to two sheets is searched through both', async ({ page }) => {
   await openDoc(page);
   await write(page, '<p>night one</p>');

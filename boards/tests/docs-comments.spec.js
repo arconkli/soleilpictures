@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
 
 // Word-level comments, Google-Docs style: select text → comment → the
 // highlighted run is CLICKABLE and opens its thread.
@@ -43,6 +44,8 @@ async function commentOnWord(page, text, word, body) {
 }
 
 test('clicking commented text opens its thread', async ({ page }) => {
+  // Today's thread popover. The look's threads are the side panel's cards: doc-panel-comments.spec.js.
+  await todaysLook(page);
   await openDoc(page);
   const id = await commentOnWord(page, 'The quick brown fox jumps', 'brown', 'Is this the right animal?');
 
@@ -63,6 +66,8 @@ test('clicking commented text opens its thread', async ({ page }) => {
 // (lib/commentKeys.js: `<thread>~r~<reply>`, `<thread>~s`), never written into
 // it, so two people writing at once both keep theirs; the thread shows both.
 test('a reply and a resolve typed in the thread are filed beside it and show', async ({ page }) => {
+  // Today's thread popover. The look's threads are the side panel's cards: doc-panel-comments.spec.js.
+  await todaysLook(page);
   await openDoc(page);
   const id = await commentOnWord(page, 'Keep the motel sign lit', 'sign', 'Which sign?');
   await page.locator(`.tt-comment[data-comment-id="${id}"]`).click();

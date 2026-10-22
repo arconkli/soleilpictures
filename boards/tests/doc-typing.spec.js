@@ -6,7 +6,7 @@
 // more in a long doc. The toolbar still has to light what's under the caret,
 // so that's pinned here too; doc-typing-budget.spec.js times the result.
 import { expect, test } from '@playwright/test';
-import { setScreenplay } from './helpers/docFrame.js';
+import { setScreenplay, todaysLook } from './helpers/docFrame.js';
 import { countRenders, renders, resetRenders } from './helpers/renderCounter.js';
 
 async function openDoc(page, html) {
@@ -89,6 +89,8 @@ test('typing a speech redraws neither the scene list nor the toolbar; renaming a
 });
 
 test('the toolbar lights what is under the caret, and what the next key will type', async ({ page }) => {
+  // Today's bar. The look's lights are doc-bar-a.spec.js's.
+  await todaysLook(page);
   await openDoc(page, '<h2>A heading</h2><p>Plain <strong>bold</strong> plain.</p><ul><li><p>An item</p></li></ul>');
   const bar = page.locator('.doc-card-modal .doc-tb');
   const bold = bar.getByRole('button', { name: 'Bold', exact: true });
@@ -127,6 +129,8 @@ test('the toolbar lights what is under the caret, and what the next key will typ
 });
 
 test('a screenplay\'s element picker follows the caret', async ({ page }) => {
+  // Today's element picker. The look's is the side panel's: doc-panel-elements.spec.js.
+  await todaysLook(page);
   await openScreenplay(page, [
     { element: 'scene', text: 'INT. CAFE - NIGHT' },
     { element: 'character', text: 'MINSU' },

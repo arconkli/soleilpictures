@@ -3,7 +3,7 @@
 // at once; × on either brings the board back. Through ?docqa=1&panes=1: the
 // real RichDocCard, DockedDocPane and DocPaneFrame in App's split chain.
 import { expect, test } from '@playwright/test';
-import { docFooter } from './helpers/docFrame.js';
+import { docFooter, dockFromCard, findField } from './helpers/docFrame.js';
 
 async function open(page) {
   await page.goto('/?docqa=1&panes=1');
@@ -12,14 +12,15 @@ async function open(page) {
 const card = (page, id) => page.locator(`[data-docqa-card="${id}"] .doc-card`);
 const pane = (page, which) => page.locator(`[data-doc-pane="${which}"]`);
 const title = (page, which) => pane(page, which).getByRole('textbox', { name: 'Document title' });
-const openOnBoard = (page, id) => card(page, id).locator('.doc-card-page').dblclick();
+// On the page's corner: an empty doc's middle is the look's Start writing.
+const openOnBoard = (page, id) => card(page, id).locator('.doc-card-page').dblclick({ position: { x: 12, y: 12 } });
 const pages = (page, id) => page.evaluate((cardId) => {
   const T = window.__soleilDocTest;
   return T.readPages(T.ydoc, T.scopeOf(cardId)).length;
 }, id);
 
 async function dock(page, id, name) {
-  await card(page, id).getByRole('button', { name: 'Open beside' }).click();
+  await dockFromCard(card(page, id));
   await expect(title(page, 'split')).toHaveValue(name);
 }
 
@@ -115,8 +116,8 @@ test('⌘F opens find only in the doc it is pressed in', async ({ page }) => {
   await openOnBoard(page, 'doc-b');
   await pane(page, 'beside').locator('.tt-editor').first().click();
   await page.keyboard.press('ControlOrMeta+f');
-  await expect(pane(page, 'beside').locator('.doc-find')).toBeVisible();
-  await expect(pane(page, 'split').locator('.doc-find')).toHaveCount(0);
+  await expect(findField(pane(page, 'beside'))).toBeVisible();
+  await expect(findField(pane(page, 'split'))).toHaveCount(0);
 });
 
 test('with nothing docked, a double-click opens a doc the way it always has', async ({ page }) => {

@@ -84,6 +84,9 @@ const CLIP = readFileSync(new URL('../fixtures/media/frames-vp9.mp4', import.met
 // Home with `drawer=0`: on a phone the harness opens the drawer over it, as
 // the menu button would.
 const DOC_LOOK = { 'soleil.dev.docLook': '1' };
+// Today's doc bars, held to today's look (the look's are the 'doc look …'
+// pages, which its dev switch would otherwise take these to).
+const TODAYS_DOC = { 'soleil.dev.docLook': '0' };
 
 const PAGES = [
   { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]' },
@@ -219,37 +222,37 @@ const PAGES = [
     }, scope: '.frv' },
 
   // ── A doc's bars ──
-  { name: 'doc toolbar', url: '/?docqa=1', ready: '#root',
+  { name: 'doc toolbar', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => { await openDoc(page); return true; }, scope: '.doc-card-modal .doc-tb' },
-  { name: 'screenplay toolbar', url: '/?docqa=1', ready: '#root',
+  { name: 'screenplay toolbar', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').tap();
       await page.locator('.doc-paper.is-screenplay .ProseMirror').waitFor();
       return true;
     }, scope: '.doc-card-modal .doc-tb' },
-  { name: 'doc insert menu', url: '/?docqa=1', ready: '#root',
+  { name: 'doc insert menu', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb [aria-label="Insert a block"]').tap();
       await page.locator('.doc-insert-menu').waitFor();
       return true;
     }, scope: '.doc-insert-menu' },
-  { name: 'doc export menu', url: '/?docqa=1', ready: '#root',
+  { name: 'doc export menu', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb [aria-label="Export"]').tap();
       await page.locator('.doc-export-menu').waitFor();
       return true;
     }, scope: '.doc-export-menu' },
-  { name: 'doc size presets', url: '/?docqa=1', ready: '#root',
+  { name: 'doc size presets', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb .size-combo-arrow').tap();
       await page.locator('.size-combo-pop').waitFor();
       return true;
     }, scope: '.size-combo-pop' },
-  { name: 'doc find', url: '/?docqa=1', ready: '#root',
+  { name: 'doc find', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: 'Find', exact: true }).tap();
@@ -257,7 +260,7 @@ const PAGES = [
       return true;
     }, scope: '.doc-find' },
   // Docked beside the board: the bar's narrow form.
-  { name: 'docked doc toolbar', url: '/?docqa=1&panes=1', ready: '[data-docqa-panes-ready]',
+  { name: 'docked doc toolbar', url: '/?docqa=1&panes=1', ready: '[data-docqa-panes-ready]', storage: TODAYS_DOC,
     open: async (page) => {
       const dock = page.locator('[data-docqa-card="doc-a"] .doc-card').getByRole('button', { name: 'Open beside' });
       if (!(await dock.count())) return false;
@@ -265,21 +268,21 @@ const PAGES = [
       await page.locator('[data-doc-pane="split"] .doc-tb').waitFor();
       return true;
     }, scope: '[data-doc-pane="split"] .doc-tb' },
-  { name: 'doc colours', url: '/?docqa=1', ready: '#root',
+  { name: 'doc colours', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb .doc-tb-colorwrap > button').first().tap();
       await page.locator('.doc-tb-colorpop').waitFor();
       return true;
     }, scope: '.doc-tb-colorpop' },
-  { name: 'doc fonts', url: '/?docqa=1', ready: '#root',
+  { name: 'doc fonts', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: /^Font(: .+)?$/ }).tap();
       await page.locator('.font-pop').waitFor();
       return true;
     }, scope: '.font-pop' },
-  { name: 'doc selection', url: '/?docqa=1', ready: '#root',
+  { name: 'doc selection', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().selectAll().run());
@@ -355,6 +358,20 @@ const PAGES = [
       await page.locator('.dl-tbar').waitFor();
       return true;
     }, scope: '.dl-tbar' },
+  { name: 'doc look pages', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      await page.evaluate(() => {
+        const T = window.__soleilDocTest;
+        for (const name of ['Act two', 'Act three']) T.addPage(T.ydoc, { name, scope: T.getScope() });
+      });
+      // A drawer on a phone or a portrait iPad; open beside the page already
+      // on a landscape one.
+      const show = page.locator('.dl-head').getByRole('button', { name: 'Show pages' });
+      if (await show.count()) await show.tap();
+      await page.locator('.doc-card-modal .doc-tree-add').first().waitFor();
+      return true;
+    }, scope: '.doc-card-modal .doc-rail-left' },
 ];
 
 // selector → why it may be smaller than a finger.

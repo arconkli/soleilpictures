@@ -4,7 +4,7 @@
 // touch-only, a touch device (isMobile + hasTouch → hover:none and
 // pointer:coarse, the query the mobile shell switches on).
 import { expect, test } from '@playwright/test';
-import { dockButton, pageListButton } from './helpers/docFrame.js';
+import { dockButton, inDocLook, pageListButton, setScreenplay, todaysLook } from './helpers/docFrame.js';
 
 async function openDoc(page, query = '') {
   await page.goto('/?docqa=1' + query);
@@ -45,6 +45,8 @@ for (const vp of [{ width: 1024, height: 768 }, { width: 820, height: 1180 }]) {
     // The page-list button pushes the toolbar down, so a find bar at a fixed
     // 52px landed on top of the toolbar row. It hangs below the bar instead.
     test('VS-DOCS-01: the find bar hangs below the toolbar, not over it', async ({ page }) => {
+      // Today's find bar. The look's Find is its side panel (a sheet on a phone): doc-panel-find.spec.js, mobile/doc-panel-sheet.spec.js.
+      await todaysLook(page);
       await openDoc(page);
       const findBtn = page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]');
       await findBtn.evaluate((el) => el.scrollIntoView({ inline: 'center' }));
@@ -102,9 +104,12 @@ test.describe('phone 390', () => {
     }));
     expect(hits.length).toBeGreaterThan(1);
     expect(hits.filter((h) => h !== true)).toEqual([]);
-    // A text selection still gets the bubble.
+    // A text selection still gets the bubble; in the look a phone's formats
+    // ride on the keyboard, in its row (mobile/doc-look-phone.spec.js).
     await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setTextSelection({ from: 1, to: 7 }).run());
-    await expect(page.locator('.doc-bubble')).toBeVisible();
+    await expect(await inDocLook(page)
+      ? page.getByRole('toolbar', { name: 'Formatting', exact: true })
+      : page.locator('.doc-bubble')).toBeVisible();
   });
 
   // ── VS-DOCS-09 ──────────────────────────────────────────────────────────
@@ -160,6 +165,8 @@ for (const vp of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
   test.describe(`mouse ${vp.width}x${vp.height}`, () => {
     test.use({ viewport: vp });
     test('VS-DOCS-03: every toolbar control is on screen with the page rail open', async ({ page }) => {
+      // Today's bar, which wraps or scrolls. The look's is one row whose overflow folds into ⋯: doc-bar-a.spec.js.
+      await todaysLook(page);
       await openDoc(page);
       await expect(page.locator('.doc-card-modal .doc-rail-left')).toBeVisible();
       expect(await offBarControls(page)).toEqual([]);
@@ -183,6 +190,8 @@ for (const vp of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
 test.describe('mouse 1440 side dock', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test('VS-DOCS-03: the docked bar wheels sideways and its fades stay current', async ({ page }) => {
+    // Today's bar, which wraps or scrolls. The look's is one row whose overflow folds into ⋯: doc-bar-a.spec.js.
+    await todaysLook(page);
     await openDoc(page);
     await dockButton(page).click();
     await expect(page.locator('.doc-card-modal-side')).toBeVisible();
@@ -205,6 +214,8 @@ test.describe('mouse 1440 side dock', () => {
 test.describe('mouse 390 find', () => {
   test.use({ viewport: { width: 390, height: 844 } });
   test('VS-DOCS-06: a narrow mouse window keeps the toolbar and hangs find below it', async ({ page }) => {
+    // Today's find bar. The look's Find is its side panel (a sheet on a phone): doc-panel-find.spec.js, mobile/doc-panel-sheet.spec.js.
+    await todaysLook(page);
     await openDoc(page);
     await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
     await expect(page.locator('.doc-find')).toBeVisible();
@@ -223,6 +234,8 @@ test.describe('phone 390 toolbar', () => {
   test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
 
   test('VS-DOCS-03: the swipeable bar fades the edge that has more past it', async ({ page }) => {
+    // Today's bar. A phone's row in the look rides on the keyboard: mobile/doc-look-phone.spec.js.
+    await todaysLook(page);
     await openDoc(page);
     const bar = page.locator('.doc-card-modal .doc-tb');
     await expect(bar).toHaveClass(/has-more-end/);
@@ -234,6 +247,8 @@ test.describe('phone 390 toolbar', () => {
 
   // ── VS-DOCS-06 ──────────────────────────────────────────────────────────
   test('VS-DOCS-06: the find bar hides the toolbar row and its two fields line up', async ({ page }) => {
+    // Today's find bar. The look's Find is its side panel (a sheet on a phone): doc-panel-find.spec.js, mobile/doc-panel-sheet.spec.js.
+    await todaysLook(page);
     await openDoc(page);
     const findBtn = page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]');
     await findBtn.evaluate((el) => el.scrollIntoView({ inline: 'center' }));
@@ -293,12 +308,18 @@ test.describe('phone 390 layouts', () => {
     expect(r.fit).toBe(false);
     expect(r.sideways).toBeLessThanOrEqual(1);
     expect(r.stillPaged).toBe(true);
-    await expect(page.locator('.doc-card-modal .doc-tb-pages-toggle')).toHaveAttribute('aria-pressed', 'true');
+    // And says so: today the bar's Pages pill, in the look ⋯'s Layout.
+    if (await inDocLook(page)) {
+      await page.locator('.doc-card-modal .dl-head').getByRole('button', { name: /^More/ }).tap();
+      await expect(page.getByRole('menu', { name: 'More' }).getByRole('menuitem', { name: /^Layout/ })).toContainText('Pages');
+    } else {
+      await expect(page.locator('.doc-card-modal .doc-tb-pages-toggle')).toHaveAttribute('aria-pressed', 'true');
+    }
   });
 
   test('VS-DOCS-05: screenplay fits its text column, keeping the true sheet', async ({ page }) => {
     await openDoc(page);
-    await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').tap();
+    await setScreenplay(page.locator('.doc-card-modal'), true);
     await page.waitForFunction(() =>
       window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock', null, { timeout: 10000 });
     await page.evaluate(() => {
@@ -373,6 +394,8 @@ test.describe('phone 390 layouts', () => {
 test.describe('mouse 1440 dropdowns', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test('VS-DOCS-08: the style, font and size dropdowns share one chevron', async ({ page }) => {
+    // Today's bar. The look's menus carry its own caret: doc-bar-a.spec.js.
+    await todaysLook(page);
     await openDoc(page);
     const r = await page.evaluate(() => {
       const tb = document.querySelector('.doc-card-modal .doc-tb');
@@ -405,6 +428,8 @@ for (const [label, vp, touch] of [['phone 390', { width: 390, height: 844 }, tru
   test.describe(`${label} comment`, () => {
     test.use({ viewport: vp, ...(touch ? TOUCH : {}) });
     test('VS-DOCS-04: the thread popover leaves the commented text visible', async ({ page }) => {
+      // Today's thread popover. The look opens the side panel on the thread (a sheet on a phone, which puts itself away to show the words): doc-panel-comments.spec.js, mobile/doc-panel-sheet.spec.js.
+      await todaysLook(page);
       await openDoc(page);
       const id = await page.evaluate(() => {
         const T = window.__soleilDocTest;

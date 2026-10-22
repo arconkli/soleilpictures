@@ -9,6 +9,7 @@
 // device shows.
 import { expect, test } from '@playwright/test';
 import { emptyCanvasPoint, tap } from './helpers.js';
+import { inDocLook } from '../helpers/docFrame.js';
 
 const docCards = (page) => page.locator('.cards-layer .card.card-kind-doc');
 const openDoc = (page) => page.locator('.doc-card-modal');
@@ -19,16 +20,29 @@ async function placeDoc(page) {
   await page.getByRole('button', { name: 'Add doc tool' }).tap();
   await tap(page, await emptyCanvasPoint(page));
   await expect(docCards(page)).toHaveCount(1);
+  if (await inDocLook(page)) {
+    // The look opens a doc just added, its title ready to name
+    // (doc-start-touch.spec.js): Enter goes on to the body, and closing it
+    // leaves the card closed, and empty, with Start writing.
+    await expect(page.getByRole('textbox', { name: 'Document title' })).toBeFocused({ timeout: 15000 });
+    await page.keyboard.press('Enter');
+    await openDoc(page).getByRole('button', { name: 'Close document' }).tap();
+    await expect(openDoc(page)).toHaveCount(0);
+    await expect(docCards(page).getByRole('button', { name: 'Start writing' })).toBeVisible();
+    return;
+  }
   // The real doc card, not the static stand-in: it has the footer's Open buttons.
   await expect(docCards(page).getByRole('button', { name: 'Open fullscreen' })).toBeVisible();
   // A new doc focuses its title for renaming; let that settle first.
   await page.waitForTimeout(300);
 }
 
-// A point on the card's preview page: the doc, not its title or its footer.
+// A point on the card's preview page: the doc, not its title or its footer;
+// near its top, above the look's Start writing in the middle of an empty one,
+// and halfway across, clear of the rail a phone's card can slide under.
 async function bodyPoint(page) {
   const box = await docCards(page).locator('.doc-card-page').boundingBox();
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  return { x: box.x + box.width / 2, y: box.y + Math.min(12, box.height / 4) };
 }
 
 test('two taps on a doc card open the doc, and it stays open', async ({ page }) => {

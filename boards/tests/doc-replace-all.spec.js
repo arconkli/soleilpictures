@@ -3,6 +3,10 @@
 // has changed since (lib/undoToast.js); ⌘Z takes it back as one step too,
 // apart from typing just before it.
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
+
+// Today's find bar. The look's Find is in its side panel: doc-panel-find.spec.js.
+test.beforeEach(({ page }) => todaysLook(page));
 
 const TEXT = 'The cat sat on the cat mat, and the cat slept.';
 
