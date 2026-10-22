@@ -96,9 +96,11 @@ A new sidebar keeps your clusters on one card and every file on the other, whole
 - A doc opens on a double tap on phones and tablets.
 - Images go into a doc with their progress showing, and people a cluster is
   shared with can add them too.
-- A doc that hits a problem stays open, and replying to or resolving a comment
-  never wipes out someone else's.
+- A doc that hits a problem stays open.
 - ⌘Z on the board undoes the board while a doc is docked beside it.
+- With a doc docked beside the board, open another and it takes the board's
+  place, so two docs sit side by side. See
+  [two documents side by side](/docs/documents#two-documents-side-by-side).
 - Typing in a long doc keeps up, in pages and in screenplays too.
 - In find and replace, **All** says how many it replaced, and **Undo** puts
   them all back.
@@ -111,8 +113,8 @@ A new sidebar keeps your clusters on one card and every file on the other, whole
 - A tap clears the selection, a hold opens the menus that used to need a right
   click, and a card's ⋯ is finger-sized at any zoom.
 - In Files, a tap opens a file and a hold opens its menu.
-- Controls are at least 40px under a finger, toolbar buttons included, and
-  tapping into a field, a toolbar's too, no longer zooms the page in on an
+- Controls are at least 40px under a finger, most toolbars' buttons included,
+  and tapping into a field, a toolbar's too, no longer zooms the page in on an
   iPhone or iPad.
 - On a phone the sidebar is the drawer; on a tablet held sideways, clusters
   and files sit side by side. See [phones and tablets](/docs/account/mobile).

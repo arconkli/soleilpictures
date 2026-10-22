@@ -731,13 +731,34 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "A doc that hits a problem stays open, and replying to or resolving a comment never wipes out someone else's."
+      "v": "A doc that hits a problem stays open."
      }
     ],
     [
      {
       "t": "text",
       "v": "⌘Z on the board undoes the board while a doc is docked beside it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "With a doc docked beside the board, open another and it takes the board's place, so two docs sit side by side. See "
+     },
+     {
+      "t": "link",
+      "v": "two documents side by side",
+      "href": "/docs/documents#two-documents-side-by-side",
+      "children": [
+       {
+        "t": "text",
+        "v": "two documents side by side"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ],
     [
@@ -819,7 +840,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Controls are at least 40px under a finger, toolbar buttons included, and tapping into a field, a toolbar's too, no longer zooms the page in on an iPhone or iPad."
+      "v": "Controls are at least 40px under a finger, most toolbars' buttons included, and tapping into a field, a toolbar's too, no longer zooms the page in on an iPhone or iPad."
      }
     ],
     [
