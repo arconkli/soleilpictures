@@ -408,8 +408,17 @@ function composeThread(id, head, filed, state) {
   // in a row ends where the entry saw it and loses the second toggle; the
   // Worker's MIN_CLIENT_BUILD reloads those tabs (COMMENT_LOG_WRITES).
   const own = !!headResolved;
-  const resolved = state && own === !!state.headerSeen ? state.resolved : own;
-  return { id, ...rest, replies, resolved };
+  const speaks = !!state && own === !!state.headerSeen;
+  const resolved = speaks ? state.resolved : own;
+  // Who resolved it and when, as the state entry has it (the old way, in the
+  // thread itself, recorded neither).
+  const by = resolved && speaks ? state : null;
+  return {
+    id, ...rest, replies, resolved,
+    resolvedBy: by && typeof by.by === 'string' ? by.by : null,
+    resolvedByName: by && typeof by.byName === 'string' && by.byName ? by.byName : null,
+    resolvedAt: by && Number.isFinite(by.ts) ? by.ts : null,
+  };
 }
 
 // Extract plain text of a single page's Y.XmlFragment. Used by the
@@ -801,12 +810,14 @@ export function addCommentReply(ydoc, id, opts) {
   return reply.id;
 }
 
-// `by` is who resolved or reopened it (their auth.users id).
-export function resolveComment(ydoc, id, resolved = true, scope, { by = null, log = COMMENT_LOG_WRITES } = {}) {
+// `by` is who resolved or reopened it (their auth.users id), and `byName` the
+// name to show for them ("Resolved by Jon Park"), filed with it when given.
+export function resolveComment(ydoc, id, resolved = true, scope, { by = null, byName = null, log = COMMENT_LOG_WRITES } = {}) {
   const map = commentsMap(ydoc, scope);
   const cur = map?.get(id); if (!isPlainEntry(cur)) return;
   const key = commentStateKey(id);
-  const file = (headerSeen) => map.set(key, { kind: 'state', threadId: id, resolved: !!resolved, by, ts: Date.now(), headerSeen });
+  const name = typeof byName === 'string' && byName.trim() ? { byName: byName.trim().slice(0, 80) } : null;
+  const file = (headerSeen) => map.set(key, { kind: 'state', threadId: id, resolved: !!resolved, by, ...name, ts: Date.now(), headerSeen });
   ydoc.transact(() => {
     if (log) { file(!!cur.resolved); return; }
     map.set(id, { ...cur, resolved });

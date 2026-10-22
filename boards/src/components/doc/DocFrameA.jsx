@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, IconWeightContext } from '../Icon.jsx';
 import { Btn } from '../toolbar/Toolbar.jsx';
 import { MenuButton, MenuItem, MenuSep } from '../toolbar/Menu.jsx';
@@ -7,16 +8,19 @@ import { FileShareButton } from '../fileShare/FileShareButton.jsx';
 import { useMessagesUi } from '../../hooks/useOpenDm.js';
 import { useDocFrame } from '../../hooks/useDocFrame.js';
 import { useDocStatus } from '../../hooks/useDocStatus.js';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
 import { docSharesAllowed } from '../../lib/appHost.js';
 import { isShareableDoc } from '../../lib/fileShares.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 import {
   SidebarSimple, Sidebar, ChevronRight, Eye, ChatCircleText, ChatsCircle, CornersOut, X,
   CloudCheck, CloudArrowUp, CloudSlash, CloudWarning,
 } from '../../lib/icons.js';
 import './docLook.css';
 
-// The one row of tools comes in the same chunk (components/doc/DocBarA.jsx).
+// The one row of tools and the side panel's tabs come in the same chunk.
 export { DocBarA } from './DocBarA.jsx';
+export { DocCommentsTab } from './DocCommentsTab.jsx';
 
 // The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
 // direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,
@@ -128,15 +132,32 @@ function MessagesBtn() {
 }
 
 // C's side panel, at the page's right: its tabs, a segmented pair (Elements
-// first for a screenplay). What each tab holds is the surface's (children,
-// by tab).
+// first for a screenplay). What each tab holds is the surface's (`children`,
+// by tab: a node, or a function of whether its tab is the one showing). A
+// tab once shown stays in the page while another shows, so what was typed in
+// it (a reply, a search) is there to come back to. Escape in the panel goes
+// back to the text (`onEscape`) and leaves the panel open.
+//
+// On a phone it is a sheet from the bottom (`sheet`; mockup C-phone2), over
+// the doc, which dims: a tap on the doc, its grab, a drag down or Escape puts
+// it away (`onClose`). It sits above the on-screen keyboard, and takes the
+// focus when it opens, since it covers what had it. It lies in the window
+// (`host`), over the header too, since the surface is a layer of its own.
 const TAB_NAMES = { elements: 'Elements', comments: 'Comments', find: 'Find' };
 
-export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0, children }) {
+export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0, onEscape, sheet = false, host = null, onClose, children }) {
   const id = useId();
   const tabs = screenplay ? ['elements', 'comments', 'find'] : ['comments', 'find'];
   const current = tabs.includes(tab) ? tab : 'comments';
   const listRef = useRef(null);
+  const asideRef = useRef(null);
+  const seen = useRef(new Set()).current;
+  seen.add(current);
+  const kb = useKeyboardInset(sheet);
+  const grab = useSheetGrab(asideRef, onClose);
+  useEffect(() => {
+    if (sheet) listRef.current?.querySelector('[aria-selected="true"]')?.focus({ preventScroll: true });
+  }, [sheet]);
   // The tabs' keys (WAI-ARIA tabs): ← → between them, Home and End to either
   // end; the one landed on is picked.
   const onKeyDown = (e) => {
@@ -149,8 +170,24 @@ export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0,
     onTab(tabs[to]);
     requestAnimationFrame(() => listRef.current?.querySelector(`[data-tab="${tabs[to]}"]`)?.focus());
   };
-  return (
-    <aside className="dl-panel" aria-label="Comments and find">
+  // Not a key from the mention picker or another layer portaled out of here,
+  // whose own Escape is theirs.
+  const onPanelKey = (e) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || isComposingKey(e)) return;
+    if (!e.currentTarget.contains(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (sheet) onClose?.();
+    onEscape?.();
+  };
+  const panel = (
+    <aside ref={asideRef} className={`dl-panel${sheet ? ' is-sheet' : ''}`} aria-label="Comments and find"
+           style={sheet ? { '--dl-kb': `${kb}px` } : undefined} onKeyDown={onPanelKey}>
+      {sheet && (
+        <button type="button" className="dl-sheet-grab" aria-label="Close panel" {...grab}>
+          <span aria-hidden="true" />
+        </button>
+      )}
       <div className="dl-tabs">
         <div ref={listRef} className="dl-seg" role="tablist" aria-label="Side panel" onKeyDown={onKeyDown}>
           {tabs.map((t) => (
@@ -164,11 +201,63 @@ export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0,
           ))}
         </div>
       </div>
-      <div className="dl-panel-body" role="tabpanel" id={`${id}-${current}`} aria-labelledby={`${id}-${current}-tab`}>
-        {children?.[current] ?? null}
-      </div>
+      {tabs.filter((t) => seen.has(t)).map((t) => {
+        const body = children?.[t];
+        return (
+          <div key={t} className={`dl-panel-body dl-panel-${t}`} role="tabpanel" id={`${id}-${t}`}
+               aria-labelledby={`${id}-${t}-tab`} hidden={t !== current}>
+            {typeof body === 'function' ? body(t === current) : body ?? null}
+          </div>
+        );
+      })}
     </aside>
   );
+  if (!sheet) return panel;
+  const over = (
+    <>
+      <div className="dl-sheet-scrim" aria-hidden="true" onClick={() => onClose?.()} />
+      {panel}
+    </>
+  );
+  return host ? createPortal(over, host) : over;
+}
+
+// A sheet's grab: a tap puts the sheet away, and a drag down takes the sheet
+// with it, putting it away past 64px and back up short of that.
+function useSheetGrab(sheetRef, onClose) {
+  const drag = useRef(null);
+  const follow = (dy) => {
+    const el = sheetRef.current;
+    if (!el) return;
+    el.style.transform = dy ? `translateY(${dy}px)` : '';
+    el.style.transition = dy ? 'none' : '';
+  };
+  return {
+    onPointerDown: (e) => {
+      drag.current = { id: e.pointerId, y: e.clientY, dy: 0 };
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+    onPointerMove: (e) => {
+      const d = drag.current;
+      if (!d || d.id !== e.pointerId) return;
+      d.dy = Math.max(0, e.clientY - d.y);
+      follow(d.dy);
+    },
+    onPointerUp: (e) => {
+      const d = drag.current;
+      if (!d || d.id !== e.pointerId) return;
+      follow(0);
+      drag.current = d.dy > 6 ? { moved: true } : null;
+      if (d.dy > 64) onClose?.();
+    },
+    onPointerCancel: () => { drag.current = null; follow(0); },
+    // The click a drag ends with isn't a tap.
+    onClick: () => {
+      const moved = drag.current?.moved;
+      drag.current = null;
+      if (!moved) onClose?.();
+    },
+  };
 }
 
 // The footer, across the window under the page list, the page and the panel:

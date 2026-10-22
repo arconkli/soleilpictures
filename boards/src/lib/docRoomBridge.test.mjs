@@ -298,7 +298,7 @@ test('a guest’s reply and resolve, filed beside the thread, pass, and so does 
   assert.equal(v1.ok, true, v1.reason);
   Y.applyUpdate(room, u1);
   const g2 = guestOf(room);
-  const u2 = editAs(g2, () => docState.resolveComment(g2, 't1', true, scopeIn(g2), { by: 'u-guest', log: true }));
+  const u2 = editAs(g2, () => docState.resolveComment(g2, 't1', true, scopeIn(g2), { by: 'u-guest', byName: 'Guest', log: true }));
   const v2 = validateGuestUpdate(room, u2, ctxFor(g2));
   assert.equal(v2.ok, true, v2.reason);
   Y.applyUpdate(room, u2);
@@ -334,6 +334,8 @@ test('a guest can’t forge, rewrite or misfile a reply or a resolve', () => {
     ['a reply that is not one', (c) => c.set('t1~r~cr_g1', reply({ kind: 'state' })), 'comment_shape'],
     ['a reply too long', (c) => c.set('t1~r~cr_g1', reply({ body: 'x'.repeat(4001) })), 'comment_shape'],
     ['a resolve in someone else’s name', (c) => c.set('t1~s', state({ by: 'u-rae' })), 'comment_author'],
+    ['a resolve showing someone else’s name', (c) => c.set('t1~s', state({ byName: 'Rae' })), 'comment_author'],
+    ['a resolve with a name that is no name', (c) => c.set('t1~s', state({ byName: 7 })), 'comment_shape'],
     ['a resolve that is neither yes nor no', (c) => c.set('t1~s', state({ resolved: 'yes' })), 'comment_shape'],
     ['a resolve naming another thread', (c) => c.set('t1~s', state({ threadId: 't9' })), 'comment_shape'],
     ['a key that is no thread’s', (c) => c.set('t1~x', header), 'comment_shape'],

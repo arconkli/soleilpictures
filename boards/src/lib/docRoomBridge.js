@@ -328,7 +328,12 @@ function commentEntryRefusal(key, prev, next, ctx) {
     return byGuest(next, ctx) ? null : 'comment_author';
   }
   if (!isFiledState(key, next)) return 'comment_shape';
-  return next.by === ctx.userId ? null : 'comment_author';
+  // The name shown for whoever resolved it ("Resolved by …") is theirs too,
+  // as docState.resolveComment files it, or there is none.
+  if (next.byName != null && typeof next.byName !== 'string') return 'comment_shape';
+  const named = next.byName == null || ctx.displayName == null
+    || next.byName === String(ctx.displayName).trim().slice(0, 80);
+  return next.by === ctx.userId && named ? null : 'comment_author';
 }
 
 // The values one item holds. An item can hold several (a frame may write a

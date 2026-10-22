@@ -16,7 +16,7 @@ import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
 import { paperRoom, railRoom } from '../lib/docRoom.js';
-import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages, readPageBlocks } from '../lib/docState.js';
+import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages, readPageBlocks, getPageSheetIds } from '../lib/docState.js';
 import { RELOAD_EVENT, noteDocReset, refreshDocReset, settleDocReset } from '../lib/docResets.js';
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
@@ -49,6 +49,7 @@ import { openableUrl } from '../lib/openableUrl.js';
 const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
 const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
 const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
+const DocCommentsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocCommentsTab })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -568,11 +569,30 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
 
   // The doc look's side panel (Comments, Find, and Elements for a screenplay):
   // open or not and on which tab, the reader's own for every doc they open.
-  // Not for the public viewer, who has no comments to see.
-  const [panel, setPanel] = useState(readDocPanel);
-  useEffect(() => { if (lookA) writeDocPanel(panel); }, [lookA, panel]);
+  // Not for the public viewer, who has no comments to see. On a phone it is a
+  // sheet over the doc, so a doc opens with it put away there, and putting
+  // it away there isn't kept.
+  const [panel, setPanel] = useState(() => (isPhone ? { ...readDocPanel(), open: false } : readDocPanel()));
+  useEffect(() => { if (lookA && !isPhone) writeDocPanel(panel); }, [lookA, panel, isPhone]);
   const panelOpen = lookA && !isPublic && panel.open;
+  const panelSheet = panelOpen && isPhone;
+  const closePanel = useCallback(() => setPanel((p) => ({ ...p, open: false })), []);
   const openComments = useMemo(() => comments.filter((t) => !t.resolved).length, [comments]);
+  // The thread the panel's Comments has picked (its words lit in the page),
+  // and the one just jumped to (its words flashed).
+  const [panelThread, setPanelThread] = useState(null);
+  const [flashThread, setFlashThread] = useState(null);
+  const showThreadInPanel = useCallback((id) => {
+    setPanel({ open: true, tab: 'comments' });
+    setPanelThread(id);
+  }, []);
+  // A flash is once: gone when it's done, or a span ProseMirror redraws later
+  // (typing in those words) would flash again.
+  useEffect(() => {
+    if (!flashThread) return undefined;
+    const t = setTimeout(() => setFlashThread(null), 1500);
+    return () => clearTimeout(t);
+  }, [flashThread]);
   // What the look's header shows and switches (lib/docFrame.js): the page
   // list, as a column or, on a phone or a tablet under a finger, the drawer;
   // and the panel, which its button opens on Comments and closes from any tab.
@@ -878,6 +898,42 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     exposeEditor(ed);
   };
 
+  // The side panel shows a place in the doc: its page opened first if it isn't
+  // the one open, and once that page's editors are up, `locate` finds the
+  // place in them ({ ed, from, to }, or null while it can't) and `land` shows
+  // it. A newer request drops an older one still waiting.
+  const revealRef = useRef(0);
+  const reveal = (pageId, locate, land) => {
+    const run = ++revealRef.current;
+    const want = pageId || activePageId;
+    if (!want) return;
+    if (want !== activePageId) setActivePageId(want);
+    let tries = 0;
+    const tick = () => {
+      if (run !== revealRef.current) return;
+      const eds = getPageSheetIds(ydoc, want, scope).map((sid) => editorsRef.current.get(sid));
+      const hit = eds.every((ed) => ed && !ed.isDestroyed) ? locate(eds) : null;
+      if (hit) { land(hit); return; }
+      if (tries++ < 50) setTimeout(tick, 40);
+    };
+    tick();
+  };
+  // A thread's words: scrolled to the middle of the page and flashed (on a
+  // phone, with the sheet put away from over them).
+  const jumpToThread = (id, pageId) => {
+    if (panelSheet) closePanel();
+    reveal(pageId, (eds) => {
+      for (const ed of eds) {
+        const el = ed.view.dom.querySelector(`.tt-comment[data-comment-id="${CSS.escape(id)}"]`);
+        if (el) return { ed, el };
+      }
+      return null;
+    }, ({ el }) => {
+      el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      setFlashThread((f) => ({ id, n: (f?.n || 0) + 1 }));
+    });
+  };
+
   // The cluster this doc is on, reloading under it: a restore, cards moved
   // into it, a repair (lib/docResets.js). It is told before its old copy goes,
   // so note the page this is and what the page holds, and again as this
@@ -1173,7 +1229,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // The look's icons are Phosphor's regular, the sidebar's weight; outside
     // it the floor is unset, as everywhere else.
     <IconWeightContext.Provider value={lookA ? 'regular' : null}>
-    <div ref={rootRef} className={`doc-surface ${lookA ? 'dl-surface' : 'no-right-rail'} ${railOpen ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}${panelOpen ? ' has-panel' : ''}`}>
+    <div ref={rootRef} className={`doc-surface ${lookA ? 'dl-surface' : 'no-right-rail'} ${railOpen ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}${panelOpen ? ' has-panel' : ''}${panelOpen && panel.tab === 'comments' ? ' has-panel-comments' : ''}`}>
       {/* Phone-only backdrop that closes the page drawer. */}
       {mobileRailOpen && <div className="doc-rail-backdrop" onClick={() => setMobileRailOpen(false)} />}
       {/* Left rail — page tree */}
@@ -1365,6 +1421,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 onNavigateTarget={handleNavigateTarget}
                 registerOpenLinkPicker={registerOpenLinkPicker}
                 registerOpenAddComment={registerOpenAddComment}
+                onShowThread={lookA && !isPublic ? showThreadInPanel : null}
                 boards={Object.values(boards || {})}
                 editable={canEdit}
                 isPublic={isPublic}
@@ -1394,8 +1451,31 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {panelOpen && (
         <Suspense fallback={null}>
           <DocSidePanel tab={panel.tab} onTab={(tab) => setPanel((p) => ({ ...p, tab }))}
-                        screenplay={docMode === 'screenplay'} openComments={openComments} />
+                        sheet={panelSheet} onClose={closePanel}
+                        host={panelSheet ? rootRef.current?.closest('.doc-card-modal') || null : null}
+                        screenplay={docMode === 'screenplay'} openComments={openComments}
+                        onEscape={() => { try { editorRef.current?.commands.focus(); } catch (_) {} }}>
+            {{
+              comments: (
+                <DocCommentsTab ydoc={ydoc} scope={scope} threads={comments}
+                                editor={editorRef.current} currentUser={currentUser}
+                                canEdit={canEdit && !guestMode}
+                                workspaceId={workspaceId} boardId={scope?.boardId || null} cardId={scope?.docCardId || null}
+                                selectedId={panelThread} onSelect={setPanelThread} onJump={jumpToThread} />
+              ),
+            }}
+          </DocSidePanel>
         </Suspense>
+      )}
+      {/* The picked thread's words lit in the page, and the one jumped to
+          flashed: a rule on the mark's id, since ProseMirror owns the spans
+          and redraws over a class put on one. Ids are the comment keys'
+          (lib/commentKeys.js), so nothing in one needs escaping. */}
+      {panelOpen && panel.tab === 'comments' && /^[A-Za-z0-9_-]{1,64}$/.test(panelThread || '') && (
+        <style>{`.dl-surface .tt-comment[data-comment-id="${panelThread}"]{background:var(--soleil-soft);text-decoration-color:var(--soleil)}`}</style>
+      )}
+      {flashThread && /^[A-Za-z0-9_-]{1,64}$/.test(flashThread.id) && (
+        <style>{`.dl-surface .tt-comment[data-comment-id="${flashThread.id}"]{animation:${flashThread.n % 2 ? 'dl-flash-a' : 'dl-flash-b'} 1.4s ease-out}`}</style>
       )}
       {lookA && (
         <Suspense fallback={null}>

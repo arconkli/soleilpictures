@@ -186,7 +186,11 @@ const ExtraShortcuts = Extension.create({
   },
 });
 
-export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false, guestMode = false }) {
+export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false, guestMode = false,
+  // The doc look shows a thread in its side panel: given, a click on commented
+  // words (or a thread's margin dot) hands it the thread instead of opening
+  // the popover here.
+  onShowThread = null }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -520,7 +524,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     if (commentEl && !isPublic) {
       e.preventDefault();
       setLinkHover(null);
-      setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
+      if (onShowThread) onShowThread(commentEl.dataset.commentId);
+      else setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
       return;
     }
     // Manual link spans (rendered with data-link-id by LinkRenderer).
@@ -1523,6 +1528,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         pageId={activePageId}
         editor={editor}
         onOpenThread={(id) => {
+          if (onShowThread) { onShowThread(id); return; }
           const dot = document.querySelector(`.comment-gutter-dot[data-thread="${id}"]`);
           setOpenThread({ id, anchor: dot?.getBoundingClientRect() });
         }}

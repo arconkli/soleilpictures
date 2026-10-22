@@ -24,3 +24,27 @@ export function relativeTimeShort(input) {
     ? { month: 'short', day: 'numeric' }
     : { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+// Shorter still, for a comment's card: "Just now", "40m", "2h" while it's
+// today (or under six hours ago, across midnight), "Yesterday", a weekday
+// within the week ("Mon"), then a date ("Oct 12", with the year when it isn't
+// this one's). By the calendar, in the reader's time zone, so "Yesterday"
+// means yesterday.
+export function relativeTimeCompact(input, now = Date.now()) {
+  if (!input) return '';
+  const then = typeof input === 'string' ? Date.parse(input) : +input;
+  if (!Number.isFinite(then)) return '';
+  const min = Math.floor((now - then) / 60000);
+  if (min < 1) return 'Just now';
+  if (min < 60) return `${min}m`;
+  const a = new Date(then);
+  const b = new Date(now);
+  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((day(b) - day(a)) / 86400000);
+  if (days <= 0 || min < 360) return `${Math.floor(min / 60)}h`;
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return a.toLocaleDateString(undefined, { weekday: 'short' });
+  return a.toLocaleDateString(undefined, a.getFullYear() === b.getFullYear()
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' });
+}
