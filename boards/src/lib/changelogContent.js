@@ -234,7 +234,35 @@ export const CHANGELOG_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", or ⤢ on the Files card, for the full Files page. See "
+      "v": ", or ⤢ on the Files card, for the full Files page: the Files card grown full screen, with the same search and "
+     },
+     {
+      "t": "strong",
+      "v": "All files",
+      "children": [
+       {
+        "t": "text",
+        "v": "All files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu, photos and video as a gallery, and a classic list with sortable columns. While it's open the sidebar's Files card folds to a bar, so your files are listed once, and "
+     },
+     {
+      "t": "strong",
+      "v": "Shrink",
+      "children": [
+       {
+        "t": "text",
+        "v": "Shrink"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", F or ⌘\\ brings the board back. Info opens as a card beside your files, and Quick look has a new floating bar. See "
      },
      {
       "t": "link",
