@@ -4,6 +4,7 @@ import { Icon } from '../Icon.jsx';
 import { EntityPicker } from '../EntityPicker.jsx';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Caps } from '../toolbar/Toolbar.jsx';
+import { DocSeg } from './DocSeg.jsx';
 import {
   addCommentReply, resolveComment, pageContentMap, sheetContentMap, pagesArray,
 } from '../../lib/docState.js';
@@ -66,30 +67,12 @@ export function DocCommentsTab({
     });
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onFilterKey = (e) => {
-    const at = FILTERS.findIndex(([k]) => k === filter);
-    const to = e.key === 'ArrowRight' ? (at + 1) % FILTERS.length
-      : e.key === 'ArrowLeft' ? (at - 1 + FILTERS.length) % FILTERS.length : null;
-    if (to == null) return;
-    e.preventDefault();
-    setFilter(FILTERS[to][0]);
-    const group = e.currentTarget;
-    requestAnimationFrame(() => group.querySelector(`[data-filter="${FILTERS[to][0]}"]`)?.focus());
-  };
-
   const ctx = { ydoc, scope, currentUser, canEdit, workspaceId, boardId, cardId, onSelect, onJump };
   return (
     <div className="dl-cmts">
       <div className="dl-cmts-f">
-        <div className="dl-seg is-sm" role="radiogroup" aria-label="Show" onKeyDown={onFilterKey}>
-          {FILTERS.map(([k, label]) => (
-            <button key={k} type="button" role="radio" data-filter={k}
-                    aria-checked={filter === k} tabIndex={filter === k ? 0 : -1}
-                    onClick={() => setFilter(k)}>
-              {label} <span className="dl-cnt">{counts[k]}</span>
-            </button>
-          ))}
-        </div>
+        <DocSeg label="Show" value={filter} onChange={setFilter}
+                options={FILTERS.map(([value, label]) => ({ value, label, count: counts[value] }))} />
       </div>
       {shown.length ? (
         <ul ref={listRef} className="dl-ths" aria-label="Comments">

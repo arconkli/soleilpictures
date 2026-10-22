@@ -374,6 +374,81 @@
 .dl-cmts-none { padding: 28px 22px; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
 .dl-cmts-none p { margin: 0 0 8px; }
 .dl-cmts-none-t { font-size: 13px; color: var(--ink-1); }
+
+/* ── Find (AC-find): the search and its replacement, where to look and how,
+   Replace and Replace all, then the hits page by page, which scroll under
+   the rest. ── */
+.dl-panel-body.dl-panel-find { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.dl-panel-body.dl-panel-find[hidden] { display: none; }
+.dl-find { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; padding-top: 8px; }
+.dl-find-f { display: flex; align-items: center; gap: 4px; padding: 4px 14px; }
+.dl-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  color: var(--ink-2);
+  cursor: text;
+}
+[data-theme='light'] .dl-field { background: #f7f7f9; box-shadow: inset 0 0 0 1px var(--line-2); }
+.dl-field:focus-within { box-shadow: inset 0 0 0 1px var(--line-3), 0 0 0 2px rgba(255, 165, 0, .35); }
+.dl-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 13px/1 var(--font-sans);
+  color: var(--ink-0);
+}
+.dl-field input::placeholder { color: var(--ink-3); }
+/* The field rings itself; the app's own ring on the input inside it would
+   draw a second box. */
+.dl-field input:is(:focus, :focus-visible) { outline: none; box-shadow: none; }
+.dl-find-n { flex-shrink: 0; font: 400 11px/1 var(--font-mono); color: var(--ink-2); white-space: nowrap; }
+.dl-find-o { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 14px; }
+.dl-find-a { display: flex; gap: 6px; padding: 2px 14px 6px; }
+.dl-mini[aria-pressed='true'] { background: var(--tl-on); box-shadow: inset 0 0 0 1px var(--tl-on-line); color: var(--ink-0); }
+.dl-mini:disabled { opacity: .45; cursor: default; }
+@media (hover: hover) {
+  .dl-mini:disabled:hover { color: var(--ink-1); background: var(--bg-2); }
+}
+.dl-find-res { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
+.dl-fg-h { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 16px 4px; font: 600 12px/1.3 var(--font-sans); color: var(--ink-1); }
+.dl-fg-h > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-fr {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  text-align: left;
+  font: 400 13px/1.4 var(--doc-body-font, Georgia, 'Iowan Old Style', serif);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .dl-fr:hover:not(.is-on) { background: var(--tl-hov); }
+}
+.dl-fr.is-on { background: var(--bg-act); color: var(--ink-1); }
+.dl-fr:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.dl-fr mark { padding: 0 1px; border-radius: 2px; background: color-mix(in oklab, #ffa500 22%, transparent); color: var(--ink-0); }
+.dl-find-more { margin: 0; padding: 10px 18px 0; font-size: 12px; color: var(--ink-2); }
+/* The hits lit in the page: a soft fill, the one that's on deeper and ringed,
+   the text in its own ink. */
+.dl-surface .doc-find-hit { border-bottom: 0; border-radius: 2px; background: color-mix(in oklab, #ffa500 16%, transparent); }
+.dl-surface .doc-find-hit-current { background: rgba(255, 165, 0, .42); box-shadow: 0 0 0 1.5px rgba(255, 165, 0, .6); color: inherit; }
+.dl-find-none { margin: 0; padding: 28px 22px; text-align: center; font-size: 12.5px; color: var(--ink-2); }
 /* The words a card was jumped to from, flashed (DocSurface puts the rule on
    their mark's id; two names, so a second jump plays it again). */
 @keyframes dl-flash-a {
@@ -552,6 +627,10 @@
   .dl-reply input { height: 36px; font-size: 16px; }
   .dl-reply-send { top: 5px; right: 5px; width: 26px; height: 26px; }
   .dl-th-del { width: 36px; height: 36px; margin: -11px -10px -11px auto; opacity: 1; }
+  .dl-field { height: 40px; }
+  /* Under 16px iOS zooms the page in on focus. */
+  .dl-field input { font-size: 16px; }
+  .dl-fr { padding: 9px 12px; font-size: 14.5px; }
   .dl-foot { height: 36px; font-size: 13px; }
   .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
   /* The bar's widths under a finger (DOC_BAR_SIZES.touch). */

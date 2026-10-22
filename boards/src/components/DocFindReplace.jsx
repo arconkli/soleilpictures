@@ -100,6 +100,13 @@ function findMatches(doc, query) {
   return ranges;
 }
 
+// The hits lit in an editor's text, the one at `current` brighter (-1 for
+// none): what the find bar paints, and the doc look's side panel's Find
+// (components/doc/DocFindTab.jsx) too.
+export function paintFindHits(ed, ranges, current = -1) {
+  try { ed.view.dispatch(ed.state.tr.setMeta(findKey, { ranges, current })); } catch (_) {}
+}
+
 export function DocFindReplace({ editor, editors = [], open, onClose,
                                  // false → view-only reader: Find only. A Replace would apply to
                                  // their local copy and never save (the board room drops it).

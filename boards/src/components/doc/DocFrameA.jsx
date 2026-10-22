@@ -21,6 +21,7 @@ import './docLook.css';
 // The one row of tools and the side panel's tabs come in the same chunk.
 export { DocBarA } from './DocBarA.jsx';
 export { DocCommentsTab } from './DocCommentsTab.jsx';
+export { DocFindTab } from './DocFindTab.jsx';
 
 // The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
 // direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,

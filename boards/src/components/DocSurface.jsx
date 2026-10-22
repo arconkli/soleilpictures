@@ -50,6 +50,7 @@ const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m =
 const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
 const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
 const DocCommentsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocCommentsTab })));
+const DocFindTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFindTab })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -577,6 +578,23 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const panelOpen = lookA && !isPublic && panel.open;
   const panelSheet = panelOpen && isPhone;
   const closePanel = useCallback(() => setPanel((p) => ({ ...p, open: false })), []);
+  // ⌘F and the bar's Find: in the doc look, the side panel's Find, searching
+  // for the words selected in the text (within one block: a search never runs
+  // across two); the find bar for the public viewer and outside the look.
+  const [findSeed, setFindSeed] = useState(null);
+  const openFind = () => {
+    if (!lookA || isPublic) { setFindOpen(true); return; }
+    let q = '';
+    try {
+      const { state } = editorRef.current;
+      const { $from, $to, empty } = state.selection;
+      if (!empty && $from.sameParent($to)) q = state.doc.textBetween($from.pos, $to.pos);
+    } catch (_) {}
+    setPanel({ open: true, tab: 'find' });
+    setFindSeed((s) => ({ q: q.length <= 200 ? q : '', n: (s?.n || 0) + 1 }));
+  };
+  const openFindRef = useRef(openFind);
+  openFindRef.current = openFind;
   const openComments = useMemo(() => comments.filter((t) => !t.resolved).length, [comments]);
   // The thread the panel's Comments has picked (its words lit in the page),
   // and the one just jumped to (its words flashed).
@@ -645,7 +663,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       if (!rootRef.current?.contains?.(e.target)) return;
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        setFindOpen(true);
+        openFindRef.current();
       } else if (e.key === '=' || e.key === '+') {
         e.preventDefault();
         setZoom((z) => z + ZOOM_STEP);
@@ -1328,7 +1346,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                      onInsertBookmark={insertBookmarkAtCaret}
                      onInsertImage={guestMode ? null : pickImageFromDisk}
                      onInsertBoardEmbed={guestMode ? null : pickBoardEmbed}
-                     onOpenFind={() => setFindOpen(true)}
+                     onOpenFind={openFind}
                      onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
                      onAddComment={() => openAddCommentRef.current?.()}
                      zoom={effectiveZoom}
@@ -1358,7 +1376,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                     canExport={allowExport}
                     onInsertImage={guestMode ? null : pickImageFromDisk}
                     onInsertBoardEmbed={guestMode ? null : pickBoardEmbed}
-                    onOpenFind={() => setFindOpen(true)}
+                    onOpenFind={openFind}
                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
                     onAddComment={() => openAddCommentRef.current?.()}
                     zoom={effectiveZoom}
@@ -1462,6 +1480,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                                 canEdit={canEdit && !guestMode}
                                 workspaceId={workspaceId} boardId={scope?.boardId || null} cardId={scope?.docCardId || null}
                                 selectedId={panelThread} onSelect={setPanelThread} onJump={jumpToThread} />
+              ),
+              find: (active) => (
+                <DocFindTab ydoc={ydoc} scope={scope} canEdit={canEdit && !guestMode}
+                            active={active} activePageId={activePageId}
+                            editorsOf={(pid) => (pid ? getPageSheetIds(ydoc, pid, scope) : [])
+                              .map((sid) => editorsRef.current.get(sid)).filter((ed) => ed && !ed.isDestroyed)}
+                            reveal={reveal} seed={findSeed} sheet={panelSheet}
+                            onLeave={panelSheet ? closePanel : null} />
               ),
             }}
           </DocSidePanel>

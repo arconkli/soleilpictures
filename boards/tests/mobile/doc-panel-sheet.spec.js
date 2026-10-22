@@ -2,8 +2,8 @@
 // docLookAllowed) is a sheet from the bottom (mockup C-phone2): over the
 // whole doc, header too, which dims; a tap on the dimmed doc, its grab, a
 // drag down or Escape puts it away; a doc opens with it put away, whatever
-// was left open on a computer; and a card's words are shown with the sheet
-// out of their way. Driven in the ?docqa=1 harness.
+// was left open on a computer; and a card's words, or a hit Find lists, are
+// shown with the sheet out of their way. Driven in the ?docqa=1 harness.
 
 import { expect, test } from '@playwright/test';
 
@@ -117,4 +117,20 @@ test('a tap on commented words brings the sheet up on their card, and its quote 
   await card.locator('.dl-th-q').tap();
   await expect(sheet(page)).toHaveCount(0);
   await expect(modal(page).locator(`.tt-comment[data-comment-id="${id}"]`)).toBeInViewport();
+});
+
+test('Find in the sheet: a tapped hit puts the sheet away with its words selected', async ({ page }) => {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>A night drive.</p>'));
+  await toggle(page).tap();
+  await sheet(page).getByRole('tab', { name: 'Find' }).tap();
+  await sheet(page).getByRole('textbox', { name: 'Find', exact: true }).fill('night');
+  await expect(sheet(page).locator('.dl-find-n')).toHaveText('1 of 1');
+  await sheet(page).locator('.dl-fr').tap();
+  await expect(sheet(page)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    const { from, to } = ed.state.selection;
+    return ed.state.doc.textBetween(from, to);
+  })).toBe('night');
 });

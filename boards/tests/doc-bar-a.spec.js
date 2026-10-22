@@ -298,14 +298,14 @@ test('Link opens the link picker, and Comment the comment box, whose comment mar
   })).toBe(1);
 });
 
-test('Find opens find under the bar, with Replace', async ({ page }) => {
+test('Find opens the side panel on Find, with Replace, ready to type', async ({ page }) => {
   await openDoc(page);
   await btn(page, 'Find').click();
-  const find = modal(page).locator('.doc-find');
-  await expect(find).toBeVisible();
-  const b = await bar(page).boundingBox();
-  expect((await find.boundingBox()).y).toBeGreaterThanOrEqual(b.y + b.height - 1);
-  await expect(find.getByRole('button', { name: 'Toggle replace' })).toHaveCount(1);
+  const side = modal(page).getByRole('complementary', { name: 'Comments and find' });
+  await expect(side.getByRole('tab', { name: 'Find' })).toHaveAttribute('aria-selected', 'true');
+  await expect(side.getByRole('textbox', { name: 'Find', exact: true })).toBeFocused();
+  await expect(side.getByRole('textbox', { name: 'Replace with' })).toBeVisible();
+  await expect(modal(page).locator('.doc-find')).toHaveCount(0);
 });
 
 // A print whose afterprint never comes (an app's WebView has no print) must
@@ -454,7 +454,7 @@ test('narrowed, the bar stays one row and ⋯ holds what folded, in the order it
   await expect(m.getByRole('menuitem', { name: /^Layout/ })).toHaveAttribute('aria-haspopup', 'menu');
   // A folded control does what it did in the bar: Find opens find.
   await m.getByRole('menuitem', { name: /^Find/ }).click();
-  await expect(modal(page).locator('.doc-find, .dl-panel')).toBeVisible();
+  await expect(modal(page).locator('.dl-panel').getByRole('textbox', { name: 'Find', exact: true })).toBeFocused();
 });
 
 test('a submenu opens from the keyboard, picks, and closes the whole menu', async ({ page }) => {
@@ -596,8 +596,9 @@ test('a view-only member\'s bar is Find, the zoom and Export', async ({ page }) 
   await page.keyboard.press('Escape');
   // Find, with no Replace.
   await btn(page, 'Find').click();
-  await expect(modal(page).locator('.doc-find')).toBeVisible();
-  await expect(modal(page).locator('.doc-find').getByRole('button', { name: 'Toggle replace' })).toHaveCount(0);
+  const side = modal(page).getByRole('complementary', { name: 'Comments and find' });
+  await expect(side.getByRole('textbox', { name: 'Find', exact: true })).toBeFocused();
+  await expect(side.getByRole('textbox', { name: 'Replace with' })).toHaveCount(0);
 });
 
 test('with the look off, the doc keeps today\'s bar', async ({ page }) => {
