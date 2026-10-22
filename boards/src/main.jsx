@@ -2,7 +2,7 @@ import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode, isMsgQaMode, isSetupQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode, isMsgQaMode, isSetupQaMode, isToolbarQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startBuildWatch } from './lib/buildWatch.js';
@@ -15,8 +15,21 @@ import { describeReason } from './lib/describeReason.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload, isCssPreloadError, reloadedRecently } from './lib/lazyWithReload.js';
 import { installDomMutationGuard } from './lib/domMutationGuard.js';
+import { toolbarLookAllowed, docLookAllowed } from './lib/appHost.js';
 import './styles/breakpoints.css';
 import './styles.css';
+
+// The toolbar look and the doc editor's look, while they're held: marked on
+// <html> once, before anything renders, so the CSS and lib/looks.js agree
+// from the first frame.
+if (typeof document !== 'undefined') {
+  if (toolbarLookAllowed()) document.documentElement.dataset.tb = 'a';
+  if (docLookAllowed()) document.documentElement.dataset.docLook = 'a';
+  // Their one tooltip, with the shortcut's keys in caps.
+  if (toolbarLookAllowed() || docLookAllowed()) {
+    import('./components/toolbar/tipHost.js').then((m) => m.installTipHost()).catch(() => {});
+  }
+}
 
 // DEV-only logic bridge for Playwright specs (first-value-upgrade.spec.js).
 // Dynamic + DEV-guarded so it never ships in the signed-out landing chunk.
@@ -432,6 +445,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <SidebarQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isToolbarQaMode()) {
+  // Toolbar QA (?toolbarqa=1). The toolbar look's parts as the mockup's parts
+  // sheet, and live for the primitives' spec. DEV guard drops it from
+  // production builds.
+  import('./local/ToolbarQaHarness.jsx').then(({ ToolbarQaHarness }) => {
+    createRoot(document.getElementById('root')).render(
+      <StrictMode>
+        <ToolbarQaHarness />
       </StrictMode>
     );
   });

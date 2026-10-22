@@ -31,6 +31,9 @@ import { topModal } from '../lib/modalGuard.js';
 //   matchWidth at least as wide as the control
 //   escape     false: Escape is the owner's (a menu whose keys hand the focus
 //              back to its button)
+//
+// onClose is told why: 'escape' or 'outside' (a press outside both), so a
+// menu can give the focus back to its button on the one and not the other.
 const HIDDEN = { position: 'fixed', top: 0, left: 0, bottom: 'auto', right: 'auto', visibility: 'hidden' };
 // Measured at its own width before it's placed, whatever min-width its CSS
 // gives it (a fixed box's 100% is the whole window).
@@ -41,10 +44,11 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
   const [placed, setPlaced] = useState(null);
   const onCloseRef = useRef(onClose);
   useLayoutEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-  const close = useCallback(() => onCloseRef.current?.(), []);
+  const close = useCallback((why) => onCloseRef.current?.(why), []);
+  const closeOutside = useCallback(() => onCloseRef.current?.('outside'), []);
 
   const refs = useMemo(() => [anchorRef, popRef], [anchorRef]);
-  useDismissOnOutside(refs, open, close, { escape: false });
+  useDismissOnOutside(refs, open, closeOutside, { escape: false });
 
   useLayoutEffect(() => {
     if (!open) { setPlaced(null); return undefined; }
@@ -85,7 +89,7 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
       if (e.key !== 'Escape' || isComposingKey(e) || topModal() !== layer) return;
       e.preventDefault();
       e.stopPropagation();
-      close();
+      close('escape');
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);

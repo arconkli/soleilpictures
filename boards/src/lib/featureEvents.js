@@ -37,6 +37,23 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.LIST_ADD_FILES, EV.VIEW_MODE_SWITCH],
     failure: [],
   },
+  // Every toolbar in one language: how the bars look and answer, so the
+  // session is its exposure and its summary the outcome, as boardGround's.
+  toolbarLook: {
+    exposure: [EV.SESSION_CONTEXT],
+    action: [],
+    outcome: [EV.SESSION_SUMMARY],
+    failure: [],
+  },
+  // The doc editor's frame: one row of tools, the side panel's comments,
+  // find and elements, and how a new doc starts. Most people who place a doc
+  // never write in it, so doc_edit split by ff.docLook is what it's for.
+  docLook: {
+    exposure: [EV.SESSION_CONTEXT],
+    action: [EV.COMMENT_CREATE, EV.COMMENT_RESOLVE],
+    outcome: [EV.DOC_EDIT],
+    failure: [],
+  },
   // A whole folder tree or zip becomes clusters, waiting when it won't fit.
   bulkImport: {
     exposure: [EV.IMPORT_PREFLIGHT],

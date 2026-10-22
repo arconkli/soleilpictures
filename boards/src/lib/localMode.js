@@ -172,6 +172,13 @@ export function isSidebarQaMode() {
   return new URLSearchParams(window.location.search).get('sidebarqa') === '1';
 }
 
+// Toolbar QA (?toolbarqa=1): the toolbar look's parts, as the mockup's parts
+// sheet and live (local/ToolbarQaHarness.jsx).
+export function isToolbarQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('toolbarqa') === '1';
+}
+
 // First-run setup QA (?setupqa=1): the real AuthGate, TierRouter and setup
 // steps, and the workspace link's banner and join card, over an in-memory fake
 // of the Supabase client (local/SetupQaHarness.jsx).
@@ -253,6 +260,7 @@ const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
   'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
   'presenceqa', 'shareqa', 'roqa', 'msgqa', 'setupqa', 'sidebarqa', 'importqa',
+  'toolbarqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;

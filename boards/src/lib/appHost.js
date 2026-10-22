@@ -183,6 +183,37 @@ export function filesPageLookAllowed() {
 }
 
 // ---------------------------------------------------------------------------
+// The toolbar look
+//
+// Every toolbar in one language (the owner's pick "A · Islands", 2026-10-21):
+// the sidebar's glass under each bar, 32px buttons (44 under a finger), a gold
+// tint and ring on what's on, one tooltip with the shortcut's keys in caps,
+// and Phosphor icons where text glyphs stood. Held to a dev opt-in while it's
+// built (localStorage soleil.dev.toolbarLook = '1'); it opens on preview once
+// the owner can try it, and on production with the release that ships it and
+// its docs. main.jsx asks it once and marks <html data-tb="a">: the bars' CSS
+// keys on the mark, and markup asks lib/looks.js, never this.
+export const TOOLBAR_LOOK_DEV_FLAG = 'soleil.dev.toolbarLook';
+export function toolbarLookAllowed() {
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(TOOLBAR_LOOK_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
+// ---------------------------------------------------------------------------
+// The doc editor's look
+//
+// The owner's pick "A + C's side panel" (2026-10-21): one row of tools over
+// the page, the rest under ⋯, and a side panel where a doc's comments, find
+// across its pages and a screenplay's elements live; with the start of a new
+// doc, tables that grow and a reader's Find, zoom and Export. Held as the
+// toolbar look is (soleil.dev.docLook = '1'), marked <html data-doc-look="a">.
+export const DOC_LOOK_DEV_FLAG = 'soleil.dev.docLook';
+export function docLookAllowed() {
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(DOC_LOOK_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
+// ---------------------------------------------------------------------------
 // The file-sharing hold
 //
 // Sharing one file on its own (/f/<token>): the share dialog's entry points
@@ -247,6 +278,8 @@ export function featureFlags() {
   const holds = {
     sidebarFiles: sidebarFilesAllowed,
     filesPageLook: filesPageLookAllowed,
+    toolbarLook: toolbarLookAllowed,
+    docLook: docLookAllowed,
     bulkImport: bulkImportAllowed,
     workspaceSetup: workspaceSetupAllowed,
     boardGround: boardGroundAllowed,

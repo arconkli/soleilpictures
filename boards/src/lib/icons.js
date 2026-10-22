@@ -184,4 +184,10 @@ export {
   FolderSimple,
   FolderSimplePlus,
   LinkSimple,
+  // The toolbar look (components/toolbar/): glyphs that were letters and
+  // marks in the bars before it.
+  TextTSlash,
+  TextAUnderline,
+  AlignCenterVertical,
+  ChatCircleText,
 } from '@phosphor-icons/react';
