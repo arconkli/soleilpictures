@@ -166,6 +166,19 @@ export function editorLimitAllowed() {
 }
 
 // ---------------------------------------------------------------------------
+// The Team plan
+//
+// Teams, seats and team workspaces (0522, 0530-0535). Closed everywhere until
+// the plan launches with its page and docs; the server's own switch
+// (app_config.teams_open) refuses creating a team before then. Opt-in on dev
+// with localStorage soleil.dev.teams = '1'.
+export const TEAMS_DEV_FLAG = 'soleil.dev.teams';
+export function teamsAllowed() {
+  if (!import.meta.env.DEV) return false;
+  try { return window.localStorage.getItem(TEAMS_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
+// ---------------------------------------------------------------------------
 // The full Files page's new look
 //
 // The ⤢ / F page as the sidebar's Files card grown full screen (the owner's
@@ -286,6 +299,7 @@ export function featureFlags() {
     clusterNudges: clusterNudgesAllowed,
     touchPass: touchPassAllowed,
     editorLimit: editorLimitAllowed,
+    teams: teamsAllowed,
     fileShares: fileSharesAllowed,
     sharedFiles: sharedFilesAllowed,
     docShares: docSharesAllowed,

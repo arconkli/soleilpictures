@@ -37,6 +37,10 @@ const SERVER_EMITTED = new Map([
   ['INVITE_LINK_CLAIMED',    '0189_collab_invite_links.sql / 0199'],
   ['WORKSPACE_LINK_CLAIMED', '0450_workspace_invite_links.sql'],
   ['EDITOR_LIMIT_VIEWER_FALLBACK', '0520_editor_limit_core.sql (_editor_limit_fallback, called from 0521)'],
+  ['TEAM_CREATED',           '0532_teams_rpcs.sql (create_team, via _team_event)'],
+  ['TEAM_JOINED',            '0533_teams_people.sql / 0534_teams_joining.sql (via _team_event)'],
+  ['TEAM_SEAT_VIEWER_FALLBACK','0531_teams_seats.sql (_team_request_and_notify)'],
+  ['TEAM_CLOSED',            '0532_teams_rpcs.sql (close_team, via _team_event)'],
 ]);
 
 // Comments are documentation, not wiring. This file's own header shows a

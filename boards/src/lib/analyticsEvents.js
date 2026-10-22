@@ -483,6 +483,11 @@ export const EV = Object.freeze({
   WORKSPACE_LINK_CLAIM_RESULT:'workspace_link_claim_result', // a claim's outcome, every branch {status:'joined'|'member'|'dead'|'error', at:'signup'|'card', reason} (must-land)
   WORKSPACE_LINK_CLAIMED:  'workspace_link_claimed',      // SERVER: claim_workspace_invite_link let someone in {workspace_id, role, status}
   EDITOR_LIMIT_VIEWER_FALLBACK: 'editor_limit_viewer_fallback', // SERVER: an edit link let someone in as a viewer because the account had 10 people who can edit {via:'collab_link'|'workspace_link', upgrade, workspace_id, board_id}
+  // The Team plan (held: teamsAllowed). Written by SQL (_team_event, 0532-0534); ids and counts only, never a token or an address.
+  TEAM_CREATED:            'team_created',                // SERVER: create_team made a team {org_id, seats, workspaces}
+  TEAM_JOINED:             'team_joined',                 // SERVER: someone became a team member (invite, link, domain offer) {org_id, ...}
+  TEAM_SEAT_VIEWER_FALLBACK:'team_seat_viewer_fallback',  // SERVER: an edit door let someone in as a viewer because the team had no free seat {via, workspace_id, board_id}
+  TEAM_CLOSED:             'team_closed',                 // SERVER: close_team gave a team's workspaces back as explicit shares {org_id, workspaces}
   // The 10-editor limit in the app (held: editorLimitAllowed). Counts and
   // stages only: no address, name or token rides these.
   EDITOR_LIMIT_SEEN:       'editor_limit_seen',           // the share panel's note or Members' "People who can edit" showed {surface:'share_modal'|'members', stage:'near'|'full'|'over'|'room', owner}

@@ -129,6 +129,10 @@ export const FEATURE_EVENTS = Object.freeze({
     failure: [EV.EDITOR_LIMIT_REFUSED],
   },
 
+  // The Team plan: S2a is server only (the server logs team_created,
+  // team_joined, team_seat_viewer_fallback, team_closed).
+  teams: { unmeasured: 'S2a server only; S4 instruments the page' },
+
   // Shipped without a hold.
   messages: {
     exposure: [EV.MSG_PANEL, EV.MSG_CONV_OPEN],
