@@ -114,6 +114,7 @@ function people(faces) {
 export function FilesPageTools({
   query, onQuery, searchRef, placeholder, menu, found = '', faces = null,
   viewMode, onViewMode, upsell = null, onAddFiles = null,
+  foundPack = false,   // `found` is a sample pack's read, which a phone keeps too
 }) {
   const here = people(faces);
   return (
@@ -136,7 +137,7 @@ export function FilesPageTools({
         )}
       </div>
       <FilesShowMenu {...menu} align="left" />
-      {found && <span className="fp-found" aria-live="polite">{found}</span>}
+      {found && <span className={`fp-found${foundPack ? ' is-pack' : ''}`} aria-live="polite">{found}</span>}
       <span className="fp-spacer" />
       {here.length > 0 && (
         <div className="fp-faces" title={`${here.length} here`}>

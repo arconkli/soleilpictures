@@ -48,6 +48,18 @@ test.describe('the full Files page on a phone', () => {
     await expect(page.getByRole('group', { name: 'Tile size' })).toHaveCount(0);
   });
 
+  test('a sample pack is read on a line of its own under the search', async ({ page }) => {
+    await open(page);
+    await page.locator('.fp-tools .sbf-filter-btn').tap();
+    await page.getByRole('menu', { name: 'Show and sort' }).getByRole('menuitemradio', { name: /^Audio/ }).tap();
+    const found = page.locator('.fp-found.is-pack');
+    await expect(found).toBeVisible();
+    await expect(found).toContainText('2 audio files');
+    const search = await page.locator('.fp-search').boundingBox();
+    const line = await found.boundingBox();
+    expect(line.y).toBeGreaterThanOrEqual(search.y + search.height - 1);
+  });
+
   test('the clusters scroll sideways, the pictures lie three or four across, and carry no downloads', async ({ page }) => {
     test.skip(page.viewportSize().width > 640, 'a phone’s width');
     await open(page);

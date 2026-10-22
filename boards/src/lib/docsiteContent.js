@@ -22585,7 +22585,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Beside the search — except on a phone or tablet — you get the pack in one line: "
+     "v": "Beside the search — under it on a phone or tablet — you get the pack in one line: "
     },
     {
      "t": "strong",
@@ -22599,21 +22599,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Search or filter, and the line counts what's showing instead ("
+     "v": ". It follows the search and the filters, so narrowing to "
     },
     {
-     "t": "em",
-     "v": "14 of 60",
-     "children": [
-      {
-       "t": "text",
-       "v": "14 of 60"
-      }
-     ]
+     "t": "code",
+     "v": "128"
     },
     {
      "t": "text",
-     "v": ")."
+     "v": " re-reads the selection you are actually looking at."
     }
    ]
   },

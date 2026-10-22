@@ -2556,7 +2556,11 @@ export function ListSurface({
               <FilesPageTools query={query} onQuery={setQuery} searchRef={searchRef}
                 placeholder={`Search ${board?.name || 'this cluster'}`}
                 menu={pageMenu}
-                found={loading ? '' : narrowed ? `${visibleItems.length} of ${otherCards.length}` : (packSummary || '')}
+                // A pack is read whenever there is one, narrowed or not: it
+                // re-reads what's showing, so narrowing to 128 says what that
+                // leaves. Otherwise a search or filter says how many it leaves.
+                found={loading ? '' : packSummary || (narrowed ? `${visibleItems.length} of ${otherCards.length}` : '')}
+                foundPack={!loading && !!packSummary}
                 faces={phoneShell ? null : facePeers}
                 viewMode={phoneShell ? null : viewMode} onViewMode={onViewMode}
                 upsell={canEdit && showStorageUpsell && onStorageUpsell ? <StorageUpsell onUpsell={onUpsell} /> : null}

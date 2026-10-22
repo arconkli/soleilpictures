@@ -538,6 +538,12 @@
 .app.sb-files:not(.is-floating-chrome) .fp-search { flex: 1 1 auto; min-width: 0; }
 .app.sb-files:not(.is-floating-chrome) .fp-found,
 .app.sb-files:not(.is-floating-chrome) .fp-tools > .fp-spacer { display: none; }
+/* A sample pack's read stays, on a line of its own under the search; only a
+   search's count gives way to the search's room. */
+.app.sb-files:not(.is-floating-chrome) .fp-found.is-pack {
+  display: block; order: 1; flex: 1 0 100%; min-width: 0; margin: 2px 0 0;
+  overflow: hidden; text-overflow: ellipsis;
+}
 /* The upsell gets a line of its own rather than the search's room. */
 .app.sb-files:not(.is-floating-chrome) .fp-tools .cbt-upsell { order: 1; flex: 1 0 100%; text-align: left; }
 .app.sb-files:not(.is-floating-chrome) .fp-head > .list-selbar { margin: 2px 8px 8px; }

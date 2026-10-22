@@ -115,6 +115,19 @@ test.describe('the head', () => {
     await expect(page.locator('.fp-add')).toContainText('Add files');
   });
 
+  test('a sample pack is read beside the search, and narrowing re-reads it', async ({ page }) => {
+    await open(page);
+    await page.locator('.fp-tools .sbf-filter-btn').click();
+    await page.getByRole('menu', { name: 'Show and sort' }).getByRole('menuitemradio', { name: /^Audio/ }).click();
+    // Showing only Audio narrows the page, and the line reads the pack rather
+    // than counting what's left.
+    const found = page.locator('.fp-found');
+    await expect(found).toHaveClass(/is-pack/);
+    await expect(found).toContainText('2 audio files · 90–91 BPM');
+    await page.locator('.fp-search input').fill('loop-2');
+    await expect(found).toContainText('1 audio file · 91 BPM');
+  });
+
   test('a selection turns the controls into what to do with it, Delete with an undo', async ({ page }) => {
     await open(page);
     await sheet(page).locator('[data-item-id="film-img-3"]').click();

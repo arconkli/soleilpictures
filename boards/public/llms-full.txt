@@ -2142,7 +2142,7 @@ Key sorts by the circle of fifths, not the alphabet. Sorting a pack by key is re
 
 Tempo and key come from the filename as the file uploads, and are editable on the card — see video and audio.
 
-Beside the search — except on a phone or tablet — you get the pack in one line: how many audio files, the tempo range they span, and how much material there is in total. Search or filter, and the line counts what's showing instead (14 of 60).
+Beside the search — under it on a phone or tablet — you get the pack in one line: how many audio files, the tempo range they span, and how much material there is in total. It follows the search and the filters, so narrowing to 128 re-reads the selection you are actually looking at.
 
 On a narrow window, in a split pane, or with Info open, the columns that matter least give way first, until on a phone only the name is left. The name is the last thing to give up room.
 
