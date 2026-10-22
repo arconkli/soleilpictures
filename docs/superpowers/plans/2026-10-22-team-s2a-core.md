@@ -992,6 +992,8 @@ Actors: `set_config('request.jwt.claims', json_build_object('sub', X, 'role', 'a
 
 Nothing here runs without the owner's explicit go.
 
+- [x] **0522 applied 2026-10-22 on the owner's go** (amendment A's first step; migration `20261022052543 teams_tables`). Before: none of its tables, columns or functions existed, and nothing held a lock on `workspaces`. After: its three function bodies match the file by md5 and are server-only; the 10 tables have RLS on, no policies, no client privileges and no realtime publication; no client can set a workspace's team; `teams_open` is closed and no team exists. The security advisor's only note on them is the intended "RLS enabled, no policy".
+
 **Before every apply** (amendments E and F), one read-only query, and stop on any miss:
 - every function the file re-emits still has the live `md5(prosrc)` recorded in its header ("Rebased on"). A difference means another session applied first: rebase that function onto the live body, re-run its probe, then apply;
 - 0532 needs the security session's `_session_proves_inbox()` (their 0600) and `_offboard_member(uuid, uuid)` (their Phase 1) live, because it calls both;

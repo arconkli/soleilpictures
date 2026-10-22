@@ -1,6 +1,8 @@
 -- 0522: Teams, part 1 — the tables, and the hold that keeps them empty.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migration 20261022052543 teams_tables; its three function bodies
+-- match this file by md5.
 --
 -- A Team (the database says organization) owns workspaces and their seats
 -- (design: docs/superpowers/specs/2026-10-21-team-plan-and-editor-limit-design.md).
