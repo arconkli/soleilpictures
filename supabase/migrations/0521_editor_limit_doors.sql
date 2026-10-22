@@ -1,6 +1,6 @@
 -- 0521: the 10-editor limit (0520) at every door an editor comes in through.
 --
--- STATUS: written 2026-10-21. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-21. Applied 2026-10-21 (owner's go), switched off.
 --
 -- Each function below is its live body (pg_get_functiondef, 2026-10-21) with
 -- the lines marked 0521 and nothing else changed. With app_config.editor_limit

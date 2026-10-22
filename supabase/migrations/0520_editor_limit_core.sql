@@ -2,7 +2,7 @@
 -- check every door makes.
 --
 -- STATUS: written 2026-10-21; notice copy and the owner's list reworked the same
--- day for the owner's pick (B). NOT APPLIED until the owner says go.
+-- day for the owner's pick (B). Applied 2026-10-21 (owner's go), switched off.
 --
 -- The owner (2026-10-20): a personal account, Free or Creator, can have at most
 -- 10 people who can edit; a group that needs more buys a Team (design:

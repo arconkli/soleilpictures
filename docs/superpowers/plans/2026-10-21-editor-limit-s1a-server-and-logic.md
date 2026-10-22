@@ -2421,8 +2421,8 @@ Nothing in this task runs without the owner's explicit "go" on applying 0520 and
   - that it puts the checks in place for launch.
 
   Ask for a go.
-- [ ] **Step 2: On "go", apply** with `mcp__supabase__apply_migration`, `name: editor_limit_core` (0520's text), then `name: editor_limit_doors` (0521's text). Stop at the first error.
-- [ ] **Step 3: Verify live = files.** Run:
+- [x] **Step 2: On "go", apply** with `mcp__supabase__apply_migration`, `name: editor_limit_core` (0520's text), then `name: editor_limit_doors` (0521's text). Stop at the first error.
+- [x] **Step 3: Verify live = files.** Run:
   ```sql
   select p.proname, md5(regexp_replace(prosrc, '\s+', ' ', 'g'))
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -2431,7 +2431,7 @@ Nothing in this task runs without the owner's explicit "go" on applying 0520 and
                        'restore_board_share', 'claim_collab_link', 'claim_workspace_invite_link');
   ```
   Then compare against the same md5 over each `$function$…$function$` body in 0521, computed locally. Also check `select value from app_config where key = 'editor_limit'` returns `{"enforced": false, "test_owner_ids": []}`.
-- [ ] **Step 4: Mark the files applied.** In both headers, change `STATUS: written 2026-10-21. NOT APPLIED until the owner says go.` to `STATUS: applied <date> (owner's go).` Commit by pathspec and push.
+- [x] **Step 4: Mark the files applied.** In both headers, change `STATUS: written 2026-10-21. NOT APPLIED until the owner says go.` to `STATUS: applied <date> (owner's go).` Commit by pathspec and push.
 - [ ] **Step 5: Memory.** Update `project_team_plan_editor_limit_2026_10_21.md`: 0520/0521 LIVE (off), and the probe passed.
 
 ---
@@ -2458,7 +2458,7 @@ These are not in this plan. Each item waits on the mockup pick and gets its own 
 - The hold opens on the preview host. `tests/editor-limit.spec.js` with RPC route mocks.
 
 Carried to S5 (launch):
-- `_instrumentation_pairs` gains `editor_limit_viewer_fallback`. Re-emit it from **0475**'s body, not 0472's (data-collection session, 10-21).
+- `_instrumentation_pairs` gains `editor_limit_viewer_fallback`. Re-emit it from its LIVE body, **0497**'s (it added the welcome watch), never an older one, or the welcome watch is lost (data-collection session, 10-21).
 - Drop `_collab_editor_cap`, `admin_set_collab_editor_cap` and the `collab_free_editor_cap` row.
 - Flip `editor_limit.enforced`.
 - Copy and docs.
