@@ -23,6 +23,7 @@ export { DocBarA } from './DocBarA.jsx';
 export { DocCommentsTab } from './DocCommentsTab.jsx';
 export { DocFindTab } from './DocFindTab.jsx';
 export { DocElementsTab } from './DocElementsTab.jsx';
+export { DocStarters } from './DocStarters.jsx';
 
 // The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
 // direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,
@@ -74,7 +75,13 @@ export function DocHeadA({
                  value={card.title || ''}
                  placeholder="Untitled doc"
                  readOnly={!canEdit}
-                 onChange={(e) => { if (canEdit) onUpdate?.({ title: e.target.value }); }} />
+                 onChange={(e) => { if (canEdit) onUpdate?.({ title: e.target.value }); }}
+                 onKeyDown={(e) => {
+                   // Named, Enter goes on to the text (mockup S-open).
+                   if (e.key !== 'Enter' || isComposingKey(e) || !canEdit) return;
+                   e.preventDefault();
+                   frame?.act.focusText?.();
+                 }} />
         </div>
         {!canEdit && (
           <span className="dl-chip"><Icon as={Eye} size={14} />View only</span>

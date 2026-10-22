@@ -12,6 +12,7 @@
 // per board so a refresh reopens the same page.
 
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Selection } from '@tiptap/pm/state';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
@@ -52,6 +53,7 @@ const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ 
 const DocCommentsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocCommentsTab })));
 const DocFindTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFindTab })));
 const DocElementsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocElementsTab })));
+const DocStarters = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocStarters })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -164,6 +166,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // header, whose switches change the page list and the side
                               // panel this surface keeps. Only the look passes one.
                               frame = null,
+                              // The doc look's window renames the card from here: a new doc
+                              // a script was imported into takes the script's title.
+                              onRename = null,
                               onClose }) {
   // ?docqa=1's crash hook: the harness's crash() makes this doc throw the way
   // a real render crash would, so doc-crash.spec can drive the boundary
@@ -623,6 +628,18 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       setMobileRailOpen((o) => !o);
     };
     frame.act.togglePanel = (tab = 'comments') => setPanel((p) => (p.open ? { ...p, open: false } : { open: true, tab }));
+    // Enter in the header's title goes on to the text (mockup S-open), at
+    // once: TipTap's focus() waits a frame, and the keys typed straight after
+    // Enter went into the title.
+    frame.act.focusText = () => {
+      const ed = editorRef.current;
+      if (!ed || ed.isDestroyed) return;
+      try {
+        const { state, view } = ed;
+        view.dispatch(state.tr.setSelection(Selection.atStart(state.doc)).scrollIntoView());
+        view.focus();
+      } catch (_) {}
+    };
     frame.publish({ railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments });
   });
   useEffect(() => () => frame?.reset(), [frame]);
@@ -1458,6 +1475,15 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           )}
           {/* Pages are now created automatically as content flows (DocPagination).
               The manual "+ New page" sheet button is obsolete in the reflow model. */}
+          {/* An empty doc's other ways in, under its "Start writing…" (the doc
+              look's start, mockup S-open). */}
+          {lookA && canEdit && !guestMode && !isPublic && docMode !== 'screenplay'
+            && pages.length === 1 && sheetIds.length === 1 && editorRef.current && (
+            <Suspense fallback={null}>
+              <DocStarters editor={editorRef.current} paperRef={paperRef} ydoc={ydoc} scope={scope}
+                           pageId={activePageId} onScreenplay={toggleScreenplay} onRename={onRename} />
+            </Suspense>
+          )}
         </div>
         {/* Save state is reported per HOST board (yboard persists the board
             that holds the doc); board.id here is the doc card's id. In the

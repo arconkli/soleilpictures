@@ -15660,6 +15660,28 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-card-open.is-active {
   color: var(--soleil); border-color: var(--soleil); background: var(--soleil-soft);
 }
+/* The doc look's closed card (mockup S-card; held, <html data-doc-look="a">):
+   the title in the doc's serif over a hairline, an empty doc's Start writing,
+   and Beside and Open in words. */
+[data-doc-look="a"] .doc-card-title { padding: 14px 16px 11px; border-bottom: 1px solid var(--line-1); font: 700 16px/1.25 ui-serif, Georgia, serif; }
+[data-doc-look="a"] .doc-card-title.is-unnamed { color: var(--ink-3); }
+[data-doc-look="a"] .doc-card-page { padding-top: 12px; }
+[data-doc-look="a"] .doc-card-rule { display: none; }
+[data-doc-look="a"] .doc-card-text { font-size: 12px; line-height: 1.5; color: var(--ink-1); }
+[data-doc-look="a"] .doc-card-foot { min-height: 46px; padding: 0 8px 0 14px; background: none; font-size: 12px; }
+[data-doc-look="a"] .doc-card-tag { padding: 3px 6px; border-radius: 5px; background: none; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-2); font: 700 9.5px/1 var(--font-sans); letter-spacing: .12em; }
+[data-doc-look="a"] .doc-card-meta { color: var(--ink-2); }
+.doc-card-start { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; height: 100%; padding-bottom: 10px; font-family: var(--font-sans); }
+.doc-card-start-hint { font-size: 12px; color: var(--ink-2); }
+.doc-card-start-btn, .doc-card-act {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 10px;
+  background: var(--bg-4); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-0); font: 600 14px/1 var(--font-sans); cursor: pointer;
+}
+.doc-card-act { gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--bg-3); font-size: 12.5px; }
+[data-theme="light"] .doc-card-start-btn { background: #fff; box-shadow: 0 0 0 1px rgba(10,10,12,.1), 0 1px 2px rgba(10,10,12,.08); }
+.doc-card-act.is-active { color: var(--soleil); box-shadow: inset 0 0 0 1px var(--soleil); background: var(--soleil-soft); }
+@media (hover: hover) { .doc-card-start-btn:hover, .doc-card-act:not(.is-active):hover { box-shadow: inset 0 0 0 1px var(--line-3); filter: brightness(1.08); } }
+@media (hover: none) and (pointer: coarse) { .doc-card-act { height: 40px; } }
 
 /* Doc card overlay — three modes:
    .doc-card-modal-full → fullscreen-ish (24px inset on all sides)
