@@ -97,6 +97,10 @@ async function beforeConnect(req: Request, lobby: Lobby, env: Env): Promise<Requ
     if (!token) return new Response("Missing access_token", { status: 401 });
     const auth = await authWorkspace(token, lobby.name);
     if (!auth.ok) return new Response(auth.reason ?? "Unauthorized", { status: 401 });
+    // The same suspension gate as the board room, so the room's minute recheck
+    // (party_workspace_access) never refuses someone this door let in.
+    const banned = await bannedAmong(env.SUPABASE_SERVICE_ROLE_KEY, [auth.userId ?? ""]);
+    if (auth.userId && banned.has(auth.userId)) return new Response("Account suspended", { status: 403 });
     // The roster trusts what a client says its identity is; the JWT's subject
     // lets the room refuse a `here` that claims to be someone else.
     req.headers.set("x-user-id", auth.userId ?? "");

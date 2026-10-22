@@ -26,6 +26,7 @@
 
 import { Server, type Connection, type ConnectionContext } from "partyserver";
 import type { Env } from "./env";
+import { workspaceAccessAmong } from "./auth";
 import { heldElsewhere, isFresh, rosterFrom, shouldAnnounce } from "../src/lib/workspaceRoster.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
 
@@ -46,6 +47,7 @@ interface Presence {
 // while anyone is present and lapses once nobody is. Clients need nothing new:
 // a stale tab leaves as the `leave` delta they already handle.
 const PRUNE_MS = 20_000;
+const ACCESS_CHECK_MS = 60_000;
 
 export class WorkspaceParty extends Server<Env> {
   static options = { hibernate: true };
@@ -84,10 +86,29 @@ export class WorkspaceParty extends Server<Env> {
     }
   }
 
+  // When the room last asked who may still be in it (in memory: a woken room
+  // asks again on its first sweep).
+  private accessCheckedAt = 0;
+
   async onAlarm() {
     this.pruneArmed = false;
     const now = Date.now();
-    const conns = [...this.getConnections()];
+    let conns = [...this.getConnections()];
+    // A removed member or a suspended account leaves within a minute: the same
+    // question as the door (party_workspace_access), at most once a minute.
+    if (conns.length && now - this.accessCheckedAt >= ACCESS_CHECK_MS) {
+      this.accessCheckedAt = now;
+      const ids = conns.map((c) => this.presenceOf(c).userId || "");
+      const access = await workspaceAccessAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, this.name, ids);
+      conns = conns.filter((c) => {
+        const uid = this.presenceOf(c).userId;
+        if (uid && access.get(uid) === false) {
+          try { c.close(4401, "access changed"); } catch (_) { /* already gone */ }
+          return false;
+        }
+        return true;
+      });
+    }
     const all = conns.map((c) => this.presenceOf(c));
     let anyonePresent = false;
     conns.forEach((conn, i) => {
