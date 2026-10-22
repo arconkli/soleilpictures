@@ -85,3 +85,14 @@ test('a cluster joins an image\'s list only in the image\'s workspace, when alre
   assert.ok(latestMatch(/revoke execute on function public\.recompute_image_refs\(uuid\) from public, anon, authenticated;/),
     'signed-in clients cannot run it');
 });
+
+// ── 0604: a chat file is listed only to its uploader and its conversation ──
+
+test('the storage API shows a chat attachment only to its uploader and the people in its conversation', () => {
+  const alter = latestMatch(/alter policy "msg-att read" on storage\.objects using \(([\s\S]*?)\n\);/);
+  assert.ok(alter, 'the read policy is restated');
+  const body = alter.match[1];
+  assert.match(body, /\(storage\.foldername\(name\)\)\[2\] = \(select auth\.uid\(\)::text\)/, 'the uploader reads their own file back');
+  assert.match(body, /m\.attachments @> jsonb_build_array\(jsonb_build_object\('storage_path', storage\.objects\.name\)\)\s+and public\.is_conversation_participant\(m\.conversation_id\)/);
+  assert.ok(!/is_workspace_member/.test(body), 'workspace membership alone no longer lists every chat file');
+});
