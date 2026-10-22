@@ -31,13 +31,11 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 directory = "./dist"
 not_found_handling = "single-page-application"
 binding = "ASSETS"
-# The home page is a real file (index.html), and the assets layer answers a
-# file without running the Worker, so `/` alone went out without the nonce CSP,
-# the soleil-ctx tag (region and network kind) and ROUTE_META['/'], which
-# repeats index.html's own title, description and canonical. Every other page
-# already reaches the Worker as a miss. Only "/": the hashed /assets/* files
-# must keep skipping it. edgeContext.test.mjs holds this line in place.
-run_worker_first = ["/"]
+# No run_worker_first. A list of patterns here (["/"], 2026-10-20) made the
+# assets layer answer every other miss with index.html in SPA mode, so /docs,
+# /changelog, /vs/*, /share/*, /api/* and /api/unsubscribe never reached the
+# Worker (preview, then production on 2026-10-22). edgeContext.test.mjs holds
+# it out.
 
 # Cloudflare Workers AI — powers the admin SEO tooling (/api/seo/*): a vision
 # model captions board images for alt text, a text model drafts SEO copy.

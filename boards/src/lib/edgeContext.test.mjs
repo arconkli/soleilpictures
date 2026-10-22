@@ -96,14 +96,15 @@ test('the reader takes back exactly what the writer can write', () => {
   }
 });
 
-test('the home page goes through the Worker, so it carries the tag too', () => {
-  // `/` is a static asset (index.html), and the assets layer answers an asset
-  // without running the Worker: the home page had no tag, no nonce CSP and no
-  // soleil-ctx, and analytics fell back to /api/ctx for every session that
-  // began there. run_worker_first sends it through the Worker first.
+test('[assets] sets no run_worker_first, so every miss still reaches the Worker', () => {
+  // A list of patterns (run_worker_first = ["/"], 2026-10-20) made the assets
+  // layer answer every other miss with index.html in SPA mode: /docs,
+  // /changelog, /vs/*, /share/*, /api/* and /api/unsubscribe never reached the
+  // Worker, on preview and then on production (2026-10-22). The home page goes
+  // out without the tag until it has another way through.
   const toml = readFileSync(new URL('../../wrangler.toml', import.meta.url), 'utf8');
   const assets = toml.slice(toml.indexOf('[assets]'), toml.indexOf('\n[', toml.indexOf('[assets]') + 1));
-  assert.match(assets, /^run_worker_first = \[\s*"\/"\s*\]$/m, 'wrangler.toml [assets] must route "/" through the Worker');
+  assert.doesNotMatch(assets, /^run_worker_first\s*=/m, 'wrangler.toml [assets] must not set run_worker_first');
 });
 
 test('the Worker hands request.cf to edgeContext and to nothing else', () => {
