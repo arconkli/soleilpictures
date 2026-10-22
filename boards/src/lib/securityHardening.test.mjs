@@ -248,6 +248,13 @@ test('a file or doc share reaches people only while its sharer can edit, and an 
   }
 });
 
+// ── 0608: purging is the managers', from the trash ─────────────────────────
+
+test('only an owner or co-owner removes a cluster for good, and only from the trash', () => {
+  assert.ok(latestMatch(/alter policy "boards delete by members" on public\.boards\s+using \(public\.can_manage_workspace\(workspace_id\) and deleted_at is not null\);/));
+  assert.ok(latestMatch(/alter policy "bv delete by writers" on public\.board_versions\s+using \(exists \(select 1 from public\.boards b\s+where b\.id = board_versions\.board_id\s+and public\.can_manage_workspace\(b\.workspace_id\)\)\);/));
+});
+
 // ── 0609: webhooks are read by the owner ───────────────────────────────────
 
 test('a webhook\'s address and deliveries are read by the workspace owner only', () => {
