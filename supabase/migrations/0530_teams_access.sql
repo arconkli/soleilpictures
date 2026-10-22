@@ -177,7 +177,10 @@ as $$
                    where m.workspace_id = ws and m.user_id = auth.uid()
                      and m.role = 'coowner')
        -- 0530: the team's owner and admins manage every team workspace.
-       or public._org_ws_role_for(ws, auth.uid()) = 'coowner'
+       -- Coalesced: with no team the role is NULL, and NULL here would make
+       -- this function NULL, which every `if not can_manage_workspace(…)`
+       -- guard reads as a pass.
+       or coalesce(public._org_ws_role_for(ws, auth.uid()) = 'coowner', false)
      );
 $$;
 
@@ -379,7 +382,7 @@ set search_path = public as $$
                           and m.user_id = l.created_by
                           and m.role = 'coowner')
             -- 0530: or a team owner/admin, who manages every team workspace.
-            or public._org_ws_role_for(l.workspace_id, l.created_by) = 'coowner'));
+            or coalesce(public._org_ws_role_for(l.workspace_id, l.created_by) = 'coowner', false)));
 $$;
 
 -- In a team workspace, a member reads names, never addresses: the email (and
