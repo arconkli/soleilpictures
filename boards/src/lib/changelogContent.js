@@ -279,6 +279,12 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": "."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A shared or published link to a cluster that opens in Files shows this page too, read-only."
+     }
     ]
    ]
   },
@@ -863,6 +869,12 @@ export const CHANGELOG_CONTENT = {
      {
       "t": "text",
       "v": "In Files, a tap opens a file and a hold opens its menu."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In Safari on an iPhone or iPad, a picture in the Files grid fills its tile instead of slipping down inside it."
      }
     ],
     [
