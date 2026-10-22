@@ -16,7 +16,7 @@ import { DOC_COLORS, FONTS, HEADING_OPTIONS, SIZES, readBar } from '../../lib/do
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, BookmarkSimple, ChatCircleText, Clapperboard, Code,
   CodeBlock, DownloadSimple, Eraser, FileHtml, FileText, Files, HighlighterCircle, Image, Italic, LayoutGrid, Link,
-  List, ListChecks, ListOrdered, MagnifyingGlassPlus, MarkdownLogo, Minus, MoreHorizontal, Plus, Printer, Quote,
+  List, ListChecks, ListOrdered, MagnifyingGlassPlus, MarkdownLogo, Minus, MoreHorizontal, PanelRight, Plus, Printer, Quote,
   Search, Strikethrough, Table, TextAUnderline, Type, Underline, Undo, Redo,
 } from '../../lib/icons.js';
 
@@ -24,6 +24,11 @@ import {
 // (direction A, with C's side panel; the toolbar canvas's A-doc frame):
 //
 //   Doc ▾ | ↶ ↷ | Body ▾ Serif ▾ 16 ▾ | B I U S </> A▾ ⌫ | • 1. ☑ ≡▾ | 🔗 💬 | +▾ | 🔍 ⋯
+//
+// A screenplay's (AC-script) is shorter: its element, title page, scene
+// numbers and dual dialogue are the side panel's Elements, so
+//
+//   Screenplay ▾ | ↶ ↷ | 🔗 💬 🔖 | ⋯
 //
 // It is always one row. As its room narrows (the side panel open, a pane
 // beside another doc, docked) groups fold into ⋯, in lib/docBarFold.js's
@@ -70,11 +75,12 @@ export function DocBarA({
   pageless = true, onTogglePageless, pagesShownContinuous = false,
   onInsertBookmark, onInsertImage, onInsertBoardEmbed, onOpenFind, onOpenLink, onAddComment,
   zoom = 1, fitEligible = false, onZoomIn, onZoomOut, onZoomReset,
-  canEdit = true, canExport = true,
+  canEdit = true, canExport = true, onOpenElements,
 }) {
   const lit = useEditorState({ editor, selector: () => readBar(editor) });
   const disabled = !editor;
   const isScreenplay = docMode === 'screenplay';
+  const kind = isScreenplay ? 'script' : 'doc';
 
   // How much of the row fits: measured from the room the row has, not from
   // the row (which is what changes).
@@ -88,7 +94,7 @@ export function DocBarA({
     const fit = () => {
       const cs = getComputedStyle(cap);
       const room = cap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-      setLevel(docBarFit(room, sizes));
+      setLevel(docBarFit(room, sizes, kind));
       // The find bar hangs below wherever the row ends (styles.css .doc-find).
       cap.parentElement?.style.setProperty('--doc-tb-bottom', `${cap.offsetTop + cap.offsetHeight}px`);
     };
@@ -96,7 +102,7 @@ export function DocBarA({
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
     ro?.observe(cap);
     return () => ro?.disconnect();
-  }, [coarse]);
+  }, [coarse, kind]);
 
   const customFonts = useCustomFonts();
   const recentFonts = useRecentFonts();
@@ -170,8 +176,8 @@ export function DocBarA({
     );
   }
 
-  const groups = docBarGroups(level);
-  const folded = new Set(docBarGroups.folded(level));
+  const groups = docBarGroups(level, kind);
+  const folded = new Set(docBarGroups.folded(level, kind));
   const styleName = block === 'code' ? 'Code' : block === 'quote' ? 'Quote'
     : HEADINGS.find((o) => o.value === block)?.label;
   const align = ALIGNS.find((a) => a.value === lit.align) || ALIGNS[0];
@@ -201,16 +207,20 @@ export function DocBarA({
     switch (id) {
       case 'doc':
       case 'docIcon':
+      case 'script':
+      case 'scriptIcon': {
+        const named = id === 'doc' || id === 'script';
         return (
           <MenuButton key="doc" keepFocus label="Doc type" icon={isScreenplay ? Clapperboard : FileText}
-                      text={id === 'doc' ? (isScreenplay ? 'Screenplay' : 'Doc') : undefined} select={id === 'doc'} caret
-                      className={id === 'doc' ? 'dl-w-doc' : 'dl-w-docicon'} disabled={disabled || !onToggleScreenplay}>
+                      text={named ? (isScreenplay ? 'Screenplay' : 'Doc') : undefined} select={named} caret
+                      className={named ? `dl-w-${id}` : 'dl-w-docicon'} disabled={disabled || !onToggleScreenplay}>
             <MenuItem icon={FileText} label="Document" sub="Headings, lists, pictures and tables" radio checked={!isScreenplay}
                       onSelect={() => { if (isScreenplay) onToggleScreenplay(); }} />
             <MenuItem icon={Clapperboard} label="Screenplay" sub="Scenes, characters and dialogue, set as a script"
                       radio checked={isScreenplay} onSelect={() => { if (!isScreenplay) onToggleScreenplay(); }} />
           </MenuButton>
         );
+      }
       case 'undo':
         return <Btn key={id} icon={Undo} label="Undo" keys="Mod+Z" disabled={disabled} onMouseDown={keep} onClick={() => run((c) => c.undo())} />;
       case 'redo':
@@ -297,9 +307,35 @@ export function DocBarA({
                       onSelect={() => onInsertBookmark?.(editor)} />
           </MenuButton>
         );
+      case 'bookmark':
+        return <Btn key={id} icon={BookmarkSimple} label="Bookmark this spot" disabled={disabled || !onInsertBookmark} onMouseDown={keep}
+                    onClick={() => onInsertBookmark?.(editor)} />;
       case 'find':
         return <Btn key={id} icon={Search} label="Find" keys="Mod+F" disabled={disabled} onMouseDown={keep} onClick={() => onOpenFind?.()} />;
       case 'more': {
+        if (isScreenplay) {
+          // What folded first, then the panel's Elements and Find, the zoom,
+          // the script's exports and the counts. A screenplay is always
+          // pages, so there's no Layout.
+          const rows = [];
+          if (folded.has('undo')) rows.push(<MenuItem key="undo" icon={Undo} label="Undo" keys="Mod+Z" onSelect={() => run((c) => c.undo())} />);
+          if (folded.has('redo')) rows.push(<MenuItem key="redo" icon={Redo} label="Redo" keys="Mod+Shift+Z" onSelect={() => run((c) => c.redo())} />);
+          if (folded.has('link')) rows.push(<MenuItem key="link" icon={Link} label="Link" keys="Mod+K" disabled={!lit.hasSelection} onSelect={() => onOpenLink?.(editor)} />);
+          if (folded.has('bookmark') && onInsertBookmark) rows.push(<MenuItem key="bookmark" icon={BookmarkSimple} label="Bookmark this spot" sub="Find it again under Bookmarks" onSelect={() => onInsertBookmark(editor)} />);
+          return (
+            <MenuButton key={id} keepFocus label="More" icon={MoreHorizontal} align="end" menuClassName="dl-more" disabled={disabled}>
+              {rows.length > 0 && <>{rows}<MenuSep /></>}
+              {onOpenElements && (
+                <MenuItem icon={PanelRight} label="Elements" sub="Scene heading, action, dialogue and the rest" onSelect={onOpenElements} />
+              )}
+              <MenuItem icon={Search} label="Find" keys="Mod+F" onSelect={() => onOpenFind?.()} />
+              <MenuSep />
+              {onZoomIn && <>{zoomRow}<MenuSep /></>}
+              {canExport && <><MenuHead>Export</MenuHead>{exportRows}<MenuSep /></>}
+              <Counts editor={editor} />
+            </MenuButton>
+          );
+        }
         const text = [];
         if (folded.has('font')) text.push(<MenuItem key="font" icon={Type} label="Font" value={fontLabel} submenu={fontRows} submenuClassName="dl-font-pop" />);
         if (folded.has('size')) {

@@ -5,7 +5,7 @@
 //   node --test src/lib/docBarFold.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { docBarGroups, docBarWidth, docBarFit, DOC_BAR_SIZES, FOLD_STEPS } from './docBarFold.js';
+import { docBarGroups, docBarWidth, docBarFit, DOC_BAR_SIZES, FOLD_STEPS, SCRIPT_FOLD_STEPS } from './docBarFold.js';
 
 const ids = (groups) => groups.map((g) => g.join(' '));
 
@@ -76,4 +76,39 @@ test('what is folded, in order, for ⋯ to hold', () => {
   assert.deepEqual(docBarGroups.folded(2), ['find', 'font', 'size']);
   assert.deepEqual(docBarGroups.folded(FOLD_STEPS.length),
     ['find', 'font', 'size', 'strike', 'code', 'clear', 'align', 'undo', 'redo', 'color', 'docLabel']);
+});
+
+// A screenplay's row (the mockup's AC-script): its element, title page, scene
+// numbers and dual dialogue are the side panel's Elements, so the row is its
+// type, undo and redo, link, comment and bookmark, and ⋯.
+test('a screenplay\'s row: Screenplay ▾ | ↶ ↷ | link comment bookmark | ⋯', () => {
+  assert.deepEqual(ids(docBarGroups(0, 'script')), ['script', 'undo redo', 'link comment bookmark', 'more']);
+});
+
+test('a screenplay\'s row folds the bookmark, the link, undo and redo, then its name', () => {
+  assert.deepEqual(ids(docBarGroups(1, 'script')), ['script', 'undo redo', 'link comment', 'more']);
+  assert.deepEqual(ids(docBarGroups(SCRIPT_FOLD_STEPS.length, 'script')), ['scriptIcon', 'comment', 'more']);
+  assert.deepEqual(docBarGroups.folded(2, 'script'), ['bookmark', 'link']);
+  for (let level = 0; level <= SCRIPT_FOLD_STEPS.length; level++) {
+    assert.equal(docBarGroups(level, 'script').flat().at(-1), 'more', `level ${level}`);
+  }
+});
+
+test('a screenplay\'s row narrows at every step, and fits where the doc\'s folds', () => {
+  for (const size of [DOC_BAR_SIZES.desktop, DOC_BAR_SIZES.touch]) {
+    let last = Infinity;
+    for (let level = 0; level <= SCRIPT_FOLD_STEPS.length; level++) {
+      const w = docBarWidth(docBarGroups(level, 'script'), size);
+      assert.ok(w < last, `level ${level} is ${w}, not under ${last}`);
+      last = w;
+    }
+  }
+  const s = DOC_BAR_SIZES.desktop;
+  // The Screenplay select is its own width, wider than Doc's.
+  assert.equal(docBarWidth([['script']], s), 4 + s.script + 4);
+  assert.ok(s.script > s.doc);
+  // Whole in a pane beside another doc (~520px), where the doc's row folds.
+  assert.equal(docBarFit(520, s, 'script'), 0);
+  assert.ok(docBarFit(520, s) > 0);
+  assert.equal(docBarFit(10, s, 'script'), SCRIPT_FOLD_STEPS.length);
 });

@@ -1331,9 +1331,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           {docMode === 'screenplay' ? 'Scenes' : 'Page list'}
         </button>
         )}
-        {/* The doc look's one row (a screenplay keeps today's bar until its
-            own row lands; a reader gets Find, the zoom and Export). */}
-        {!isPublic && lookA && (docMode !== 'screenplay' || !canEdit) && (
+        {/* The doc look's one row (a screenplay's is its own, its elements
+            in the side panel; a reader gets Find, the zoom and Export). */}
+        {!isPublic && lookA && (
           <Suspense fallback={<div className="dl-cap" aria-hidden="true"><div className="dl-bar-ph" /></div>}>
             <DocBarA editor={editorRef.current}
                      docName={board.name}
@@ -1356,10 +1356,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                      onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
                      onZoomReset={resetZoom}
                      canEdit={canEdit}
-                     canExport={allowExport} />
+                     canExport={allowExport}
+                     onOpenElements={() => setPanel({ open: true, tab: 'elements' })} />
           </Suspense>
         )}
-        {!isPublic && !(lookA && (docMode !== 'screenplay' || !canEdit)) && (
+        {!isPublic && !lookA && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
                     ydoc={ydoc}

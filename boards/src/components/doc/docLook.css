@@ -587,6 +587,7 @@ button.dl-drow { cursor: pointer; }
 /* The widths lib/docBarFold.js counts on (DOC_BAR_SIZES.desktop; .touch in
    the block under a finger below). */
 .dl-bar .tl-btn.dl-w-doc { width: 80px; }
+.dl-bar .tl-btn.dl-w-script { width: 128px; }
 .dl-bar .tl-btn.dl-w-docicon { width: 44px; }
 .dl-bar .tl-btn.dl-w-style { width: 96px; }
 .dl-bar .tl-btn.dl-w-font { width: 86px; }
@@ -708,6 +709,7 @@ button.dl-drow { cursor: pointer; }
   .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
   /* The bar's widths under a finger (DOC_BAR_SIZES.touch). */
   .dl-bar .tl-btn.dl-w-doc { width: 88px; }
+  .dl-bar .tl-btn.dl-w-script { width: 136px; }
   .dl-bar .tl-btn.dl-w-docicon { width: 52px; }
   .dl-bar .tl-btn.dl-w-style { width: 104px; }
   .dl-bar .tl-btn.dl-w-font { width: 96px; }
