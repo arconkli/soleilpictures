@@ -575,6 +575,8 @@ export function ShareModal({
   const askForRoom = async () => {
     if (askState) return;
     setAskState('asking');
+    // Settings › Preview's pretend numbers: nobody to tell, so it just says so.
+    if (editorLimit.previewing) { setAskState('sent'); return; }
     let result = 'error';
     try { result = await askOwnerForEditorSlot({ boardId: board?.id || null }); } catch (_) { result = 'error'; }
     try { logEventNow(EV.EDITOR_LIMIT_ASK_SENT, { result, surface: 'share_modal' }); } catch (_) {}

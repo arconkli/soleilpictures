@@ -241,3 +241,31 @@ export function revokeOps(row) {
   return (row?.grants || []).filter((g) => g.source === 'pending' && g.invite_id)
     .map((g) => ({ op: 'revoke', inviteId: g.invite_id }));
 }
+
+// An admin's preview of the limit's states (Settings › Preview, on preview and
+// dev only): the numbers say `state`, and in the admin's own account the
+// owner's list gains example people up to them. Look only: the doors still
+// count the real places. In someone else's workspace it's the non-owner's view.
+export const EDITOR_LIMIT_PREVIEW_STATES = ['near', 'full', 'full_ask'];
+export function applyEditorLimitPreview(cap, editors = [], state = null) {
+  if (!cap || !EDITOR_LIMIT_PREVIEW_STATES.includes(state)) return { cap, editors, previewing: false };
+  const limit = cap.limit || EDITOR_LIMIT;
+  const owner = state !== 'full_ask' && !!cap.isAccountOwner;
+  const real = owner ? editors : [];
+  const taken = Math.max(state === 'near' ? limit - 2 : limit, real.length);
+  const examples = [];
+  for (let i = real.length + 1; owner && i <= taken; i += 1) {
+    examples.push({
+      slot_key: `preview:${i}`, user_id: null, email: `example${i}@example.com`,
+      display_name: `Example person ${i}`, source: 'member', preview: true,
+      grants: [{ source: 'member', role: 'editor', workspace_id: null, workspace_name: 'Example workspace',
+                 board_id: null, board_name: null, invite_id: null, sent_at: null }],
+    });
+  }
+  return {
+    cap: { ...cap, enforced: true, used: taken, pending: 0, taken, left: Math.max(0, limit - taken),
+           full: taken >= limit, isAccountOwner: owner },
+    editors: owner ? [...real, ...examples] : [],
+    previewing: true,
+  };
+}

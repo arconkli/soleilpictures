@@ -7,6 +7,7 @@ import {
   editorLimitStage, editorLimitFull, firstName, ownerPlan, editorLimitNote, editorLimitRefusalMessage,
   noticeToastText, missedJoinedAsViewer, accountHolders, holdsPlace,
   accountEditorSub, makeViewerOps, removeOps, revokeOps,
+  applyEditorLimitPreview, EDITOR_LIMIT_PREVIEW_STATES,
 } from './editorLimit.js';
 
 test('a refusal is read from its hint, the way supabase-js hands it over', () => {
@@ -201,4 +202,68 @@ test('the hold opens on the preview host and nowhere else in a build', () => {
   assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
   assert.doesNotMatch(body.trim(), /^return true;$/);
   assert.match(host, /^\s*editorLimit: editorLimitAllowed,$/m);
+});
+
+// Settings › Preview: an admin's pretend numbers (look only).
+const previewCap = (o = {}) => normalizeEditorCapacity({
+  enforced: false, editor_limit: 10, used: 4, pending: 0, is_full: false, i_am_account_owner: true, ...o,
+});
+const realRows = (n) => Array.from({ length: n }, (_, i) => ({
+  slot_key: `u:${i}`, user_id: `u${i}`, email: `p${i}@x.io`, display_name: `P${i}`, source: 'member', grants: [],
+}));
+
+test('the preview states are near, full and full_ask', () => {
+  assert.deepEqual(EDITOR_LIMIT_PREVIEW_STATES, ['near', 'full', 'full_ask']);
+});
+
+test('no preview state, or an unknown one, changes nothing', () => {
+  const cap = previewCap();
+  const rows = realRows(3);
+  for (const state of [undefined, null, 'bogus']) {
+    const out = applyEditorLimitPreview(cap, rows, state);
+    assert.equal(out.cap, cap);
+    assert.equal(out.editors, rows);
+    assert.equal(out.previewing, false);
+  }
+});
+
+test('near: the owner sees 8 taken, 2 left, the examples after the real rows', () => {
+  const out = applyEditorLimitPreview(previewCap(), realRows(3), 'near');
+  assert.equal(out.previewing, true);
+  assert.equal(out.cap.taken, 8);
+  assert.equal(out.cap.left, 2);
+  assert.equal(out.cap.full, false);
+  assert.equal(out.cap.enforced, true);
+  assert.equal(out.editors.length, 8);
+  assert.equal(out.editors.filter((r) => r.preview).length, 5);
+  assert.ok(out.editors.slice(3).every((r) => r.preview));
+});
+
+test('full: the owner sees 10 of 10', () => {
+  const out = applyEditorLimitPreview(previewCap(), realRows(3), 'full');
+  assert.equal(out.cap.taken, 10);
+  assert.equal(out.cap.left, 0);
+  assert.equal(out.cap.full, true);
+  assert.equal(out.editors.length, 10);
+});
+
+test('full_ask: a co-owner sees it full and no list', () => {
+  const out = applyEditorLimitPreview(previewCap(), realRows(3), 'full_ask');
+  assert.equal(out.cap.isAccountOwner, false);
+  assert.equal(out.cap.full, true);
+  assert.deepEqual(out.editors, []);
+});
+
+test('in someone else\'s workspace the preview is the non-owner\'s view', () => {
+  const out = applyEditorLimitPreview(previewCap({ i_am_account_owner: false }), [], 'full');
+  assert.equal(out.cap.isAccountOwner, false);
+  assert.equal(out.cap.full, true);
+  assert.deepEqual(out.editors, []);
+});
+
+test('real rows above the target are all kept', () => {
+  const out = applyEditorLimitPreview(previewCap(), realRows(9), 'near');
+  assert.equal(out.cap.taken, 9);
+  assert.equal(out.editors.length, 9);
+  assert.equal(out.editors.filter((r) => r.preview).length, 0);
 });

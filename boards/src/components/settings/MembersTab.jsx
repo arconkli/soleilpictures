@@ -199,7 +199,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
   return (
     <div className="settings-tab-body">
       {editorLimitAllowed() && canManage && limitCap?.enforced && (
-        <AccountEditorsCard cap={limitCap} editors={editorLimit.editors} ownerName={ownerName}
+        <AccountEditorsCard cap={limitCap} editors={editorLimit.editors} previewing={editorLimit.previewing} ownerName={ownerName}
                             selfId={user?.id}
                             onChanged={async () => { await load(); await editorLimit.refresh(); }} />
       )}

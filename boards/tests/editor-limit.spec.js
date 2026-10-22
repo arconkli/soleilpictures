@@ -23,8 +23,13 @@ const grant = (o) => ({
 });
 
 // rpc: { name: json | (route) => fulfill }. Anything unnamed answers [].
-async function boot(page, rpc = {}) {
-  await page.addInitScript(() => { try { localStorage.setItem('soleil.dev.editorLimit', '1'); } catch (_) {} });
+async function boot(page, rpc = {}, { previewAs = null } = {}) {
+  await page.addInitScript((as) => {
+    try {
+      localStorage.setItem('soleil.dev.editorLimit', '1');
+      if (as) localStorage.setItem('soleil.preview.editorLimitAs', as);
+    } catch (_) {}
+  }, previewAs);
   await page.route('https://example.supabase.co/rest/v1/rpc/**', (route) => {
     const name = route.request().url().split('/rpc/')[1].split('?')[0];
     const answer = rpc[name];
@@ -114,6 +119,28 @@ test('someone else asks the owner by name, and is told it went', async ({ page }
   await note.getByRole('button', { name: 'Ask Alex for room' }).click();
   await expect(note.locator('.lim-done')).toHaveText('We told Alex you’d like to add an editor.');
   expect(asked[0]?.p_board_id).toBe(BOARD);
+});
+
+// Settings › Preview (an admin's pretend numbers): the real account is 4 of
+// 10 and not enforced, and the panel still shows the state asked for.
+test('preview full: the owner sees the full panel on an account that is nowhere near it', async ({ page }) => {
+  await boot(page, { get_editor_capacity: capRow({ enforced: false, used: 4 }) }, { previewAs: 'full' });
+  const panel = await mountPanel(page, {
+    members: [{ user_id: NORA, role: 'viewer' }],
+    peers: [{ user: { id: NORA, name: 'Nora Quinn' } }],
+  });
+  await expect(panel.locator('.lim-note')).toContainText('No places left for people who can edit.');
+  const access = panel.locator('select[aria-label="Access level for invitees"]');
+  await expect(access.locator('option[value="editor"]')).toBeDisabled();
+  await expect(access.locator('option[value="editor"]')).toHaveText('Can edit — full');
+  const nora = panel.locator('.share-row', { hasText: 'Nora Quinn' }).locator('select');
+  await expect(nora.locator('option[value="editor"]')).toHaveText('Workspace · can edit — full');
+});
+
+test('preview near: the owner is told 2 places are left', async ({ page }) => {
+  await boot(page, { get_editor_capacity: capRow({ enforced: false, used: 4 }) }, { previewAs: 'near' });
+  const panel = await mountPanel(page);
+  await expect(panel.locator('.lim-note')).toContainText('2 places left for people who can edit.');
 });
 
 test('a refusal the panel did not see coming says so, keeps the address, and the next send goes out to view', async ({ page }) => {

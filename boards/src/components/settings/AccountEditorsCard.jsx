@@ -20,6 +20,8 @@ import {
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 
+const EXAMPLE_TITLE = 'An example person, for the preview';
+
 const RUN = {
   member_role: (o) => setWorkspaceMemberRole({ workspaceId: o.workspaceId, userId: o.userId, role: o.role }),
   share_role: (o) => shareBoard({ boardId: o.boardId, email: o.email, role: o.role }),
@@ -28,7 +30,7 @@ const RUN = {
   revoke: (o) => revokePendingInvite(o.inviteId),
 };
 
-export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId = null, onChanged }) {
+export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId = null, onChanged, previewing = false }) {
   const feedback = useFeedback();
   const [busy, setBusy] = useState(null);   // the slot_key whose change is running
   const owner = !!cap?.isAccountOwner;
@@ -119,9 +121,11 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
                               onClick={() => revoke(row)}>Revoke</button>
                     ) : (
                       <>
-                        <button type="button" className="settings-link-btn" disabled={!!busy}
+                        <button type="button" className="settings-link-btn" disabled={!!busy || !!row.preview}
+                                title={row.preview ? EXAMPLE_TITLE : undefined}
                                 onClick={() => makeViewer(row)}>Make viewer</button>
-                        <button type="button" className="settings-link-btn is-danger" disabled={!!busy}
+                        <button type="button" className="settings-link-btn is-danger" disabled={!!busy || !!row.preview}
+                                title={row.preview ? EXAMPLE_TITLE : undefined}
                                 onClick={() => remove(row)}>Remove</button>
                       </>
                     )}
@@ -131,6 +135,9 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
             );
           })}
         </ul>
+      )}
+      {previewing && (
+        <p className="settings-section-hint">Preview: pretend numbers and example people, only you see them. Settings › Preview turns it off.</p>
       )}
     </SettingsCategory>
   );
