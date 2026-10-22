@@ -45,3 +45,28 @@ test('a workspace rewind refuses a cluster from any other workspace', () => {
   assert.match(latestDefinition('perform_board_restore').body, /WHERE id = p_target_snapshot_id AND board_id = p_board_id/,
     'a snapshot restores only its own cluster');
 });
+
+// ── 0602: a conversation is read by the people in it ───────────────────────
+
+test('clients change only read and hide state on a participant row, and only the title of a conversation', () => {
+  assert.ok(latestMatch(/revoke update on table public\.conversation_participants from authenticated, anon;\s*grant update \(last_read_at, left_at\) on table public\.conversation_participants to authenticated;/));
+  assert.ok(latestMatch(/revoke update on table public\.conversations from authenticated, anon;\s*grant update \(title, last_message_at\) on table public\.conversations to authenticated;/));
+});
+
+test('a link from a message never carries the message text, and only its conversation can read it', () => {
+  const tg = latestDefinition('_tg_entity_links_message_context').body;
+  assert.match(tg, /if new\.source_kind = 'message' then\s+new\.context_text := null;/);
+  assert.ok(latestMatch(/create or replace trigger entity_links_message_context\s+before insert or update on public\.entity_links/));
+  const policy = latestMatch(/alter policy "entity_links read" on public\.entity_links using \(([\s\S]*?)\n\);/);
+  assert.ok(policy, 'the read policy is restated');
+  assert.match(policy.match[1], /when source_kind = 'message' then exists \(\s*select 1 from public\.messages m\s+where m\.id::text = entity_links\.source_id\s+and public\.is_conversation_participant\(m\.conversation_id\)\)/);
+});
+
+test('mention search reads only the caller\'s conversations, matches literally and pages small', () => {
+  const def = latestDefinition('get_entity_mentions').body;
+  const participant = def.match(/is_conversation_participant\(m\.conversation_id\)/g) || [];
+  assert.equal(participant.length, 2, 'both the message rows and their count are limited to the caller\'s conversations');
+  assert.match(def, /replace\(replace\(replace\(pat, '\\', '\\\\'\), '%', '\\%'\), '_', '\\_'\)/, '% and _ are matched literally');
+  assert.match(def, /lim\s+int := least\(greatest\(coalesce\(p_limit, 6\), 1\), 24\);/);
+  assert.ok(!/ilike '%' \|\| pat \|\| '%'/.test(def) && !/like '%' \|\| pat \|\| '%'/.test(def), 'no unescaped pattern is left');
+});
