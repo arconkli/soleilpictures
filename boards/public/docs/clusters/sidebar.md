@@ -87,9 +87,10 @@ clusters in the card above.
 ## The full Files page
 
 ⤢ at the top right of Files, or `F`, opens the cluster's files full screen:
-the [full Files page](/docs/clusters/list-view), with folders, a grid or a
-list, Info and downloads. The same icon, turned around, or `F` again, brings
-the board back. Opening the page this way is yours alone; it never changes how
+the [full Files page](/docs/clusters/list-view) — this card grown, with
+folders, a grid or a list, Info and downloads. While it's open, this card
+folds to a bar, **Files · full screen**, so the files are listed once; its
+**Shrink**, `F` again or `⌘\` brings the board back. Opening the page this way is yours alone; it never changes how
 the cluster opens for anyone else. To make a cluster open in Files for
 everyone, choose **Always open in Files** from its menu in the sidebar.
 
@@ -143,7 +144,8 @@ row shows the upload's progress.
 - **Hide**, on the Files card, or `⌘\`, folds Files to a **Files** bar under
   your clusters and gives the board the room. Press the bar, or `⌘\` again, to
   bring it back. (Inside a note or a doc, `⌘\` clears formatting instead.)
-  `⌘K` → "Hide files in the sidebar" does the same.
+  `⌘K` → "Hide files in the sidebar" does the same. While the full Files page
+  is open, the card is already folded, and `⌘\` brings the board back instead.
 - `⌘B`, or the button at the top of the sidebar, hides the whole sidebar.
 - **Each card has its own size.** Drag a card's right edge, its bottom edge or
   its corner. Double-click a handle to put that size back.

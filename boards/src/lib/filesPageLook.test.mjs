@@ -1,6 +1,7 @@
-// filesPageLook.test.mjs — direction A's look for the full Files page stays
-// behind its own hold, App alone decides it, and production's page carries
-// none of it.
+// filesPageLook.test.mjs — direction A's look for the full Files page has one
+// switch (lifted for the sidebar release), App alone decides it from that
+// switch, and a page that isn't handed the look (LocalBoardsApp,
+// PublicBoardView) carries none of it.
 //
 //   node --test src/lib/filesPageLook.test.mjs
 import { test } from 'node:test';
@@ -14,20 +15,11 @@ const src = path.join(here, '..');
 const read = (p) => readFileSync(path.join(src, p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
-test('the hold needs the files sidebar and is closed on production', () => {
-  const body = holdBody('filesPageLookAllowed');
-  assert.match(body, /if \(!sidebarFilesAllowed\(\)\) return false;/);
-  assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
-  assert.doesNotMatch(body.trim(), /^return true;$/);
+test('the hold is lifted, and stays the one switch in the feature-flag list', () => {
+  // Lifted for the sidebar release (2026-10-21) as the holds beside it were:
+  // by becoming `return true;`, never by deleting the function App reads.
+  assert.equal(holdBody('filesPageLookAllowed').trim(), 'return true;');
   assert.match(read('lib/appHost.js'), /^\s*filesPageLook: filesPageLookAllowed,$/m);
-});
-
-test('the look opens on the preview host and nowhere else in a build', () => {
-  const body = holdBody('filesPageLookAllowed');
-  assert.match(body, /if \(onPreviewHost\(\)\) return true;/);
-  assert.doesNotMatch(body.trim(), /^return true;$/);
-  // Never ahead of the files sidebar it lives in.
-  assert.ok(body.indexOf('sidebarFilesAllowed()') < body.indexOf('onPreviewHost()'), 'the sidebar check comes first');
 });
 
 test('App alone decides the look, from the hold', () => {

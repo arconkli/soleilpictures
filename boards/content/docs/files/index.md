@@ -121,7 +121,7 @@ back.
 
 With a finger, a tap on a file in Files opens it in Quick look, and touching
 and holding it opens its menu, whose **Select** lets each tap pick another file
-for the bar along the bottom: put them on the board, move, copy or delete them. See
+for the selection bar: put them on the board, move, copy or delete them. See
 [Files with a finger](/docs/account/mobile#files-with-a-finger).
 
 ## Versions

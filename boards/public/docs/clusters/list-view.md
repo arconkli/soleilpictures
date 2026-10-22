@@ -16,10 +16,15 @@ A cluster's files are always listed in the sidebar's
 `F`, or ⤢ at the top right of that card, and they fill the screen. Each
 shelf's ⤢ in the sidebar opens the page on just that kind of file.
 
+The page is that card grown: the cluster's name at the top, the same search
+and **All files ⌄** menu, and the same shelves. While it's open, the card in
+the sidebar folds to a bar — **Files · full screen** — so your files are
+listed once.
+
 | To do this | Do this |
 |---|---|
 | Open the full Files page | `F`, or ⤢ on the sidebar's Files card |
-| Go back to the board | `F` again, or the shrink button at the top right, beside **Download all** |
+| Go back to the board | `F` again, `⌘\`, or **Shrink** — at the top right of the page, or on the folded Files card in the sidebar |
 | Find a file on the board | **Show on board** in its menu, in Quick look or in Info — the board brings it into view and selects it |
 | Put a file somewhere on the board | Drag it from the sidebar's Files onto the board |
 
@@ -63,8 +68,9 @@ card limit, and anyone the cluster is shared with sees them in Files.
 
 ## Folders and the path bar
 
-A cluster's nested clusters are its folders. They sit first, as compact rows —
-the cluster's colour dot (or its cover), its name and how many items are inside —
+A cluster's nested clusters are its folders. They come first — in the grid as
+tiles along the top, with the cluster's colour dot (or its cover), its name
+and how many items are inside, and in the list as the table's first rows —
 with the files after them.
 
 **Double-click a folder to open it.** You go there and stay in Files, and the
@@ -84,22 +90,26 @@ You land in that cluster once the move is saved. Let go anywhere else, or press
 
 ## Grid and list
 
-**Grid** — a tile per item with a real preview, laid out in rows that fill the
-width. Pictures keep their own shape — a portrait stays tall, a panorama stays
-wide — instead of being cropped to a box. The default, because most of what
-you are looking for you would recognise by sight; for audio the preview is the
-waveform, so no two loops look the same. **S**, **M** and **L** set the tile
-size, remembered on your device.
+**Grid** — the sidebar card's shelves, grown. **Photos** and **Video** are a
+gallery laid out in rows that fill the width: pictures keep their own shape — a
+portrait stays tall, a panorama stays wide — instead of being cropped to a box,
+and the picture is the name; hover one to read it. **Audio** and **Files**
+follow as rows, and **Notes**, **Links** and **Other** start folded — click
+one's name to open it. The default, because most of what you are looking for
+you would recognise by sight. **Size** in the **All files ⌄** menu — Small,
+Medium or Large — sets how big the pictures are, remembered on your device.
 
-**List** — a row per item, with type, size and dates. Dense, scannable,
-sortable. A cluster that is mostly audio opens in the list, for the columns
-below.
+**List** — a classic list: one table of everything, clusters first, with
+**Kind**, **Size** and the date, every other row faintly shaded. Dense,
+scannable, sortable — click a column's heading. A cluster that is mostly audio
+opens in the list, for the columns below.
 
-Your choice is remembered per cluster on the device you made it on.
+**Grid** and **List** sit beside the search (on a phone or tablet, in the
+**All files ⌄** menu). Your choice is remembered per cluster on the device you made it on.
 
 ## When a cluster is mostly audio
 
-The list swaps its columns. **Type** and **Size** give way to **Time**,
+The list swaps its columns. **Kind** and **Size** give way to **Time**,
 **BPM**, **Key** and **Format**, and each one sorts — so a folder of samples
 becomes something you can order by tempo or by key.
 
@@ -114,33 +124,35 @@ other rather than A, B, C.
 Tempo and key come from the filename as the file uploads, and are editable on
 the card — see [video and audio](/docs/files/video-and-audio).
 
-Above the list you get the pack in one line: **how many audio files, the tempo
-range they span, and how much material there is in total**. It follows the
-search and the filters, so narrowing to `128` re-reads the selection you are
-actually looking at.
+Beside the search — except on a phone or tablet — you get the pack in one line: **how
+many audio files, the tempo range they span, and how much material there is in
+total**. Search or filter, and the line counts what's showing instead
+(*14 of 60*).
 
-On a narrow window, in a split pane, or with Info open, columns
-drop in order of how much they matter — the waveform first, then Format and the
-date — and on a phone the remaining values fold onto a second line under the
-filename. The name is the last thing to give up room.
+On a narrow window, in a split pane, or with Info open, the columns that
+matter least give way first, until on a phone only the name is left. The name
+is the last thing to give up room.
 
 ## Sorting and filtering
 
-Both live in the **View** menu, beside the search field.
+Both live in the **All files ⌄** menu beside the search field — the same menu,
+in the same words, as the sidebar's Files card.
 
-Files opens in **board order**: the canvas read like a page, top row first and
+Files opens **newest first**, by date added. The menu also sorts by **Name**,
+**Size** or **Canvas order**: the canvas read like a page, top row first and
 each row left to right, so what you see is the board you just left, lined up.
-Sort by **name**, **type**, **size**, **date modified** or **date added**
-instead — plus **length**, **tempo**, **key** and **format** when the cluster is
-mostly audio.
+In the list, click a column's heading to sort by it — name, kind, size or date,
+plus **time**, **tempo**, **key** and **format** when the cluster is mostly
+audio — and the menu shows that sort as the one in force.
 
-**Show only** narrows to a content type: Images, PDFs, Video, Audio, Files,
-Notes, Links, Docs, Palettes, Other — or to files that are **Not on board**.
+**Show** narrows to one shelf — Photos, Video, Audio, Files, Notes or Links,
+whichever the cluster has — or to files that are **Not on board**, and the
+menu takes its name: **Photos ⌄**.
 
 **Search** filters as you type, against names and content.
 
 The combination is the answer to "where is that PDF someone dropped in here last
-week" — filter to PDFs, sort by date added, done. On the canvas that is a
+week" — show the **Files** shelf, newest first, done. On the canvas that is a
 hunting expedition.
 
 ## Selecting and moving
@@ -153,7 +165,7 @@ or press `Esc` to clear it. The arrow keys move a highlight through the files,
 folder (`Enter` opens it) and then the files, which take one `Tab` stop between
 them: the arrows move inside it.
 
-A selection gets a bar along the bottom:
+Select something and the search line gives way to a bar:
 
 | Action | What it does |
 |---|---|
@@ -172,7 +184,7 @@ folder opens and a file opens in [Quick look](#quick-look). Touch and hold a
 file or a folder for its menu, the same one a right-click opens, with
 **Select** first. **Select** puts a check on every file, and each tap then adds
 one or takes it out; a hold adds the one it is on and opens the menu for them
-all. The bar along the bottom gains **Copy to…**, since there is no right-click
+all. The bar gains **Copy to…**, since there is no right-click
 to find it, and ends with **Done**. A hold opens the menu rather than picking a
 file up, so a finger moves files with **Move to…** or **Put on board**, not by
 dragging. A trackpad or mouse on a tablet still clicks and selects as it does
@@ -199,8 +211,8 @@ jump there — the fastest way to the part of a long sample you actually want. A
 line fills along the bottom of the row as well, for when the waveform has no
 room.
 
-In the **grid** a loop's tile *is* its waveform, so a pack reads as a wall
-of shapes rather than a wall of identical icons.
+In the **grid**, audio has a shelf of its own, as rows with the same play
+button and waveform.
 
 For going through a lot of them, use the keyboard: `↑` and `↓` move a
 highlight down the rows (the arrows walk the tiles in the grid), `Space` plays
@@ -222,8 +234,9 @@ extension. Images and videos uploaded before they started keeping names come
 down under the card's title, or a generic name if it has none. A name a browser invents for a pasted image — `image.png` — is
 not kept.
 
-**Download all** sits above the files whenever there is more than one file to
-take. It follows the search and the filters, so it reads *Download 14* once you
+**Download all** sits at the top right of the page, beside **Shrink**, whenever
+there is more than one file to take (on a phone or tablet, select them and use
+**Download** on the bar). It follows the search and the filters, so it reads *Download 14* once you
 have narrowed to fourteen. Select particular rows instead and the selection bar
 offers **Download** for just those.
 
@@ -251,8 +264,9 @@ to look around — video and audio play, PDFs page through with `↑` / `↓`, a
 everything else shows its preview large. `←` / `→` step to the previous and
 next file, in the order Files is showing them. `Space` or `Esc` closes it.
 
-Along the top: **Show on board** (or **Show in cluster**, for a file you're
-browsing in another cluster), **Download**, and **Info**.
+A bar floats along the top: the file's name and where it is among the files
+(*Image · 3 of 30*), then **Show on board** (or **Show in cluster**, for a file
+you're browsing in another cluster), **Download** and **Info**.
 
 On an audio row in the List layout, `Space` still auditions it in place, so a
 pack plays through with `↓` and `Space`.
@@ -265,7 +279,8 @@ large preview, its kind and format, size, dimensions, who uploaded it and
 exactly when, and where it lives; a folder's contents; a summary of several
 things; and, with nothing selected, the cluster you're in. The same
 [Info](/docs/canvas/cards#info) opens from the board. On the Files page it
-sits beside the list, and whether it's open is remembered on your device.
+opens as a card beside the files (on a phone or tablet, as a sheet from the bottom), and
+whether it's open is remembered on your device.
 From there:
 
 | Action | What it does |
@@ -290,7 +305,8 @@ version…** too.
 
 ## Adding files here
 
-Drag files into Files, or use **Add files** in the toolbar. They join the
+Drag files into Files, or use **Add files** beside the search — on a phone or
+tablet, the **+** in the bottom bar. They join the
 cluster without going on its board: they wait in Files, marked
 [**Not on board**](#not-on-board), until you drag them onto the board or choose
 **Put on board**. The same goes for **Upload** in the sidebar — dropping on the

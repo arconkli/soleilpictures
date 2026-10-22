@@ -1547,7 +1547,7 @@ Files referenced by a board are protected from cleanup for as long as the board 
 
 On a phone or tablet
 
-With a finger, a tap on a file in Files opens it in Quick look, and touching and holding it opens its menu, whose Select lets each tap pick another file for the bar along the bottom: put them on the board, move, copy or delete them. See Files with a finger.
+With a finger, a tap on a file in Files opens it in Quick look, and touching and holding it opens its menu, whose Select lets each tap pick another file for the selection bar: put them on the board, move, copy or delete them. See Files with a finger.
 
 Versions
 
@@ -2013,7 +2013,7 @@ Selecting several
 
 The full Files page
 
-⤢ at the top right of Files, or F, opens the cluster's files full screen: the full Files page, with folders, a grid or a list, Info and downloads. The same icon, turned around, or F again, brings the board back. Opening the page this way is yours alone; it never changes how the cluster opens for anyone else. To make a cluster open in Files for everyone, choose Always open in Files from its menu in the sidebar.
+⤢ at the top right of Files, or F, opens the cluster's files full screen: the full Files page — this card grown, with folders, a grid or a list, Info and downloads. While it's open, this card folds to a bar, Files · full screen, so the files are listed once; its Shrink, F again or ⌘\ brings the board back. Opening the page this way is yours alone; it never changes how the cluster opens for anyone else. To make a cluster open in Files for everyone, choose Always open in Files from its menu in the sidebar.
 
 Moving and copying files
 
@@ -2042,7 +2042,7 @@ Upload beside it adds files to the cluster you are in, or, from Home, to a clust
 
 Hiding Files, and sizing the cards
 
-Hide, on the Files card, or ⌘\, folds Files to a Files bar under your clusters and gives the board the room. Press the bar, or ⌘\ again, to bring it back. (Inside a note or a doc, ⌘\ clears formatting instead.) ⌘K → "Hide files in the sidebar" does the same.
+Hide, on the Files card, or ⌘\, folds Files to a Files bar under your clusters and gives the board the room. Press the bar, or ⌘\ again, to bring it back. (Inside a note or a doc, ⌘\ clears formatting instead.) ⌘K → "Hide files in the sidebar" does the same. While the full Files page is open, the card is already folded, and ⌘\ brings the board back instead.
 ⌘B, or the button at the top of the sidebar, hides the whole sidebar.
 Each card has its own size. Drag a card's right edge, its bottom edge or its corner. Double-click a handle to put that size back.
 Side by side or stacked. Files sits under the clusters, or beside them. The button at the top of Files switches, and dragging a stacked card wide enough puts Files beside the clusters on its own; dragging the pair narrow enough stacks them again. Side by side chosen with the button stays that way until you press it again. A window too narrow for both keeps them stacked.
@@ -2086,9 +2086,11 @@ Opening the full Files page
 
 A cluster's files are always listed in the sidebar's Files card. When you want only files, press F, or ⤢ at the top right of that card, and they fill the screen. Each shelf's ⤢ in the sidebar opens the page on just that kind of file.
 
+The page is that card grown: the cluster's name at the top, the same search and All files ⌄ menu, and the same shelves. While it's open, the card in the sidebar folds to a bar — Files · full screen — so your files are listed once.
+
 To do this | Do this
 Open the full Files page | F, or ⤢ on the sidebar's Files card
-Go back to the board | F again, or the shrink button at the top right, beside Download all
+Go back to the board | F again, ⌘\, or Shrink — at the top right of the page, or on the folded Files card in the sidebar
 Find a file on the board | Show on board in its menu, in Quick look or in Info — the board brings it into view and selects it
 Put a file somewhere on the board | Drag it from the sidebar's Files onto the board
 
@@ -2112,7 +2114,7 @@ Files waiting off the board are still cards: they count toward your plan's card 
 
 Folders and the path bar
 
-A cluster's nested clusters are its folders. They sit first, as compact rows — the cluster's colour dot (or its cover), its name and how many items are inside — with the files after them.
+A cluster's nested clusters are its folders. They come first — in the grid as tiles along the top, with the cluster's colour dot (or its cover), its name and how many items are inside, and in the list as the table's first rows — with the files after them.
 
 Double-click a folder to open it. You go there and stay in Files, and the cluster above it sits over the title as ‹ its name — click it to go up. The full path is in the breadcrumb at the top of the screen.
 
@@ -2124,15 +2126,15 @@ You land in that cluster once the move is saved. Let go anywhere else, or press 
 
 Grid and list
 
-Grid — a tile per item with a real preview, laid out in rows that fill the width. Pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same. S, M and L set the tile size, remembered on your device.
+Grid — the sidebar card's shelves, grown. Photos and Video are a gallery laid out in rows that fill the width: pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box, and the picture is the name; hover one to read it. Audio and Files follow as rows, and Notes, Links and Other start folded — click one's name to open it. The default, because most of what you are looking for you would recognise by sight. Size in the All files ⌄ menu — Small, Medium or Large — sets how big the pictures are, remembered on your device.
 
-List — a row per item, with type, size and dates. Dense, scannable, sortable. A cluster that is mostly audio opens in the list, for the columns below.
+List — a classic list: one table of everything, clusters first, with Kind, Size and the date, every other row faintly shaded. Dense, scannable, sortable — click a column's heading. A cluster that is mostly audio opens in the list, for the columns below.
 
-Your choice is remembered per cluster on the device you made it on.
+Grid and List sit beside the search (on a phone or tablet, in the All files ⌄ menu). Your choice is remembered per cluster on the device you made it on.
 
 When a cluster is mostly audio
 
-The list swaps its columns. Type and Size give way to Time, BPM, Key and Format, and each one sorts — so a folder of samples becomes something you can order by tempo or by key.
+The list swaps its columns. Kind and Size give way to Time, BPM, Key and Format, and each one sorts — so a folder of samples becomes something you can order by tempo or by key.
 
 It switches on its own once half of what you are looking at is audio, which is also true the moment you filter to Audio. Nothing to turn on, and a cluster of notes and images never grows four empty columns.
 
@@ -2140,27 +2142,27 @@ Key sorts by the circle of fifths, not the alphabet. Sorting a pack by key is re
 
 Tempo and key come from the filename as the file uploads, and are editable on the card — see video and audio.
 
-Above the list you get the pack in one line: how many audio files, the tempo range they span, and how much material there is in total. It follows the search and the filters, so narrowing to 128 re-reads the selection you are actually looking at.
+Beside the search — except on a phone or tablet — you get the pack in one line: how many audio files, the tempo range they span, and how much material there is in total. Search or filter, and the line counts what's showing instead (14 of 60).
 
-On a narrow window, in a split pane, or with Info open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room.
+On a narrow window, in a split pane, or with Info open, the columns that matter least give way first, until on a phone only the name is left. The name is the last thing to give up room.
 
 Sorting and filtering
 
-Both live in the View menu, beside the search field.
+Both live in the All files ⌄ menu beside the search field — the same menu, in the same words, as the sidebar's Files card.
 
-Files opens in board order: the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. Sort by name, type, size, date modified or date added instead — plus length, tempo, key and format when the cluster is mostly audio.
+Files opens newest first, by date added. The menu also sorts by Name, Size or Canvas order: the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. In the list, click a column's heading to sort by it — name, kind, size or date, plus time, tempo, key and format when the cluster is mostly audio — and the menu shows that sort as the one in force.
 
-Show only narrows to a content type: Images, PDFs, Video, Audio, Files, Notes, Links, Docs, Palettes, Other — or to files that are Not on board.
+Show narrows to one shelf — Photos, Video, Audio, Files, Notes or Links, whichever the cluster has — or to files that are Not on board, and the menu takes its name: Photos ⌄.
 
 Search filters as you type, against names and content.
 
-The combination is the answer to "where is that PDF someone dropped in here last week" — filter to PDFs, sort by date added, done. On the canvas that is a hunting expedition.
+The combination is the answer to "where is that PDF someone dropped in here last week" — show the Files shelf, newest first, done. On the canvas that is a hunting expedition.
 
 Selecting and moving
 
 Click a file to select it, ⌘-click to add to the selection, ⇧-click for a range, ⌘A for everything showing. In the grid, the round check that appears in a tile's corner on hover adds it without a modifier key. Click empty space or press Esc to clear it. The arrow keys move a highlight through the files, Enter selects it and ⇧Space adds it to the selection. Tab reaches each folder (Enter opens it) and then the files, which take one Tab stop between them: the arrows move inside it.
 
-A selection gets a bar along the bottom:
+Select something and the search line gives way to a bar:
 
 Action | What it does
 Download | The files, as a zip when there's more than one — see below
@@ -2171,7 +2173,7 @@ Dragging files onto one of the folders above them moves them into that cluster t
 
 With a finger
 
-On a touch screen a tap opens what it lands on, as the iPad's Files app does: a folder opens and a file opens in Quick look. Touch and hold a file or a folder for its menu, the same one a right-click opens, with Select first. Select puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar along the bottom gains Copy to…, since there is no right-click to find it, and ends with Done. A hold opens the menu rather than picking a file up, so a finger moves files with Move to… or Put on board, not by dragging. A trackpad or mouse on a tablet still clicks and selects as it does on a computer.
+On a touch screen a tap opens what it lands on, as the iPad's Files app does: a folder opens and a file opens in Quick look. Touch and hold a file or a folder for its menu, the same one a right-click opens, with Select first. Select puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar gains Copy to…, since there is no right-click to find it, and ends with Done. A hold opens the menu rather than picking a file up, so a finger moves files with Move to… or Put on board, not by dragging. A trackpad or mouse on a tablet still clicks and selects as it does on a computer.
 
 Right-click a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Copy to…, Get info and Delete — or press ⇧F10 to open the same menu from the keyboard.
 
@@ -2181,7 +2183,7 @@ Auditioning audio
 
 An audio row's thumbnail is a play button. Press it and the clip plays in place. The waveform beside it is drawn from the file itself, and it fills as the clip plays. While it is playing, click anywhere along that waveform to jump there — the fastest way to the part of a long sample you actually want. A line fills along the bottom of the row as well, for when the waveform has no room.
 
-In the grid a loop's tile is its waveform, so a pack reads as a wall of shapes rather than a wall of identical icons.
+In the grid, audio has a shelf of its own, as rows with the same play button and waveform.
 
 For going through a lot of them, use the keyboard: ↑ and ↓ move a highlight down the rows (the arrows walk the tiles in the grid), Space plays whatever is highlighted, Enter selects it. When a clip finishes, the next audio row starts on its own and the highlight follows — so a pack of loops plays through while you keep your hands still. It stops at the end rather than wrapping.
 
@@ -2191,7 +2193,7 @@ Downloading
 
 Hover any row holding a file — an image, PDF, video, audio clip or attachment — and a download button appears at the end of it. Files come down under their original names, so renaming a card for readability never costs you the extension. Images and videos uploaded before they started keeping names come down under the card's title, or a generic name if it has none. A name a browser invents for a pasted image — image.png — is not kept.
 
-Download all sits above the files whenever there is more than one file to take. It follows the search and the filters, so it reads Download 14 once you have narrowed to fourteen. Select particular rows instead and the selection bar offers Download for just those.
+Download all sits at the top right of the page, beside Shrink, whenever there is more than one file to take (on a phone or tablet, select them and use Download on the bar). It follows the search and the filters, so it reads Download 14 once you have narrowed to fourteen. Select particular rows instead and the selection bar offers Download for just those.
 
 Either way you get a single zip named after the cluster. Zips are capped at 500 files or 500 MB, whichever comes first; past either, take it in batches.
 
@@ -2205,13 +2207,13 @@ Quick look
 
 Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it.
 
-Along the top: Show on board (or Show in cluster, for a file you're browsing in another cluster), Download, and Info.
+A bar floats along the top: the file's name and where it is among the files (Image · 3 of 30), then Show on board (or Show in cluster, for a file you're browsing in another cluster), Download and Info.
 
 On an audio row in the List layout, Space still auditions it in place, so a pack plays through with ↓ and Space.
 
 Info
 
-Info — ⌘I, Get info in the right-click menu, or the button in Quick look and on the selection bar — describes whatever is selected: a file's large preview, its kind and format, size, dimensions, who uploaded it and exactly when, and where it lives; a folder's contents; a summary of several things; and, with nothing selected, the cluster you're in. The same Info opens from the board. On the Files page it sits beside the list, and whether it's open is remembered on your device. From there:
+Info — ⌘I, Get info in the right-click menu, or the button in Quick look and on the selection bar — describes whatever is selected: a file's large preview, its kind and format, size, dimensions, who uploaded it and exactly when, and where it lives; a folder's contents; a summary of several things; and, with nothing selected, the cluster you're in. The same Info opens from the board. On the Files page it opens as a card beside the files (on a phone or tablet, as a sheet from the bottom), and whether it's open is remembered on your device. From there:
 
 Action | What it does
 Show on board | Jumps to the card, selected, on the canvas — or Put on board for a file that's waiting in Files
@@ -2227,7 +2229,7 @@ A file with more than one version lists them under Versions, where you can make 
 
 Adding files here
 
-Drag files into Files, or use Add files in the toolbar. They join the cluster without going on its board: they wait in Files, marked Not on board, until you drag them onto the board or choose Put on board. The same goes for Upload in the sidebar — dropping on the canvas is how you put files straight on the board. An empty cluster offers Add files, New cluster and Link a cluster right where its contents would be.
+Drag files into Files, or use Add files beside the search — on a phone or tablet, the + in the bottom bar. They join the cluster without going on its board: they wait in Files, marked Not on board, until you drag them onto the board or choose Put on board. The same goes for Upload in the sidebar — dropping on the canvas is how you put files straight on the board. An empty cluster offers Add files, New cluster and Link a cluster right where its contents would be.
 
 Drop a single file onto a file of the same kind instead, and it becomes that file's next version — the file lights up and says so first. Hold ⌥ to add it as a separate file.
 
@@ -2277,7 +2279,7 @@ Q: Can I drag files from Files onto the board?
 A: Yes, from the sidebar's Files card. A file from this cluster that is waiting in Files goes where you drop it; a file from another cluster moves there, and holding Option (Ctrl on Windows) as you let go copies it instead, with nothing uploaded again. See moving and copying files on the sidebar page.
 
 Q: Can I upload from Files?
-A: Yes. Drag files into it, or use Add files in the toolbar. They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
+A: Yes. Drag files into it, or use Add files beside the search (on a phone or tablet, the + in the bottom bar). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
 
 Q: Can I make Files the default?
 A: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone.
@@ -4279,7 +4281,7 @@ Tap a folder | Opens it
 Touch and hold a file or a folder | Its menu, with Select first
 Select | A check on every file: each tap adds one or takes it out
 
-While you are selecting, the bar along the bottom acts on what is checked — put it on the board, move it, copy it to another cluster, delete it — and Done ends it. A hold opens the menu, so on a touch screen a file isn't dragged out of Files; putting it on the board or moving it from the bar or the menu does that instead.
+While you are selecting, the selection bar acts on what is checked — put it on the board, move it, copy it to another cluster, delete it — and Done ends it. A hold opens the menu, so on a touch screen a file isn't dragged out of Files; putting it on the board or moving it from the bar or the menu does that instead.
 
 Back — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app.
 

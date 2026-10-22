@@ -85,7 +85,7 @@ Files card, a finger works the way the iPad's Files app does:
 | Touch and hold a file or a folder | Its menu, with **Select** first |
 | **Select** | A check on every file: each tap adds one or takes it out |
 
-While you are selecting, the bar along the bottom acts on what is checked —
+While you are selecting, the selection bar acts on what is checked —
 put it on the board, move it, copy it to another cluster, delete it — and
 **Done** ends it. A hold opens the menu, so on a touch screen a file isn't
 dragged out of Files; putting it on the board or moving it from the bar or the

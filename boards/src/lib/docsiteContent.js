@@ -15417,7 +15417,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " lets each tap pick another file for the bar along the bottom: put them on the board, move, copy or delete them. See "
+     "v": " lets each tap pick another file for the selection bar: put them on the board, move, copy or delete them. See "
     },
     {
      "t": "link",
@@ -21002,7 +21002,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", with folders, a grid or a list, Info and downloads. The same icon, turned around, or "
+     "v": " — this card grown, with folders, a grid or a list, Info and downloads. While it's open, this card folds to a bar, "
+    },
+    {
+     "t": "strong",
+     "v": "Files · full screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files · full screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so the files are listed once; its "
+    },
+    {
+     "t": "strong",
+     "v": "Shrink",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shrink"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
     },
     {
      "t": "code",
@@ -21010,7 +21038,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " again, brings the board back. Opening the page this way is yours alone; it never changes how the cluster opens for anyone else. To make a cluster open in Files for everyone, choose "
+     "v": " again or "
+    },
+    {
+     "t": "code",
+     "v": "⌘\\"
+    },
+    {
+     "t": "text",
+     "v": " brings the board back. Opening the page this way is yours alone; it never changes how the cluster opens for anyone else. To make a cluster open in Files for everyone, choose "
     },
     {
      "t": "strong",
@@ -21408,7 +21444,15 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " → \"Hide files in the sidebar\" does the same."
+      "v": " → \"Hide files in the sidebar\" does the same. While the full Files page is open, the card is already folded, and "
+     },
+     {
+      "t": "code",
+      "v": "⌘\\"
+     },
+     {
+      "t": "text",
+      "v": " brings the board back instead."
      }
     ],
     [
@@ -21606,6 +21650,43 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The page is that card grown: the cluster's name at the top, the same search and "
+    },
+    {
+     "t": "strong",
+     "v": "All files ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files ⌄"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu, and the same shelves. While it's open, the card in the sidebar folds to a bar — "
+    },
+    {
+     "t": "strong",
+     "v": "Files · full screen",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files · full screen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — so your files are listed once."
+    }
+   ]
+  },
+  {
    "type": "table",
    "head": [
     [
@@ -21654,17 +21735,29 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " again, or the shrink button at the top right, beside "
+       "v": " again, "
+      },
+      {
+       "t": "code",
+       "v": "⌘\\"
+      },
+      {
+       "t": "text",
+       "v": ", or "
       },
       {
        "t": "strong",
-       "v": "Download all",
+       "v": "Shrink",
        "children": [
         {
          "t": "text",
-         "v": "Download all"
+         "v": "Shrink"
         }
        ]
+      },
+      {
+       "t": "text",
+       "v": " — at the top right of the page, or on the folded Files card in the sidebar"
       }
      ]
     ],
@@ -21976,7 +22069,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A cluster's nested clusters are its folders. They sit first, as compact rows — the cluster's colour dot (or its cover), its name and how many items are inside — with the files after them."
+     "v": "A cluster's nested clusters are its folders. They come first — in the grid as tiles along the top, with the cluster's colour dot (or its cover), its name and how many items are inside, and in the list as the table's first rows — with the files after them."
     }
    ]
   },
@@ -22106,29 +22199,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a tile per item with a real preview, laid out in rows that fill the width. Pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box. The default, because most of what you are looking for you would recognise by sight; for audio the preview is the waveform, so no two loops look the same. "
+     "v": " — the sidebar card's shelves, grown. "
     },
     {
      "t": "strong",
-     "v": "S",
+     "v": "Photos",
      "children": [
       {
        "t": "text",
-       "v": "S"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "M",
-     "children": [
-      {
-       "t": "text",
-       "v": "M"
+       "v": "Photos"
       }
      ]
     },
@@ -22138,17 +22217,115 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "L",
+     "v": "Video",
      "children": [
       {
        "t": "text",
-       "v": "L"
+       "v": "Video"
       }
      ]
     },
     {
      "t": "text",
-     "v": " set the tile size, remembered on your device."
+     "v": " are a gallery laid out in rows that fill the width: pictures keep their own shape — a portrait stays tall, a panorama stays wide — instead of being cropped to a box, and the picture is the name; hover one to read it. "
+    },
+    {
+     "t": "strong",
+     "v": "Audio",
+     "children": [
+      {
+       "t": "text",
+       "v": "Audio"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " follow as rows, and "
+    },
+    {
+     "t": "strong",
+     "v": "Notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Links",
+     "children": [
+      {
+       "t": "text",
+       "v": "Links"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Other",
+     "children": [
+      {
+       "t": "text",
+       "v": "Other"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " start folded — click one's name to open it. The default, because most of what you are looking for you would recognise by sight. "
+    },
+    {
+     "t": "strong",
+     "v": "Size",
+     "children": [
+      {
+       "t": "text",
+       "v": "Size"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the "
+    },
+    {
+     "t": "strong",
+     "v": "All files ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files ⌄"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu — Small, Medium or Large — sets how big the pictures are, remembered on your device."
     }
    ]
   },
@@ -22167,7 +22344,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — a row per item, with type, size and dates. Dense, scannable, sortable. A cluster that is mostly audio opens in the list, for the columns below."
+     "v": " — a classic list: one table of everything, clusters first, with "
+    },
+    {
+     "t": "strong",
+     "v": "Kind",
+     "children": [
+      {
+       "t": "text",
+       "v": "Kind"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Size",
+     "children": [
+      {
+       "t": "text",
+       "v": "Size"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the date, every other row faintly shaded. Dense, scannable, sortable — click a column's heading. A cluster that is mostly audio opens in the list, for the columns below."
     }
    ]
   },
@@ -22175,8 +22380,46 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "strong",
+     "v": "Grid",
+     "children": [
+      {
+       "t": "text",
+       "v": "Grid"
+      }
+     ]
+    },
+    {
      "t": "text",
-     "v": "Your choice is remembered per cluster on the device you made it on."
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "List",
+     "children": [
+      {
+       "t": "text",
+       "v": "List"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " sit beside the search (on a phone or tablet, in the "
+    },
+    {
+     "t": "strong",
+     "v": "All files ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files ⌄"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu). Your choice is remembered per cluster on the device you made it on."
     }
    ]
   },
@@ -22201,11 +22444,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Type",
+     "v": "Kind",
      "children": [
       {
        "t": "text",
-       "v": "Type"
+       "v": "Kind"
       }
      ]
     },
@@ -22342,7 +22585,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Above the list you get the pack in one line: "
+     "v": "Beside the search — except on a phone or tablet — you get the pack in one line: "
     },
     {
      "t": "strong",
@@ -22356,15 +22599,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". It follows the search and the filters, so narrowing to "
+     "v": ". Search or filter, and the line counts what's showing instead ("
     },
     {
-     "t": "code",
-     "v": "128"
+     "t": "em",
+     "v": "14 of 60",
+     "children": [
+      {
+       "t": "text",
+       "v": "14 of 60"
+      }
+     ]
     },
     {
      "t": "text",
-     "v": " re-reads the selection you are actually looking at."
+     "v": ")."
     }
    ]
   },
@@ -22373,7 +22622,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "On a narrow window, in a split pane, or with Info open, columns drop in order of how much they matter — the waveform first, then Format and the date — and on a phone the remaining values fold onto a second line under the filename. The name is the last thing to give up room."
+     "v": "On a narrow window, in a split pane, or with Info open, the columns that matter least give way first, until on a phone only the name is left. The name is the last thing to give up room."
     }
    ]
   },
@@ -22398,17 +22647,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "View",
+     "v": "All files ⌄",
      "children": [
       {
        "t": "text",
-       "v": "View"
+       "v": "All files ⌄"
       }
      ]
     },
     {
      "t": "text",
-     "v": " menu, beside the search field."
+     "v": " menu beside the search field — the same menu, in the same words, as the sidebar's Files card."
     }
    ]
   },
@@ -22417,43 +22666,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Files opens in "
+     "v": "Files opens "
     },
     {
      "t": "strong",
-     "v": "board order",
+     "v": "newest first",
      "children": [
       {
        "t": "text",
-       "v": "board order"
+       "v": "newest first"
       }
      ]
     },
     {
      "t": "text",
-     "v": ": the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. Sort by "
+     "v": ", by date added. The menu also sorts by "
     },
     {
      "t": "strong",
-     "v": "name",
+     "v": "Name",
      "children": [
       {
        "t": "text",
-       "v": "name"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "type",
-     "children": [
-      {
-       "t": "text",
-       "v": "type"
+       "v": "Name"
       }
      ]
     },
@@ -22463,25 +22698,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "size",
+     "v": "Size",
      "children": [
       {
        "t": "text",
-       "v": "size"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "date modified",
-     "children": [
-      {
-       "t": "text",
-       "v": "date modified"
+       "v": "Size"
       }
      ]
     },
@@ -22491,25 +22712,25 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "date added",
+     "v": "Canvas order",
      "children": [
       {
        "t": "text",
-       "v": "date added"
+       "v": "Canvas order"
       }
      ]
     },
     {
      "t": "text",
-     "v": " instead — plus "
+     "v": ": the canvas read like a page, top row first and each row left to right, so what you see is the board you just left, lined up. In the list, click a column's heading to sort by it — name, kind, size or date, plus "
     },
     {
      "t": "strong",
-     "v": "length",
+     "v": "time",
      "children": [
       {
        "t": "text",
-       "v": "length"
+       "v": "time"
       }
      ]
     },
@@ -22557,7 +22778,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " when the cluster is mostly audio."
+     "v": " when the cluster is mostly audio — and the menu shows that sort as the one in force."
     }
    ]
   },
@@ -22566,17 +22787,17 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Show only",
+     "v": "Show",
      "children": [
       {
        "t": "text",
-       "v": "Show only"
+       "v": "Show"
       }
      ]
     },
     {
      "t": "text",
-     "v": " narrows to a content type: Images, PDFs, Video, Audio, Files, Notes, Links, Docs, Palettes, Other — or to files that are "
+     "v": " narrows to one shelf — Photos, Video, Audio, Files, Notes or Links, whichever the cluster has — or to files that are "
     },
     {
      "t": "strong",
@@ -22585,6 +22806,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Not on board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the menu takes its name: "
+    },
+    {
+     "t": "strong",
+     "v": "Photos ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "Photos ⌄"
       }
      ]
     },
@@ -22618,7 +22853,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The combination is the answer to \"where is that PDF someone dropped in here last week\" — filter to PDFs, sort by date added, done. On the canvas that is a hunting expedition."
+     "v": "The combination is the answer to \"where is that PDF someone dropped in here last week\" — show the "
+    },
+    {
+     "t": "strong",
+     "v": "Files",
+     "children": [
+      {
+       "t": "text",
+       "v": "Files"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shelf, newest first, done. On the canvas that is a hunting expedition."
     }
    ]
   },
@@ -22720,7 +22969,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A selection gets a bar along the bottom:"
+     "v": "Select something and the search line gives way to a bar:"
     }
    ]
   },
@@ -22887,7 +23136,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar along the bottom gains "
+     "v": " puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar gains "
     },
     {
      "t": "strong",
@@ -23087,21 +23336,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a loop's tile "
-    },
-    {
-     "t": "em",
-     "v": "is",
-     "children": [
-      {
-       "t": "text",
-       "v": "is"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " its waveform, so a pack reads as a wall of shapes rather than a wall of identical icons."
+     "v": ", audio has a shelf of its own, as rows with the same play button and waveform."
     }
    ]
   },
@@ -23235,7 +23470,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sits above the files whenever there is more than one file to take. It follows the search and the filters, so it reads "
+     "v": " sits at the top right of the page, beside "
+    },
+    {
+     "t": "strong",
+     "v": "Shrink",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shrink"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", whenever there is more than one file to take (on a phone or tablet, select them and use "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the bar). It follows the search and the filters, so it reads "
     },
     {
      "t": "em",
@@ -23446,7 +23709,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Along the top: "
+     "v": "A bar floats along the top: the file's name and where it is among the files ("
+    },
+    {
+     "t": "em",
+     "v": "Image · 3 of 30",
+     "children": [
+      {
+       "t": "text",
+       "v": "Image · 3 of 30"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), then "
     },
     {
      "t": "strong",
@@ -23488,7 +23765,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and "
+     "v": " and "
     },
     {
      "t": "strong",
@@ -23603,7 +23880,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " opens from the board. On the Files page it sits beside the list, and whether it's open is remembered on your device. From there:"
+     "v": " opens from the board. On the Files page it opens as a card beside the files (on a phone or tablet, as a sheet from the bottom), and whether it's open is remembered on your device. From there:"
     }
    ]
   },
@@ -23859,7 +24136,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the toolbar. They join the cluster without going on its board: they wait in Files, marked "
+     "v": " beside the search — on a phone or tablet, the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the bottom bar. They join the cluster without going on its board: they wait in Files, marked "
     },
     {
      "t": "link",
@@ -42923,7 +43214,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "While you are selecting, the bar along the bottom acts on what is checked — put it on the board, move it, copy it to another cluster, delete it — and "
+     "v": "While you are selecting, the selection bar acts on what is checked — put it on the board, move it, copy it to another cluster, delete it — and "
     },
     {
      "t": "strong",
