@@ -1,0 +1,31 @@
+/* ⌘K in the files sidebar's look: App sets body[data-sb-files], and the
+   materials are clusterSidebar.css's. The chrome's glass, and the keyboard's
+   row as a selection reads in the sidebar and on the Files page: the active
+   ground and a gold hairline, not a gold band. ?local=1 keeps styles.css's. */
+body[data-sb-files] .cmdk {
+  border: 0;
+  background: var(--sbf-solid);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+/* A phone's ⌘K is the whole screen (styles.css): no corners, no lift. */
+@media (min-width: 641px) {
+  body[data-sb-files] .cmdk {
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 48px rgba(0, 0, 0, .36);
+  }
+  [data-theme='light'] body[data-sb-files] .cmdk {
+    box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 18px 48px rgba(10, 10, 12, .16);
+  }
+}
+[data-theme='light'] body[data-sb-files] .cmdk-bg { background: rgba(10, 10, 12, .28); }
+body[data-sb-files] .cmdk-search { border-bottom-color: var(--sbf-glass-line); }
+body[data-sb-files] .cmdk-group + .cmdk-group { border-top-color: var(--sbf-glass-line); }
+body[data-sb-files] .cmdk-foot { background: transparent; border-top-color: var(--sbf-glass-line); }
+body[data-sb-files] .cmdk-row { border-radius: 7px; }
+body[data-sb-files] .cmdk-row:hover { background: var(--sbf-hover); }
+body[data-sb-files] .cmdk-row.is-active { background: var(--bg-act); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 60%, transparent); }
+/* The field holds the focus the whole time ⌘K is open and its caret says so:
+   the row's hairline is the one gold on the sheet. */
+body[data-sb-files] .cmdk :is(.cmdk-input:focus, .cmdk-input:focus-visible),
+body[data-sb-files] .cmdk-search:focus-within { outline: none; box-shadow: none; }

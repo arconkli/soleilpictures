@@ -124,7 +124,10 @@ import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalG
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question, Eye } from './lib/icons.js';
+// The small things in the files sidebar's look (nudges, View only, a
+// comment's unread dot), under body[data-sb-files], which App sets.
+import './components/smallThingsLook.css';
 import { probeFile } from './lib/mediaProbe.js';
 import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
@@ -10973,7 +10976,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                                     onUnhandled={newClusterUnhandled} />
                 )}
                 {!canEditCurrent && (
-                  <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
+                  <span className="tb-viewonly" title="You have view-only access to this cluster"><Icon as={Eye} size={14} weight="regular" />View only</span>
                 )}
               </>
             )}
@@ -11155,7 +11158,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                                     onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
             {!canEditCurrent && (
-              <span className="tb-viewonly" title="You have view-only access to this cluster">VIEW ONLY</span>
+              <span className="tb-viewonly" title="You have view-only access to this cluster"><Icon as={Eye} size={14} weight="regular" />View only</span>
             )}
             {isTouch && !mobileShell && (
               <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}

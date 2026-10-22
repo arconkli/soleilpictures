@@ -88,3 +88,36 @@
 @media (max-width: 640px) {
   .tpladd { left: 12px; right: 12px; max-width: none; top: 96px; }
 }
+
+/* In the files sidebar's look (App sets body[data-sb-files]; the materials are
+   clusterSidebar.css's): the chrome's glass, under the right island with one
+   toast's room above it, as the toasts start there now (feedbackLook.css:
+   52px, 60px under a finger), and "Place it" as the sidebar's raised chip. */
+body[data-sb-float] .tpladd { top: calc(100px + env(safe-area-inset-top, 0px)); right: calc(10px + var(--upgrade-chip-gutter, 0px)); }
+body[data-sb-files] .tpladd {
+  border: 0;
+  border-radius: 12px;
+  background: var(--sbf-solid);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), var(--sbf-lift);
+}
+body[data-sb-files] .tpladd.is-armed { box-shadow: inset 0 0 0 1px var(--soleil), var(--sbf-glass-shadow), var(--sbf-lift); }
+body[data-sb-files] .tpladd-sub { white-space: nowrap; }
+body[data-sb-files] .tpladd-go {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--sbf-chip);
+  box-shadow: var(--sbf-chip-shadow);
+  color: var(--ink-0);
+  font: 600 12.5px/1 var(--font-sans);
+}
+body[data-sb-files] .tpladd-go:hover { filter: none; background: color-mix(in srgb, var(--ink-0) 10%, var(--sbf-chip)); }
+body[data-sb-files] .tpladd-x { width: 28px; height: 28px; border-radius: 8px; }
+body[data-sb-files] .tpladd-x:hover { background: var(--sbf-hover); }
+@media (hover: none) and (pointer: coarse) {
+  body[data-sb-float] .tpladd { top: calc(108px + env(safe-area-inset-top, 0px)); }
+  body[data-sb-files] .tpladd-go { height: 40px; }
+  body[data-sb-files] .tpladd-x { width: 40px; height: 40px; }
+}

@@ -14,7 +14,7 @@
 
 import './setupInWorkspace.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight } from '@phosphor-icons/react';
+import { ArrowRight, Sparkle } from '@phosphor-icons/react';
 import { Icon } from '../Icon.jsx';
 import { tipsFor } from '../../lib/setupTips.js';
 
@@ -217,7 +217,7 @@ export default function SetupTips({ phone, canImport, onStep, onEnd, onHow, open
     <div ref={pillRef} className={`onboarding-tour surface-frosted su-tip${phone ? ' is-phone' : ''} at-${pos?.side || 'none'}`}
       style={style} role="dialog" aria-live="polite" aria-label={tip.title} data-tip={tip.id}>
       {pos && pos.side !== 'none' && !pos.detached && <span className="su-tip-arrow" aria-hidden="true" />}
-      <div className="onboarding-coachmark-spark" aria-hidden="true">✦</div>
+      <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
       <div className="onboarding-coachmark-copy">
         <div className="onboarding-coachmark-title">{tip.title}</div>
         <div className="onboarding-coachmark-body">{tip.body}</div>

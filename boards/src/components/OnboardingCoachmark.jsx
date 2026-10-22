@@ -3,6 +3,8 @@ import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { COACHMARK_VARIANTS } from '../lib/experiments.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { Icon } from './Icon.jsx';
+import { Sparkle } from '../lib/icons.js';
 
 // First-run coachmark. A small dismissible pill anchored bottom-center of the
 // canvas, shown ONCE to a brand-new user right after we seed their starter
@@ -39,7 +41,7 @@ export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = fal
 
   return (
     <div className={`onboarding-coachmark surface-frosted${leaving ? ' is-leaving' : ''}${escalated ? ' is-escalated' : ''}`} role="status">
-      <div className="onboarding-coachmark-spark" aria-hidden="true">✦</div>
+      <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
       <div className="onboarding-coachmark-copy">
         <div className="onboarding-coachmark-title">{v?.title || 'Make it yours'}</div>
         <div className="onboarding-coachmark-body">

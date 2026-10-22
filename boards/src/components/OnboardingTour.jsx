@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { onCanvasSettle } from '../lib/canvasScale.js';
+import { Icon } from './Icon.jsx';
+import { Sparkle } from '../lib/icons.js';
 
 // First-run guided tour overlay. Renders the active step as a Milanote-style
 // frosted pill with a pointer arrow, anchored to the live on-screen position of
@@ -221,7 +223,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
       aria-live="polite"
     >
       <span className="onboarding-tour-arrow" aria-hidden="true" />
-      <div className="onboarding-coachmark-spark" aria-hidden="true">✦</div>
+      <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
       <div className="onboarding-coachmark-copy">
         <div className="onboarding-coachmark-title">{step.copy.title}</div>
         <div className="onboarding-coachmark-body">{body}</div>

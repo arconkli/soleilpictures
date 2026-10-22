@@ -62,6 +62,11 @@
   --sbf-quiet: #74747c;
   --sbf-count: rgba(245, 245, 247, .085);
   --sbf-thumb-line: rgba(255, 255, 255, .11);
+  /* What floats over the board and has to read at once (a toast, a nudge,
+     ⌘K): the glass nearly solid, with a lift, since nothing holds it up. */
+  --sbf-solid: color-mix(in oklab, var(--bg-1) 96%, transparent);
+  --sbf-lift: 0 10px 30px rgba(0, 0, 0, .32);
+  --sbf-hover: color-mix(in srgb, var(--ink-0) 8%, transparent);
 }
 [data-theme='light'] .app.sb-files, [data-theme='light'] body[data-sb-files] {
   --sbf-handle-ink: rgba(10, 10, 12, .26);
@@ -77,6 +82,9 @@
   --sbf-quiet: #86868e;
   --sbf-count: rgba(10, 10, 12, .065);
   --sbf-thumb-line: rgba(10, 10, 12, .1);
+  --sbf-solid: color-mix(in oklab, #fcfcfd 96%, transparent);
+  --sbf-lift: 0 10px 30px rgba(10, 10, 12, .14);
+  --sbf-hover: color-mix(in srgb, var(--ink-0) 6%, transparent);
 }
 .app.sb-files.sb-collapsed { grid-template-columns: 0 1fr; }
 /* The sidebar is as wide as its cards, but the board keeps 420px of the

@@ -8,12 +8,18 @@ import { createPortal } from 'react-dom';
 import { CheckCircle, WarningCircle, Warning, Info, X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import './feedbackLook.css';
 
 // `warning` was missing here and had no CSS either, so both cap toasts — the
 // approaching-limit warning and the cards-did-not-fit one — fell through to the
 // Info icon and rendered as ordinary information. The one toast whose whole job
 // is to say "you are running out of room" looked exactly like a status update.
 const TOAST_ICON = { success: CheckCircle, error: WarningCircle, warning: Warning, info: Info };
+
+// The files sidebar's look (App sets body[data-sb-files]; feedbackLook.css)
+// draws these at regular, as the chrome does. Read when they render, which is
+// always after App has set it; a public page has no such look.
+const inLook = () => typeof document !== 'undefined' && document.body.hasAttribute('data-sb-files');
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -26,6 +32,7 @@ export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismi
   // When a toast arrives, move the stack to the end of <body> — and the
   // feedback dialog after it, which must stay above toasts.
   const count = toasts.length;
+  const look = inLook();
   useLayoutEffect(() => {
     const el = stackRef.current;
     const body = typeof document !== 'undefined' ? document.body : null;
@@ -48,7 +55,7 @@ export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismi
           <div key={item.id}
                className={`toast toast-${item.type}${item.exiting ? ' toast-exiting' : ''}`}>
             <span className="toast-icon" aria-hidden="true">
-              <Icon as={TOAST_ICON[item.type] || Info} size={16} weight="bold" />
+              <Icon as={TOAST_ICON[item.type] || Info} size={16} weight={look ? 'regular' : 'bold'} />
             </span>
             <span className="toast-msg">{item.message}</span>
             {/* `actions` for a toast that offers more than one way on (Undo ·
@@ -67,7 +74,7 @@ export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismi
                 onDismiss fires ("seen and closed") — unlike the action button
                 above and the TTL expiry, which both use the plain path. */}
             <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={() => (onManualDismiss || onDismissToast)(item.id)}>
-              <Icon as={X} size={14} />
+              <Icon as={X} size={14} weight={look ? 'regular' : undefined} />
             </button>
           </div>
         ))}
@@ -153,7 +160,7 @@ function FeedbackDialog({ dialog, onClose }) {
       >
         <div className="feedback-hd">
           <div className="feedback-title">{dialog.title}</div>
-          <button type="button" className="modal-x" aria-label="Close" onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}><Icon as={X} size={16} /></button>
+          <button type="button" className="modal-x" aria-label="Close" onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}><Icon as={X} size={16} weight={inLook() ? 'regular' : undefined} /></button>
         </div>
         {dialog.message && <div className="feedback-message">{dialog.message}</div>}
         {dialog.kind === 'prompt' && (

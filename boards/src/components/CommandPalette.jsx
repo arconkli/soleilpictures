@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
+import './commandPaletteLook.css';
 import {
   Search, X, LayoutGrid, FileText, StickyNote, Image as ImageIcon,
   Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon, ChevronRight,

@@ -1,0 +1,155 @@
+/* The confirm and prompt dialogs and the toasts (FeedbackOverlay.jsx) in the
+   files sidebar's look: App sets body[data-sb-files], and the materials are
+   clusterSidebar.css's. A public page and ?local=1 keep styles.css's.
+
+   Toasts stay where they were, top right, now under the right island and in
+   its glass (the owner's pick, 2026-10-22), and step beside the bell's list
+   while it's open: they used to cover its head. */
+
+/* ── Dialogs ─────────────────────────────────────────────────────────────── */
+[data-theme='light'] body[data-sb-files] .feedback-bg { background: rgba(10, 10, 12, .28); }
+body[data-sb-files] .feedback-dialog {
+  width: min(400px, calc(100vw - 32px));
+  padding: 16px 16px 14px;
+  border: 0;
+  border-radius: 14px;
+  /* Opaque: glass over the dimmed, blurred room came out the room's own tone. */
+  background: var(--bg-1);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), 0 18px 48px rgba(0, 0, 0, .45);
+}
+[data-theme='light'] body[data-sb-files] .feedback-dialog {
+  background: #fcfcfd;
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), 0 18px 48px rgba(10, 10, 12, .18);
+}
+body[data-sb-files] .feedback-hd { margin-bottom: 6px; }
+body[data-sb-files] .feedback-title { font: 600 15px/1.3 var(--font-sans); letter-spacing: -.01em; color: var(--ink-0); }
+body[data-sb-files] .feedback-message { font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); margin-bottom: 16px; }
+body[data-sb-files] .feedback-dialog .modal-x {
+  width: 28px;
+  height: 28px;
+  margin: -6px -6px 0 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+}
+body[data-sb-files] .feedback-dialog .modal-x:hover { background: var(--sbf-hover); color: var(--ink-0); }
+body[data-sb-files] .feedback-field { font: 500 12px/1 var(--font-sans); color: var(--ink-2); gap: 8px; margin-bottom: 16px; }
+body[data-sb-files] .feedback-field input {
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: var(--sbf-field);
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line);
+  font: 400 13px/1 var(--font-sans);
+  color: var(--ink-0);
+}
+body[data-sb-files] .feedback-field input:focus { box-shadow: inset 0 0 0 1px var(--soleil), 0 0 0 3px var(--soleil-soft); }
+body[data-sb-files] .feedback-suggestions { gap: 6px; }
+body[data-sb-files] .feedback-suggestion {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--sbf-count);
+  color: var(--ink-1);
+  font: 500 12px/1 var(--font-sans);
+}
+body[data-sb-files] .feedback-suggestion:hover { background: var(--sbf-hover); color: var(--ink-0); }
+body[data-sb-files] .feedback-actions { gap: 6px; }
+body[data-sb-files] .feedback-dialog :is(.btn-secondary, .btn-primary) {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font: 500 13px/1 var(--font-sans);
+}
+body[data-sb-files] .feedback-dialog .btn-secondary { color: var(--ink-1); }
+body[data-sb-files] .feedback-dialog .btn-secondary:hover:not(:disabled) { background: var(--sbf-hover); color: var(--ink-0); }
+/* The answer is ink, as the sidebar's one button is; gold stays for focus. */
+body[data-sb-files] .feedback-dialog .btn-primary { background: var(--ink-0); color: var(--bg-0); font-weight: 600; }
+body[data-sb-files] .feedback-dialog .btn-primary:hover:not(:disabled) { box-shadow: none; background: color-mix(in srgb, var(--ink-0) 88%, var(--bg-0)); }
+/* White on --danger: the salmon --ink-error with dark text read as disabled. */
+body[data-sb-files] .feedback-dialog .btn-primary.btn-danger { background: var(--danger); color: #fff; }
+body[data-sb-files] .feedback-dialog .btn-primary.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 88%, #000); }
+body[data-sb-files] .feedback-dialog :is(.btn-primary, .btn-secondary):focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
+/* ── Toasts ──────────────────────────────────────────────────────────────── */
+/* Under the right island (floatingChrome.css: 8px down, 36px tall, 10px in,
+   plus the upgrade chip's gutter), its right edge on the island's, one width
+   for every toast. Under a finger the islands are 44px. */
+body[data-sb-float] .toast-stack {
+  top: calc(52px + env(safe-area-inset-top, 0px));
+  /* A touch tablet is in styles.css's phone query, which pins the left too. */
+  left: auto;
+  right: calc(10px + var(--upgrade-chip-gutter, 0px) + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px));
+  width: min(400px, calc(100vw - 20px));
+  align-items: flex-end;
+}
+@media (hover: none) and (pointer: coarse) {
+  body[data-sb-float] .toast-stack { top: calc(60px + env(safe-area-inset-top, 0px)); }
+}
+/* A phone keeps its bar (48px, and the top inset) and the stack its width
+   (styles.css), 16px under the bar. A full-screen sheet still sends it to
+   the foot (styles.css's rule outranks this one). */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  body[data-sb-files]:not([data-sb-float]) .toast-stack { top: calc(64px + env(safe-area-inset-top, 0px)); }
+}
+/* The bell's list hangs from the same island, its right edge on the island's
+   and 340px wide (NotificationsPanel.jsx): beside it, not over its head. */
+body[data-sb-float]:has(.ntf-shell:not(.is-sheet)) .toast-stack {
+  right: calc(10px + var(--upgrade-chip-gutter, 0px) + 340px + 8px);
+}
+body[data-sb-files] .toast {
+  width: 100%;
+  max-width: none;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0 6px 0 12px;
+  gap: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--sbf-solid);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  color: var(--ink-0);
+  font: 400 13px/1.35 var(--font-sans);
+}
+/* No state rail: the icon says it. */
+body[data-sb-files] :is(.toast, .toast-success, .toast-error, .toast-warning) {
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), var(--sbf-lift);
+}
+body[data-sb-files] .toast-msg { padding: 10px 4px 10px 0; }
+body[data-sb-files] .toast-info .toast-icon { color: var(--ink-2); }
+/* Actions are words after a hairline; the × is the chrome's icon button. */
+body[data-sb-files] .toast-action {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-0);
+  font: 600 13px/1 var(--font-sans);
+}
+body[data-sb-files] .toast-action:hover { background: var(--sbf-hover); }
+body[data-sb-files] .toast-msg + .toast-action { position: relative; margin-left: 9px; }
+body[data-sb-files] .toast-msg + .toast-action::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--line-2);
+}
+body[data-sb-files] .toast-dismiss { width: 28px; height: 28px; margin: 0; border-radius: 8px; color: var(--ink-3); }
+body[data-sb-files] .toast-dismiss:hover { background: var(--sbf-hover); color: var(--ink-0); }
+@media (hover: none) and (pointer: coarse) {
+  body[data-sb-files] .toast-action { height: 40px; padding: 0 12px; }
+  body[data-sb-files] .toast-msg + .toast-action::before { top: 12px; bottom: 12px; }
+  body[data-sb-files] .toast-dismiss { width: 40px; height: 40px; }
+}
