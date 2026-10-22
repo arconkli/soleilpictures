@@ -104,8 +104,11 @@
 }
 /* The handles straddle the cards' edges, but the sidebar is its own stacking
    context (the grain layer isolates it), so their z-index can't lift them
-   over the surface next door. Lifting the sidebar does. */
-.app.sb-files > .sidebar { z-index: 2; }
+   over the surface next door. Lifting the sidebar does, only where it floats:
+   in the mobile shell it's the drawer, whose 1100 (styles.css) must clear its
+   backdrop's 1099, and a lift there laid the backdrop's dim and blur over the
+   open drawer (sidebarDrawerStacking.test). */
+.app.is-floating-chrome > .sidebar { z-index: 2; }
 
 /* ── The parts, and the two cards ────────────────────────────────────────── */
 /* The phone drawer: .sb-mid is the grid, the frame and the cards don't box. */
