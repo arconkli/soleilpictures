@@ -55,7 +55,9 @@ const MAX_AUTO_VERIFIES = 10; // then the manual "Verify now" button is the path
 const STALL_MS   = 30000;    // show manual-retry UI after this much waiting
 const HARD_STOP_MS = 15 * 60 * 1000; // stop ALL automatic polling; an abandoned
                              // tab was hitting Stripe + Supabase ~20k times/day
-const CELEBRATE_MS = 2400;   // dwell on the success beat before entering
+const CELEBRATE_MS = 1200;   // dwell on the success beat before entering
+const CELEBRATE_READ_MS = 2400; // the same, when the beat has a sentence to read:
+                             // the trial's first charge, or the files to drop again
 
 // Verify reasons that can never resolve by retrying — stop the automatic
 // verify loop on these (the manual button stays as the escape hatch).
@@ -212,15 +214,17 @@ export function PricingSuccess({ onEnter = null }) {
     let cancelled = false;
     // Ask first: the answer is also what tells that tab to look now. The beat
     // runs while the question is out, not after it: waiting out the ask (up to
-    // 800 ms with no other tab to answer) before starting the beat made every
-    // buyer wait 3.2 s, not CELEBRATE_MS. Entering still waits for both.
+    // 800 ms with no other tab to answer) before starting the beat added it to
+    // every buyer's wait. Entering still waits for both.
     const asked = askForHolder();
     asked.then((n) => { if (!cancelled && n > 0) setHeldElsewhere(n); });
+    const dwell = isTrial || waitingFolder > 0 ? CELEBRATE_READ_MS : CELEBRATE_MS;
     const t = setTimeout(() => {
       asked.then((n) => { if (!cancelled && n === 0) enter(); });
-    }, CELEBRATE_MS);
+    }, dwell);
     return () => { cancelled = true; clearTimeout(t); };
-    // enter only reads onEnter, which TierRouter keeps stable.
+    // enter only reads onEnter, which TierRouter keeps stable. isTrial and
+    // waitingFolder are known with the tier that started the beat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [celebrating]);
 

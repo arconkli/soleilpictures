@@ -49,9 +49,14 @@ test('the success page enters the app in place, and the app does not time that a
   assert.match(success, /export function PricingSuccess\(\{ onEnter = null \}\)/);
   assert.match(success, /const enter = \(\) => \{ if \(onEnter\) onEnter\(\); else window\.location\.assign\('\/'\); \};/);
   // The beat and the question to the holding tab run side by side: the beat is
-  // CELEBRATE_MS, not CELEBRATE_MS plus the ask's 800 ms.
+  // its dwell, not its dwell plus the ask's 800 ms.
   const effect = success.slice(success.indexOf('if (!celebrating) return undefined;'), success.indexOf('}, [celebrating]);'));
-  assert.match(effect, /const asked = askForHolder\(\);[\s\S]*const t = setTimeout\(\(\) => \{\s*asked\.then\(\(n\) => \{ if \(!cancelled && n === 0\) enter\(\); \}\);\s*\}, CELEBRATE_MS\);/);
+  assert.match(effect, /const asked = askForHolder\(\);[\s\S]*const t = setTimeout\(\(\) => \{\s*asked\.then\(\(n\) => \{ if \(!cancelled && n === 0\) enter\(\); \}\);\s*\}, dwell\);/);
+  // Short, unless the beat has a sentence to read.
+  assert.match(effect, /const dwell = isTrial \|\| waitingFolder > 0 \? CELEBRATE_READ_MS : CELEBRATE_MS;/);
+  const ms = (name) => Number(success.match(new RegExp(`const ${name} = (\\d+);`))?.[1]);
+  assert.ok(ms('CELEBRATE_MS') <= 1200, 'a plain purchase enters the app within about a second');
+  assert.ok(ms('CELEBRATE_READ_MS') > ms('CELEBRATE_MS'), 'a beat with a sentence to read stays long enough to read it');
 
   const router = read('auth/TierRouter.jsx');
   assert.match(router, /<PricingSuccess onEnter=\{enterApp\} \/>/);

@@ -408,17 +408,17 @@ test('checkout success without a session_id shows a recovery card (no dead-end)'
 });
 
 test('a completed checkout shows a Welcome celebration before entering', async ({ page }) => {
-  await page.goto('/pricing/success?local=1&tier=paid&session_id=cs_test_celebrate');
-
-  // Celebration appears immediately (it redirects to "/" ~2.4s later).
-  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 2000 });
+  // The beat is short (it enters the app ~1.2s after it shows), so look from
+  // the moment the page commits: its load event can come after the beat.
+  await page.goto('/pricing/success?local=1&tier=paid&session_id=cs_test_celebrate', { waitUntil: 'commit' });
+  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 10_000 });
 });
 
 test('after the celebration the app opens in place, not on a second page load', async ({ page }) => {
   await page.goto('/pricing/success?local=1&tier=paid&session_id=cs_test_in_place');
-  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 10_000 });
-  // A reload would take this with it.
+  // A reload would take this with it. Set before the beat, which is short.
   await page.evaluate(() => { window.__sameDocument = true; });
+  await expect(page.getByText(/Welcome to Creator/i)).toBeVisible({ timeout: 10_000 });
   await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 });
   expect(await page.evaluate(() => window.__sameDocument === true)).toBe(true);
   // App was told this mount is not a page load's boot (App.jsx, bootAt('enter')).
