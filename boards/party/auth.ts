@@ -215,6 +215,39 @@ export async function bannedAmong(serviceKey: string | undefined, userIds: strin
   return out;
 }
 
+// accessAmong — what each of these people may do in this board room now, from
+// party_board_access (0620), which asks can_read_board / can_write_board as
+// each of them. The room calls it once a minute so a removal, an unshare or a
+// downgrade reaches sockets that are already open. A person missing from the
+// answer (an RPC failure) keeps their socket as it is, like bannedAmong.
+export async function accessAmong(
+  serviceKey: string | undefined,
+  boardId: string,
+  userIds: string[],
+): Promise<Map<string, { canRead: boolean; canWrite: boolean }>> {
+  const out = new Map<string, { canRead: boolean; canWrite: boolean }>();
+  const ids = [...new Set(userIds)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 200);
+  if (!serviceKey || ids.length === 0 || !/^[0-9a-f-]{36}$/i.test(boardId)) return out;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/party_board_access`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_board: boardId, p_users: ids }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return out;
+    for (const row of (await res.json()) as Array<{ user_id: string; can_read: boolean; can_write: boolean }>) {
+      out.set(row.user_id, { canRead: row.can_read === true, canWrite: row.can_write === true });
+    }
+  } catch (_) { /* fail open */ }
+  return out;
+}
+
 // authAdmin — verify that the bearer is an authenticated user whose
 // profile carries tier='admin'. Used by the universe party to gate
 // every endpoint to platform admins. Returns { ok, userId } so the

@@ -37,7 +37,7 @@
 import { YServer } from "y-partyserver";
 import type { Connection, ConnectionContext } from "partyserver";
 import * as Y from "yjs";
-import { authBoard, bannedAmong, canWriteBoard } from "./auth";
+import { accessAmong, authBoard, bannedAmong, canWriteBoard } from "./auth";
 import { installOpLogCapture } from "./opLog";
 import { RoomLog, MAX_PENDING_UPDATES } from "./roomLog";
 import { DEFAULT_SUPABASE_URL, type Env } from "./env";
@@ -238,13 +238,24 @@ export class BoardParty extends YServer<Env> {
     if (conns.length) {
       try { await this.ctx.storage.put(ACTIVE_KEY, Date.now()); } catch (_) { /* best effort */ }
       // Audit AC-2: an account banned mid-session stops editing within a minute.
+      // And so does anyone who has lost access since they connected (removed,
+      // unshared, or made a viewer): no read closes the socket, and a lost write
+      // closes it too, so the client reconnects as read-only.
       const ids = conns.map((c) => stateOf(c).userId || "");
-      const banned = await bannedAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, ids);
+      const [banned, access] = await Promise.all([
+        bannedAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, ids),
+        accessAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, this.name, ids),
+      ]);
       const now = Date.now();
       for (const c of conns) {
         const uid = stateOf(c).userId;
         if (uid && banned.has(uid)) {
           try { c.close(4403, "account suspended"); } catch (_) { /* already gone */ }
+          continue;
+        }
+        const may = uid ? access.get(uid) : undefined;
+        if (may && (!may.canRead || (stateOf(c).canWrite === true && !may.canWrite))) {
+          try { c.close(4401, "access changed"); } catch (_) { /* already gone */ }
           continue;
         }
         const heard = this.lastHeard.get(c);
