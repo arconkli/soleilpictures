@@ -52,6 +52,7 @@ import { partyFetch } from './lib/partyFetch.js';
 import { bytesToB64 } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
+import { reserveUploadSpace } from './lib/uploadReserve.js';
 import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from './lib/safeUrl.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
@@ -1768,7 +1769,8 @@ async function dispatch(url, request, env, ctx) {
 
     // The owner-pays byte ceiling, asked AS THE USER — the same gate the
     // browser upload path runs (party/upload.ts). A null verdict is an RPC
-    // failure, and fails open exactly as it does there.
+    // failure, and fails open exactly as it does there; the reservation below
+    // is what holds the space, and it fails closed.
     const verdictRows = await userRpc(env, token, 'authorize_image_upload',
       { p_board_id: boardId, p_bytes: bytes.length }).catch(() => null);
     const verdict = Array.isArray(verdictRows) ? verdictRows[0] : verdictRows;
@@ -1780,6 +1782,13 @@ async function dispatch(url, request, env, ctx) {
     // extension from the declared type. The prefix is what scopes storage to a
     // workspace (0218), so it is derived from the board and never from input.
     const key = `${board.workspace_id}/${crypto.randomUUID()}.${ext}`;
+    // The space itself is reserved before the bytes are written (0610), so two
+    // uploads racing for the last of it can't both land; nothing is written
+    // without the reservation.
+    const held = await reserveUploadSpace((fn, params) => userRpc(env, token, fn, params),
+      { key, bytes: bytes.length, boardId });
+    if (held === 'full') throw fail(402, 'limit_reached', 'that would go past the storage included with this account');
+    if (held !== 'reserved') throw fail(503, 'storage_unavailable', 'image storage is not available right now');
     await env.IMAGES.put(key, bytes, { httpMetadata: { contentType } });
 
     const dims = imageDimensions(bytes);
@@ -2635,6 +2644,16 @@ async function dispatch(url, request, env, ctx) {
         // Workspace-prefixed key, derived from the board and never from input —
         // the prefix is what scopes storage to a workspace (0218).
         const key = `${board.workspace_id}/${crypto.randomUUID()}.${ext}`;
+        // Reserved before it is written (0610): a big import stops at the cap
+        // even when its items race each other for the last of the space.
+        const held = await reserveUploadSpace((fn, params) => userRpc(env, token, fn, params),
+          { key, bytes: bytes.length, boardId: id });
+        if (held === 'full') {
+          return { item, ok: false, code: 'limit_reached', error: 'that would go past the storage included with this account' };
+        }
+        if (held !== 'reserved') {
+          return { item, ok: false, code: 'storage_unavailable', error: 'image storage is not available right now' };
+        }
         await env.IMAGES.put(key, bytes, { httpMetadata: { contentType } });
         const dims = imageDimensions(bytes);
 

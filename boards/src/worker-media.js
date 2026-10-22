@@ -18,9 +18,11 @@
 //     under a picture's key. (The one addition over the API import.)
 //   · The caller's own session does every database step, so PostgREST runs
 //     RLS as them — lib/apiAuth.js says why the service key is never used for
-//     this. can_write_board fails CLOSED; the storage ceiling
+//     this. can_write_board fails CLOSED; the storage ceiling's first check
 //     (authorize_image_upload) fails OPEN on an RPC error, as the browser
-//     presign gate does (party/upload.ts says why the two differ).
+//     presign gate does (party/upload.ts says why the two differ), and the
+//     reservation that holds the space (record_upload_intent, 0610) fails
+//     CLOSED before anything is written.
 //   · The workspace comes from the board, never from the request, and the key
 //     is `<workspace>/<uuid>.<ext>` like every other original.
 //   · The images row is load-bearing: it authorizes reads and keeps the R2
@@ -47,6 +49,7 @@
 
 import { verifyUser } from './lib/workerAuth.js';
 import { userSelect, userRpc, userInsert } from './lib/apiAuth.js';
+import { reserveUploadSpace } from './lib/uploadReserve.js';
 import { fetchFollowingSafely, ogTargetProblem, UnsafeFetchError } from './lib/safeUrl.js';
 import { sniffImageType, imageDimensions } from './lib/imageDims.js';
 import {
@@ -177,6 +180,12 @@ async function storeFetched({ env, token, userId, sourceUrl, finalUrl, boardId, 
   const key = `${workspaceId}/${d.uuid()}.${ext}`;
   const dims = imageDimensions(bytes);
   const fileName = nameFromImageUrl(sourceUrl) || (finalUrl !== sourceUrl ? nameFromImageUrl(finalUrl) : null);
+  // The space itself is reserved before the bytes are written (0610); this
+  // one fails CLOSED, unlike the check above.
+  const held = await reserveUploadSpace((fn, params) => d.userRpc(env, token, fn, params),
+    { key, bytes: bytes.length, boardId });
+  if (held === 'full') throw new SaveError('over_quota', 402);
+  if (held !== 'reserved') throw new SaveError('busy', 503);
   await env.IMAGES.put(key, bytes, { httpMetadata: { contentType: type } });
   try {
     await d.userInsert(env, token, 'images', [{
