@@ -257,3 +257,14 @@ test('a webhook\'s address and deliveries are read by the workspace owner only',
     assert.match(b, /public\.can_write_workspace\(w\.workspace_id\)\s+and exists \(select 1 from public\.workspaces ws\s+where ws\.id = w\.workspace_id and ws\.created_by = auth\.uid\(\)\)/, `${fn}: the owner`);
   }
 });
+
+// ── 0610: an upload reserves its owner's space ─────────────────────────────
+
+test('an upload is recorded only if it fits the drive it fills, checked under one lock per owner', () => {
+  const b = latestDefinition('record_upload_intent').body;
+  assert.match(b, /select created_by into v_owner from public\.workspaces where id = v_ws;/, 'the drive is the key\'s workspace owner\'s');
+  assert.match(b, /perform pg_advisory_xact_lock\(hashtextextended\('soleil\.upload_space:' \|\| v_owner::text, 0\)\);/);
+  assert.match(b, /if public\._storage_used_bytes\(v_owner\) \+ public\._storage_pending_bytes\(v_owner\) \+ p_bytes\s+> public\._storage_quota_bytes\(v_owner\) then\s+return false;/);
+  assert.ok(b.indexOf('pg_advisory_xact_lock(') < b.indexOf('_storage_used_bytes(')
+    && b.indexOf('_storage_quota_bytes(') < b.indexOf('insert into public.upload_intents'), 'lock, then check, then record');
+});
