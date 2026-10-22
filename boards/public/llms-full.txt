@@ -10725,6 +10725,8 @@ A new sidebar keeps your clusters on one card and every file on the other, whole
   [Files](/docs/clusters/list-view).
 - A shared or published link to a cluster that opens in Files shows this page
   too, read-only.
+- PDFs show their first page even when it couldn't be drawn on upload, and a
+  video upload no longer gets stuck on Uploading.
 
 ### Folders and zips
 

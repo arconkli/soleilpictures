@@ -17,7 +17,7 @@ import { assignArm } from './experiments.js';
 // It is the sidebar release's instant, so an account made before the release
 // that never opened the app isn't enrolled on its first open after it, with its
 // 7-day window long gone. The test's saved read starts at the same instant.
-export const SETUP_EPOCH = '2026-10-22T19:00:00Z';
+export const SETUP_EPOCH = '2026-10-22T07:00:00Z';
 
 // Who sees the steps at all. Zero queries: the tier read the app already makes
 // carries `onboarding`, and only someone who passes this pays for the reads

@@ -291,6 +291,12 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": "A shared or published link to a cluster that opens in Files shows this page too, read-only."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "PDFs show their first page even when it couldn't be drawn on upload, and a video upload no longer gets stuck on Uploading."
+     }
     ]
    ]
   },
