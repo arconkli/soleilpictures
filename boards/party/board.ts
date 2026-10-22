@@ -238,9 +238,10 @@ export class BoardParty extends YServer<Env> {
     if (conns.length) {
       try { await this.ctx.storage.put(ACTIVE_KEY, Date.now()); } catch (_) { /* best effort */ }
       // Audit AC-2: an account banned mid-session stops editing within a minute.
-      // And so does anyone who has lost access since they connected (removed,
-      // unshared, or made a viewer): no read closes the socket, and a lost write
-      // closes it too, so the client reconnects as read-only.
+      // And so does anyone who has lost access since they connected: no read
+      // closes the socket with 4401, after which the client stops reconnecting
+      // (lib/yPartyKit.js); a lost write closes it with 4409, and the client
+      // reconnects as read-only.
       const ids = conns.map((c) => stateOf(c).userId || "");
       const [banned, access] = await Promise.all([
         bannedAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, ids),
@@ -254,8 +255,12 @@ export class BoardParty extends YServer<Env> {
           continue;
         }
         const may = uid ? access.get(uid) : undefined;
-        if (may && (!may.canRead || (stateOf(c).canWrite === true && !may.canWrite))) {
-          try { c.close(4401, "access changed"); } catch (_) { /* already gone */ }
+        if (may && !may.canRead) {
+          try { c.close(4401, "access ended"); } catch (_) { /* already gone */ }
+          continue;
+        }
+        if (may && stateOf(c).canWrite === true && !may.canWrite) {
+          try { c.close(4409, "role changed"); } catch (_) { /* already gone */ }
           continue;
         }
         const heard = this.lastHeard.get(c);

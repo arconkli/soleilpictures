@@ -69,6 +69,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   }
 
   let destroyed = false;
+  // Set when the room closes with 4401 (this person can no longer read the
+  // cluster: removed, unshared) or 4403 (suspended). A reconnect would only be
+  // refused again every couple of seconds, so nothing reconnects after it.
+  let accessEnded = false;
   let lastUsedToken = '';
 
   // ONE provider for the lifetime of this attach.
@@ -97,7 +101,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       try { return performance.now() < getGestureActiveUntil(); } catch (_) { return false; }
     },
     refresh: () => {
-      if (destroyed || parking.isParked()) return;
+      if (destroyed || accessEnded || parking.isParked()) return;
       console.log('[partykit] board', boardId, 'refresh-connect (rotated token)');
       perf.bump('partykit.refreshConnect');
       // Same provider object: disconnect() closes + clears shouldConnect;
@@ -139,7 +143,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     try { provider.disconnect(); } catch (_) {}
   };
   const unparkFor = (why) => () => {
-    if (!parkedFor.delete(why) || parkedFor.size > 0 || destroyed) return;
+    if (!parkedFor.delete(why) || parkedFor.size > 0 || destroyed || accessEnded) return;
     console.log('[partykit] board', boardId, 'unparked');
     try { Promise.resolve(provider.connect()).catch(() => {}); } catch (_) {}
   };
@@ -225,8 +229,18 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   });
   // Fires on every socket close, including failed reconnect attempts — the
   // reconnector no-ops unless the session token actually changed.
-  provider.on('connection-close', () => {
-    if (!destroyed) reconnector.onConnectionClose();
+  provider.on('connection-close', (event) => {
+    if (destroyed) return;
+    if (event && (event.code === 4401 || event.code === 4403)) {
+      accessEnded = true;
+      provider.shouldConnect = false;
+      console.log('[partykit] board', boardId, 'room closed for access', event.code, '- not reconnecting');
+      try {
+        window.dispatchEvent(new CustomEvent('soleil-board-access-ended', { detail: { boardId, code: event.code } }));
+      } catch (_) { /* no window */ }
+      return;
+    }
+    reconnector.onConnectionClose();
   });
 
   // Auth events: a HEALTHY socket needs nothing (token is validated at

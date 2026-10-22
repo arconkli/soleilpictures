@@ -103,7 +103,7 @@ export class WorkspaceParty extends Server<Env> {
       conns = conns.filter((c) => {
         const uid = this.presenceOf(c).userId;
         if (uid && access.get(uid) === false) {
-          try { c.close(4401, "access changed"); } catch (_) { /* already gone */ }
+          try { c.close(4401, "access ended"); } catch (_) { /* already gone */ }
           return false;
         }
         return true;
