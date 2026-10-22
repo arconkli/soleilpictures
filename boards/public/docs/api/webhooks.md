@@ -14,9 +14,11 @@ happens to a board.
 
 ## Register one
 
-Only the workspace's **owner** can add, change, replay or delete its webhooks —
-a webhook carries every event in the workspace, so where those go is the
-owner's call. Registering a webhook, or pointing one at a new URL, opens up once
+Only the workspace's **owner** can see, add, change, replay or delete its
+webhooks and their deliveries — a webhook carries every event in the workspace,
+so where those go is the owner's call. When the workspace passes to a new owner,
+the previous owner's webhooks are turned off, and the new owner sets up their
+own. Registering a webhook, or pointing one at a new URL, opens up once
 the account is 72 hours old.
 
 ```sh

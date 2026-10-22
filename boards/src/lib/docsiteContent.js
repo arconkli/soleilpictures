@@ -32369,7 +32369,16 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
+     "v": " that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. The previous owner's webhooks and API service accounts are turned off, and the notice says so. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When someone is removed from a workspace, or leaves it, what they set up there goes with them: the links and invitations they made stop working, the files and docs they shared from it stop reaching people, they leave its conversations, and the webhooks and API service accounts they created are turned off. A link also stops working as soon as the person who made it can no longer edit the cluster, so unsharing a cluster from someone, or making them a viewer, ends their links too. People who already joined through one of those links keep what they were given."
     }
    ]
   },
@@ -61638,7 +61647,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " can add, change, replay or delete its webhooks — a webhook carries every event in the workspace, so where those go is the owner's call. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old."
+     "v": " can see, add, change, replay or delete its webhooks and their deliveries — a webhook carries every event in the workspace, so where those go is the owner's call. When the workspace passes to a new owner, the previous owner's webhooks are turned off, and the new owner sets up their own. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old."
     }
    ]
   },
@@ -62840,7 +62849,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. The record itself is kept, so past entries in the "
+     "v": "Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. A service account also stops when the person who created it leaves the workspace or hands it to a new owner: its tokens are revoked, and the new owner creates their own. The record itself is kept, so past entries in the "
     },
     {
      "t": "link",

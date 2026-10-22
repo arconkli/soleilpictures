@@ -355,7 +355,7 @@ test('the Security tab is admin-only, its alert link opens it, and it calls only
 
 test('a banned account\'s shares and published clusters stop serving, and its invitations do nothing', () => {
   assert.match(latestDefinition('_resolve_share_target').body,
-    /if public\._sharer_suspended\(v_creator\)\s+or exists \(select 1 from boards b join workspaces w on w\.id = b\.workspace_id\s+where b\.id = v_root and public\._user_banned\(w\.created_by\)\) then/);
+    /if public\._sharer_suspended\(v_creator\)\s+(?:or not public\._user_can_write_board\(v_creator, v_root\)\s+)?or exists \(select 1 from boards b join workspaces w on w\.id = b\.workspace_id\s+where b\.id = v_root and public\._user_banned\(w\.created_by\)\) then/);
   for (const fn of ['_resolve_published_board', 'list_public_boards', 'list_public_board_images', 'get_related_public_boards']) {
     const body = latestDefinition(fn).body;
     assert.match(body, /not public\._user_banned\(w\.created_by\)/, `${fn} must drop a banned owner's clusters`);

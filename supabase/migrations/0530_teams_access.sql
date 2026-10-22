@@ -30,15 +30,15 @@
 --   _workspace_member_can_write      0391_workspace_coowner.sql                                877424a1536495e53f4f2d9d23b7ca63
 --   can_manage_workspace             0394_suspended_coowner_manages_nothing.sql                674afb1abcd78873f94f995edd4a3d52
 --   my_workspace_ids                 0319_read_suspend_gate.sql                                b42ce2d6ce5627a58c8fd43dba0be191
---   my_readable_board_ids            0319_read_suspend_gate.sql                                c04903747503fcaa0596236baef207dc
+--   my_readable_board_ids            0526_trashed_shares_grant_nothing.sql                     ce07690230251e57a4a4338c33d816ab
 --   _user_can_read_board             0207_comment_mention_notifications.sql                    7139e58939b83b5ba859bf3d26fbb46f
 --   scout_can_write_board            0213_scout_identity_claim.sql                             d84bafdbb68d28affa685b201615bc26
---   _file_share_reaches              0422_file_share_fixes.sql                                 f65e7217647f1f8084dda6d92424785c
+--   _file_share_reaches              0527_inbox_proof.sql                                      e3db5a677b3d4744b1315e4ee692e19d
 --   _workspace_invite_link_live      0450_workspace_invite_links.sql                           87ba2c28305b56149dbb2b7092b886d2
 --   workspace_user_directory         0084_lock_down_views.sql                                  1965b0f7bc6ea715923d08dd88c014ec
 --   merge_workspace_settings         0392_workspace_name_icon_managers_only.sql                93c83b4933e4173f0e951bed570bea63
 --   get_or_create_personal_workspace 0400_personal_workspace_is_your_own.sql                   c2c63f41e298ae968bf3e2d938618cc9
---   transfer_workspace_ownership     0412_storage_counts_files_never_placed.sql                02570421a690a26dcfae38f2bf7c754a
+--   transfer_workspace_ownership     0524_offboarding.sql                                      e398ef6dd71d383856078376c8c5e957
 --   prepare_account_deletion         0388_audit_deletion_heir_can_edit.sql                     ee01d2408bd3e001f9470d2f52504ddb
 --   prepare_admin_account_deletion   0408_admin_deletion_hands_workspaces_over.sql             4b00b65abe90e06945b6127209466070
 --   my_deletion_impact               0388_audit_deletion_heir_can_edit.sql                     15d4204fd20945ca7fe9461b0b3c20f4
@@ -214,7 +214,9 @@ as $$
             select unnest(public._my_org_workspace_ids())   -- 0530
           )
        or exists (
+            -- 0526: a share on a cluster in the trash grants nothing.
             select 1 from board_shares s where s.board_id = b.id and s.user_id = auth.uid()
+               and b.deleted_at is null
           )
     union
     select c.id, c.parent_board_id
@@ -331,10 +333,12 @@ begin
     return true;
   end if;
   select lower(u.email) into v_email
-    from auth.users u where u.id = p_user and u.email_confirmed_at is not null;
+    from auth.users u where u.id = p_user and u.email_confirmed_at is not null
+      and public._user_proved_inbox(p_user);
   if exists (select 1 from public.file_share_people p
               where p.share_id = p_share.id and p.revoked_at is null
                 and not public._sharer_suspended(p.invited_by)
+                and public._user_can_write_board(p.invited_by, p_share.board_id)
                 and (p.user_id = p_user
                      or (p.user_id is null and v_email is not null and p.email = v_email))) then
     return true;
@@ -509,6 +513,8 @@ declare
   v_role    text;
   v_bytes   bigint;
   v_objects bigint;
+  v_integrations jsonb;
+  v_note    text := '';
   v_org     uuid;   -- 0530
 begin
   -- 0371: a suspended account acts on nothing.
@@ -556,6 +562,17 @@ begin
   update workspace_members set role = 'editor'
     where workspace_id = p_workspace_id and user_id = v_old;
 
+  -- 0524: the outgoing owner's integrations stop with their ownership. Their
+  -- webhooks go inactive, the service accounts they made are disabled and
+  -- those accounts' tokens revoked; the new owner sets up their own. The
+  -- outgoing owner stays an editor, so nothing else of theirs is touched.
+  v_integrations := public._offboard_integrations(p_workspace_id, v_old);
+  perform public._log_security_event('workspace.ownership_transferred', p_workspace_id,
+    jsonb_build_object('from_user', v_old, 'to_user', p_new_owner) || v_integrations);
+  if coalesce((v_integrations ->> 'webhooks')::int, 0) + coalesce((v_integrations ->> 'service_accounts')::int, 0) > 0 then
+    v_note := ' The previous owner''s webhooks and API service accounts were turned off; set up your own in Settings.';
+  end if;
+
   -- 0397: the workspace's stored files now count toward the new owner, as the
   -- nightly reconcile would decide; move them now rather than at 03:55 UTC.
   -- 0411: only the files that count (_image_counts) — the rollup holds no others.
@@ -592,7 +609,7 @@ begin
           format('Its cards, files and storage now count toward your plan. You''re at %s of %s cards.', v_count, v_cap)
         else
           'Its cards, files and storage now count toward your plan.'
-      end,
+      end || v_note,
       jsonb_build_object(
         'card_count', v_count,
         'card_limit', case when v_tier = 'demo' then v_cap end,

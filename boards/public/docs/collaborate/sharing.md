@@ -208,8 +208,18 @@ parent; their access is changed or removed from the parent's Share panel, so
 their row here only says what they can do. A transfer
 hands over the plan too: the workspace's cards, files and storage count against
 the new owner's plan from then on, and they get a notice with their own numbers.
-To have someone run it while your plan keeps covering it, make them a co-owner
-instead — the transfer dialog offers that.
+The previous owner's webhooks and API service accounts are turned off, and the
+notice says so. To have someone run it while your plan keeps covering it, make
+them a co-owner instead — the transfer dialog offers that.
+
+When someone is removed from a workspace, or leaves it, what they set up there
+goes with them: the links and invitations they made stop working, the files
+and docs they shared from it stop reaching people, they leave its
+conversations, and the webhooks and API service accounts they created are
+turned off. A link also stops working as soon as the person who made it can no
+longer edit the cluster, so unsharing a cluster from someone, or making them a
+viewer, ends their links too. People who already joined through one of those
+links keep what they were given.
 
 ## Getting a link fast
 

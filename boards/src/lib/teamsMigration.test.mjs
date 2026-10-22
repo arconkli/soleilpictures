@@ -198,7 +198,9 @@ test('0530: the re-emits keep what earlier migrations pinned', () => {
 test('0530: the predicates that inherit the branch were not rewritten', () => {
   for (const [fn, file, calls] of [
     ['can_read_board', '0373_audit_suspended_accounts_act_on_nothing.sql', 'is_workspace_member('],
-    ['can_write_board', '0318_workspace_roles_real.sql', '_workspace_member_can_write('],
+    // 0526 (security: a share on a trashed cluster grants nothing) re-emitted
+    // can_write_board; it still reaches the team through the helper.
+    ['can_write_board', '0526_trashed_shares_grant_nothing.sql', '_workspace_member_can_write('],
     ['can_write_workspace', '0318_workspace_roles_real.sql', '_workspace_member_can_write('],
   ]) {
     const d = def(fn);

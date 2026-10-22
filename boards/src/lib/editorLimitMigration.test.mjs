@@ -211,7 +211,9 @@ test('a refusing door checks only for an editor, and before it spends an invite 
 test('an edit link opened when full lets them in as a viewer, tells them and the owner, and never refuses', () => {
   for (const [fn, via] of [['claim_collab_link', 'collab_link'], ['claim_workspace_invite_link', 'workspace_link']]) {
     const d = def(fn);
-    assert.equal(d.file, DOORS, `${fn}'s latest definition must be 0521`);
+    // 0525 re-emits claim_collab_link (a link follows its maker); the doors
+    // below must survive every later re-emit, so the file is 0521 or after.
+    assert.ok(d.file >= DOORS, `${fn}'s latest definition must be 0521 or a later re-emit`);
     const b = code(d.body);
     assert.match(b, /if v_link\.role = 'editor' then\s+if public\._editor_admit\(/, `${fn}: only an edit link is checked`);
     assert.match(b, /v_role := 'viewer';\s+v_fallback := true;/, `${fn}: falls back to viewer`);

@@ -3158,7 +3158,9 @@ Who has access
 
 One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, invitations still waiting on a signup, and the link. The right-hand side of each row says what that person can do: a bare Can edit or Can view means this cluster (and its sub-clusters), while workspace members read Workspace · can edit or Workspace · can view.
 
-That right-hand side is also the row's one control. For someone on this cluster alone it changes their level, moves them to the Whole workspace (owners and co-owners, for someone not already in it), or removes their access — with an undo. For a workspace member, owners and co-owners can change their level, make them a co-owner or remove them from the workspace; only the owner can make someone else the owner. An invitation still waiting on a signup can be revoked from its row. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
+That right-hand side is also the row's one control. For someone on this cluster alone it changes their level, moves them to the Whole workspace (owners and co-owners, for someone not already in it), or removes their access — with an undo. For a workspace member, owners and co-owners can change their level, make them a co-owner or remove them from the workspace; only the owner can make someone else the owner. An invitation still waiting on a signup can be revoked from its row. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. The previous owner's webhooks and API service accounts are turned off, and the notice says so. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
+
+When someone is removed from a workspace, or leaves it, what they set up there goes with them: the links and invitations they made stop working, the files and docs they shared from it stop reaching people, they leave its conversations, and the webhooks and API service accounts they created are turned off. A link also stops working as soon as the person who made it can no longer edit the cluster, so unsharing a cluster from someone, or making them a viewer, ends their links too. People who already joined through one of those links keep what they were given.
 
 Getting a link fast
 
@@ -6521,7 +6523,7 @@ Including changes made in the app. That is the part worth stating plainly: event
 
 Register one
 
-Only the workspace's owner can add, change, replay or delete its webhooks — a webhook carries every event in the workspace, so where those go is the owner's call. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old.
+Only the workspace's owner can see, add, change, replay or delete its webhooks and their deliveries — a webhook carries every event in the workspace, so where those go is the owner's call. When the workspace passes to a new owner, the previous owner's webhooks are turned off, and the new owner sets up their own. Registering a webhook, or pointing one at a new URL, opens up once the account is 72 hours old.
 
 curl -X POST "$SOLEIL_API/webhooks" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
@@ -6733,7 +6735,7 @@ curl -X DELETE "$SOLEIL_API/service-accounts/$SA/tokens/$TOKEN_ID" \
 # Retire the whole account — revokes every token and ends its membership
 curl -X DELETE "$SOLEIL_API/service-accounts/$SA" -H "Authorization: Bearer $SOLEIL_TOKEN"
 
-Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. The record itself is kept, so past entries in the audit log still resolve to a name rather than to a deleted id.
+Deleting a service account is immediate: every token is revoked and the membership is removed, so the credential is dead by the time the call returns. A service account also stops when the person who created it leaves the workspace or hands it to a new owner: its tokens are revoked, and the new owner creates their own. The record itself is kept, so past entries in the audit log still resolve to a name rather than to a deleted id.
 
 Limits
 
