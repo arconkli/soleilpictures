@@ -51,6 +51,7 @@ const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({
 const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
 const DocCommentsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocCommentsTab })));
 const DocFindTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFindTab })));
+const DocElementsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocElementsTab })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -1471,9 +1472,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           <DocSidePanel tab={panel.tab} onTab={(tab) => setPanel((p) => ({ ...p, tab }))}
                         sheet={panelSheet} onClose={closePanel}
                         host={panelSheet ? rootRef.current?.closest('.doc-card-modal') || null : null}
-                        screenplay={docMode === 'screenplay'} openComments={openComments}
+                        screenplay={docMode === 'screenplay' && canEdit} openComments={openComments}
                         onEscape={() => { try { editorRef.current?.commands.focus(); } catch (_) {} }}>
             {{
+              elements: (
+                <DocElementsTab editor={editorRef.current}
+                                titlePage={titlePage.enabled} onToggleTitlePage={toggleTitlePage}
+                                sceneNumbers={sceneNumbersShow} onSetSceneNumbers={onSetSceneNumbersShow} />
+              ),
               comments: (
                 <DocCommentsTab ydoc={ydoc} scope={scope} threads={comments}
                                 editor={editorRef.current} currentUser={currentUser}
