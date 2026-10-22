@@ -1,0 +1,147 @@
+/* The toolbar look on the bars the app already has (the owner's pick
+   "A · Islands", 2026-10-21): each keeps its markup and wears the language
+   here, scoped to <html data-tb="a"> (lib/appHost.js toolbarLookAllowed), so
+   nothing changes while the look is held. Loaded by main.jsx only under the
+   look. The parts (tokens, glass, buttons, menus, the tooltip) are
+   components/toolbar/toolbar.css's; this file says where each bar wears them.
+   One section a bar. */
+
+/* ── The tool rail (mockup A-add): an island of the sidebar's glass at the
+   canvas's left, 32px buttons (44 under a finger), what's on in a gold tint
+   with a ring, hairlines between its groups. Its tooltips are the one host's
+   (data-tl-tip, on the right), so the CSS tips under [data-tip] stay off,
+   but for the guided tour's last step, which lays every tool's name out down
+   the rail at once (styles.css, body[data-tour-active]): there they wear the
+   tooltip's glass. While the tour runs the host's stay away, as the rail's
+   do today. ── */
+:root[data-tb='a'] .cnv-tool[data-tip]::after { display: none; }
+:root[data-tb='a'] body[data-tour-active] .tour-target .cnv-tool[data-tip]::after {
+  display: block;
+  left: calc(100% + 12px);
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-tip-lift);
+  font: 400 12px/1 var(--font-sans);
+}
+:root[data-tb='a'] body[data-tour-active] .tl-tip { display: none; }
+:root[data-tb='a'] .cnv-tools {
+  gap: var(--tl-gap);
+  padding: var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: none;
+  box-shadow: none;
+}
+/* The glass is a layer under the tools (toolbar.css .tl-surf says why), in
+   the grain's place. */
+:root[data-tb='a'] .cnv-tools::after { display: none; }
+:root[data-tb='a'] .cnv-tools::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+:root[data-tb='a'] .cnv-tool,
+:root[data-tb='a'] .cnv-tools .cnv-tool:first-child {
+  width: var(--tl-bs);
+  height: var(--tl-bs);
+  border-radius: var(--tl-br);
+  background: transparent;
+  color: var(--ink-2);
+  transform: none;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .cnv-tool svg { width: var(--tl-is); height: var(--tl-is); }
+@media (hover: hover) {
+  :root[data-tb='a'] .cnv-tool:hover:not(.active) { background: var(--tl-hov); color: var(--ink-0); transform: none; }
+}
+:root[data-tb='a'] .cnv-tool:active:not(.active) { transform: none; }
+:root[data-tb='a'] .cnv-tool.active,
+:root[data-tb='a'] .cnv-tools .cnv-tool.active:first-child {
+  background: var(--tl-on);
+  color: var(--ink-0);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+}
+/* The + with its menu open is open, not on: the look's menu buttons. */
+:root[data-tb='a'] .cnv-tools .cnv-add-wrap .cnv-tool.active {
+  background: var(--tl-hov);
+  color: var(--ink-0);
+  box-shadow: none;
+}
+:root[data-tb='a'] .cnv-tool:focus-visible {
+  outline: 2px solid var(--soleil);
+  outline-offset: 1px;
+}
+:root[data-tb='a'] .cnv-tool-sep {
+  flex-shrink: 0;
+  width: var(--tl-sep);
+  height: 1px;
+  margin: calc((var(--tl-sg) - 1px) / 2) auto;
+  background: var(--line-2);
+}
+/* Under a finger, on a phone too, where the rail scrolls: its own padding
+   and gaps, not the phone block's. */
+@media (hover: none) and (pointer: coarse), (max-width: 640px) {
+  :root[data-tb='a'] .cnv-tools { padding: var(--tl-pad); gap: var(--tl-gap); }
+  :root[data-tb='a'] .cnv-tool,
+  :root[data-tb='a'] .cnv-tools .cnv-tool:first-child { width: var(--tl-bs); height: var(--tl-bs); }
+}
+
+/* ── The rail's + menu (mockup A-add): a menu in the look, its groups under
+   small capitals, Draw with its key. ── */
+:root[data-tb='a'] .cnv-add-menu {
+  width: auto;
+  min-width: 196px;
+  padding: 4px;
+  gap: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+  font: 400 var(--tl-mfs)/1.35 var(--font-sans);
+}
+:root[data-tb='a'] .cnv-add-menu::after { display: none; }
+:root[data-tb='a'] .cnv-add-group-head,
+:root[data-tb='a'] .cnv-add-menu .cnv-add-group-head:first-child {
+  padding: 9px 10px 5px;
+  color: var(--ink-3);
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .08em;
+}
+:root[data-tb='a'] .cnv-add-menu button {
+  gap: 10px;
+  height: var(--tl-mrow);
+  min-height: 0;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--ink-1);
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .cnv-add-menu button .cnv-add-ico { width: var(--tl-mis); height: var(--tl-mis); color: var(--ink-2); }
+:root[data-tb='a'] .cnv-add-menu button .cnv-add-ico svg { width: var(--tl-mis); height: var(--tl-mis); }
+:root[data-tb='a'] .cnv-add-menu button .tl-keys { margin-left: 14px; color: var(--ink-3); }
+:root[data-tb='a'] .cnv-add-menu button:is(:hover, :focus-visible) { background: var(--tl-hov); color: var(--ink-0); }
+:root[data-tb='a'] .cnv-add-menu button:is(:hover, :focus-visible) .cnv-add-ico { color: var(--ink-1); }
+
+/* ── The Cluster tool's hover card: the glass, as the tooltip it stands in
+   for. ── */
+:root[data-tb='a'] .cnv-tool-card {
+  border: 0;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-tip-lift);
+}

@@ -7,7 +7,7 @@
 //   node --test src/lib/looks.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { keyCaps, tip, tlTip, toolbarLook, docLook } from './looks.js';
@@ -36,6 +36,24 @@ test('main.jsx marks <html> from the switches, before anything renders', () => {
   assert.match(main, /if \(toolbarLookAllowed\(\)\) document\.documentElement\.dataset\.tb = 'a';/);
   assert.match(main, /if \(docLookAllowed\(\)\) document\.documentElement\.dataset\.docLook = 'a';/);
   assert.ok(main.indexOf("dataset.tb = 'a'") < main.indexOf('createRoot('), 'marked before the first render');
+});
+
+// The bars the app already has wear the toolbar look from styles/toolbarLook.css,
+// a file of its own that only the look loads: never in the entry's CSS, so the
+// held look costs today's look nothing.
+test('main.jsx alone loads toolbarLook.css, and only under the look', () => {
+  const main = read('main.jsx');
+  assert.match(main, /if \(toolbarLookAllowed\(\)\) import\('\.\/styles\/toolbarLook\.css'\)/);
+  const statics = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(path.join(here, '..', dir), { withFileTypes: true })) {
+      const rel = path.join(dir, e.name);
+      if (e.isDirectory()) walk(rel);
+      else if (/\.(jsx?|mjs|css)$/.test(e.name) && /^\s*(import|@import)\s[^;]*toolbarLook\.css/m.test(read(rel))) statics.push(rel);
+    }
+  };
+  walk('.');
+  assert.deepEqual(statics, []);
 });
 
 test('only main.jsx asks the switches', () => {

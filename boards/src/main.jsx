@@ -29,6 +29,8 @@ if (typeof document !== 'undefined') {
   if (toolbarLookAllowed() || docLookAllowed()) {
     import('./components/toolbar/tipHost.js').then((m) => m.installTipHost()).catch(() => {});
   }
+  // Where the bars the app already has wear the toolbar look.
+  if (toolbarLookAllowed()) import('./styles/toolbarLook.css').catch(() => {});
 }
 
 // DEV-only logic bridge for Playwright specs (first-value-upgrade.spec.js).

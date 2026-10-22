@@ -83,7 +83,8 @@ import {
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
   Calendar as CalendarPh, X,
 } from '../lib/icons.js';
-import { Icon } from './Icon.jsx';
+import { Icon, IconWeightContext } from './Icon.jsx';
+import { keyCaps, tlTip, toolbarLook } from '../lib/looks.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
@@ -12485,20 +12486,25 @@ export function CanvasSurface({
   const tools = [
     // `keys`: what picks it from the keyboard (the shortcut handler above),
     // for aria-keyshortcuts. With W A S D movement on, A and D move instead.
-    { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2, keys: 'V' },
-    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand, keys: 'H' },
+    // `tip`: its words in the toolbar look's tooltip, which shows `keys` in
+    // caps beside them (`title`, today's, says the key itself).
+    { id: 'select', title: 'Select / move (V)', tip: 'Select / move', label: 'Select tool', icon: MousePointer2, keys: 'V' },
+    { id: 'pan',    title: 'Pan canvas (H or Space)', tip: 'Pan canvas, or hold Space', label: 'Pan tool', icon: Hand, keys: 'H' },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil, keys: 'N' },
+    { id: 'text',   title: 'Add note (N)', tip: 'Add note', label: 'Add note tool', icon: NotePencil, keys: 'N' },
     { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
     { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: clusterGlyph(), keys: clusterNudgesAllowed() ? 'C' : undefined },
-    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine, keys: 'G' },
-    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
+    { id: 'grid',   title: 'Add grid (G)', tip: 'Add grid', label: 'Add grid tool', icon: GridNine, keys: 'G' },
+    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', tip: 'Arrow — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
     // Draw was moved off the rail deliberately — on a desktop D reaches it
     // instantly and the rail stays uncluttered. A touch device has no keyboard
     // and no right-click, which left the rail "+" submenu as the only way in,
     // for the tool people most want on a tablet. Put it back, on touch only.
-    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
+    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', tip: 'Draw', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
   ];
+  // The toolbar look (lib/looks.js): its tooltips, regular icons and the
+  // menu's keys in caps; toolbarLook.css dresses the rest.
+  const tbLook = toolbarLook();
 
   // The rail "+" holds only the SECONDARY creators — anything already on the
   // rail (Note, Image, Doc, Cluster, Grid) is intentionally absent so the two
@@ -12514,7 +12520,7 @@ export function CanvasSurface({
     { title: 'Tools', items: [
       // On touch Draw sits on the rail itself, so listing it here too would put
       // the same tool two taps apart in the same strip.
-      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw (D)', action: () => setSelectedTool('draw') }]),
+      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw', keys: getWasdPan() ? undefined : 'D', action: () => setSelectedTool('draw') }]),
       { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => setSelectedTool('shape') },
       { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => setSelectedTool('palette') },
     ]},
@@ -13969,11 +13975,13 @@ export function CanvasSurface({
              railPressRef.current.scrolled = false;
              startTouchScrollGesture(e, { onEngage: () => { railPressRef.current.scrolled = true; } });
            }}>
+        <IconWeightContext.Provider value={tbLook ? 'regular' : null}>
         <div className="cnv-add-wrap">
           <div
             ref={addBtnRef}
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
             data-tip="Add"
+            {...(tbLook ? tlTip('Add', null, 'right') : {})}
             role="button"
             tabIndex={0}
             aria-label="Add menu"
@@ -14023,7 +14031,8 @@ export function CanvasSurface({
                       // ::after tooltip content into the name ("Shape Draw a
                       // shape"), which also breaks getByRole('menuitem') lookups.
                       aria-label={item.label}
-                      data-tip={item.tip}
+                      aria-keyshortcuts={item.keys}
+                      {...(tbLook ? tlTip(item.tip, null, 'right') : { 'data-tip': item.keys ? `${item.tip} (${item.keys})` : item.tip })}
                       onClick={() => {
                         setAddMenuOpen(false);
                         item.action();
@@ -14031,6 +14040,9 @@ export function CanvasSurface({
                     >
                       <span className="cnv-add-ico" aria-hidden="true"><Icon as={item.icon} size={16} /></span>
                       <span className="cnv-add-lbl">{item.label}</span>
+                      {tbLook && item.keys && (
+                        <span className="tl-keys" aria-hidden="true">{keyCaps(item.keys).map((k) => <kbd key={k}>{k}</kbd>)}</span>
+                      )}
                     </button>
                   ))}
                 </Fragment>
@@ -14072,6 +14084,7 @@ export function CanvasSurface({
           const btn = (
             <div className={`cnv-tool ${active ? 'active' : ''}${teaches ? ' cnv-tool-teach' : ''}`}
                  data-tip={teaches ? undefined : t.title}
+                 {...(tbLook && !teaches ? tlTip(t.tip || t.title, t.keys, 'right') : {})}
                  data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
                  role="button"
                  tabIndex={0}
@@ -14133,6 +14146,7 @@ export function CanvasSurface({
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
              data-tip="Keyboard shortcuts (?)"
+             {...(tbLook ? tlTip('Keyboard shortcuts', '?', 'right') : {})}
              role="button"
              tabIndex={0}
              aria-label="Keyboard shortcuts"
@@ -14146,6 +14160,7 @@ export function CanvasSurface({
              onClick={() => onRailControlClick(openHelp)}>
           <Icon as={Question} size={20} />
         </div>
+        </IconWeightContext.Provider>
       </div>
 
       <SaveTemplateDialog
