@@ -100,3 +100,19 @@ test('the gap and the margin can be set', () => {
   const q = placeAnchored(rect(1250, 100, 24, 24), { width: 200, height: 100 }, VP, { pad: 12 });
   assert.equal(q.left, 1280 - 200 - 12);
 });
+
+test('beside, with no room on the right, it hangs to the left, and says so', () => {
+  // A submenu off a row of a menu at the window's right edge (the doc bar's ⋯).
+  const row = rect(1080, 200, 180, 32);
+  const p = placeAnchored(row, { width: 220, height: 160 }, VP, { side: 'right', gap: 2 });
+  assert.deepEqual(p, { top: 200, left: 1080 - 2 - 220, side: 'left', maxHeight: null });
+  // Room on the right: as before.
+  const q = placeAnchored(rect(400, 200, 180, 32), { width: 220, height: 160 }, VP, { side: 'right', gap: 2 });
+  assert.equal(q.side, 'right');
+  assert.equal(q.left, 582);
+  // No room on either side: the roomier one, kept inside the window.
+  const narrow = { width: 400, height: 800 };
+  const r = placeAnchored(rect(150, 200, 100, 32), { width: 220, height: 160 }, narrow, { side: 'right', gap: 2 });
+  assert.equal(r.side, 'right');
+  assert.equal(r.left, 400 - 220 - 8);
+});

@@ -10,6 +10,7 @@
 // pin the work itself: what redraws on a key, and what a key makes the
 // decorations read again.
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 
 test.skip(({ browserName }) => browserName !== 'chromium', 'timed on Chromium');
 
@@ -45,7 +46,7 @@ async function pagesOn(page) {
 }
 
 async function screenplayOn(page) {
-  await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await page.waitForFunction(() => window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
     null, { timeout: 15000 });
 }

@@ -6,13 +6,14 @@
 // Pure, for hooks/useAnchoredPopover.js.
 //
 // `side: 'right'` hangs it beside the control instead (a menu off the tool
-// rail): `align` is then which part of the control's height it lines up with,
-// and with `fitHeight` it may be as tall as the window.
+// rail, a submenu): `align` is then which part of the control's height it lines
+// up with, with `fitHeight` it may be as tall as the window, and with no room
+// on the right it hangs to the left ('left').
 //
 //   anchor    the control's box (getBoundingClientRect)
 //   size      the panel's { width, height } — its whole height, for fitHeight
 //   viewport  { width, height }
-//   → { top, left, side: 'below' | 'above' | 'right', maxHeight: number | null }
+//   → { top, left, side: 'below' | 'above' | 'right' | 'left', maxHeight: number | null }
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -27,10 +28,15 @@ export function placeAnchored(anchor, size, viewport, opts = {}) {
     const start = align === 'end' ? anchor.bottom - height
       : align === 'center' ? anchor.top + anchor.height / 2 - height / 2
         : anchor.top;
+    // With no room on the right and more on the left (a submenu off a menu at
+    // the window's right edge), it hangs to the left.
+    const roomRight = vw - anchor.right - gap - pad;
+    const roomLeft = anchor.left - gap - pad;
+    const left = w > roomRight && roomLeft > roomRight;
     return {
       top: clamp(start, pad, vh - height - pad),
-      left: clamp(anchor.right + gap, pad, vw - w - pad),
-      side,
+      left: left ? clamp(anchor.left - gap - w, pad, vw - w - pad) : clamp(anchor.right + gap, pad, vw - w - pad),
+      side: left ? 'left' : side,
       maxHeight,
     };
   }

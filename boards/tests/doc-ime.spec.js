@@ -6,6 +6,7 @@
 // syllable still in the IME: a keydown with isComposing and keyCode 229, then
 // the IME commits the syllable. A real Enter after that is the user's next one.
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 import { korean } from './imeHelpers.js';
 
 test.skip(({ browserName }) => browserName !== 'chromium', 'CDP drives Chromium\'s IME');
@@ -43,7 +44,7 @@ test('prose: Korean lands whole, and Enter mid-syllable leaves the line to the n
 
 test('a screenplay: Korean scene, action, a cast name with its autocomplete open, and dialogue', async ({ page }) => {
   await openDoc(page);
-  await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await page.waitForFunction(() => window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
     null, { timeout: 15000 });
   // A scene in which 민수 already speaks, so his name is offered on a new cue.
@@ -70,7 +71,7 @@ test('a screenplay: Korean scene, action, a cast name with its autocomplete open
 
 test('a screenplay\'s title page: Enter mid-syllable leaves the title to the IME, the next Enter sets it', async ({ page }) => {
   await openDoc(page);
-  await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await page.locator('.doc-card-modal .doc-tb-titlepage-toggle').click();
   const field = page.locator('.doc-card-modal .sp-title-page .sp-tp-title');
   await field.click();

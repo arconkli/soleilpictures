@@ -272,6 +272,121 @@
   color: var(--ink-2);
 }
 
+/* ── The one row of tools (DocBarA; the toolbar canvas's A-doc frame): its
+   own row over the page, the bar an island in its middle 12px under the
+   header, and the page 14px under the bar. ── */
+.dl-cap {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 12px 12px 0;
+  background: var(--bg-0);
+}
+.dl-cap > .tl-bar { max-width: 100%; }
+/* Before the bar's chunk is in: its room, so the page doesn't jump. */
+.dl-bar-ph { height: calc(var(--tl-bs) + var(--tl-pad) * 2); }
+.dl-surface .doc-paper { padding-top: 14px; }
+
+/* The widths lib/docBarFold.js counts on (DOC_BAR_SIZES.desktop; .touch in
+   the block under a finger below). */
+.dl-bar .tl-btn.dl-w-doc { width: 80px; }
+.dl-bar .tl-btn.dl-w-docicon { width: 44px; }
+.dl-bar .tl-btn.dl-w-style { width: 96px; }
+.dl-bar .tl-btn.dl-w-font { width: 86px; }
+.dl-bar .tl-btn.dl-w-caret { width: 46px; }
+.dl-bar .size-combo-wrap.is-tl { width: 54px; }
+/* A select's icon (Doc's) is a text button's size. */
+.dl-bar .tl-btn.is-select > svg:first-child { width: 16px; height: 16px; }
+
+/* The size: the field and its ⌄, one control. */
+.dl-bar .size-combo-wrap.is-tl {
+  flex-shrink: 0;
+  height: var(--tl-bs);
+  border-radius: var(--tl-br);
+}
+.dl-bar .size-combo-wrap.is-tl .size-combo {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 22px 0 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ink-1);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.dl-bar .size-combo-wrap.is-tl .size-combo:focus { background: var(--tl-hov); box-shadow: inset 0 0 0 1px var(--line-2); }
+.dl-bar .size-combo-wrap.is-tl .size-combo:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-bar .size-combo-wrap.is-tl .size-combo-arrow.tl-btn {
+  right: 2px;
+  width: 20px;
+  min-width: 0;
+  height: calc(var(--tl-bs) - 8px);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+}
+@media (hover: hover) {
+  .dl-bar .size-combo-wrap.is-tl:hover .size-combo:not(:disabled) { background: var(--tl-hov); color: var(--ink-0); }
+  .dl-bar .size-combo-wrap.is-tl .size-combo-arrow.tl-btn:hover:not(:disabled) { background: transparent; color: var(--ink-0); }
+}
+.tl-menu.size-combo-tl { min-width: 88px; }
+
+/* Colour and highlight: the colour the text has, under the A. */
+.dl-bar .tl-btn.dl-colour::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--tl-is) * .34 - 1.25px);
+  width: calc(var(--tl-is) * .7);
+  height: 2.5px;
+  margin-left: calc(var(--tl-is) * -.35);
+  border-radius: 1px;
+  background: var(--dl-ink, transparent);
+  pointer-events: none;
+}
+.dl-swrow {
+  display: grid;
+  grid-template-columns: repeat(9, auto);
+  justify-content: start;
+  gap: 8px;
+  padding: 4px 10px 8px;
+}
+.dl-swrow .tl-sw { margin: 0; }
+/* The colour a text has by default: no fill, struck through. */
+.tl-sw.is-none { overflow: hidden; background: none; box-shadow: inset 0 0 0 1.5px var(--line-3); }
+.tl-sw.is-none::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - .75px);
+  top: -2px;
+  bottom: -2px;
+  width: 1.5px;
+  background: var(--ink-2);
+  transform: rotate(45deg);
+}
+.tl-sw.is-none.is-on { box-shadow: inset 0 0 0 1.5px var(--line-3), 0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--soleil); overflow: visible; }
+
+/* The menus off the bar. A style says what it looks like; a font is in its
+   own face. */
+.dl-style-menu .dl-style-h1 .tl-mt { font-size: 18px; font-weight: 700; }
+.dl-style-menu .dl-style-h2 .tl-mt { font-size: 16px; font-weight: 700; }
+.dl-style-menu .dl-style-h3 .tl-mt { font-size: 14.5px; font-weight: 650; }
+.dl-style-menu :is(.dl-style-h4, .dl-style-h5, .dl-style-h6) .tl-mt { font-weight: 600; }
+.tl-menu.dl-font-pop { width: 248px; }
+.dl-font-pop .dl-font-rows .tl-mi { font-size: 14px; }
+.dl-font-pop .dl-font-rows .tl-mi .tl-mt { font-family: inherit; }
+.tl-menu.dl-insert-menu { min-width: 284px; }
+.tl-menu.dl-more { min-width: 236px; }
+.dl-mrow-i { width: 16px; height: 16px; flex-shrink: 0; color: var(--ink-2); }
+.dl-minfo { padding: 6px 10px 5px; color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+.tl-btn.dl-zoom-pct { min-width: 48px; padding: 0 6px; font: 400 12px/1 var(--font-mono); color: var(--ink-1); }
+.dl-bar .tl-btn.dl-zoom-pct { font-size: 12.5px; }
+
 /* ── Under a finger (A-ipad, AC-ipad): finger rows in the page list, a
    narrower list and panel, a taller footer. Before the drawer's block below,
    which outranks it where both apply. ── */
@@ -286,6 +401,15 @@
   .dl-seg [role='tab'] { height: 34px; font-size: 13.5px; }
   .dl-foot { height: 36px; font-size: 13px; }
   .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
+  /* The bar's widths under a finger (DOC_BAR_SIZES.touch). */
+  .dl-bar .tl-btn.dl-w-doc { width: 88px; }
+  .dl-bar .tl-btn.dl-w-docicon { width: 52px; }
+  .dl-bar .tl-btn.dl-w-style { width: 104px; }
+  .dl-bar .tl-btn.dl-w-font { width: 96px; }
+  .dl-bar .tl-btn.dl-w-caret { width: 60px; }
+  .dl-bar .size-combo-wrap.is-tl { width: 64px; }
+  /* Under 16px iOS zooms the page in on focus. */
+  .dl-bar .size-combo-wrap.is-tl .size-combo { font-size: 16px; }
 }
 /* An iPad's window sits 16px in, not the desktop's 24 (a phone's is the
    whole screen). */

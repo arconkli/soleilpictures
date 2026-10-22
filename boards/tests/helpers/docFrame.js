@@ -15,3 +15,19 @@ export const dockButton = (scope) =>
 
 // The doc's footer: under the page today, across the whole window in the look.
 export const docFooter = (scope) => scope.locator('.doc-foot, .dl-foot');
+
+// Makes the doc a screenplay (`on`), or a document again: today the bar's
+// Screenplay toggle, in the look the Doc type menu's rows (a screenplay keeps
+// today's bar in the look for now, so its toggle is the way back there too).
+export async function setScreenplay(scope, on = true) {
+  const page = typeof scope.page === 'function' ? scope.page() : scope;
+  const toggle = scope.locator('.doc-tb-screenplay-toggle');
+  const docType = scope.getByRole('button', { name: 'Doc type', exact: true });
+  await toggle.or(docType).first().waitFor();
+  if (await toggle.count()) {
+    if ((await toggle.getAttribute('aria-pressed')) !== String(on)) await toggle.click();
+    return;
+  }
+  await docType.click();
+  await page.getByRole('menuitemradio', { name: on ? /^Screenplay/ : /^Document/ }).click();
+}

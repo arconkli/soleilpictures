@@ -18,8 +18,9 @@ import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 // anything already reachable from the toolbar (style <select>, list/quote/
 // bookmark buttons) — the "+" is not a second copy of the toolbar.
 // An item whose handler is missing is left out (a guest in a shared doc has
-// neither: DocSurface guestMode).
-function insertItems({ onInsertImage, onInsertBoardEmbed }) {
+// neither: DocSurface guestMode). The doc look's Insert menu
+// (components/doc/DocBarA.jsx) runs these same rows.
+export function insertItems({ onInsertImage, onInsertBoardEmbed }) {
   return [
     { id: 'image', title: 'Image', subtitle: 'Upload from your machine',
       run: (e) => onInsertImage?.(e) },

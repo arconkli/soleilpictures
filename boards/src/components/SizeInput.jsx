@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
+import { Icon } from './Icon.jsx';
+import { Check, ChevronDown } from '../lib/icons.js';
+import { tlTip } from '../lib/looks.js';
 
 // Compact editable font-size combobox shared by the note (ToolOptionsBar) and
 // doc (DocToolbar) toolbars. The user can type an EXACT px size, or pick a
@@ -26,7 +29,11 @@ import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 //   min / max  — clamp bounds (default 6–200)
 //   disabled   — boolean
 //   dropUp     — open the preset list above the field (bottom-docked bars)
-export function SizeInput({ value = null, presets = [], onCommit, className = '', min = 6, max = 200, disabled = false, dropUp = false }) {
+//   placeholder — what the field shows with no size (default "Size")
+//   look       — in the toolbar look (the doc look's bar, components/doc/
+//                DocBarA.jsx): Phosphor's caret, and the presets a list in the
+//                look's menu (components/toolbar/toolbar.css)
+export function SizeInput({ value = null, presets = [], onCommit, className = '', min = 6, max = 200, disabled = false, dropUp = false, look = false, placeholder = 'Size' }) {
   const [draft, setDraft] = useState(() => (value ? String(value) : ''));
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
@@ -37,7 +44,7 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
   // the field as the bar scrolls (hooks/useAnchoredPopover).
   const pop = useAnchoredPopover({
     open, onClose: () => setOpen(false), anchorRef: wrapRef,
-    side: dropUp ? 'above' : 'below', gap: 4, matchWidth: true,
+    side: dropUp ? 'above' : 'below', gap: 4, matchWidth: !look,
   });
   // Reflect the caret's current size unless the user is actively editing.
   useEffect(() => { if (!focused) setDraft(value ? String(value) : ''); }, [value, focused]);
@@ -73,14 +80,15 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
   const pd = (e) => e.preventDefault();
 
   return (
-    <span className={`size-combo-wrap ${dropUp ? 'is-drop-up' : ''}`.trim()} ref={wrapRef}>
+    <span className={`size-combo-wrap ${dropUp ? 'is-drop-up' : ''}${look ? ' is-tl' : ''}`.trim()} ref={wrapRef}>
       <input
         type="text"
         inputMode="numeric"
         className={`size-combo ${className}`.trim()}
         value={draft}
-        placeholder="Size"
-        title="Font size — type an exact px value or pick one"
+        placeholder={placeholder}
+        title={look ? undefined : 'Font size — type an exact px value or pick one'}
+        {...(look ? tlTip('Font size') : null)}
         aria-label="Font size"
         disabled={disabled}
         onFocus={(e) => { setFocused(true); e.target.select(); }}
@@ -103,21 +111,23 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
         }}
       />
       {presets.length > 0 && (
-        <button type="button" className="size-combo-arrow" title="Preset sizes"
+        <button type="button" className={look ? 'size-combo-arrow tl-btn' : 'size-combo-arrow'} title={look ? undefined : 'Preset sizes'}
                 aria-label="Preset sizes" aria-expanded={open}
+                aria-haspopup={look ? 'listbox' : undefined}
                 disabled={disabled}
                 onMouseDown={pd} onPointerDown={pd}
-                onClick={() => setOpen(o => !o)}>▾</button>
+                onClick={() => setOpen(o => !o)}>{look ? <Icon as={ChevronDown} size={10} className="tl-caret" /> : '▾'}</button>
       )}
       {open && typeof document !== 'undefined' && createPortal(
-        <span className="size-combo-pop is-portaled" role="listbox" ref={pop.popRef} style={pop.style}>
+        <span className={look ? 'tl-menu size-combo-tl' : 'size-combo-pop is-portaled'} role="listbox" aria-label={look ? 'Font size' : undefined}
+              ref={pop.popRef} style={pop.style}>
           {presets.map(s => (
             <button key={s} type="button" role="option"
-                    className={`size-combo-item ${Number(draft) === s ? 'is-current' : ''}`.trim()}
+                    className={look ? 'tl-mi' : `size-combo-item ${Number(draft) === s ? 'is-current' : ''}`.trim()}
                     aria-selected={Number(draft) === s}
                     onMouseDown={pd} onPointerDown={pd}
                     onClick={() => { commitPx(s); setOpen(false); }}>
-              {s}
+              {look ? <><span className="tl-mt">{s}</span>{Number(draft) === s ? <Icon as={Check} size={16} className="tl-chk" /> : null}</> : s}
             </button>
           ))}
         </span>,

@@ -15,6 +15,9 @@ import {
 } from '../../lib/icons.js';
 import './docLook.css';
 
+// The one row of tools comes in the same chunk (components/doc/DocBarA.jsx).
+export { DocBarA } from './DocBarA.jsx';
+
 // The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
 // direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,
 // G-viewer): the window's header, the side panel beside the page and the

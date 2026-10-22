@@ -31,6 +31,9 @@ import { topModal } from '../lib/modalGuard.js';
 //   matchWidth at least as wide as the control
 //   escape     false: Escape is the owner's (a menu whose keys hand the focus
 //              back to its button)
+//   ignore     a selector for what else counts as inside it: a press there
+//              doesn't close it, and an Escape from there isn't its (a menu's
+//              submenus, portaled on their own)
 //
 // onClose is told why: 'escape' or 'outside' (a press outside both), so a
 // menu can give the focus back to its button on the one and not the other.
@@ -39,7 +42,7 @@ const HIDDEN = { position: 'fixed', top: 0, left: 0, bottom: 'auto', right: 'aut
 // gives it (a fixed box's 100% is the whole window).
 const HIDDEN_OWN_WIDTH = { ...HIDDEN, minWidth: 0 };
 
-export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', align = 'start', gap = 6, pad = 8, fitHeight = false, matchWidth = false, escape = true }) {
+export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', align = 'start', gap = 6, pad = 8, fitHeight = false, matchWidth = false, escape = true, ignore = null }) {
   const popRef = useRef(null);
   const [placed, setPlaced] = useState(null);
   const onCloseRef = useRef(onClose);
@@ -48,7 +51,7 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
   const closeOutside = useCallback(() => onCloseRef.current?.('outside'), []);
 
   const refs = useMemo(() => [anchorRef, popRef], [anchorRef]);
-  useDismissOnOutside(refs, open, closeOutside, { escape: false });
+  useDismissOnOutside(refs, open, closeOutside, { escape: false, ignore });
 
   useLayoutEffect(() => {
     if (!open) { setPlaced(null); return undefined; }
@@ -87,13 +90,14 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
     const layer = topModal();
     const onKey = (e) => {
       if (e.key !== 'Escape' || isComposingKey(e) || topModal() !== layer) return;
+      if (ignore && e.target?.closest?.(ignore)) return;
       e.preventDefault();
       e.stopPropagation();
       close('escape');
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, close, escape]);
+  }, [open, close, escape, ignore]);
 
   const style = placed
     ? {

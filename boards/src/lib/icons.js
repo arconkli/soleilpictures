@@ -202,4 +202,13 @@ export {
   CreditCard,
   // The team setup's done step (components/team/TeamSetup.jsx).
   CheckCircle,
+  // The doc look's one row of tools (components/doc/DocBarA.jsx).
+  Eraser,
+  Table,
+  CodeBlock,
+  FileHtml,
+  MarkdownLogo,
+  Printer,
+  HighlighterCircle,
+  MagnifyingGlassPlus,
 } from '@phosphor-icons/react';

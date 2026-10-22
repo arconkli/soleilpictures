@@ -6,6 +6,7 @@
 // more in a long doc. The toolbar still has to light what's under the caret,
 // so that's pinned here too; doc-typing-budget.spec.js times the result.
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 import { countRenders, renders, resetRenders } from './helpers/renderCounter.js';
 
 async function openDoc(page, html) {
@@ -19,7 +20,7 @@ async function openDoc(page, html) {
 
 async function openScreenplay(page, blocks) {
   await openDoc(page);
-  await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await page.waitForFunction(() => window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
     null, { timeout: 15000 });
   await page.evaluate((b) => {

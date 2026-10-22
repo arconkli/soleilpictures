@@ -5,6 +5,7 @@
 // page list tucks away to its toggle, which brings it back for as long as the
 // doc stays narrow and stores nothing. A wide doc is as it always was.
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 import { wrapLines } from '../src/lib/screenplayPaginate.js';
 import { elementWidth } from '../src/lib/screenplayMetrics.js';
 
@@ -34,7 +35,7 @@ async function besideIt(page, id) {
 
 // Turn the doc in `which` pane into a short script, through its own editor.
 async function makeScript(page, which) {
-  await pane(page, which).locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(pane(page, which), true);
   const sel = `[data-doc-pane="${which}"] .ProseMirror`;
   await page.waitForFunction((s) => document.querySelector(s)?.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
     sel, { timeout: 15000 });
@@ -141,7 +142,7 @@ test('a script with room for its page is as it always was: actual size, the list
   await card(page, 'doc-b').locator('.doc-card-page').dblclick();
   const full = page.locator('.doc-card-modal-full');
   await expect(full).toBeVisible();
-  await full.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(full, true);
   await page.waitForFunction(() => document.querySelector('.doc-card-modal-full .ProseMirror')?.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
     null, { timeout: 15000 });
   const layout = await page.evaluate(() => {

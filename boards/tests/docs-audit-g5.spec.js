@@ -1,7 +1,7 @@
 // Doc fixes from the platform audit (group G5), driven through the ?docqa=1
 // harness (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
-import { pageListButton } from './helpers/docFrame.js';
+import { pageListButton, setScreenplay } from './helpers/docFrame.js';
 
 async function openDoc(page, query = '') {
   await page.goto('/?docqa=1' + query);
@@ -211,7 +211,7 @@ test('SHARE-13: a comment dot follows its text when a paragraph is added above',
 // ── DOCS-20 ───────────────────────────────────────────────────────────────
 test('DOCS-20: renaming a cue updates the on-screen "(CONT\'D)" page-break marker', async ({ page }) => {
   await openDoc(page);
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await page.waitForFunction(() =>
     window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
   null, { timeout: 10000 });

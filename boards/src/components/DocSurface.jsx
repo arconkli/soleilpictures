@@ -42,10 +42,12 @@ import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { IconWeightContext } from './Icon.jsx';
 import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
 
-// The doc look's side panel and footer (held; components/doc/DocFrameA.jsx):
-// lazy, so the doc as it is never downloads the look.
+// The doc look's side panel, footer and one row of tools (held;
+// components/doc/DocFrameA.jsx): lazy, so the doc as it is never downloads
+// the look.
 const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
 const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
+const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -1251,7 +1253,35 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           {docMode === 'screenplay' ? 'Scenes' : 'Page list'}
         </button>
         )}
-        {!isPublic && (
+        {/* The doc look's one row (a screenplay keeps today's bar until its
+            own row lands; a reader gets Find, the zoom and Export). */}
+        {!isPublic && lookA && (docMode !== 'screenplay' || !canEdit) && (
+          <Suspense fallback={<div className="dl-cap" aria-hidden="true"><div className="dl-bar-ph" /></div>}>
+            <DocBarA editor={editorRef.current}
+                     docName={board.name}
+                     ydoc={ydoc}
+                     scope={scope}
+                     docMode={docMode}
+                     onToggleScreenplay={canEdit ? toggleScreenplay : null}
+                     pageless={pageless}
+                     pagesShownContinuous={phoneReflow}
+                     onTogglePageless={onTogglePageless}
+                     onInsertBookmark={insertBookmarkAtCaret}
+                     onInsertImage={guestMode ? null : pickImageFromDisk}
+                     onInsertBoardEmbed={guestMode ? null : pickBoardEmbed}
+                     onOpenFind={() => setFindOpen(true)}
+                     onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
+                     onAddComment={() => openAddCommentRef.current?.()}
+                     zoom={effectiveZoom}
+                     fitEligible={fitEligible}
+                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
+                     onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
+                     onZoomReset={resetZoom}
+                     canEdit={canEdit}
+                     canExport={allowExport} />
+          </Suspense>
+        )}
+        {!isPublic && !(lookA && (docMode !== 'screenplay' || !canEdit)) && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
                     ydoc={ydoc}

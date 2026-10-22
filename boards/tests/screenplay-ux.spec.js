@@ -2,6 +2,7 @@
 // mode, the Courier layout class, Tab/Enter element cycling, and auto-uppercase.
 
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 
 async function openDoc(page) {
   await page.goto('/?docqa=1');
@@ -13,7 +14,7 @@ async function openDoc(page) {
 }
 
 async function enableScreenplay(page) {
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
   // Editor rebuilds on mode change — wait for the re-handed live editor + the
   // seeded scene block.
@@ -869,7 +870,7 @@ test('toggling Screenplay converts existing prose to script blocks (and back)', 
   // The element selector is live (it was disabled on paragraph content).
   await expect(page.locator('.doc-card-modal .doc-tb-select')).toBeEnabled();
   // Toggle back → paragraphs again, text intact.
-  await page.locator('.doc-tb-screenplay-toggle').click();
+  await setScreenplay(page.locator('.doc-card-modal'), false);
   await expect(page.locator('.doc-paper.is-screenplay')).toHaveCount(0);
   await expect.poll(async () => page.evaluate(() =>
     (window.__soleilDocTest.editor.getJSON().content || []).map(n => n.type),
