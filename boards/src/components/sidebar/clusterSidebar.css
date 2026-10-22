@@ -39,8 +39,11 @@
 /* ── The materials ───────────────────────────────────────────────────────── */
 .app.sb-files { grid-template-columns: var(--sb-w, 320px) 1fr; }
 /* The materials live on <body> too while the files sidebar is on (App sets
-   data-sb-files): Messages portals to <body>, outside .app, and wears them. */
-.app.sb-files, body[data-sb-files] {
+   data-sb-files): Messages portals to <body>, outside .app, and wears them.
+   And on a page committed to the dark (.public-dark, styles.css), whose
+   shared Files list wears them (PublicBoardView): the dark ones whatever the
+   theme, as the page is. */
+.app.sb-files, body[data-sb-files], .public-dark {
   --sbf-handle-ink: rgba(245, 245, 247, .34);
   --sbf-glass: color-mix(in oklab, var(--bg-1) 88%, transparent);
   --sbf-glass-line: #232328;

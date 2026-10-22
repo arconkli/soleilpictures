@@ -21846,7 +21846,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". Visitors on those links get this same page, read-only: the search, "
+    },
+    {
+     "t": "strong",
+     "v": "All files ⌄",
+     "children": [
+      {
+       "t": "text",
+       "v": "All files ⌄"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", Grid and List, Quick look, Info and downloads, but nothing that adds, moves or deletes. The title is just the cluster's name there, and its clusters open from their tiles."
     }
    ]
   },

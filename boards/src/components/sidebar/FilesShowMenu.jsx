@@ -3,7 +3,9 @@
 // the full Files page in the sidebar's look (direction A) both open it, so
 // the two say the same words: Show, then Sort, then what the surface adds
 // (the card's Group by; the page's tile Size, passed as `extra`). Portaled
-// and fixed, so no overflow (the divider can make the card short) cuts it off.
+// and fixed, so no overflow (the divider can make the card short) cuts it off:
+// to <body>, or on a page committed to the dark (.public-dark, a shared link)
+// into that page, so it wears the page's tokens rather than a light theme's.
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -118,7 +120,7 @@ export function FilesShowMenu({
           ))}
           {extra}
         </div>,
-        document.body,
+        btnRef.current?.closest('.public-dark') || document.body,
       )}
     </div>
   );

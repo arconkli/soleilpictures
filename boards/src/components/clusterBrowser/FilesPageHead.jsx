@@ -1,7 +1,9 @@
 // The full Files page's head in the files sidebar's look (direction A; the
 // look is filesLook.js): the sidebar's Files card grown full screen. The
 // cluster's name is the title, and pressing it opens the card's cluster
-// switch (ClusterSwitch); the way back up ("‹ Studio", and Back after a
+// switch (ClusterSwitch; on a shared link, which has no workspace to switch
+// through, it is the name alone: the link's own trail walks its clusters);
+// the way back up ("‹ Studio", and Back after a
 // spring) goes before it on the same line, as Finder's and Drive's do; a line
 // says what's in it; Download all and Shrink are words at the right. Under it sit the card's own controls: the search
 // line, "All files ⌄" (FilesShowMenu), who's here, Grid | List as the card's
@@ -28,7 +30,7 @@ function rootOf(boards, id) {
   return cur?.id || id;
 }
 
-export function FilesPageHead({ board, boards, phone = false, meta = '', download = null, shrink = null, trail = null, onOpenBoard }) {
+export function FilesPageHead({ board, boards, phone = false, meta = '', download = null, shrink = null, trail = null, switchable = true, onOpenBoard }) {
   // The cluster switch: opened by the title, fading as it closes (110ms, as
   // the card's), focus back on the title.
   const titleRef = useRef(null);
@@ -64,13 +66,17 @@ export function FilesPageHead({ board, boards, phone = false, meta = '', downloa
       <div className="fp-titlebar">
         {trail && <div className="fp-trail"><PathBar {...trail} /></div>}
         <h1 className="fp-title">
-          <button type="button" ref={titleRef} className={`fp-title-btn${open ? ' is-open' : ''}`}
-                  aria-haspopup="dialog" aria-expanded={open}
-                  title={`${name} · press to see another cluster’s files`}
-                  onClick={() => { if (open) closeSwitch(); else { dropSwitch(); setSwitchOpen(true); } }}>
-            <span className="fp-title-name">{name}</span>
-            <span className="fp-title-caret" aria-hidden="true"><Icon as={ChevronDown} size={14} weight="regular" /></span>
-          </button>
+          {switchable ? (
+            <button type="button" ref={titleRef} className={`fp-title-btn${open ? ' is-open' : ''}`}
+                    aria-haspopup="dialog" aria-expanded={open}
+                    title={`${name} · press to see another cluster’s files`}
+                    onClick={() => { if (open) closeSwitch(); else { dropSwitch(); setSwitchOpen(true); } }}>
+              <span className="fp-title-name">{name}</span>
+              <span className="fp-title-caret" aria-hidden="true"><Icon as={ChevronDown} size={14} weight="regular" /></span>
+            </button>
+          ) : (
+            <span className="fp-title-text" title={name}>{name}</span>
+          )}
         </h1>
         {meta && <span className="fp-meta">{meta}</span>}
         <span className="fp-spacer" />
@@ -86,7 +92,7 @@ export function FilesPageHead({ board, boards, phone = false, meta = '', downloa
           </button>
         )}
       </div>
-      {switchOpen && createPortal(
+      {switchable && switchOpen && createPortal(
         <ClusterSwitch list={list} rootId={rootOf(boards, board?.id)} shownId={board?.id} boardId={null}
                        sheet={phone} focusList={phone} closing={switchClosing}
                        tabsRef={titleRef} cardRef={null} width={320}

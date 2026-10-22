@@ -6,15 +6,19 @@
    justified grid on the card's shelves, the rest in rows; List is a classic
    Finder table. Every rule is under [data-look='sb'], which ListSurface and
    Quick look set only with that look (filesLook.js), or under .is-files-page,
-   which App sets only then, or names a class only that look's markup carries
+   which App sets only then (.public-canvas-host.is-files, PublicBoardView's,
+   on a shared link), or names a class only that look's markup carries
    (fp-*, ct-status, ct-stored, ct-folder-link, is-glyph, ct-tile-off,
    ct-tile-dur, ct-tile-pend), so the page
    production has matches nothing here. */
 
 /* ── The ground ──────────────────────────────────────────────────────────── */
 /* While the page is open the board's ground runs on behind the sidebar and
-   around the sheet, as Home's does (clustersHome.css). */
-.app.sb-files.is-files-page {
+   around the sheet, as Home's does (clustersHome.css); on a shared link, under
+   the link's own bar, in the dark that page keeps whatever the theme. */
+.public-canvas-host.is-files { --grid-line: rgba(245, 245, 247, .025); --grid-dot: rgba(245, 245, 247, .05); }
+.app.sb-files.is-files-page,
+.public-canvas-host.is-files {
   --fp-dot2: rgba(245, 245, 247, .085);
   background-color: var(--bg-0);
   background-image:
@@ -65,10 +69,15 @@
 .list-wrap[data-look='sb'].is-drop-target { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .fdl-files:has(.list-wrap[data-look='sb'].is-drop-target)::after { display: none; }
 
+/* On a shared link the sheet stands as far under the link's bar as from the
+   window's sides. */
+.public-canvas-host.is-files > .list-wrap[data-look='sb'] { --fp-top: 8px; }
+
 /* ── A phone ─────────────────────────────────────────────────────────────── */
 /* The sheet is the screen, between App's top bar and its bottom bar, as the
-   board is. */
-.app.sb-files:not(.is-floating-chrome) .list-wrap[data-look='sb'] {
+   board is (on a shared link, under the link's bar). ListSurface marks a
+   phone or a touch tablet itself (data-shell), App's shell or not. */
+.list-wrap[data-look='sb'][data-shell='mobile'] {
   --files-gutter: 12px;
   --fp-bleed: 8px;   /* rows keep 4px from the screen's edges, as from the sheet's */
   margin: 0; border-radius: 0; box-shadow: none; outline: 0;
@@ -102,6 +111,12 @@
 .fp-title-btn:hover { background: var(--bg-hov); }
 .fp-title-btn.is-open { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); }
 .fp-title-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+/* The name alone (a shared link: no clusters to switch to), where the
+   button's would stand. */
+.fp-title-text {
+  min-width: 0; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-0); font: 600 20px/32px var(--font-sans); letter-spacing: -0.01em;
+}
 .fp-meta {
   min-width: 0; margin-left: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--ink-2); font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
@@ -393,8 +408,9 @@
    open; the page's menus and Quick look are portalled to <body>, so nothing
    else fixed is inside it. Only with .has-info, which ListSurface sets
    beside a sheet, never on a phone, where Info stays production's bottom
-   sheet. */
-.fdl-files:has(.list-wrap[data-look='sb'].has-info) { contain: layout; }
+   sheet. On a shared link the area is the one under the link's bar. */
+.fdl-files:has(.list-wrap[data-look='sb'].has-info),
+.public-canvas-host.is-files:has(> .list-wrap[data-look='sb'].has-info) { contain: layout; }
 .list-wrap[data-look='sb'].has-info { margin-right: 356px; }
 .list-wrap[data-look='sb'].has-info .cb-detail.surface-frosted {
   position: fixed; top: var(--fp-top); right: 8px; bottom: auto; left: auto; z-index: 5;
@@ -529,34 +545,35 @@
 /* ── A phone: the title, the search and All files ────────────────────────── */
 /* The name ⌄ and Shrink as an icon on the first line; the search and All
    files on the second. Grid | List are in the menu, and the bottom bar's +
-   adds files (ListSurface). */
-.app.sb-files:not(.is-floating-chrome) .fp-titlebar { padding-left: 8px; padding-right: 8px; }
-.app.sb-files:not(.is-floating-chrome) .fp-title-btn { font-size: 18px; }
-.app.sb-files:not(.is-floating-chrome) .fp-shrink { width: 40px; height: 40px; padding: 0; justify-content: center; }
-.app.sb-files:not(.is-floating-chrome) .fp-shrink .fp-word-label { display: none; }
-.app.sb-files:not(.is-floating-chrome) .fp-tools { flex-wrap: wrap; height: auto; padding: 8px 8px 8px 12px; }
-.app.sb-files:not(.is-floating-chrome) .fp-search { flex: 1 1 auto; min-width: 0; }
-.app.sb-files:not(.is-floating-chrome) .fp-found,
-.app.sb-files:not(.is-floating-chrome) .fp-tools > .fp-spacer { display: none; }
+   adds files (ListSurface; a shared link has neither Shrink nor +). */
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-titlebar { padding-left: 8px; padding-right: 8px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-title-btn,
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-title-text { font-size: 18px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-shrink { width: 40px; height: 40px; padding: 0; justify-content: center; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-shrink .fp-word-label { display: none; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-tools { flex-wrap: wrap; height: auto; padding: 8px 8px 8px 12px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-search { flex: 1 1 auto; min-width: 0; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-found,
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-tools > .fp-spacer { display: none; }
 /* A sample pack's read stays, on a line of its own under the search; only a
    search's count gives way to the search's room. */
-.app.sb-files:not(.is-floating-chrome) .fp-found.is-pack {
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-found.is-pack {
   display: block; order: 1; flex: 1 0 100%; min-width: 0; margin: 2px 0 0;
   overflow: hidden; text-overflow: ellipsis;
 }
 /* The upsell gets a line of its own rather than the search's room. */
-.app.sb-files:not(.is-floating-chrome) .fp-tools .cbt-upsell { order: 1; flex: 1 0 100%; text-align: left; }
-.app.sb-files:not(.is-floating-chrome) .fp-head > .list-selbar { margin: 2px 8px 8px; }
-.app.sb-files:not(.is-floating-chrome) .fp-head .list-selbar-hint { display: none; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-tools .cbt-upsell { order: 1; flex: 1 0 100%; text-align: left; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-head > .list-selbar { margin: 2px 8px 8px; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-head .list-selbar-hint { display: none; }
 /* Clusters in one row that scrolls sideways, the next one showing at the
    edge, as Photos' albums do. */
-.app.sb-files:not(.is-floating-chrome) .fp-cls {
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-cls {
   flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
   scroll-snap-type: x proximity; scroll-padding-inline: 12px;
   margin-inline: -12px; padding-inline: 12px;
 }
-.app.sb-files:not(.is-floating-chrome) .fp-cls::-webkit-scrollbar { display: none; }
-.app.sb-files:not(.is-floating-chrome) .fp-cls .ft { flex: none; width: 200px; scroll-snap-align: start; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-cls::-webkit-scrollbar { display: none; }
+.list-wrap[data-look='sb'][data-shell='mobile'] .fp-cls .ft { flex: none; width: 200px; scroll-snap-align: start; }
 
 /* ── Fingers: 40px and up ────────────────────────────────────────────────── */
 /* No downloads on the pictures or the rows: every one would carry it. The

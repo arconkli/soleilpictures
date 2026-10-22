@@ -32,7 +32,11 @@ listed once.
 alone, on this device; it never changes the cluster for anyone else. To make a
 cluster open in Files for everyone, and on shared and published links, choose
 **Always open in Files** from its menu in the sidebar (if you can edit it);
-the same menu turns it back with **Open on the board by default**.
+the same menu turns it back with **Open on the board by default**. Visitors
+on those links get this same page, read-only: the search, **All files ⌄**,
+Grid and List, Quick look, Info and downloads, but nothing that adds, moves
+or deletes. The title is just the cluster's name there, and its clusters open
+from their tiles.
 
 In split view, `F` acts on the pane you last worked in, and Files there fills
 that pane.

@@ -88,6 +88,10 @@ import {
   DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
   AssetFetchError, isPublicSurface,
 } from '../lib/cardDownload.js';
+// The page in the files sidebar's look is built from the sidebar's controls
+// (the search, "All files ⌄", the tabs, the shelves) and materials, which the
+// app has from ClusterSidebar and a shared link from PublicBoardView
+// (clusterBrowser/filesPagePublic.css), never from here.
 import './clusterBrowser/filesPage.css';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
@@ -222,6 +226,11 @@ export function ListSurface({
   // waiting files are just files to them. PublicBoardView says so outright;
   // the path check is the fallback for a mount that doesn't.
   showPlacement = !isPublicSurface(),
+  // The page's title opens the cluster switch: the workspace's clusters. A
+  // visitor on a public link has no workspace, only the link's own clusters,
+  // which its trail walks, so the title is the name alone. PublicBoardView
+  // says so outright; the path check is the fallback, as above.
+  clusterSwitch = !isPublicSurface(),
   // The board this Files belongs to — its live cards and mutators — kept when
   // browsing another cluster replaces board/cards/mutators. After a drag has
   // sprung into another cluster, a drop moves the files from here.
@@ -2514,6 +2523,9 @@ export function ListSurface({
     <IconWeightContext.Provider value={sb ? 'regular' : null}>
     <div className={`list-wrap ${isPanel ? 'is-panel' : ''} ${dragOver ? 'is-drop-target' : ''}${selecting ? ' is-selecting' : ''}${noTouchDrag ? ' is-touch' : ''}${sb && detailTarget && !phoneShell ? ' has-info' : ''}${emptyHere ? ' is-empty' : ''}`} ref={listWrapRef}
          data-look={sb ? look : undefined}
+         // The look's phone rules key on this, not on App's shell classes, so
+         // a page outside App (a shared link) gets them too (filesPage.css).
+         data-shell={sb && phoneShell ? 'mobile' : undefined}
          data-drop-board={rulesOn ? board.id : undefined} data-drop-where={rulesOn ? 'files' : undefined}
          data-drop-name={rulesOn ? (board.name || undefined) : undefined}
          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
@@ -2545,6 +2557,7 @@ export function ListSurface({
               shrink={dockControls?.canShrink && dockControls?.onShrink ? {
                 label: dockControls.shrinkLabel || 'Beside board', title: dockControls.shrinkTitle, onClick: dockControls.onShrink } : null}
               trail={hasTrail ? fullPathBar : null}
+              switchable={clusterSwitch}
               onOpenBoard={onOpenBoard} />
             {selbarJsx || (dropLine ? (
               <div className="fp-drop-line">
