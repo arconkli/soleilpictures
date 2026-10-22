@@ -731,7 +731,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "A doc that hits a problem stays open."
+      "v": "A doc that hits a problem stays open, and replying to or resolving a comment never wipes out someone else's."
      }
     ],
     [

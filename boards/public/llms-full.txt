@@ -10774,7 +10774,8 @@ A new sidebar keeps your clusters on one card and every file on the other, whole
 - A doc opens on a double tap on phones and tablets.
 - Images go into a doc with their progress showing, and people a cluster is
   shared with can add them too.
-- A doc that hits a problem stays open.
+- A doc that hits a problem stays open, and replying to or resolving a comment
+  never wipes out someone else's.
 - ⌘Z on the board undoes the board while a doc is docked beside it.
 - With a doc docked beside the board, open another and it takes the board's
   place, so two docs sit side by side. See
