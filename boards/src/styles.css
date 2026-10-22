@@ -9838,6 +9838,13 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 .ct-tile-preview .img-ph { background: var(--files-paper, var(--bg-3)) !important; }
 .ct-tile-preview .img-ph > svg { display: none; }
 .ct-tile-preview div.cbp-img { background: var(--files-paper, var(--bg-3)); }
+/* The picture fills its preview whatever its own shape. A tile takes the
+   card's shape (lib/justifiedGrid.js aspectOfItem: the card's, clamped), and
+   as a grid item the picture sized the preview's row by its own: taller than
+   the preview, so Chrome cropped it from the top and Safari slid it down,
+   leaving a strip of paper above it. Out of the grid, it is the preview,
+   cropped from the middle. */
+.ct-tile-preview > img.cbp-img { position: absolute; inset: 0; }
 .ct-tile-preview div.cbp-img[aria-label='No access'] { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-3); }
 .ct-jg .ct-tile.is-pending .ct-tile-preview::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;

@@ -60,6 +60,20 @@ test.describe('the full Files page on a phone', () => {
     expect(line.y).toBeGreaterThanOrEqual(search.y + search.height - 1);
   });
 
+  test('a picture fills its tile whatever its own shape', async ({ page }) => {
+    await open(page);
+    // The harness's photos are squares, in tiles the shape of their cards
+    // (5:4): each is its tile, cropped from the middle, no strip of paper
+    // above it (Safari slid it down) and nothing hanging below (Chrome).
+    const off = await page.locator('.ct-jg .ct-tile:not(.is-pending)').evaluateAll((ts) => ts.slice(0, 6).map((t) => {
+      const p = t.querySelector('.ct-tile-preview').getBoundingClientRect();
+      const i = t.querySelector('img.cbp-img').getBoundingClientRect();
+      return Math.max(Math.abs(i.top - p.top), Math.abs(i.bottom - p.bottom), Math.abs(i.left - p.left), Math.abs(i.right - p.right));
+    }));
+    expect(off.length).toBeGreaterThan(0);
+    expect(Math.max(...off)).toBeLessThanOrEqual(1);
+  });
+
   test('the clusters scroll sideways, the pictures lie three or four across, and carry no downloads', async ({ page }) => {
     test.skip(page.viewportSize().width > 640, 'a phone’s width');
     await open(page);
