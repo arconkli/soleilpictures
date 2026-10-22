@@ -154,10 +154,13 @@ export function touchPassAllowed() {
 // test accounts. This hold keeps the app's side of it closed until the Team
 // plan launches with it: the share panel's count, "Ask the owner", the
 // joined-as-viewer toast, and "Join as an editor" no longer saying "free".
-// It stays OFF in the sidebar release. Opt-in on dev with localStorage
-// soleil.dev.editorLimit = '1'.
+// Open on preview, where the owner tries it on their own account (listed in
+// test_owner_ids; for anyone else the server says it's off and nothing new
+// shows but the dropped "free"), closed on production until the Team plan
+// launches with it, opt-in on dev with localStorage soleil.dev.editorLimit = '1'.
 export const EDITOR_LIMIT_DEV_FLAG = 'soleil.dev.editorLimit';
 export function editorLimitAllowed() {
+  if (onPreviewHost()) return true;
   if (!import.meta.env.DEV) return false;
   try { return window.localStorage.getItem(EDITOR_LIMIT_DEV_FLAG) === '1'; } catch (_) { return false; }
 }

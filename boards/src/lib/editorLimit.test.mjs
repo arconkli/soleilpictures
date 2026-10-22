@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   EDITOR_LIMIT, EDITOR_LIMIT_HINT, EDITOR_LIMIT_ASK_HINT,
   editorLimitRefusal, normalizeEditorCapacity,
@@ -191,4 +192,13 @@ test('freeing a place: Make viewer keeps them in, Remove takes shares first, Rev
   assert.deepEqual(revokeOps(inv), [{ op: 'revoke', inviteId: 'i1' }, { op: 'revoke', inviteId: 'i2' }]);
   assert.deepEqual(makeViewerOps(inv), []);
   assert.deepEqual(removeOps(inv), []);
+});
+
+test('the hold opens on the preview host and nowhere else in a build', () => {
+  const host = readFileSync(new URL('./appHost.js', import.meta.url), 'utf8');
+  const body = host.match(/export function editorLimitAllowed\(\)\s*\{([\s\S]*?)\n\}/)?.[1] || '';
+  assert.match(body, /if \(onPreviewHost\(\)\) return true;/);
+  assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
+  assert.doesNotMatch(body.trim(), /^return true;$/);
+  assert.match(host, /^\s*editorLimit: editorLimitAllowed,$/m);
 });
