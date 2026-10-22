@@ -4,6 +4,7 @@
 // touch-only, a touch device (isMobile + hasTouch → hover:none and
 // pointer:coarse, the query the mobile shell switches on).
 import { expect, test } from '@playwright/test';
+import { dockButton, pageListButton } from './helpers/docFrame.js';
 
 async function openDoc(page, query = '') {
   await page.goto('/?docqa=1' + query);
@@ -32,7 +33,7 @@ for (const vp of [{ width: 1024, height: 768 }, { width: 820, height: 1180 }]) {
     test('VS-DOCS-01: the page list opens from a button and switches pages', async ({ page }) => {
       await openDoc(page);
       await addPages(page, ['Chapter Two', 'Chapter Three']);
-      const btn = page.locator('.doc-card-modal .doc-mobile-pages-btn');
+      const btn = pageListButton(page.locator('.doc-card-modal'));
       await expect(btn).toBeVisible();
       await btn.tap();
       const surface = page.locator('.doc-card-modal .doc-surface');
@@ -106,10 +107,13 @@ test.describe('phone 390', () => {
     await expect(page.locator('.doc-bubble')).toBeVisible();
   });
 
-  // ── VS-DOCS-07 / VS-DOCS-09 ─────────────────────────────────────────────
-  test('VS-DOCS-07/09: drawer "+" buttons share a column; the drawer button matches the toolbar', async ({ page }) => {
+  // ── VS-DOCS-09 ──────────────────────────────────────────────────────────
+  // Today's frame only: the doc look opens the drawer from its header.
+  test('VS-DOCS-09: the drawer button matches the toolbar', async ({ page }) => {
+    await page.addInitScript(() => {
+      try { window.localStorage.setItem('soleil.dev.docLook', '0'); } catch (_) {}
+    });
     await openDoc(page);
-    await addPages(page, ['Chapter Two', 'Chapter Three']);
     const btn = page.locator('.doc-card-modal .doc-mobile-pages-btn');
     await expect(btn).toHaveText('Page list');
     const fonts = await page.evaluate(() => ({
@@ -117,7 +121,13 @@ test.describe('phone 390', () => {
       toolbar: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb .doc-tb-pill')).fontFamily,
     }));
     expect(fonts.drawer).toBe(fonts.toolbar);
-    await btn.tap();
+  });
+
+  // ── VS-DOCS-07 ──────────────────────────────────────────────────────────
+  test('VS-DOCS-07: the drawer\'s "+" buttons share a column', async ({ page }) => {
+    await openDoc(page);
+    await addPages(page, ['Chapter Two', 'Chapter Three']);
+    await pageListButton(page.locator('.doc-card-modal')).tap();
     await expect(page.locator('.doc-card-modal .doc-surface')).toHaveClass(/mobile-rail-open/);
     const cx = await page.evaluate(() => {
       const c = (el) => { const r = el.getBoundingClientRect(); return r.left + r.width / 2; };
@@ -174,7 +184,7 @@ test.describe('mouse 1440 side dock', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test('VS-DOCS-03: the docked bar wheels sideways and its fades stay current', async ({ page }) => {
     await openDoc(page);
-    await page.locator('.doc-card-icon[aria-label="Dock to side"]').click();
+    await dockButton(page).click();
     await expect(page.locator('.doc-card-modal-side')).toBeVisible();
     const bar = page.locator('.doc-card-modal-side .doc-tb');
     await expect(bar).toHaveClass(/has-more-end/);

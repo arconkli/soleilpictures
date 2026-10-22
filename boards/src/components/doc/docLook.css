@@ -1,0 +1,318 @@
+/* The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
+   direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,
+   G-viewer). Every rule is scoped to what only the look renders: the window's
+   .dl (DocCard.jsx DocCardOverlay) and the surface's .dl-surface (DocSurface,
+   given a frame), so the doc as it is never meets one. The buttons are the
+   toolbar look's (components/toolbar/toolbar.css). */
+
+/* ── The header ── */
+.dl-head {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 52px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--bg-1);
+  flex-shrink: 0;
+  container-type: inline-size;
+  font-family: var(--font-sans);
+}
+.dl-head .tl-btn { color: var(--ink-2); }
+.dl-head .tl-btn.is-on { color: var(--ink-0); }
+.dl-flip svg { transform: scaleX(-1); }
+.dl-crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.dl-crumb-c { display: contents; }
+.dl-crumb-p { flex: 0 1 auto; min-width: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.dl-crumb-s { flex-shrink: 0; color: var(--ink-3); }
+.dl-head .doc-card-title-input.dl-title { min-width: 4ch; padding: 2px 0; text-overflow: ellipsis; }
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  margin: 0 6px 0 2px;
+  border-radius: 12px;
+  font: 600 12px/1 var(--font-sans);
+  color: var(--ink-1);
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.dl-faces.doc-card-peers { padding: 0 8px 0 6px; margin: 0; flex-shrink: 0; }
+.dl-faces .doc-card-peer { margin-left: -5px; }
+.dl-faces .doc-card-peer:first-child { margin-left: 0; }
+.dl-faces .doc-card-peer .avatar { box-shadow: 0 0 0 1.5px var(--bg-1); }
+/* Share: the one button in words, with a hairline round it. */
+.dl-head .doc-card-share {
+  height: 32px;
+  margin: 0 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  gap: 6px;
+  font: 600 13px/1 var(--font-sans);
+  color: var(--ink-0);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+@media (hover: hover) {
+  .dl-head .doc-card-share:hover { background: var(--tl-hov); color: var(--ink-0); }
+}
+.dl-head .doc-card-share:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* Unread messages: a dot, ink rather than gold (gold is for what's on). */
+.dl-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-0);
+  box-shadow: 0 0 0 2px var(--bg-1);
+  pointer-events: none;
+}
+/* A narrow window (docked beside the board, one of two side by side): the
+   title alone, and Share as its icon. */
+@container (max-width: 680px) {
+  .dl-crumb-c { display: none; }
+  .dl-head .doc-card-share { width: 32px; padding: 0; margin: 0 4px; justify-content: center; }
+  .dl-head .doc-card-share span { display: none; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .dl-head .doc-card-share { height: 40px; }
+  .dl-dot { top: 9px; right: 9px; }
+}
+
+/* ── The body: page list, page, side panel; the footer under all three ── */
+.doc-surface.dl-surface {
+  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: var(--bg-1);
+}
+/* The page list gives the page 16px of the panel's room (AC-comments). */
+.doc-surface.dl-surface.has-panel { grid-template-columns: 216px minmax(0, 1fr) 300px; }
+.doc-surface.dl-surface.rail-left-collapsed { grid-template-columns: minmax(0, 1fr); }
+.doc-surface.dl-surface.rail-left-collapsed.has-panel { grid-template-columns: minmax(0, 1fr) 300px; }
+.doc-surface.dl-surface.rail-left-collapsed:not(.mobile-rail-open) > .doc-rail-left { display: none; }
+.doc-surface.dl-surface > .doc-rail-left,
+.doc-surface.dl-surface > .doc-center,
+.doc-surface.dl-surface > .dl-panel { grid-row: 1; }
+
+/* ── The page list ── */
+.dl-surface .doc-rail-left { border-right: 1px solid var(--line-1); background: var(--bg-1); padding-bottom: 10px; }
+.dl-surface .doc-tree { height: auto; flex: 0 1 auto; min-height: 0; }
+.dl-surface .doc-tree-head { height: 40px; padding: 0 8px 0 18px; border-bottom: 0; }
+.dl-surface .doc-tree-kicker,
+.dl-surface .doc-bookmarks-head,
+.dl-surface .sp-scenenav-head {
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.dl-surface .doc-tree-add-root { width: 26px; height: 26px; border-radius: 6px; color: var(--ink-2); }
+.dl-surface .doc-tree-add-root svg { width: 16px; height: 16px; }
+.dl-surface .doc-tree-body { padding: 0 0 4px; }
+/* A row's "+" (a sub-page) sits under the head's (a page): one column, the
+   head's 26px button 8px in, so the row keeps 2px past its 22px one. */
+.dl-surface .doc-tree-row {
+  gap: 7px;
+  height: 30px;
+  margin: 0 8px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 2px;
+  border-radius: 6px;
+  font: 400 13px/1 var(--font-sans);
+  color: var(--ink-1);
+}
+.dl-surface .doc-tree-row.is-active { background: var(--bg-act); color: var(--ink-0); font-weight: 600; }
+/* The page you're on: the gold mark at the list's edge. */
+.dl-surface .doc-tree-row.is-active::before { left: -8px; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; }
+.dl-surface .doc-tree-chev { width: 14px; height: 14px; color: var(--ink-3); }
+.dl-surface .doc-tree-chev svg { width: 11px; height: 11px; }
+.dl-surface .doc-tree-ico { width: 16px; height: 16px; color: var(--ink-2); flex-shrink: 0; }
+.dl-surface .doc-tree-add { width: 22px; height: 22px; border-radius: 5px; color: var(--ink-2); }
+.dl-surface .doc-tree-add svg { width: 14px; height: 14px; }
+.dl-surface .doc-tree-peers { margin-left: auto; }
+.dl-surface .doc-tree-peer { width: 7px; height: 7px; border: 0; box-shadow: none; }
+.dl-surface .doc-bookmarks { padding: 14px 0 0; border-top: 0; }
+.dl-surface .doc-bookmarks-head,
+.dl-surface .sp-scenenav-head { display: flex; align-items: center; height: 40px; padding: 0 8px 0 18px; border-bottom: 0; }
+.dl-surface .doc-bookmarks-row { height: 30px; margin: 0 8px; padding: 0 4px 0 10px; gap: 7px; }
+.dl-surface .doc-bookmarks-item { padding: 0; font: 400 13px/1 var(--font-sans); }
+.dl-surface .doc-bookmarks-row > svg { width: 16px; height: 16px; color: var(--ink-2); flex-shrink: 0; }
+.dl-surface .doc-bookmarks-x svg { width: 12px; height: 12px; }
+.dl-surface .sp-scenenav { padding: 14px 0 0; margin: 0; border-top: 0; }
+.dl-surface .sp-scenenav-item {
+  align-items: center;
+  gap: 7px;
+  width: calc(100% - 16px);
+  height: 30px;
+  margin: 0 8px;
+  padding: 0 8px 0 10px;
+  font: 400 13px/1 var(--font-sans);
+}
+.dl-surface .sp-scenenav-num {
+  min-width: 18px;
+  font: 400 10.5px/1 var(--font-mono);
+  color: var(--ink-2);
+  text-align: right;
+}
+
+/* ── The side panel ── */
+.dl-panel {
+  position: relative;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--line-1);
+  background: var(--bg-1);
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+.dl-tabs { padding: 12px 14px 4px; flex-shrink: 0; }
+.dl-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.dl-seg [role='tab'] {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: 600 12.5px/1 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .dl-seg [role='tab']:hover:not([aria-selected='true']) { color: var(--ink-0); }
+}
+.dl-seg [role='tab'][aria-selected='true'] {
+  background: var(--bg-4);
+  color: var(--ink-0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+[data-theme='light'] .dl-seg [role='tab'][aria-selected='true'] {
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(10, 10, 12, .08), 0 1px 2px rgba(10, 10, 12, .08);
+}
+.dl-seg [role='tab']:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-cnt {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font: 600 10.5px/1 var(--font-sans);
+  color: var(--ink-1);
+  background: var(--bg-4);
+}
+[data-theme='light'] .dl-cnt { background: #e4e4e8; }
+.dl-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
+
+/* ── The footer ── */
+.dl-foot {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 30px;
+  padding: 0 10px 0 14px;
+  border-top: 1px solid var(--line-1);
+  background: var(--bg-1);
+  font: 400 12px/1 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.dl-sp { flex: 1 1 auto; }
+.dl-foot-status { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dl-foot-status svg { flex-shrink: 0; }
+.dl-foot-status.is-saving { color: var(--ink-1); }
+.dl-foot-status.is-offline { color: #f59e0b; }
+.dl-foot-status.is-error { color: var(--danger, #ef4444); }
+.dl-foot-words { font: 400 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.dl-foot .tl-btn.dl-foot-zoom {
+  height: 22px;
+  min-width: 0;
+  padding: 0 6px;
+  gap: 5px;
+  border-radius: 6px;
+  font: 400 11px/1 var(--font-mono);
+  color: var(--ink-2);
+}
+
+/* ── Under a finger (A-ipad, AC-ipad): finger rows in the page list, a
+   narrower list and panel, a taller footer. Before the drawer's block below,
+   which outranks it where both apply. ── */
+@media (hover: none) and (pointer: coarse) {
+  .doc-surface.dl-surface { grid-template-columns: 220px minmax(0, 1fr); }
+  .doc-surface.dl-surface.has-panel { grid-template-columns: 212px minmax(0, 1fr) 288px; }
+  .dl-surface .doc-tree-row,
+  .dl-surface .doc-bookmarks-row,
+  .dl-surface .sp-scenenav-item { height: 40px; font-size: 14.5px; }
+  .dl-surface .doc-bookmarks-item { font-size: 14.5px; }
+  .dl-crumb { font-size: 14.5px; }
+  .dl-seg [role='tab'] { height: 34px; font-size: 13.5px; }
+  .dl-foot { height: 36px; font-size: 13px; }
+  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
+}
+/* An iPad's window sits 16px in, not the desktop's 24 (a phone's is the
+   whole screen). */
+@media (min-width: 641px) and (hover: none) and (pointer: coarse) {
+  .doc-card-modal-full.dl { inset: 16px; }
+}
+
+/* ── Phone and touch tablet (App.jsx's mobileShell): the page list is the
+   drawer it was, and the side panel lies over the page's right edge. ── */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  .doc-surface.dl-surface,
+  .doc-surface.dl-surface.has-panel,
+  .doc-surface.dl-surface.rail-left-collapsed,
+  .doc-surface.dl-surface.rail-left-collapsed.has-panel { grid-template-columns: minmax(0, 1fr); }
+  .doc-surface.dl-surface:not(.mobile-rail-open) > .doc-rail-left { display: none; }
+  /* The drawer's head keeps the column (styles.css moves today's "+"). */
+  .doc-surface.dl-surface.mobile-rail-open .doc-tree-head { padding-right: 8px; }
+  .doc-surface.dl-surface > .dl-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(86%, 320px);
+    z-index: 30;
+    box-shadow: -16px 0 48px rgba(0, 0, 0, .3);
+  }
+  .dl-foot { height: 36px; font-size: 13px; }
+  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
+}

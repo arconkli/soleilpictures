@@ -27,6 +27,8 @@ import { EditableText } from './EditableText.jsx';
 import { FileShareButton } from './fileShare/FileShareButton.jsx';
 import { docSharesAllowed } from '../lib/appHost.js';
 import { isShareableDoc } from '../lib/fileShares.js';
+import { docLook } from '../lib/looks.js';
+import { createDocFrame } from '../lib/docFrame.js';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
 // ~400KB raw) into whichever chunk imports it statically — which used to be
@@ -36,6 +38,9 @@ import { isShareableDoc } from '../lib/fileShares.js';
 // AppShell idle-prefetches it for signed-in users so the skeleton is rarely
 // seen; public viewers pay the fetch only when they actually open a doc.
 const DocSurface = lazyWithReload(() => import('./DocSurface.jsx').then(m => ({ default: m.DocSurface })));
+// The doc look's header (lib/looks.js docLook(), held): lazy too, so the doc as
+// it is never downloads the look (components/doc/DocFrameA.jsx).
+const DocHeadA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocHeadA })));
 
 const DEFAULT_SIDE_RATIO = 0.5;
 const RATIO_KEY = 'soleil.boards.docCardSideRatio';
@@ -519,6 +524,10 @@ export function DocCardOverlay({
   pane = null,
 }) {
   const inPane = variant === 'pane';
+  // The doc look (held): its header switches the page list and the side
+  // panel, which the surface owns; the frame is how the two talk.
+  const look = docLook();
+  const [frame] = useState(() => (look ? createDocFrame() : null));
   // Esc closes from either mode — but never while typing: Escape inside the
   // title input / editor / a mention popover belongs to that control, and
   // closing the whole overlay mid-edit was how doc text got "lost".
@@ -625,7 +634,7 @@ export function DocCardOverlay({
              onPointerDown={(e) => e.stopPropagation()}
              onClick={onClose} />
       )}
-      <div className={`doc-card-modal doc-card-modal-${inPane ? 'pane' : mode}`}
+      <div className={`doc-card-modal doc-card-modal-${inPane ? 'pane' : mode}${look ? ' dl' : ''}`}
            // Position via inline style. IMPORTANT: declare `inset` FIRST,
            // then override individual sides — otherwise React applies them
            // in object order and `inset: auto` clobbers our explicit edges.
@@ -634,6 +643,15 @@ export function DocCardOverlay({
            // is open. Fullscreen still uses the .doc-card-modal-full inset.
            style={isSide ? { inset: 'auto', top: 42, right: 0, bottom: 0, left: 'auto', width: widthPct } : undefined}
            onPointerDown={(e) => e.stopPropagation()}>
+        {look ? (
+          <Suspense fallback={<div className="dl-head" />}>
+            <DocHeadA frame={frame} card={card} scope={scope} boards={boards}
+                      canEdit={canEdit} isPublic={isPublic} mode={mode}
+                      titleInputRef={titleInputRef} focusTitle={!hadTitleOnOpenRef.current}
+                      onUpdate={onUpdate} onSetMode={onSetMode} onClose={onClose}
+                      peersOnCard={peersOnCard} onJumpToPeer={onJumpToPeer} />
+          </Suspense>
+        ) : (
         <div className="doc-card-modal-head">
           <input className="doc-card-title-input"
                  ref={titleInputRef}
@@ -700,6 +718,7 @@ export function DocCardOverlay({
             </svg>
           </button>
         </div>
+        )}
         <div className="doc-card-modal-body">
           {/* A crash stays in here (SurfaceErrorBoundary): the doc puts itself
               back, its header and the way out stay, and the canvas is left alone. */}
@@ -727,6 +746,7 @@ export function DocCardOverlay({
             canEdit={canEdit}
             isPublic={isPublic}
             pane={pane}
+            frame={frame}
           />
           </Suspense>
           </SurfaceErrorBoundary>

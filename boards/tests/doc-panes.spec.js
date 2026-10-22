@@ -3,6 +3,7 @@
 // at once; × on either brings the board back. Through ?docqa=1&panes=1: the
 // real RichDocCard, DockedDocPane and DocPaneFrame in App's split chain.
 import { expect, test } from '@playwright/test';
+import { docFooter } from './helpers/docFrame.js';
 
 async function open(page) {
   await page.goto('/?docqa=1&panes=1');
@@ -96,13 +97,13 @@ test('⌘Z undoes page changes only in the doc whose pane the keyboard is in', a
 
   // The keyboard in the docked doc: ⌘Z there is that doc's, and it has
   // nothing to undo.
-  await pane(page, 'split').locator('.doc-foot').click();
+  await docFooter(pane(page, 'split')).click();
   await page.keyboard.press('ControlOrMeta+z');
   await expect.poll(() => pages(page, 'doc-b')).toBe(2);
   expect(await pages(page, 'doc-a')).toBe(1);
 
   // In the doc beside, it takes the page back.
-  await pane(page, 'beside').locator('.doc-foot').click();
+  await docFooter(pane(page, 'beside')).click();
   await page.keyboard.press('ControlOrMeta+z');
   await expect.poll(() => pages(page, 'doc-b')).toBe(1);
   expect(await pages(page, 'doc-a')).toBe(1);

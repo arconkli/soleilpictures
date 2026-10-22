@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pageListButton } from '../helpers/docFrame.js';
 
 // Phone: the desktop page rail is display:none at <=640px, which used to strand
 // multi-page doc navigation (the only rail toggle lived inside the hidden rail).
@@ -21,7 +22,7 @@ test('phone: Pages drawer opens and switches pages', async ({ page }, testInfo) 
     T.addPage(T.ydoc, { name: 'Chapter Two', scope: T.getScope() });
   });
 
-  const pagesBtn = page.locator('.doc-mobile-pages-btn');
+  const pagesBtn = pageListButton(page.locator('.doc-card-modal'));
   await expect(pagesBtn).toBeVisible();
   await pagesBtn.tap();
   await expect(page.locator('.doc-surface.mobile-rail-open .doc-rail-left')).toBeVisible();

@@ -11,7 +11,7 @@
 // (per-tab) — picked from the tree by default, restored from sessionStorage
 // per board so a refresh reopens the same page.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
@@ -38,6 +38,14 @@ import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocStatusFooter } from './DocStatusFooter.jsx';
 import { DocOpening } from './DocOpening.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { IconWeightContext } from './Icon.jsx';
+import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
+
+// The doc look's side panel and footer (held; components/doc/DocFrameA.jsx):
+// lazy, so the doc as it is never downloads the look.
+const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
+const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -146,6 +154,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // (lib/activePane.js): its ⌘Z answers only while
                               // the keyboard is there. null covers every pane.
                               pane = null,
+                              // The doc look's frame (lib/docFrame.js): its window draws the
+                              // header, whose switches change the page list and the side
+                              // panel this surface keeps. Only the look passes one.
+                              frame = null,
                               onClose }) {
   // ?docqa=1's crash hook: the harness's crash() makes this doc throw the way
   // a real render crash would, so doc-crash.spec can drive the boundary
@@ -163,6 +175,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     throw new Error('docqa: this doc crashed');
   }
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
+  const lookA = !!frame;
 
   // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —
   // page add/delete/move/rename, sheets, bookmarks, comment threads; not the
@@ -451,7 +464,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // as on a phone, and prose takes the narrow margins (is-narrow / is-tight)
   // without leaving its pages; coming into a narrow pane fits the script again,
   // whatever zoom it was given with room.
-  const { isPhone } = useBreakpoint();
+  const { isPhone, isTablet, isTouch } = useBreakpoint();
+  // Where the page list is a drawer rather than a column (styles.css's mobile
+  // shell, App.jsx mobileShell): a phone, or a tablet under a finger.
+  const drawerRail = isPhone || (isTablet && isTouch);
   const phoneReflow = isPhone && docMode !== 'screenplay' && !pageless;
   const layoutPageless = pageless || phoneReflow;
   const [room, setRoom] = useState('page');
@@ -546,6 +562,28 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   };
 
   const [findOpen, setFindOpen] = useState(false);
+
+  // The doc look's side panel (Comments, Find, and Elements for a screenplay):
+  // open or not and on which tab, the reader's own for every doc they open.
+  // Not for the public viewer, who has no comments to see.
+  const [panel, setPanel] = useState(readDocPanel);
+  useEffect(() => { if (lookA) writeDocPanel(panel); }, [lookA, panel]);
+  const panelOpen = lookA && !isPublic && panel.open;
+  const openComments = useMemo(() => comments.filter((t) => !t.resolved).length, [comments]);
+  // What the look's header shows and switches (lib/docFrame.js): the page
+  // list, as a column or, on a phone or a tablet under a finger, the drawer;
+  // and the panel, which its button opens on Comments and closes from any tab.
+  useLayoutEffect(() => {
+    if (!frame) return;
+    frame.act.toggleRail = () => {
+      if (!drawerRail) { toggleRail(); return; }
+      setRails((r) => ({ ...r, left: true }));
+      setMobileRailOpen((o) => !o);
+    };
+    frame.act.togglePanel = (tab = 'comments') => setPanel((p) => (p.open ? { ...p, open: false } : { open: true, tab }));
+    frame.publish({ railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments });
+  });
+  useEffect(() => () => frame?.reset(), [frame]);
   // Embed-board picker — DocPageEditor calls our request fn (which sets a
   // pending callback); the picker, on selection, runs the callback so the
   // editor inserts the embed at the cursor.
@@ -1127,11 +1165,16 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   if (!ready) return <DocOpening />;
 
   return (
-    <div ref={rootRef} className={`doc-surface no-right-rail ${railOpen ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}`}>
+    // The look's icons are Phosphor's regular, the sidebar's weight; outside
+    // it the floor is unset, as everywhere else.
+    <IconWeightContext.Provider value={lookA ? 'regular' : null}>
+    <div ref={rootRef} className={`doc-surface ${lookA ? 'dl-surface' : 'no-right-rail'} ${railOpen ? '' : 'rail-left-collapsed'} ${mobileRailOpen ? 'mobile-rail-open' : ''}${panelOpen ? ' has-panel' : ''}`}>
       {/* Phone-only backdrop that closes the page drawer. */}
       {mobileRailOpen && <div className="doc-rail-backdrop" onClick={() => setMobileRailOpen(false)} />}
       {/* Left rail — page tree */}
       <aside className="doc-rail doc-rail-left">
+        {/* In the doc look the window's header has the page list's toggle. */}
+        {!lookA && (
         <button className="doc-rail-toggle"
                 title={railOpen ? 'Hide pages' : 'Show pages'}
                 aria-label={railOpen ? 'Hide pages' : 'Show pages'}
@@ -1141,6 +1184,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             <path d={railOpen ? 'M8 3 L4 7 L8 11' : 'M6 3 L10 7 L6 11'} />
           </svg>
         </button>
+        )}
         {/* In the rail, or in the phone and tablet drawer. */}
         {(railOpen || mobileRailOpen) && (
           <DocPageTree
@@ -1162,6 +1206,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit && !isPublic}
             defaultName={titleOverride || board.name || 'Untitled'}
+            look={lookA}
           />
         )}
         {(railOpen || mobileRailOpen) && (
@@ -1172,6 +1217,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             pages={pages}
             canEdit={canEdit && !isPublic}
             onJump={(id) => { setLocalBookmarkJump({ bookmarkId: id }); setMobileRailOpen(false); }}
+            look={lookA}
           />
         )}
         {(railOpen || mobileRailOpen) && docMode === 'screenplay' && (
@@ -1193,6 +1239,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             is hidden under the mobile-shell query). Opens the rail as a
             slide-over drawer. Labelled "Page list", not "Pages": it sits right
             above the toolbar's "Pages" layout toggle, which does another job. */}
+        {!lookA && (
         <button className="doc-mobile-pages-btn"
                 aria-label={docMode === 'screenplay' ? 'Pages and scenes' : 'Page list'} aria-expanded={mobileRailOpen}
                 onClick={() => { setRails(r => ({ ...r, left: true })); setMobileRailOpen(o => !o); }}>
@@ -1203,6 +1250,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               or the only way to jump between scenes on a phone is invisible. */}
           {docMode === 'screenplay' ? 'Scenes' : 'Page list'}
         </button>
+        )}
         {!isPublic && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
@@ -1302,10 +1350,31 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
               The manual "+ New page" sheet button is obsolete in the reflow model. */}
         </div>
         {/* Save state is reported per HOST board (yboard persists the board
-            that holds the doc); board.id here is the doc card's id. */}
+            that holds the doc); board.id here is the doc card's id. In the
+            doc look the footer runs under the whole window instead (below). */}
+        {!lookA && (
         <DocStatusFooter editor={editorRef.current} ydoc={ydoc} boardId={scope?.boardId || (scope ? null : board.id)}
                          showSave={!guestMode} />
+        )}
       </section>
+
+      {panelOpen && (
+        <Suspense fallback={null}>
+          <DocSidePanel tab={panel.tab} onTab={(tab) => setPanel((p) => ({ ...p, tab }))}
+                        screenplay={docMode === 'screenplay'} openComments={openComments} />
+        </Suspense>
+      )}
+      {lookA && (
+        <Suspense fallback={null}>
+          <DocFootA editor={editorRef.current} boardId={scope?.boardId || (scope ? null : board.id)}
+                    showSave={!guestMode}
+                    zoom={effectiveZoom} fitMode={fitMode} fitEligible={fitEligible}
+                    onZoom={(z) => setZoom(z)}
+                    onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
+                    onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
+                    onZoomReset={resetZoom} />
+        </Suspense>
+      )}
 
       {embedPickerOpen && (
         <DocBoardEmbedPicker
@@ -1316,5 +1385,6 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       )}
 
     </div>
+    </IconWeightContext.Provider>
   );
 }

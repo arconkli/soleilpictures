@@ -190,4 +190,12 @@ export {
   TextAUnderline,
   AlignCenterVertical,
   ChatCircleText,
+  // The doc look's frame (components/doc/DocFrameA.jsx).
+  SidebarSimple,
+  Sidebar,
+  ChatsCircle,
+  CloudCheck,
+  CloudSlash,
+  CloudWarning,
+  BookmarkSimple,
 } from '@phosphor-icons/react';

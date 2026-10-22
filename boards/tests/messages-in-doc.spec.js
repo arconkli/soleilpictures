@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { dockButton } from './helpers/docFrame.js';
 
 // Messages must stay reachable while a document is open.
 //
@@ -74,7 +75,7 @@ test('the doc overlay flag lifts the messages panel above it, and clears on clos
   expect(during.groupMenu).toBeGreaterThan(during.msgPanel);
 
   // Close → flag gone, panel back under modals.
-  await page.locator('.doc-card-close').click();
+  await page.getByRole('button', { name: 'Close document' }).click();
   await expect(page.locator('.doc-card-modal')).toHaveCount(0);
   const after = await probeZIndexes(page, MAIN_PROBES);
   expect(after.flag).toBeNull();
@@ -83,7 +84,7 @@ test('the doc overlay flag lifts the messages panel above it, and clears on clos
 
 test('side mode keeps the panel above the docked doc too', async ({ page }) => {
   await openDoc(page);
-  await page.locator('.doc-card-icon[aria-label="Dock to side"]').click();
+  await dockButton(page).click();
   await expect(page.locator('.doc-card-modal-side')).toBeVisible();
 
   const z = await probeZIndexes(page, {
@@ -99,20 +100,23 @@ test('side mode keeps the panel above the docked doc too', async ({ page }) => {
 
 // The header button itself. It reads MessagesUiContext (normally supplied by
 // App); the doc QA harness provides a stub so the button, its unread dot and
-// its toggle are exercised rather than silently rendering null.
+// its toggle are exercised rather than silently rendering null. Found by what
+// it is, so the doc look's header (tests/helpers/docFrame.js) answers too.
+const messagesButton = (page) => page.locator('.doc-card-modal').getByRole('button', { name: 'Messages', exact: true });
+
 test('the doc header exposes a Messages button with an unread marker', async ({ page }) => {
   await openDoc(page);
 
-  const btn = page.locator('.doc-card-messages');
+  const btn = messagesButton(page);
   await expect(btn).toBeVisible();
   // Unread > 0 in the harness stub → the dot renders.
-  await expect(page.locator('.doc-card-messages-dot')).toBeVisible();
+  await expect(btn.locator('.doc-card-messages-dot, .dl-dot')).toBeVisible();
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
 
   // Clicking drives the shared toggle, which is what flips the real panel.
   await btn.click();
   await expect(btn).toHaveAttribute('aria-pressed', 'true');
-  await expect(btn).toHaveClass(/is-active/);
+  await expect(btn).toHaveClass(/is-active|is-on/);
 
   await btn.click();
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
@@ -127,13 +131,13 @@ test('the Messages button is hidden for public doc viewers', async ({ page }) =>
   await page.evaluate(() => window.__soleilDocTest.openCard());
   await expect(page.locator('.doc-card-modal')).toBeVisible();
 
-  await expect(page.locator('.doc-card-messages')).toHaveCount(0);
+  await expect(messagesButton(page)).toHaveCount(0);
   // The mode toggles are suppressed on public too — proves we're really in the
   // public branch and not just failing to find the button.
-  await expect(page.locator('.doc-card-icon[aria-label="Dock to side"]')).toHaveCount(0);
+  await expect(dockButton(page)).toHaveCount(0);
   // Sanity: the signed-in mount in the same harness DOES show it.
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
-  await expect(page.locator('.doc-card-messages')).toHaveCount(1);
+  await expect(messagesButton(page)).toHaveCount(1);
 });

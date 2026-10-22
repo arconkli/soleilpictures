@@ -47,6 +47,9 @@ const RELOAD = new URLSearchParams(window.location.search).get('reload') === '1'
 // window.__soleilDocTest.uploads. Made once, here, so StrictMode's double
 // render can't install one stand-in and publish another.
 const UPLOADS = new URLSearchParams(window.location.search).get('uploads') === '1';
+// ?docqa=1&cluster=Feature%20film: the doc sits on a cluster with that name, as
+// a doc card on a canvas does (the doc look's header shows it, Cluster › Title).
+const CLUSTER = new URLSearchParams(window.location.search).get('cluster');
 const uploadStub = UPLOADS ? (() => {
   const calls = [];
   let pending = null;
@@ -236,11 +239,11 @@ function OneDocQa() {
             ydoc={ydoc}
             cardYMap={cardYMap}
             workspaceId={UPLOADS ? 'docqa-workspace' : null}
-            hostBoardId={UPLOADS || RELOAD ? HOST_BOARD : null}
+            hostBoardId={UPLOADS || RELOAD || CLUSTER ? HOST_BOARD : null}
             userId={STUB_USER.id}
             currentUser={STUB_USER}
             getAwareness={() => awareness}
-            boards={{}}
+            boards={CLUSTER ? { [HOST_BOARD]: { id: HOST_BOARD, name: CLUSTER } } : {}}
             wsPeers={[]}
             onJumpToPeer={() => {}}
             canEdit={!isPublicView && !isViewer}
