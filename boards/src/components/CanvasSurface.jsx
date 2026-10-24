@@ -9117,10 +9117,14 @@ export function CanvasSurface({
   // ~280ms (scale+fade keyframes; disabled under prefers-reduced-motion).
   // Seeded from the first cards array and reset per board so board loads
   // and switches never wave; bulk arrivals (paste, board switch races)
-  // skip the animation too.
+  // skip the animation too. Each arrival's timer outlives the effect's next
+  // run: `cards` changing again inside the 280ms (a second card, the first
+  // one's text) used to clear it and leave the first marked new for good.
   const knownCardIdsRef = useRef(null);
+  const newCardTimersRef = useRef(new Set());
   const [newCardIds, setNewCardIds] = useState(() => new Set());
   useEffect(() => { knownCardIdsRef.current = null; setNewCardIds(new Set()); }, [board.id]);
+  useEffect(() => () => { newCardTimersRef.current.forEach(clearTimeout); }, []);
   useEffect(() => {
     const ids = new Set(cards.map(c => c.id));
     if (knownCardIdsRef.current === null) { knownCardIdsRef.current = ids; return; }
@@ -9129,13 +9133,14 @@ export function CanvasSurface({
     if (fresh.length === 0 || fresh.length > 8) return;
     setNewCardIds(prev => new Set([...prev, ...fresh]));
     const t = setTimeout(() => {
+      newCardTimersRef.current.delete(t);
       setNewCardIds(prev => {
         const next = new Set(prev);
         fresh.forEach(id => next.delete(id));
         return next;
       });
     }, 280);
-    return () => clearTimeout(t);
+    newCardTimersRef.current.add(t);
   }, [cards, board.id]);
 
   // Double-click on empty canvas drops a note right there — the fastest
