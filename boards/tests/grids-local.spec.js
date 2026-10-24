@@ -171,6 +171,9 @@ test.describe('grids — local interaction', () => {
   });
 
   test('resizing one grid in a connected matrix resizes + re-tiles all', async ({ page }) => {
+    // Room for the whole strip and the drag past its end: the canvas never
+    // scrolls to bring its last grid into view (canvas-stays-put.spec).
+    await page.setViewportSize({ width: 2000, height: 900 });
     await addGrid(page);
     await makeMatrix(page, 3, 1); // horizontal strip
     const geom = () => page.locator('.card-kind-grid').evaluateAll((els) => els.map((e) => ({
@@ -522,10 +525,13 @@ test.describe('grids — local interaction', () => {
     await expect(cell.getByRole('button', { name: 'Replace' })).toBeVisible();
     await expect(cell.getByRole('button', { name: 'Text', exact: true })).toHaveCount(0);
     // Click Replace → the Text/Image/Link chooser appears on this filled cell.
-    await cell.getByRole('button', { name: 'Replace' }).click();
+    // Not Playwright clicks: their scroll into view scrolls the canvas, which
+    // puts itself back before the next frame (canvas-stays-put.spec), but the
+    // press and the release land in the same frame, one either side of it.
+    await cell.getByRole('button', { name: 'Replace' }).dispatchEvent('click');
     await expect(cell.getByRole('button', { name: 'Image', exact: true })).toBeVisible();
     // Swap to a Link → fill the in-app URL dialog → same cell becomes a link.
-    await cell.getByRole('button', { name: 'Link', exact: true }).click();
+    await cell.getByRole('button', { name: 'Link', exact: true }).dispatchEvent('click');
     const dlg = page.getByRole('dialog');
     await dlg.getByRole('textbox').first().fill('https://example.com');
     await dlg.getByRole('button', { name: 'Add' }).click();
