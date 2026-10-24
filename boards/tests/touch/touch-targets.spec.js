@@ -101,6 +101,28 @@ async function noteBarMenu(page, name, menu) {
   return true;
 }
 
+// The draw tool and the shape tool armed: their bars are up.
+async function drawTool(page) {
+  if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
+  await page.locator('.tob').waitFor();
+  return true;
+}
+async function shapeTool(page) {
+  await tapOn(page, '.cnv-tools [aria-label="Add menu"]');
+  await page.locator('.cnv-add-menu [role="menuitem"][aria-label="Shape"]').tap();
+  await page.locator('.tob').waitFor();
+  return true;
+}
+// One of the look's canvas bars' buttons tapped, and the menu it opens up;
+// false where the bar doesn't have it on this device.
+async function barMenu(page, name, menu) {
+  const btn = page.locator('.tob').getByRole('button', { name });
+  if (!(await btn.count())) return false;
+  await btn.first().tap();
+  await page.locator(menu).waitFor();
+  return true;
+}
+
 const PAGES = [
   { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]' },
   { name: 'home', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]' },
@@ -209,20 +231,11 @@ const PAGES = [
       await page.locator('.tl-menu.tob-menu').waitFor();
       return true;
     }, scope: '.tl-menu.tob-menu' },
-  { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
-    open: async (page) => {
-      if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
-      await page.locator('.tob').waitFor();
-      return true;
-    }, scope: '.tob' },
-  { name: 'shape bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
-    open: async (page) => {
-      await tapOn(page, '.cnv-tools [aria-label="Add menu"]');
-      await page.locator('.cnv-add-menu [role="menuitem"][aria-label="Shape"]').tap();
-      await page.locator('.tob').waitFor();
-      return true;
-    }, scope: '.tob' },
-  { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+  { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
+    open: drawTool, scope: '.tob' },
+  { name: 'shape bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
+    open: shapeTool, scope: '.tob' },
+  { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
     open: async (page) => {
       await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
       await page.locator('.tob').waitFor();
@@ -231,13 +244,50 @@ const PAGES = [
   { name: 'an arrow picked', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
     open: async (page) => { await pickAnArrow(page); return true; }, scope: '.arrow-popover',
     dense: () => '.arrow-popover button, .arrow-popover input' },
-  { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
+  { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TODAYS_BARS,
     open: async (page) => {
       await pickAnArrow(page);
       await page.locator('.arrow-popover [title="No arrowheads"]').click();
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return true;
     }, scope: '.tob' },
+  // ── The look's draw, shape, line and arrow bars (components/toolbar/CanvasBarsA.jsx) ──
+  { name: 'draw bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: drawTool, scope: '.tob' },
+  { name: 'draw bar look menu', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await drawTool(page); return barMenu(page, 'Brush, color and width', '.db-menu'); },
+    scope: '.db-menu' },
+  { name: 'shape bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: shapeTool, scope: '.tob' },
+  { name: 'shape bar look shapes', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await shapeTool(page); return barMenu(page, /^Shape: /, '.tl-menu.tob-menu'); },
+    scope: '.tl-menu.tob-menu' },
+  { name: 'shape bar look fill', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await shapeTool(page); return barMenu(page, 'Fill', '.sb-colour-menu'); },
+    scope: '.sb-colour-menu' },
+  { name: 'shape bar look more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await shapeTool(page); return barMenu(page, 'More shape options', '.sb-more'); },
+    scope: '.sb-more' },
+  { name: 'arrow bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => {
+      await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
+      await page.locator('.tob').waitFor();
+      return true;
+    }, scope: '.tob' },
+  { name: 'line bar look', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+    open: async (page) => {
+      await pickAnArrow(page);
+      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await page.locator('.tob[aria-label="Line"]').waitFor();
+      return true;
+    }, scope: '.tob' },
+  { name: 'line bar look more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+    open: async (page) => {
+      await pickAnArrow(page);
+      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await page.locator('.tob[aria-label="Line"]').waitFor();
+      return barMenu(page, 'More line options', '.ln-more');
+    }, scope: '.ln-more' },
   { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');

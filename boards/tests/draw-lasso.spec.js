@@ -107,9 +107,12 @@ test('lasso mode hides the ink controls that mean nothing for a selection', asyn
   await expect(page.getByText('Circle strokes to select')).toBeVisible();
   await expect(page.locator('.tob-swatches')).toHaveCount(0);
   await expect(page.locator('.tob-thickness')).toHaveCount(0);
+  // By name too, as the toolbar look's bar has them.
+  await expect(page.locator('.tob').getByRole('button', { name: /^(Colou?r #|Stroke width |Eraser size )/ })).toHaveCount(0);
   // Pen must not read as active while the lasso is the live mode.
   const pen = page.getByRole('button', { name: 'Pen', exact: true });
   await expect(pen).not.toHaveClass(/is-active/);
+  await expect(pen).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('a lassoed selection can be dragged, and the strokes move with it', async ({ page }) => {

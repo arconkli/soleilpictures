@@ -443,6 +443,10 @@ const DRAW_DEFAULT_COLOR = '#f5f5f6';
 const isDefaultInk = (c) => typeof c === 'string' && c.trim().toLowerCase() === DRAW_DEFAULT_COLOR;
 const THEME_INK_STYLE = { color: 'var(--ink-0)' };
 const DRAW_DEFAULT_WIDTH = 3;
+// The toolbar look's draw bar offers 2, 4, 8 and 16 and starts on 4 (A-draw),
+// so it shows what the pen draws with from the first stroke; today's starts
+// between two of its widths.
+const DRAW_DEFAULT_WIDTH_A = 4;
 const ERASER_DEFAULT_WIDTH = 16;
 // The stroke/arrow/snap/shape SVGs are positioned at (0,0) in canvas space with
 // NO viewBox and `overflow: visible`, so their child paths render at raw board
@@ -1904,7 +1908,7 @@ export function CanvasSurface({
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
-    width: DRAW_DEFAULT_WIDTH,
+    width: toolbarLook() ? DRAW_DEFAULT_WIDTH_A : DRAW_DEFAULT_WIDTH,
     eraserWidth: ERASER_DEFAULT_WIDTH,
   });
   // Seed shape tool from the resolved workspace defaults. Without this,

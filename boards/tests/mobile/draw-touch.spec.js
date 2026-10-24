@@ -14,6 +14,9 @@ test.beforeEach(async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome', 'these are touch interactions');
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
+  // What only the dev harness draws: its tweaks gear, which on a phone sits
+  // over the end of the toolbar look's draw bar, where Canvas is.
+  await page.addStyleTag({ content: '.twk-gear { display: none !important; }' });
   // The blank board settles before the rail is safe to drive.
   await page.waitForTimeout(1000);
 });
@@ -264,6 +267,18 @@ test.describe('everything fits', () => {
     // no longer tell you what is selected.
     await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     await page.waitForTimeout(250);
+    // The toolbar look (lib/appHost.js toolbarLookAllowed): the chip opens a
+    // menu of the three, and shows the colour and the width it draws with.
+    if (await page.evaluate(() => document.documentElement.dataset.tb === 'a')) {
+      const lookChip = page.getByRole('toolbar', { name: 'Drawing' }).getByRole('button', { name: 'Brush, color and width' });
+      await expect(lookChip.locator('.db-dot')).toBeVisible();
+      await lookChip.click();
+      const menu = page.getByRole('menu', { name: 'Brush, color and width' });
+      for (const group of ['Brush', 'Color', 'Width']) {
+        await expect(menu.getByRole('group', { name: group }).getByRole('menuitemradio').first()).toBeVisible();
+      }
+      return;
+    }
     const chip = page.locator('.tob-chip');
     await expect(chip).toBeVisible();
     await chip.click();

@@ -218,4 +218,9 @@ export {
   RowsPlusBottom,
   ColumnsPlusLeft,
   ColumnsPlusRight,
+  // The canvas's tool bars in the toolbar look (components/toolbar/CanvasBarsA.jsx).
+  PenNib,
+  Lasso,
+  HandPointing,
+  LineSegment,
 } from '@phosphor-icons/react';

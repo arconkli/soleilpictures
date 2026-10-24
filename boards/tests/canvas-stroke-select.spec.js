@@ -24,14 +24,16 @@ async function board(page) {
   await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
 }
 
-// Picks a draw mode (Pen / Lasso) on the tool bar. Not a Playwright click: when
+// Picks a draw mode (Pen / Lasso) on the tool bar, and waits for it to be lit
+// (aria-pressed: today's bar and the toolbar look's light it each their own
+// way). Not a Playwright click: when
 // its hit check misses a tool-bar button under load, the retry force-scrolls
 // the overflow-hidden .canvas-wrap to "reveal" it, which slides the bar into
 // mid-canvas and moves every page coordinate the test draws at afterwards.
 async function pickMode(page, name) {
   const btn = page.getByRole('button', { name, exact: true });
   await btn.dispatchEvent('click');
-  await expect(btn).toHaveClass(/is-active/);
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
 }
 
 // The canvas maps pointer coordinates assuming the wrap is never scrolled.

@@ -230,15 +230,17 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
 }
 
-/* ── The note bar (mockups A-note, A-ipad, A-phone; components/toolbar/
-   NoteBarA.jsx), on a note being written and a grid's box. It keeps .tob's
-   places (bottom centre on a desktop canvas, over the mobile nav, lifted over
-   a soft keyboard) and wears the glass, the bar's 32px buttons (44 under a
-   finger) in groups with hairlines between, and what's on in the gold tint
-   with its ring. The glass is the bar's own here, not a layer under it: .tob
-   scrolls sideways on a canvas narrower than it, and a layer would scroll
-   away with its first screenful. ── */
-:root[data-tb='a'] .tob.nb-a {
+/* ── The canvas's bottom bars (.tob-a): the note bar (mockups A-note, A-ipad,
+   A-phone; components/toolbar/NoteBarA.jsx), on a note being written and a
+   grid's box, and the draw, shape, line and arrow bars (mockups A-draw and
+   A-parts; CanvasBarsA.jsx). Each keeps .tob's places (bottom centre on a
+   desktop canvas, over the mobile nav, lifted over a soft keyboard) and
+   wears the glass, the bar's 32px buttons (44 under a finger) in groups with
+   hairlines between, and what's on in the gold tint with its ring. The glass
+   is the bar's own here, not a layer under it: .tob scrolls sideways on a
+   canvas narrower than it, and a layer would scroll away with its first
+   screenful. ── */
+:root[data-tb='a'] .tob.tob-a {
   gap: 0;
   padding: var(--tl-pad);
   border: 0;
@@ -251,7 +253,7 @@
   font: 400 var(--tl-fs)/1 var(--font-sans);
   -webkit-tap-highlight-color: transparent;
 }
-:root[data-tb='a'] .tob.nb-a::after { display: none; }
+:root[data-tb='a'] .tob.tob-a::after { display: none; }
 /* The font's name, at a steady width so the row doesn't move as the caret
    does; the size between − and +, a field with its presets' ⌄. */
 :root[data-tb='a'] .nb-a .tl-btn.nb-font.is-select { width: 112px; }
@@ -306,7 +308,8 @@
   box-shadow: 0 0 0 .5px color-mix(in oklab, var(--ink-0) 24%, transparent);
   pointer-events: none;
 }
-/* The background, as a chip: the button's, and a ⋯ row's in its icon's place. */
+/* The note's background, as a chip: the button's, and a ⋯ row's in its
+   icon's place. */
 :root[data-tb='a'] .nb-a .tl-btn.nb-bg::before,
 .tob-menu .nb-chip {
   content: '';
@@ -320,19 +323,19 @@
 }
 .tob-menu .nb-chip { width: var(--tl-mis); height: var(--tl-mis); border-radius: 4px; }
 /* The colours: the recent, the palette's and the bar's, nine to a row. */
-.tob-menu .nb-swrow {
+.tob-menu .tl-swrow {
   display: grid;
   grid-template-columns: repeat(9, auto);
   justify-content: start;
   gap: 8px;
   padding: 4px 10px 8px;
 }
-.tob-menu .nb-swrow .tl-sw { margin: 0; }
+.tob-menu .tl-swrow .tl-sw { margin: 0; }
 /* Under a finger, eight to a row, each one a finger can take: 32px, 40 apart,
    its hit area reaching halfway into the gap round it. */
 @media (hover: none) and (pointer: coarse) {
-  .tob-menu .nb-swrow { --tl-sws: 32px; grid-template-columns: repeat(8, auto); }
-  .tob-menu .nb-swrow .tl-sw::after { content: ''; position: absolute; inset: -4px; }
+  .tob-menu .tl-swrow { --tl-sws: 32px; grid-template-columns: repeat(8, auto); }
+  .tob-menu .tl-swrow .tl-sw::after { content: ''; position: absolute; inset: -4px; }
 }
 /* The fonts, each in its own face. */
 .tl-menu.nb-font-pop { width: 248px; }
@@ -351,24 +354,23 @@
 }
 .tl-menu.nb-more { min-width: 248px; }
 
-/* Where the bar sits, centred by its margins rather than .tob's translate,
+/* Where a bar sits, centred by its margins rather than .tob's translate,
    which its rise-in (ctx-menu-in, a transform) undid while it ran, so the
    bar came in half its width to the right. On a desktop canvas, in the room
    the rail and the zoom leave it on the bottom row, or over the zoom when it
-   can't fit beside it (NoteBarA measures both). */
-:root[data-tb='a'] .tob.nb-a.is-desk {
-  left: var(--nb-l, 12px);
-  right: var(--nb-r, 12px);
-  bottom: var(--nb-b, 12px);
+   can't fit beside it (useIslandFit measures both). */
+:root[data-tb='a'] .tob.tob-a.is-desk {
+  left: var(--tob-l, 12px);
+  right: var(--tob-r, 12px);
+  bottom: var(--tob-b, 12px);
   width: max-content;
-  max-width: calc(100% - var(--nb-l, 12px) - var(--nb-r, 12px));
+  max-width: calc(100% - var(--tob-l, 12px) - var(--tob-r, 12px));
   margin-inline: auto;
   transform: none;
 }
-/* Under a finger, the bar folded to five groups is an island in the middle,
-   over the mobile nav (styles.css's .tob blocks), not a strip from edge to
-   edge. */
-:root[data-tb='a'] .tob.nb-a.is-touch {
+/* Under a finger, a bar folded to fit is an island in the middle, over the
+   mobile nav (styles.css's .tob blocks), not a strip from edge to edge. */
+:root[data-tb='a'] .tob.tob-a.is-touch {
   left: 8px;
   right: 8px;
   width: max-content;
@@ -377,8 +379,93 @@
   transform: none;
 }
 /* On a phone it spans the width, which its controls share (a group of three
-   grows three times as much as a group of one; NoteBarA), a hairline midway
-   between each two groups. */
-:root[data-tb='a'] .nb-a.is-phone .tl-g { flex: 1 1 auto; justify-content: space-around; }
-:root[data-tb='a'] .nb-a.is-phone .tl-g + .tl-g { margin-left: 0; }
-:root[data-tb='a'] .nb-a.is-phone .tl-g + .tl-g::before { left: -.5px; }
+   grows three times as much as a group of one), a hairline midway between
+   each two groups. */
+:root[data-tb='a'] .tob-a.is-phone .tl-g { flex: 1 1 auto; justify-content: space-around; }
+:root[data-tb='a'] .tob-a.is-phone .tl-g + .tl-g { margin-left: 0; }
+:root[data-tb='a'] .tob-a.is-phone .tl-g + .tl-g::before { left: -.5px; }
+
+/* ── The draw, shape, line and arrow bars (mockups A-draw and A-parts;
+   components/toolbar/CanvasBarsA.jsx), in the note bar's island: each
+   control drawn as what it makes, a brush as its stroke, a width as its
+   line, a colour as its chip. ── */
+/* A brush, as the stroke it draws (BrushPreview), in the control's ink. */
+:root[data-tb='a'] .tob-a .tl-btn.db-brush { min-width: calc(var(--tl-bs) + 10px); }
+:root[data-tb='a'] .tob-a .tl-btn svg.db-bp,
+.tob-menu .tl-btn svg.db-bp { width: calc(var(--tl-bs) + 2px); height: calc(var(--tl-is) - 2px); }
+.tob-menu .tl-mi svg.db-bp { width: 34px; height: 16px; }
+/* A width, as the line it draws. */
+.tl-btn .db-w {
+  display: block;
+  width: 18px;
+  height: var(--w, 2px);
+  border-radius: 99px;
+  background: currentColor;
+}
+/* What the chip draws with: a dot of its colour, as wide as its width; the
+   eraser's, a ring. */
+.tl-btn .db-dot {
+  display: block;
+  flex-shrink: 0;
+  width: var(--d, 12px);
+  height: var(--d, 12px);
+  border-radius: 50%;
+  background: var(--chip, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent);
+}
+.tl-btn .db-dot.is-eraser { background: none; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+:root[data-tb='a'] .tob-a .tl-btn.db-chip { padding: 0 6px 0 10px; gap: 8px; }
+/* The lasso's word on what it does. */
+:root[data-tb='a'] .tob-a .db-hint { padding: 0 8px; color: var(--ink-2); white-space: nowrap; }
+/* A colour in a button's face (Colours.jsx Chip): a fill's chip, a dot, a
+   stroke's ring. */
+.tl-btn .tl-chip {
+  display: block;
+  flex-shrink: 0;
+  width: calc(var(--tl-is) - 2px);
+  height: calc(var(--tl-is) - 2px);
+  border-radius: 5px;
+  background: var(--chip, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--line-3);
+}
+/* None (no fill, no background) keeps the stripes the app draws it as, in
+   the light theme's greys there, where the dark ones read as a dark fill. */
+[data-theme='light'] .tl-sw.is-clear,
+[data-theme='light'] .tl-btn .tl-chip.is-none { background: repeating-linear-gradient(45deg, #d4d4d8 0 4px, #fafafa 4px 8px); }
+.tl-btn .tl-chip.is-dot { border-radius: 50%; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent); }
+.tl-btn .tl-chip.is-ring {
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 3px var(--chip), 0 0 0 1px color-mix(in oklab, var(--ink-0) 14%, transparent);
+}
+/* A value to pick from at a steady width, so the row doesn't move as it
+   changes: the shape (its icon, then its name), the line style. */
+:root[data-tb='a'] .tob-a .tl-btn.sb-shape.is-select { width: 120px; }
+:root[data-tb='a'] .tob-a .tl-btn.tl-dash.is-select { width: 96px; }
+/* A number between − and +, and a field with its unit. */
+:root[data-tb='a'] .tob-a .tl-step { display: inline-flex; align-items: center; gap: var(--tl-gap); }
+:root[data-tb='a'] .tob-a input.tl-field,
+.tob-menu input.tl-field { width: 48px; outline-offset: 1px; }
+.tl-unit { margin-left: 4px; color: var(--ink-2); }
+/* Under a finger a field's type is 16px, or a phone zooms into it, and the
+   field is a finger's height (the bar's 44px less its inset is 38). */
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .tob-a input.tl-field,
+  .tob-menu input.tl-field { width: 56px; height: 40px; font-size: 16px; }
+}
+/* The rows of a menu off these bars: brushes and widths picked in place, a
+   width's − 2 +. */
+.tob-menu .db-row { display: flex; gap: 2px; padding: 2px 6px 6px; }
+.tob-menu .db-row .tl-btn { flex: 1 1 0; }
+.tob-menu .tl-mrow.is-indent .tl-mrow-l { padding-left: calc(var(--tl-mis) + 10px); }
+.tob-menu .tl-step { display: inline-flex; align-items: center; margin-left: auto; padding-right: 6px; }
+.tob-menu .tl-mval {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+.tl-menu.db-menu { min-width: 260px; }
+.tl-menu.sb-more, .tl-menu.ln-more { min-width: 220px; }
+

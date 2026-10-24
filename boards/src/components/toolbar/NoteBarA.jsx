@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { IconWeightContext } from '../Icon.jsx';
-import { Btn, Group, Swatch } from './Toolbar.jsx';
-import { MenuButton, MenuHead, MenuItem, MenuSep, useMenu } from './Menu.jsx';
+import { Btn, Group } from './Toolbar.jsx';
+import { MenuButton, MenuHead, MenuItem, MenuSep } from './Menu.jsx';
+import { ColourRows } from './Colours.jsx';
+import { useIslandFit } from './useIslandFit.js';
 import { SizeInput } from '../SizeInput.jsx';
 import { CustomFontsModal } from '../CustomFontsModal.jsx';
 import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { useCustomFonts, useRecentFonts } from '../../hooks/useCustomFonts.js';
-import { useRecentColors } from '../../hooks/useRecentColors.js';
-import { addRecentColor } from '../../lib/recentColors.js';
 import { combineAllFonts, ensureGoogleFontLoaded } from '../../lib/googleFonts.js';
 import { BG_COLORS, FONTS, SIZES, TEXT_COLORS, swatchBg, useFontPick, useNoteComment } from '../ToolOptionsBar.jsx';
 import {
@@ -53,8 +53,6 @@ const LISTS = [
   { type: 'ol', label: 'Numbered list', icon: ListOrdered },
   { type: 'task', label: 'Checklist', icon: ListChecks },
 ];
-// The islands' inset from the canvas's edges, and the room between two.
-const EDGE = 12;
 // The font under the caret, by its first family as the CSS names it, in a
 // name's case: the app's own face is "aileron" there.
 const fontName = (family) => (/[A-Z]/.test(family) ? family : family.replace(/(^|[\s-])\w/g, (c) => c.toUpperCase()));
@@ -64,61 +62,10 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
   const input = isPhone ? 'phone' : isTouch ? 'touch' : 'desktop';
   const [fontsOpen, setFontsOpen] = useState(false);
 
-  // On a desktop canvas the bar is the bottom row's middle island, centred in
-  // the room the rail and the zoom leave it (A-note; --nb-l, --nb-r), or from
-  // the canvas's edge, under the rail, where the rail doesn't reach down to
-  // the bottom row and the row needs the room. Where the row doesn't fit
-  // either way (a narrow window, the sidebar open) it folds a step (fold 1,
-  // 2, then 3), rather than scroll its end out of reach, and unfolds a step once
-  // the row it measured before that step fits again; where even folded it
-  // doesn't fit, it sits over the zoom (--nb-b). Measured after every render
-  // as well as on a resize: the row grows when a control joins it (Comment,
-  // once the note's editor is up).
-  const [fold, setFold] = useState(0);
-  const widths = useRef([]);
-  const fitRef = useRef(null);
-  useLayoutEffect(() => {
-    const bar = barRef.current;
-    const room = bar?.offsetParent;
-    if (!bar || !room || input !== 'desktop') { fitRef.current = null; return undefined; }
-    const fit = () => {
-      // In the room's own terms, as left/right/bottom are: a focus can scroll
-      // the canvas (overflow hidden, it scrolls all the same), which moves
-      // the islands on the screen, not in the room.
-      const box = room.getBoundingClientRect();
-      const ox = box.left + room.clientLeft - room.scrollLeft;
-      const oy = box.top + room.clientTop - room.scrollTop;
-      const width = room.clientWidth;
-      const height = room.clientHeight;
-      const shown = (sel) => {
-        const b = room.querySelector(sel)?.getBoundingClientRect();
-        return b && b.width > 0 ? { left: b.left - ox, right: b.right - ox, top: b.top - oy, bottom: b.bottom - oy } : null;
-      };
-      const rail = shown('.cnv-tools');
-      const zoom = shown('.cnv-zoom');
-      const right = zoom ? Math.round(width - zoom.left) + EDGE : EDGE;
-      const lefts = [rail ? Math.round(rail.right) + EDGE : EDGE];
-      if (rail && rail.bottom < height - EDGE - bar.offsetHeight - 8) lefts.push(EDGE);
-      const roomFor = (w, r) => lefts.find((l) => width - l - r >= w - 1);
-      if (fold > 0 && roomFor(widths.current[fold - 1], right) != null) { setFold(fold - 1); return; }
-      let left = roomFor(bar.scrollWidth, right);
-      if (left == null && fold < 3) { widths.current[fold] = bar.scrollWidth; setFold(fold + 1); return; }
-      let r = right;
-      if (left == null && zoom) { r = EDGE; left = roomFor(bar.scrollWidth, r); }
-      if (left == null) left = lefts[lefts.length - 1];
-      bar.style.setProperty('--nb-l', `${left}px`);
-      bar.style.setProperty('--nb-r', `${r}px`);
-      if (r !== right) bar.style.setProperty('--nb-b', `${Math.round(height - zoom.top) + 8}px`);
-      else bar.style.removeProperty('--nb-b');
-    };
-    fitRef.current = fit;
-    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => fitRef.current?.());
-    ro?.observe(room);
-    const zoomEl = room.querySelector('.cnv-zoom');
-    if (zoomEl) ro?.observe(zoomEl);
-    return () => { ro?.disconnect(); fitRef.current = null; };
-  }, [barRef, input, fold]);
-  useLayoutEffect(() => { fitRef.current?.(); });
+  // On a desktop canvas the bar is the bottom row's middle island, between
+  // the rail and the zoom, and folds a step at a time where the row doesn't
+  // fit (useIslandFit): fold 1, 2, then 3.
+  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 3 });
   // How far the row is folded: a desktop's as it fits, a finger's to the
   // size in the font's menu (2), a phone's to a button for the font and one
   // for the lists (3).
@@ -298,7 +245,7 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
     );
   }
 
-  const cls = ['tob', 'nb-a', `is-${input === 'desktop' ? 'desk' : input}`];
+  const cls = ['tob', 'tob-a', 'nb-a', `is-${input === 'desktop' ? 'desk' : input}`];
   if (tight) cls.push('is-tight');
   return (
     <IconWeightContext.Provider value="regular">
@@ -418,32 +365,5 @@ function FontRows({ current, onFont, onManage }) {
       <MenuSep />
       <MenuItem icon={Plus} label="Add a custom font…" onSelect={() => { picked.current = true; live.current.cancel(); onManage(); }} />
     </div>
-  );
-}
-
-// A colour to pick: the recent ones, the cluster's palette, then the bar's
-// own, sixteen at most, and + for any other (the colour picker). Rows of a
-// menu to a screen reader and the arrow keys.
-function ColourRows({ head, swatches, paletteColors, current, onPick, onCustom }) {
-  const menu = useMenu();
-  const recentColors = useRecentColors();
-  const all = [...new Set([...recentColors, ...paletteColors, ...swatches])].slice(0, 16);
-  return (
-    <>
-      <MenuHead>{head}</MenuHead>
-      <div className="nb-swrow" role="group" aria-label={head}>
-        {all.map((c) => (
-          <Swatch key={c} color={swatchBg(c)} label={c === 'transparent' ? 'No background' : `Color ${c}`}
-                  className={c === 'transparent' ? 'is-clear' : undefined}
-                  role="menuitemradio" aria-checked={current === c} aria-pressed={undefined} tabIndex={-1}
-                  on={current === c} onMouseDown={keep}
-                  // 'transparent' stays out of recents: there it would be an
-                  // invisible swatch on the rows that don't checkerboard it.
-                  onClick={() => { onPick(c); if (c !== 'transparent') addRecentColor(c); menu?.close('select'); }} />
-        ))}
-        <Swatch add icon={Plus} label="Custom color" role="menuitem" tabIndex={-1} onMouseDown={keep}
-                onClick={(e) => { menu?.close('select'); onCustom(e); }} />
-      </div>
-    </>
   );
 }

@@ -36,7 +36,7 @@ import { getActiveNoteEditor, getActiveNoteActions, subscribeActiveNoteEditor } 
 import { safeRun } from '../lib/safeEditorCmd.js';
 import { noteFontSizePatch } from '../lib/noteFontSize.js';
 import { isComposingKey } from '../lib/composerKeys.js';
-import { toolbarLook } from '../lib/looks.js';
+import { tlTip, toolbarLook } from '../lib/looks.js';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
 // NoteTiptapSurface while a note is being edited). When present, the note
@@ -83,9 +83,23 @@ function useNoteBarA(on) {
   }, [on, Bar]);
   return on ? Bar : null;
 }
+// The draw, shape, line and arrow bars in the look are another chunk
+// (components/toolbar/CanvasBarsA.jsx), fetched the same way.
+let canvasBarsA = null;
+const loadCanvasBarsA = () => import('./toolbar/CanvasBarsA.jsx').then((m) => (canvasBarsA = m));
+function useCanvasBarsA(on) {
+  const [bars, setBars] = useState(() => canvasBarsA);
+  useEffect(() => {
+    if (!on || bars) return undefined;
+    let live = true;
+    loadCanvasBarsA().then((m) => { if (live) setBars(m); }).catch(() => {});
+    return () => { live = false; };
+  }, [on, bars]);
+  return on ? bars : null;
+}
 
-const STROKE_COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
-const FILL_COLORS  = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#0a0a0c'];
+export const STROKE_COLORS = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+export const FILL_COLORS  = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#0a0a0c'];
 export const TEXT_COLORS  = ['#f5f5f6', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 export const BG_COLORS    = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#dcfce7', '#dbeafe', '#f3e8ff', '#fde68a', '#ffffff'];
 // Checkerboard stand-in for the 'transparent' swatch — same pattern the
@@ -93,7 +107,7 @@ export const BG_COLORS    = ['transparent', '#1c1c1f', '#fef3c7', '#fee2e2', '#d
 const TRANSPARENT_SWATCH_BG = 'repeating-linear-gradient(45deg,#222 0 4px,#444 4px 8px)';
 export const swatchBg = (c) => (c === 'transparent' ? TRANSPARENT_SWATCH_BG : c);
 const STROKE_WIDTHS = [0, 1, 2, 4, 8];
-const DRAW_THICKNESS = [2, 4, 8, 16];
+export const DRAW_THICKNESS = [2, 4, 8, 16];
 export const FONTS = [
   { id: 'sans', name: 'Sans', css: 'Inter, system-ui, sans-serif' },
   { id: 'serif', name: 'Serif', css: 'ui-serif, Georgia, "Times New Roman", serif' },
@@ -498,8 +512,15 @@ export function ToolOptionsBar({
 }) {
   const recentColors = useRecentColors();
   const pointerPolicy = usePointerPolicy();
-  // Under the toolbar look, the note bar's chunk, before the first note opens.
-  useEffect(() => { if (toolbarLook()) loadNoteBarA().catch(() => {}); }, []);
+  // Under the toolbar look, its bars' chunks, before the first note opens or
+  // the first tool is picked.
+  const look = toolbarLook();
+  const barsA = useCanvasBarsA(look);
+  useEffect(() => {
+    if (!toolbarLook()) return;
+    loadNoteBarA().catch(() => {});
+    loadCanvasBarsA().catch(() => {});
+  }, []);
   const { isTouch: isTouchDevice, isPhone } = useBreakpoint();
   // A phone, or any touch screen. The draw bar is the widest in the app: on an
   // iPhone it laid out to 1319px inside a 372px strip, 72% of it (every colour
@@ -567,6 +588,16 @@ export function ToolOptionsBar({
 
   // ── Drawing options ──────────────────────────────────────────────────────
   if (selectedTool === 'draw') {
+    if (look) {
+      if (!barsA) return null;
+      return (
+        <barsA.DrawBarA barRef={tobRef} onKeyDown={tobKeys} options={drawOptions} setOptions={setDrawOptions}
+                        paletteColors={paletteColors} openPickerAt={openPickerAt}
+                        onUndo={onUndo} onOpenSketchpad={onOpenSketchpad}
+                        stylus={pointerPolicy.stylus} fingerDraws={pointerPolicy.fingerDraws}
+                        onFinger={() => setDrawWithFinger(!pointerPolicy.fingerDraws)} />
+      );
+    }
     const allColors = [...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])];
     const isEraser = drawOptions.mode === 'eraser';
     const isLasso = drawOptions.mode === 'lasso';
@@ -839,12 +870,22 @@ export function ToolOptionsBar({
       if (!Number.isFinite(deg)) return;
       const rad = deg * Math.PI / 180;
       const len = length || 1;
+      // To a hundredth: whole pixels turned a typed 45 into 44.9 on a
+      // short line.
       const newTo = {
-        x: Math.round(fx + Math.cos(rad) * len),
-        y: Math.round(fy + Math.sin(rad) * len),
+        x: Math.round((fx + Math.cos(rad) * len) * 100) / 100,
+        y: Math.round((fy + Math.sin(rad) * len) * 100) / 100,
       };
       onUpdateEditingLineArrow({ to: newTo });
     };
+    if (look) {
+      if (!barsA) return null;
+      return (
+        <barsA.LineBarA barRef={tobRef} onKeyDown={tobKeys} stroke={stroke} width={strokeWidth} dash={dash}
+                        angle={currentAngle} onAngle={setAngle} onChange={onUpdateEditingLineArrow}
+                        paletteColors={paletteColors} openPickerAt={openPickerAt} />
+      );
+    }
     return (
       <div {...tobProps} {...barOf('Line')} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Line</span>
@@ -914,6 +955,13 @@ export function ToolOptionsBar({
         setShapeOptions(next);
       }
     };
+    if (look) {
+      if (!barsA) return null;
+      return (
+        <barsA.ShapeBarA barRef={tobRef} onKeyDown={tobKeys} opts={opts} setOpts={setOpts} editing={editing}
+                         paletteColors={paletteColors} openPickerAt={openPickerAt} />
+      );
+    }
     const strokeChoices = [...new Set([...recentColors, ...paletteColors, ...STROKE_COLORS])];
     const fillChoices   = ['transparent', ...new Set([...recentColors, ...paletteColors, ...FILL_COLORS.filter(c => c !== 'transparent')])];
     return (
@@ -976,6 +1024,10 @@ export function ToolOptionsBar({
 
   // ── Arrow options ───────────────────────────────────────────────────────
   if (selectedTool === 'arrow' && arrowOptions && setArrowOptions) {
+    if (look) {
+      if (!barsA) return null;
+      return <barsA.ArrowBarA barRef={tobRef} onKeyDown={tobKeys} options={arrowOptions} setOptions={setArrowOptions} />;
+    }
     return (
       <div {...tobProps} {...barOf('Arrow')} onPointerDown={(e) => e.stopPropagation()}>
         <span className="tob-label">Path</span>
@@ -1269,6 +1321,8 @@ const MemoNoteRichTextBar = memo(NoteRichTextBar);
 
 // ── Format buttons ────────────────────────────────────────────────────────
 
+const NUM_INPUT_STYLE = { width: 56, textAlign: 'right' };
+
 // Display-helper: format an angle without a trailing ".0" — show
 // the integer when the value rounds clean, otherwise one decimal.
 function formatAngleForDisplay(n) {
@@ -1281,8 +1335,9 @@ function formatAngleForDisplay(n) {
 // Decoupled text-style angle input so the user can type partial /
 // decimal values without React rewriting the field on every keystroke.
 // Only commits on blur or Enter; type=text + inputMode=decimal so
-// no browser spinner arrows.
-function LineAngleInput({ angle, onCommit }) {
+// no browser spinner arrows. `look`: the toolbar look's field
+// (components/toolbar/CanvasBarsA.jsx).
+export function LineAngleInput({ angle, onCommit, look = false }) {
   const [draft, setDraft] = useState(() => formatAngleForDisplay(angle));
   const [editing, setEditing] = useState(false);
   // Sync with external angle changes (e.g. user drags an endpoint)
@@ -1312,7 +1367,7 @@ function LineAngleInput({ angle, onCommit }) {
     <input
       type="text"
       inputMode="decimal"
-      className="tob-numinput tob-angle-input"
+      className={look ? 'tl-field tob-angle-input' : 'tob-numinput tob-angle-input'}
       value={draft}
       onFocus={(e) => { setEditing(true); e.target.select(); }}
       onChange={(e) => { const v = e.target.value; if (v === '' || /^-?\d*\.?\d*$/.test(v)) setDraft(v); }}
@@ -1322,9 +1377,10 @@ function LineAngleInput({ angle, onCommit }) {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
-      style={{ width: 56, textAlign: 'right' }}
+      style={look ? undefined : NUM_INPUT_STYLE}
       aria-label="Angle"
-      title="Line angle in degrees (0 = horizontal right, 90 = straight down)"
+      {...(look ? tlTip('Angle in degrees: 0 is right, 90 straight down')
+        : { title: 'Line angle in degrees (0 = horizontal right, 90 = straight down)' })}
     />
   );
 }
@@ -1332,7 +1388,7 @@ function LineAngleInput({ angle, onCommit }) {
 // Free-form pixel input for line stroke width. Same UX shape as
 // LineAngleInput — no spinner arrows, no forced decimal display,
 // commits on blur or Enter. Clamps to >= 0 (0 means "no line").
-function LinePxInput({ value, onCommit, label = 'Width' }) {
+export function LinePxInput({ value, onCommit, label = 'Width', look = false }) {
   const [draft, setDraft] = useState(() => formatAngleForDisplay(value));
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -1356,7 +1412,7 @@ function LinePxInput({ value, onCommit, label = 'Width' }) {
     <input
       type="text"
       inputMode="decimal"
-      className="tob-numinput tob-px-input"
+      className={look ? 'tl-field tob-px-input' : 'tob-numinput tob-px-input'}
       value={draft}
       onFocus={(e) => { setEditing(true); e.target.select(); }}
       onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setDraft(v); }}
@@ -1366,9 +1422,9 @@ function LinePxInput({ value, onCommit, label = 'Width' }) {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
-      style={{ width: 56, textAlign: 'right' }}
+      style={look ? undefined : NUM_INPUT_STYLE}
       aria-label={label}
-      title="Line width in pixels (0 = none)"
+      {...(look ? null : { title: 'Line width in pixels (0 = none)' })}
     />
   );
 }
