@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { keyCaps, tip, tlTip, toolbarLook, docLook } from './looks.js';
+import { keyCaps, shortcutAria, shortcutCaps, tip, tlTip, toolbarLook, docLook } from './looks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
@@ -84,6 +84,41 @@ test('a shortcut as caps, a Mac\'s symbols or the words elsewhere', () => {
   assert.deepEqual(keyCaps('Mod+Shift+Z Mod+Y', false), ['Ctrl', 'Shift', 'Z']);
   assert.deepEqual(keyCaps('', true), []);
   assert.deepEqual(keyCaps(null, true), []);
+});
+
+// The right-click menus write a row's shortcut for the eye, as the platform
+// does ("⌘D", "Ctrl+D", "⌫"): in the look it's a cap per key, and the row's
+// aria-keyshortcuts says it to a screen reader instead of its name.
+test('a menu row\'s written shortcut as caps, one a key', () => {
+  assert.deepEqual(shortcutCaps('⌘D'), ['⌘', 'D']);
+  assert.deepEqual(shortcutCaps('⌘⇧D'), ['⌘', '⇧', 'D']);
+  assert.deepEqual(shortcutCaps('Ctrl+D'), ['Ctrl', 'D']);
+  assert.deepEqual(shortcutCaps('Ctrl+Shift+D'), ['Ctrl', 'Shift', 'D']);
+  assert.deepEqual(shortcutCaps('⌘0'), ['⌘', '0']);
+  assert.deepEqual(shortcutCaps('Ctrl++'), ['Ctrl', '+']);
+  assert.deepEqual(shortcutCaps('⌘+'), ['⌘', '+']);
+  assert.deepEqual(shortcutCaps('⌫'), ['⌫']);
+  assert.deepEqual(shortcutCaps('F2'), ['F2']);
+  assert.deepEqual(shortcutCaps('Space'), ['Space']);
+  assert.deepEqual(shortcutCaps(''), []);
+  assert.deepEqual(shortcutCaps(null), []);
+});
+
+test('…and in aria-keyshortcuts\' words', () => {
+  assert.equal(shortcutAria('⌘D'), 'Meta+D');
+  assert.equal(shortcutAria('⌘⇧D'), 'Meta+Shift+D');
+  assert.equal(shortcutAria('⌥⌘M'), 'Alt+Meta+M');
+  assert.equal(shortcutAria('Ctrl+D'), 'Control+D');
+  assert.equal(shortcutAria('Ctrl+Shift+D'), 'Control+Shift+D');
+  assert.equal(shortcutAria('⌘+'), 'Meta++');
+  assert.equal(shortcutAria('⌫'), 'Backspace');
+  assert.equal(shortcutAria('⌦'), 'Delete');
+  assert.equal(shortcutAria('Del'), 'Delete');
+  assert.equal(shortcutAria('Esc'), 'Escape');
+  assert.equal(shortcutAria('↩'), 'Enter');
+  assert.equal(shortcutAria('F2'), 'F2');
+  assert.equal(shortcutAria('Space'), 'Space');
+  assert.equal(shortcutAria(''), '');
 });
 
 test('a tooltip in the new look is the host\'s, words and keys', () => {

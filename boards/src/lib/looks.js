@@ -29,6 +29,33 @@ export function keyCaps(spec, mac = MAC) {
     || (k.length === 1 ? k.toUpperCase() : k));
 }
 
+// A right-click menu row's shortcut as the menu writes it for the eye, the
+// platform's way ("⌘⇧D", "Ctrl+Shift+D", "⌫", "F2"): its keys, each for a cap
+// of its own; and the same in aria-keyshortcuts' words, which the row carries
+// in the look so that a screen reader reads its name without them.
+const GLYPH_MODS = '⌘⌃⌥⇧';
+const ARIA_OF = {
+  '⌘': 'Meta', '⌃': 'Control', Ctrl: 'Control', '⌥': 'Alt', '⇧': 'Shift',
+  '⌫': 'Backspace', '⌦': 'Delete', Del: 'Delete', '↩': 'Enter', '⇥': 'Tab', Esc: 'Escape',
+};
+
+export function shortcutCaps(written) {
+  const s = String(written || '').trim();
+  // The words' way, "+" between the keys ("Ctrl++" is Ctrl and +); a Mac's
+  // glyphs come one after another.
+  if (!GLYPH_MODS.includes(s[0]) && s.indexOf('+') > 0) {
+    return s.endsWith('++') ? [...s.slice(0, -2).split('+'), '+'] : s.split('+');
+  }
+  const caps = [];
+  let rest = s;
+  while (rest.length > 1 && GLYPH_MODS.includes(rest[0])) { caps.push(rest[0]); rest = rest.slice(1); }
+  return rest ? [...caps, rest] : caps;
+}
+
+export function shortcutAria(written) {
+  return shortcutCaps(written).map((k) => ARIA_OF[k] || k).join('+');
+}
+
 // The tooltip a control asks for in the new look: the one host's
 // (components/toolbar/tipHost.js), with its words and the shortcut's keys in
 // caps, on the side it asks for (the rail's go right).

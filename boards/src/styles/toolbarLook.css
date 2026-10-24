@@ -649,3 +649,73 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
   :root[data-tb='a'] .cnv-comments-eye svg { width: 20px; height: 20px; }
   :root[data-tb='a'] .cnv-comments-eye-count { font-size: 15px; }
 }
+
+/* ── The right-click menus (CardContextMenu.jsx, BackgroundContextMenu.jsx and
+   their submenus): the look's menu (components/toolbar/toolbar.css .tl-menu),
+   rows of words at 13px (15 under a finger), what's under the pointer or the
+   keys in the look's wash, the shortcut a cap per key where a pointer hovers
+   (components/ctxMenuParts.jsx; a finger has no keys), the headers in the
+   look's small caps and a submenu's caret its icon. The glass is the
+   tooltip's 94%, not a menu's 88%: these open over the cluster's photos, and
+   at 88% a busy one showed through the words (which is why today's are
+   solid). ── */
+:root[data-tb='a'] .ctx-menu {
+  gap: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+}
+:root[data-tb='a'][data-theme='light'] .ctx-menu {
+  border: 0;
+  background: color-mix(in oklab, #fcfcfd 94%, transparent);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+}
+:root[data-tb='a'] .ctx-menu .ctx-item {
+  height: var(--tl-mrow);
+  min-height: var(--tl-mrow);
+  padding: 0 10px;
+  gap: 14px;
+  border-radius: 6px;
+  color: var(--ink-1);
+  font: 400 var(--tl-mfs)/1.35 var(--font-sans);
+}
+:root[data-tb='a'] .ctx-menu .ctx-item:is(:hover:not(:disabled), :focus-visible, .kbd-active, [aria-expanded='true']) {
+  background: var(--tl-hov);
+  color: var(--ink-0);
+  outline: none;
+  box-shadow: none;
+}
+:root[data-tb='a'] .ctx-menu .ctx-item.danger { color: var(--ink-error); }
+:root[data-tb='a'] .ctx-menu .ctx-item:disabled { opacity: .38; }
+:root[data-tb='a'] .ctx-menu .ctx-divider { flex-shrink: 0; height: 1px; margin: 4px 8px; background: var(--line-1); }
+:root[data-tb='a'] .ctx-menu :is(.ctx-header, .ctx-section-label, .ctx-tags-head) {
+  padding: 9px 10px 5px;
+  color: var(--ink-3);
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .08em;
+}
+:root[data-tb='a'] .ctx-menu .ctx-shortcut.is-caps { display: inline-flex; gap: 3px; }
+:root[data-tb='a'] .ctx-menu .ctx-kplus { display: none; }
+:root[data-tb='a'] .ctx-menu .ctx-shortcut kbd {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-1);
+  font: 400 11px/1 var(--font-sans);
+}
+:root[data-tb='a'] .ctx-menu .ctx-chevron { width: 12px; height: 12px; margin-right: 0; transform: none; color: var(--ink-3); }
+:root[data-tb='a'] .ctx-menu .ctx-swatch-row { gap: 10px; }
+:root[data-tb='a'] .ctx-menu .ctx-swatch-dot { border: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-3); }
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .ctx-menu .ctx-shortcut.is-caps { display: none; }
+}

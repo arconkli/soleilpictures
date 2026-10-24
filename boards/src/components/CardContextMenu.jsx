@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
+import { CtxChevron, CtxShortcut, rowKeys } from './ctxMenuParts.jsx';
 
 export function CardContextMenu({ open, x, y, above = false, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
@@ -208,9 +209,10 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
             disabled={it.disabled}
             onClick={async () => { if (!claimFire()) return; onClose(); it.run && await it.run(); }}
             role="menuitem"
+            {...rowKeys(it.shortcut)}
           >
             <span className="ctx-label">{it.label}</span>
-            {it.shortcut && <span className="ctx-shortcut">{it.shortcut}</span>}
+            <CtxShortcut keys={it.shortcut} />
           </button>
         );
       })}
@@ -268,7 +270,7 @@ function SubmenuItem({ item, onClose, claimFire = () => true }) {
               aria-haspopup="menu" aria-expanded={open}
               onClick={() => { if (open) { setOpen(false); } else { setPos(computePos()); setOpen(true); } }}>
         <span className="ctx-label">{item.label}</span>
-        <span className="ctx-chevron" aria-hidden="true">›</span>
+        <CtxChevron />
       </button>
       {open && pos && createPortal(
         <div className="ctx-menu ctx-submenu is-scrollable"
@@ -298,9 +300,10 @@ function SubmenuItem({ item, onClose, claimFire = () => true }) {
               <button key={sub.id || j}
                       className={`ctx-item ${sub.danger ? 'danger' : ''}`}
                       disabled={sub.disabled}
+                      {...rowKeys(sub.shortcut)}
                       onClick={() => { if (!claimFire()) return; onClose(); sub.run && sub.run(); }}>
                 <span className="ctx-label">{sub.label}</span>
-                {sub.shortcut && <span className="ctx-shortcut">{sub.shortcut}</span>}
+                <CtxShortcut keys={sub.shortcut} />
               </button>
             );
           })}

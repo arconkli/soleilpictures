@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
+import { CtxChevron, CtxShortcut, rowKeys } from './ctxMenuParts.jsx';
 
 export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId, boardId, boardName }) {
   // Combined count from BOTH manual entity_links targeting the board
@@ -87,9 +88,10 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
             disabled={it.disabled}
             onClick={() => { onClose(); it.run && it.run(); }}
             role="menuitem"
+            {...rowKeys(it.shortcut)}
           >
             <span className="ctx-label">{it.label}</span>
-            {it.shortcut && <span className="ctx-shortcut">{it.shortcut}</span>}
+            <CtxShortcut keys={it.shortcut} />
           </button>
         );
       })}
@@ -153,7 +155,7 @@ function SubmenuItem({ item, onClose }) {
     <div ref={wrapRef} className="ctx-submenu-wrap" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       <button className={`ctx-item ctx-has-submenu ${item.danger ? 'danger' : ''}`} disabled={item.disabled}>
         <span className="ctx-label">{item.label}</span>
-        <span className="ctx-chevron" aria-hidden="true">›</span>
+        <CtxChevron />
       </button>
       {open && pos && createPortal(
         <div className="ctx-menu ctx-submenu is-scrollable"
@@ -183,9 +185,10 @@ function SubmenuItem({ item, onClose }) {
               <button key={sub.id || j}
                       className={`ctx-item ${sub.danger ? 'danger' : ''}`}
                       disabled={sub.disabled}
+                      {...rowKeys(sub.shortcut)}
                       onClick={() => { onClose(); sub.run && sub.run(); }}>
                 <span className="ctx-label">{sub.label}</span>
-                {sub.shortcut && <span className="ctx-shortcut">{sub.shortcut}</span>}
+                <CtxShortcut keys={sub.shortcut} />
               </button>
             );
           })}
