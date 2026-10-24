@@ -124,13 +124,18 @@ async function barMenu(page, name, menu) {
 }
 
 const PAGES = [
-  { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]' },
+  { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TODAYS_BARS },
   { name: 'home', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]' },
   { name: 'home naming', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]',
     // The map's bottom bar, or a phone's row under the search.
     open: (page) => tapOn(page, '.ch-bar .ch-quiet, .ch-find-row .ch-quiet'), scope: '.ch-naming' },
-  { name: 'bar menu', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
+  { name: 'bar menu', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TODAYS_BARS,
     open: (page) => tapOn(page, '.chrome-more-btn'), scope: '.chrome-menu' },
+  // The top islands in the toolbar look (FloatingChrome, toolbarLook.css), and
+  // ⋯'s menu, the look's (ChromeMoreA).
+  { name: 'sidebar + board look', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TB_LOOK },
+  { name: 'bar menu look', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TB_LOOK,
+    open: (page) => tapOn(page, '.chrome-more-btn'), scope: '.tl-menu' },
   { name: 'new cluster', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
     open: (page) => tapOn(page, '.tb-newcluster'), scope: '.ncl-pop' },
   { name: 'cluster switcher', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',

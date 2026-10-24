@@ -13,6 +13,7 @@ import { forwardRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { Bell } from '../lib/icons.js';
 import { bellAriaLabel, bellCountLabel } from '../lib/notificationsBell.js';
+import { tip } from '../lib/looks.js';
 import './notificationsPanel.css';
 
 export const NotificationsBell = forwardRef(function NotificationsBell(
@@ -22,7 +23,7 @@ export const NotificationsBell = forwardRef(function NotificationsBell(
   return (
     <button type="button" ref={ref}
       className={`tb-icon nb-bell${count ? ' has-unread' : ''}${open ? ' is-pressed' : ''}`}
-      title="Notifications" aria-label={bellAriaLabel(unread)}
+      {...tip('Notifications')} aria-label={bellAriaLabel(unread)}
       aria-haspopup="dialog" aria-expanded={open}
       onClick={() => onToggle?.()}>
       <Icon as={Bell} size={16} />

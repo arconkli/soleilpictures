@@ -504,3 +504,148 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 @media (prefers-reduced-motion: reduce) {
   :root[data-tb='a'] .tl-bar.sel-a { animation: none; }
 }
+
+/* ── The top islands (FloatingChrome.jsx; the top of mockup A-select): the
+   bars' glass as a layer under the controls, 28px buttons (40 under a
+   finger) with regular icons at 16 (20), hairlines between the groups, the
+   look's on and open, and ⋯'s menu the look's (ChromeMoreA.jsx). Where they
+   sit and how big they are stays floatingChrome.css's: 8px down, 36px tall
+   (44 under a finger), 10px in, which the toasts and the template tray line
+   up to. ── */
+:root[data-tb='a'] .chrome-island {
+  isolation: isolate;
+  gap: var(--tl-gap);
+  padding: 0 var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+:root[data-tb='a'] .chrome-island::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-brand, .tb-btn, .tl-btn, .crumb) { border-radius: var(--tl-br); }
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tl-btn) { height: 28px; min-width: 28px; color: var(--ink-2); }
+:root[data-tb='a'] .chrome-island .tb-icon:not(.has-unread) { width: 28px; }
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-btn, .tl-btn) svg { width: 16px; height: 16px; }
+:root[data-tb='a'] .chrome-island .tb-brand { height: 28px; padding: 0 5px; }
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-brand, .tb-btn, .tl-btn, .crumb.clk):hover:not(:disabled) {
+  background: var(--tl-hov);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .chrome-island .crumb.here { font-weight: 600; }
+/* Share and New cluster say what they do, in the bar's words: no pill. */
+:root[data-tb='a'] .chrome-island .tb-btn:is(.tb-share, .tb-newcluster) {
+  height: 28px;
+  margin-left: 0;
+  padding: 0 10px 0 8px;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .chrome-island .tb-btn.tb-share .tb-btn-label { font-weight: 500; }
+:root[data-tb='a'] .chrome-island .tb-btn:is(.tb-share, .tb-newcluster):hover:not(:disabled),
+:root[data-tb='a'] .chrome-island .tb-btn.tb-newcluster[aria-expanded='true'] {
+  border: 0;
+  background: var(--tl-hov);
+  color: var(--ink-0);
+}
+/* What's on (a cluster pinned alongside) and what's open (the bell's list):
+   the look's, as every bar has them. */
+:root[data-tb='a'] .chrome-island .tb-icon.tb-icon-split.is-pressed {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .chrome-island .tb-icon.nb-bell.is-pressed {
+  background: var(--tl-hov);
+  box-shadow: none;
+  color: var(--ink-0);
+}
+/* Unread is ink (notificationsPanel.css): the bell and its count in full ink. */
+:root[data-tb='a'] .chrome-island .tb-icon.nb-bell.has-unread { color: var(--ink-0); }
+/* The groups, a hairline between each two: where you are | the trail | New
+   cluster; Admin | undo, redo | search, split view, theme, the bell | who's
+   here, Share | ⋯. */
+:root[data-tb='a'] .chrome-island .chrome-sep { height: var(--tl-sep); margin: 0 4px; background: var(--line-2); }
+:root[data-tb='a'] .chrome-left .crumbs {
+  margin-left: 4px;
+  padding-left: 5px;
+  background: linear-gradient(var(--line-2), var(--line-2)) left center / 1px var(--tl-sep) no-repeat;
+}
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more),
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo']) { position: relative; }
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more) { margin-left: 9px; }
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo']) { margin-right: 9px; }
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more)::before,
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo'])::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: var(--tl-sep);
+  margin-top: calc(var(--tl-sep) / -2);
+  background: var(--line-2);
+  pointer-events: none;
+}
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more)::before { left: -5px; }
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo'])::after { right: -5px; }
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .chrome-island :is(.tb-icon, .tl-btn) { height: 40px; min-width: 40px; }
+  :root[data-tb='a'] .chrome-island .tb-icon:not(.has-unread) { width: 40px; }
+  :root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-btn, .tl-btn) svg { width: 20px; height: 20px; }
+  :root[data-tb='a'] .chrome-island .tb-brand { height: 40px; min-width: 40px; }
+  :root[data-tb='a'] .chrome-island .tb-btn:is(.tb-share, .tb-newcluster) { height: 40px; font-size: 15px; }
+}
+
+/* The comments toggle at the canvas's top left, a small island of its own
+   over the rail: the glass, a regular glyph, the count in plain ink. */
+:root[data-tb='a'] .cnv-comments-eye {
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  gap: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
+}
+:root[data-tb='a'] .cnv-comments-eye:hover {
+  border: 0;
+  background: linear-gradient(var(--tl-hov), var(--tl-hov)), var(--tl-glass);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .cnv-comments-eye.is-muted { border: 0; background: var(--tl-glass); color: var(--ink-3); }
+:root[data-tb='a'] .cnv-comments-eye.is-muted:hover { color: var(--ink-1); }
+:root[data-tb='a'] .cnv-comments-eye:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+:root[data-tb='a'] .cnv-comments-eye-count {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: 500 12px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .cnv-comments-eye { min-width: 44px; height: 44px; padding: 0 12px; border-radius: var(--tl-rad); font-size: 15px; }
+  :root[data-tb='a'] .cnv-comments-eye svg { width: 20px; height: 20px; }
+  :root[data-tb='a'] .cnv-comments-eye-count { font-size: 15px; }
+}

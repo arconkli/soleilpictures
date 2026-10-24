@@ -15,13 +15,21 @@
 //
 // Held: App renders it only with the files sidebar and never on a phone, which
 // keeps its bar.
+//
+// In the toolbar look (held: lib/looks.js) the islands wear the bars' glass
+// (styles/toolbarLook.css), their icons are drawn regular, and ⋯ is the look's
+// menu (ChromeMoreA.jsx, a chunk of its own). They keep their place and size.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Icon } from '../Icon.jsx';
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Icon, IconWeightContext } from '../Icon.jsx';
 import { MoreHorizontal } from '../../lib/icons.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { useToolbarRoving } from '../../hooks/useToolbarRoving.js';
+import { toolbarLook } from '../../lib/looks.js';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import './floatingChrome.css';
+
+const ChromeMoreA = lazyWithReload(() => import('./ChromeMoreA.jsx').then((m) => ({ default: m.ChromeMoreA })));
 
 // items: [{ id, label, icon?, run, hint? } | { sep: true }]
 function MoreMenu({ items }) {
@@ -89,6 +97,18 @@ const widthInRow = (els) => els.reduce((w, el) => (
   w + el.getBoundingClientRect().width + (parseFloat(getComputedStyle(el.parentElement).columnGap) || 0)
 ), 0);
 
+// ⋯'s place while the look's menu loads (it's warmed on mount): the same
+// button, not yet a menu, so the island's width doesn't change under it.
+function MoreStandIn() {
+  return (
+    <span className="chrome-more">
+      <button type="button" className="tb-icon chrome-more-btn" aria-label="More" aria-disabled="true">
+        <Icon as={MoreHorizontal} size={18} />
+      </button>
+    </span>
+  );
+}
+
 export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
   // The right island publishes its width, so the left one (the trail) stops
   // short of it however narrow the surface gets — a tablet held sideways with
@@ -141,15 +161,21 @@ export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
     ro.observe(room);
     return () => { cancelAnimationFrame(frame); ro.disconnect(); };
   }, []);
-  return (
+  const look = toolbarLook();
+  useEffect(() => { if (look) ChromeMoreA.warm?.(); }, [look]);
+  const more = menuItems.length > 0 && (look
+    ? <Suspense fallback={<MoreStandIn />}><ChromeMoreA items={menuItems} /></Suspense>
+    : <MoreMenu items={menuItems} />);
+  const layer = (
     <div className={`chrome-layer${tight ? ' is-tight' : ''}${tight > 1 ? ' is-tighter' : ''}`} ref={layerRef}>
       <div className="chrome-room" ref={roomRef} aria-hidden="true" />
       <nav className="chrome-island chrome-left" aria-label="Where you are" ref={leftRef}>{left}</nav>
       <div className="chrome-island chrome-right" role="toolbar" aria-label="This cluster" ref={rightRef}
            onKeyDown={rightKeys}>
         {right}
-        {menuItems.length > 0 && <MoreMenu items={menuItems} />}
+        {more}
       </div>
     </div>
   );
+  return look ? <IconWeightContext.Provider value="regular">{layer}</IconWeightContext.Provider> : layer;
 }

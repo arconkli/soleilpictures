@@ -69,6 +69,8 @@ export const LAZY_IN_APP = [
   'NoteBarA', 'CanvasBarsA',
   // CanvasSurface.jsx: the selection's bar in the toolbar look
   'SelectionBarA',
+  // FloatingChrome.jsx: ⋯'s menu in the top islands in the toolbar look
+  'ChromeMoreA',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

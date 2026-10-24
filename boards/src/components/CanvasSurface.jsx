@@ -14583,10 +14583,13 @@ export function CanvasSurface({
           of currently-visible comments (or the archived count when
           comments are muted, so the user still feels there's
           something to bring back). */}
+      {/* The toolbar look makes it a small island of its own (toolbarLook.css),
+          its tooltip the glass one. */}
       <button className={`cnv-comments-eye ${commentsVisible ? '' : 'is-muted'}`}
-              title={commentsVisible
+              {...tip(commentsVisible
                 ? 'Hide all comments (right-click for archive)'
-                : 'Show all comments (right-click for archive)'}
+                : 'Show all comments (right-click for archive)', null, undefined, tbLook)}
+              aria-label={`${commentsVisible ? 'Hide' : 'Show'} all comments${visibleCommentCount > 0 ? `, ${visibleCommentCount} showing` : ''}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleCommentsVisible}
               onContextMenu={(e) => {
@@ -14595,7 +14598,7 @@ export function CanvasSurface({
                 const r = e.currentTarget.getBoundingClientRect();
                 setCommentArchive({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
               }}>
-        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={14} weight="light" />
+        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={tbLook ? 16 : 14} weight={tbLook ? 'regular' : 'light'} />
         {/* Badge counts only currently-visible (open, non-archived)
             comments — resolved and hidden don't count, since they're
             archived and live in the popover instead. */}
