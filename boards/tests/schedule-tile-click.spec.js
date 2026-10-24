@@ -16,7 +16,7 @@ test('an editor single-clicking a day tile selects it instead of opening it', as
     }));
   });
   await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Schedule', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Schedule', exact: true }).click();
   const sched = page.locator('.schedc');
   await expect(sched.locator('.schedt')).toHaveCount(1);
 
@@ -54,7 +54,7 @@ test('on touch, tapping the selected day tile opens the day', async ({ browser, 
       }));
     });
     await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).tap();
-    await page.locator('.ctx-submenu').getByRole('button', { name: 'Schedule', exact: true }).tap();
+    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Schedule', exact: true }).tap();
     const sched = page.locator('.schedc');
     await expect(sched.locator('.schedt')).toHaveCount(1);
 

@@ -2273,6 +2273,56 @@ export const DOCS_CONTENT = {
        "v": "Clean mode — hide all chrome"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      },
+      {
+       "t": "text",
+       "v": " in a right-click menu"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move through it — "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " opens a submenu and "
+      },
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " closes it, "
+      },
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " chooses"
+      }
+     ]
     ]
    ]
   },

@@ -11,7 +11,7 @@ async function placeGridAt(page, sx, sy) {
     node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: rect.left + p.x, clientY: rect.top + p.y }));
   }, { x: sx, y: sy });
   await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Grid', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Grid', exact: true }).click();
 }
 
 const nextFrame = (page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));

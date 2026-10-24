@@ -17,7 +17,7 @@ test('a read-only viewer can page a schedule to the next month and back', async 
     }));
   });
   await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Schedule', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Schedule', exact: true }).click();
   await expect(page.locator('.schedc')).toBeVisible();
   // Let the local harness persist the board before reopening it read-only.
   await page.waitForTimeout(800);

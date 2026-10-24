@@ -7,11 +7,10 @@
 // descendant and send the submenu somewhere off-screen.
 
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
-import { CtxChevron, CtxShortcut, rowKeys } from './ctxMenuParts.jsx';
+import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
 
 export function CardContextMenu({ open, x, y, above = false, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
@@ -30,22 +29,6 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
   // user sees how rich the backlinks panel will be before opening it.
   const [refCount, setRefCount] = useState(null);
 
-  // WAI-ARIA menu keyboard pattern: Arrow keys walk the items, Home/End
-  // jump. role="menu" was already declared but the keys did nothing.
-  const onMenuKeyDown = (e) => {
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const items = Array.from(e.currentTarget.querySelectorAll('button.ctx-item:not(:disabled)'));
-    if (!items.length) return;
-    const idx = items.indexOf(document.activeElement);
-    let next;
-    if (e.key === 'Home') next = items[0];
-    else if (e.key === 'End') next = items[items.length - 1];
-    else if (e.key === 'ArrowDown') next = items[(idx + 1 + items.length) % items.length];
-    else next = items[(idx - 1 + items.length) % items.length];
-    next?.focus();
-  };
   // Tags currently applied to this card. Shown at the top of the menu
   // so the user knows what concepts the system has attached before they
   // pick an action.
@@ -178,7 +161,7 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
   const hasBacklinksPlaceholder = items.some(it => it.backlinks);
 
   return (
-    <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={onMenuKeyDown}>
+    <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={walkMenu}>
       {card?.id && appliedTags.length > 0 && (
         <>
           <div className="ctx-tags-head">TAGS</div>
@@ -201,7 +184,7 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
         if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
         if (it.backlinks) return card?.id ? backlinksButton(it.id || `bl-${i}`) : null;
-        if (it.submenu) return <SubmenuItem key={it.id || i} item={it} onClose={onClose} claimFire={claimFire} />;
+        if (it.submenu) return <CtxSubmenu key={it.id || i} item={it} onClose={onClose} claimFire={claimFire} />;
         return (
           <button
             key={it.id || i}
@@ -221,94 +204,6 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
           {items.length > 0 && items[items.length - 1].divider !== true && <div className="ctx-divider" />}
           {backlinksButton('backlinks-fallback')}
         </>
-      )}
-    </div>
-  );
-}
-
-function SubmenuItem({ item, onClose, claimFire = () => true }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState(null); // {left, top, maxHeight}
-  const wrapRef = useRef(null);
-  const closeTimerRef = useRef(null);
-
-  const computePos = () => {
-    const wrap = wrapRef.current;
-    if (!wrap) return null;
-    const itemRect = wrap.getBoundingClientRect();
-    // Submenu opens off the parent MENU's right edge (not the item's), so
-    // hovering items deep into the menu doesn't cause the gap to widen and
-    // the "open to the left" branch to misfire on items past the menu's
-    // right edge.
-    const menu = wrap.closest('.ctx-menu');
-    const menuRect = menu ? menu.getBoundingClientRect() : itemRect;
-    const SUB_W = 204;
-    const PAD = 8;
-    const itemCount = item.submenu.length;
-    const estH = Math.min(itemCount * 30 + 8, window.innerHeight - 2 * PAD);
-    const opensOffRight = menuRect.right + SUB_W > window.innerWidth - PAD;
-    const hasRoomLeft = menuRect.left - SUB_W >= PAD;
-    const left = (opensOffRight && hasRoomLeft) ? menuRect.left - SUB_W - 2 : menuRect.right + 2;
-    let top = itemRect.top - 4;
-    if (top + estH > window.innerHeight - PAD) top = Math.max(PAD, window.innerHeight - PAD - estH);
-    return { left, top, maxHeight: window.innerHeight - top - PAD };
-  };
-
-  const handleEnter = () => {
-    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
-    setPos(computePos());
-    setOpen(true);
-  };
-  const handleLeave = () => {
-    closeTimerRef.current = setTimeout(() => setOpen(false), 140);
-  };
-
-  return (
-    <div ref={wrapRef} className="ctx-submenu-wrap" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
-      {/* Tap also toggles — hover-only submenus are unreachable on touch. */}
-      <button className={`ctx-item ctx-has-submenu ${item.danger ? 'danger' : ''}`} disabled={item.disabled}
-              aria-haspopup="menu" aria-expanded={open}
-              onClick={() => { if (open) { setOpen(false); } else { setPos(computePos()); setOpen(true); } }}>
-        <span className="ctx-label">{item.label}</span>
-        <CtxChevron />
-      </button>
-      {open && pos && createPortal(
-        <div className="ctx-menu ctx-submenu is-scrollable"
-             role="menu"
-             style={{ position: 'fixed', left: pos.left, top: pos.top, maxHeight: pos.maxHeight, overflowY: 'auto' }}
-             onMouseEnter={handleEnter}
-             onMouseLeave={handleLeave}>
-          {item.submenu.map((sub, j) => {
-            if (sub.divider) return <div key={`sd-${j}`} className="ctx-divider" />;
-            if (sub.header) return <div key={`sh-${j}`} className="ctx-header" aria-hidden="true">{sub.header}</div>;
-            if (sub.swatch) {
-              return (
-                <button key={sub.id || j}
-                        className="ctx-item ctx-swatch-row"
-                        disabled={sub.disabled}
-                        onClick={async () => { if (!claimFire()) return; onClose(); sub.run && await sub.run(); }}>
-                  <span className="ctx-swatch-dot" style={{
-                    background: sub.swatch === 'transparent'
-                      ? 'repeating-linear-gradient(45deg,#222 0 4px,#444 4px 8px)'
-                      : sub.swatch
-                  }} />
-                  <span className="ctx-label">{sub.label}</span>
-                </button>
-              );
-            }
-            return (
-              <button key={sub.id || j}
-                      className={`ctx-item ${sub.danger ? 'danger' : ''}`}
-                      disabled={sub.disabled}
-                      {...rowKeys(sub.shortcut)}
-                      onClick={() => { if (!claimFire()) return; onClose(); sub.run && sub.run(); }}>
-                <span className="ctx-label">{sub.label}</span>
-                <CtxShortcut keys={sub.shortcut} />
-              </button>
-            );
-          })}
-        </div>,
-        document.body
       )}
     </div>
   );

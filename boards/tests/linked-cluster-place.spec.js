@@ -46,7 +46,7 @@ test('right-click → Add → Linked cluster places the boardlink at the click p
   const menu = page.locator('.ctx-menu').first();
   await expect(menu).toBeVisible();
   await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Linked cluster', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Linked cluster', exact: true }).click();
 
   // The board picker (CommandPalette pick mode) opens — pick the first result.
   const picker = page.getByPlaceholder('Search boards to link…');

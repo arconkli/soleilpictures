@@ -133,13 +133,13 @@ test.describe('the card menu and full Files, by the rules', () => {
     const card = page.locator('.card[data-card-id="home-image"]');
     await card.click({ button: 'right' });
     await openSub(page, 'Move to cluster…');
-    await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
+    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(1);
     expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: false });
 
     await card.click({ button: 'right' });
     await openSub(page, 'Copy to cluster…');
-    await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
+    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(2);
     expect((await calls(page))[1]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
   });
@@ -150,7 +150,7 @@ test.describe('the card menu and full Files, by the rules', () => {
     await page.locator('.card[data-card-id="home-image"]').click({ button: 'right' });
     await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster…' })).toHaveCount(0);
     await openSub(page, 'Copy to cluster…');
-    await page.locator('.ctx-submenu').getByRole('button', { name: 'Sundown Highway', exact: true }).click();
+    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(1);
     expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
   });

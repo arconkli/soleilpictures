@@ -12,7 +12,7 @@ test('canvas comment draft autofocuses its input on open', async ({ page }) => {
   // item lives in the Add submenu now, as comment-draft-keeps-text does it).
   await page.mouse.click(cb.x + cb.width - 90, cb.y + 110, { button: 'right' });
   await page.locator('.ctx-submenu-wrap', { hasText: 'Add' }).first().hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Comment', exact: true }).first().click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Comment', exact: true }).first().click();
   const input = page.locator('.canvas-comment-draft-input');
   await expect(input).toBeVisible();
   await expect(input).toBeFocused();

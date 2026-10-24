@@ -24,7 +24,7 @@ test('writing in a box past the canvas\'s edge doesn\'t scroll the canvas, or mo
     node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 520, clientY: r.top + 150 }));
   });
   await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Grid', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Grid', exact: true }).click();
   const first = page.locator('.card-kind-grid').first();
   await first.click({ position: { x: 180, y: 8 } });
   await page.getByRole('button', { name: 'Stamp a Grid right' }).click();

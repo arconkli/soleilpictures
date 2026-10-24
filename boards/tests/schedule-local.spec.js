@@ -23,7 +23,7 @@ async function addSchedule(page, { density = 'grid' } = {}) {
   const menu = page.locator('.ctx-menu').first();
   await expect(menu).toBeVisible();
   await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Schedule', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Schedule', exact: true }).click();
   await expect(page.locator('.schedc')).toBeVisible();
   if (density !== 'tiles') await setDensity(page, density);
 }

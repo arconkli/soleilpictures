@@ -20,7 +20,7 @@ async function addGrid(page) {
   const menu = page.locator('.ctx-menu').first();
   await expect(menu).toBeVisible();
   await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Grid', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Grid', exact: true }).click();
   await expect(page.locator('.gridc-cell')).toHaveCount(3);
 }
 
@@ -395,7 +395,7 @@ test.describe('grids — local interaction', () => {
     }, { x: sx, y: sy });
     const menu = page.locator('.ctx-menu').first();
     await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-    await page.locator('.ctx-submenu').getByRole('button', { name: 'Grid', exact: true }).click();
+    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Grid', exact: true }).click();
   }
 
   test('cell focus clears when its grid is deleted (paste not swallowed)', async ({ page }) => {

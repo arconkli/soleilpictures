@@ -40,7 +40,7 @@ async function aShape(page) {
     node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 520, clientY: r.top + 220 }));
   });
   await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Shape', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Shape', exact: true }).click();
   const card = page.locator('.card-kind-shape').first();
   await expect(card).toBeVisible();
   await card.click();

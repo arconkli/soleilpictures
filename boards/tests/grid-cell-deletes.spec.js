@@ -19,7 +19,7 @@ async function addGrid(page) {
   const menu = page.locator('.ctx-menu').first();
   await expect(menu).toBeVisible();
   await menu.locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Grid', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Grid', exact: true }).click();
   await expect(page.locator('.gridc-cell')).toHaveCount(3);
   // Let the card's entrance pop (.card.is-new) finish. Playwright's
   // scroll-into-view on a cell mid-animation can scroll the overflow:hidden

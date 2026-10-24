@@ -46,6 +46,7 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 | `⌘K` or `/` | Search and commands |
 | `⌘B` | Toggle sidebar |
 | `⌘.` | Clean mode — hide all chrome |
+| `↑` / `↓` in a right-click menu | Move through it — `→` opens a submenu and `←` closes it, `Enter` chooses |
 
 `⌘K` is the fastest way to get anywhere. It searches cluster names, card
 contents, notes, docs and tags, and it also runs commands — "share", "trash",

@@ -15,7 +15,7 @@ const look = (page, on) => page.addInitScript((v) => {
 const card = (page, id) => page.locator(`[data-card-id="${id}"]`);
 const menu = (page) => page.locator('.ctx-menu:not(.ctx-submenu)');
 const row = (page, name) => menu(page).getByRole('menuitem', { name, exact: true });
-// A row that opens a submenu is a button in a menu, as it has been.
+// A row that opens a submenu (a menu item that says it has a menu).
 const subRow = (page, name) => menu(page).locator('.ctx-has-submenu')
   .filter({ has: page.locator('.ctx-label', { hasText: new RegExp(`^${name}$`) }) });
 
