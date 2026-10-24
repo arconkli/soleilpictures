@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-24",
+    "anchor": "2026-10-24",
+    "title": "A new look for documents",
+    "summary": "Documents get one row of tools over the page, a side panel with every comment, find and replace across every page, and tables that grow, and typing right after you place a note goes into the note.",
+    "headings": []
+  },
+  {
     "date": "2026-10-22",
     "anchor": "2026-10-22",
     "title": "A visual refresh, and a home for every file",

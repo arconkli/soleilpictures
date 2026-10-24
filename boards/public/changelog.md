@@ -4,6 +4,52 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-10-24 — A new look for documents
+
+Documents get one row of tools over the page, a side panel with every comment, find and replace across every page, and tables that grow, and typing right after you place a note goes into the note.
+
+### Documents
+
+- A new document opens straight away with its title selected: type a name,
+  press `Enter`, and you're writing. An empty one offers **A screenplay** and
+  **Import a script** under its **Start writing…**. On the board, an empty
+  document's card says **Empty** and offers **Start writing**; one with words
+  shows its first lines, with **Beside** and **Open**.
+- One row of tools over the page, with the rest under **⋯**. As the window
+  narrows, the tools you use least fold into **⋯** first, so the row never
+  breaks onto a second line. A screenplay has its own shorter row, with its
+  elements in the side panel.
+- **Comments** in the header opens a side panel with every comment in the
+  document, resolved ones too, filtered by **All**, **Open** and **Resolved**.
+  You can reply, resolve, reopen and delete there, and a resolved thread's
+  words read as plain text again.
+- Find and replace searches every page at once and lists the hits page by
+  page. **Replace all** says how many it changed, on how many pages, and one
+  **Undo** takes them all back.
+- Tables grow: from a bar over a table's corner, add or delete rows and
+  columns, turn the header row on and off, or delete the table.
+- Someone with view access keeps Find, the zoom and Export, and can read every
+  comment.
+- The footer says whether your changes are saved and gives the word count. In
+  a screenplay it gives the page you're on, out of how many, and the number of
+  scenes. A screenplay's Export lists PDF first.
+- On a phone the tools ride on the keyboard while you write, and on a tablet
+  they're finger-sized. See [documents](/docs/documents).
+
+### Also
+
+- Typing right after you place a note goes into the note. The first keys used
+  to be lost, or taken as shortcuts.
+- Right-click menus work from the keyboard: `↑` and `↓` move through them, `→`
+  opens a submenu and `←` closes it, and a screen reader hears which rows open
+  one.
+- `Esc` cancels a PDF that's still loading.
+- Writing in a grid's box near the edge of the board no longer pushes the tool
+  rail and the bars on the board out of place.
+- A card added right after another no longer plays its pop-in again later.
+- Once your sign-in code is accepted, the app is already running, so the board
+  shows sooner on a slow phone.
+
 ## 2026-10-22 — A visual refresh, and a home for every file
 
 A new sidebar keeps your clusters on one card and every file on the other, whole folders and zips come in as clusters, clusters cost no cards, and one file or one doc can be shared on its own.
