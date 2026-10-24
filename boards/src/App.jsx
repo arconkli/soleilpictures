@@ -347,6 +347,7 @@ import { useBreakpoint } from './hooks/useBreakpoint.js';
 import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 import { openableUrl } from './lib/openableUrl.js';
+import { holdNoteTypeAhead } from './lib/noteTypeAhead.js';
 
 // A cluster with nothing on its board but files in Files gets a cover of its
 // pictures (lib/coverMosaic.js). Stored covers reach every host, so only where
@@ -3246,6 +3247,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
       setAutoFocusId(id);
+      // Typing before its editor has the focus is the note's.
+      holdNoteTypeAhead(id);
     };
     const addTextLink = addNote; // identical for now
     const dropImageBlob = ({ id, publicUrl, width, height, x, y, fileName = null }) => {

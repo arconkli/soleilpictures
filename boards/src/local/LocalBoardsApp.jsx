@@ -73,6 +73,7 @@ import { probeFile } from '../lib/mediaProbe.js';
 import { InfoHost } from '../components/info/InfoHost.jsx';
 import { PlayerHost } from '../components/film/PlayerHost.jsx';
 import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
+import { holdNoteTypeAhead } from '../lib/noteTypeAhead.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -925,6 +926,7 @@ export function LocalBoardsApp({ user, signOut }) {
       h,
     });
     setAutoFocusId(id);
+    holdNoteTypeAhead(id);
   };
 
   const addTextLink = (clickPos = null) => {

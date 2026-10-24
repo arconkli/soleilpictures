@@ -22,6 +22,7 @@ import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { inertContainer } from '../lib/inertHtml.js';
+import { takeNoteTypeAhead } from '../lib/noteTypeAhead.js';
 
 // Tags kept when pasting rich content into a note. Everything else is unwrapped
 // (children preserved) and every attribute is stripped except a safe href on
@@ -274,6 +275,9 @@ export function RichNoteEditor({
       const sel = window.getSelection();
       sel.removeAllRanges();
       sel.addRange(range);
+      // What was typed while a new note waited for this focus.
+      const ahead = takeNoteTypeAhead(cardId);
+      if (ahead) document.execCommand('insertText', false, ahead);
       captureSelection();
     }, 0);
   }, [editing]);

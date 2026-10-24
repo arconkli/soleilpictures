@@ -47,6 +47,7 @@ import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { startTouchScrollGesture } from '../lib/touchScroll.js';
+import { takeNoteTypeAhead } from '../lib/noteTypeAhead.js';
 import './noteTiptap.css';
 
 const NOTE_AUTOSIZE_MAX = 480;
@@ -263,6 +264,18 @@ export function NoteTiptapSurface({
     // focused + collapsed-to-end on entry. (autoFocus prop kept for callers.)
     autofocus: 'end',
     editable: true,
+    // What was typed while a new note waited for this editor (its chunk is
+    // fetched at the session's first edit): the caret is at the end by now.
+    onCreate: ({ editor: ed }) => {
+      const ahead = takeNoteTypeAhead(cardId);
+      if (!ahead) return;
+      const chain = ed.chain().focus('end');
+      ahead.split('\n').forEach((line, i) => {
+        if (i) chain.splitBlock();
+        if (line) chain.insertContent({ type: 'text', text: line });
+      });
+      chain.run();
+    },
     editorProps: {
       // Foreign pastes lose their typography so the note's own font + size
       // hold. See pasteScrub.
