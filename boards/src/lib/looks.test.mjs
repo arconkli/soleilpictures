@@ -17,7 +17,7 @@ const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
 for (const [fn, flag, key, preview] of [
-  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook', false],
+  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook', true],
   ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook', true],
 ]) {
   test(`${fn} is ${preview ? 'open on the preview, ' : ''}closed on production, and opt-in on dev`, () => {

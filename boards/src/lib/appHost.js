@@ -201,13 +201,14 @@ export function filesPageLookAllowed() {
 // Every toolbar in one language (the owner's pick "A · Islands", 2026-10-21):
 // the sidebar's glass under each bar, 32px buttons (44 under a finger), a gold
 // tint and ring on what's on, one tooltip with the shortcut's keys in caps,
-// and Phosphor icons where text glyphs stood. Held to a dev opt-in while it's
-// built (localStorage soleil.dev.toolbarLook = '1'); it opens on preview once
-// the owner can try it, and on production with the release that ships it and
-// its docs. main.jsx asks it once and marks <html data-tb="a">: the bars' CSS
-// keys on the mark, and markup asks lib/looks.js, never this.
+// and Phosphor icons where text glyphs stood. Open on preview, where the owner
+// tries it; closed on production until the release that ships it with its
+// docs; opt-in on dev (localStorage soleil.dev.toolbarLook = '1'). main.jsx
+// asks it once and marks <html data-tb="a">: the bars' CSS keys on the mark,
+// and markup asks lib/looks.js, never this.
 export const TOOLBAR_LOOK_DEV_FLAG = 'soleil.dev.toolbarLook';
 export function toolbarLookAllowed() {
+  if (onPreviewHost()) return true;
   if (!import.meta.env.DEV) return false;
   try { return window.localStorage.getItem(TOOLBAR_LOOK_DEV_FLAG) === '1'; } catch (_) { return false; }
 }
