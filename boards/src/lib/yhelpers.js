@@ -150,6 +150,33 @@ export function cardToYMap(card) {
   return m;
 }
 
+// Write fields onto a card's EXISTING Y.Map, key by key — the way the app's own
+// updateCard does (App.jsx). Rebuilding the card with cardToYMap and setting it
+// over the old one would re-create every nested type the card holds (a doc's
+// pages, sheets and comments, a grid's cells) as copies: an editor open on that
+// doc keeps typing into the deleted original, the DocParty mirror bridged to it
+// stops hearing it, every comment anchored in its text loses its place, and a
+// collaborator's concurrent edit to any field the patch never named is lost.
+//
+// A plain value never replaces a nested type that lives here — nothing a caller
+// may patch is one, and doing it would erase a document. A Y type in `fields`
+// that is not already this card's goes in as a copy, as cardToYMap would.
+// Unchanged primitives are skipped so a no-op patch adds nothing to the doc.
+export function writeCardFields(ym, fields) {
+  for (const [k, v] of Object.entries(fields)) {
+    const cur = ym.get(k);
+    if (isYType(v)) {
+      if (v === cur) continue;
+      const copy = isIntegratedYType(v) ? cloneYValue(v) : v;
+      if (copy !== undefined) ym.set(k, copy);
+      continue;
+    }
+    if (isYType(cur)) continue;
+    if (cur === v && (v === null || typeof v !== 'object')) continue;
+    ym.set(k, v);
+  }
+}
+
 // Convert a Y.Map (a card row) back into a plain object for rendering.
 export function yMapToCard(ym) {
   const o = {};
