@@ -20,12 +20,10 @@ test.beforeEach(async ({ page }, testInfo) => {
 test('the explore-a-board CTA is visible and tappable without scrolling on touch', async ({ page }) => {
   const explore = page.locator('.sb-explore');
   await expect(explore).toBeVisible();
-  const { opacity, pointerEvents } = await explore.evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return { opacity: cs.opacity, pointerEvents: cs.pointerEvents };
-  });
-  expect(parseFloat(opacity)).toBeGreaterThan(0.5);
-  expect(pointerEvents).not.toBe('none');
+  // It fades in (.4s), with no scroll: read once the fade is past halfway,
+  // not the moment the email field shows (a tablet read it at 0.32).
+  await expect.poll(() => explore.evaluate((el) => parseFloat(getComputedStyle(el).opacity))).toBeGreaterThan(0.5);
+  expect(await explore.evaluate((el) => getComputedStyle(el).pointerEvents)).not.toBe('none');
 });
 
 test('the email field carries mobile keyboard hints', async ({ page }) => {
