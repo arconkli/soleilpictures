@@ -1598,7 +1598,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {lookA && !isPhone && (
         <Suspense fallback={null}>
           <DocFootA editor={editorRef.current} boardId={scope?.boardId || (scope ? null : board.id)}
-                    showSave={!guestMode}
+                    showSave={!guestMode} screenplay={docMode === 'screenplay'}
                     zoom={effectiveZoom} fitMode={fitMode} fitEligible={fitEligible}
                     onZoom={(z) => setZoom(z)}
                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}

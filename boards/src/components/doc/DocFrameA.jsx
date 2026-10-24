@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon, IconWeightContext } from '../Icon.jsx';
 import { Btn } from '../toolbar/Toolbar.jsx';
@@ -8,6 +8,7 @@ import { FileShareButton } from '../fileShare/FileShareButton.jsx';
 import { useMessagesUi } from '../../hooks/useOpenDm.js';
 import { useDocFrame } from '../../hooks/useDocFrame.js';
 import { useDocStatus } from '../../hooks/useDocStatus.js';
+import { screenplayCounts } from '../docExtensions/screenplay/ScreenplayPagination.js';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
 import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { docSharesAllowed } from '../../lib/appHost.js';
@@ -330,14 +331,37 @@ function useSheetGrab(sheetRef, onClose) {
 }
 
 // The footer, across the window under the page list, the page and the panel:
-// the save state with its cloud, the words, and the zoom as a menu.
+// the save state with its cloud, the words (a script's page and scenes), and
+// the zoom as a menu.
 const ZOOMS = [50, 75, 100, 125, 150, 200];
 
+// A script's page and scenes, read as the caret moves and the pages are laid
+// out again, a few times a second at most.
+function useScriptCounts(editor, on) {
+  const [counts, setCounts] = useState(null);
+  useEffect(() => {
+    if (!on || !editor || editor.isDestroyed) { setCounts(null); return undefined; }
+    let t = 0;
+    const read = () => {
+      t = 0;
+      if (editor.isDestroyed) return;
+      const n = screenplayCounts(editor.state);
+      setCounts((c) => (c && c.page === n.page && c.of === n.of && c.scenes === n.scenes ? c : n));
+    };
+    const soon = () => { if (!t) t = setTimeout(read, 120); };
+    read();
+    editor.on('transaction', soon);
+    return () => { clearTimeout(t); editor.off('transaction', soon); };
+  }, [editor, on]);
+  return counts;
+}
+
 export function DocFootA({
-  editor, boardId = null, showSave = true,
+  editor, boardId = null, showSave = true, screenplay = false,
   zoom = 1, fitMode = false, fitEligible = false, onZoom, onZoomIn, onZoomOut, onZoomReset,
 }) {
   const { words, online, saving, saveError, savedLabel } = useDocStatus({ editor, boardId });
+  const script = useScriptCounts(editor, screenplay);
   const cloud = !online ? CloudSlash : saveError ? CloudWarning : saving ? CloudArrowUp : CloudCheck;
   const tone = !online ? ' is-offline' : saveError ? ' is-error' : saving ? ' is-saving' : '';
   const pct = Math.round(zoom * 100);
@@ -348,7 +372,11 @@ export function DocFootA({
           <span className={`dl-foot-status${tone}`}><Icon as={cloud} size={15} />{savedLabel}</span>
         )}
         <span className="dl-sp" />
-        <span className="dl-foot-words">{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</span>
+        <span className="dl-foot-words">
+          {script
+            ? `Page ${script.page} of ${script.of} · ${script.scenes.toLocaleString()} ${script.scenes === 1 ? 'scene' : 'scenes'}`
+            : `${words.toLocaleString()} ${words === 1 ? 'word' : 'words'}`}
+        </span>
         <MenuButton text={`${pct}%`} label={`Zoom, ${pct}%`} menuLabel="Zoom" caret
                     className="dl-foot-zoom" side="above" align="end">
           <MenuItem label="Zoom in" keys="Mod+=" onSelect={onZoomIn} />

@@ -167,6 +167,19 @@ function computePageBreaks(doc) {
   return DecorationSet.create(doc, decos);
 }
 
+// The page the caret is on and how many there are, as the markers on screen
+// stand (a marker sits where its page starts), and how many scenes: what the
+// doc look's footer says of a script.
+export function screenplayCounts(state) {
+  const breaks = breakKey.getState(state)?.find() || [];
+  const at = state.selection.from;
+  let scenes = 0;
+  state.doc.forEach((node) => {
+    if (node.type.name === 'screenplayBlock' && node.attrs.element === 'scene') scenes += 1;
+  });
+  return { page: 1 + breaks.filter((d) => d.from <= at).length, of: breaks.length + 1, scenes };
+}
+
 export const ScreenplayPagination = Extension.create({
   name: 'screenplayPagination',
   addProseMirrorPlugins() {

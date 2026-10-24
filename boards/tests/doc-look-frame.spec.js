@@ -7,6 +7,7 @@
 // (&cluster= names the cluster the doc sits on).
 
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 
 async function openDoc(page, { look = true, query = '' } = {}) {
   // Said either way, so a run with the opt-in already stored still has a page
@@ -113,6 +114,41 @@ test('the footer runs the width of the window: save state, words, zoom', async (
   await modal(page).locator('.tt-editor').first().click();
   await page.keyboard.press('Control+-');
   await expect(foot(page).getByRole('button', { name: 'Zoom, 115%' })).toBeVisible();
+});
+
+test('a screenplay\'s footer says the page the caret is on, of how many, and the scenes', async ({ page }) => {
+  await openDoc(page);
+  await setScreenplay(modal(page), true);
+  await expect(modal(page).locator('.doc-paper.is-screenplay')).toBeVisible();
+  await page.waitForFunction(() => {
+    const ed = window.__soleilDocTest.editor;
+    return !!ed && !ed.isDestroyed && ed.schema.nodes.screenplayBlock && ed.isEditable;
+  }, null, { timeout: 10000 });
+  const pages = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const S = T.screenplay;
+    const blocks = [];
+    for (let s = 0; s < 4; s++) {
+      blocks.push({ element: 'scene', text: `INT. ROOM ${s} - DAY` });
+      blocks.push({ element: 'action', text: ('word ').repeat(60 * 12).trim() });
+      blocks.push({ element: 'character', text: 'SPEAKER' });
+      blocks.push({ element: 'dialogue', text: ('talk ').repeat(35 * 8).trim() });
+    }
+    T.editor.chain().setContent(S.blocksToDocJSON(blocks)).setTextSelection(1).run();
+    return S.paginate(blocks).pageCount;
+  });
+  expect(pages).toBeGreaterThanOrEqual(2);
+  const counts = foot(page).locator('.dl-foot-words');
+  await expect(counts).toHaveText(`Page 1 of ${pages} · 4 scenes`, { timeout: 3000 });
+  // The caret at the end is on the last page.
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.commands.setTextSelection(ed.state.doc.content.size - 1);
+  });
+  await expect(counts).toHaveText(`Page ${pages} of ${pages} · 4 scenes`, { timeout: 3000 });
+  // A document says its words again.
+  await setScreenplay(modal(page), false);
+  await expect(counts).toHaveText(/^[\d,]+ words?$/, { timeout: 3000 });
 });
 
 test('a view-only member sees View only beside the title, and no Share', async ({ page }) => {
