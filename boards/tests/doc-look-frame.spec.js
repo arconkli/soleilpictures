@@ -151,6 +151,31 @@ test('a screenplay\'s footer says the page the caret is on, of how many, and the
   await expect(counts).toHaveText(/^[\d,]+ words?$/, { timeout: 3000 });
 });
 
+// The film grain under the page (styles.css .doc-paper) runs on under the
+// bar: its row is painted with the page's own ground, the tiles ending at the
+// row's bottom edge so they carry on into the page's. The header, the footer
+// and the side panel wear the page list's grain (styles.css PANEL GRAIN).
+test('the grain runs on behind the bar, and the header, footer and side panel wear it', async ({ page }) => {
+  await openDoc(page);
+  await head(page).getByRole('button', { name: /^Comments/ }).click();
+  const paint = (sel, pseudo = null) => modal(page).locator(sel).first().evaluate((el, p) => {
+    const cs = getComputedStyle(el, p);
+    const r = el.getBoundingClientRect();
+    return { image: cs.backgroundImage, color: cs.backgroundColor, size: cs.backgroundSize, y: cs.backgroundPositionY, opacity: cs.opacity, top: r.top, bottom: r.bottom };
+  }, pseudo);
+  const [cap, ground] = await Promise.all([paint('.dl-cap'), paint('.doc-paper')]);
+  expect(ground.image).toContain('grain');
+  expect([cap.image, cap.color, cap.size]).toEqual([ground.image, ground.color, ground.size]);
+  expect(cap.y.split(',').map((s) => s.trim())[1]).toBe('100%');
+  expect(Math.abs(cap.bottom - ground.top)).toBeLessThan(1);
+  const list = await paint('.doc-rail-left', '::after');
+  expect(list.image).toContain('grain');
+  for (const sel of ['.dl-head', '.dl-foot', '.dl-panel']) {
+    const grain = await paint(sel, '::after');
+    expect([grain.image, grain.size, grain.opacity], sel).toEqual([list.image, list.size, list.opacity]);
+  }
+});
+
 test('a view-only member sees View only beside the title, and no Share', async ({ page }) => {
   await openDoc(page, { query: '&viewer=1&cluster=Feature%20film' });
   await expect(head(page).locator('.dl-chip')).toHaveText('View only');

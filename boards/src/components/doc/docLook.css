@@ -100,6 +100,24 @@
   .dl-head .doc-card-title-input.dl-title { padding: 10px 0; margin: -8px 0; }
 }
 
+/* The header, the footer and the side panel wear the page list's grain, as
+   the header and footer they stand in for do (styles.css PANEL GRAIN, tier 1,
+   its dial). */
+.dl-head, .dl-foot, .dl-panel { isolation: isolate; }
+.dl-foot { position: relative; }
+.dl-head::after, .dl-foot::after, .dl-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--grain-url);
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  opacity: 0.025;
+  z-index: -1;
+  border-radius: inherit;
+}
+
 /* ── The body: page list, page, side panel; the footer under all three ── */
 .doc-surface.dl-surface {
   grid-template-columns: 232px minmax(0, 1fr);
@@ -579,7 +597,18 @@ button.dl-drow { cursor: pointer; }
   flex-shrink: 0;
   min-width: 0;
   padding: 12px 12px 0;
-  background: var(--bg-0);
+  /* The page's ground (styles.css .doc-paper), film grain and all, the tiles
+     ending at the row's bottom edge so they carry on into the page's: the bar
+     floats over the ground the page lies on, not a band of its own. */
+  background-color: var(--bg-0);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--bg-0) 97%, transparent),
+      color-mix(in srgb, var(--bg-0) 97%, transparent)
+    ),
+    var(--grain-url);
+  background-size: auto, 320px 240px;
+  background-position: 0 0, 0 100%;
 }
 .dl-cap > .tl-bar { max-width: 100%; }
 /* Before the bar's chunk is in: its room, so the page doesn't jump. */
