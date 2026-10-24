@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
 
 // WS-2 quick wins — spot-checks for the user-visible behaviors.
 
@@ -19,6 +20,8 @@ test('canvas context menu closes on Escape (capture-phase listener)', async ({ p
 });
 
 test('docs toolbar Highlight button applies the highlight mark', async ({ page }) => {
+  // Today's bar. The look's highlight is under Colour and highlight: doc-bar-a.spec.js.
+  await todaysLook(page);
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
