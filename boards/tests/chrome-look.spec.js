@@ -91,6 +91,32 @@ test('⋯ is the look\'s menu, under the island and lined up with it', async ({ 
   await expect(menu).toHaveCount(0);
 });
 
+// The keyboard can reach ⋯ while its stand-in still holds the place (a slow
+// line, a keyboard that's quick off the mark): when the menu comes, the
+// keyboard is on it, not dropped to the page with the stand-in.
+test('the keyboard on ⋯ before its menu has loaded is on ⋯ when the menu comes', async ({ page }) => {
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route(/\/src\/components\/chrome\/ChromeMoreA\.jsx/, async (route) => { await held; await route.continue(); });
+  await look(page, true);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?sidebarqa=1');
+  await page.waitForSelector('[data-sidebarqa-ready]');
+  const standIn = right(page).locator('.chrome-more-btn[aria-disabled="true"]');
+  await expect(standIn).toBeVisible();
+  await right(page).getByRole('button', { name: 'Undo', exact: true }).focus();
+  await page.keyboard.press('End');
+  await expect(standIn).toBeFocused();
+  release();
+  const more = right(page).locator('.chrome-more-btn:not([aria-disabled])');
+  await expect(more).toBeVisible();
+  await expect(more).toBeFocused();
+  // And the bar's keys go on from there: round to its first.
+  await page.keyboard.press('ArrowRight');
+  await expect(more).not.toBeFocused();
+  expect(await right(page).evaluate((el) => el.contains(document.activeElement))).toBe(true);
+});
+
 test('today\'s look keeps today\'s islands: titles, the island\'s own menu', async ({ page }) => {
   await islands(page, false);
   await expect(right(page).getByRole('button', { name: 'Undo', exact: true })).toHaveAttribute('title', 'Undo (⌘Z)');

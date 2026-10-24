@@ -98,11 +98,15 @@ const widthInRow = (els) => els.reduce((w, el) => (
 ), 0);
 
 // ⋯'s place while the look's menu loads (it's warmed on mount): the same
-// button, not yet a menu, so the island's width doesn't change under it.
-function MoreStandIn() {
+// button, not yet a menu, so the island's width doesn't change under it. One
+// that goes with the keyboard on it says so in `focus`, and the menu that
+// takes its place takes the keyboard (the page would get it otherwise).
+function MoreStandIn({ focus }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => () => { focus.current = !!ref.current && ref.current === document.activeElement; }, [focus]);
   return (
     <span className="chrome-more">
-      <button type="button" className="tb-icon chrome-more-btn" aria-label="More" aria-disabled="true">
+      <button ref={ref} type="button" className="tb-icon chrome-more-btn" aria-label="More" aria-disabled="true">
         <Icon as={MoreHorizontal} size={18} />
       </button>
     </span>
@@ -163,8 +167,9 @@ export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
   }, []);
   const look = toolbarLook();
   useEffect(() => { if (look) ChromeMoreA.warm?.(); }, [look]);
+  const moreFocus = useRef(false);
   const more = menuItems.length > 0 && (look
-    ? <Suspense fallback={<MoreStandIn />}><ChromeMoreA items={menuItems} /></Suspense>
+    ? <Suspense fallback={<MoreStandIn focus={moreFocus} />}><ChromeMoreA items={menuItems} focus={moreFocus} /></Suspense>
     : <MoreMenu items={menuItems} />);
   const layer = (
     <div className={`chrome-layer${tight ? ' is-tight' : ''}${tight > 1 ? ' is-tighter' : ''}`} ref={layerRef}>

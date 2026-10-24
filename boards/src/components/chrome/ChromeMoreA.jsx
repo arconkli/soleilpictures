@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { MenuButton, MenuItem, MenuSep } from '../toolbar/Menu.jsx';
 import { MoreHorizontal } from '../../lib/icons.js';
 
@@ -9,9 +10,17 @@ import { MoreHorizontal } from '../../lib/icons.js';
 // look is held.
 //
 // items: [{ id, label, icon?, keys?, run } | { sep: true }], as MoreMenu's.
-export function ChromeMoreA({ items }) {
+// focus: true when the stand-in this replaces went with the keyboard on it
+// (FloatingChrome.jsx MoreStandIn), and ⋯ then takes it.
+export function ChromeMoreA({ items, focus = null }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    if (!focus?.current) return;
+    focus.current = false;
+    ref.current?.querySelector('.chrome-more-btn')?.focus();
+  }, [focus]);
   return (
-    <span className="chrome-more">
+    <span className="chrome-more" ref={ref}>
       <MenuButton icon={MoreHorizontal} label="More" align="end" className="chrome-more-btn">
         {items.map((it, i) => (it.sep
           ? <MenuSep key={`sep-${i}`} />
