@@ -13,6 +13,7 @@ import { peaksFromBase64, peaksToPath, peaksPathWidth, PEAK_COUNT } from '../lib
 import { formatKey, canonicalKey, formatLabel } from '../lib/loopMeta.js';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
 import { tapIsDouble } from '../lib/doubleTap.js';
+import { tip, toolbarLook } from '../lib/looks.js';
 import './noteChecklist.css';
 // Lazy so Tiptap + y-prosemirror stay out of the canvas chunk and only load
 // when a note is actually opened for editing (mirrors how docs lazy-load).
@@ -63,6 +64,7 @@ import {
   Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
   Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
   Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download, ArrowSquareOut,
+  CornersOut, DownloadSimple, Edit,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -651,6 +653,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
   // useMemo keyed on the (identity-stable) adjust object so unchanged cards
   // don't rebuild the style object on every pan/zoom tick.
   const imgStyle = useMemo(() => buildImgStyle(adjust, cardId), [adjust, cardId]);
+  const tbLook = toolbarLook();
   // Caption + title are hidden until a value exists OR the user opts in to
   // edit. Double-click on the image area focuses the title editor (creating
   // it on the fly). Hover affordance for adding a caption. Right-click in
@@ -744,35 +747,43 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           // wrapper's onImgDblClick (which opens the title editor). The buttons
           // only stop `click`/`pointerdown`; `dblclick` is a distinct event, so
           // stop it here once for the whole cluster.
+          // In the toolbar look (lib/looks.js) its icons are the look's, its
+          // tooltips the glass one, and it's the look's island (toolbarLook.css).
           <div className="ic-actions" onDoubleClick={(e) => e.stopPropagation()}>
             {onEdit && (
-              <button type="button" className="ic-act ic-edit" title="Edit photo"
+              <button type="button" className="ic-act ic-edit" {...tip('Edit photo')} aria-label="Edit photo"
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); onEdit((e.currentTarget.closest('.ic-imgwrap') || e.currentTarget).getBoundingClientRect()); }}>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
-                     stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9.5 2.5 L11.5 4.5 L5 11 L2.5 11.5 L3 9 Z" />
-                </svg>
+                {tbLook ? <Icon as={Edit} size={15} weight="regular" /> : (
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                       stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9.5 2.5 L11.5 4.5 L5 11 L2.5 11.5 L3 9 Z" />
+                  </svg>
+                )}
               </button>
             )}
             {onDownload && (
-              <button type="button" className="ic-act ic-download" title="Download"
+              <button type="button" className="ic-act ic-download" {...tip('Download')} aria-label="Download"
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); onDownload(); }}>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
-                     stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 2 V9 M4 6.5 L7 9.5 L10 6.5 M2.5 11.5 H11.5" />
-                </svg>
+                {tbLook ? <Icon as={DownloadSimple} size={15} weight="regular" /> : (
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                       stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7 2 V9 M4 6.5 L7 9.5 L10 6.5 M2.5 11.5 H11.5" />
+                  </svg>
+                )}
               </button>
             )}
             {onExpand && (
-              <button type="button" className="ic-act ic-expand" title="View full size"
+              <button type="button" className="ic-act ic-expand" {...tip('View full size')} aria-label="View full size"
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); onExpand(); }}>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
-                     stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
-                </svg>
+                {tbLook ? <Icon as={CornersOut} size={15} weight="regular" /> : (
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
+                       stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
+                  </svg>
+                )}
               </button>
             )}
           </div>

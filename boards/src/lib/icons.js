@@ -232,4 +232,6 @@ export {
   Lasso,
   HandPointing,
   LineSegment,
+  // The sketch pad's layers in the toolbar look (components/SketchPadOverlay.jsx).
+  Stack,
 } from '@phosphor-icons/react';

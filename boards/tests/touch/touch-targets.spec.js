@@ -113,6 +113,13 @@ async function shapeTool(page) {
   await page.locator('.tob').waitFor();
   return true;
 }
+// The sketch pad, opened from the draw tool's bar.
+async function openSketchPad(page) {
+  if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
+  await page.locator('.tob').getByRole('button', { name: 'Open a fullscreen drawing canvas' }).tap();
+  await page.locator('.sketchpad-frame').waitFor();
+  return true;
+}
 // One of the look's canvas bars' buttons tapped, and the menu it opens up;
 // false where the bar doesn't have it on this device.
 async function barMenu(page, name, menu) {
@@ -162,7 +169,9 @@ const PAGES = [
   { name: 'import guide', url: '/?importqa=1&guide=1', ready: '#root[data-importqa-ready]' },
   { name: 'import ask', url: '/?importqa=1&dialog=free', ready: '#root[data-importqa-ready]' },
   { name: 'upload menu', url: '/?importqa=1&menu=1', ready: '#root[data-importqa-ready]' },
-  { name: 'canvas', url: '/?local=1&reset=1', ready: '.canvas-wrap .card' },
+  { name: 'canvas', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS },
+  // The rail, the top islands and the comments toggle over the rail.
+  { name: 'canvas look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK },
   { name: 'files', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await page.locator('.view-pill--primary .view-pill-btn').nth(1).tap();
@@ -293,13 +302,10 @@ const PAGES = [
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return barMenu(page, 'More line options', '.ln-more');
     }, scope: '.ln-more' },
-  { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
-    open: async (page) => {
-      if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
-      await page.locator('.tob').getByRole('button', { name: 'Open a fullscreen drawing canvas' }).tap();
-      await page.locator('.sketchpad-frame').waitFor();
-      return true;
-    }, scope: '.sketchpad-frame' },
+  { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
+    open: openSketchPad, scope: '.sketchpad-frame' },
+  { name: 'sketch pad look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: openSketchPad, scope: '.sketchpad-frame' },
   // Two versions, so its header carries the version pills (on a phone, their menu).
   { name: 'review player', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {

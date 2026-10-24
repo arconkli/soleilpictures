@@ -648,6 +648,20 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
   :root[data-tb='a'] .cnv-comments-eye { min-width: 44px; height: 44px; padding: 0 12px; border-radius: var(--tl-rad); font-size: 15px; }
   :root[data-tb='a'] .cnv-comments-eye svg { width: 20px; height: 20px; }
   :root[data-tb='a'] .cnv-comments-eye-count { font-size: 15px; }
+  /* A finger's size already: no clear reach round it (styles.css's touch
+     block), which lay over the rail's +. */
+  :root[data-tb='a'] .cnv-comments-eye::before { content: none; }
+}
+/* Where the rail hangs from the canvas's top (a phone, a portrait iPad:
+   styles.css's phone block), it starts under the toggle, which a finger's
+   size makes 18px taller than today's: the 10px a narrow window leaves
+   between the two. The toggle lines up with the rail's buttons. */
+@media (hover: none) and (pointer: coarse) and (max-width: 1024px) {
+  :root[data-tb='a'] .cnv-tools {
+    top: calc(48px + var(--safe-top, 0px) + 20px);
+    max-height: calc(100% - (48px + var(--safe-top, 0px) + 20px) - (56px + var(--safe-bottom, 0px)) - 8px);
+  }
+  :root[data-tb='a'] .cnv-comments-eye { left: calc(max(8px, env(safe-area-inset-left, 0px)) + var(--tl-pad)); }
 }
 
 /* ── The right-click menus (CardContextMenu.jsx, BackgroundContextMenu.jsx and
@@ -718,4 +732,155 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 :root[data-tb='a'] .ctx-menu .ctx-swatch-dot { border: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-3); }
 @media (hover: none) and (pointer: coarse) {
   :root[data-tb='a'] .ctx-menu .ctx-shortcut.is-caps { display: none; }
+}
+
+/* ── An image card's actions (cards.jsx .ic-actions): over the picture, so
+   dark in both themes, as today, but the look's island: one glass strip
+   with the look's corners, its buttons bare until the pointer is on one, the
+   look's icons and its glass tooltip. ── */
+:root[data-tb='a'] .ic-actions {
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(14, 14, 16, .58);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .10), 0 4px 14px rgba(0, 0, 0, .28);
+}
+:root[data-tb='a'] .ic-actions .ic-act {
+  width: 26px; height: 26px; min-width: 26px; min-height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, .9);
+}
+:root[data-tb='a'] .ic-actions .ic-act:hover { border: 0; background: rgba(255, 255, 255, .16); color: #fff; transform: none; }
+:root[data-tb='a'] .ic-actions .ic-act:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .ic-actions .ic-act { width: 32px; height: 32px; min-width: 32px; min-height: 32px; border-radius: 8px; }
+}
+
+/* ── The PDF viewer's bar (PdfViewer.jsx): on the viewer's dark room, so
+   light ink in both themes; page and zoom each a small island of their own,
+   as the canvas's zoom is, the buttons bare until the pointer is on one, the
+   look's icons for the arrows, − + and ×, and the glass tooltip with the
+   keys. ── */
+:root[data-tb='a'] .pdfv-bar { gap: 8px; }
+:root[data-tb='a'] .pdfv-nav,
+:root[data-tb='a'] .pdfv-zoom {
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+:root[data-tb='a'] .pdfv-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, .86);
+}
+:root[data-tb='a'] .pdfv-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .14); color: #fff; }
+:root[data-tb='a'] .pdfv-nav .pdfv-btn,
+:root[data-tb='a'] .pdfv-zoom .pdfv-btn { min-width: 30px; height: 30px; padding: 0; }
+:root[data-tb='a'] .pdfv-pageind,
+:root[data-tb='a'] .pdfv-zoomind { min-width: 48px; font: 500 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+@media (pointer: coarse) {
+  :root[data-tb='a'] .pdfv-btn,
+  :root[data-tb='a'] .pdfv-nav .pdfv-btn,
+  :root[data-tb='a'] .pdfv-zoom .pdfv-btn { min-width: 40px; height: 40px; }
+  :root[data-tb='a'] .pdfv-btn svg { width: 20px; height: 20px; }
+}
+
+/* ── The film player's dock and the review's head (components/film): what's
+   on (loop, guides, compare) the look's gold tint and ring behind white,
+   rather than gold words; the rest is already the look's size and shape. ── */
+:root[data-tb='a'] .film-btn.is-on,
+:root[data-tb='a'] .frv-iconbtn.is-on {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--film-ink-0, #f5f5f7);
+}
+
+/* ── The sketch pad (SketchPadOverlay.jsx): its bars keep their place in the
+   pad's frame, and their controls are the look's: 32px (today's 44 under a
+   finger) with the look's corners, bare until the pointer is on one, the
+   look's icons, words with no box round them, and what's on (the tool, the
+   brush, the width, the frame, Layers, the layer you draw on) the look's gold
+   tint and ring rather than a gold border; a colour that's on wears the
+   look's swatch ring. Add to canvas stays the pad's one filled button, and
+   the touch sheet's Clear and Cancel keep their boxes, as a sheet's
+   buttons do. ── */
+:root[data-tb='a'] .sp-sep { height: 16px; margin: 0 5px; }
+:root[data-tb='a'] .sp-sep.is-row-end { visibility: hidden; }
+:root[data-tb='a'] .sp-tool,
+:root[data-tb='a'] .sp-width,
+:root[data-tb='a'] .sp-x {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink-1);
+}
+:root[data-tb='a'] .sp-layers-btn { display: inline-flex; width: auto; padding: 0 8px; }
+:root[data-tb='a'] .sp-brush,
+:root[data-tb='a'] .sp-aspect { border: 0; border-radius: 8px; }
+:root[data-tb='a'] .sketchpad-toolbar .sp-action {
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans);
+}
+:root[data-tb='a'] .sketchpad-toolbar .sp-action-primary { padding: 0 12px; background: var(--soleil); color: rgba(0, 0, 0, .85); font-weight: 600; }
+@media (hover: hover) {
+  :root[data-tb='a'] :is(.sp-tool, .sp-width, .sp-x, .sp-brush, .sp-aspect):hover:not(:disabled):not(.is-active),
+  :root[data-tb='a'] .sketchpad-toolbar .sp-action:not(.sp-action-primary):hover:not(:disabled):not(.is-active),
+  :root[data-tb='a'] :is(.sp-layer-eye, .sp-layer-btn, .sp-layer-name):hover:not(:disabled) {
+    background: var(--tl-hov);
+    color: var(--ink-0);
+  }
+}
+:root[data-tb='a'] .sp-tool:disabled { opacity: .38; cursor: default; }
+:root[data-tb='a'] :is(.sp-tool, .sp-width, .sp-brush, .sp-aspect, .sp-action).is-active,
+:root[data-tb='a'] .sp-layer.is-active {
+  border-color: transparent;
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] :is(.sp-tool, .sp-width, .sp-x, .sp-brush, .sp-aspect, .sp-action, .sp-layer-eye, .sp-layer-btn):focus-visible {
+  outline: 2px solid var(--soleil);
+  outline-offset: 1px;
+}
+:root[data-tb='a'] .sp-color { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent); }
+:root[data-tb='a'] .sp-color.is-active {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent), 0 0 0 1.5px var(--soleil);
+}
+:root[data-tb='a'] .sp-color-custom { box-shadow: none; }
+:root[data-tb='a'] .sp-layer-eye,
+:root[data-tb='a'] .sp-layer-btn { display: inline-grid; place-items: center; border-radius: 6px; }
+@media (pointer: coarse) {
+  :root[data-tb='a'] .sp-tool,
+  :root[data-tb='a'] .sp-x { width: 44px; height: 44px; border-radius: 10px; }
+  :root[data-tb='a'] .sp-tool svg,
+  :root[data-tb='a'] .sp-x svg { width: 22px; height: 22px; }
+  :root[data-tb='a'] .sp-layers-btn { width: auto; min-width: 44px; }
+  :root[data-tb='a'] .sp-width { width: 48px; height: 44px; border-radius: 10px; }
+  :root[data-tb='a'] .sketchpad-toolbar .sp-action { height: auto; min-height: 44px; padding: 0 16px; border-radius: 10px; font-size: 15px; }
+  :root[data-tb='a'] .sp-brush,
+  :root[data-tb='a'] .sp-aspect { border-radius: 10px; }
+  :root[data-tb='a'] .sp-layer-eye svg { width: 20px; height: 20px; }
+  :root[data-tb='a'] .sp-layer-btn svg { width: 18px; height: 18px; }
+  :root[data-tb='a'] .sp-sep { height: 22px; }
 }
