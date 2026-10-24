@@ -1478,6 +1478,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 registerOpenLinkPicker={registerOpenLinkPicker}
                 registerOpenAddComment={registerOpenAddComment}
                 onShowThread={lookA && !isPublic ? showThreadInPanel : null}
+                look={lookA}
                 boards={Object.values(boards || {})}
                 editable={canEdit}
                 isPublic={isPublic}

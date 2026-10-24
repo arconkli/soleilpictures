@@ -7,7 +7,8 @@ import { todaysLook } from '../helpers/docFrame.js';
 
 async function openDoc(page) {
   // The doc look has no bubble on a phone: the row on the keyboard has its
-  // formats (doc-look-phone.spec.js). A tablet's bubble is the same in both.
+  // formats (doc-look-phone.spec.js). A tablet's does the same in both, in the
+  // look's icons there (touch/doc-bubble-look.spec.js).
   if (page.viewportSize().width <= 640) await todaysLook(page);
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });

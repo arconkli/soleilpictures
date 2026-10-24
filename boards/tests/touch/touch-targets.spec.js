@@ -47,6 +47,24 @@ async function openDoc(page) {
     '<h2>Sundown Highway</h2><p>A night drive across the desert, told in three long takes.</p>'));
 }
 
+// The doc's words selected: the bubble is up (a phone in the doc look has
+// none: the row on the keyboard has its formats).
+async function selectInDoc(page) {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().selectAll().run());
+  if (page.viewportSize().width <= 640 && await page.evaluate(() => document.documentElement.dataset.docLook === 'a')) return false;
+  await page.locator('.doc-bubble').waitFor();
+  return true;
+}
+// A picture in the doc, tapped: its bar is up.
+async function pickDocImage(page) {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus('end')
+    .setImage({ src: '/src/local/qa-photos/street.jpg' }).run());
+  await page.locator('.doc-card-modal .ProseMirror img').first().tap();
+  await page.locator('.tt-img-wrap.is-selected .tt-img-tb').waitFor();
+  return true;
+}
 // An arrow drawn across the middle of an empty board, then picked: its
 // popover is up.
 async function pickAnArrow(page) {
@@ -387,22 +405,14 @@ const PAGES = [
       return true;
     }, scope: '.font-pop' },
   { name: 'doc selection', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().selectAll().run());
-      await page.locator('.doc-bubble').waitFor();
-      return true;
-    }, scope: '.doc-bubble' },
-  { name: 'doc image', url: '/?docqa=1', ready: '#root',
-    open: async (page) => {
-      await openDoc(page);
-      await page.evaluate(() => window.__soleilDocTest.editor.chain().focus('end')
-        .setImage({ src: '/src/local/qa-photos/street.jpg' }).run());
-      await page.locator('.doc-card-modal .ProseMirror img').first().tap();
-      await page.locator('.tt-img-wrap.is-selected .tt-img-tb').waitFor();
-      return true;
-    }, scope: '.tt-img-tb' },
+    open: selectInDoc, scope: '.doc-bubble' },
+  { name: 'doc image', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
+    open: pickDocImage, scope: '.tt-img-tb' },
   // ── The doc look's (held to a dev opt-in, lib/appHost.js docLookAllowed) ──
+  { name: 'doc look selection', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: selectInDoc, scope: '.doc-bubble' },
+  { name: 'doc look image', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: pickDocImage, scope: '.tt-img-tb' },
   { name: 'doc look', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
     open: async (page) => { await openDoc(page); return true; },
     scope: '.doc-card-modal :is(.dl-head, .dl-bar, .dl-foot)' },

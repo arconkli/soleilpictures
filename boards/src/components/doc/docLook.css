@@ -1003,3 +1003,69 @@ button.dl-drow { cursor: pointer; }
   .dl-surface .sp-scenenav-item { height: 46px; margin: 0 10px; font-size: 16px; }
   .dl-surface .doc-bookmarks-item { font-size: 16px; }
 }
+
+/* The selection bubble (a touch device's, DocPageEditor) and an image's bar
+   (docExtensions/ImageResizable.js) in the look's language: the menus' glass
+   at 94%, since both sit over the page's words, the look's corners, its
+   regular icons, and what's on (a format; the image's alignment) the look's
+   gold tint and ring rather than a gold fill. The bubble's display is left
+   alone: on a phone it doesn't show (the row on the keyboard has its
+   formats). */
+.dl-surface .doc-bubble {
+  gap: 2px;
+  padding: 4px;
+  border: 0;
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+}
+.dl-surface .doc-bubble button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: 10px;
+  color: var(--ink-1);
+}
+.dl-surface .doc-bubble button svg { width: 20px; height: 20px; }
+.dl-surface .doc-bubble button:active { background: var(--tl-hov); }
+.dl-surface .doc-bubble button.is-active {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+.dl-surface .doc-bubble button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+
+.dl-surface .tt-img-tb {
+  gap: 2px;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+.dl-surface .tt-img-tb::after { display: none; }
+.dl-surface .tt-img-tb-btn { width: 32px; height: 32px; border-radius: 8px; color: var(--ink-1); }
+.dl-surface .tt-img-tb-btn svg { width: 18px; height: 18px; }
+.dl-surface .tt-img-tb-btn:hover { background: var(--tl-hov); color: var(--ink-0); }
+.dl-surface .tt-img-tb-btn[aria-pressed='true'] {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+.dl-surface .tt-img-tb-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-surface .tt-img-tb-sep { height: 16px; margin: 0 4px; }
+:root[data-theme='light'] .dl-surface :is(.doc-bubble, .tt-img-tb) {
+  background: color-mix(in oklab, #fcfcfd 94%, transparent);
+}
+@media (pointer: coarse) {
+  .dl-surface .tt-img-tb { border-radius: 14px; }
+  .dl-surface .tt-img-tb-btn { width: 40px; height: 40px; border-radius: 10px; }
+  .dl-surface .tt-img-tb-btn svg { width: 20px; height: 20px; }
+  .dl-surface .tt-img-tb-sep { height: 22px; }
+}
