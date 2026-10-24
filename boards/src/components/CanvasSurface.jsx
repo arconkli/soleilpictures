@@ -26,7 +26,7 @@ function schedExpandOf(card, ydoc) {
 }
 import { isEditableTarget, isEditablePointerTarget } from '../lib/isEditableTarget.js';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
-import { anyModalOpen } from '../lib/modalGuard.js';
+import { anyModalOpen, registerModalOpen } from '../lib/modalGuard.js';
 
 // Full-screen surfaces that sit over the board and own the keyboard: Settings,
 // the pricing modal, the PDF viewer, the image lightbox, the photo editor, the
@@ -58,6 +58,15 @@ import { toListItem } from '../lib/listItem.js';
 
 // Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
 const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
+// What's up while its code loads: a layer of its own (lib/modalGuard.js), so
+// Escape cancels the open, rather than reaching nothing and the viewer opening
+// a moment later anyway.
+function PdfViewerLoading({ onClose }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => registerModalOpen({ onEscape: () => { closeRef.current(); return true; } }), []);
+  return <div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>;
+}
 // A file with no viewer of its own opens here (Download + Share).
 const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'));
 // Panels kept mounted behind an `open` prop that only a click opens: each loads
@@ -14944,7 +14953,7 @@ export function CanvasSurface({
         );
       })()}
       {pdfViewer && (
-        <Suspense fallback={<div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>}>
+        <Suspense fallback={<PdfViewerLoading onClose={() => setPdfViewer(null)} />}>
           {(() => {
             const shareCard = pdfViewer.cardId ? cards.find(x => x.id === pdfViewer.cardId) : null;
             const shareTarget = (canEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))
