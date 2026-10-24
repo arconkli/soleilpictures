@@ -809,7 +809,21 @@ export const PROMPTS = [
   },
 ];
 
-export const SERVER_INFO = { name: 'soleil-clusters', version: '2.0.0' };
+// Who this server says it is, on both transports. One version for the hosted
+// server, the npm package and the registry entry: mcp/package.json and
+// mcp/server.json carry the same string, and mcpServer.test.mjs holds all three
+// equal — a client reporting "2.0.0" while npm ships 2.1.1 sends a bug report to
+// the wrong release. Icons are absolute because the stdio copy has no origin.
+export const SERVER_INFO = {
+  name: 'soleil-clusters',
+  title: 'Soleil Clusters',
+  version: '2.1.1',
+  websiteUrl: 'https://clusters.soleilpictures.com/docs/mcp',
+  icons: [
+    { src: 'https://clusters.soleilpictures.com/icons/icon-512.png', mimeType: 'image/png', sizes: ['512x512'] },
+    { src: 'https://clusters.soleilpictures.com/icons/icon-192.png', mimeType: 'image/png', sizes: ['192x192'] },
+  ],
+};
 
 // The MCP protocol shape of a tool, without its implementation.
 export const toolManifest = (t) => ({

@@ -266,7 +266,8 @@ async function callTool(tools, name, args, ctx) {
       };
     }
     return {
-      content: [{ type: 'text', text: JSON.stringify(out, null, 2) }],
+      // Compact: indentation is a quarter of the tokens and tells a model nothing.
+      content: [{ type: 'text', text: JSON.stringify(out) }],
       ...(tool.outputSchema && out && typeof out === 'object' ? { structuredContent: out } : {}),
     };
   } catch (e) {

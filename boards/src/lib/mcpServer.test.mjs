@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TOOLS, HOSTED_TOOLS, PROMPTS, toolManifest } from './mcpTools.js';
+import { TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './mcpTools.js';
 import {
   handleMcpMessage, handleMcpRequest, headerProblem, decodeHeaderValue,
   SUPPORTED_PROTOCOL_VERSIONS, META, ERR,
@@ -64,6 +64,9 @@ test('server.json and package.json agree on the registry name', () => {
   const npmPackage = (server.packages || []).find((p) => p.registryType === 'npm');
   assert.equal(npmPackage?.identifier, pkg.name);
   assert.equal(npmPackage?.version, pkg.version);
+  // And the server reports the same release it ships as, on both transports.
+  assert.equal(SERVER_INFO.version, pkg.version,
+    'SERVER_INFO.version in mcpTools.js must equal mcp/package.json `version`');
   // The hosted server is the recommended route, so it must actually be listed —
   // a registry entry with only the npm package would send everyone down the
   // harder path.
