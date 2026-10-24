@@ -31,7 +31,7 @@ export default function AppShell() {
   useEffect(() => {
     const warm = () => {
       import('./components/DocSurface.jsx').catch(() => {});
-      // The doc look's frame (held, components/doc/DocFrameA.jsx) beside it,
+      // The doc look's frame (components/doc/DocFrameA.jsx) beside it,
       // so the header doesn't arrive a beat after the doc.
       if (docLook()) import('./components/doc/DocFrameA.jsx').catch(() => {});
     };

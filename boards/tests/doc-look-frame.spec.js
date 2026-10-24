@@ -1,5 +1,5 @@
 // The doc editor's frame in the look the owner picked on 2026-10-21 (direction
-// A, with C's side panel), held to a dev opt-in (lib/appHost.js
+// A, with C's side panel), shipped 2026-10-24 (lib/appHost.js
 // docLookAllowed): the window's header carries the page list's toggle, the
 // cluster › title crumb and the side panel's toggle; the footer runs the
 // window's width with the save state, the words and the zoom. With the look

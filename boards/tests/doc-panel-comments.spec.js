@@ -1,5 +1,5 @@
 // The doc look's side panel, Comments (the owner's pick of 2026-10-21, mockup
-// AC-comments), held to a dev opt-in (lib/appHost.js docLookAllowed): every
+// AC-comments), shipped 2026-10-24 (lib/appHost.js docLookAllowed): every
 // thread of the doc, open and resolved, in the doc's order, a card each with
 // the words it's on; a reply, Resolve, Reopen and Delete on the card; a card
 // takes you to its words on whatever page they're on, and the words take you

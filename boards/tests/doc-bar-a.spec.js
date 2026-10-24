@@ -1,5 +1,5 @@
 // The doc's one row of tools in the look the owner picked on 2026-10-21
-// (direction A, with C's side panel), held to a dev opt-in (lib/appHost.js
+// (direction A, with C's side panel), shipped 2026-10-24 (lib/appHost.js
 // docLookAllowed): Doc ▾ | undo redo | style font size | the marks, colour and
 // clear | lists and align | link comment | + | find ⋯. It is always one row:
 // as its room narrows, groups fold into ⋯ (lib/docBarFold.js). Every control

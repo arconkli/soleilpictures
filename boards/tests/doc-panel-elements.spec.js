@@ -1,5 +1,5 @@
 // The doc look's side panel, Elements, for a screenplay (the owner's pick of
-// 2026-10-21, mockup AC-script), held to a dev opt-in (lib/appHost.js
+// 2026-10-21, mockup AC-script), shipped 2026-10-24 (lib/appHost.js
 // docLookAllowed): the eight elements, the caret's checked, a click setting
 // the caret's; Tab and Enter still step them (ScreenplayKeymap); and the
 // script's Title page, Scene numbers and Dual dialogue, run as the bar runs

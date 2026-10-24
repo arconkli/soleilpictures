@@ -241,7 +241,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-21",
+    "updated": "2026-10-24",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -1638,10 +1638,10 @@ export const DOCS_PAGES = [
     "title": "Documents — Soleil Clusters",
     "metaDescription": "Write long-form documents inside Soleil Clusters. Multi-page editor with a page tree, formatting, tables, board embeds, comments, find and replace.",
     "h1": "Documents",
-    "answer": "A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, a full formatting toolbar, tables, images, code blocks and embedded boards, real-time co-editing with visible cursors, inline comments, and find and replace. Open it full screen or docked beside the canvas.",
+    "answer": "A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, one row of formatting tools, tables you can grow, images, code blocks and embedded boards, real-time co-editing with visible cursors, and a side panel with every comment and a find and replace across all its pages. Open it full screen or docked beside the canvas.",
     "section": "documents",
     "order": 0,
-    "updated": "2026-10-21",
+    "updated": "2026-10-24",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1661,8 +1661,20 @@ export const DOCS_PAGES = [
         "text": "Writing and formatting"
       },
       {
+        "id": "find-and-replace",
+        "text": "Find and replace"
+      },
+      {
+        "id": "tables",
+        "text": "Tables"
+      },
+      {
         "id": "insert",
         "text": "Insert"
+      },
+      {
+        "id": "reading-a-document-you-can-only-view",
+        "text": "Reading a document you can only view"
       },
       {
         "id": "working-together",
@@ -1705,7 +1717,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can a document contain a board?",
-        "a": "Yes. Insert a board embed and the cluster renders inside the document."
+        "a": "Yes. Insert a cluster embed and the cluster renders inside the document."
+      },
+      {
+        "q": "Can someone with view access search a document?",
+        "a": "Yes. A viewer keeps Find, the zoom and Export, and reads every comment; only the tools that change the document are hidden."
       }
     ]
   },
@@ -1717,7 +1733,7 @@ export const DOCS_PAGES = [
     "answer": "Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.",
     "section": "documents",
     "order": 1,
-    "updated": "2026-10-20",
+    "updated": "2026-10-24",
     "navLabel": "Screenplays",
     "headings": [
       {
@@ -1773,7 +1789,7 @@ export const DOCS_PAGES = [
     "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.",
     "section": "documents",
     "order": 2,
-    "updated": "2026-10-02",
+    "updated": "2026-10-24",
     "navLabel": "Exporting documents",
     "headings": [
       {
@@ -1833,12 +1849,16 @@ export const DOCS_PAGES = [
     "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
     "section": "documents",
     "order": 3,
-    "updated": "2026-10-12",
+    "updated": "2026-10-24",
     "navLabel": "Comments and tags",
     "headings": [
       {
         "id": "comments-on-a-range",
         "text": "Comments on a range"
+      },
+      {
+        "id": "every-comment-in-one-place",
+        "text": "Every comment in one place"
       },
       {
         "id": "tags-on-a-range",

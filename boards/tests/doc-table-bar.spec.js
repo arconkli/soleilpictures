@@ -1,5 +1,5 @@
 // The doc look's table bar (the owner's pick of 2026-10-21, mockup G-table),
-// held to a dev opt-in (lib/appHost.js docLookAllowed): with the caret in a
+// shipped 2026-10-24 (lib/appHost.js docLookAllowed): with the caret in a
 // table, a bar over the table's top right edge adds a row or a column either
 // side of the caret's and deletes it, turns the header row on and off, and
 // deletes the table, with Undo. Driven in the ?docqa=1 harness.

@@ -1,9 +1,10 @@
-// Which look the toolbars and the doc editor wear, while each is held
-// (lib/appHost.js toolbarLookAllowed, docLookAllowed). main.jsx asks the
-// switches once, before anything renders, and marks <html>: data-tb="a" for
-// the toolbars, data-doc-look="a" for the doc editor. The CSS keys on the
-// marks and markup that differs asks here, so no component asks a switch, and
-// the markup and the CSS can't disagree.
+// Which look the toolbars and the doc editor wear (lib/appHost.js
+// toolbarLookAllowed, held to the preview and a dev opt-in; docLookAllowed, on
+// everywhere, and on dev unless its hold says '0'). main.jsx asks the switches
+// once, before anything renders, and marks <html>: data-tb="a" for the
+// toolbars, data-doc-look="a" for the doc editor. The CSS keys on the marks
+// and markup that differs asks here, so no component asks a switch, and the
+// markup and the CSS can't disagree.
 const mark = (name) => (typeof document !== 'undefined' && document.documentElement?.dataset?.[name]) || null;
 
 export const toolbarLook = () => mark('tb') === 'a';

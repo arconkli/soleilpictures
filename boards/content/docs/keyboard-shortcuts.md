@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-10-21
+updated: 2026-10-24
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -248,7 +248,7 @@ These apply inside a [document](/docs/documents), not on the canvas.
 | `⌘\` | Clear formatting — links and comments stay |
 | `⌘⇧L` / `⌘⇧E` / `⌘⇧R` | Align left · center · right |
 | `⌘K` / `⌘⌥M` | Link · comment |
-| `⌘F` | Find and replace |
+| `⌘F` | Find and replace, in the side panel, across every page |
 | `⌘=` / `⌘−` / `⌘0` | Zoom in · out · back to 100% — a screenplay too wide for its space goes back to fitting it |
 | `Esc` | Close a full-screen document, when you aren't typing in it |
 
@@ -261,7 +261,7 @@ the bar over selected files.
 | Key | Action |
 |---|---|
 | `Tab` | To the next toolbar — each is one stop |
-| `⌥F10` / `Esc` | From a document's or a note's text to its toolbar · back to the text — `Alt+F10` on Windows |
+| `⌥F10` / `Esc` | From a document's or a note's text to its toolbar · back to the text — `Alt+F10` on Windows; in a table, to the table's bar |
 | `←` / `→` | The previous · next control in it — `↑` / `↓` on the tool rail |
 | `Home` / `End` | Its first · last control |
 | `→` / `←` | Open · close the tool rail's **+** menu |

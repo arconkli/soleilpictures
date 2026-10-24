@@ -1,5 +1,5 @@
 // How a doc starts in the doc look, under a finger (mockups S-card, S-phone),
-// held to a dev opt-in (lib/appHost.js docLookAllowed): one tap on an empty
+// shipped 2026-10-24 (lib/appHost.js docLookAllowed): one tap on an empty
 // doc card's Start writing opens it. On the real canvas, through
 // ?local=1&richdocs=1, placed with the rail's doc tool.
 import { expect, test } from '@playwright/test';

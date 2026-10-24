@@ -1,9 +1,10 @@
 // The doc window's controls by what they do, in either of its looks: today's,
-// and the doc look's (lib/appHost.js docLookAllowed; on dev the opt-in
-// soleil.dev.docLook = '1'), which carries the same controls under its own
-// names and in its own places (tests/doc-look-frame.spec.js, doc-bar-a.spec.js,
-// doc-panel-*.spec.js). A spec that reaches a control through these passes
-// with the look on and off. `scope` is the page or a locator.
+// and the doc look's (lib/appHost.js docLookAllowed; on everywhere, and on dev
+// unless soleil.dev.docLook = '0'), which carries the same controls under its
+// own names and in its own places (tests/doc-look-frame.spec.js,
+// doc-bar-a.spec.js, doc-panel-*.spec.js). A spec that reaches a control
+// through these passes with the look on and off. `scope` is the page or a
+// locator.
 
 import { expect } from '@playwright/test';
 

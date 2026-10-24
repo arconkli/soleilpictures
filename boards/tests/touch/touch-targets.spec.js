@@ -408,7 +408,7 @@ const PAGES = [
     open: selectInDoc, scope: '.doc-bubble' },
   { name: 'doc image', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: pickDocImage, scope: '.tt-img-tb' },
-  // ── The doc look's (held to a dev opt-in, lib/appHost.js docLookAllowed) ──
+  // ── The doc look's (shipped 2026-10-24, lib/appHost.js docLookAllowed) ──
   { name: 'doc look selection', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
     open: selectInDoc, scope: '.doc-bubble' },
   { name: 'doc look image', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,

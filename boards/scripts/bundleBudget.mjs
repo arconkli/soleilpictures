@@ -71,6 +71,8 @@ export const LAZY_IN_APP = [
   'SelectionBarA',
   // FloatingChrome.jsx: ⋯'s menu in the top islands in the toolbar look
   'ChromeMoreA',
+  // DocSurface.jsx: the doc look's frame, its bars, side panel and footer
+  'DocFrameA',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

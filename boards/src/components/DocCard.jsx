@@ -576,7 +576,7 @@ export function DocCardOverlay({
   pane = null,
 }) {
   const inPane = variant === 'pane';
-  // The doc look (held): its header switches the page list and the side
+  // The doc look: its header switches the page list and the side
   // panel, which the surface owns; the frame is how the two talk.
   const look = docLook();
   const [frame] = useState(() => (look ? createDocFrame() : null));

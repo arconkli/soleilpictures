@@ -220,14 +220,16 @@ export function toolbarLookAllowed() {
 // the page, the rest under ⋯, and a side panel where a doc's comments, find
 // across its pages and a screenplay's elements live; with the start of a new
 // doc, tables that grow, a reader's Find, zoom and Export, and its own row on
-// a phone's keyboard. Open on preview, where the owner tries it; closed on
-// production until the release that ships it with its docs; opt-in on dev
-// (localStorage soleil.dev.docLook = '1'). Marked <html data-doc-look="a">.
+// a phone's keyboard. It was held to the preview and a dev opt-in until the
+// owner had tried it, and was lifted on 2026-10-24 with the docs that
+// describe it (docs/documents), so it is on everywhere. On dev, localStorage
+// soleil.dev.docLook = '0' still shows today's editor, for the specs that pin
+// it, until the release after this one deletes it.
+// Marked <html data-doc-look="a">.
 export const DOC_LOOK_DEV_FLAG = 'soleil.dev.docLook';
 export function docLookAllowed() {
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(DOC_LOOK_DEV_FLAG) === '1'; } catch (_) { return false; }
+  if (!import.meta.env.DEV) return true;
+  try { return window.localStorage.getItem(DOC_LOOK_DEV_FLAG) !== '0'; } catch (_) { return true; }
 }
 
 // ---------------------------------------------------------------------------

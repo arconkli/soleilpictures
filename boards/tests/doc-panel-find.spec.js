@@ -1,5 +1,5 @@
 // The doc look's side panel, Find (the owner's pick of 2026-10-21, mockup
-// AC-find), held to a dev opt-in (lib/appHost.js docLookAllowed): a search of
+// AC-find), shipped 2026-10-24 (lib/appHost.js docLookAllowed): a search of
 // every page of the doc or the one open, in any case or as typed (Aa), whole
 // words or not; its hits listed page by page with the words around them, and
 // lit in the open page's text; Enter and ⇧Enter through them, opening the

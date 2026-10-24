@@ -5,7 +5,7 @@ h1: Exporting documents
 navLabel: Exporting documents
 section: documents
 order: 2
-updated: 2026-10-02
+updated: 2026-10-24
 answer: Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 faq:
   - q: Is the PDF selectable text or an image?
@@ -20,7 +20,8 @@ related:
   - /docs/canvas/export
 ---
 
-The export menu is in the document toolbar.
+Export is in the toolbar's **⋯** (on a phone, the header's **⋯**). Someone
+with view access can export too.
 
 ## Formats
 

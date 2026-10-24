@@ -1,5 +1,5 @@
 // How a doc starts in the doc look (the owner's pick of 2026-10-21, mockups
-// S-card and S-open), held to a dev opt-in (lib/appHost.js docLookAllowed):
+// S-card and S-open), shipped 2026-10-24 (lib/appHost.js docLookAllowed):
 // a doc just added opens beside the canvas with its title ready to name, and
 // Enter goes on to the body; an empty doc offers A screenplay and Import a
 // script under its "Start writing…"; closed, an empty doc's card says Empty

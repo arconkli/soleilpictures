@@ -1,8 +1,11 @@
 // looks.test.mjs — the toolbar look and the doc editor's look (the owner's
-// picks of 2026-10-21) each have one switch, held to a dev opt-in while they
-// are built; main.jsx alone reads the switches and marks <html>, and markup
-// asks lib/looks.js, which reads the marks. Plus the two helpers every bar in
-// the new look uses: a shortcut's keys as caps, and a control's tooltip.
+// picks of 2026-10-21) each have one switch, held (open on the preview,
+// opt-in on dev) until the release that ships the look, then on everywhere,
+// with a dev opt-out for the specs that still pin today's look (the doc
+// look's shipped 2026-10-24); main.jsx alone reads the switches and marks
+// <html>, and markup asks lib/looks.js, which reads the marks. Plus the two
+// helpers every bar in the new look uses: a shortcut's keys as caps, and a
+// control's tooltip.
 //
 //   node --test src/lib/looks.test.mjs
 import { test } from 'node:test';
@@ -16,17 +19,23 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
-for (const [fn, flag, key, preview] of [
-  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook', true],
+for (const [fn, flag, key, shipped] of [
+  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook', false],
   ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook', true],
 ]) {
-  test(`${fn} is ${preview ? 'open on the preview, ' : ''}closed on production, and opt-in on dev`, () => {
+  test(shipped ? `${fn} is on everywhere, and on dev unless the hold says '0'`
+    : `${fn} is open on the preview, closed on production, and opt-in on dev`, () => {
     const body = holdBody(fn);
-    assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
-    assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) === '1'`));
-    // On the preview once the owner can try it, ahead of everything else.
-    if (preview) assert.match(body, /^\s*if \(onPreviewHost\(\)\) return true;\n\s*if \(!import\.meta\.env\.DEV\) return false;/);
-    else assert.doesNotMatch(body, /onPreviewHost/);
+    if (shipped) {
+      assert.match(body, /^\s*if \(!import\.meta\.env\.DEV\) return true;\n/);
+      // A storage that throws (a private window) leaves it on as well.
+      assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) !== '0'; \\} catch \\(_\\) \\{ return true; \\}`));
+      assert.doesNotMatch(body, /onPreviewHost|return false/);
+    } else {
+      // On the preview, where the owner tries it, ahead of everything else.
+      assert.match(body, /^\s*if \(onPreviewHost\(\)\) return true;\n\s*if \(!import\.meta\.env\.DEV\) return false;/);
+      assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) === '1'`));
+    }
     assert.match(read('lib/appHost.js'), new RegExp(`^\\s*${key}: ${fn},$`, 'm'));
   });
 }

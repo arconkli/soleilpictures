@@ -1,4 +1,4 @@
-// On a phone the doc look's side panel (held to a dev opt-in, lib/appHost.js
+// On a phone the doc look's side panel (shipped 2026-10-24, lib/appHost.js
 // docLookAllowed) is a sheet from the bottom (mockup C-phone2): over the
 // whole doc, header too, which dims; a tap on the dimmed doc, its grab, a
 // drag down or Escape puts it away; a doc opens with it put away, whatever
