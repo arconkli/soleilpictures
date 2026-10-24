@@ -67,6 +67,8 @@ export const LAZY_IN_APP = [
   'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel',
   // ToolOptionsBar.jsx: the note bar and the draw, shape, line and arrow bars in the toolbar look
   'NoteBarA', 'CanvasBarsA',
+  // CanvasSurface.jsx: the selection's bar in the toolbar look
+  'SelectionBarA',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

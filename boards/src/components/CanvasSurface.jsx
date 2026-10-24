@@ -64,6 +64,9 @@ const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'))
 // at its first open and stays mounted from then on (lib/lazyPanel.jsx).
 const SketchPadOverlay = lazyPanel(() => import('./SketchPadOverlay.jsx').then(m => ({ default: m.SketchPadOverlay })));
 const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then(m => ({ default: m.GridTemplatePanel })));
+// The selection's bar in the toolbar look (held: lib/looks.js), a chunk
+// today's look never fetches.
+const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
 
 // Reuse ShapeCard as our drag-preview renderer.
@@ -9075,6 +9078,31 @@ export function CanvasSurface({
     ]);
   };
 
+  // The selection's bar in the toolbar look, on a desktop (components/toolbar/
+  // SelectionBarA.jsx). It shows what the card menu offers the selection, kept
+  // while the selection holds (buildMenu walks every cluster: not for each of
+  // a drag's frames), and uses that menu built afresh: ⋯ opens the menu itself
+  // over the bar, and Delete is ⌫'s.
+  const selBarOn = toolbarLook() && !isTouch;
+  const selFirst = selBarOn && selected.size >= 2 ? selected.values().next().value : null;
+  const selBarItems = useMemo(() => (selFirst && cardById[selFirst] ? buildMenu(cardById[selFirst]) : EMPTY_ITEMS),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selFirst, selected, groups, boards, canEdit]);
+  const selBarNow = useRef(null);
+  useLayoutEffect(() => {
+    selBarNow.current = {
+      items: () => (selFirst && cardByIdRef.current[selFirst] ? buildMenu(cardByIdRef.current[selFirst]) : EMPTY_ITEMS),
+      more: (r) => setCtx({ open: true, x: r.left, y: r.top - 6, above: true, cardId: selFirst }),
+      del: () => doDeleteSelected(),
+    };
+  });
+  const [selBarApi] = useState(() => ({
+    items: () => selBarNow.current?.items() || EMPTY_ITEMS,
+    more: (r) => selBarNow.current?.more(r),
+    del: () => selBarNow.current?.del(),
+  }));
+  useEffect(() => { if (toolbarLook()) SelectionBarA.warm?.(); }, []);
+
   // ── Background pointer + context ──────────────────────────────────────────
   // New-card pop-in: ids appearing after the first render get .is-new for
   // ~280ms (scale+fade keyframes; disabled under prefers-reduced-motion).
@@ -14275,9 +14303,14 @@ export function CanvasSurface({
           <button className="cnv-hint-btn" onClick={() => setTouchSelecting(false)}>Done</button>
         </div>
       )}
-      {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (
+      {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (selBarOn ? (
+        <Suspense fallback={null}>
+          <SelectionBarA count={selected.size + selectedStrokes.size + selectedArrows.size} items={selBarItems}
+                         api={selBarApi} canDelete={canEdit} />
+        </Suspense>
+      ) : (
         <div className="cnv-selcount">{selected.size + selectedStrokes.size + selectedArrows.size} selected</div>
-      )}
+      ))}
       {/* Empty-board starter: a contained, frosted panel of card-type tiles so
           the first "add a card" gesture lets you CHOOSE what to drop (image /
           note / upload / doc) instead of force-dropping a note. Each tile routes
@@ -14587,6 +14620,7 @@ export function CanvasSurface({
         open={ctx.open}
         x={ctx.x}
         y={ctx.y}
+        above={!!ctx.above}
         // Built only while open: ctx.cardId outlives the menu, and buildMenu
         // (cycle checks across every board for a cluster card) used to run on
         // every canvas render after the first right-click, drag frames included.

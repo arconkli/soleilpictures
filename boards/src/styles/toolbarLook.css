@@ -469,3 +469,38 @@
 .tl-menu.db-menu { min-width: 260px; }
 .tl-menu.sb-more, .tl-menu.ln-more { min-width: 220px; }
 
+
+/* ── The selection's bar (mockup A-select; components/toolbar/
+   SelectionBarA.jsx): two or more things picked on a desktop canvas, the
+   bottom row's middle island, over a tool's bar when one shows too
+   (--sel-up). ── */
+:root[data-tb='a'] .tl-bar.sel-a {
+  position: absolute;
+  z-index: 25;
+  left: var(--tob-l, 12px);
+  right: var(--tob-r, 12px);
+  bottom: calc(var(--tob-b, 12px) + var(--sel-up, 0px));
+  width: max-content;
+  max-width: calc(100% - var(--tob-l, 12px) - var(--tob-r, 12px));
+  margin-inline: auto;
+  animation: ctx-menu-in var(--dur-fast, .12s) var(--ease, ease-out);
+}
+.sel-a .sel-count {
+  padding: 0 8px 0 6px;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Move N cards to…'s menu lists every cluster: it scrolls in the room over
+   the bar. */
+.tl-menu.sel-a-move { max-height: min(420px, calc(100vh - 160px)); overflow-y: auto; }
+/* Chrome, as the count it stands in for is (styles.css's immersive list,
+   tests/capture-chrome.spec.js): not on a shared cluster's page, nor in clean
+   mode, focus mode or a capture. */
+.public-canvas-host .tl-bar.sel-a,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .tl-bar.sel-a {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-tb='a'] .tl-bar.sel-a { animation: none; }
+}

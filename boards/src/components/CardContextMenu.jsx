@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
 
-export function CardContextMenu({ open, x, y, items, onClose, workspaceId, boardId, card }) {
+export function CardContextMenu({ open, x, y, above = false, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
   // first click, but a double-click can land two events before unmount —
   // which used to double-fire async actions (double delete/duplicate).
@@ -145,7 +145,8 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   // The row-count guess below only seeds the first render; this measures the
   // rendered menu and re-fits it before paint (see lib/ctxMenuFit.js).
   const menuRef = useRef(null);
-  useFitMenuToViewport(menuRef, open, y, tagReserve);
+  // `above`: opened from the selection bar's ⋯, it ends at `y`, over the bar.
+  useFitMenuToViewport(menuRef, open, y, tagReserve, above);
 
   if (!open) return null;
   const w = 220, hEst = items.length * 30 + 8 + (canHaveTags ? 44 : 0);
@@ -153,7 +154,7 @@ export function CardContextMenu({ open, x, y, items, onClose, workspaceId, board
   // Floored at the top edge: on a short window (a landscape phone, or an image
   // card's ~20 rows) this went negative and the first rows started above the
   // viewport. A menu taller than the window scrolls instead (.is-scrollable).
-  const py = Math.max(8, Math.min(y, window.innerHeight - hEst - 8));
+  const py = above ? Math.max(8, y - hEst) : Math.max(8, Math.min(y, window.innerHeight - hEst - 8));
 
   // "Linked from N places" row. Callers can position it explicitly by placing a
   // { backlinks: true } item in their menu (preferred — keeps Delete last); if
