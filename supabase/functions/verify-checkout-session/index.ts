@@ -72,6 +72,13 @@ Deno.serve(async (req) => {
       return json({ activated: false, reason: `stripe retrieve failed: ${(e as Error).message}` }, 200);
     }
 
+    // A Team checkout (S3) is the team's: team-billing's verify activates it.
+    // It carries neither owner field below, so it would fail the owner check
+    // anyway; this says why, and keeps it so if that ever changes.
+    if (session.metadata?.soleil_kind === "team") {
+      return json({ activated: false, reason: "team_session" }, 409);
+    }
+
     // Owner check — session.metadata.supabase_user_id is set by create-checkout-session.
     // client_reference_id is also set as a backup. Either must match the caller.
     // A session with NEITHER is not ours (Dashboard payment link, foreign

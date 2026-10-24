@@ -1,4 +1,4 @@
-// teamHints.js — the hints the Team plan's SQL (0522, 0530-0535) raises, as
+// teamHints.js — the hints the Team plan's SQL (0522, 0530-0535, 0538) raises, as
 // the app reads them. Every refusal carries one of these in the error's
 // `hint`; teamHints.test.mjs reads the SQL and holds the strings together.
 // Pure, so it runs in node.
@@ -20,6 +20,9 @@ export const TEAM_HINT = {
   team_not_owner: 'team_not_owner',
   team_inbox_unproven: 'team_inbox_unproven',
   team_view_only: 'team_view_only',
+  team_checkout: 'team_checkout',                   // 0538: a team starts at checkout (team-billing), not create_team
+  team_checkout_rate: 'team_checkout_rate',         // too many checkouts started today
+  team_has_plan: 'team_has_plan',                   // paying again while the plan is still live: manage it instead
   new_account: 'new_account',
 };
 

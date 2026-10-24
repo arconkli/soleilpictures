@@ -6,6 +6,12 @@
 //   • customer.subscription.deleted    → flip tier=demo, mark canceled
 //   • invoice.payment_failed           → log only (Stripe retries)
 //
+// A Team plan's objects (S3: metadata soleil_kind = "team", on the team's own
+// customer) go to the team branch FIRST, before any personal lookup: the
+// personal path's email fallback would otherwise find the buyer and could
+// grant them a plan off the team's payment. _shared/teamBilling.ts makes the
+// team and mirrors its subscription; 0538 decides what that means.
+//
 // Must be deployed with verify_jwt=false (see supabase/config.toml) so Stripe
 // can reach it without a Supabase user JWT. The Stripe signature header is
 // the auth boundary — we verify it before doing anything.
@@ -27,6 +33,12 @@ import {
   subscriptionEventAction,
 } from "../_shared/activateCore.mjs";
 import { emitCapi } from "../_shared/meta-capi.ts";
+import { isTeamObject } from "../_shared/teamBillingCore.mjs";
+import {
+  completeTeamCheckout,
+  onTeamSubscriptionEvent,
+  orgForCustomer,
+} from "../_shared/teamBilling.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -77,15 +89,27 @@ Deno.serve(async (req) => {
 
   try {
     switch (event.type) {
-      case "checkout.session.completed":
-        await onCheckoutCompleted(admin, event.data.object as Stripe.Checkout.Session);
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (isTeamObject(session)) await onTeamCheckoutCompleted(admin, session);
+        else await onCheckoutCompleted(admin, session);
         break;
-      case "customer.subscription.updated":
-        await onSubscriptionUpdated(admin, event.data.object as Stripe.Subscription);
+      }
+      case "customer.subscription.updated": {
+        const sub = event.data.object as Stripe.Subscription;
+        // Read off the subscription itself, so a personal event never waits on
+        // a team table. A team's subscription that lost its metadata finds no
+        // person below (its customer is the team's) and the sweep re-reads it.
+        if (isTeamObject(sub)) await onTeamSubscriptionEvent(admin, stripe, sub);
+        else await onSubscriptionUpdated(admin, sub);
         break;
-      case "customer.subscription.deleted":
-        await onSubscriptionDeleted(admin, event.data.object as Stripe.Subscription);
+      }
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        if (isTeamObject(sub)) await onTeamSubscriptionEvent(admin, stripe, sub);
+        else await onSubscriptionDeleted(admin, sub);
         break;
+      }
       case "invoice.payment_failed":
         console.warn("[stripe] invoice.payment_failed", (event.data.object as Stripe.Invoice).id);
         break;
@@ -109,6 +133,21 @@ Deno.serve(async (req) => {
     headers: { "content-type": "application/json" },
   });
 });
+
+// A team's checkout: the team is made (or a lapsed one edits again) once the
+// subscription is active or trialing; one that can't be made is canceled and
+// refunded (teamBilling completeTeamCheckout). A throw 500s and Stripe retries.
+async function onTeamCheckoutCompleted(admin: ReturnType<typeof createClient>, session: Stripe.Checkout.Session) {
+  const checkoutId = session.metadata?.soleil_team_checkout;
+  const subId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+  if (!checkoutId || !subId) {
+    console.warn("[stripe] team checkout.session.completed without its checkout or subscription", { session: session.id });
+    return;
+  }
+  const out = await completeTeamCheckout(admin, stripe, { checkoutId, sessionId: session.id, subscriptionId: subId });
+  console.log("[stripe] team checkout completed", { session: session.id, ok: out.ok, error: out.error ?? null, undone: out.undone ?? false });
+}
+
 
 async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, session: Stripe.Checkout.Session) {
   const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
@@ -418,6 +457,14 @@ async function onChargeTrouble(
     return;
   }
   const userId = await resolveUserId(admin, customerId, null, null);
+  // A team's charge has no person to demote (resolveUserId finds no one for a
+  // team's customer); the flag names the team for the operator.
+  let teamOrgId: string | null = null;
+  try {
+    teamOrgId = await orgForCustomer(admin, customerId);
+  } catch (e) {
+    console.warn("[stripe] team lookup for charge trouble failed", (e as Error)?.message || String(e));
+  }
 
   const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
   const live = filterLiveSubscriptions(subs.data as unknown as Array<{ status: string }>);
@@ -452,6 +499,7 @@ async function onChargeTrouble(
         amount_cents: (kind === "dispute" ? (obj as Stripe.Dispute).amount : charge?.amount_refunded) ?? null,
         currency: charge?.currency ?? null,
         live_subs: live.length,
+        ...(teamOrgId ? { team: true, org_id: teamOrgId } : {}),
       },
       path: "/stripe-webhook",
     });
@@ -475,6 +523,8 @@ async function extractUserIdFromEvent(admin: ReturnType<typeof createClient>, ev
   const metaUid = (obj.metadata as Record<string, string> | undefined)?.supabase_user_id
     || (typeof obj.client_reference_id === "string" ? obj.client_reference_id : undefined);
   if (metaUid) return metaUid;
+  // A team's objects carry the buyer as soleil_owner_id, never as a person's id.
+  if (isTeamObject(obj)) return (obj.metadata as Record<string, string>).soleil_owner_id || null;
   const customerId = (typeof obj.customer === "string") ? obj.customer
                   : (obj.customer as { id?: string } | undefined)?.id;
   if (!customerId) return null;

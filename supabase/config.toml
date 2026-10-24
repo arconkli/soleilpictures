@@ -20,6 +20,11 @@ verify_jwt = false
 [functions.lifecycle-email-cron]
 verify_jwt = false
 
+# 0538's triggers and the 10-minute tick post here through _cron_edge_post,
+# which sends x-cron-secret and no JWT (the secret check is the boundary).
+[functions.team-billing-cron]
+verify_jwt = false
+
 # Resend POSTs delivery events here with an svix signature, never a Supabase
 # user JWT. We verify the svix signature in the handler (the real auth boundary).
 [functions.resend-webhook]

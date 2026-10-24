@@ -117,8 +117,9 @@ test('every function lives in its file, once (no overloads, PGRST203)', () => {
   for (const f of RPCS)
     assert.deepEqual([...code(fileText(f)).matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort(),
       [...PART[f]].sort(), `${f} defines exactly its share`);
-  // S2b re-emits one helper, team-aware (pinned in teamsPayMigration.test.mjs).
-  const LATER = { _workspace_set_owner: '0536_teams_pay_meters.sql' };
+  // S2b re-emits one helper, team-aware (pinned in teamsPayMigration.test.mjs);
+  // S3 closes create_team, a team starting at checkout (teamsBillingMigration.test.mjs).
+  const LATER = { _workspace_set_owner: '0536_teams_pay_meters.sql', create_team: '0538_teams_billing.sql' };
   for (const fn of named) {
     assert.equal(def(fn).file, LATER[fn] || fileOf(fn), `${fn}'s latest definition must be ${LATER[fn] || fileOf(fn)}`);
     assert.equal(definitionsOf(fn).filter((d) => d.file >= '0522' && d.file < '0536').length, 1, `${fn} is defined once in 0522–0535`);
@@ -176,6 +177,7 @@ test('each file proves its own share, and requires live what it calls from befor
 test('every client RPC checks the caller is signed in and active, and the right team role', () => {
   for (const fn of [...Object.keys(CLIENT), ...Object.keys(READS)]) {
     if (fn === 'peek_team_link') continue;   // signed out by design; reads only the link
+    if (fn === 'create_team') continue;      // refuses everyone since 0538 (teamsBillingMigration.test.mjs)
     assert.match(body(fn), /(?:auth\.uid\(\)|v_uid) is null or not public\._actor_active\(\)/, `${fn}: signed in and active`);
   }
   for (const fn of ADMIN_GATED) {
@@ -247,14 +249,7 @@ test('seats: the team lock comes before any seat arithmetic, and the ceiling is 
   const add = body('add_team_seats');
   assert.match(add, /if v_seats \+ p_n > v_ceiling then/);
   assert.ok(add.includes("hint = 'team_seats_ceiling'"));
-  const create = body('create_team');
-  assert.match(create, /returning id, seat_ceiling into v_org, v_ceiling;/);
-  assert.match(create, /if p_seats > v_ceiling then/);
-  assert.equal((create.match(/insert into public\.org_seat_changes/g) || []).length, 1, 'create_team: the one create row');
-  assert.ok(create.includes("'create', v_uid)"));
-  assert.doesNotMatch(create, /update public\.organizations/, 'create_team: no other seat write');
-  assert.ok(create.includes("hint = 'team_exists'"));
-  assert.ok(create.includes("pg_advisory_xact_lock(hashtext('team_create:'"), 'one open team per owner, even with two tabs');
+  // create_team's body is _create_team_for's since 0538: pinned there.
   assert.ok(body('remove_team_seat').includes('greatest(3, v_used)'), 'never below 3 or below what is used');
   const seatFor = body('_team_seat_for');
   assert.doesNotMatch(seatFor, /when_full|_team_admit/, "an admin's action never consults the when-full rule");
