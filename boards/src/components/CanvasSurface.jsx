@@ -759,6 +759,19 @@ export function CanvasSurface({
       el.removeEventListener('pointerenter', claim, { capture: true });
     };
   }, [paneId]);
+  // The canvas never scrolls: the board pans and zooms by its transform, and
+  // the canvas clips what lies past its edges (overflow hidden). A focus can
+  // still scroll a box that clips, to bring what it focused into view —
+  // writing in a grid's box past the right edge did — and the tool rail, the
+  // zoom and the bars on the canvas slid out of place until a reload
+  // (canvas-stays-put.spec). Put it straight back.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const back = () => { if (el.scrollLeft || el.scrollTop) el.scrollTo(0, 0); };
+    el.addEventListener('scroll', back, { passive: true });
+    return () => el.removeEventListener('scroll', back);
+  }, []);
   // Closing the split hands the shortcuts back to the main pane — otherwise
   // a split that closed while active would leave 'split' claimed forever and
   // dead-key the whole app.
