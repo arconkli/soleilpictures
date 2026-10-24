@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { colourButton, formatButton, noteBar, pressControl, scopeGroup, someColour, swatch } from './helpers/noteBar.js';
 
 // Grids — live interaction in the local (?local=1) harness. Verifies the P2
 // wiring end to end with REAL input: add a Grid via the canvas right-click menu,
 // select it, drag a divider (the shared-edge resize), and fill an empty cell
 // with text via the chooser. The pure layout/sequence math is covered separately
-// by grids.spec.js (?gridqa=1).
+// by grids.spec.js (?gridqa=1). The bar's controls through helpers/noteBar.js,
+// so these pass in the toolbar look too.
 
 async function addGrid(page) {
   const canvas = page.locator('.canvas-wrap');
@@ -239,11 +241,11 @@ test.describe('grids — local interaction', () => {
     const reEditor = page.locator('.gridc-cell [contenteditable="true"]').first();
     await reEditor.waitFor({ state: 'visible' });
     await expect(reEditor).toContainText('Keep me');
-    await expect(page.locator('.tob')).toBeVisible();
-    await expect(page.locator('.tob [title="Bold (⌘B)"]')).toHaveCount(1);
-    await expect(page.locator('.tob [title="Card background"]')).toHaveCount(0);
+    await expect(noteBar(page)).toBeVisible();
+    await expect(formatButton(page, 'Bold')).toHaveCount(1);
+    await expect(colourButton(page, 'Card background')).toHaveCount(0);
     // The cell-scoped background control (rides the shared/pinned style path).
-    await expect(page.locator('.tob [title="Box background"]')).toHaveCount(1);
+    await expect(colourButton(page, 'Box background')).toHaveCount(1);
   });
 
   test('select a box (single click) surfaces the scope control; "This box" is remembered per grid', async ({ page }) => {
@@ -268,12 +270,12 @@ test.describe('grids — local interaction', () => {
     // the segmented scope control, defaulting to "All boxes" (shared). Emphasis
     // (needs a live editor) is hidden; Box background is available for the box.
     await roCell.click();
-    const scope = page.locator('.tob-scope');
+    const scope = scopeGroup(page);
     await expect(scope).toBeVisible();
     await expect(scope.getByRole('button', { name: 'All boxes' })).toHaveAttribute('aria-pressed', 'true');
     await expect(scope.getByRole('button', { name: 'This box' })).toHaveAttribute('aria-pressed', 'false');
-    await expect(page.locator('.tob [title="Bold (⌘B)"]')).toHaveCount(0);
-    await expect(page.locator('.tob [title="Box background"]')).toHaveCount(1);
+    await expect(formatButton(page, 'Bold')).toHaveCount(0);
+    await expect(colourButton(page, 'Box background')).toHaveCount(1);
 
     // Choose "This box" → isolates this box (pins its style) and flips the segment.
     await scope.getByRole('button', { name: 'This box' }).click();
@@ -283,13 +285,13 @@ test.describe('grids — local interaction', () => {
     // in the same grid pre-selects "This box" so per-box edits stay one click.
     const sibling = page.locator('.gridc-cell.is-empty').first();
     await sibling.click();
-    await expect(page.locator('.tob-scope').getByRole('button', { name: 'This box' }))
+    await expect(scopeGroup(page).getByRole('button', { name: 'This box' }))
       .toHaveAttribute('aria-pressed', 'true');
 
     // The box style bar is a Select-tool affordance: switching to another tool must
     // release it (else it would hijack that tool's options bar).
     await page.keyboard.press('d');   // → Draw tool
-    await expect(page.locator('.tob-scope')).toHaveCount(0);
+    await expect(scopeGroup(page)).toHaveCount(0);
     await page.keyboard.press('v');   // back to Select
   });
 
@@ -309,8 +311,8 @@ test.describe('grids — local interaction', () => {
 
     // Pick a color swatch (first non-transparent, non-custom one in the popover)
     // → the editing surface paints and the ink adjusts.
-    await page.getByTitle('Box background').click();
-    await page.locator('.tob-pop .tob-sw:not(.tob-sw-custom):not([title="No background"])').first().click();
+    await colourButton(page, 'Box background').click();
+    await someColour(page).click();
     const editWrap = page.locator('.gridc-cell .gc-text-edit').first();
     await expect.poll(() => editWrap.evaluate((el) => el.style.background)).not.toBe('');
 
@@ -327,8 +329,8 @@ test.describe('grids — local interaction', () => {
     // Re-enter and revert via "No background" → back to the default surface.
     await grid.locator('.gridc-cell-text').first().dblclick();
     await page.locator('.gridc-cell [contenteditable="true"]').first().waitFor();
-    await page.getByTitle('Box background').click();
-    await page.getByTitle('No background').click();
+    await colourButton(page, 'Box background').click();
+    await swatch(page, 'transparent').click();
     await expect.poll(() => page.locator('.gridc-cell .gc-text-edit').first()
       .evaluate((el) => el.style.background)).toBe('');
   });
@@ -470,13 +472,13 @@ test.describe('grids — local interaction', () => {
 
     // Center A's caption → the shared vAlign makes B's box flex-center too.
     await A.locator('.gridc-cell-text').first().dblclick();
-    await page.locator('.tob button[title="Center — put the text dead-center of the box"]').click();
+    await pressControl(page, 'Center in the box');
     await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });
     await expect(bText).toHaveCSS('justify-content', 'center');
 
     // Pin B ("only this box"), then change the shared style again → B must NOT move.
     await B.locator('.gridc-cell-text').first().dblclick();
-    const scope = page.locator('.tob .tob-scope');
+    const scope = scopeGroup(page);
     await scope.getByRole('button', { name: 'This box' }).click();   // All boxes → This box
     await expect(scope.getByRole('button', { name: 'This box' })).toHaveAttribute('aria-pressed', 'true');
     await page.locator('.canvas-wrap').click({ position: { x: 40, y: 40 } });

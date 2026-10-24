@@ -9,6 +9,7 @@
 // the words to their bar, and Esc the way back to the caret.
 import { expect, test } from '@playwright/test';
 import { todaysLook } from './helpers/docFrame.js';
+import { colourList, inToolbarLook } from './helpers/noteBar.js';
 
 // Tab stops inside a bar: what Tab can land on, outside a menu of its own.
 const stops = (bar) => bar.evaluate((el) => [...el.querySelectorAll('button, [role="button"], input, select, textarea, a[href], [tabindex]')]
@@ -202,8 +203,11 @@ test.describe('the note bar', () => {
     await expect(bar).toHaveAttribute('role', 'toolbar');
     await expect(bar).toHaveAttribute('aria-label', 'Text formatting');
     const m = await mod(page);
+    // The toolbar look says Strikethrough, and its key (helpers/noteBar.js).
+    const look = await inToolbarLook(page);
+    const strike = look ? 'Strikethrough' : 'Strike';
     const named = [
-      ['Bold', `${m}+B`], ['Italic', `${m}+I`], ['Underline', `${m}+U`], ['Strike'], ['Clear formatting', `${m}+\\`],
+      ['Bold', `${m}+B`], ['Italic', `${m}+I`], ['Underline', `${m}+U`], [strike, look ? `${m}+Shift+S` : undefined], ['Clear formatting', `${m}+\\`],
       ['Bulleted list'], ['Numbered list'], ['Checklist'], ['Align left'], ['Align center'], ['Align right'],
       ['Center in the box'], ['Add comment', `${m}+Alt+M`], ['Text color'], ['Card background'],
       ['Decrease font size'], ['Increase font size'], ['Preset sizes'],
@@ -213,7 +217,7 @@ test.describe('the note bar', () => {
       await expect(b, name).toHaveCount(1);
       if (keys) await expect(b, name).toHaveAttribute('aria-keyshortcuts', keys);
     }
-    for (const name of ['Bold', 'Italic', 'Underline', 'Strike', 'Bulleted list', 'Numbered list', 'Checklist',
+    for (const name of ['Bold', 'Italic', 'Underline', strike, 'Bulleted list', 'Numbered list', 'Checklist',
       'Align left', 'Align center', 'Align right', 'Center in the box']) {
       await expect(bar.getByRole('button', { name, exact: true }), name).toHaveAttribute('aria-pressed', /^(true|false)$/);
     }
@@ -224,7 +228,7 @@ test.describe('the note bar', () => {
     expect(glyphNamed(await bar.ariaSnapshot())).toEqual([]);
     // Its colours are named too.
     await bar.getByRole('button', { name: 'Text color', exact: true }).click();
-    const pop = page.locator('.tob-pop');
+    const pop = colourList(page);
     await expect(pop).toBeVisible();
     expect(glyphNamed(await pop.ariaSnapshot())).toEqual([]);
   });

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { sizeField } from './helpers/noteBar.js';
 
 // Note resize reflow — height follows the text when the drag is mostly
 // horizontal, so resizing a note never hides text behind an invisible
@@ -103,7 +104,8 @@ test('bumping font size from the toolbar re-fits the note height', async ({ page
   // Commit a larger size via the toolbar combo (mutates the DOM without
   // firing `input` — the MutationObserver path). 18px keeps the content
   // inside the 480px auto-size cap; past the cap notes scroll by design.
-  const combo = page.locator('input.tob-size-combo');
+  // The size field in either look (helpers/noteBar.js).
+  const combo = sizeField(page);
   await combo.click();
   await combo.fill('18');
   await page.keyboard.press('Enter');

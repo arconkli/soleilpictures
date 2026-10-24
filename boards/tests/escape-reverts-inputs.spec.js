@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { sizeField } from './helpers/noteBar.js';
 
 // NOTES-11: Escape in the size box, the line's width/angle fields and the
 // arrow label field was meant to revert the typed value, but blur() ran the
@@ -14,7 +15,8 @@ test('Escape in the note size box reverts the typed size', async ({ page }) => {
   await edit.waitFor();
   await edit.click();
   await page.keyboard.type('size');
-  const size = page.locator('.tob-size-combo');
+  // The size field in either look (helpers/noteBar.js).
+  const size = sizeField(page);
   await size.click();
   await size.fill('72');
   await page.keyboard.press('Escape');

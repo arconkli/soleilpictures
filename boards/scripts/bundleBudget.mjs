@@ -65,6 +65,8 @@ export const LAZY_IN_APP = [
   'PricingPage', 'TeamPlanCard', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
   'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel',
+  // ToolOptionsBar.jsx: the note bar in the toolbar look
+  'NoteBarA',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

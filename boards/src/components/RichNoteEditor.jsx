@@ -307,9 +307,10 @@ export function RichNoteEditor({
     // pickers, format buttons), don't exit edit mode — otherwise the
     // toolbar unmounts and the user's click on the dropdown never lands.
     // The custom-font dialog (.cfont) is the toolbar's too: it takes focus for
-    // its name field and hands it back to the note when it closes.
+    // its name field and hands it back to the note when it closes, and so are
+    // the bar's menus in the toolbar look (.tob-menu, .size-combo-tl).
     const next = e?.relatedTarget;
-    if (next && (next.closest?.('.tob') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.cfont'))) {
+    if (next && (next.closest?.('.tob') || next.closest?.('.tob-menu') || next.closest?.('.size-combo-tl') || next.closest?.('.cp-pop') || next.closest?.('.ctx-menu') || next.closest?.('.cfont'))) {
       return;
     }
     if (liveTimerRef.current) { clearTimeout(liveTimerRef.current); liveTimerRef.current = null; }

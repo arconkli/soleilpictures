@@ -229,3 +229,156 @@
   background: var(--ink-0);
   box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
 }
+
+/* ── The note bar (mockups A-note, A-ipad, A-phone; components/toolbar/
+   NoteBarA.jsx), on a note being written and a grid's box. It keeps .tob's
+   places (bottom centre on a desktop canvas, over the mobile nav, lifted over
+   a soft keyboard) and wears the glass, the bar's 32px buttons (44 under a
+   finger) in groups with hairlines between, and what's on in the gold tint
+   with its ring. The glass is the bar's own here, not a layer under it: .tob
+   scrolls sideways on a canvas narrower than it, and a layer would scroll
+   away with its first screenful. ── */
+:root[data-tb='a'] .tob.nb-a {
+  gap: 0;
+  padding: var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+  color: var(--ink-1);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .tob.nb-a::after { display: none; }
+/* The font's name, at a steady width so the row doesn't move as the caret
+   does; the size between − and +, a field with its presets' ⌄. */
+:root[data-tb='a'] .nb-a .tl-btn.nb-font.is-select { width: 112px; }
+:root[data-tb='a'] .nb-a.is-tight .tl-btn.nb-font.is-select { width: 128px; }
+:root[data-tb='a'] .nb-a .nb-step { display: inline-flex; align-items: center; gap: var(--tl-gap); margin-left: 4px; }
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl {
+  flex-shrink: 0;
+  width: 54px;
+  height: calc(var(--tl-bs) - 6px);
+}
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 20px 0 8px;
+  border: 0;
+  border-radius: calc(var(--tl-br) - 2px);
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-0);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo-arrow.tl-btn {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 18px;
+  min-width: 0;
+  height: calc(var(--tl-bs) - 12px);
+  border-radius: 5px;
+  transform: translateY(-50%);
+  background: transparent;
+  color: var(--ink-2);
+}
+@media (hover: hover) {
+  :root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo-arrow.tl-btn:hover:not(:disabled) { background: var(--tl-hov); color: var(--ink-0); }
+}
+/* The text's colour, under the A. */
+:root[data-tb='a'] .nb-a .tl-btn.nb-colour::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--tl-is) * .34 - 1.25px);
+  width: calc(var(--tl-is) * .7);
+  height: 2.5px;
+  margin-left: calc(var(--tl-is) * -.35);
+  border-radius: 1px;
+  background: var(--nb-ink, transparent);
+  box-shadow: 0 0 0 .5px color-mix(in oklab, var(--ink-0) 24%, transparent);
+  pointer-events: none;
+}
+/* The background, as a chip: the button's, and a ⋯ row's in its icon's place. */
+:root[data-tb='a'] .nb-a .tl-btn.nb-bg::before,
+.tob-menu .nb-chip {
+  content: '';
+  display: block;
+  flex-shrink: 0;
+  width: calc(var(--tl-is) - 2px);
+  height: calc(var(--tl-is) - 2px);
+  border-radius: 5px;
+  background: var(--nb-bg, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--line-3);
+}
+.tob-menu .nb-chip { width: var(--tl-mis); height: var(--tl-mis); border-radius: 4px; }
+/* The colours: the recent, the palette's and the bar's, nine to a row. */
+.tob-menu .nb-swrow {
+  display: grid;
+  grid-template-columns: repeat(9, auto);
+  justify-content: start;
+  gap: 8px;
+  padding: 4px 10px 8px;
+}
+.tob-menu .nb-swrow .tl-sw { margin: 0; }
+/* Under a finger, eight to a row, each one a finger can take: 32px, 40 apart,
+   its hit area reaching halfway into the gap round it. */
+@media (hover: none) and (pointer: coarse) {
+  .tob-menu .nb-swrow { --tl-sws: 32px; grid-template-columns: repeat(8, auto); }
+  .tob-menu .nb-swrow .tl-sw::after { content: ''; position: absolute; inset: -4px; }
+}
+/* The fonts, each in its own face. */
+.tl-menu.nb-font-pop { width: 248px; }
+.nb-font-pop .nb-font-rows .tl-mi { font-size: 14px; }
+.nb-font-pop .nb-font-rows .tl-mi .tl-mt { font-family: inherit; }
+/* A row of ⋯ with its controls on the right: the size's − 15 +, the aligns.
+   Its words line up with the rows' that have an icon. */
+.tob-menu .tl-mrow .nb-mind { width: var(--tl-mis); flex-shrink: 0; }
+.tob-menu .nb-size-row .tl-mrow-l { padding-left: calc(var(--tl-mis) + 10px); }
+.tob-menu .nb-size-val {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+.tl-menu.nb-more { min-width: 248px; }
+
+/* Where the bar sits, centred by its margins rather than .tob's translate,
+   which its rise-in (ctx-menu-in, a transform) undid while it ran, so the
+   bar came in half its width to the right. On a desktop canvas, in the room
+   the rail and the zoom leave it on the bottom row, or over the zoom when it
+   can't fit beside it (NoteBarA measures both). */
+:root[data-tb='a'] .tob.nb-a.is-desk {
+  left: var(--nb-l, 12px);
+  right: var(--nb-r, 12px);
+  bottom: var(--nb-b, 12px);
+  width: max-content;
+  max-width: calc(100% - var(--nb-l, 12px) - var(--nb-r, 12px));
+  margin-inline: auto;
+  transform: none;
+}
+/* Under a finger, the bar folded to five groups is an island in the middle,
+   over the mobile nav (styles.css's .tob blocks), not a strip from edge to
+   edge. */
+:root[data-tb='a'] .tob.nb-a.is-touch {
+  left: 8px;
+  right: 8px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  margin-inline: auto;
+  transform: none;
+}
+/* On a phone it spans the width, which its controls share (a group of three
+   grows three times as much as a group of one; NoteBarA), a hairline midway
+   between each two groups. */
+:root[data-tb='a'] .nb-a.is-phone .tl-g { flex: 1 1 auto; justify-content: space-around; }
+:root[data-tb='a'] .nb-a.is-phone .tl-g + .tl-g { margin-left: 0; }
+:root[data-tb='a'] .nb-a.is-phone .tl-g + .tl-g::before { left: -.5px; }

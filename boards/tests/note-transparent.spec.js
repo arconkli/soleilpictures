@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { colourButton, shownColour, swatch } from './helpers/noteBar.js';
 
 // Transparent note background — exposed as a swatch in the note's
 // "Card background" strip (the CSS .note.is-transparent plumbing already
 // existed; this covers the UI path end-to-end and that the option is
-// reversible).
+// reversible). The bar's controls through helpers/noteBar.js, so this passes
+// in the toolbar look too.
 
 test('note background can be set to transparent and back', async ({ page }) => {
   await page.goto('/?local=1&reset=1&blank=1');
@@ -17,17 +19,15 @@ test('note background can be set to transparent and back', async ({ page }) => {
 
   const note = page.locator('.card .note').last();
 
-  // Pick the transparent swatch (the only one carrying the title).
-  await page.getByTitle('Card background').click();
-  await page.getByTitle('No background').click();
+  // Pick the transparent swatch.
+  await colourButton(page, 'Card background').click();
+  await swatch(page, 'transparent').click();
   await expect(note).toHaveClass(/is-transparent/);
   // .note transitions background-color — poll past the interpolation frames.
   await expect.poll(() => note.evaluate(el => getComputedStyle(el).backgroundColor))
     .toBe('rgba(0, 0, 0, 0)');
   // The trigger dot reflects the transparent state via the checkerboard.
-  const dotBg = await page.getByTitle('Card background').locator('.tob-sw-dot')
-    .evaluate(el => el.style.background);
-  expect(dotBg).toContain('repeating-linear-gradient');
+  await expect.poll(async () => (await shownColour(page, 'Card background')).image).toContain('repeating-linear-gradient');
 
   // Commit (blur) — display mode keeps the transparent treatment and text.
   await page.locator('.canvas-wrap').click({ position: { x: 150, y: 650 } });
@@ -38,9 +38,8 @@ test('note background can be set to transparent and back', async ({ page }) => {
   // Reversible: re-enter edit and pick a solid swatch.
   await note.dblclick();
   await body.waitFor();
-  await page.getByTitle('Card background').click();
-  // Solid swatches have no title — pick one by its inline background.
-  await page.locator('.tob-pop .tob-sw[style*="rgb(254, 243, 199)"], .tob-pop .tob-sw[style*="#fef3c7"]').first().click();
+  await colourButton(page, 'Card background').click();
+  await swatch(page, '#fef3c7').click();
   await expect(note).not.toHaveClass(/is-transparent/);
   await expect(note).toHaveClass(/has-bg/);
 

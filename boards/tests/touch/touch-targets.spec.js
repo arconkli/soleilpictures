@@ -87,6 +87,19 @@ const DOC_LOOK = { 'soleil.dev.docLook': '1' };
 // Today's doc bars, held to today's look (the look's are the 'doc look …'
 // pages, which its dev switch would otherwise take these to).
 const TODAYS_DOC = { 'soleil.dev.docLook': '0' };
+// The same for the canvas's bars and the toolbar look (lib/appHost.js
+// toolbarLookAllowed; its pages are the '… look' ones).
+const TB_LOOK = { 'soleil.dev.toolbarLook': '1' };
+const TODAYS_BARS = { 'soleil.dev.toolbarLook': '0' };
+
+// The look's note bar (NoteBarA), on the local board's note: one of its
+// buttons tapped and the menu it opens up.
+async function noteBarMenu(page, name, menu) {
+  await editNote(page);
+  await page.locator('.tob').getByRole('button', { name }).tap();
+  await page.locator(menu).waitFor();
+  return true;
+}
 
 const PAGES = [
   { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]' },
@@ -156,16 +169,46 @@ const PAGES = [
       await page.locator('.ctx-menu').waitFor();
       return true;
     }, scope: '.ctx-menu' },
-  { name: 'note bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+  { name: 'note bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
     open: (page) => editNote(page), scope: '.tob',
     dense: (w) => (w > 640 ? '.tob-btn, .size-combo, .size-combo-arrow' : null) },
-  { name: 'note colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+  { name: 'note colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
     open: async (page) => {
       await editNote(page);
       await page.locator('.tob').getByRole('button', { name: 'Text color' }).tap();
       await page.locator('.tob-pop').waitFor();
       return true;
     }, scope: '.tob-pop' },
+  // The note bar in the toolbar look, folded under a finger to its five
+  // groups and ⋯ (NoteBarA; note-bar-look.spec.js), and each of its menus.
+  { name: 'note bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => editNote(page), scope: '.tob' },
+  { name: 'note bar look fonts', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => noteBarMenu(page, /^Font/, '.nb-font-pop'), scope: '.nb-font-pop' },
+  { name: 'note bar look colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => noteBarMenu(page, 'Text color', '.nb-colour-menu'), scope: '.nb-colour-menu' },
+  { name: 'note bar look more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => noteBarMenu(page, 'More formatting', '.nb-more'), scope: '.nb-more' },
+  // The background's menu, off ⋯ (a phone's are ⋯'s own: 'note bar look more').
+  { name: 'note bar look background', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => {
+      await noteBarMenu(page, 'More formatting', '.nb-more');
+      const row = page.locator('.nb-more').getByRole('menuitem', { name: 'Card background' });
+      if (!(await row.count())) return false;
+      await row.tap();
+      await page.locator('.nb-colour-menu').waitFor();
+      return true;
+    }, scope: '.nb-colour-menu' },
+  // A phone's lists are a menu of their own.
+  { name: 'note bar look lists', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => {
+      await editNote(page);
+      const lists = page.locator('.tob').getByRole('button', { name: /^Lists/ });
+      if (!(await lists.count())) return false;
+      await lists.tap();
+      await page.locator('.tl-menu.tob-menu').waitFor();
+      return true;
+    }, scope: '.tl-menu.tob-menu' },
   { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');

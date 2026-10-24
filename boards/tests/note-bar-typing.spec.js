@@ -5,8 +5,11 @@
 // note's own size changes.
 import { expect, test } from '@playwright/test';
 import { countRenders, resetRenders, renders } from './helpers/renderCounter.js';
+import { formatButton, noteBar } from './helpers/noteBar.js';
 
-const BAR = ['NoteRichTextBar', 'NoteCommentBtn', 'FontPicker', 'SizeInput', 'ColorBtn'];
+// Today's bar's parts, and the toolbar look's (NoteBarA and what it draws with).
+const BAR = ['NoteRichTextBar', 'NoteCommentBtn', 'FontPicker', 'SizeInput', 'ColorBtn',
+  'NoteBarA', 'CommentBtn', 'MenuButton', 'Btn'];
 const none = Object.fromEntries(BAR.map((k) => [k, 0]));
 const barRenders = async (page) => {
   const n = await renders(page);
@@ -15,7 +18,7 @@ const barRenders = async (page) => {
 
 async function typeAndCount(page) {
   await page.keyboard.type('hello');
-  await expect(page.locator('.tob')).toBeVisible();
+  await expect(noteBar(page)).toBeVisible();
   await page.waitForTimeout(300);
   await resetRenders(page);
   await page.keyboard.type(' a quick brown fox!!', { delay: 25 });
@@ -37,7 +40,7 @@ test('typing in a note leaves its formatting bar alone', async ({ page }) => {
   // It still follows the caret: a selection lets you comment on it, bold
   // lights Bold, and the bar's comment button opens the composer.
   const comment = page.getByRole('button', { name: 'Add comment' });
-  const bold = page.getByTitle('Bold (⌘B)');
+  const bold = formatButton(page, 'Bold');
   await expect(comment).toBeDisabled();
   await page.keyboard.press('Shift+Home');
   await expect(comment).toBeEnabled();
