@@ -36,7 +36,7 @@ const OWN = {
 test('each file is written, not applied, one transaction that proves its grants and changes nothing while no team exists', () => {
   for (const f of [METERS, GATES, UPLOADS]) {
     const sql = fileText(f);
-    assert.match(sql, /STATUS: written 2026-10-22\. NOT APPLIED until the owner says go\./, `${f}: header`);
+    assert.match(sql, /STATUS: written 2026-10-22\. Applied 2026-10-24 \(owner's go\), teams closed\./, `${f}: header`);
     assert.match(sql, /^begin;$/m, `${f}: begin`);
     assert.match(sql, /commit;\s*$/, `${f}: commit`);
     assert.match(sql, /has_function_privilege\('anon'/, `${f}: proves anon`);

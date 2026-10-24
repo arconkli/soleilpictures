@@ -121,7 +121,7 @@ ends on the body that is live). One Worker check compares meters instead of owne
 
 ### Task 1: 0536 the meters (inert)
 
-- [ ] Pins: the table has RLS on, no client privileges and an FK to `organizations` with cascade. The
+- [x] Pins: the table has RLS on, no client privileges and an FK to `organizations` with cascade. The
   trigger is `after update of org_id` with the `is distinct from` WHEN. Its function moves
   `-bytes`/`+bytes` with the same `_image_counts(` predicate as transfer. `_workspace_set_owner` calls
   `_storage_usage_apply(` only inside `if v_org is null`. Every helper is revoked from
@@ -131,7 +131,7 @@ ends on the body that is live). One Worker check compares meters instead of owne
 
 ### Task 2: 0537 the gates
 
-- [ ] Pins:
+- [x] Pins:
   - None of the four card gates calls `board_workspace_owner(`, and each calls `_board_card_payer(`.
   - `_owner_card_count`, `_storage_used_bytes`, `_storage_pending_bytes` and the reconcile user truth
     each carry `org_id is null`.
@@ -152,7 +152,7 @@ ends on the body that is live). One Worker check compares meters instead of owne
 
 ### Task 3: Probe D, parity against real accounts (rolled back, before 0537)
 
-- [ ] Sample real owners (the largest drives, the most cards, and a spread of free accounts) and, for
+- [x] Sample real owners (the largest drives, the most cards, and a spread of free accounts) and, for
   each, a few live boards and workspaces. Snapshot, using the live functions:
   - `_owner_card_count`, `_storage_used_bytes`, `_storage_pending_bytes`, `_storage_quota_bytes(uuid)`,
     `_storage_quota_if_blocks(u, 2)`;
@@ -161,21 +161,21 @@ ends on the body that is live). One Worker check compares meters instead of owne
   - `scout_board_capacity(b, owner)`;
   - the user truth of reconcile, as a SELECT (never run reconcile itself in a probe: it updates every
     meter row).
-- [ ] Then create 0537's functions inside the same transaction, snapshot again, and compare: every
+- [x] Then create 0537's functions inside the same transaction, snapshot again, and compare: every
   line must be identical.
-- [ ] On fixture users only (`@probe.invalid`), check the image trigger's deltas (insert, size change,
+- [x] On fixture users only (`@probe.invalid`), check the image trigger's deltas (insert, size change,
   move between workspaces, delete) and the card trigger's refusal at the cap, old against new.
   `record_upload_intent` runs on fixtures only, because it takes the owner's lock.
-- [ ] Time `enforce_demo_card_cap_trg`'s payer lookup and `_drive_used_bytes` on the heaviest real
+- [x] Time `enforce_demo_card_cap_trg`'s payer lookup and `_drive_used_bytes` on the heaviest real
   owner, before and after (info only; never in a commit).
 
 ### Task 4: Hand-off, on the owner's go
 
-- [ ] Apply 0536 in parts. Verify live equals the file (md5) and that `select count(*) from
+- [x] Apply 0536 in parts. Verify live equals the file (md5) and that `select count(*) from
   organizations` = 0.
-- [ ] Run probe D. On all ok, re-check the "Rebased on" md5s, then apply 0537 in parts and verify live
+- [x] Run probe D. On all ok, re-check the "Rebased on" md5s, then apply 0537 in parts and verify live
   equals the file. Then apply 0650 (one call) and verify it the same way.
-- [ ] Probe E (rolled back, live functions, a test team on fixtures):
+- [x] Probe E (rolled back, live functions, a test team on fixtures):
   - moving a workspace in moves its bytes to the team's meter, and moving it out moves them back;
   - a demo owner's team workspace takes cards past their personal cap;
   - a seat holder's personal cluster takes cards past the cap, and their drive is 50 GB larger;
@@ -183,4 +183,4 @@ ends on the body that is live). One Worker check compares meters instead of owne
   - an upload past the team's trial drive is refused with `over_quota`;
   - closing the team leaves the owner's meter holding the bytes;
   - reconcile run on the fixtures agrees with the meters.
-- [ ] Mark the headers applied, then commit, push, and update memory.
+- [x] Mark the headers applied, then commit, push, and update memory.

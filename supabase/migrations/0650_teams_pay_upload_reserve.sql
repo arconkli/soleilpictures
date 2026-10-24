@@ -1,6 +1,8 @@
 -- 0650: Teams, part 10 — who pays: an upload reserves its team's space.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-24 (owner's go), teams closed.
+-- Live as migration 20261024223700 teams_pay_upload_reserve, right after 0537.
+-- Its function body matches this file by md5.
 --
 -- 0610 made record_upload_intent reserve an upload's bytes in the drive of the
 -- key's workspace owner, under one lock per owner. Since 0537 a team's

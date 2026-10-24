@@ -1,6 +1,10 @@
 -- 0536: Teams, part 8 — who pays: the meters.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-24 (owner's go), teams closed.
+-- Live as migrations 20261024223230 teams_pay_meters_part1 through
+-- 20261024223245 teams_pay_meters_part3: the MCP refuses calls this size, so it
+-- went in at statement boundaries, each part one transaction, the proof last.
+-- Its 3 function bodies match this file by md5.
 --
 -- A team workspace's files fill the team's drive, not its owner's (S2b, plan
 -- docs/superpowers/plans/2026-10-22-team-s2b-who-pays.md). This file adds the

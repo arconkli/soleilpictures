@@ -1,6 +1,10 @@
 -- 0537: Teams, part 9 — who pays: every card and storage gate.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-24 (owner's go), teams closed.
+-- Live as migrations 20261024223509 teams_pay_gates_part1 through
+-- 20261024223646 teams_pay_gates_part6, at function boundaries, each part one
+-- transaction carrying its functions' grants, the proof last. Its 24 function
+-- bodies match this file by md5.
 --
 -- A team workspace's cards and files are the team's to pay for, a personal
 -- workspace's its owner's, and someone holding a team seat gets the seat perk
