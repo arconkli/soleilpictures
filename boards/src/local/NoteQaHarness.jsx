@@ -19,6 +19,7 @@ import { NoteCardCollab, NoteCard } from '../components/cards.jsx';
 import { ToolOptionsBar } from '../components/ToolOptionsBar.jsx';
 import { EntityTrieContext } from '../hooks/useEntityNameTrie.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
+import { holdNoteTypeAhead } from '../lib/noteTypeAhead.js';
 
 const CARD_ID = 'noteqa-card';
 
@@ -186,6 +187,8 @@ export function NoteQaHarness() {
       // Drive the read-only NoteCard (canvas/share render path) for contrast tests.
       setRo: (next) => setRo((c) => ({ ...c, ...next })),
       getActiveEditor: () => getActiveNoteEditor(),
+      // What addNote does as a note is placed (lib/noteTypeAhead.js).
+      holdTypeAhead: (id) => holdNoteTypeAhead(id),
       // Awareness inspectors for presence tests.
       getLocalCaretA: () => awA.getLocalState()?.noteCaret || null,
       getLocalCaretB: () => awB.getLocalState()?.noteCaret || null,

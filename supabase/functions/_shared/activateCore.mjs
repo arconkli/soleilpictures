@@ -35,6 +35,9 @@ export function filterLiveSubscriptions(subs) {
 // (2026-10-17), a subscription whose only item is storage is not a plan.
 export function activationDecision(subscription, cfg) {
   if (!subscription) return { live: false, reason: "no_subscription" };
+  // A team's subscription (S3) is the team's, never a person's plan, whatever
+  // its items look like: teamBilling.ts activates it, not this path.
+  if (isTeamObject(subscription)) return { live: false, reason: "team_subscription" };
   const s = subscription.status;
   if (s !== "active" && s !== "trialing") return { live: false, reason: `subscription_not_live:${s}` };
   if (!subscriptionItems(subscription, cfg).creator) return { live: false, reason: "no_creator_item" };
@@ -61,6 +64,7 @@ export function planFromPriceId(priceId, priceIds) {
 //   creatorProduct, storageProduct,          // prod_… (either may be unset)
 //   creatorPrices: { monthly, annual },      // STRIPE_PRICE_MONTHLY / _ANNUAL
 //   storagePrices: { monthly, annual },      // STRIPE_PRICE_STORAGE_MONTHLY / _ANNUAL
+//   teamProduct, teamPrices: { monthly, annual },  // STRIPE_PRODUCT_TEAM, STRIPE_PRICE_TEAM_* (S3)
 // }
 // With no cfg at all every item is a Creator item, which is what every
 // subscription before extra storage was.
@@ -80,8 +84,22 @@ export function isStorageItem(item, cfg) {
   return priceIn(item, cfg?.storagePrices);
 }
 
+// A Team seat (S3). Never a Creator plan: a team's subscription lives on the
+// team's own customer, and this keeps it from ever reading as one.
+export function isTeamItem(item, cfg) {
+  if (!item) return false;
+  if (cfg?.teamProduct && productOf(item) === cfg.teamProduct) return true;
+  return priceIn(item, cfg?.teamPrices);
+}
+
+// Stripe objects the team path made carry metadata.soleil_kind = "team"
+// (teamBillingCore.mjs stamps every one).
+export function isTeamObject(obj) {
+  return obj?.metadata?.soleil_kind === "team";
+}
+
 export function isCreatorItem(item, cfg) {
-  if (!item || isStorageItem(item, cfg)) return false;
+  if (!item || isStorageItem(item, cfg) || isTeamItem(item, cfg)) return false;
   if (cfg?.creatorProduct && productOf(item) === cfg.creatorProduct) return true;
   return priceIn(item, cfg?.creatorPrices);
 }
@@ -97,7 +115,7 @@ export function isCreatorItem(item, cfg) {
 export function subscriptionItems(sub, cfg) {
   const items = (sub?.items?.data ?? []).filter(Boolean);
   const storage = items.filter((i) => isStorageItem(i, cfg));
-  const rest = items.filter((i) => !isStorageItem(i, cfg));
+  const rest = items.filter((i) => !isStorageItem(i, cfg) && !isTeamItem(i, cfg));
   const creator = rest.find((i) => isCreatorItem(i, cfg)) ?? rest[0] ?? null;
   const configured = Boolean(cfg?.creatorProduct || cfg?.creatorPrices?.monthly || cfg?.creatorPrices?.annual);
   const unknown = configured ? rest.filter((i) => !isCreatorItem(i, cfg)) : [];
@@ -344,8 +362,11 @@ export function subscriptionEventAction({ kind, eventSubId, storedSubId = null, 
 // reusing it would hand this caller the other account's invoices, saved payment
 // method, and portal cancel button. An unstamped customer is claimable (we
 // stamp it on reuse); a deleted customer is dead.
+//
+// A team's customer (S3, metadata.soleil_kind = "team") is never a person's:
+// it carries no user stamp, so without this it would read as unclaimed.
 export function pickReusableCustomer(customers, userId) {
-  const list = (customers || []).filter((c) => c && !c.deleted);
+  const list = (customers || []).filter((c) => c && !c.deleted && !isTeamObject(c));
   const own = list.find((c) => c.metadata?.supabase_user_id === userId);
   if (own) return { customer: own, needsStamp: false };
   const unclaimed = list.find((c) => !c.metadata?.supabase_user_id);

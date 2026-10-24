@@ -8,11 +8,11 @@
 -- (design: docs/superpowers/specs/2026-10-21-team-plan-and-editor-limit-design.md).
 -- No organization row can exist until app_config.teams_open opens, or its
 -- owner is listed in test_owner_ids (preview test accounts). With no rows,
--- every team branch in 0530–0533 is dormant and everything works as before.
+-- every team branch in 0530–0535 is dormant and everything works as before.
 --
 -- Every table here is RPC-only: RLS on, no policies, no client grants. The
 -- roster's privacy (names for everyone, emails for the owner and admins) is
--- enforced in get_team (0533), never by a policy a member could query around.
+-- enforced in get_team (0535), never by a policy a member could query around.
 
 begin;
 

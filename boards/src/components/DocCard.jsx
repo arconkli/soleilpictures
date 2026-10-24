@@ -29,6 +29,8 @@ import { docSharesAllowed } from '../lib/appHost.js';
 import { isShareableDoc } from '../lib/fileShares.js';
 import { docLook } from '../lib/looks.js';
 import { createDocFrame } from '../lib/docFrame.js';
+import { Icon } from './Icon.jsx';
+import { CornersOut, NotePencil, PanelRight } from '../lib/icons.js';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
 // ~400KB raw) into whichever chunk imports it statically — which used to be
@@ -56,7 +58,10 @@ let openOverlayCount = 0;
 // doc is open at a time; opening the next hands it the layout.
 const OPEN_EVENT = 'soleil-doccard-open';
 
-const NO_SUMMARY = { pages: [], firstText: '', firstPageName: '' };
+const NO_SUMMARY = { pages: [], firstText: '', firstPageName: '', empty: false };
+// The titles a doc is given before anyone names it (App addDocCard,
+// addScriptCard).
+const UNNAMED = new Set(['Untitled', 'Untitled doc', 'Untitled script']);
 
 // The closed card's preview: the first page's name and opening text, and the
 // page count. It keeps itself fresh, observing this card's own doc store
@@ -143,6 +148,9 @@ export function RichDocCard({
     () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id, boardId: hostBoardId || null } : null),
     [cardYMap, card.id, hostBoardId],
   );
+  // The doc look (lib/looks.js, held): its closed card (mockup S-card) and how
+  // a new doc starts (S-open).
+  const look = docLook();
   // New docs no longer auto-open their full editor — autoFocus now means
   // "focus the title for renaming," letting the user rename + place the
   // card on the canvas first. The full editor opens on double-click,
@@ -174,9 +182,9 @@ export function RichDocCard({
   // now, not a property of one card: without the memory, someone reading
   // docked lost the dock the moment they opened the next doc, because the
   // mode was per-card local state that always started at 'full'.
-  const open = (m) => {
+  const open = (m, { remember = true } = {}) => {
     const next = isPublic ? 'full' : m;
-    if (!isPublic) writeDocOpenMode(next);
+    if (!isPublic && remember) writeDocOpenMode(next);
     try { document.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { cardId: card.id } })); } catch (_) {}
     // Docking is the workspace's business when it offered to take it.
     if (next === 'side' && onDock) { setMode('closed'); onDock({ cardId: card.id }); return; }
@@ -252,6 +260,19 @@ export function RichDocCard({
     return () => document.removeEventListener('soleil-open-doc-card', onOpen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card.id, isPublic]);
+
+  // A doc just added, in the doc look (mockup S-open), opens at once: beside
+  // the canvas (full screen on a phone; beside the docked doc, if one is),
+  // its title ready to name (DocCardOverlay). Not remembered as the layout:
+  // adding a doc isn't choosing one.
+  const startOpen = look && autoFocus && canEdit && !isPublic;
+  useEffect(() => {
+    if (!startOpen) return;
+    if (onOpenBesideRef.current) { openRemembered(); return; }
+    const phone = !!window.matchMedia?.('(max-width: 640px)')?.matches;
+    open(phone ? 'full' : 'side', { remember: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startOpen]);
 
   // One doc open at a time — see OPEN_EVENT. Closing (rather than merely
   // hiding) is deliberate: close() flushes the tail of any in-flight edit
@@ -352,11 +373,11 @@ export function RichDocCard({
             bottom and the title is never cut off. */}
         {(card.title || autoFocus || onUpdate) && (
           <EditableText
-            className="doc-card-title editable"
+            className={`doc-card-title editable${look && UNNAMED.has((card.title || '').trim()) ? ' is-unnamed' : ''}`}
             value={card.title || ''}
             placeholder="Untitled doc"
-            autoFocus={autoFocus}
-            selectAllOnFocus={autoFocus}
+            autoFocus={autoFocus && !startOpen}
+            selectAllOnFocus={autoFocus && !startOpen}
             onChange={(v) => {
               if (!onUpdate) return;
               const next = v || null;
@@ -375,8 +396,26 @@ export function RichDocCard({
           />
         )}
         <DocCardSummary ydoc={ydoc} cardYMap={cardYMap} scope={scope}>
-          {(summary) => (<>
+          {(summary) => {
+            // The doc look's card (mockup S-card): a doc with nothing written
+            // says Empty and offers Start writing (a finger's 40px); one with
+            // words keeps its preview, with Beside and Open in words.
+            const blank = look && !!scope?.pages && summary.empty;
+            const pagesLabel = summary.pages.length > 0
+              ? `${summary.pages.length} ${summary.pages.length === 1 ? 'page' : 'pages'}` : 'no pages';
+            return (<>
             <div className="doc-card-page">
+              {blank ? (canEdit && !isPublic && (
+                <div className="doc-card-start">
+                  <button type="button" className="doc-card-start-btn"
+                          onClick={(e) => { e.stopPropagation(); openRemembered(); }}>
+                    <Icon as={NotePencil} size={18} weight="regular" />Start writing
+                  </button>
+                  <span className="doc-card-start-hint">
+                    {window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ? 'or double-tap the card' : 'or double-click the card'}
+                  </span>
+                </div>
+              )) : (<>
               {summary.firstPageName && summary.firstPageName !== card.title && (
                 <div className="doc-card-h1">{summary.firstPageName}</div>
               )}
@@ -384,12 +423,23 @@ export function RichDocCard({
               {summary.firstText && (
                 <div className="doc-card-text">{summary.firstText}</div>
               )}
+              </>)}
             </div>
             <div className="doc-card-foot">
               <span className="doc-card-tag">DOC</span>
-              <span className="doc-card-meta">
-                {summary.pages.length > 0 ? `${summary.pages.length} ${summary.pages.length === 1 ? 'page' : 'pages'}` : 'no pages'}
-              </span>
+              <span className="doc-card-meta">{blank ? 'Empty' : pagesLabel}</span>
+              {look ? (!blank && (<>
+                <button type="button" className={`doc-card-act${isDocked ? ' is-active' : ''}`}
+                        title={isDocked ? 'Docked beside the canvas' : undefined}
+                        aria-label="Open beside" aria-pressed={isDocked || undefined}
+                        onClick={(e) => { e.stopPropagation(); open('side'); }}>
+                  <Icon as={PanelRight} size={15} weight="regular" style={{ display: 'block', transform: 'scaleX(-1)' }} />Beside
+                </button>
+                <button type="button" className="doc-card-act" aria-label="Open fullscreen"
+                        onClick={(e) => { e.stopPropagation(); open('full'); }}>
+                  <Icon as={CornersOut} size={15} weight="regular" />Open
+                </button>
+              </>)) : (<>
               {/* Gold marks the active state (house rule) — while this doc holds
                   the side pane, its own button says so. */}
               <button className={`doc-card-open${isDocked ? ' is-active' : ''}`}
@@ -410,8 +460,10 @@ export function RichDocCard({
                   <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
                 </svg>
               </button>
+              </>)}
             </div>
-          </>)}
+          </>);
+          }}
         </DocCardSummary>
       </div>
 
@@ -524,7 +576,7 @@ export function DocCardOverlay({
   pane = null,
 }) {
   const inPane = variant === 'pane';
-  // The doc look (held): its header switches the page list and the side
+  // The doc look: its header switches the page list and the side
   // panel, which the surface owns; the frame is how the two talk.
   const look = docLook();
   const [frame] = useState(() => (look ? createDocFrame() : null));
@@ -574,10 +626,17 @@ export function DocCardOverlay({
   // when the doc has no title yet — reopening a named doc shouldn't hijack
   // focus away from the editor's own autofocus.
   const titleInputRef = useRef(null);
-  const hadTitleOnOpenRef = useRef(!!card.title);
+  // In the doc look, a doc still to be named and written in (one of the
+  // default titles, nothing on its pages: mockup S-open) opens with its title
+  // selected too, as one with no title does; Enter goes on to the text.
+  const nameOnOpenRef = useRef(null);
+  if (nameOnOpenRef.current === null) {
+    nameOnOpenRef.current = !card.title || (look && canEdit && !isPublic && UNNAMED.has(card.title.trim())
+      && !!ydoc && !!scope?.pages && readDocSummary(ydoc, 0, scope).empty);
+  }
   useEffect(() => {
     const prev = (typeof document !== 'undefined') ? document.activeElement : null;
-    if (!hadTitleOnOpenRef.current) {
+    if (nameOnOpenRef.current) {
       titleInputRef.current?.focus();
       titleInputRef.current?.select?.();
     }
@@ -647,7 +706,7 @@ export function DocCardOverlay({
           <Suspense fallback={<div className="dl-head" />}>
             <DocHeadA frame={frame} card={card} scope={scope} boards={boards}
                       canEdit={canEdit} isPublic={isPublic} mode={mode}
-                      titleInputRef={titleInputRef} focusTitle={!hadTitleOnOpenRef.current}
+                      titleInputRef={titleInputRef} focusTitle={nameOnOpenRef.current}
                       onUpdate={onUpdate} onSetMode={onSetMode} onClose={onClose}
                       peersOnCard={peersOnCard} onJumpToPeer={onJumpToPeer} />
           </Suspense>
@@ -747,6 +806,8 @@ export function DocCardOverlay({
             isPublic={isPublic}
             pane={pane}
             frame={frame}
+            onRename={look && canEdit && !isPublic && onUpdate && UNNAMED.has((card.title || 'Untitled').trim())
+              ? (title) => onUpdate({ title }) : null}
           />
           </Suspense>
           </SurfaceErrorBoundary>

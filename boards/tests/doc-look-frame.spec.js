@@ -1,5 +1,5 @@
 // The doc editor's frame in the look the owner picked on 2026-10-21 (direction
-// A, with C's side panel), held to a dev opt-in (lib/appHost.js
+// A, with C's side panel), shipped 2026-10-24 (lib/appHost.js
 // docLookAllowed): the window's header carries the page list's toggle, the
 // cluster › title crumb and the side panel's toggle; the footer runs the
 // window's width with the save state, the words and the zoom. With the look
@@ -7,6 +7,7 @@
 // (&cluster= names the cluster the doc sits on).
 
 import { expect, test } from '@playwright/test';
+import { setScreenplay } from './helpers/docFrame.js';
 
 async function openDoc(page, { look = true, query = '' } = {}) {
   // Said either way, so a run with the opt-in already stored still has a page
@@ -113,6 +114,66 @@ test('the footer runs the width of the window: save state, words, zoom', async (
   await modal(page).locator('.tt-editor').first().click();
   await page.keyboard.press('Control+-');
   await expect(foot(page).getByRole('button', { name: 'Zoom, 115%' })).toBeVisible();
+});
+
+test('a screenplay\'s footer says the page the caret is on, of how many, and the scenes', async ({ page }) => {
+  await openDoc(page);
+  await setScreenplay(modal(page), true);
+  await expect(modal(page).locator('.doc-paper.is-screenplay')).toBeVisible();
+  await page.waitForFunction(() => {
+    const ed = window.__soleilDocTest.editor;
+    return !!ed && !ed.isDestroyed && ed.schema.nodes.screenplayBlock && ed.isEditable;
+  }, null, { timeout: 10000 });
+  const pages = await page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    const S = T.screenplay;
+    const blocks = [];
+    for (let s = 0; s < 4; s++) {
+      blocks.push({ element: 'scene', text: `INT. ROOM ${s} - DAY` });
+      blocks.push({ element: 'action', text: ('word ').repeat(60 * 12).trim() });
+      blocks.push({ element: 'character', text: 'SPEAKER' });
+      blocks.push({ element: 'dialogue', text: ('talk ').repeat(35 * 8).trim() });
+    }
+    T.editor.chain().setContent(S.blocksToDocJSON(blocks)).setTextSelection(1).run();
+    return S.paginate(blocks).pageCount;
+  });
+  expect(pages).toBeGreaterThanOrEqual(2);
+  const counts = foot(page).locator('.dl-foot-words');
+  await expect(counts).toHaveText(`Page 1 of ${pages} · 4 scenes`, { timeout: 3000 });
+  // The caret at the end is on the last page.
+  await page.evaluate(() => {
+    const ed = window.__soleilDocTest.editor;
+    ed.commands.setTextSelection(ed.state.doc.content.size - 1);
+  });
+  await expect(counts).toHaveText(`Page ${pages} of ${pages} · 4 scenes`, { timeout: 3000 });
+  // A document says its words again.
+  await setScreenplay(modal(page), false);
+  await expect(counts).toHaveText(/^[\d,]+ words?$/, { timeout: 3000 });
+});
+
+// The film grain under the page (styles.css .doc-paper) runs on under the
+// bar: its row is painted with the page's own ground, the tiles ending at the
+// row's bottom edge so they carry on into the page's. The header, the footer
+// and the side panel wear the page list's grain (styles.css PANEL GRAIN).
+test('the grain runs on behind the bar, and the header, footer and side panel wear it', async ({ page }) => {
+  await openDoc(page);
+  await head(page).getByRole('button', { name: /^Comments/ }).click();
+  const paint = (sel, pseudo = null) => modal(page).locator(sel).first().evaluate((el, p) => {
+    const cs = getComputedStyle(el, p);
+    const r = el.getBoundingClientRect();
+    return { image: cs.backgroundImage, color: cs.backgroundColor, size: cs.backgroundSize, y: cs.backgroundPositionY, opacity: cs.opacity, top: r.top, bottom: r.bottom };
+  }, pseudo);
+  const [cap, ground] = await Promise.all([paint('.dl-cap'), paint('.doc-paper')]);
+  expect(ground.image).toContain('grain');
+  expect([cap.image, cap.color, cap.size]).toEqual([ground.image, ground.color, ground.size]);
+  expect(cap.y.split(',').map((s) => s.trim())[1]).toBe('100%');
+  expect(Math.abs(cap.bottom - ground.top)).toBeLessThan(1);
+  const list = await paint('.doc-rail-left', '::after');
+  expect(list.image).toContain('grain');
+  for (const sel of ['.dl-head', '.dl-foot', '.dl-panel']) {
+    const grain = await paint(sel, '::after');
+    expect([grain.image, grain.size, grain.opacity], sel).toEqual([list.image, list.size, list.opacity]);
+  }
 });
 
 test('a view-only member sees View only beside the title, and no Share', async ({ page }) => {

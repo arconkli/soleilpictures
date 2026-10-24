@@ -8,9 +8,9 @@
 // may open on first.
 //
 // The lists and the code that fetches them come from the inline script the
-// build writes into index.html (src/lib/appPreloadList.mjs). This only preloads:
-// no app module runs until AuthGate imports AppShell with a session. Dev has
-// no such script, and nothing to preload.
+// build writes into index.html (src/lib/appPreloadList.mjs). This only preloads;
+// the code step then runs the app as well (AuthGate's warmApp). Dev has no
+// such script, and nothing to preload.
 //
 // No imports: AuthGate is in the entry chunk.
 

@@ -1,7 +1,9 @@
 // Doc fixes from the platform audit (group G5), driven through the ?docqa=1
 // harness (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
-import { pageListButton, setScreenplay } from './helpers/docFrame.js';
+import {
+  bookmarkSpot, commentButton, pageListButton, setScreenplay, todaysLook, zoomIn,
+} from './helpers/docFrame.js';
 
 async function openDoc(page, query = '') {
   await page.goto('/?docqa=1' + query);
@@ -75,6 +77,8 @@ test('DOCS-08: Undo on deleting the only page brings it back with its text', asy
 // A print whose afterprint never fires (the app's WebView has no print at all)
 // used to hold the export menu open and busy for the 60 s safety net.
 test('DOCS-15: Print / Save as PDF closes the menu at once and leaves the other exports usable', async ({ page }) => {
+  // Today's export menu. The look's is doc-bar-a.spec.js's.
+  await todaysLook(page);
   // Every frame, the print iframe included: print() does nothing, no afterprint.
   await page.addInitScript(() => { window.print = () => {}; });
   await openDoc(page);
@@ -105,7 +109,7 @@ test('DOCS-16: a bookmark shows under the page tree, jumps there, and removes wi
     ed.commands.setTextSelection(pos);
     return pos;
   });
-  await modal.locator('.doc-tb button[title="Bookmark this spot"]').click();
+  await bookmarkSpot(modal);
   const dialog = page.locator('.feedback-bg');
   await dialog.locator('input').fill('Act two out');
   await dialog.getByRole('button', { name: 'Add' }).click();
@@ -128,8 +132,7 @@ test('DOCS-16: a bookmark shows under the page tree, jumps there, and removes wi
 test('DOCS-17: the resize handle and align bar sit on the image, and a drag tracks the pointer under zoom', async ({ page }) => {
   await openDoc(page);
   // Zoom the doc first: 3 × +10%.
-  const zoomIn = page.locator('.doc-card-modal .doc-tb button[aria-label="Zoom in"]');
-  for (let i = 0; i < 3; i++) await zoomIn.click();
+  await zoomIn(page.locator('.doc-card-modal'), 3);
   await page.evaluate(() => {
     window.__soleilDocTest.editor.commands.setContent(`<p>a</p><img src="${location.origin}/apple-touch-icon.png" style="width: 160px">`);
   });
@@ -161,6 +164,8 @@ test('DOCS-17: the resize handle and align bar sit on the image, and a drag trac
 
 // ── DOCS-18 ───────────────────────────────────────────────────────────────
 test('DOCS-18: find & replace fits a phone-width screen with Replace open', async ({ page }) => {
+  // Today's find bar. The look's Find is a sheet on a phone: mobile/doc-panel-sheet.spec.js.
+  await todaysLook(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await openDoc(page);
   await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
@@ -323,7 +328,7 @@ test('DOCS-14: a comment posted after a collaborator edit still highlights the s
     const from = text.indexOf('brown') + 1;
     ed.chain().focus().setTextSelection({ from, to: from + 'brown'.length }).run();
   });
-  await page.locator('.doc-card-modal .doc-tb button[title^="Add comment"]').click();
+  await commentButton(page.locator('.doc-card-modal')).click();
   const input = page.locator('.inline-composer-input');
   await expect(input).toBeVisible();
   await input.fill('Right animal?');

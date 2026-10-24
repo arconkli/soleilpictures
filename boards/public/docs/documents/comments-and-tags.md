@@ -2,7 +2,7 @@
 
 > Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
-_Source: https://clusters.soleilpictures.com/docs/documents/comments-and-tags · Updated 2026-10-12_
+_Source: https://clusters.soleilpictures.com/docs/documents/comments-and-tags · Updated 2026-10-24_
 
 Documents carry annotation in the margins, so the text stays clean and the
 apparatus stays visible.
@@ -12,16 +12,27 @@ apparatus stays visible.
 Select text and add a comment. It anchors to that **range**, not to a character
 position, so editing around it keeps it attached to the right passage.
 
-Commented text is marked inline, with a gold dot in the **right margin**. Click
-a dot to open the thread.
+Commented text is marked inline, with a gold dot in the **right margin**.
+Click the words, or the dot, and the side panel opens on their thread.
+
+## Every comment in one place
+
+**Comments** in the document's header opens the side panel on its comments:
+every thread in the document as a card, in the order they come in the text,
+with the words it is on and who said what. **All**, **Open** and **Resolved**
+filter them. A card's quote takes you to its words, opening the page they are
+on; you can reply on the card, **Resolve** it (it says who resolved it and
+when, and **Reopen** brings it back), or delete the thread, with an **Undo** in
+the toast. A resolved thread's words read as plain text again; picking its card
+still lights them. `Esc` puts you back in the text.
 
 Comments thread, resolve, and support `@` mentions that notify the person you
 name. See [Comments](/docs/collaborate/comments) for the full model, which is
 shared with the canvas.
 
 Because a text comment is part of the document, it follows edit access. A
-viewer sees the dots and can open and read every thread, marked **View only**;
-adding, replying to, resolving or deleting a comment needs edit access.
+viewer sees the dots and reads every thread in the side panel; adding,
+replying to, resolving or deleting a comment needs edit access.
 
 ## Tags on a range
 

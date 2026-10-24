@@ -2,7 +2,7 @@
 // viewport, and nothing where there's no keyboard to measure.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { keyboardInset } from './keyboardInset.js';
+import { keyboardInset, visibleWindow } from './keyboardInset.js';
 
 const win = (innerHeight, vv) => ({ innerHeight, visualViewport: vv });
 
@@ -26,4 +26,15 @@ test('a pinch-zoomed page reads no keyboard, wherever it is scrolled', () => {
 test('no visualViewport, or no window: nothing', () => {
   assert.equal(keyboardInset(win(834, undefined)), 0);
   assert.equal(keyboardInset(null), 0);
+});
+
+// A popover is placed in what the keyboard leaves of the window
+// (hooks/useAnchoredPopover): a menu off a bar on the keyboard (a doc's, on a
+// phone) went under it.
+test('the window a popover may use: what the keyboard leaves of it', () => {
+  assert.deepEqual(visibleWindow({ innerWidth: 390, innerHeight: 844, visualViewport: { height: 508, offsetTop: 0 } }),
+    { width: 390, height: 508 });
+  assert.deepEqual(visibleWindow({ innerWidth: 1440, innerHeight: 900, visualViewport: { height: 900, offsetTop: 0 } }),
+    { width: 1440, height: 900 });
+  assert.deepEqual(visibleWindow({ innerWidth: 390, innerHeight: 844 }), { width: 390, height: 844 });
 });

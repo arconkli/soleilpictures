@@ -1,6 +1,10 @@
 -- 0531: Teams, part 3 — seats, and the team branch of the editor limit.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migrations 20261022074852 teams_seats_part1 through 20261022074930
+-- teams_seats_part2: the MCP refused calls this size, so it went in at function
+-- boundaries, each part one transaction carrying its functions' grants,
+-- the proof block last. Its 16 function bodies match this file by md5.
 --
 -- A Team pays per seat. What holds a seat (the analog of 0520's
 -- _account_editor_slots):
@@ -25,7 +29,7 @@
 -- _org_add_seats is the one writer of organizations.seats in S2a; every
 -- change is a row in org_seat_changes, which S3 bills (billed_at).
 --
--- _team_request is the one request core (amendment D): 0532's RPCs call it,
+-- _team_request is the one request core (amendment D): 0534's RPCs call it,
 -- and no later migration re-defines it.
 --
 -- The S1 helpers each gain a team branch, so S1's six doors (0521) admit by

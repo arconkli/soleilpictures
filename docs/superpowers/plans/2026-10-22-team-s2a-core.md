@@ -4,12 +4,12 @@
 
 **Goal:** A Team exists in the database: it owns workspaces, has roles (owner / admin / member / viewer), counts seats, admits joiners by the admins' when-full rule, and every access path (RLS, realtime, the party server, the per-user helpers) knows about it. No organization row can exist until `app_config.teams_open` opens or the creator is a test owner, so applying this changes nothing for anyone.
 
-**Architecture:** Five migrations: 0522, then 0530–0533 (renumbered under amendment F; the security session's Phase 1 holds 0523–0529).
+**Architecture:** Seven migrations: 0522, then 0530–0535 (renumbered under amendments F and I; the security session's Phase 1 holds 0523–0529).
 - **0522** adds the tables, the hold, the workspace columns. Inert.
 - **0530** gives the access choke points their team branch through ONE helper, `_org_ws_role_for(ws, user)`. Every predicate that already routes through `is_workspace_member` / `_workspace_member_can_write` / `can_manage_workspace` (can_read_board, can_write_board, can_write_workspace, board_tree, the six realtime policies, grid_layouts, conversations, the upload party…) inherits it without a text change. Adds the party re-check RPCs and the ownership invariants (personal workspace lookup, transfer, deletion).
 - **0531** counts team seats and puts the team branch in `_editor_admit` and the other S1 helpers, so S1's six doors admit by seat without being touched.
-- **0532** the team RPCs (create, workspaces in/out/private/create, people, invites, link, domains, requests, rules, seats, leave/remove, close).
-- **0533** the reads: `get_team` (the TeamSnapshot of `lib/teamModel.js`, cut to the caller's role server-side), `list_my_teams`, `list_my_team_workspaces`, `my_workspace_role`.
+- **0532–0534** the team RPCs, in three files (amendment I): 0532 a team and its workspaces (create, rename, in/out, private, close) and the shared internals; 0533 people and seats (invites, roles, remove/leave, seats, the when-full rule, the perk); 0534 joining (the link, domains, requests).
+- **0535** the reads: `get_team` (the TeamSnapshot of `lib/teamModel.js`, cut to the caller's role server-side), `list_my_teams`, `list_my_team_workspaces`, `my_workspace_role`.
 
 Party: `auth.ts` `authWorkspace` asks an RPC instead of reading `workspace_members`; the board and workspace rooms' one-minute alarm re-checks every socket's access (it already re-checks bans) and closes or demotes.
 
@@ -41,8 +41,10 @@ Design: `docs/superpowers/specs/2026-10-21-team-plan-and-editor-limit-design.md`
 | `supabase/migrations/0522_teams_tables.sql` | 1 | hold, tables, workspace columns, gate trigger, freemail list, proofs |
 | `supabase/migrations/0530_teams_access.sql` | 2 | `_org_ws_role_for`, the choke points, per-user helpers, party RPCs, ownership invariants, proofs |
 | `supabase/migrations/0531_teams_seats.sql` | 3 | seat count, `_team_admit`, `_org_add_seats`, S1 helpers' team branch, proofs |
-| `supabase/migrations/0532_teams_rpcs.sql` | 4 | the team RPCs, quiet member emails, proofs |
-| `supabase/migrations/0533_teams_read.sql` | 5 | `get_team`, `list_my_teams`, `list_my_team_workspaces`, `my_workspace_role`, proofs |
+| `supabase/migrations/0532_teams_rpcs.sql` | 4 | a team and its workspaces, the shared internals, quiet member emails, proofs |
+| `supabase/migrations/0533_teams_people.sql` | 4 | people and seats, proofs |
+| `supabase/migrations/0534_teams_joining.sql` | 4 | the team link, company domains, requests, proofs |
+| `supabase/migrations/0535_teams_read.sql` | 5 | `get_team`, `list_my_teams`, `list_my_team_workspaces`, `my_workspace_role`, proofs |
 | `boards/src/lib/teamsMigration.test.mjs` (new) | 1–5 | migration-contract pins |
 | `boards/src/lib/editorLimitMigration.test.mjs` | 3 | its file pins follow the five functions 0524 re-emits |
 | `boards/src/lib/teamHints.js`, `teamHints.test.mjs` (new) | 6 | hint constants + a pin that each appears in the SQL |
@@ -993,10 +995,11 @@ Actors: `set_config('request.jwt.claims', json_build_object('sub', X, 'role', 'a
 Nothing here runs without the owner's explicit go.
 
 - [x] **0522 applied 2026-10-22 on the owner's go** (amendment A's first step; migration `20261022052543 teams_tables`). Before: none of its tables, columns or functions existed, and nothing held a lock on `workspaces`. After: its three function bodies match the file by md5 and are server-only; the 10 tables have RLS on, no policies, no client privileges and no realtime publication; no client can set a workspace's team; `teams_open` is closed and no team exists. The security advisor's only note on them is the intended "RLS enabled, no policy".
+- [x] **0530–0535 applied 2026-10-22 on the owner's go**, teams still closed, as migration records `20261022074410 teams_access_part1` through `20261022094224 teams_read_part2`. The MCP refused calls this size, so each file went in at function boundaries, one transaction per part carrying its functions' grants, the proof block last; after each file every function body matched the file by md5. Probe A's parity check against real accounts first caught a fail-open in 0530 (with no team `can_manage_workspace` returned NULL, which `if not …` reads as a pass): coalesced, and every comparison with the team role in 0530–0535 pinned (18e459f0), before anything was applied. Probe B passed before 0531. Probe C (rolled back, on the live functions) passed all nine checks; its C7 follows the `ask_team_for_edit` row in the amendments: an outsider is refused, a personal workspace is `not_in_team`, a team viewer gets `sent` then `already_sent` with one notice per admin, a member `can_edit`, and approving gives an editor row and one more seat used.
 
 **Before every apply** (amendments E and F), one read-only query, and stop on any miss:
 - every function the file re-emits still has the live `md5(prosrc)` recorded in its header ("Rebased on"). A difference means another session applied first: rebase that function onto the live body, re-run its probe, then apply;
-- 0532 needs the security session's `_session_proves_inbox()` (their 0600) and `_offboard_member(uuid, uuid)` (their Phase 1) live, because it calls both;
+- 0532–0534 need the security session's `_offboard_member(uuid, uuid)` (0532, 0533) and `_session_proves_inbox()` (0533, 0534) live; each file's proof requires what it calls, from them or from an earlier file;
 - the file numbers still sort after every applied migration that re-emits the same functions (`supabase_migrations.schema_migrations`).
 
 - [ ] **Step 1: Ask.** Tell the owner plainly: what probes A–C proved (their ok lines, the parity line, the timing); that applying changes nothing for anyone, because no team can exist while `teams_open` is closed and lists nobody; that 0523 re-emits the hottest read path (`my_readable_board_ids`, behind every board read), with the measured before/after; that the apply goes in two steps, each only after its probe passes. Ask for a go.
@@ -1101,3 +1104,5 @@ Probe C adds: as V, `ask_team_for_edit(W1)` → `sent`, again → `already_sent`
 - **Checked before the go:** every "Rebased on" md5 in 0530–0532 matches live, and 0522 + 0530–0533 compile, grants and proof blocks included, in a throwaway local Postgres 17 built from live's catalog (tables, keys, grants, function signatures and ACLs).
 
 **H. The rooms' re-checks are the security session's (2026-10-22).** Their PTY-1 (removed or downgraded members kept live sockets) owns both: `party_board_access(p_board uuid, p_users uuid[]) returns table(user_id uuid, can_read boolean, can_write boolean)` (0620; 0621 makes read = `array[p_board] && my_readable_board_ids()`, exactly the board room's door, so the re-check never refuses someone the door admits) and `party_workspace_access(p_workspace uuid, p_users uuid[]) returns table(user_id uuid, can_open boolean)` (0622), both service role only, with the party's alarms and helpers. 0530 had its own copies. The board one had other parameter names and would have failed at apply, and either would have replaced theirs out of file order. So 0530 defines neither, and its proof requires both live and service-only. The org branch reaches them through `my_readable_board_ids`, `can_write_board` and `is_workspace_member`. Task 8 keeps Step 1 (the Workspace door asks `can_open_workspace`), 4b and 6; Step 5 (the clients stop on 4401) is theirs too.
+
+**I. 0532 is three files (main session, 2026-10-22).** At 100k characters it was more than one MCP call takes (about 45k). Now 0532 is a team and its workspaces plus the internals the others call, 0533 people and seats, 0534 joining (the link, domains, requests); the reads are 0535 and S2b starts at 0536. Bodies and grant lines moved byte for byte. Each file grants and proves its own share, requires live what it calls (the security session's helpers, an earlier file's internals), and stays under 45k; `teamsRpcMigration.test.mjs` pins all four. Task 9's order, on one go: probe A, then 0530; a parity probe of 0531's six S1 re-emits (they sit on every share), then 0531; then 0532–0535, which only add functions nobody reaches while teams are closed (plus 0532's one early return in `_tg_workspace_member_email`), with probe C's checks run against the live functions right after, inside rolled-back transactions, carrying no migration text.

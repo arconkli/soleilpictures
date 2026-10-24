@@ -12,7 +12,8 @@ test('an image card\'s actions show while the keys are on one of them', async ({
   await expect(strip).toHaveCSS('opacity', '0');
   const actions = strip.getByRole('button');
   await expect(actions).toHaveText(['', '', '']);
-  expect(await actions.evaluateAll((els) => els.map((el) => el.title))).toEqual(['Edit photo', 'Download', 'View full size']);
+  // Their tooltips: the browser's, or in the toolbar look its glass one (lib/looks.js tip).
+  expect(await actions.evaluateAll((els) => els.map((el) => el.title || el.dataset.tlTip))).toEqual(['Edit photo', 'Download', 'View full size']);
   // A key first, so focus that follows counts as the keyboard's.
   await page.keyboard.press('Shift');
   await strip.getByRole('button', { name: 'Edit photo' }).focus();

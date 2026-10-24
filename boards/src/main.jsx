@@ -19,9 +19,10 @@ import { toolbarLookAllowed, docLookAllowed } from './lib/appHost.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
-// The toolbar look and the doc editor's look, while they're held: marked on
-// <html> once, before anything renders, so the CSS and lib/looks.js agree
-// from the first frame.
+// The toolbar look (held to the preview and a dev opt-in) and the doc
+// editor's look (on everywhere; on dev a hold set to '0' shows today's):
+// marked on <html> once, before anything renders, so the CSS and lib/looks.js
+// agree from the first frame.
 if (typeof document !== 'undefined') {
   if (toolbarLookAllowed()) document.documentElement.dataset.tb = 'a';
   if (docLookAllowed()) document.documentElement.dataset.docLook = 'a';
@@ -29,6 +30,8 @@ if (typeof document !== 'undefined') {
   if (toolbarLookAllowed() || docLookAllowed()) {
     import('./components/toolbar/tipHost.js').then((m) => m.installTipHost()).catch(() => {});
   }
+  // Where the bars the app already has wear the toolbar look.
+  if (toolbarLookAllowed()) import('./styles/toolbarLook.css').catch(() => {});
 }
 
 // DEV-only logic bridge for Playwright specs (first-value-upgrade.spec.js).
@@ -595,7 +598,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               // a guess: a revoked refresh token fails to restore, and the
               // visitor who clicked Pricing got the sign-in wall instead. Then
               // the public page is the signed-out answer.
-              <AuthGate signedOut={pricingMatch ? <PublicPricingPage /> : null}>
+              <AuthGate signedOut={pricingMatch ? <PublicPricingPage /> : null} warmApp={AppShell.warm}>
                 <AppShell />
               </AuthGate>
             )}

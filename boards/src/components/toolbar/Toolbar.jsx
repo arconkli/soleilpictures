@@ -39,9 +39,10 @@ export function Toolbar({ label, vertical = false, text = null, surface = true, 
 }
 
 // Controls that go together, with a hairline before the next group.
-export function Group({ label, className = '', children }) {
+export function Group({ label, className = '', style, children }) {
   return (
-    <div className={className ? `tl-g ${className}` : 'tl-g'} role={label ? 'group' : undefined} aria-label={label}>
+    <div className={className ? `tl-g ${className}` : 'tl-g'} role={label ? 'group' : undefined} aria-label={label}
+         style={style}>
       {children}
     </div>
   );

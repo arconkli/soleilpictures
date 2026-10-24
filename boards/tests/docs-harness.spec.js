@@ -5,6 +5,7 @@
 // bookmark relative-position durability, per-card zoom, and title sync.
 
 import { expect, test } from '@playwright/test';
+import { bookmarkSpot, commentButton, linkButton, zoomIn } from './helpers/docFrame.js';
 
 // Open the harness, open the doc card, wait for a live editor. Returns nothing;
 // callers use page locators + the window.__soleilDocTest bridge.
@@ -125,7 +126,7 @@ test('the bookmark button opens the in-app dialog (not a native prompt) and save
   await openDoc(page);
   // Put some text + a caret so there is a position to bookmark.
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('Anchor here').run());
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Bookmark this spot' }).click();
+  await bookmarkSpot(page.locator('.doc-card-modal'));
   // The app's prompt modal — NOT window.prompt — appears.
   const dialog = page.locator('.feedback-dialog');
   await expect(dialog).toBeVisible();
@@ -155,7 +156,7 @@ test('a bookmark deep in a long paginated doc stores a durable anchor', async ({
   });
   const pid = await page.evaluate(() =>
     window.__soleilDocTest.readPages(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope())[0].id);
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Bookmark this spot' }).click();
+  await bookmarkSpot(page.locator('.doc-card-modal'));
   const dialog = page.locator('.feedback-dialog');
   await expect(dialog).toBeVisible();
   await dialog.locator('.feedback-field input').fill('Deep mark');
@@ -172,7 +173,7 @@ test('a bookmark deep in a long paginated doc stores a durable anchor', async ({
 test('the link button opens the in-app link picker (not a native prompt)', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('link me').selectAll().run());
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add link', exact: true }).click();
+  await linkButton(page.locator('.doc-card-modal')).click();
   // The live link UI is the in-app EntityPicker (URL + entity targets), not window.prompt.
   await expect(page.locator('.entity-picker')).toBeVisible();
 });
@@ -221,10 +222,8 @@ test('editing the card title syncs the primary page name (until the page is rena
 
 test('per-card zoom is remembered across reloads', async ({ page }) => {
   await openDoc(page);
-  // Zoom in twice via the toolbar.
-  const zoomIn = page.locator('.doc-card-modal').getByRole('button', { name: 'Zoom in' });
-  await zoomIn.click();
-  await zoomIn.click();
+  // Zoom in twice: the toolbar's +, the look's footer.
+  await zoomIn(page.locator('.doc-card-modal'), 2);
   // It is persisted under a card-scoped key.
   const stored = await page.evaluate(() => localStorage.getItem('soleil.boards.docZoom.docqa-card'));
   expect(stored).toBeTruthy();
@@ -239,7 +238,7 @@ test('per-card zoom is remembered across reloads', async ({ page }) => {
 test('comment add creates a tt-comment mark', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('comment target').selectAll().run());
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add comment', exact: true }).click();
+  await commentButton(page.locator('.doc-card-modal')).click();
   // The add-comment flow renders an InlineComposer; post a comment (Enter posts).
   const composer = page.locator('.inline-composer-input');
   await expect(composer).toBeVisible();
@@ -254,7 +253,7 @@ test('comment add creates a tt-comment mark', async ({ page }) => {
 test('deleting a comment thread strips its highlight mark (no dead underline)', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('mark me').selectAll().run());
-  await page.locator('.doc-card-modal').getByRole('button', { name: 'Add comment', exact: true }).click();
+  await commentButton(page.locator('.doc-card-modal')).click();
   const composer = page.locator('.inline-composer-input');
   await expect(composer).toBeVisible();
   await composer.fill('temp');

@@ -1,6 +1,10 @@
--- 0533: Teams, part 5 — what the Team page and the workspace menu read.
+-- 0535: Teams, part 7 — what the Team page and the workspace menu read.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migrations 20261022094214 teams_read_part1 through 20261022094224
+-- teams_read_part2: the MCP refused calls this size, so it went in at function
+-- boundaries, each part one transaction carrying its functions' grants,
+-- the proof block last. Its 3 function bodies match this file by md5.
 --
 --   get_team(org)               the TeamSnapshot of boards/src/lib/teamModel.js,
 --                               cut to the caller's role on the server
@@ -351,17 +355,17 @@ begin
   foreach v_fn in array array['public.get_team(uuid)', 'public.list_my_teams()',
                               'public.list_my_team_workspaces()'] loop
     if has_function_privilege('anon', v_fn, 'execute') then
-      raise exception '0533: % is callable signed out', v_fn;
+      raise exception '0535: % is callable signed out', v_fn;
     end if;
     if not has_function_privilege('authenticated', v_fn, 'execute') then
-      raise exception '0533: % is not callable signed in', v_fn;
+      raise exception '0535: % is not callable signed in', v_fn;
     end if;
   end loop;
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
               where n.nspname = 'public'
                 and p.proname in ('get_team', 'list_my_teams', 'list_my_team_workspaces')
               group by p.proname having count(*) > 1) then
-    raise exception '0533: an overload exists (PGRST203)';
+    raise exception '0535: an overload exists (PGRST203)';
   end if;
 end $$;
 

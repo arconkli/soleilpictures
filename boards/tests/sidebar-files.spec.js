@@ -761,28 +761,31 @@ test.describe('the top bar as floating islands', () => {
   test('⋯ holds what is used now and then; Escape closes it and gives focus back', async ({ page }) => {
     await open(page);
     const more = page.locator('.chrome-more-btn');
+    // The island's own menu, or in the toolbar look the look's (ChromeMoreA).
+    const menu = page.getByRole('menu', { name: 'More' });
+    const items = menu.getByRole('menuitem');
     await more.click();
     // Split view is not in it: with a mouse it is a button in the island.
-    await expect(page.locator('.chrome-menu-item')).toHaveText(
-      ['Version history', 'Deleted clusters', 'Help & feedback']);
+    await expect(items).toHaveText(['Version history', 'Deleted clusters', 'Help & feedback']);
     await page.keyboard.press('Escape');
-    await expect(page.locator('.chrome-menu')).toHaveCount(0);
+    await expect(menu).toHaveCount(0);
     await expect(more).toBeFocused();
     // From the keyboard the menu takes focus, and the arrows walk it.
     await page.keyboard.press('Enter');
-    await expect(page.locator('.chrome-menu-item').first()).toBeFocused();
+    await expect(items.first()).toBeFocused();
     await page.keyboard.press('ArrowDown');
-    await expect(page.locator('.chrome-menu-item').nth(1)).toBeFocused();
+    await expect(items.nth(1)).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('sbqa-log')).toContainText('trash');
-    await expect(page.locator('.chrome-menu')).toHaveCount(0);
+    await expect(menu).toHaveCount(0);
   });
 
   test('split view is one press from the right island, before the theme switch', async ({ page }) => {
     await open(page);
     const split = page.locator('.chrome-right').getByRole('button', { name: 'Split view' });
     await expect(split).toBeVisible();
-    await expect(split).toHaveAttribute('title', 'Pin alongside…');
+    const look = await page.evaluate(() => document.documentElement.dataset.tb === 'a');
+    await expect(split).toHaveAttribute(look ? 'data-tl-tip' : 'title', 'Pin alongside…');
     await expect(split).toHaveAttribute('aria-pressed', 'false');
     const next = await split.evaluate((el) => el.nextElementSibling?.getAttribute('aria-label'));
     expect(next).toBe('Toggle theme');

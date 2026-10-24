@@ -2,7 +2,7 @@
 
 > Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.
 
-_Source: https://clusters.soleilpictures.com/docs/documents/screenplay · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/documents/screenplay · Updated 2026-10-24_
 
 A [document](/docs/documents) in screenplay mode behaves like script software:
 Courier, industry margins, and the element model everyone writing a script
@@ -18,6 +18,12 @@ You should not have to think about formatting while writing.
 
 Scene headings, character names and transitions autocomplete from what you have
 already used, so the third INT. DINER - NIGHT matches the first exactly.
+
+The side panel (**Comments** in the header) lists a script's elements first,
+each in the script's own type, with the one the caret is on checked. Click one,
+or move to it with `↑` and `↓` and press `Enter`, to set the line you are on.
+Under them, **Title page** and **Scene numbers** switch on and off, and **Pair
+with the speech above** sets two speeches side by side as dual dialogue.
 
 ## Pagination
 
@@ -49,10 +55,12 @@ On a feature-length script this is the primary means of navigation.
 Bring in a script from Final Draft, work on it here, take it back out. Nothing
 is trapped in the format.
 
-Two ways in. From an open script, **Import** in the export menu replaces its
-content. Or drop a `.fountain` or `.fdx` file onto a canvas or into the list
-view — or paste one — and it becomes a new script document holding your script,
-title page included, ready for you to open. Importing is free on every plan.
+Three ways in. An empty document offers **Import a script** under its
+**Start writing…**, and makes the script you pick its own. From an open script,
+**⋯ › Export › Import Fountain or Final Draft…** replaces its content. Or drop
+a `.fountain` or `.fdx` file onto a canvas or into the list view — or paste
+one — and it becomes a new script document holding your script, title page
+included, ready for you to open. Importing is free on every plan.
 
 PDF export is real vector output in Courier — selectable, searchable text at the
 correct metrics, not a screenshot of the editor.

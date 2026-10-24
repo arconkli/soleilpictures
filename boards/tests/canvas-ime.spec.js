@@ -30,7 +30,7 @@ test('a comment on the canvas: Enter mid-syllable posts nothing; the next Enter 
   const cb = await page.locator('.canvas-wrap').boundingBox();
   await page.mouse.click(cb.x + cb.width - 90, cb.y + 110, { button: 'right' });
   await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
-  await page.locator('.ctx-submenu').getByRole('button', { name: 'Comment', exact: true }).click();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Comment', exact: true }).click();
   const input = page.locator('.canvas-comment-draft-input');
   await expect(input).toBeFocused();
   const ko = await korean(page);

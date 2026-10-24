@@ -1,0 +1,886 @@
+/* The toolbar look on the bars the app already has (the owner's pick
+   "A · Islands", 2026-10-21): each keeps its markup and wears the language
+   here, scoped to <html data-tb="a"> (lib/appHost.js toolbarLookAllowed), so
+   nothing changes while the look is held. Loaded by main.jsx only under the
+   look. The parts (tokens, glass, buttons, menus, the tooltip) are
+   components/toolbar/toolbar.css's; this file says where each bar wears them.
+   One section a bar. */
+
+/* ── The tool rail (mockup A-add): an island of the sidebar's glass at the
+   canvas's left, 32px buttons (44 under a finger), what's on in a gold tint
+   with a ring, hairlines between its groups. Its tooltips are the one host's
+   (data-tl-tip, on the right), so the CSS tips under [data-tip] stay off,
+   but for the guided tour's last step, which lays every tool's name out down
+   the rail at once (styles.css, body[data-tour-active]): there they wear the
+   tooltip's glass. While the tour runs the host's stay away, as the rail's
+   do today. ── */
+:root[data-tb='a'] .cnv-tool[data-tip]::after { display: none; }
+:root[data-tb='a'] body[data-tour-active] .tour-target .cnv-tool[data-tip]::after {
+  display: block;
+  left: calc(100% + 12px);
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-tip-lift);
+  font: 400 12px/1 var(--font-sans);
+}
+:root[data-tb='a'] body[data-tour-active] .tl-tip { display: none; }
+:root[data-tb='a'] .cnv-tools {
+  gap: var(--tl-gap);
+  padding: var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: none;
+  box-shadow: none;
+}
+/* The glass is a layer under the tools (toolbar.css .tl-surf says why), in
+   the grain's place. */
+:root[data-tb='a'] .cnv-tools::after { display: none; }
+:root[data-tb='a'] .cnv-tools::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+:root[data-tb='a'] .cnv-tool,
+:root[data-tb='a'] .cnv-tools .cnv-tool:first-child {
+  width: var(--tl-bs);
+  height: var(--tl-bs);
+  border-radius: var(--tl-br);
+  background: transparent;
+  color: var(--ink-2);
+  transform: none;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .cnv-tool svg { width: var(--tl-is); height: var(--tl-is); }
+@media (hover: hover) {
+  :root[data-tb='a'] .cnv-tool:hover:not(.active) { background: var(--tl-hov); color: var(--ink-0); transform: none; }
+}
+:root[data-tb='a'] .cnv-tool:active:not(.active) { transform: none; }
+:root[data-tb='a'] .cnv-tool.active,
+:root[data-tb='a'] .cnv-tools .cnv-tool.active:first-child {
+  background: var(--tl-on);
+  color: var(--ink-0);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+}
+/* The + with its menu open is open, not on: the look's menu buttons. */
+:root[data-tb='a'] .cnv-tools .cnv-add-wrap .cnv-tool.active {
+  background: var(--tl-hov);
+  color: var(--ink-0);
+  box-shadow: none;
+}
+:root[data-tb='a'] .cnv-tool:focus-visible {
+  outline: 2px solid var(--soleil);
+  outline-offset: 1px;
+}
+:root[data-tb='a'] .cnv-tool-sep {
+  flex-shrink: 0;
+  width: var(--tl-sep);
+  height: 1px;
+  margin: calc((var(--tl-sg) - 1px) / 2) auto;
+  background: var(--line-2);
+}
+/* Under a finger, on a phone too, where the rail scrolls: its own padding
+   and gaps, not the phone block's. */
+@media (hover: none) and (pointer: coarse), (max-width: 640px) {
+  :root[data-tb='a'] .cnv-tools { padding: var(--tl-pad); gap: var(--tl-gap); }
+  :root[data-tb='a'] .cnv-tool,
+  :root[data-tb='a'] .cnv-tools .cnv-tool:first-child { width: var(--tl-bs); height: var(--tl-bs); }
+}
+
+/* ── The rail's + menu (mockup A-add): a menu in the look, its groups under
+   small capitals, Draw with its key. ── */
+:root[data-tb='a'] .cnv-add-menu {
+  width: auto;
+  min-width: 196px;
+  padding: 4px;
+  gap: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+  font: 400 var(--tl-mfs)/1.35 var(--font-sans);
+}
+:root[data-tb='a'] .cnv-add-menu::after { display: none; }
+:root[data-tb='a'] .cnv-add-group-head,
+:root[data-tb='a'] .cnv-add-menu .cnv-add-group-head:first-child {
+  padding: 9px 10px 5px;
+  color: var(--ink-3);
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .08em;
+}
+:root[data-tb='a'] .cnv-add-menu button {
+  gap: 10px;
+  height: var(--tl-mrow);
+  min-height: 0;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--ink-1);
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .cnv-add-menu button .cnv-add-ico { width: var(--tl-mis); height: var(--tl-mis); color: var(--ink-2); }
+:root[data-tb='a'] .cnv-add-menu button .cnv-add-ico svg { width: var(--tl-mis); height: var(--tl-mis); }
+:root[data-tb='a'] .cnv-add-menu button .tl-keys { margin-left: 14px; color: var(--ink-3); }
+:root[data-tb='a'] .cnv-add-menu button:is(:hover, :focus-visible) { background: var(--tl-hov); color: var(--ink-0); }
+:root[data-tb='a'] .cnv-add-menu button:is(:hover, :focus-visible) .cnv-add-ico { color: var(--ink-1); }
+
+/* ── The Cluster tool's hover card: the glass, as the tooltip it stands in
+   for. ── */
+:root[data-tb='a'] .cnv-tool-card {
+  border: 0;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-tip-lift);
+}
+
+/* ── Zoom (mockup A-add, bottom right): [− | slider | 60% | +] on the glass,
+   the bar's 32px buttons (44 under a finger) with Minus and Plus drawn as
+   icons, an 84px slider whose 4px track fills up to its 14px knob (--zf,
+   CanvasSurface), and the readout in the bar's type at a steady width. Where
+   it sits on a phone, and that a finger sees it only while zooming, stay
+   styles.css's. ── */
+:root[data-tb='a'] .cnv-zoom {
+  right: 12px;
+  bottom: 12px;
+  gap: var(--tl-gap);
+  padding: var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: none;
+  box-shadow: none;
+}
+:root[data-tb='a'] .cnv-zoom::after { display: none; }
+:root[data-tb='a'] .cnv-zoom::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+:root[data-tb='a'] .cnv-zoom button {
+  display: grid;
+  place-items: center;
+  width: var(--tl-bs);
+  height: var(--tl-bs);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: var(--tl-br);
+  color: var(--ink-2);
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .cnv-zoom button svg { width: var(--tl-is); height: var(--tl-is); }
+:root[data-tb='a'] .cnv-zoom .cnv-zoom-val {
+  width: auto;
+  min-width: 48px;
+  height: var(--tl-bs);
+  padding: 0 4px;
+  border-radius: var(--tl-br);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1);
+}
+@media (hover: hover) {
+  :root[data-tb='a'] .cnv-zoom button:hover,
+  :root[data-tb='a'] .cnv-zoom .cnv-zoom-val:hover { background: var(--tl-hov); color: var(--ink-0); }
+}
+:root[data-tb='a'] .cnv-zoom button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+:root[data-tb='a'] .cnv-zoom-slider { width: 84px; height: var(--tl-bs); margin: 0 6px; }
+:root[data-tb='a'] .cnv-zoom-slider:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 6px; }
+:root[data-tb='a'] .cnv-zoom-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--ink-3) var(--zf, 0%), var(--line-2) var(--zf, 0%));
+}
+:root[data-tb='a'] .cnv-zoom-slider::-webkit-slider-thumb,
+:root[data-tb='a'] .cnv-zoom-slider::-webkit-slider-thumb:active {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  background: var(--ink-0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--ink-3); }
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-thumb,
+:root[data-tb='a'] .cnv-zoom-slider::-moz-range-thumb:active {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  background: var(--ink-0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+
+/* ── The canvas's bottom bars (.tob-a): the note bar (mockups A-note, A-ipad,
+   A-phone; components/toolbar/NoteBarA.jsx), on a note being written and a
+   grid's box, and the draw, shape, line and arrow bars (mockups A-draw and
+   A-parts; CanvasBarsA.jsx). Each keeps .tob's places (bottom centre on a
+   desktop canvas, over the mobile nav, lifted over a soft keyboard) and
+   wears the glass, the bar's 32px buttons (44 under a finger) in groups with
+   hairlines between, and what's on in the gold tint with its ring. The glass
+   is the bar's own here, not a layer under it: .tob scrolls sideways on a
+   canvas narrower than it, and a layer would scroll away with its first
+   screenful. ── */
+:root[data-tb='a'] .tob.tob-a {
+  gap: 0;
+  padding: var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+  color: var(--ink-1);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-tb='a'] .tob.tob-a::after { display: none; }
+/* The font's name, at a steady width so the row doesn't move as the caret
+   does; the size between − and +, a field with its presets' ⌄. */
+:root[data-tb='a'] .nb-a .tl-btn.nb-font.is-select { width: 112px; }
+:root[data-tb='a'] .nb-a.is-tight .tl-btn.nb-font.is-select { width: 128px; }
+:root[data-tb='a'] .nb-a .nb-step { display: inline-flex; align-items: center; gap: var(--tl-gap); margin-left: 4px; }
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl {
+  flex-shrink: 0;
+  width: 54px;
+  height: calc(var(--tl-bs) - 6px);
+}
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 20px 0 8px;
+  border: 0;
+  border-radius: calc(var(--tl-br) - 2px);
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-0);
+  font: 400 var(--tl-fs)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+:root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo-arrow.tl-btn {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 18px;
+  min-width: 0;
+  height: calc(var(--tl-bs) - 12px);
+  border-radius: 5px;
+  transform: translateY(-50%);
+  background: transparent;
+  color: var(--ink-2);
+}
+@media (hover: hover) {
+  :root[data-tb='a'] .nb-a .size-combo-wrap.is-tl .size-combo-arrow.tl-btn:hover:not(:disabled) { background: var(--tl-hov); color: var(--ink-0); }
+}
+/* The text's colour, under the A. */
+:root[data-tb='a'] .nb-a .tl-btn.nb-colour::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--tl-is) * .34 - 1.25px);
+  width: calc(var(--tl-is) * .7);
+  height: 2.5px;
+  margin-left: calc(var(--tl-is) * -.35);
+  border-radius: 1px;
+  background: var(--nb-ink, transparent);
+  box-shadow: 0 0 0 .5px color-mix(in oklab, var(--ink-0) 24%, transparent);
+  pointer-events: none;
+}
+/* The note's background, as a chip: the button's, and a ⋯ row's in its
+   icon's place. */
+:root[data-tb='a'] .nb-a .tl-btn.nb-bg::before,
+.tob-menu .nb-chip {
+  content: '';
+  display: block;
+  flex-shrink: 0;
+  width: calc(var(--tl-is) - 2px);
+  height: calc(var(--tl-is) - 2px);
+  border-radius: 5px;
+  background: var(--nb-bg, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--line-3);
+}
+.tob-menu .nb-chip { width: var(--tl-mis); height: var(--tl-mis); border-radius: 4px; }
+/* The colours: the recent, the palette's and the bar's, nine to a row. */
+.tob-menu .tl-swrow {
+  display: grid;
+  grid-template-columns: repeat(9, auto);
+  justify-content: start;
+  gap: 8px;
+  padding: 4px 10px 8px;
+}
+.tob-menu .tl-swrow .tl-sw { margin: 0; }
+/* Under a finger, eight to a row, each one a finger can take: 32px, 40 apart,
+   its hit area reaching halfway into the gap round it. */
+@media (hover: none) and (pointer: coarse) {
+  .tob-menu .tl-swrow { --tl-sws: 32px; grid-template-columns: repeat(8, auto); }
+  .tob-menu .tl-swrow .tl-sw::after { content: ''; position: absolute; inset: -4px; }
+}
+/* The fonts, each in its own face. */
+.tl-menu.nb-font-pop { width: 248px; }
+.nb-font-pop .nb-font-rows .tl-mi { font-size: 14px; }
+.nb-font-pop .nb-font-rows .tl-mi .tl-mt { font-family: inherit; }
+/* A row of ⋯ with its controls on the right: the size's − 15 +, the aligns.
+   Its words line up with the rows' that have an icon. */
+.tob-menu .tl-mrow .nb-mind { width: var(--tl-mis); flex-shrink: 0; }
+.tob-menu .nb-size-row .tl-mrow-l { padding-left: calc(var(--tl-mis) + 10px); }
+.tob-menu .nb-size-val {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+.tl-menu.nb-more { min-width: 248px; }
+
+/* Where a bar sits, centred by its margins rather than .tob's translate,
+   which its rise-in (ctx-menu-in, a transform) undid while it ran, so the
+   bar came in half its width to the right. On a desktop canvas, in the room
+   the rail and the zoom leave it on the bottom row, or over the zoom when it
+   can't fit beside it (useIslandFit measures both). */
+:root[data-tb='a'] .tob.tob-a.is-desk {
+  left: var(--tob-l, 12px);
+  right: var(--tob-r, 12px);
+  bottom: var(--tob-b, 12px);
+  width: max-content;
+  max-width: calc(100% - var(--tob-l, 12px) - var(--tob-r, 12px));
+  margin-inline: auto;
+  transform: none;
+}
+/* Under a finger, a bar folded to fit is an island in the middle, over the
+   mobile nav (styles.css's .tob blocks), not a strip from edge to edge. */
+:root[data-tb='a'] .tob.tob-a.is-touch {
+  left: 8px;
+  right: 8px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  margin-inline: auto;
+  transform: none;
+}
+/* On a phone it spans the width, which its controls share (a group of three
+   grows three times as much as a group of one), a hairline midway between
+   each two groups. */
+:root[data-tb='a'] .tob-a.is-phone .tl-g { flex: 1 1 auto; justify-content: space-around; }
+:root[data-tb='a'] .tob-a.is-phone .tl-g + .tl-g { margin-left: 0; }
+:root[data-tb='a'] .tob-a.is-phone .tl-g + .tl-g::before { left: -.5px; }
+
+/* ── The draw, shape, line and arrow bars (mockups A-draw and A-parts;
+   components/toolbar/CanvasBarsA.jsx), in the note bar's island: each
+   control drawn as what it makes, a brush as its stroke, a width as its
+   line, a colour as its chip. ── */
+/* A brush, as the stroke it draws (BrushPreview), in the control's ink. */
+:root[data-tb='a'] .tob-a .tl-btn.db-brush { min-width: calc(var(--tl-bs) + 10px); }
+:root[data-tb='a'] .tob-a .tl-btn svg.db-bp,
+.tob-menu .tl-btn svg.db-bp { width: calc(var(--tl-bs) + 2px); height: calc(var(--tl-is) - 2px); }
+.tob-menu .tl-mi svg.db-bp { width: 34px; height: 16px; }
+/* A width, as the line it draws. */
+.tl-btn .db-w {
+  display: block;
+  width: 18px;
+  height: var(--w, 2px);
+  border-radius: 99px;
+  background: currentColor;
+}
+/* What the chip draws with: a dot of its colour, as wide as its width; the
+   eraser's, a ring. */
+.tl-btn .db-dot {
+  display: block;
+  flex-shrink: 0;
+  width: var(--d, 12px);
+  height: var(--d, 12px);
+  border-radius: 50%;
+  background: var(--chip, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent);
+}
+.tl-btn .db-dot.is-eraser { background: none; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+:root[data-tb='a'] .tob-a .tl-btn.db-chip { padding: 0 6px 0 10px; gap: 8px; }
+/* The lasso's word on what it does. */
+:root[data-tb='a'] .tob-a .db-hint { padding: 0 8px; color: var(--ink-2); white-space: nowrap; }
+/* A colour in a button's face (Colours.jsx Chip): a fill's chip, a dot, a
+   stroke's ring. */
+.tl-btn .tl-chip {
+  display: block;
+  flex-shrink: 0;
+  width: calc(var(--tl-is) - 2px);
+  height: calc(var(--tl-is) - 2px);
+  border-radius: 5px;
+  background: var(--chip, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--line-3);
+}
+/* None (no fill, no background) keeps the stripes the app draws it as, in
+   the light theme's greys there, where the dark ones read as a dark fill. */
+[data-theme='light'] .tl-sw.is-clear,
+[data-theme='light'] .tl-btn .tl-chip.is-none { background: repeating-linear-gradient(45deg, #d4d4d8 0 4px, #fafafa 4px 8px); }
+.tl-btn .tl-chip.is-dot { border-radius: 50%; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent); }
+.tl-btn .tl-chip.is-ring {
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 3px var(--chip), 0 0 0 1px color-mix(in oklab, var(--ink-0) 14%, transparent);
+}
+/* A value to pick from at a steady width, so the row doesn't move as it
+   changes: the shape (its icon, then its name), the line style. */
+:root[data-tb='a'] .tob-a .tl-btn.sb-shape.is-select { width: 120px; }
+:root[data-tb='a'] .tob-a .tl-btn.tl-dash.is-select { width: 96px; }
+/* A number between − and +, and a field with its unit. */
+:root[data-tb='a'] .tob-a .tl-step { display: inline-flex; align-items: center; gap: var(--tl-gap); }
+:root[data-tb='a'] .tob-a input.tl-field,
+.tob-menu input.tl-field { width: 48px; outline-offset: 1px; }
+.tl-unit { margin-left: 4px; color: var(--ink-2); }
+/* Under a finger a field's type is 16px, or a phone zooms into it, and the
+   field is a finger's height (the bar's 44px less its inset is 38). */
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .tob-a input.tl-field,
+  .tob-menu input.tl-field { width: 56px; height: 40px; font-size: 16px; }
+}
+/* The rows of a menu off these bars: brushes and widths picked in place, a
+   width's − 2 +. */
+.tob-menu .db-row { display: flex; gap: 2px; padding: 2px 6px 6px; }
+.tob-menu .db-row .tl-btn { flex: 1 1 0; }
+.tob-menu .tl-mrow.is-indent .tl-mrow-l { padding-left: calc(var(--tl-mis) + 10px); }
+.tob-menu .tl-step { display: inline-flex; align-items: center; margin-left: auto; padding-right: 6px; }
+.tob-menu .tl-mval {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+.tl-menu.db-menu { min-width: 260px; }
+.tl-menu.sb-more, .tl-menu.ln-more { min-width: 220px; }
+
+
+/* ── The selection's bar (mockup A-select; components/toolbar/
+   SelectionBarA.jsx): two or more things picked on a desktop canvas, the
+   bottom row's middle island, over a tool's bar when one shows too
+   (--sel-up). ── */
+:root[data-tb='a'] .tl-bar.sel-a {
+  position: absolute;
+  z-index: 25;
+  left: var(--tob-l, 12px);
+  right: var(--tob-r, 12px);
+  bottom: calc(var(--tob-b, 12px) + var(--sel-up, 0px));
+  width: max-content;
+  max-width: calc(100% - var(--tob-l, 12px) - var(--tob-r, 12px));
+  margin-inline: auto;
+  animation: ctx-menu-in var(--dur-fast, .12s) var(--ease, ease-out);
+}
+.sel-a .sel-count {
+  padding: 0 8px 0 6px;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Move N cards to…'s menu lists every cluster: it scrolls in the room over
+   the bar. */
+.tl-menu.sel-a-move { max-height: min(420px, calc(100vh - 160px)); overflow-y: auto; }
+/* Chrome, as the count it stands in for is (styles.css's immersive list,
+   tests/capture-chrome.spec.js): not on a shared cluster's page, nor in clean
+   mode, focus mode or a capture. */
+.public-canvas-host .tl-bar.sel-a,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .tl-bar.sel-a {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-tb='a'] .tl-bar.sel-a { animation: none; }
+}
+
+/* ── The top islands (FloatingChrome.jsx; the top of mockup A-select): the
+   bars' glass as a layer under the controls, 28px buttons (40 under a
+   finger) with regular icons at 16 (20), hairlines between the groups, the
+   look's on and open, and ⋯'s menu the look's (ChromeMoreA.jsx). Where they
+   sit and how big they are stays floatingChrome.css's: 8px down, 36px tall
+   (44 under a finger), 10px in, which the toasts and the template tray line
+   up to. ── */
+:root[data-tb='a'] .chrome-island {
+  isolation: isolate;
+  gap: var(--tl-gap);
+  padding: 0 var(--tl-pad);
+  border: 0;
+  border-radius: var(--tl-rad);
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+:root[data-tb='a'] .chrome-island::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-brand, .tb-btn, .tl-btn, .crumb) { border-radius: var(--tl-br); }
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tl-btn) { height: 28px; min-width: 28px; color: var(--ink-2); }
+:root[data-tb='a'] .chrome-island .tb-icon:not(.has-unread) { width: 28px; }
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-btn, .tl-btn) svg { width: 16px; height: 16px; }
+:root[data-tb='a'] .chrome-island .tb-brand { height: 28px; padding: 0 5px; }
+:root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-brand, .tb-btn, .tl-btn, .crumb.clk):hover:not(:disabled) {
+  background: var(--tl-hov);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .chrome-island .crumb.here { font-weight: 600; }
+/* Share and New cluster say what they do, in the bar's words: no pill. */
+:root[data-tb='a'] .chrome-island .tb-btn:is(.tb-share, .tb-newcluster) {
+  height: 28px;
+  margin-left: 0;
+  padding: 0 10px 0 8px;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .chrome-island .tb-btn.tb-share .tb-btn-label { font-weight: 500; }
+:root[data-tb='a'] .chrome-island .tb-btn:is(.tb-share, .tb-newcluster):hover:not(:disabled),
+:root[data-tb='a'] .chrome-island .tb-btn.tb-newcluster[aria-expanded='true'] {
+  border: 0;
+  background: var(--tl-hov);
+  color: var(--ink-0);
+}
+/* What's on (a cluster pinned alongside) and what's open (the bell's list):
+   the look's, as every bar has them. */
+:root[data-tb='a'] .chrome-island .tb-icon.tb-icon-split.is-pressed {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .chrome-island .tb-icon.nb-bell.is-pressed {
+  background: var(--tl-hov);
+  box-shadow: none;
+  color: var(--ink-0);
+}
+/* Unread is ink (notificationsPanel.css): the bell and its count in full ink. */
+:root[data-tb='a'] .chrome-island .tb-icon.nb-bell.has-unread { color: var(--ink-0); }
+/* The groups, a hairline between each two: where you are | the trail | New
+   cluster; Admin | undo, redo | search, split view, theme, the bell | who's
+   here, Share | ⋯. */
+:root[data-tb='a'] .chrome-island .chrome-sep { height: var(--tl-sep); margin: 0 4px; background: var(--line-2); }
+:root[data-tb='a'] .chrome-left .crumbs {
+  margin-left: 4px;
+  padding-left: 5px;
+  background: linear-gradient(var(--line-2), var(--line-2)) left center / 1px var(--tl-sep) no-repeat;
+}
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more),
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo']) { position: relative; }
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more) { margin-left: 9px; }
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo']) { margin-right: 9px; }
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more)::before,
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo'])::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: var(--tl-sep);
+  margin-top: calc(var(--tl-sep) / -2);
+  background: var(--line-2);
+  pointer-events: none;
+}
+:root[data-tb='a'] .chrome-island :is(.ncl-wrap, .chrome-more)::before { left: -5px; }
+:root[data-tb='a'] .chrome-right :is(.tb-admin-btn, .tb-icon[aria-label='Redo'])::after { right: -5px; }
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .chrome-island :is(.tb-icon, .tl-btn) { height: 40px; min-width: 40px; }
+  :root[data-tb='a'] .chrome-island .tb-icon:not(.has-unread) { width: 40px; }
+  :root[data-tb='a'] .chrome-island :is(.tb-icon, .tb-btn, .tl-btn) svg { width: 20px; height: 20px; }
+  :root[data-tb='a'] .chrome-island .tb-brand { height: 40px; min-width: 40px; }
+  :root[data-tb='a'] .chrome-island .tb-btn:is(.tb-share, .tb-newcluster) { height: 40px; font-size: 15px; }
+}
+
+/* The comments toggle at the canvas's top left, a small island of its own
+   over the rail: the glass, a regular glyph, the count in plain ink. */
+:root[data-tb='a'] .cnv-comments-eye {
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  gap: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tl-glass);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+  color: var(--ink-2);
+  font: 500 12px/1 var(--font-sans);
+}
+:root[data-tb='a'] .cnv-comments-eye:hover {
+  border: 0;
+  background: linear-gradient(var(--tl-hov), var(--tl-hov)), var(--tl-glass);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] .cnv-comments-eye.is-muted { border: 0; background: var(--tl-glass); color: var(--ink-3); }
+:root[data-tb='a'] .cnv-comments-eye.is-muted:hover { color: var(--ink-1); }
+:root[data-tb='a'] .cnv-comments-eye:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+:root[data-tb='a'] .cnv-comments-eye-count {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: 500 12px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .cnv-comments-eye { min-width: 44px; height: 44px; padding: 0 12px; border-radius: var(--tl-rad); font-size: 15px; }
+  :root[data-tb='a'] .cnv-comments-eye svg { width: 20px; height: 20px; }
+  :root[data-tb='a'] .cnv-comments-eye-count { font-size: 15px; }
+  /* A finger's size already: no clear reach round it (styles.css's touch
+     block), which lay over the rail's +. */
+  :root[data-tb='a'] .cnv-comments-eye::before { content: none; }
+}
+/* Where the rail hangs from the canvas's top (a phone, a portrait iPad:
+   styles.css's phone block), it starts under the toggle, which a finger's
+   size makes 18px taller than today's: the 10px a narrow window leaves
+   between the two. The toggle lines up with the rail's buttons. */
+@media (hover: none) and (pointer: coarse) and (max-width: 1024px) {
+  :root[data-tb='a'] .cnv-tools {
+    top: calc(48px + var(--safe-top, 0px) + 20px);
+    max-height: calc(100% - (48px + var(--safe-top, 0px) + 20px) - (56px + var(--safe-bottom, 0px)) - 8px);
+  }
+  :root[data-tb='a'] .cnv-comments-eye { left: calc(max(8px, env(safe-area-inset-left, 0px)) + var(--tl-pad)); }
+}
+
+/* ── The right-click menus (CardContextMenu.jsx, BackgroundContextMenu.jsx and
+   their submenus): the look's menu (components/toolbar/toolbar.css .tl-menu),
+   rows of words at 13px (15 under a finger), what's under the pointer or the
+   keys in the look's wash, the shortcut a cap per key where a pointer hovers
+   (components/ctxMenuParts.jsx; a finger has no keys), the headers in the
+   look's small caps and a submenu's caret its icon. The glass is the
+   tooltip's 94%, not a menu's 88%: these open over the cluster's photos, and
+   at 88% a busy one showed through the words (which is why today's are
+   solid). ── */
+:root[data-tb='a'] .ctx-menu {
+  gap: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+}
+:root[data-tb='a'][data-theme='light'] .ctx-menu {
+  border: 0;
+  background: color-mix(in oklab, #fcfcfd 94%, transparent);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+}
+:root[data-tb='a'] .ctx-menu .ctx-item {
+  height: var(--tl-mrow);
+  min-height: var(--tl-mrow);
+  padding: 0 10px;
+  gap: 14px;
+  border-radius: 6px;
+  color: var(--ink-1);
+  font: 400 var(--tl-mfs)/1.35 var(--font-sans);
+}
+:root[data-tb='a'] .ctx-menu .ctx-item:is(:hover:not(:disabled), :focus-visible, .kbd-active, [aria-expanded='true']) {
+  background: var(--tl-hov);
+  color: var(--ink-0);
+  outline: none;
+  box-shadow: none;
+}
+:root[data-tb='a'] .ctx-menu .ctx-item.danger { color: var(--ink-error); }
+:root[data-tb='a'] .ctx-menu .ctx-item:disabled { opacity: .38; }
+:root[data-tb='a'] .ctx-menu .ctx-divider { flex-shrink: 0; height: 1px; margin: 4px 8px; background: var(--line-1); }
+:root[data-tb='a'] .ctx-menu :is(.ctx-header, .ctx-section-label, .ctx-tags-head) {
+  padding: 9px 10px 5px;
+  color: var(--ink-3);
+  font: 600 10.5px/1 var(--font-sans);
+  letter-spacing: .08em;
+}
+:root[data-tb='a'] .ctx-menu .ctx-shortcut.is-caps { display: inline-flex; gap: 3px; }
+:root[data-tb='a'] .ctx-menu .ctx-kplus { display: none; }
+:root[data-tb='a'] .ctx-menu .ctx-shortcut kbd {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-1);
+  font: 400 11px/1 var(--font-sans);
+}
+:root[data-tb='a'] .ctx-menu .ctx-chevron { width: 12px; height: 12px; margin-right: 0; transform: none; color: var(--ink-3); }
+:root[data-tb='a'] .ctx-menu .ctx-swatch-row { gap: 10px; }
+:root[data-tb='a'] .ctx-menu .ctx-swatch-dot { border: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-3); }
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .ctx-menu .ctx-shortcut.is-caps { display: none; }
+}
+
+/* ── An image card's actions (cards.jsx .ic-actions): over the picture, so
+   dark in both themes, as today, but the look's island: one glass strip
+   with the look's corners, its buttons bare until the pointer is on one, the
+   look's icons and its glass tooltip. ── */
+:root[data-tb='a'] .ic-actions {
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(14, 14, 16, .58);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .10), 0 4px 14px rgba(0, 0, 0, .28);
+}
+:root[data-tb='a'] .ic-actions .ic-act {
+  width: 26px; height: 26px; min-width: 26px; min-height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, .9);
+}
+:root[data-tb='a'] .ic-actions .ic-act:hover { border: 0; background: rgba(255, 255, 255, .16); color: #fff; transform: none; }
+:root[data-tb='a'] .ic-actions .ic-act:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .ic-actions .ic-act { width: 32px; height: 32px; min-width: 32px; min-height: 32px; border-radius: 8px; }
+}
+
+/* ── The PDF viewer's bar (PdfViewer.jsx): on the viewer's dark room, so
+   light ink in both themes; page and zoom each a small island of their own,
+   as the canvas's zoom is, the buttons bare until the pointer is on one, the
+   look's icons for the arrows, − + and ×, and the glass tooltip with the
+   keys. ── */
+:root[data-tb='a'] .pdfv-bar { gap: 8px; }
+:root[data-tb='a'] .pdfv-nav,
+:root[data-tb='a'] .pdfv-zoom {
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+}
+:root[data-tb='a'] .pdfv-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, .86);
+}
+:root[data-tb='a'] .pdfv-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .14); color: #fff; }
+:root[data-tb='a'] .pdfv-nav .pdfv-btn,
+:root[data-tb='a'] .pdfv-zoom .pdfv-btn { min-width: 30px; height: 30px; padding: 0; }
+:root[data-tb='a'] .pdfv-pageind,
+:root[data-tb='a'] .pdfv-zoomind { min-width: 48px; font: 500 12px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+@media (pointer: coarse) {
+  :root[data-tb='a'] .pdfv-btn,
+  :root[data-tb='a'] .pdfv-nav .pdfv-btn,
+  :root[data-tb='a'] .pdfv-zoom .pdfv-btn { min-width: 40px; height: 40px; }
+  :root[data-tb='a'] .pdfv-btn svg { width: 20px; height: 20px; }
+}
+
+/* ── The film player's dock and the review's head (components/film): what's
+   on (loop, guides, compare) the look's gold tint and ring behind white,
+   rather than gold words; the rest is already the look's size and shape. ── */
+:root[data-tb='a'] .film-btn.is-on,
+:root[data-tb='a'] .frv-iconbtn.is-on {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--film-ink-0, #f5f5f7);
+}
+
+/* ── The sketch pad (SketchPadOverlay.jsx): its bars keep their place in the
+   pad's frame, and their controls are the look's: 32px (today's 44 under a
+   finger) with the look's corners, bare until the pointer is on one, the
+   look's icons, words with no box round them, and what's on (the tool, the
+   brush, the width, the frame, Layers, the layer you draw on) the look's gold
+   tint and ring rather than a gold border; a colour that's on wears the
+   look's swatch ring. Add to canvas stays the pad's one filled button, and
+   the touch sheet's Clear and Cancel keep their boxes, as a sheet's
+   buttons do. ── */
+:root[data-tb='a'] .sp-sep { height: 16px; margin: 0 5px; }
+:root[data-tb='a'] .sp-sep.is-row-end { visibility: hidden; }
+:root[data-tb='a'] .sp-tool,
+:root[data-tb='a'] .sp-width,
+:root[data-tb='a'] .sp-x {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink-1);
+}
+:root[data-tb='a'] .sp-layers-btn { display: inline-flex; width: auto; padding: 0 8px; }
+:root[data-tb='a'] .sp-brush,
+:root[data-tb='a'] .sp-aspect { border: 0; border-radius: 8px; }
+:root[data-tb='a'] .sketchpad-toolbar .sp-action {
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans);
+}
+:root[data-tb='a'] .sketchpad-toolbar .sp-action-primary { padding: 0 12px; background: var(--soleil); color: rgba(0, 0, 0, .85); font-weight: 600; }
+@media (hover: hover) {
+  :root[data-tb='a'] :is(.sp-tool, .sp-width, .sp-x, .sp-brush, .sp-aspect):hover:not(:disabled):not(.is-active),
+  :root[data-tb='a'] .sketchpad-toolbar .sp-action:not(.sp-action-primary):hover:not(:disabled):not(.is-active),
+  :root[data-tb='a'] :is(.sp-layer-eye, .sp-layer-btn, .sp-layer-name):hover:not(:disabled) {
+    background: var(--tl-hov);
+    color: var(--ink-0);
+  }
+}
+:root[data-tb='a'] .sp-tool:disabled { opacity: .38; cursor: default; }
+:root[data-tb='a'] :is(.sp-tool, .sp-width, .sp-brush, .sp-aspect, .sp-action).is-active,
+:root[data-tb='a'] .sp-layer.is-active {
+  border-color: transparent;
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+:root[data-tb='a'] :is(.sp-tool, .sp-width, .sp-x, .sp-brush, .sp-aspect, .sp-action, .sp-layer-eye, .sp-layer-btn):focus-visible {
+  outline: 2px solid var(--soleil);
+  outline-offset: 1px;
+}
+:root[data-tb='a'] .sp-color { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent); }
+:root[data-tb='a'] .sp-color.is-active {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ink-0) 18%, transparent), 0 0 0 1.5px var(--soleil);
+}
+:root[data-tb='a'] .sp-color-custom { box-shadow: none; }
+:root[data-tb='a'] .sp-layer-eye,
+:root[data-tb='a'] .sp-layer-btn { display: inline-grid; place-items: center; border-radius: 6px; }
+@media (pointer: coarse) {
+  :root[data-tb='a'] .sp-tool,
+  :root[data-tb='a'] .sp-x { width: 44px; height: 44px; border-radius: 10px; }
+  :root[data-tb='a'] .sp-tool svg,
+  :root[data-tb='a'] .sp-x svg { width: 22px; height: 22px; }
+  :root[data-tb='a'] .sp-layers-btn { width: auto; min-width: 44px; }
+  :root[data-tb='a'] .sp-width { width: 48px; height: 44px; border-radius: 10px; }
+  :root[data-tb='a'] .sketchpad-toolbar .sp-action { height: auto; min-height: 44px; padding: 0 16px; border-radius: 10px; font-size: 15px; }
+  :root[data-tb='a'] .sp-brush,
+  :root[data-tb='a'] .sp-aspect { border-radius: 10px; }
+  :root[data-tb='a'] .sp-layer-eye svg { width: 20px; height: 20px; }
+  :root[data-tb='a'] .sp-layer-btn svg { width: 18px; height: 18px; }
+  :root[data-tb='a'] .sp-sep { height: 22px; }
+}

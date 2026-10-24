@@ -2273,6 +2273,56 @@ export const DOCS_CONTENT = {
        "v": "Clean mode — hide all chrome"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      },
+      {
+       "t": "text",
+       "v": " in a right-click menu"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move through it — "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " opens a submenu and "
+      },
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " closes it, "
+      },
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " chooses"
+      }
+     ]
     ]
    ]
   },
@@ -4858,7 +4908,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Find and replace"
+       "v": "Find and replace, in the side panel, across every page"
       }
      ]
     ],
@@ -4994,7 +5044,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " on Windows"
+       "v": " on Windows; in a table, to the table's bar"
       }
      ]
     ],
@@ -25816,7 +25866,81 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " tool in the rail."
+     "v": " tool in the rail. It opens straight away beside the canvas (full screen on a phone) with its title selected: type a name, press "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": ", and you are writing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An empty document offers two other ways in under its "
+    },
+    {
+     "t": "strong",
+     "v": "Start writing…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start writing…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": "
+    },
+    {
+     "t": "strong",
+     "v": "A screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "A screenplay"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " turns it into a "
+    },
+    {
+     "t": "link",
+     "v": "script",
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "script"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and "
+    },
+    {
+     "t": "strong",
+     "v": "Import a script",
+     "children": [
+      {
+       "t": "text",
+       "v": "Import a script"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " makes it the Final Draft or Fountain script you pick, title page and all, named after it. Both go once you write a word."
     }
    ]
   },
@@ -25937,6 +26061,71 @@ export const DOCS_CONTENT = {
       "v": " — docked beside the canvas, resizable, so you can write while looking at the board"
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On the canvas, a document with nothing in it says "
+    },
+    {
+     "t": "strong",
+     "v": "Empty",
+     "children": [
+      {
+       "t": "text",
+       "v": "Empty"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on its card and offers "
+    },
+    {
+     "t": "strong",
+     "v": "Start writing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start writing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; one with words shows its first lines, with "
+    },
+    {
+     "t": "strong",
+     "v": "Beside",
+     "children": [
+      {
+       "t": "text",
+       "v": "Beside"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to open it docked and "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for full screen."
+    }
    ]
   },
   {
@@ -26117,6 +26306,57 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "The header runs across the top: the page list's button, where the document is and its title (click the title to rename it), the faces of whoever else is in it (click one to go to where they are), "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Messages",
+     "children": [
+      {
+       "t": "text",
+       "v": "Messages"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", the dock and full screen switch, and close. The footer runs along the bottom: whether your changes are saved, the word count (in a screenplay, the page you're on, of how many, and the scenes), and the zoom."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "strong",
      "v": "Pages",
      "children": [
@@ -26128,35 +26368,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A page holds as much as you write: set to real pages, its text flows from one sheet onto the next as you type, so long-form writing does not stop to manage pagination. Collapsing a page's sub-pages (the arrow beside it) is yours alone: it is remembered on this device and changes nothing for anyone else in the document. On a phone or a touch tablet the tree folds into a drawer: tap "
-    },
-    {
-     "t": "strong",
-     "v": "Page list",
-     "children": [
-      {
-       "t": "text",
-       "v": "Page list"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " above the toolbar to open it ("
-    },
-    {
-     "t": "strong",
-     "v": "Scenes",
-     "children": [
-      {
-       "t": "text",
-       "v": "Scenes"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " in a screenplay, where the drawer also lists the scenes)."
+     "v": " on the left — a hierarchical tree. Documents are genuinely multi-page, and pages nest. A page holds as much as you write: set to real pages, its text flows from one sheet onto the next as you type, so long-form writing does not stop to manage pagination. Collapsing a page's sub-pages (the arrow beside it) is yours alone: it is remembered on this device and changes nothing for anyone else in the document. The button at the left of the header hides the list and brings it back. On a phone or a touch tablet the list is a drawer that the same button opens (in a screenplay the drawer also lists the scenes)."
     }
    ]
   },
@@ -26175,7 +26387,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " under the page tree — durable anchors into specific places in the text, which survive editing around them. Add one with the bookmark button in the toolbar; click it in the list to jump there."
+     "v": " under the page tree — durable anchors into specific places in the text, which survive editing around them. Add one with "
+    },
+    {
+     "t": "strong",
+     "v": "Bookmark this spot",
+     "children": [
+      {
+       "t": "text",
+       "v": "Bookmark this spot"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the toolbar's "
+    },
+    {
+     "t": "strong",
+     "v": "Insert",
+     "children": [
+      {
+       "t": "text",
+       "v": "Insert"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu (a screenplay has it on its toolbar); click it in the list to jump there."
     }
    ]
   },
@@ -26194,7 +26434,93 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the middle, with the formatting toolbar above it."
+     "v": " in the middle, with the toolbar over it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "The side panel",
+     "children": [
+      {
+       "t": "text",
+       "v": "The side panel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the right, when you open it with "
+    },
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the header: every "
+    },
+    {
+     "t": "link",
+     "v": "comment",
+     "href": "#comments-tags-and-links",
+     "children": [
+      {
+       "t": "text",
+       "v": "comment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the document, and "
+    },
+    {
+     "t": "link",
+     "v": "Find",
+     "href": "#find-and-replace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Find"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " across all its pages. In a screenplay it holds the "
+    },
+    {
+     "t": "link",
+     "v": "elements",
+     "href": "/docs/documents/screenplay#elements",
+     "children": [
+      {
+       "t": "text",
+       "v": "elements"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " too. It stays open for the next document you open, until you close it. On a phone it comes up from the bottom, over the document, and a tap on the document, a drag down or "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " puts it away."
     }
    ]
   },
@@ -26203,7 +26529,23 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Zoom runs from 25% to 200%."
+     "v": "Zoom runs from 25% to 200%, from the footer or "
+    },
+    {
+     "t": "code",
+     "v": "⌘="
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "⌘−"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -26257,7 +26599,138 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The toolbar carries the usual: headings, bold, italic, underline, highlight, lists, task lists, alignment, colour, font and size. Every one has a "
+     "v": "The toolbar is one row over the page:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "the document's type, "
+     },
+     {
+      "t": "strong",
+      "v": "Document",
+      "children": [
+       {
+        "t": "text",
+        "v": "Document"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Screenplay",
+      "children": [
+       {
+        "t": "text",
+        "v": "Screenplay"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "undo and redo"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the text style (body, headings, quote), the font and the size"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "bold, italic, underline, strikethrough and code, the text colour and highlight, and clear formatting"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "bulleted, numbered and task lists, and alignment"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "link and comment"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Insert",
+      "children": [
+       {
+        "t": "text",
+        "v": "Insert"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Find",
+      "children": [
+       {
+        "t": "text",
+        "v": "Find"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " with the layout (pageless, or real pages), the zoom, Export and the word and character counts"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When the window is too narrow for all of it, the tools you reach for least move into "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " first, so the row never breaks onto a second line and every tool is still a click away. Every one has a "
     },
     {
      "t": "link",
@@ -26304,62 +26777,22 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
-     "t": "code",
-     "v": "⌘F"
-    },
-    {
      "t": "text",
-     "v": " opens "
+     "v": "A screenplay's row is its own: its type, undo and redo, link, comment and bookmark, and "
     },
     {
      "t": "strong",
-     "v": "find and replace",
+     "v": "⋯",
      "children": [
       {
        "t": "text",
-       "v": "find and replace"
+       "v": "⋯"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". "
-    },
-    {
-     "t": "strong",
-     "v": "All",
-     "children": [
-      {
-       "t": "text",
-       "v": "All"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " replaces every match on the page and says how many; the toast's "
-    },
-    {
-     "t": "strong",
-     "v": "Undo",
-     "children": [
-      {
-       "t": "text",
-       "v": "Undo"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " puts them all back, and so does one "
-    },
-    {
-     "t": "code",
-     "v": "⌘Z"
-    },
-    {
-     "t": "text",
-     "v": "."
+     "v": ". Its elements are in the side panel."
     }
    ]
   },
@@ -26417,21 +26850,70 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or the "
+     "v": ") strips the selection back to plain; links and comments stay."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "On a phone or a tablet",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or a tablet"
+    }
+   ],
+   "id": "on-a-phone-or-a-tablet"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone the tools ride on the keyboard while you write: the text style, bold, italic and underline, the three lists, link, comment, "
     },
     {
      "t": "strong",
-     "v": "Tx",
+     "v": "Insert",
      "children": [
       {
        "t": "text",
-       "v": "Tx"
+       "v": "Insert"
       }
      ]
     },
     {
      "t": "text",
-     "v": " button) strips the selection back to plain; links and comments stay."
+     "v": ", and "
+    },
+    {
+     "t": "strong",
+     "v": "More formatting",
+     "children": [
+      {
+       "t": "text",
+       "v": "More formatting"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for the rest. The keyboard button at the row's end puts the keyboard away. The header holds close, the page list, the title with whether it is saved under it, Share, and "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which has Comments, Find, Messages, the document's type and layout, the zoom, Export and the counts."
     }
    ]
   },
@@ -26440,7 +26922,369 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The footer shows a live word and character count, and the document's save status."
+     "v": "On a tablet the toolbar keeps its one row over the page, its tools a finger's size, with more of them under "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to make the room."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Find and replace",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Find and replace"
+    }
+   ],
+   "id": "find-and-replace"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "⌘F"
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "strong",
+     "v": "Find",
+     "children": [
+      {
+       "t": "text",
+       "v": "Find"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the toolbar, opens Find in the side panel, with the words you had selected. It searches "
+    },
+    {
+     "t": "strong",
+     "v": "All pages",
+     "children": [
+      {
+       "t": "text",
+       "v": "All pages"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " of the document, open or not, or just "
+    },
+    {
+     "t": "strong",
+     "v": "This page",
+     "children": [
+      {
+       "t": "text",
+       "v": "This page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; "
+    },
+    {
+     "t": "strong",
+     "v": "Aa",
+     "children": [
+      {
+       "t": "text",
+       "v": "Aa"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " matches the case you typed, and "
+    },
+    {
+     "t": "strong",
+     "v": "Whole word",
+     "children": [
+      {
+       "t": "text",
+       "v": "Whole word"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " only whole words. The hits are listed page by page with the words around them, and lit in the text: "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "⇧Enter"
+    },
+    {
+     "t": "text",
+     "v": " step through them, opening the page each one is on, and clicking one goes straight to it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Replace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Replace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " replaces the hit that is lit and moves on to the next. "
+    },
+    {
+     "t": "strong",
+     "v": "Replace all",
+     "children": [
+      {
+       "t": "text",
+       "v": "Replace all"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " replaces every hit on every page and says how many, on how many pages; the toast's "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " takes them all back. "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " returns you to the text with the hit selected."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Tables",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tables"
+    }
+   ],
+   "id": "tables"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Insert › Table",
+     "children": [
+      {
+       "t": "text",
+       "v": "Insert › Table"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " adds one. With the caret in a table, a bar sits over its top right corner: "
+    },
+    {
+     "t": "strong",
+     "v": "Row",
+     "children": [
+      {
+       "t": "text",
+       "v": "Row"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " adds a row above or below the one you are in, or deletes it; "
+    },
+    {
+     "t": "strong",
+     "v": "Column",
+     "children": [
+      {
+       "t": "text",
+       "v": "Column"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " does the same for columns; "
+    },
+    {
+     "t": "strong",
+     "v": "Header row",
+     "children": [
+      {
+       "t": "text",
+       "v": "Header row"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " turns the first row's header on and off; and "
+    },
+    {
+     "t": "strong",
+     "v": "Delete table",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete table"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " deletes it, with an "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the toast. Each is a step of its own for "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": ". In a table, "
+    },
+    {
+     "t": "code",
+     "v": "⌥F10"
+    },
+    {
+     "t": "text",
+     "v": " goes to its bar rather than the toolbar."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Over a table too narrow for the words, "
+    },
+    {
+     "t": "strong",
+     "v": "Row",
+     "children": [
+      {
+       "t": "text",
+       "v": "Row"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Column",
+     "children": [
+      {
+       "t": "text",
+       "v": "Column"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " show as icons and "
+    },
+    {
+     "t": "strong",
+     "v": "Header row",
+     "children": [
+      {
+       "t": "text",
+       "v": "Header row"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " moves into "
+    },
+    {
+     "t": "strong",
+     "v": "Row",
+     "children": [
+      {
+       "t": "text",
+       "v": "Row"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "'s menu."
     }
    ]
   },
@@ -26534,11 +27378,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Embed board",
+      "v": "Embed cluster",
       "children": [
        {
         "t": "text",
-        "v": "Embed board"
+        "v": "Embed cluster"
        }
       ]
      },
@@ -26560,6 +27404,18 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": ", rendered inside the document"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Bookmark this spot",
+      "children": [
+       {
+        "t": "text",
+        "v": "Bookmark this spot"
+       }
+      ]
      }
     ]
    ]
@@ -26584,6 +27440,69 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Reading a document you can only view",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Reading a document you can only view"
+    }
+   ],
+   "id": "reading-a-document-you-can-only-view"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With view access the toolbar is "
+    },
+    {
+     "t": "strong",
+     "v": "Find",
+     "children": [
+      {
+       "t": "text",
+       "v": "Find"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", the zoom and "
+    },
+    {
+     "t": "strong",
+     "v": "Export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the header says "
+    },
+    {
+     "t": "strong",
+     "v": "View only",
+     "children": [
+      {
+       "t": "text",
+       "v": "View only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". You can search every page, read every comment, and export the document; the tools that change it are not there."
     }
    ]
   },
@@ -26775,7 +27694,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " on a text range, with dots in the right margin"
+      "v": " on a text range, with dots in the right margin, and every one of them in the side panel"
      }
     ],
     [
@@ -26932,6 +27851,20 @@ export const DOCS_CONTENT = {
     {
      "t": "code",
      "v": ".fountain"
+    },
+    {
+     "t": "text",
+     "v": ", from "
+    },
+    {
+     "t": "strong",
+     "v": "⋯ › Export",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯ › Export"
+      }
+     ]
     },
     {
      "t": "text",
@@ -27201,6 +28134,95 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The side panel ("
+    },
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the header) lists a script's elements first, each in the script's own type, with the one the caret is on checked. Click one, or move to it with "
+    },
+    {
+     "t": "code",
+     "v": "↑"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " and press "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": ", to set the line you are on. Under them, "
+    },
+    {
+     "t": "strong",
+     "v": "Title page",
+     "children": [
+      {
+       "t": "text",
+       "v": "Title page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Scene numbers",
+     "children": [
+      {
+       "t": "text",
+       "v": "Scene numbers"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " switch on and off, and "
+    },
+    {
+     "t": "strong",
+     "v": "Pair with the speech above",
+     "children": [
+      {
+       "t": "text",
+       "v": "Pair with the speech above"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " sets two speeches side by side as dual dialogue."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Pagination",
@@ -27410,21 +28432,49 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two ways in. From an open script, "
+     "v": "Three ways in. An empty document offers "
     },
     {
      "t": "strong",
-     "v": "Import",
+     "v": "Import a script",
      "children": [
       {
        "t": "text",
-       "v": "Import"
+       "v": "Import a script"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in the export menu replaces its content. Or drop a "
+     "v": " under its "
+    },
+    {
+     "t": "strong",
+     "v": "Start writing…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start writing…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and makes the script you pick its own. From an open script, "
+    },
+    {
+     "t": "strong",
+     "v": "⋯ › Export › Import Fountain or Final Draft…",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯ › Export › Import Fountain or Final Draft…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " replaces its content. Or drop a "
     },
     {
      "t": "code",
@@ -27607,7 +28657,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The export menu is in the document toolbar."
+     "v": "Export is in the toolbar's "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (on a phone, the header's "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). Someone with view access can export too."
     }
    ]
   },
@@ -28028,7 +29106,130 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Click a dot to open the thread."
+     "v": ". Click the words, or the dot, and the side panel opens on their thread."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Every comment in one place",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every comment in one place"
+    }
+   ],
+   "id": "every-comment-in-one-place"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the document's header opens the side panel on its comments: every thread in the document as a card, in the order they come in the text, with the words it is on and who said what. "
+    },
+    {
+     "t": "strong",
+     "v": "All",
+     "children": [
+      {
+       "t": "text",
+       "v": "All"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Resolved",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resolved"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " filter them. A card's quote takes you to its words, opening the page they are on; you can reply on the card, "
+    },
+    {
+     "t": "strong",
+     "v": "Resolve",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resolve"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it (it says who resolved it and when, and "
+    },
+    {
+     "t": "strong",
+     "v": "Reopen",
+     "children": [
+      {
+       "t": "text",
+       "v": "Reopen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " brings it back), or delete the thread, with an "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the toast. A resolved thread's words read as plain text again; picking its card still lights them. "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " puts you back in the text."
     }
    ]
   },
@@ -28069,21 +29270,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Because a text comment is part of the document, it follows edit access. A viewer sees the dots and can open and read every thread, marked "
-    },
-    {
-     "t": "strong",
-     "v": "View only",
-     "children": [
-      {
-       "t": "text",
-       "v": "View only"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "; adding, replying to, resolving or deleting a comment needs edit access."
+     "v": "Because a text comment is part of the document, it follows edit access. A viewer sees the dots and reads every thread in the side panel; adding, replying to, resolving or deleting a comment needs edit access."
     }
    ]
   },

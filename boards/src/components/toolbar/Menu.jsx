@@ -52,7 +52,7 @@ export function useMenu() {
   return useContext(MenuCtx);
 }
 
-export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 'start', byKey = false, keepFocus = false, subId = null, className = '', children }) {
+export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 'start', byKey = false, keepFocus = false, scrim = false, subId = null, className = '', children }) {
   const parent = useContext(MenuCtx);
   const isSub = !!parent && subId != null;
   const ownTree = useId();
@@ -159,7 +159,7 @@ export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 
   }), [isSub, parent, close, keep, tree, openSub, showSub]);
 
   if (!open) return null;
-  return createPortal(
+  const menu = createPortal(
     <IconWeightContext.Provider value="regular">
       <MenuCtx.Provider value={ctx}>
         <div ref={popRef} role="menu" aria-label={label} tabIndex={-1}
@@ -173,6 +173,16 @@ export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 
       </MenuCtx.Provider>
     </IconWeightContext.Provider>,
     document.body,
+  );
+  if (!scrim || isSub) return menu;
+  // `scrim`: a menu off a bar whose tool acts on a press (the canvas's draw
+  // and shape tools) takes the press that closes it, on a layer under it,
+  // so the press doesn't also draw a stroke or a shape where it landed.
+  return (
+    <>
+      {createPortal(<div className="tl-scrim" aria-hidden="true" />, document.body)}
+      {menu}
+    </>
   );
 }
 
@@ -274,8 +284,9 @@ export function MenuSep() {
 
 // A button that opens a menu: its open state, whether a key opened it (so
 // the first row takes the focus), and ↓ on it opening it from the keyboard.
-// `children` is the menu's rows. `keepFocus`: see Menu.
-export function MenuButton({ label, menuLabel, side = 'below', align = 'start', menuClassName, keepFocus = false, children, onKeyDown, onClick, onMouseDown, ...btn }) {
+// `children` is the menu's rows, `face` what the button shows besides its
+// icon or words (a colour's chip). `keepFocus` and `scrim`: see Menu.
+export function MenuButton({ label, menuLabel, side = 'below', align = 'start', menuClassName, keepFocus = false, scrim = false, face = null, children, onKeyDown, onClick, onMouseDown, ...btn }) {
   const [open, setOpen] = useState(false);
   const [byKey, setByKey] = useState(false);
   const ref = useRef(null);
@@ -291,9 +302,11 @@ export function MenuButton({ label, menuLabel, side = 'below', align = 'start', 
              e.stopPropagation();
              setByKey(true);
              setOpen(true);
-           }} />
+           }}>
+        {face}
+      </Btn>
       <Menu open={open} onClose={() => setOpen(false)} anchorRef={ref} label={menuLabel || label}
-            side={side} align={align} byKey={byKey} keepFocus={keepFocus} className={menuClassName}>
+            side={side} align={align} byKey={byKey} keepFocus={keepFocus} scrim={scrim} className={menuClassName}>
         {children}
       </Menu>
     </>

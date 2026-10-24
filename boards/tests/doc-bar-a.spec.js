@@ -1,11 +1,12 @@
 // The doc's one row of tools in the look the owner picked on 2026-10-21
-// (direction A, with C's side panel), held to a dev opt-in (lib/appHost.js
+// (direction A, with C's side panel), shipped 2026-10-24 (lib/appHost.js
 // docLookAllowed): Doc ▾ | undo redo | style font size | the marks, colour and
 // clear | lists and align | link comment | + | find ⋯. It is always one row:
 // as its room narrows, groups fold into ⋯ (lib/docBarFold.js). Every control
 // runs the editor command today's bar runs. Driven in the ?docqa=1 harness.
 
 import { expect, test } from '@playwright/test';
+import { exportRow, setScreenplay } from './helpers/docFrame.js';
 
 test.skip(({ isMobile }) => isMobile, 'the bar under a finger is D7');
 
@@ -172,6 +173,8 @@ test('the font list sets the font, and the size field and its presets set the si
   expect(await editorDo(page, 'return ed.getAttributes("textStyle").fontSize;')).toBe('22px');
   const size = bar(page).getByRole('textbox', { name: 'Font size' });
   await expect(size).toHaveValue('22');
+  // The number shows whole in its box, its ⌄ beside it rather than taking its room.
+  expect(await size.evaluate((el) => el.scrollWidth <= el.clientWidth && el.clientWidth >= 40)).toBe(true);
   await size.fill('19');
   await size.press('Enter');
   expect(await editorDo(page, 'return ed.getAttributes("textStyle").fontSize;')).toBe('19px');
@@ -323,6 +326,24 @@ test('Print or save as PDF closes the menu at once, and the other exports still 
     menu(page).getByRole('menuitem', { name: 'Markdown' }).click(),
   ]);
   expect(download.suggestedFilename()).toMatch(/\.md$/);
+});
+
+// A script's Export is a list of formats, as the owner's pick drew it: the
+// PDF first, a file like the others, then Fountain and Final Draft.
+test('a screenplay\'s Export is its formats, the PDF first', async ({ page }) => {
+  await openDoc(page);
+  await setScreenplay(modal(page), true);
+  await expect(modal(page).locator('.doc-paper.is-screenplay')).toBeVisible();
+  const pdf = await exportRow(modal(page), 'pdf');
+  await expect(pdf).toBeVisible();
+  // The rows of the menu the PDF's row is in, each one's name without its
+  // extension.
+  const names = await pdf.evaluate((row) => [...row.closest('[role="menu"]').querySelectorAll('[role="menuitem"] .tl-mt')]
+    .map((t) => (t.querySelector('span') || t).textContent));
+  const at = names.indexOf('PDF');
+  expect(names.slice(at, at + 3)).toEqual(['PDF', 'Fountain', 'Final Draft']);
+  expect(names).not.toContain('Export PDF');
+  expect(names).not.toContain('Print or save as PDF');
 });
 
 // One Escape, one layer: a menu off the bar takes its Escape, and the doc
@@ -585,6 +606,76 @@ test('the Doc menu turns the doc into a screenplay', async ({ page }) => {
   await menu(page).getByRole('menuitemradio', { name: /^Screenplay/ }).click();
   await page.waitForFunction(() => window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
     null, { timeout: 15000 });
+});
+
+// A screenplay's row (the mockup's AC-script): its element, title page,
+// scene numbers and dual dialogue moved to the side panel's Elements.
+async function openScript(page, opts) {
+  await openDoc(page, opts);
+  await btn(page, 'Doc type').click();
+  await menu(page).getByRole('menuitemradio', { name: /^Screenplay/ }).click();
+  await page.waitForFunction(() => window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name === 'screenplayBlock',
+    null, { timeout: 15000 });
+  await expect(bar(page)).toBeVisible();
+  await editorDo(page, 'ed.commands.setContent(window.__soleilDocTest.screenplay.blocksToDocJSON(a)); ed.commands.focus("end");', [
+    { element: 'scene', text: 'INT. DINER - NIGHT' },
+    { element: 'action', text: 'The jukebox plays to nobody.' },
+  ]);
+  await expect(modal(page).locator('.tt-editor').first()).toBeFocused();
+}
+
+test('a screenplay\'s bar is its type, undo and redo, link, comment and bookmark, and ⋯', async ({ page }) => {
+  await openScript(page);
+  await expect(modal(page).locator('.doc-tb')).toHaveCount(0);
+  const names = await bar(page).getByRole('button').evaluateAll((els) => els
+    .filter((el) => el.offsetParent !== null)
+    .map((el) => el.getAttribute('aria-label') || el.textContent.trim()));
+  expect(names).toEqual(['Doc type', 'Undo', 'Redo', 'Link', 'Comment', 'Bookmark this spot', 'More']);
+  await expect(btn(page, 'Doc type')).toContainText('Screenplay');
+  const box = await bar(page).boundingBox();
+  expect(box.height).toBeLessThanOrEqual(42);
+  // Tab still steps the element at the caret.
+  await page.keyboard.press('Enter');
+  const after = await editorDo(page, 'return ed.getAttributes("screenplayBlock").element;');
+  await page.keyboard.press('Tab');
+  await expect.poll(() => editorDo(page, 'return ed.getAttributes("screenplayBlock").element;')).not.toBe(after);
+});
+
+test('a screenplay\'s Bookmark marks the spot, and ⋯ holds Elements, Find, the zoom, its exports and the counts', async ({ page }) => {
+  await openScript(page);
+  await btn(page, 'Bookmark this spot').click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => {
+    const T = window.__soleilDocTest;
+    return T.readBookmarks(T.ydoc, T.getScope()).length;
+  })).toBe(1);
+  await btn(page, 'More').click();
+  const m = menu(page);
+  await expect(m.getByRole('menuitem', { name: /^Elements/ })).toBeVisible();
+  await expect(m.getByRole('menuitem', { name: /^Find/ })).toBeVisible();
+  await expect(m.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+  await expect(m.getByRole('menuitem', { name: /^Final Draft/ })).toBeVisible();
+  await expect(m.getByRole('menuitem', { name: /^Fountain/ })).toBeVisible();
+  await expect(m.getByText(/words · .* characters/)).toBeVisible();
+  // A screenplay is always pages: no Layout.
+  await expect(m.getByText('Layout', { exact: true })).toHaveCount(0);
+  await m.getByRole('menuitem', { name: /^Elements/ }).click();
+  const side = modal(page).getByRole('complementary', { name: 'Comments and find' });
+  await expect(side.getByRole('tab', { name: 'Elements' })).toHaveAttribute('aria-selected', 'true');
+  await btn(page, 'More').click();
+  await menu(page).getByRole('menuitem', { name: /^Find/ }).click();
+  await expect(side.getByRole('textbox', { name: 'Find', exact: true })).toBeFocused();
+});
+
+test('a screenplay\'s Doc menu turns it back into a document, with the document\'s bar', async ({ page }) => {
+  await openScript(page);
+  await btn(page, 'Doc type').click();
+  await expect(menu(page).getByRole('menuitemradio', { name: /^Screenplay/ })).toHaveAttribute('aria-checked', 'true');
+  await menu(page).getByRole('menuitemradio', { name: /^Document/ }).click();
+  await page.waitForFunction(() => window.__soleilDocTest.editor?.state?.doc?.firstChild?.type?.name !== 'screenplayBlock',
+    null, { timeout: 15000 });
+  await expect(btn(page, 'Bold')).toBeVisible();
+  await expect(btn(page, 'Bookmark this spot')).toHaveCount(0);
 });
 
 test('a view-only member\'s bar is Find, the zoom and Export', async ({ page }) => {

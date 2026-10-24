@@ -3313,15 +3313,19 @@ async function dispatch(url, request, env, ctx) {
     if (!dest) throw fail(404, 'not_found', 'destination board not found');
     await requireBoardWrite(env, token, to);
 
-    // Cards moved onto another owner's meter cost them what an insert would,
-    // and the card_index trigger refuses a move past their cap (0403). It
-    // refuses after the destination board is already written, though, which
-    // would leave the cards on both boards, so ask first.
+    // Cards moved onto another meter cost what an insert would there, and the
+    // card_index trigger refuses a move past its cap (0403). It refuses after
+    // the destination board is already written, though, which would leave the
+    // cards on both boards, so ask first. A team's workspaces share the team's
+    // meter, and a personal workspace is on its owner's (0537).
     if (dest.workspace_id !== board.workspace_id) {
-      const owners = await scoutSelect(env, 'workspaces',
-        `id=in.(${board.workspace_id},${dest.workspace_id})&select=id,created_by`).catch(() => []);
-      const ownerOf = (ws) => owners.find((w) => w.id === ws)?.created_by || null;
-      if (ownerOf(board.workspace_id) !== ownerOf(dest.workspace_id)) {
+      const spaces = await scoutSelect(env, 'workspaces',
+        `id=in.(${board.workspace_id},${dest.workspace_id})&select=id,created_by,org_id`).catch(() => []);
+      const meterOf = (ws) => {
+        const w = spaces.find((s) => s.id === ws);
+        return w ? (w.org_id ? `org:${w.org_id}` : w.created_by) : null;
+      };
+      if (meterOf(board.workspace_id) !== meterOf(dest.workspace_id)) {
         const capRows = await userRpc(env, token, 'get_board_capacity', { p_board_id: to }).catch(() => null);
         const cap = Array.isArray(capRows) ? capRows[0] : capRows;
         if (cap?.is_capped === true && cap.cap != null) {

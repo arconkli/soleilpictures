@@ -1,9 +1,10 @@
 // Doc page layout: pageless is the DEFAULT (one continuous sheet, no page
-// breaks); the "Pages" toolbar pill opts into real 8.5×11 pages; and — the
-// reported bug — in page mode a long bullet list must NEVER render text in the
-// dark gutter between page sheets (a list used to flow across as one atomic
-// block). Driven via ?docqa=1 (window.__soleilDocTest).
+// breaks); the "Pages" toolbar pill (the look's ⋯ › Layout) opts into real
+// 8.5×11 pages; and — the reported bug — in page mode a long bullet list must
+// NEVER render text in the dark gutter between page sheets (a list used to
+// flow across as one atomic block). Driven via ?docqa=1 (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
+import { expectLayoutShown, setPaged } from './helpers/docFrame.js';
 
 async function openDoc(page) {
   await page.goto('/?docqa=1');
@@ -13,7 +14,6 @@ async function openDoc(page) {
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
 }
 
-const pillSel = '.doc-card-modal .doc-tb-pages-toggle';
 const sheetSel = '.doc-card-modal .doc-page-sheet';
 const gapSel = '.doc-card-modal .doc-page-gap';
 
@@ -31,10 +31,8 @@ test('prose docs are pageless by default — no page sheets or gutters', async (
   expect(await readPageless(page)).toBe(true);
   await expect(page.locator(sheetSel)).toHaveCount(0);
   await expect(page.locator(gapSel)).toHaveCount(0);
-  // The "Pages" pill exists (prose mode) but is inactive.
-  const pill = page.locator(pillSel);
-  await expect(pill).toBeVisible();
-  await expect(pill).not.toHaveClass(/is-active/);
+  // The layout control (the Pages pill, the look's ⋯ › Layout) says pageless.
+  await expectLayoutShown(page.locator('.doc-card-modal'), false);
 });
 
 test('pageless: the sheet grows with content — text never spills off the page', async ({ page }) => {
@@ -58,23 +56,23 @@ test('pageless: the sheet grows with content — text never spills off the page'
 
 test('the Pages pill switches to a paged layout and persists in docMeta', async ({ page }) => {
   await openDoc(page);
-  const pill = page.locator(pillSel);
+  const modal = page.locator('.doc-card-modal');
 
-  // Turn ON pages → white page sheets appear, pill activates, flag persists.
-  await pill.click();
+  // Turn ON pages → white page sheets appear, the control says so, the flag persists.
+  await setPaged(modal, true);
   await expect(page.locator(sheetSel).first()).toBeVisible({ timeout: 6000 });
-  await expect(page.locator(pillSel)).toHaveClass(/is-active/);
+  await expectLayoutShown(modal, true);
   expect(await readPageless(page)).toBe(false);
 
   // Turn it back OFF → continuous again, no sheets.
-  await page.locator(pillSel).click();
+  await setPaged(modal, false);
   await expect(page.locator(sheetSel)).toHaveCount(0, { timeout: 6000 });
   expect(await readPageless(page)).toBe(true);
 });
 
 test('page mode: a multi-page single paragraph keeps its breaks stable (no phantom gap re-measure)', async ({ page }) => {
   await openDoc(page);
-  await page.locator(pillSel).click();
+  await setPaged(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-card-modal .doc-pages-bg')).toBeVisible({ timeout: 6000 });
 
   // ONE giant paragraph spanning several pages: its mid-block breaks render
@@ -138,7 +136,7 @@ test('page mode: a long bullet list never renders text in the page gutters', asy
   await openDoc(page);
 
   // Switch to real pages and wait for the flow model to mount.
-  await page.locator(pillSel).click();
+  await setPaged(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-card-modal .doc-pages-bg')).toBeVisible({ timeout: 6000 });
 
   // A bulleted outline tall enough to span several pages — the exact shape that

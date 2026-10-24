@@ -2,6 +2,393 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-24": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Documents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Documents"
+    }
+   ],
+   "id": "2026-10-24-documents"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A new document opens straight away with its title selected: type a name, press "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": ", and you're writing. An empty one offers "
+     },
+     {
+      "t": "strong",
+      "v": "A screenplay",
+      "children": [
+       {
+        "t": "text",
+        "v": "A screenplay"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Import a script",
+      "children": [
+       {
+        "t": "text",
+        "v": "Import a script"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " under its "
+     },
+     {
+      "t": "strong",
+      "v": "Start writing…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Start writing…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". On the board, an empty document's card says "
+     },
+     {
+      "t": "strong",
+      "v": "Empty",
+      "children": [
+       {
+        "t": "text",
+        "v": "Empty"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and offers "
+     },
+     {
+      "t": "strong",
+      "v": "Start writing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Start writing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "; one with words shows its first lines, with "
+     },
+     {
+      "t": "strong",
+      "v": "Beside",
+      "children": [
+       {
+        "t": "text",
+        "v": "Beside"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "One row of tools over the page, with the rest under "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". As the window narrows, the tools you use least fold into "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " first, so the row never breaks onto a second line. A screenplay has its own shorter row, with its elements in the side panel."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Comments",
+      "children": [
+       {
+        "t": "text",
+        "v": "Comments"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the header opens a side panel with every comment in the document, resolved ones too, filtered by "
+     },
+     {
+      "t": "strong",
+      "v": "All",
+      "children": [
+       {
+        "t": "text",
+        "v": "All"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Resolved",
+      "children": [
+       {
+        "t": "text",
+        "v": "Resolved"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". You can reply, resolve, reopen and delete there, and a resolved thread's words read as plain text again."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Find and replace searches every page at once and lists the hits page by page. "
+     },
+     {
+      "t": "strong",
+      "v": "Replace all",
+      "children": [
+       {
+        "t": "text",
+        "v": "Replace all"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " says how many it changed, on how many pages, and one "
+     },
+     {
+      "t": "strong",
+      "v": "Undo",
+      "children": [
+       {
+        "t": "text",
+        "v": "Undo"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " takes them all back."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Tables grow: from a bar over a table's corner, add or delete rows and columns, turn the header row on and off, or delete the table."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Someone with view access keeps Find, the zoom and Export, and can read every comment."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The footer says whether your changes are saved and gives the word count. In a screenplay it gives the page you're on, out of how many, and the number of scenes. A screenplay's Export lists PDF first."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone the tools ride on the keyboard while you write, and on a tablet they're finger-sized. See "
+     },
+     {
+      "t": "link",
+      "v": "documents",
+      "href": "/docs/documents",
+      "children": [
+       {
+        "t": "text",
+        "v": "documents"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Also",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Also"
+    }
+   ],
+   "id": "2026-10-24-also"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Typing right after you place a note goes into the note. The first keys used to be lost, or taken as shortcuts."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Right-click menus work from the keyboard: "
+     },
+     {
+      "t": "code",
+      "v": "↑"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "↓"
+     },
+     {
+      "t": "text",
+      "v": " move through them, "
+     },
+     {
+      "t": "code",
+      "v": "→"
+     },
+     {
+      "t": "text",
+      "v": " opens a submenu and "
+     },
+     {
+      "t": "code",
+      "v": "←"
+     },
+     {
+      "t": "text",
+      "v": " closes it, and a screen reader hears which rows open one."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "Esc"
+     },
+     {
+      "t": "text",
+      "v": " cancels a PDF that's still loading."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Writing in a grid's box near the edge of the board no longer pushes the tool rail and the bars on the board out of place."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A card added right after another no longer plays its pop-in again later."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Once your sign-in code is accepted, the app is already running, so the board shows sooner on a slow phone."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-22": [
   {
    "type": "heading",

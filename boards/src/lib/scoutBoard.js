@@ -22,7 +22,7 @@ import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
-import { bytesToB64, b64ToBytes, cardToYMap, readCards } from './yhelpers.js';
+import { bytesToB64, b64ToBytes, cardToYMap, readCards, writeCardFields } from './yhelpers.js';
 import { buildCardIndexRows, stampCard } from '../../scripts/lib/cardEncode.mjs';
 import { scoutSelect, scoutInsert, scoutRpc, scoutPatch, scoutDelete } from './scoutDb.js';
 import { PARTY_HOST } from './partyHost.js';
@@ -947,6 +947,14 @@ export async function moveCardsBetweenBoards(env, {
 // with a null wherever the card did not exist.
 // requireLive (the sidebar's routes): refuse before writing unless the room is
 // live, and write board_state and card_index only once it confirms the change.
+// Apply one card's patch in place. A card whose value is not a Y.Map (a legacy
+// plain object) cannot be written key by key, so that one is rebuilt whole.
+function writeCard(cards, card, fields) {
+  const ym = cards.get(String(card.id));
+  if (ym && typeof ym.set === 'function' && typeof ym.get === 'function') writeCardFields(ym, fields);
+  else cards.set(String(card.id), cardToYMap(card));
+}
+
 export async function updateCardsOnBoard(env, {
   boardId, workspaceId, userId, accessToken, patches, requireLive = false,
 }) {
@@ -958,6 +966,7 @@ export async function updateCardsOnBoard(env, {
     const byId = new Map(readCards(board.doc).map((c) => [String(c.id), c]));
     const stamp = new Date().toISOString();
 
+    const fieldsById = new Map();
     const resolved = patches.map(({ cardId, patch }) => {
       const before = byId.get(String(cardId));
       if (!before) return null;
@@ -965,16 +974,20 @@ export async function updateCardsOnBoard(env, {
       // id can never be patched: it is the key in the Y.Map and in card_index,
       // so changing it here would orphan the index row rather than rename it.
       const { id: _ignored, ...safe } = p;
-      return { ...before, ...safe, id: before.id, updatedAt: stamp, updatedBy: userId || null };
+      const fields = { ...safe, updatedAt: stamp, updatedBy: userId || null };
+      fieldsById.set(String(before.id), fields);
+      return { ...before, ...fields, id: before.id };
     });
 
     const changed = resolved.filter(Boolean);
     if (!changed.length) return resolved;
 
     // One transaction, so collaborators see the batch land as a batch rather
-    // than as five hundred separate edits arriving over a second.
+    // than as five hundred separate edits arriving over a second. Fields are
+    // written onto each card's existing Y.Map (writeCardFields), never a
+    // rebuilt one, so a doc or grid card keeps its live nested content.
     const live = await commitDoc(env, boardId, board, () => {
-      for (const c of changed) cards.set(String(c.id), cardToYMap(c));
+      for (const c of changed) writeCard(cards, c, fieldsById.get(String(c.id)));
     }, { confirm: requireLive });
     if (requireLive && !live) throw roomUnavailable('the cluster did not take the change; nothing was changed');
 
@@ -1009,13 +1022,10 @@ export async function updateCardOnBoard(env, {
     // id can never be patched: it is the key in the Y.Map and in card_index, so
     // changing it here would orphan the index row rather than rename anything.
     const { id: _ignored, ...safe } = resolved;
-    const updated = {
-      ...before, ...safe, id: before.id,
-      updatedAt: new Date().toISOString(),
-      updatedBy: userId || null,
-    };
+    const fields = { ...safe, updatedAt: new Date().toISOString(), updatedBy: userId || null };
+    const updated = { ...before, ...fields, id: before.id };
 
-    await commitDoc(env, boardId, board, () => { cards.set(String(cardId), cardToYMap(updated)); });
+    await commitDoc(env, boardId, board, () => { writeCard(cards, updated, fields); });
 
     // card_index is a projection of the card, so rebuild the row from the
     // updated card rather than patching columns by hand — that way a new field

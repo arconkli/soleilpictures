@@ -15,7 +15,7 @@
 //    to be synthesized anyway, crediting whoever exported).
 
 import { expect, test } from '@playwright/test';
-import { setScreenplay } from './helpers/docFrame.js';
+import { exportRow, setScreenplay, setTitlePage } from './helpers/docFrame.js';
 import { createRequire } from 'module';
 import { readFileSync } from 'fs';
 
@@ -44,29 +44,27 @@ async function openScreenplayDoc(page) {
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
   await expect(page.locator('.doc-card-modal')).toBeVisible();
-  await expect(page.locator('.tt-editor').first()).toBeVisible();
+  await expect(page.locator('.tt-editor').first()).toBeVisible({ timeout: 15000 });
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
   await setScreenplay(page.locator('.doc-card-modal'), true);
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
 }
 
+// Export's PDF row: today's Export menu, the look's ⋯ › Export.
 async function exportPdf(page) {
-  await page.locator('.doc-card-modal button[aria-label="Export"]').click();
-  const menu = page.locator('.doc-export-menu');
-  await expect(menu).toBeVisible();
+  const row = await exportRow(page.locator('.doc-card-modal'), 'pdf');
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 15000 }),
-    menu.getByRole('menuitem', { name: 'Export PDF' }).click({ timeout: 4000 }),
+    row.click({ timeout: 4000 }),
   ]);
   return download;
 }
 
-// Is `selector`'s element the actual hit target at its own center (i.e. not
+// Is `locator`'s element the actual hit target at its own center (i.e. not
 // clipped by an ancestor's overflow and not covered by anything)?
-async function isHittable(page, selector) {
-  return page.evaluate((sel) => {
-    const el = document.querySelector(sel);
-    if (!el) return { found: false };
+async function isHittable(locator) {
+  if (!(await locator.count())) return { found: false };
+  return locator.first().evaluate((el) => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return { found: true, hittable: false, reason: 'zero-size', r };
     const cx = Math.round(r.left + r.width / 2);
@@ -78,7 +76,7 @@ async function isHittable(page, selector) {
       inViewport: r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth,
       r: { top: r.top, bottom: r.bottom, height: r.height },
     };
-  }, selector);
+  });
 }
 
 test('the Export menu opens fully (not clipped) and Export PDF adds no title page the writer turned off', async ({ page }) => {
@@ -86,12 +84,11 @@ test('the Export menu opens fully (not clipped) and Export PDF adds no title pag
 
   // Open the menu and prove the "Export PDF" item is a genuine hit target — the
   // whole bug was that it existed in the DOM but was clipped to a sliver.
-  await page.locator('.doc-card-modal button[aria-label="Export"]').click();
-  const menu = page.locator('.doc-export-menu');
-  await expect(menu).toBeVisible();
-  await expect(menu.getByRole('menuitem', { name: 'Export PDF' })).toBeVisible();
+  const pdfRow = await exportRow(page.locator('.doc-card-modal'), 'pdf');
+  await expect(pdfRow).toBeVisible();
+  const menu = pdfRow.locator('xpath=ancestor::*[@role="menu"][1]');
 
-  const hit = await isHittable(page, '.doc-export-menu');
+  const hit = await isHittable(menu);
   expect(hit.found).toBe(true);
   expect(hit.r.height).toBeGreaterThan(40);   // a real multi-row menu, not a sliver
   expect(hit.inViewport).toBe(true);
@@ -107,7 +104,7 @@ test('the Export menu opens fully (not clipped) and Export PDF adds no title pag
   });
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 15000 }),
-    menu.getByRole('menuitem', { name: 'Export PDF' }).click({ timeout: 4000 }),
+    pdfRow.click({ timeout: 4000 }),
   ]);
   expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
 
@@ -122,7 +119,7 @@ test('a configured title page is included in the PDF and names the file', async 
   await openScreenplayDoc(page);
 
   // Turn on the title page and give the screenplay a real title.
-  await page.locator('.doc-tb-titlepage-toggle').click();
+  await setTitlePage(page.locator('.doc-card-modal'), true);
   const titlePage = page.locator('.doc-card-modal .sp-title-page');
   await expect(titlePage).toBeVisible();
   const titleField = titlePage.locator('.sp-tp-title');

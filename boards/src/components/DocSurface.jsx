@@ -12,6 +12,7 @@
 // per board so a refresh reopens the same page.
 
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Selection } from '@tiptap/pm/state';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
@@ -49,8 +50,12 @@ import { openableUrl } from '../lib/openableUrl.js';
 const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
 const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
 const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
+const DocMoreA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocMoreA })));
 const DocCommentsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocCommentsTab })));
 const DocFindTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFindTab })));
+const DocElementsTab = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocElementsTab })));
+const DocStarters = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocStarters })));
+const DocTableBar = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocTableBar })));
 
 const ACTIVE_PAGE_KEY = (boardId) => `soleil.boards.docActivePage.${boardId}`;
 // Where the reader was: { pageId, sheetId, rel, offset, top, at }. `rel` is a
@@ -163,6 +168,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                               // header, whose switches change the page list and the side
                               // panel this surface keeps. Only the look passes one.
                               frame = null,
+                              // The doc look's window renames the card from here: a new doc
+                              // a script was imported into takes the script's title.
+                              onRename = null,
                               onClose }) {
   // ?docqa=1's crash hook: the harness's crash() makes this doc throw the way
   // a real render crash would, so doc-crash.spec can drive the boundary
@@ -596,6 +604,20 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const openFindRef = useRef(openFind);
   openFindRef.current = openFind;
   const openComments = useMemo(() => comments.filter((t) => !t.resolved).length, [comments]);
+  // In the look, a resolved thread's words read as plain text: the panel's
+  // Resolved lists it, and picking its card there lights them. Ids are the
+  // comment keys' (lib/commentKeys.js), so a rule can name them as they are.
+  const resolvedRule = useMemo(() => {
+    const ids = comments.filter((t) => t.resolved && /^[A-Za-z0-9_-]{1,64}$/.test(t.id || ''));
+    return ids.length
+      ? `${ids.map((t) => `.dl-surface .tt-comment[data-comment-id="${t.id}"]`).join(',')}{background:transparent;text-decoration-color:transparent;cursor:text}`
+      : '';
+  }, [comments]);
+  // A phone's ⋯, in the look's header (DocMoreA): open or not, against the
+  // header's button, and whether a key opened it.
+  const [more, setMore] = useState({ open: false, byKey: false });
+  const moreAnchor = useRef(null);
+  useEffect(() => { if (!isPhone) setMore((m) => (m.open ? { open: false, byKey: false } : m)); }, [isPhone]);
   // The thread the panel's Comments has picked (its words lit in the page),
   // and the one just jumped to (its words flashed).
   const [panelThread, setPanelThread] = useState(null);
@@ -622,7 +644,26 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       setMobileRailOpen((o) => !o);
     };
     frame.act.togglePanel = (tab = 'comments') => setPanel((p) => (p.open ? { ...p, open: false } : { open: true, tab }));
-    frame.publish({ railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments });
+    frame.act.toggleMore = (ref, byKey = false) => {
+      moreAnchor.current = ref?.current || null;
+      setMore((m) => ({ open: !m.open, byKey }));
+    };
+    // Enter in the header's title goes on to the text (mockup S-open), at
+    // once: TipTap's focus() waits a frame, and the keys typed straight after
+    // Enter went into the title.
+    frame.act.focusText = () => {
+      const ed = editorRef.current;
+      if (!ed || ed.isDestroyed) return;
+      try {
+        const { state, view } = ed;
+        view.dispatch(state.tr.setSelection(Selection.atStart(state.doc)).scrollIntoView());
+        view.focus();
+      } catch (_) {}
+    };
+    frame.publish({
+      railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments,
+      moreOpen: more.open, showSave: !guestMode,
+    });
   });
   useEffect(() => () => frame?.reset(), [frame]);
   // Embed-board picker — DocPageEditor calls our request fn (which sets a
@@ -1018,10 +1059,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     // (padding write) and yanked the page back to the caret mid-swipe.
     let wasOpen = false;
     let lastPad = '';
+    // The doc look's row over a phone's keyboard asks for its own room too
+    // (--dl-acc-room, docLook.css).
+    const accRoom = () => parseFloat(getComputedStyle(paper).getPropertyValue('--dl-acc-room')) || 0;
     const onVV = () => {
       const occluded = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       const open = occluded > 80;
-      const pad = open ? `${occluded}px` : '';
+      const pad = open ? `${occluded + accRoom()}px` : '';
       if (pad !== lastPad) { paper.style.paddingBottom = pad; lastPad = pad; }
       if (open && !wasOpen) { try { editorRef.current?.commands?.scrollIntoView(); } catch (_) {} }
       wasOpen = open;
@@ -1330,11 +1374,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           {docMode === 'screenplay' ? 'Scenes' : 'Page list'}
         </button>
         )}
-        {/* The doc look's one row (a screenplay keeps today's bar until its
-            own row lands; a reader gets Find, the zoom and Export). */}
-        {!isPublic && lookA && (docMode !== 'screenplay' || !canEdit) && (
-          <Suspense fallback={<div className="dl-cap" aria-hidden="true"><div className="dl-bar-ph" /></div>}>
+        {/* The doc look's one row (a screenplay's is its own, its elements
+            in the side panel; a reader gets Find, the zoom and Export). On a
+            phone it rides on the keyboard, and a reader's is the header's ⋯. */}
+        {!isPublic && lookA && !(isPhone && !canEdit) && (
+          <Suspense fallback={isPhone ? null : <div className="dl-cap" aria-hidden="true"><div className="dl-bar-ph" /></div>}>
             <DocBarA editor={editorRef.current}
+                     phone={isPhone}
                      docName={board.name}
                      ydoc={ydoc}
                      scope={scope}
@@ -1355,10 +1401,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                      onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
                      onZoomReset={resetZoom}
                      canEdit={canEdit}
-                     canExport={allowExport} />
+                     canExport={allowExport}
+                     onOpenElements={() => setPanel({ open: true, tab: 'elements' })} />
           </Suspense>
         )}
-        {!isPublic && !(lookA && (docMode !== 'screenplay' || !canEdit)) && (
+        {!isPublic && !lookA && (
         <DocToolbar editor={editorRef.current}
                     docName={board.name}
                     ydoc={ydoc}
@@ -1440,6 +1487,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                 registerOpenLinkPicker={registerOpenLinkPicker}
                 registerOpenAddComment={registerOpenAddComment}
                 onShowThread={lookA && !isPublic ? showThreadInPanel : null}
+                look={lookA}
                 boards={Object.values(boards || {})}
                 editable={canEdit}
                 isPublic={isPublic}
@@ -1456,6 +1504,22 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           )}
           {/* Pages are now created automatically as content flows (DocPagination).
               The manual "+ New page" sheet button is obsolete in the reflow model. */}
+          {/* An empty doc's other ways in, under its "Start writing…" (the doc
+              look's start, mockup S-open). */}
+          {lookA && canEdit && !guestMode && !isPublic && docMode !== 'screenplay'
+            && pages.length === 1 && sheetIds.length === 1 && editorRef.current && (
+            <Suspense fallback={null}>
+              <DocStarters editor={editorRef.current} paperRef={paperRef} ydoc={ydoc} scope={scope}
+                           pageId={activePageId} onScreenplay={toggleScreenplay} onRename={onRename} />
+            </Suspense>
+          )}
+          {/* A table's own bar, with the caret in one (the doc look's, mockup
+              G-table). */}
+          {lookA && canEdit && !isPublic && editorRef.current && (
+            <Suspense fallback={null}>
+              <DocTableBar editor={editorRef.current} paperRef={paperRef} />
+            </Suspense>
+          )}
         </div>
         {/* Save state is reported per HOST board (yboard persists the board
             that holds the doc); board.id here is the doc card's id. In the
@@ -1471,9 +1535,14 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           <DocSidePanel tab={panel.tab} onTab={(tab) => setPanel((p) => ({ ...p, tab }))}
                         sheet={panelSheet} onClose={closePanel}
                         host={panelSheet ? rootRef.current?.closest('.doc-card-modal') || null : null}
-                        screenplay={docMode === 'screenplay'} openComments={openComments}
+                        screenplay={docMode === 'screenplay' && canEdit} openComments={openComments}
                         onEscape={() => { try { editorRef.current?.commands.focus(); } catch (_) {} }}>
             {{
+              elements: (
+                <DocElementsTab editor={editorRef.current}
+                                titlePage={titlePage.enabled} onToggleTitlePage={toggleTitlePage}
+                                sceneNumbers={sceneNumbersShow} onSetSceneNumbers={onSetSceneNumbersShow} />
+              ),
               comments: (
                 <DocCommentsTab ydoc={ydoc} scope={scope} threads={comments}
                                 editor={editorRef.current} currentUser={currentUser}
@@ -1496,17 +1565,40 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {/* The picked thread's words lit in the page, and the one jumped to
           flashed: a rule on the mark's id, since ProseMirror owns the spans
           and redraws over a class put on one. Ids are the comment keys'
-          (lib/commentKeys.js), so nothing in one needs escaping. */}
+          (lib/commentKeys.js), so nothing in one needs escaping. Resolved
+          threads' words first, so a picked one's card still lights them. */}
+      {lookA && resolvedRule && <style>{resolvedRule}</style>}
       {panelOpen && panel.tab === 'comments' && /^[A-Za-z0-9_-]{1,64}$/.test(panelThread || '') && (
         <style>{`.dl-surface .tt-comment[data-comment-id="${panelThread}"]{background:var(--soleil-soft);text-decoration-color:var(--soleil)}`}</style>
       )}
       {flashThread && /^[A-Za-z0-9_-]{1,64}$/.test(flashThread.id) && (
         <style>{`.dl-surface .tt-comment[data-comment-id="${flashThread.id}"]{animation:${flashThread.n % 2 ? 'dl-flash-a' : 'dl-flash-b'} 1.4s ease-out}`}</style>
       )}
-      {lookA && (
+      {/* A phone's ⋯, from the look's header. */}
+      {lookA && isPhone && more.open && (
+        <Suspense fallback={null}>
+          <DocMoreA open byKey={more.byKey} anchorRef={moreAnchor}
+                    onClose={() => setMore({ open: false, byKey: false })}
+                    editor={editorRef.current} docName={board.name} ydoc={ydoc} scope={scope} docMode={docMode}
+                    canEdit={canEdit && !isPublic} canExport={allowExport} isPublic={isPublic}
+                    openComments={openComments}
+                    onOpenComments={isPublic ? null : () => setPanel({ open: true, tab: 'comments' })}
+                    onOpenFind={openFind}
+                    onOpenElements={() => setPanel({ open: true, tab: 'elements' })}
+                    onToggleScreenplay={canEdit && !isPublic ? toggleScreenplay : null}
+                    pageless={pageless} onTogglePageless={onTogglePageless} pagesShownContinuous
+                    zoom={effectiveZoom} fitEligible={fitEligible}
+                    onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
+                    onZoomOut={() => setZoom((z) => z - ZOOM_STEP)}
+                    onZoomReset={resetZoom} />
+        </Suspense>
+      )}
+      {/* On a phone the header's line has the save state, and ⋯ the zoom
+          and the counts. */}
+      {lookA && !isPhone && (
         <Suspense fallback={null}>
           <DocFootA editor={editorRef.current} boardId={scope?.boardId || (scope ? null : board.id)}
-                    showSave={!guestMode}
+                    showSave={!guestMode} screenplay={docMode === 'screenplay'}
                     zoom={effectiveZoom} fitMode={fitMode} fitEligible={fitEligible}
                     onZoom={(z) => setZoom(z)}
                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}

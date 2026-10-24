@@ -1,31 +1,41 @@
 // looks.test.mjs — the toolbar look and the doc editor's look (the owner's
-// picks of 2026-10-21) each have one switch, held to a dev opt-in while they
-// are built; main.jsx alone reads the switches and marks <html>, and markup
-// asks lib/looks.js, which reads the marks. Plus the two helpers every bar in
-// the new look uses: a shortcut's keys as caps, and a control's tooltip.
+// picks of 2026-10-21) each have one switch, held (open on the preview,
+// opt-in on dev) until the release that ships the look, then on everywhere,
+// with a dev opt-out for the specs that still pin today's look (the doc
+// look's shipped 2026-10-24); main.jsx alone reads the switches and marks
+// <html>, and markup asks lib/looks.js, which reads the marks. Plus the two
+// helpers every bar in the new look uses: a shortcut's keys as caps, and a
+// control's tooltip.
 //
 //   node --test src/lib/looks.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { keyCaps, tip, tlTip, toolbarLook, docLook } from './looks.js';
+import { keyCaps, shortcutAria, shortcutCaps, tip, tlTip, toolbarLook, docLook } from './looks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
-for (const [fn, flag, key] of [
-  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook'],
-  ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook'],
+for (const [fn, flag, key, shipped] of [
+  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook', false],
+  ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook', true],
 ]) {
-  test(`${fn} is closed outside dev, and opt-in there`, () => {
+  test(shipped ? `${fn} is on everywhere, and on dev unless the hold says '0'`
+    : `${fn} is open on the preview, closed on production, and opt-in on dev`, () => {
     const body = holdBody(fn);
-    assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
-    assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) === '1'`));
-    // Not on the preview yet: it opens there once the owner can try it.
-    assert.doesNotMatch(body, /onPreviewHost/);
+    if (shipped) {
+      assert.match(body, /^\s*if \(!import\.meta\.env\.DEV\) return true;\n/);
+      // A storage that throws (a private window) leaves it on as well.
+      assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) !== '0'; \\} catch \\(_\\) \\{ return true; \\}`));
+      assert.doesNotMatch(body, /onPreviewHost|return false/);
+    } else {
+      // On the preview, where the owner tries it, ahead of everything else.
+      assert.match(body, /^\s*if \(onPreviewHost\(\)\) return true;\n\s*if \(!import\.meta\.env\.DEV\) return false;/);
+      assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) === '1'`));
+    }
     assert.match(read('lib/appHost.js'), new RegExp(`^\\s*${key}: ${fn},$`, 'm'));
   });
 }
@@ -35,6 +45,24 @@ test('main.jsx marks <html> from the switches, before anything renders', () => {
   assert.match(main, /if \(toolbarLookAllowed\(\)\) document\.documentElement\.dataset\.tb = 'a';/);
   assert.match(main, /if \(docLookAllowed\(\)\) document\.documentElement\.dataset\.docLook = 'a';/);
   assert.ok(main.indexOf("dataset.tb = 'a'") < main.indexOf('createRoot('), 'marked before the first render');
+});
+
+// The bars the app already has wear the toolbar look from styles/toolbarLook.css,
+// a file of its own that only the look loads: never in the entry's CSS, so the
+// held look costs today's look nothing.
+test('main.jsx alone loads toolbarLook.css, and only under the look', () => {
+  const main = read('main.jsx');
+  assert.match(main, /if \(toolbarLookAllowed\(\)\) import\('\.\/styles\/toolbarLook\.css'\)/);
+  const statics = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(path.join(here, '..', dir), { withFileTypes: true })) {
+      const rel = path.join(dir, e.name);
+      if (e.isDirectory()) walk(rel);
+      else if (/\.(jsx?|mjs|css)$/.test(e.name) && /^\s*(import|@import)\s[^;]*toolbarLook\.css/m.test(read(rel))) statics.push(rel);
+    }
+  };
+  walk('.');
+  assert.deepEqual(statics, []);
 });
 
 test('only main.jsx asks the switches', () => {
@@ -65,6 +93,41 @@ test('a shortcut as caps, a Mac\'s symbols or the words elsewhere', () => {
   assert.deepEqual(keyCaps('Mod+Shift+Z Mod+Y', false), ['Ctrl', 'Shift', 'Z']);
   assert.deepEqual(keyCaps('', true), []);
   assert.deepEqual(keyCaps(null, true), []);
+});
+
+// The right-click menus write a row's shortcut for the eye, as the platform
+// does ("⌘D", "Ctrl+D", "⌫"): in the look it's a cap per key, and the row's
+// aria-keyshortcuts says it to a screen reader instead of its name.
+test('a menu row\'s written shortcut as caps, one a key', () => {
+  assert.deepEqual(shortcutCaps('⌘D'), ['⌘', 'D']);
+  assert.deepEqual(shortcutCaps('⌘⇧D'), ['⌘', '⇧', 'D']);
+  assert.deepEqual(shortcutCaps('Ctrl+D'), ['Ctrl', 'D']);
+  assert.deepEqual(shortcutCaps('Ctrl+Shift+D'), ['Ctrl', 'Shift', 'D']);
+  assert.deepEqual(shortcutCaps('⌘0'), ['⌘', '0']);
+  assert.deepEqual(shortcutCaps('Ctrl++'), ['Ctrl', '+']);
+  assert.deepEqual(shortcutCaps('⌘+'), ['⌘', '+']);
+  assert.deepEqual(shortcutCaps('⌫'), ['⌫']);
+  assert.deepEqual(shortcutCaps('F2'), ['F2']);
+  assert.deepEqual(shortcutCaps('Space'), ['Space']);
+  assert.deepEqual(shortcutCaps(''), []);
+  assert.deepEqual(shortcutCaps(null), []);
+});
+
+test('…and in aria-keyshortcuts\' words', () => {
+  assert.equal(shortcutAria('⌘D'), 'Meta+D');
+  assert.equal(shortcutAria('⌘⇧D'), 'Meta+Shift+D');
+  assert.equal(shortcutAria('⌥⌘M'), 'Alt+Meta+M');
+  assert.equal(shortcutAria('Ctrl+D'), 'Control+D');
+  assert.equal(shortcutAria('Ctrl+Shift+D'), 'Control+Shift+D');
+  assert.equal(shortcutAria('⌘+'), 'Meta++');
+  assert.equal(shortcutAria('⌫'), 'Backspace');
+  assert.equal(shortcutAria('⌦'), 'Delete');
+  assert.equal(shortcutAria('Del'), 'Delete');
+  assert.equal(shortcutAria('Esc'), 'Escape');
+  assert.equal(shortcutAria('↩'), 'Enter');
+  assert.equal(shortcutAria('F2'), 'F2');
+  assert.equal(shortcutAria('Space'), 'Space');
+  assert.equal(shortcutAria(''), '');
 });
 
 test('a tooltip in the new look is the host\'s, words and keys', () => {

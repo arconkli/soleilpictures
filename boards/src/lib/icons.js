@@ -49,6 +49,15 @@ export {
   TextAlignCenter as AlignCenter,
   TextAlignRight as AlignRight,
   TextAlignJustify as AlignJustify,
+  // Cards lined up along an edge, and spread evenly (the selection's Align).
+  AlignLeft as AlignCardsLeft,
+  AlignCenterHorizontal as AlignCardsCenter,
+  AlignRight as AlignCardsRight,
+  AlignTop as AlignCardsTop,
+  AlignCenterVertical as AlignCardsMiddle,
+  AlignBottom as AlignCardsBottom,
+  ArrowsOutLineHorizontal as DistributeAcross,
+  ArrowsOutLineVertical as DistributeDown,
   ListNumbers as ListOrdered,
   Quotes as Quote,
   Code,
@@ -212,4 +221,17 @@ export {
   Printer,
   HighlighterCircle,
   MagnifyingGlassPlus,
+  // A doc table's bar (components/doc/DocTableBar.jsx).
+  Rows,
+  RowsPlusTop,
+  RowsPlusBottom,
+  ColumnsPlusLeft,
+  ColumnsPlusRight,
+  // The canvas's tool bars in the toolbar look (components/toolbar/CanvasBarsA.jsx).
+  PenNib,
+  Lasso,
+  HandPointing,
+  LineSegment,
+  // The sketch pad's layers in the toolbar look (components/SketchPadOverlay.jsx).
+  Stack,
 } from '@phosphor-icons/react';

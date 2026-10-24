@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDismissOnOutside } from './useDismissOnOutside.js';
 import { placeAnchored } from '../lib/anchoredPlacement.js';
+import { visibleWindow } from '../lib/keyboardInset.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { topModal } from '../lib/modalGuard.js';
 
@@ -9,9 +10,11 @@ import { topModal } from '../lib/modalGuard.js';
 // each did this by hand, and each left something out. All of it, once:
 //
 //  - Placed by lib/anchoredPlacement: the side asked for when it fits, else
-//    the roomier one, kept on screen, a long list capped and scrolling. And
+//    the roomier one, kept on screen, a long list capped and scrolling, and
+//    over an on-screen keyboard, not under it (lib/keyboardInset). And
 //    placed again when anything scrolls or the window resizes (a bar that
-//    scrolls sideways takes its button with it) or the panel's size changes.
+//    scrolls sideways takes its button with it), the keyboard comes or goes,
+//    or the panel's size changes.
 //  - A press outside both the control and the panel closes it
 //    (useDismissOnOutside).
 //  - Escape closes it and goes no further. A bar keeps the caret in the note
@@ -65,8 +68,7 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
         width: Math.max(el.offsetWidth, minWidth || 0),
         height: fitHeight ? el.scrollHeight : el.offsetHeight,
       };
-      const p = placeAnchored(r, size, { width: window.innerWidth, height: window.innerHeight },
-        { side, align, gap, pad, fitHeight });
+      const p = placeAnchored(r, size, visibleWindow(window), { side, align, gap, pad, fitHeight });
       setPlaced((prev) => (prev && prev.top === p.top && prev.left === p.left && prev.side === p.side
         && prev.maxHeight === p.maxHeight && prev.minWidth === minWidth ? prev : { ...p, minWidth }));
     };
@@ -75,12 +77,15 @@ export function useAnchoredPopover({ open, onClose, anchorRef, side = 'below', a
     const raf = requestAnimationFrame(place);
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', place);
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     if (ro && popRef.current) ro.observe(popRef.current);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
+      vv?.removeEventListener('resize', place);
       ro?.disconnect();
     };
   }, [open, anchorRef, side, align, gap, pad, fitHeight, matchWidth]);

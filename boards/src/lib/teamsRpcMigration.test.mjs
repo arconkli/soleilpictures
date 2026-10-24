@@ -1,16 +1,20 @@
-// 0532/0533: the team RPCs and the reads the Team page renders, pinned at
-// the source (the latest migration definition). Who may call what, where the
-// seat lock sits, what a member can never read, and the security audit's
-// additions (the link table, inbox proof, offboarding, token-checked domain
-// verification). teamsMigration.test.mjs pins 0522–0531.
+// 0532–0535: the team RPCs (three files, each small enough for one MCP call)
+// and the reads the Team page renders, pinned at the source (the latest
+// migration definition). Who may call what, where the seat lock sits, what a
+// member can never read, and the security audit's additions (the link table,
+// inbox proof, offboarding, token-checked domain verification).
+// teamsMigration.test.mjs pins 0522–0531.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { latestDefinition, definitionsOf, MIGRATIONS_DIR } from './migrationText.mjs';
 
-const RPCS = '0532_teams_rpcs.sql';
-const READ = '0533_teams_read.sql';
+const CORE = '0532_teams_rpcs.sql';       // a team and its workspaces, and the shared internals
+const PEOPLE = '0533_teams_people.sql';   // people and seats
+const JOINING = '0534_teams_joining.sql'; // the team link, company domains, requests
+const RPCS = [CORE, PEOPLE, JOINING];
+const READ = '0535_teams_read.sql';
 const fileText = (f) => readFileSync(join(MIGRATIONS_DIR, f), 'utf8');
 const code = (s) => s.replace(/--[^\n]*/g, '');   // comments are not wiring
 const def = (fn) => {
@@ -19,6 +23,7 @@ const def = (fn) => {
   return d;
 };
 const body = (fn) => code(def(fn).body);
+const allRpcs = () => RPCS.map(fileText).join('\n');
 
 // Client RPCs and their exact grant signatures.
 const CLIENT = {
@@ -75,11 +80,27 @@ const ADMIN_GATED = [
   'set_team_when_full', 'set_team_seat_perk', 'set_team_link', 'reset_team_link', 'add_team_domain',
   'set_team_domain_on', 'remove_team_domain', 'approve_team_request', 'keep_team_request_viewer',
 ];
+// Which file defines what: each applies, and proves its own grants, alone.
+const PART = {
+  [CORE]: ['_team_person_name', '_team_notify', '_team_event', '_workspace_set_owner', '_org_move_in',
+           '_tg_workspace_member_email', 'create_team', 'rename_team', 'create_team_workspace',
+           'preview_move_into_team', 'move_workspace_into_team', 'move_workspace_out_of_team',
+           'set_team_workspace_private', 'close_team'],
+  [PEOPLE]: ['_team_seat_for', '_org_remove_person', 'invite_to_team', 'revoke_team_invite', 'accept_team_invite',
+             'claim_my_team_invites', 'set_team_role', 'remove_from_team', 'leave_team', 'add_team_seats',
+             'remove_team_seat', 'set_team_when_full', 'set_team_seat_perk'],
+  [JOINING]: ['_team_link_live', '_team_link_make', 'set_team_link', 'reset_team_link', 'peek_team_link',
+              'claim_team_link', '_team_norm_domain', 'add_team_domain', 'set_team_domain_on', 'remove_team_domain',
+              'team_domain_mark_verified', 'my_team_offers', 'answer_team_offer', 'ask_team_for_edit',
+              'approve_team_request', 'keep_team_request_viewer'],
+};
+const fileOf = (fn) => RPCS.find((f) => PART[f].includes(fn));
 
-test('both files are written, not applied, and end in one transaction with a grant proof', () => {
-  for (const f of [RPCS, READ]) {
+test('every file is applied on the owner\'s go, fits one MCP call, and ends in one transaction with a grant proof', () => {
+  for (const f of [...RPCS, READ]) {
     const sql = fileText(f);
-    assert.match(sql, /STATUS: written 2026-10-22\. NOT APPLIED until the owner says go\./, `${f}: header`);
+    assert.ok(sql.length <= 45000, `${f}: ${sql.length} characters, more than one MCP call takes (45k)`);
+    assert.match(sql, /STATUS: written 2026-10-22\. Applied 2026-10-22 \(owner's go\), teams closed\./, `${f}: header`);
     assert.match(sql, /^begin;$/m, `${f}: begin`);
     assert.match(sql, /commit;\s*$/, `${f}: commit`);
     assert.match(sql, /has_function_privilege\('anon'/, `${f}: proves anon`);
@@ -90,32 +111,44 @@ test('both files are written, not applied, and end in one transaction with a gra
 });
 
 test('every function lives in its file, once (no overloads, PGRST203)', () => {
-  for (const fn of Object.keys({ ...CLIENT, ...INTERNAL })) {
-    assert.equal(def(fn).file, RPCS, `${fn}'s latest definition must be 0532`);
-    assert.equal(definitionsOf(fn).filter((d) => d.file >= '0522').length, 1, `${fn} is defined once in 0522+`);
+  const named = Object.values(PART).flat();
+  assert.deepEqual([...named].sort(), [...Object.keys({ ...CLIENT, ...INTERNAL }), 'team_domain_mark_verified'].sort(),
+    'every RPC and helper has exactly one file');
+  for (const f of RPCS)
+    assert.deepEqual([...code(fileText(f)).matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort(),
+      [...PART[f]].sort(), `${f} defines exactly its share`);
+  // S2b re-emits one helper, team-aware (pinned in teamsPayMigration.test.mjs);
+  // S3 closes create_team, a team starting at checkout (teamsBillingMigration.test.mjs).
+  const LATER = { _workspace_set_owner: '0536_teams_pay_meters.sql', create_team: '0538_teams_billing.sql' };
+  for (const fn of named) {
+    assert.equal(def(fn).file, LATER[fn] || fileOf(fn), `${fn}'s latest definition must be ${LATER[fn] || fileOf(fn)}`);
+    assert.equal(definitionsOf(fn).filter((d) => d.file >= '0522' && d.file < '0536').length, 1, `${fn} is defined once in 0522–0535`);
   }
   for (const fn of Object.keys(READS)) {
-    assert.equal(def(fn).file, READ, `${fn}'s latest definition must be 0533`);
+    assert.equal(def(fn).file, READ, `${fn}'s latest definition must be 0535`);
     assert.equal(definitionsOf(fn).length, 1, `${fn} is defined once`);
   }
 });
 
 test('client RPCs: signed-in only; the link preview also signed out; helpers and the Worker call are not client-callable', () => {
-  const rpcs = fileText(RPCS);
+  // Each grant sits in the file that defines the function, so each file applies alone.
+  const own = (fn) => fileText(fileOf(fn));
   for (const [fn, sig] of Object.entries(CLIENT)) {
-    assert.ok(rpcs.includes(`revoke execute on function public.${fn}(${sig}) from public, anon;`), `${fn}: revoke`);
-    assert.ok(rpcs.includes(`grant execute on function public.${fn}(${sig}) to authenticated;`), `${fn}: grant`);
+    assert.ok(own(fn).includes(`revoke execute on function public.${fn}(${sig}) from public, anon;`), `${fn}: revoke`);
+    assert.ok(own(fn).includes(`grant execute on function public.${fn}(${sig}) to authenticated;`), `${fn}: grant`);
   }
-  assert.ok(rpcs.includes('grant execute on function public.peek_team_link(uuid) to anon;'));
+  assert.ok(own('peek_team_link').includes('grant execute on function public.peek_team_link(uuid) to anon;'));
+  const rpcs = allRpcs();
   for (const fn of Object.keys(CLIENT)) {
     if (fn === 'peek_team_link') continue;
     assert.ok(!rpcs.includes(`function public.${fn}(${CLIENT[fn]}) to anon`), `${fn} must not reach anon`);
   }
   for (const [fn, sig] of Object.entries(INTERNAL))
-    assert.ok(rpcs.includes(`revoke execute on function public.${fn}(${sig}) from public, anon, authenticated;`), `${fn}: revoke`);
-  assert.ok(rpcs.includes('revoke execute on function public.team_domain_mark_verified(uuid, text, boolean, text) from public, anon, authenticated;'));
-  assert.ok(rpcs.includes("'public.team_domain_mark_verified(uuid,text,boolean,text)'"), 'the proof covers the Worker call');
-  assert.match(rpcs, /has_function_privilege\('service_role', 'public\.team_domain_mark_verified/);
+    assert.ok(own(fn).includes(`revoke execute on function public.${fn}(${sig}) from public, anon, authenticated;`), `${fn}: revoke`);
+  const worker = own('team_domain_mark_verified');
+  assert.ok(worker.includes('revoke execute on function public.team_domain_mark_verified(uuid, text, boolean, text) from public, anon, authenticated;'));
+  assert.ok(worker.includes("'public.team_domain_mark_verified(uuid,text,boolean,text)'"), 'the proof covers the Worker call');
+  assert.match(worker, /has_function_privilege\('service_role', 'public\.team_domain_mark_verified/);
   const read = fileText(READ);
   for (const [fn, sig] of Object.entries(READS)) {
     assert.ok(read.includes(`revoke execute on function public.${fn}(${sig}) from public, anon;`), `${fn}: revoke`);
@@ -123,9 +156,28 @@ test('client RPCs: signed-in only; the link preview also signed out; helpers and
   }
 });
 
+test('each file proves its own share, and requires live what it calls from before it', () => {
+  for (const f of RPCS) {
+    const sql = fileText(f);
+    const at = sql.lastIndexOf('do $$');
+    const proof = sql.slice(at);
+    const calls = code(sql.slice(0, at));
+    for (const fn of PART[f]) {
+      assert.match(proof, new RegExp(`'public\\.${fn}\\(`), `${f}: the proof checks ${fn}'s grants`);
+      assert.ok(proof.includes(`'${fn}'`), `${f}: the overload check names ${fn}`);
+    }
+    // The security session's helpers, and an earlier file's internals: required exactly when called.
+    const before = RPCS.slice(0, RPCS.indexOf(f)).flatMap((g) => PART[g].filter((fn) => fn.startsWith('_')));
+    for (const fn of ['_session_proves_inbox', '_offboard_member', ...before])
+      assert.equal(proof.includes(`'public.${fn}(`), calls.includes(`public.${fn}(`), `${f}: requires ${fn} live exactly when it calls it`);
+    assert.match(proof, /if to_regprocedure\(v_fn\) is null then/, `${f}: a missing requirement stops the apply`);
+  }
+});
+
 test('every client RPC checks the caller is signed in and active, and the right team role', () => {
   for (const fn of [...Object.keys(CLIENT), ...Object.keys(READS)]) {
     if (fn === 'peek_team_link') continue;   // signed out by design; reads only the link
+    if (fn === 'create_team') continue;      // refuses everyone since 0538 (teamsBillingMigration.test.mjs)
     assert.match(body(fn), /(?:auth\.uid\(\)|v_uid) is null or not public\._actor_active\(\)/, `${fn}: signed in and active`);
   }
   for (const fn of ADMIN_GATED) {
@@ -145,7 +197,7 @@ test('every client RPC checks the caller is signed in and active, and the right 
 });
 
 const LOCK = "pg_advisory_xact_lock(hashtext('team_seats:' ||";
-const rpcNames = () => [...code(fileText(RPCS)).matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]);
+const rpcNames = () => [...code(allRpcs()).matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]);
 
 test('locks: the team lock comes before every row lock, and what was read before it is read again', () => {
   // A team action that locked a row and then waited for the team lock could
@@ -193,27 +245,20 @@ test('seats: the team lock comes before any seat arithmetic, and the ceiling is 
       if (at >= 0) assert.ok(lock < at, `${fn}: lock before ${call}`);
     }
   }
-  for (const f of [RPCS, READ]) assert.doesNotMatch(code(fileText(f)), /\b100\b/, `${f}: no literal 100 (amendment B)`);
+  for (const f of [...RPCS, READ]) assert.doesNotMatch(code(fileText(f)), /\b100\b/, `${f}: no literal 100 (amendment B)`);
   const add = body('add_team_seats');
   assert.match(add, /if v_seats \+ p_n > v_ceiling then/);
   assert.ok(add.includes("hint = 'team_seats_ceiling'"));
-  const create = body('create_team');
-  assert.match(create, /returning id, seat_ceiling into v_org, v_ceiling;/);
-  assert.match(create, /if p_seats > v_ceiling then/);
-  assert.equal((create.match(/insert into public\.org_seat_changes/g) || []).length, 1, 'create_team: the one create row');
-  assert.ok(create.includes("'create', v_uid)"));
-  assert.doesNotMatch(create, /update public\.organizations/, 'create_team: no other seat write');
-  assert.ok(create.includes("hint = 'team_exists'"));
-  assert.ok(create.includes("pg_advisory_xact_lock(hashtext('team_create:'"), 'one open team per owner, even with two tabs');
+  // create_team's body is _create_team_for's since 0538: pinned there.
   assert.ok(body('remove_team_seat').includes('greatest(3, v_used)'), 'never below 3 or below what is used');
   const seatFor = body('_team_seat_for');
   assert.doesNotMatch(seatFor, /when_full|_team_admit/, "an admin's action never consults the when-full rule");
 });
 
 test('S2a sends no email: invites are stored, and team member rows are quiet', () => {
-  for (const f of [RPCS, READ]) assert.doesNotMatch(code(fileText(f)).replace(/create or replace function public\._tg_workspace_member_email[\s\S]*?\$\$;/, ''), /_notify_email\(/, `${f}: no email`);
+  for (const f of [...RPCS, READ]) assert.doesNotMatch(code(fileText(f)).replace(/create or replace function public\._tg_workspace_member_email[\s\S]*?\$\$;/, ''), /_notify_email\(/, `${f}: no email`);
   const t = def('_tg_workspace_member_email');
-  assert.equal(t.file, RPCS);
+  assert.equal(t.file, CORE);
   for (const s of ["new.role = 'service'", "current_setting('soleil.ws_link_join', true) = '1'",
                    "current_setting('soleil.quiet_member_email', true) = '1'"])
     assert.ok(t.body.includes(s), `the member email trigger keeps ${s}`);
@@ -232,11 +277,11 @@ test('workspaces: a team workspace is born with one root, and nothing else write
   assert.match(c, /values \(coalesce\(nullif\(btrim\(p_name\), ''\), 'Workspace'\), v_owner, p_org_id,/, 'created_by is the team owner');
   // 0522–0531 are pinned by teamsMigration.test.mjs (0530's personal-workspace
   // re-emit makes a root of its own).
-  for (const f of [RPCS, READ]) {
+  for (const f of [...RPCS, READ]) {
     const sql = code(fileText(f));
     assert.doesNotMatch(sql, /\bset\s+parent_board_id\b/i, `${f}: no parent_board_id update`);
     const inserts = sql.match(/insert into (?:public\.)?boards \([^)]*parent_board_id/gi) || [];
-    assert.equal(inserts.length, f === RPCS ? 1 : 0, `${f}: only create_team_workspace's root insert`);
+    assert.equal(inserts.length, f === CORE ? 1 : 0, `${f}: only create_team_workspace's root insert`);
   }
   assert.ok(body('_org_move_in').includes('public._ensure_workspace_root(p_ws, p_actor)'));
   assert.ok(body('move_workspace_out_of_team').includes('public._ensure_workspace_root(p_workspace_id, v_to)'));
@@ -265,7 +310,7 @@ test('closing keeps everyone\'s access as explicit rows and never lowers one', (
 });
 
 test('requests: one core from 0531, and asking never grants', () => {
-  for (const f of [RPCS, READ]) {
+  for (const f of [...RPCS, READ]) {
     assert.doesNotMatch(code(fileText(f)), /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?_team_request\s*\(/i,
       `${f} must not define _team_request (amendment D)`);
   }
@@ -283,7 +328,7 @@ test('requests: one core from 0531, and asking never grants', () => {
 });
 
 test('the team link: its own table, live like a workspace link, every join counted', () => {
-  for (const f of [RPCS, READ]) assert.doesNotMatch(code(fileText(f)), /\blink_(token|on|role)\b/, `${f}: the old organizations columns are gone`);
+  for (const f of [...RPCS, READ]) assert.doesNotMatch(code(fileText(f)), /\blink_(token|on|role)\b/, `${f}: the old organizations columns are gone`);
   const live = body('_team_link_live');
   for (const s of ['l.revoked_at is null', 'l.expires_at > now()',
                    '(select count(*) from public.org_invite_link_joins j where j.token = l.token) < l.max_uses',
@@ -347,20 +392,16 @@ test('inbox proof before any invite or domain offer is taken', () => {
   assert.match(body('claim_my_team_invites'), /if not public\._session_proves_inbox\(\) then\s+return 0;/);
   assert.match(body('my_team_offers'), /if not public\._session_proves_inbox\(\) then\s+return;/);
   // A users row proves only that someone typed the address (security session, 2026-10-22).
-  for (const f of [RPCS, READ])
+  for (const f of [...RPCS, READ])
     assert.doesNotMatch(code(fileText(f)), /email_confirmed_at|last_sign_in_at/, `${f}: the inbox proof is the only gate`);
-  for (const f of [RPCS, READ]) {
+  for (const f of [...RPCS, READ]) {
     for (const h of ['_session_proves_inbox', '_offboard_member'])
       assert.doesNotMatch(code(fileText(f)), new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.)?${h}\\s*\\(`, 'i'),
         `${f} must not define ${h} (the security session's)`);
   }
-  // Both are live before 0532 applies, or it doesn't.
-  const rpcs = fileText(RPCS);
-  assert.ok(rpcs.includes("to_regprocedure('public._session_proves_inbox()') is null"));
-  assert.ok(rpcs.includes("to_regprocedure('public._offboard_member(uuid,uuid)') is null"));
   // The domain answers stay with the person: only the offer and its answer
   // read them; leaving or being removed writes 'declined' and reads nothing.
-  for (const [f, allowed] of [[RPCS, ['my_team_offers', 'answer_team_offer', '_org_remove_person']], [READ, []]]) {
+  for (const [f, allowed] of [...RPCS.map((g) => [g, ['my_team_offers', 'answer_team_offer', '_org_remove_person']]), [READ, []]]) {
     const sql = code(fileText(f));
     const fns = [...sql.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]);
     for (const fn of fns) {
@@ -383,7 +424,7 @@ test('invite_to_team: every address gets an invite, and nothing says whether an 
   assert.ok(b.includes("jsonb_build_object('invited', v_invited, 'already', v_already, 'skipped', v_skipped)"));
   assert.ok(b.includes('public._actor_can_send()'), 'an invite waits on the send hold, as a link does');
   assert.match(b, /if v_need > 0 and v_used \+ v_need > v_seats then/, 'a viewer invite never needs a seat');
-  assert.doesNotMatch(code(fileText(RPCS)), /'added'/, "no member row says 'added'");
+  assert.doesNotMatch(code(allRpcs()), /'added'/, "no member row says 'added'");
 });
 
 test('a removal sticks: invites end, no offer, and the link refuses until an admin invites again', () => {
@@ -523,7 +564,7 @@ test('the reads: open teams only, team workspaces without a row, no address anyw
 });
 
 test('every hint the app reads appears in the SQL', () => {
-  const sql = code(fileText(RPCS) + fileText(READ));
+  const sql = code(allRpcs() + fileText(READ));
   for (const h of ['teams_closed', 'team_exists', 'team_seats_full', 'team_seats_ceiling', 'team_seats_ask_admin',
                    'team_seats_needed', 'team_workspace', 'team_owner', 'team_domain_freemail', 'team_domain_taken',
                    'team_domain_invalid', 'team_not_member', 'team_not_admin', 'team_not_owner', 'team_inbox_unproven',

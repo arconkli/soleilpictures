@@ -260,7 +260,8 @@ test.describe('Canvas interaction', () => {
     await go(page);
     const zoomLabel = page.locator('.cnv-zoom-val').first();
     const initial = (await zoomLabel.textContent()).trim();
-    await page.locator('.cnv-zoom button').filter({ hasText: '+' }).click();
+    // By name: the toolbar look draws + as an icon.
+    await page.locator('.cnv-zoom').getByRole('button', { name: 'Zoom in', exact: true }).click();
     const after = (await zoomLabel.textContent()).trim();
     expect(after).not.toBe(initial);
   });

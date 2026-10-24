@@ -47,6 +47,7 @@ import { ensureFontsFromHtml } from '../lib/googleFonts.js';
 import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { startTouchScrollGesture } from '../lib/touchScroll.js';
+import { takeNoteTypeAhead } from '../lib/noteTypeAhead.js';
 import './noteTiptap.css';
 
 const NOTE_AUTOSIZE_MAX = 480;
@@ -57,8 +58,9 @@ const NOTE_AUTOSIZE_MAX = 480;
 // reading that as an exit unmounted the bar that owns it, so the dialog
 // vanished within a frame (NOTES-04). Modal hands focus back to the note when
 // it closes. The toolbar's own popovers (swatches, fonts, size presets) are
-// portaled out of .tob, so they are named too.
-const EDIT_SESSION_UI = '.tob, .tob-pop, .font-pop, .size-combo-pop, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
+// portaled out of .tob, so they are named too, and so are its menus in the
+// toolbar look (.tob-menu, and its size presets' .size-combo-tl).
+const EDIT_SESSION_UI = '.tob, .tob-pop, .tob-menu, .font-pop, .size-combo-pop, .size-combo-tl, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
 const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
 
 // Card height the READ-ONLY note needs when its html carries link previews.
@@ -262,6 +264,18 @@ export function NoteTiptapSurface({
     // focused + collapsed-to-end on entry. (autoFocus prop kept for callers.)
     autofocus: 'end',
     editable: true,
+    // What was typed while a new note waited for this editor (its chunk is
+    // fetched at the session's first edit): the caret is at the end by now.
+    onCreate: ({ editor: ed }) => {
+      const ahead = takeNoteTypeAhead(cardId);
+      if (!ahead) return;
+      const chain = ed.chain().focus('end');
+      ahead.split('\n').forEach((line, i) => {
+        if (i) chain.splitBlock();
+        if (line) chain.insertContent({ type: 'text', text: line });
+      });
+      chain.run();
+    },
     editorProps: {
       // Foreign pastes lose their typography so the note's own font + size
       // hold. See pasteScrub.

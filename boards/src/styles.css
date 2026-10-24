@@ -14296,8 +14296,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 /* De-boxed tables: hairline outline only on top + bottom of the table,
    plus quiet column dividers. No header-cell fill — the header reads as
-   a header via the bottom rule and the bold weight. */
-.tt-editor .tt-table {
+   a header via the bottom rule and the bold weight. A table being edited is
+   Tiptap's own (resizable: a wrapper that scrolls a wide one sideways, and a
+   table without the tt-table class), and looks the same as a reader's. */
+.tt-editor .tableWrapper { overflow-x: auto; }
+.tt-editor .tt-table, .tt-editor .tableWrapper > table {
   border-collapse: collapse;
   margin: 1em 0;
   width: 100%;
@@ -14306,22 +14309,45 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   border-top: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
   border-bottom: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
 }
-.tt-editor .tt-table td, .tt-editor .tt-table th {
+.tt-editor .tt-table td, .tt-editor .tt-table th,
+.tt-editor .tableWrapper td, .tt-editor .tableWrapper th {
   border: 0;
   border-right: 1px solid color-mix(in oklab, var(--soleil) 14%, transparent);
   padding: 6px 9px;
   position: relative;
   vertical-align: top;
 }
-.tt-editor .tt-table td:last-child, .tt-editor .tt-table th:last-child {
+.tt-editor .tt-table td:last-child, .tt-editor .tt-table th:last-child,
+.tt-editor .tableWrapper td:last-child, .tt-editor .tableWrapper th:last-child {
   border-right: 0;
 }
-.tt-editor .tt-table th {
+.tt-editor .tt-table th, .tt-editor .tableWrapper th {
   background: transparent;
   font-weight: 600;
   text-align: left;
   border-bottom: 1px solid color-mix(in oklab, var(--ink-3) 35%, transparent);
 }
+/* Cells dragged across (prosemirror-tables marks them), and the edge a column
+   is widened by, under the pointer. */
+.tt-editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: color-mix(in oklab, var(--soleil) 16%, transparent);
+  pointer-events: none;
+}
+.tt-editor .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: -2px;
+  z-index: 3;
+  width: 4px;
+  background: color-mix(in oklab, var(--soleil) 70%, transparent);
+  pointer-events: none;
+}
+.tt-editor.resize-cursor { cursor: col-resize; }
 .tt-editor mark {
   background: #fff7a8;
   color: #1a1300;
@@ -15660,6 +15686,28 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-card-open.is-active {
   color: var(--soleil); border-color: var(--soleil); background: var(--soleil-soft);
 }
+/* The doc look's closed card (mockup S-card; held, <html data-doc-look="a">):
+   the title in the doc's serif over a hairline, an empty doc's Start writing,
+   and Beside and Open in words. */
+[data-doc-look="a"] .doc-card-title { padding: 14px 16px 11px; border-bottom: 1px solid var(--line-1); font: 700 16px/1.25 ui-serif, Georgia, serif; }
+[data-doc-look="a"] .doc-card-title.is-unnamed { color: var(--ink-3); }
+[data-doc-look="a"] .doc-card-page { padding-top: 12px; }
+[data-doc-look="a"] .doc-card-rule { display: none; }
+[data-doc-look="a"] .doc-card-text { font-size: 12px; line-height: 1.5; color: var(--ink-1); }
+[data-doc-look="a"] .doc-card-foot { min-height: 46px; padding: 0 8px 0 14px; background: none; font-size: 12px; }
+[data-doc-look="a"] .doc-card-tag { padding: 3px 6px; border-radius: 5px; background: none; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-2); font: 700 9.5px/1 var(--font-sans); letter-spacing: .12em; }
+[data-doc-look="a"] .doc-card-meta { color: var(--ink-2); }
+.doc-card-start { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; height: 100%; padding-bottom: 10px; font-family: var(--font-sans); }
+.doc-card-start-hint { font-size: 12px; color: var(--ink-2); }
+.doc-card-start-btn, .doc-card-act {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 10px;
+  background: var(--bg-4); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-0); font: 600 14px/1 var(--font-sans); cursor: pointer;
+}
+.doc-card-act { gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--bg-3); font-size: 12.5px; }
+[data-theme="light"] .doc-card-start-btn { background: #fff; box-shadow: 0 0 0 1px rgba(10,10,12,.1), 0 1px 2px rgba(10,10,12,.08); }
+.doc-card-act.is-active { color: var(--soleil); box-shadow: inset 0 0 0 1px var(--soleil); background: var(--soleil-soft); }
+@media (hover: hover) { .doc-card-start-btn:hover, .doc-card-act:not(.is-active):hover { box-shadow: inset 0 0 0 1px var(--line-3); filter: brightness(1.08); } }
+@media (hover: none) and (pointer: coarse) { .doc-card-act { height: 40px; } }
 
 /* Doc card overlay — three modes:
    .doc-card-modal-full → fullscreen-ish (24px inset on all sides)

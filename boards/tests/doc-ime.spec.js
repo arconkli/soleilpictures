@@ -6,7 +6,7 @@
 // syllable still in the IME: a keydown with isComposing and keyCode 229, then
 // the IME commits the syllable. A real Enter after that is the user's next one.
 import { expect, test } from '@playwright/test';
-import { setScreenplay } from './helpers/docFrame.js';
+import { setScreenplay, setTitlePage, todaysLook } from './helpers/docFrame.js';
 import { korean } from './imeHelpers.js';
 
 test.skip(({ browserName }) => browserName !== 'chromium', 'CDP drives Chromium\'s IME');
@@ -72,7 +72,7 @@ test('a screenplay: Korean scene, action, a cast name with its autocomplete open
 test('a screenplay\'s title page: Enter mid-syllable leaves the title to the IME, the next Enter sets it', async ({ page }) => {
   await openDoc(page);
   await setScreenplay(page.locator('.doc-card-modal'), true);
-  await page.locator('.doc-card-modal .doc-tb-titlepage-toggle').click();
+  await setTitlePage(page.locator('.doc-card-modal'), true);
   const field = page.locator('.doc-card-modal .sp-title-page .sp-tp-title');
   await field.click();
   const before = await bodyText(page);
@@ -87,6 +87,8 @@ test('a screenplay\'s title page: Enter mid-syllable leaves the title to the IME
 });
 
 test('find: Enter mid-syllable doesn\'t jump; the next Enter goes to the next match', async ({ page }) => {
+  // Today's find bar. The look's Find takes Korean in doc-panel-find.spec.js.
+  await todaysLook(page);
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>한글 문서, 한글 노트, 한글 대본</p>'));
   await page.locator('.doc-card-modal .tt-editor').first().click();

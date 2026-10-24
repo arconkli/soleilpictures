@@ -14,9 +14,13 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
-import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } from '../lib/docState.js';
+import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText, readThread } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { ImageUploadPlaceholders, uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
+import { CaretCell } from './docExtensions/CaretCell.js';
+import { docLook } from '../lib/looks.js';
+import { Icon } from './Icon.jsx';
+import { Bold, HighlighterCircle, Italic, Link, Underline } from '../lib/icons.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
@@ -190,7 +194,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // The doc look shows a thread in its side panel: given, a click on commented
   // words (or a thread's margin dot) hands it the thread instead of opening
   // the popover here.
-  onShowThread = null }) {
+  onShowThread = null,
+  // In the doc look (DocSurface's frame), where the selection bubble wears
+  // the look's icons and its on.
+  look = false }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
   // pages). sheetId === pageId also lands on the primary fragment.
@@ -520,7 +527,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     // impossible to hit on touch, so the highlight looked decorative. Checked
     // first: a comment can overlap a link, and the comment is the more
     // specific intent when you click the highlighted run.
-    const commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
+    let commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
+    // In the doc look a resolved thread's words read as plain text (its panel
+    // lists it): the click is for an open thread over them, or for the text.
+    if (onShowThread) {
+      while (commentEl && readThread(ydoc, commentEl.dataset.commentId, scope)?.resolved) {
+        commentEl = commentEl.parentElement?.closest('.tt-comment[data-comment-id]') || null;
+      }
+    }
     if (commentEl && !isPublic) {
       e.preventDefault();
       setLinkHover(null);
@@ -773,6 +787,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       FindHighlightExtension,
       // An image on its way up: where it will land, how far it has got.
       ImageUploadPlaceholders,
+      // The doc look rings the table cell the caret is in (mockup G-table).
+      ...(docLook() ? [CaretCell] : []),
       // BlockHandleExtension removed — per-block drag handles felt
       // too Notion-y; Google-Docs-style flowing prose works better.
       ExtraShortcuts,
@@ -1325,7 +1341,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
       {!isPublic && editable && bubble && (
-        <DocSelectionBubble editor={editor} at={bubble} onLink={() => openLinkPicker(editor)} />
+        <DocSelectionBubble editor={editor} at={bubble} look={look} onLink={() => openLinkPicker(editor)} />
       )}
       <DocTagGutter
         editor={editor}
@@ -1552,8 +1568,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
 // The touch selection bubble. It lights from the editor's state, which it
 // reads for itself (useEditorState): the editor above it no longer re-renders
 // on every transaction, and bolding a selection changes no selection to
-// re-render on.
-function DocSelectionBubble({ editor, at, onLink }) {
+// re-render on. In the doc look its marks are the look's bar's icons
+// (docLook.css), and it sits a little higher, clear of the line.
+function DocSelectionBubble({ editor, at, onLink, look = false }) {
   const lit = useEditorState({
     editor,
     selector: () => ({
@@ -1565,31 +1582,32 @@ function DocSelectionBubble({ editor, at, onLink }) {
   });
   const barRef = useRef(null);
   const onBarKeys = useToolbarRoving(barRef);
+  const mark = (as, today) => (look ? <Icon as={as} size={20} weight="regular" /> : today);
   return (
     <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
          ref={barRef} onKeyDown={onBarKeys}
-         style={{ position: 'fixed', top: Math.max(8, at.top - 46),
+         style={{ position: 'fixed', top: Math.max(8, at.top - (look ? 54 : 46)),
                   left: Math.max(8, Math.min(at.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
                   zIndex: 2147483647 }}>
       <button className={lit.bold ? 'is-active' : ''} aria-label="Bold" aria-pressed={lit.bold}
               aria-keyshortcuts={ariaKeys('Mod+B')}
               onPointerDown={(e) => e.preventDefault()}
-              onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
+              onClick={() => editor.chain().focus().toggleBold().run()}>{mark(Bold, <b>B</b>)}</button>
       <button className={lit.italic ? 'is-active' : ''} aria-label="Italic" aria-pressed={lit.italic}
               aria-keyshortcuts={ariaKeys('Mod+I')}
               onPointerDown={(e) => e.preventDefault()}
-              onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></button>
+              onClick={() => editor.chain().focus().toggleItalic().run()}>{mark(Italic, <i>I</i>)}</button>
       <button className={lit.underline ? 'is-active' : ''} aria-label="Underline" aria-pressed={lit.underline}
               aria-keyshortcuts={ariaKeys('Mod+U')}
               onPointerDown={(e) => e.preventDefault()}
-              onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></button>
+              onClick={() => editor.chain().focus().toggleUnderline().run()}>{mark(Underline, <u>U</u>)}</button>
       <button className={lit.highlight ? 'is-active' : ''} aria-label="Highlight" aria-pressed={lit.highlight}
               aria-keyshortcuts={ariaKeys('Mod+Shift+H')}
               onPointerDown={(e) => e.preventDefault()}
-              onClick={() => editor.chain().focus().toggleHighlight().run()}>H</button>
+              onClick={() => editor.chain().focus().toggleHighlight().run()}>{mark(HighlighterCircle, 'H')}</button>
       <button aria-label="Link" aria-keyshortcuts={ariaKeys('Mod+K')}
               onPointerDown={(e) => e.preventDefault()}
-              onClick={onLink}><LinkIcon /></button>
+              onClick={onLink}>{mark(Link, <LinkIcon />)}</button>
     </div>
   );
 }

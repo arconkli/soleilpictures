@@ -1,4 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
+
+// Today's find bar. The look's Find is in its side panel: doc-panel-find.spec.js.
+test.beforeEach(({ page }) => todaysLook(page));
 
 async function openDocEditor(page) {
   await page.goto('/?docqa=1');

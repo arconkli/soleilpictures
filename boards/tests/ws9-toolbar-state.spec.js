@@ -1,4 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { fontButton, formatButton, sizeField, sizeList, sizeOption, sizePresets, sizeUp } from './helpers/noteBar.js';
+
+// The bar's controls through helpers/noteBar.js, so these pass in the toolbar
+// look too; what's on is aria-pressed in both.
 
 test('note format buttons reflect active state + size picker shows current size', async ({ page }) => {
   await page.goto('/?local=1&reset=1&blank=1');
@@ -9,20 +13,20 @@ test('note format buttons reflect active state + size picker shows current size'
   await page.keyboard.type('hello world');
   await page.keyboard.press('ControlOrMeta+a');
 
-  const boldBtn = page.getByTitle('Bold (⌘B)');
+  const boldBtn = formatButton(page, 'Bold');
   await expect(boldBtn).toBeVisible();
-  await expect(boldBtn).not.toHaveClass(/is-active/);
+  await expect(boldBtn).toHaveAttribute('aria-pressed', 'false');
 
   // Bold → button becomes active; unbold → inactive again.
   await page.keyboard.press('ControlOrMeta+b');
-  await expect(boldBtn).toHaveClass(/is-active/);
+  await expect(boldBtn).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('ControlOrMeta+b');
-  await expect(boldBtn).not.toHaveClass(/is-active/);
+  await expect(boldBtn).toHaveAttribute('aria-pressed', 'false');
 
   // The size combobox reflects the caret's font size instead of the blank
   // "Size" placeholder. (.tob-select was the pre-SizeInput selector — this
   // assertion had rotted into a guaranteed miss.)
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await expect(size).not.toHaveValue('');
 });
 
@@ -52,10 +56,10 @@ test('unbold works on a MIXED selection that starts bold', async ({ page }) => {
   // selection is "bold everything", which silently re-bolded instead
   // ("I un-bold and it's still bold").
   await page.keyboard.press('ControlOrMeta+a');
-  const boldBtn = page.getByTitle('Bold (⌘B)');
-  await expect(boldBtn).toHaveClass(/is-active/);
+  const boldBtn = formatButton(page, 'Bold');
+  await expect(boldBtn).toHaveAttribute('aria-pressed', 'true');
   await boldBtn.click();
-  await expect(boldBtn).not.toHaveClass(/is-active/);
+  await expect(boldBtn).toHaveAttribute('aria-pressed', 'false');
   const html = await body.innerHTML();
   expect(html).not.toMatch(/font-weight:\s*(bold|[6-9]00)|<b[\s>]|<strong/i);
 });
@@ -63,7 +67,7 @@ test('unbold works on a MIXED selection that starts bold', async ({ page }) => {
 test('size combobox reflects a freshly applied selection size', async ({ page }) => {
   await openNoteForEdit(page, 'resize me');
   await page.keyboard.press('ControlOrMeta+a');
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await size.click();
   await size.fill('24');
   await page.keyboard.press('Enter');
@@ -76,7 +80,7 @@ test('caret-only size commit rescales the whole note via its base font', async (
   await openNoteForEdit(page, 'whole note');
   // Collapse the caret — nothing selected.
   await page.keyboard.press('ArrowRight');
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await size.click();
   await size.fill('21');
   await page.keyboard.press('Enter');
@@ -88,18 +92,18 @@ test('caret-only size commit rescales the whole note via its base font', async (
 test('size steppers and preset dropdown work without ending the edit session', async ({ page }) => {
   await openNoteForEdit(page, 'stepper');
   await page.keyboard.press('ControlOrMeta+a');
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   const before = parseInt(await size.inputValue(), 10);
-  await page.getByTitle('Increase font size').click();
+  await sizeUp(page).click();
   await expect(size).toHaveValue(String(before + 1));
   await expect(page.locator('.note-body[contenteditable="true"]')).toHaveCount(1);
 
   // Preset dropdown: visible list, picking applies and keeps editing.
-  await page.getByTitle('Preset sizes').click();
-  await expect(page.locator('.size-combo-pop')).toBeVisible();
-  await page.locator('.size-combo-item', { hasText: /^32$/ }).click();
+  await sizePresets(page).click();
+  await expect(sizeList(page)).toBeVisible();
+  await sizeOption(page, 32).click();
   await expect(size).toHaveValue('32');
-  await expect(page.locator('.size-combo-pop')).toHaveCount(0);
+  await expect(sizeList(page)).toHaveCount(0);
   await expect(page.locator('.note-body[contenteditable="true"]')).toHaveCount(1);
 });
 
@@ -107,5 +111,5 @@ test('font picker label names the font under the caret', async ({ page }) => {
   await openNoteForEdit(page, 'typeface');
   // The default note font stack starts with Inter — the trigger label should
   // surface a real family name, not the static "Font".
-  await expect(page.locator('.tob .doc-tb-pill-label').first()).not.toHaveText('Font');
+  await expect(fontButton(page)).toHaveAttribute('aria-label', /^Font: \S/);
 });

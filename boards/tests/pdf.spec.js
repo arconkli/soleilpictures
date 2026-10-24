@@ -98,4 +98,21 @@ test.describe('PDF card', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('.pdfv')).toHaveCount(0);
   });
+
+  test('Escape while the viewer is still loading cancels it', async ({ page }) => {
+    await go(page);
+    await addPdf(page);
+    // Hold the viewer's code back, so "Loading PDF" is what's up when Escape
+    // comes: it must not open a moment later anyway.
+    let release;
+    const held = new Promise((r) => { release = r; });
+    await page.route(/\/src\/components\/PdfViewer\.jsx/, async (route) => { await held; await route.continue(); });
+    await page.locator('.pdfc .pdfc-thumbwrap').first().dblclick();
+    await expect(page.locator('.pdfv-loading')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.pdfv')).toHaveCount(0);
+    release();
+    await page.waitForTimeout(1500);
+    await expect(page.locator('.pdfv')).toHaveCount(0);
+  });
 });

@@ -6,6 +6,7 @@
 // what happened, and offers back what its page lost (lib/docResets.js). The
 // ?docqa harness's reload() plays the cluster's part, as useYBoard does.
 import { expect, test } from '@playwright/test';
+import { dockFromCard } from './helpers/docFrame.js';
 
 // The clipboard, one per page, keeping what the doc's copy wrote in each
 // flavour: the system one is shared by every test running at once, and
@@ -122,7 +123,7 @@ test('a restore made here stays quiet, unless it changed the page you had open',
 test('a doc docked beside the canvas comes back docked', async ({ page }) => {
   await page.goto('/?docqa=1&reload=1');
   await page.waitForFunction(() => !!window.__soleilDocTest?.reload, null, { timeout: 15000 });
-  await page.locator('.doc-card').getByRole('button', { name: 'Open beside' }).click();
+  await dockFromCard(page.locator('.doc-card'));
   await expect(page.locator('.doc-card-modal-side')).toBeVisible();
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 15000 });
   await write(page, '<p>Notes beside the board.</p>');

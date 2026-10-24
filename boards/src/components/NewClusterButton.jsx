@@ -34,6 +34,7 @@ import { registerModalOpen } from '../lib/modalGuard.js';
 import { readNewClusterPick, subscribeNewClusterPick } from '../lib/newClusterPick.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { tip } from '../lib/looks.js';
 import './newClusterButton.css';
 
 // The longest name the from-selection prompt keeps (CanvasSurface).
@@ -151,7 +152,8 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
     <span className="ncl-wrap" ref={wrapRef}>
       <button type="button" ref={btnRef} className="tb-btn tb-newcluster"
               aria-haspopup="dialog" aria-expanded={open}
-              title={n ? `New cluster from the ${n} ${cardsWord(n)} you picked` : 'New cluster (C)'}
+              {...tip(n ? `New cluster from the ${n} ${cardsWord(n)} you picked` : 'New cluster', n ? null : 'C',
+                      n ? `New cluster from the ${n} ${cardsWord(n)} you picked` : 'New cluster (C)')}
               onClick={() => (open ? close({ dismissed: true }) : showNow('topbar'))}>
         <Icon as={Plus} size={14} weight="regular" />
         <span className="tb-btn-label">New cluster</span>

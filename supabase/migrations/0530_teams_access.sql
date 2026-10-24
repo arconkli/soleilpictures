@@ -1,6 +1,10 @@
 -- 0530: Teams, part 2 — every access path learns about teams.
 --
--- STATUS: written 2026-10-22. NOT APPLIED until the owner says go.
+-- STATUS: written 2026-10-22. Applied 2026-10-22 (owner's go), teams closed.
+-- Live as migrations 20261022074410 teams_access_part1 through 20261022074530
+-- teams_access_part3: the MCP refused calls this size, so it went in at function
+-- boundaries, each part one transaction carrying its functions' grants,
+-- the proof block last. Its 21 function bodies match this file by md5.
 --
 -- One rule, in one helper: _org_ws_role_for(ws, user) is the role a person
 -- has in a team workspace through the team, in the workspace vocabulary.
@@ -65,7 +69,7 @@
 --     neither DM each other nor see each other's addresses through them until
 --     S4 decides.
 --   * claim_collab_link: a team viewer opening an edit link gets today's
---     'noop'; asking to edit goes through the team (ask_team_for_edit, 0532).
+--     'noop'; asking to edit goes through the team (ask_team_for_edit, 0534).
 --
 -- New: can_open_workspace (the workspace room's door) and my_workspace_role.
 -- The party's minute re-checks are the security session's (PTY-1):
@@ -177,7 +181,10 @@ as $$
                    where m.workspace_id = ws and m.user_id = auth.uid()
                      and m.role = 'coowner')
        -- 0530: the team's owner and admins manage every team workspace.
-       or public._org_ws_role_for(ws, auth.uid()) = 'coowner'
+       -- Coalesced: with no team the role is NULL, and NULL here would make
+       -- this function NULL, which every `if not can_manage_workspace(…)`
+       -- guard reads as a pass.
+       or coalesce(public._org_ws_role_for(ws, auth.uid()) = 'coowner', false)
      );
 $$;
 
@@ -379,7 +386,7 @@ set search_path = public as $$
                           and m.user_id = l.created_by
                           and m.role = 'coowner')
             -- 0530: or a team owner/admin, who manages every team workspace.
-            or public._org_ws_role_for(l.workspace_id, l.created_by) = 'coowner'));
+            or coalesce(public._org_ws_role_for(l.workspace_id, l.created_by) = 'coowner', false)));
 $$;
 
 -- In a team workspace, a member reads names, never addresses: the email (and

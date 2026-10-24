@@ -617,3 +617,38 @@ test('a card move repoints stars and file shares as the caller, identical ids in
   assert.ok(pairs.some((p) => p.from === 'Y' && p.to === 'Y'), 'identical ids are included');
   assert.ok(pairs.some((p) => p.from === 'X' && /^X-/.test(p.to)));
 });
+
+// ── 0537: a card move asks before it lands on another meter ──────────────────
+// A team's workspaces share the team's meter and a personal workspace is on its
+// owner's, so one owner's team workspace and their own are two meters.
+
+const TEAM = '33333333-3333-4333-8333-333333333333';
+
+async function moveBetween(from, to) {
+  putBoard(B1, [{ id: 'X', kind: 'note', x: 0, y: 0 }], { workspace_id: 'w-from' });
+  putBoard(B2, [], { workspace_id: 'w-to' });
+  on('GET', 'workspaces', () => reply([{ id: 'w-from', ...from }, { id: 'w-to', ...to }]));
+  on('POST', 'rpc/get_board_capacity', () => reply([{ is_capped: true, cap: 50, used: 50 }]));
+  on('GET', 'card_index', () => reply([{ weight: 1 }]));
+  const r = await api('POST', `/boards/${B1}/cards/move`, { to_board_id: B2, card_ids: ['X'] });
+  return { r, asked: calls.some((c) => c.path === 'rpc/get_board_capacity') };
+}
+
+test('cards leaving a team for its owner\'s own workspace are asked about first', async () => {
+  const { r, asked } = await moveBetween({ created_by: 'u1', org_id: TEAM }, { created_by: 'u1', org_id: null });
+  assert.ok(asked, 'the destination\'s capacity is asked');
+  assert.equal(r.status, 402, JSON.stringify(r.body));
+  assert.equal(r.body.code, 'limit_reached');
+});
+
+test('cards moving between one owner\'s own workspaces stay on one meter', async () => {
+  const { r, asked } = await moveBetween({ created_by: 'u1', org_id: null }, { created_by: 'u1', org_id: null });
+  assert.equal(asked, false);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+});
+
+test('cards moving between one team\'s workspaces stay on one meter, whoever owns each', async () => {
+  const { r, asked } = await moveBetween({ created_by: 'u1', org_id: TEAM }, { created_by: 'u2', org_id: TEAM });
+  assert.equal(asked, false);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+});

@@ -29,6 +29,9 @@ export interface BillingConfig {
   storageProduct: string | null;
   creatorPrices: { monthly: string | null; annual: string | null };
   storagePrices: { monthly: string | null; annual: string | null };
+  // The Team plan's seat (S3): never a Creator item (activateCore isTeamItem).
+  teamProduct: string | null;
+  teamPrices: { monthly: string | null; annual: string | null };
 }
 
 export function billingConfig(): BillingConfig {
@@ -38,6 +41,8 @@ export function billingConfig(): BillingConfig {
     storageProduct: env("STRIPE_PRODUCT_STORAGE"),
     creatorPrices: { monthly: env("STRIPE_PRICE_MONTHLY"), annual: env("STRIPE_PRICE_ANNUAL") },
     storagePrices: { monthly: env("STRIPE_PRICE_STORAGE_MONTHLY"), annual: env("STRIPE_PRICE_STORAGE_ANNUAL") },
+    teamProduct: env("STRIPE_PRODUCT_TEAM"),
+    teamPrices: { monthly: env("STRIPE_PRICE_TEAM_MONTHLY"), annual: env("STRIPE_PRICE_TEAM_ANNUAL") },
   };
 }
 

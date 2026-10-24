@@ -314,6 +314,14 @@ async function authWorkspaceUncached(
   if (!accessToken || !workspaceId) return { ok: false, reason: "missing token or workspace id" };
   const claims = decodeJwtSub(accessToken);
   if (!claims?.sub) return { ok: false, reason: "invalid token" };
+  // 0530 can_open_workspace: the same predicate party_workspace_access
+  // re-checks with (an active account that is_workspace_member), so a team
+  // member with no explicit row gets in. 404 = 0530 isn't live yet: fall back
+  // to the membership read below, so the party can deploy before or after it.
+  const open = await canOpenWorkspace(workspaceId, accessToken);
+  if (open === true) return { ok: true, userId: claims.sub, email: claims.email };
+  if (open === false) return { ok: false, reason: "not a member of this workspace" };
+  if (open === "error") return { ok: false, reason: "auth check failed" };
   const rows = await supabaseGet(
     `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${claims.sub}&select=user_id`,
     accessToken,
@@ -321,6 +329,29 @@ async function authWorkspaceUncached(
   if (rows === null) return { ok: false, reason: "auth check failed" };
   if (rows.length === 0) return { ok: false, reason: "not a member of this workspace" };
   return { ok: true, userId: claims.sub, email: claims.email };
+}
+
+// true / false = the RPC's answer; "missing" = 404 (0530 not applied);
+// "error" = anything else, which fails closed.
+async function canOpenWorkspace(workspaceId: string, accessToken: string): Promise<boolean | "missing" | "error"> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/can_open_workspace`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ p_workspace_id: workspaceId }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.status === 404) return "missing";
+    if (!res.ok) return "error";
+    return (await res.json()) === true;
+  } catch (_) {
+    return "error";
+  }
 }
 
 // A shared doc's room (party/doc.ts): may this caller come in? 0426

@@ -1,8 +1,13 @@
 import { expect, test } from '@playwright/test';
+import {
+  colourButton, fontButton, fontList, fontListHead, noteBar, openCustomFonts, pickFont, pressBarGap,
+  shownColour, sizeField, sizeUp, swatch,
+} from './helpers/noteBar.js';
 
 // The note formatting bar against the REAL collaborative note editor (the
 // ?local canvas still runs the legacy contentEditable, so these drive the
-// ?noteqa harness with its &toolbar=1 bar instead).
+// ?noteqa harness with its &toolbar=1 bar instead). Its controls through
+// helpers/noteBar.js, so these pass in the toolbar look too.
 
 const A = '[data-client="A"] .note';
 const A_EDIT = '[data-client="A"] .note-body[contenteditable="true"]';
@@ -15,15 +20,14 @@ async function editA(page, text = 'hello world') {
   await page.locator(A_EDIT).waitFor();
   await page.locator(A_EDIT).click();
   if (text) await page.keyboard.type(text);
-  await expect(page.locator('.tob')).toBeVisible();
+  await expect(noteBar(page)).toBeVisible();
 }
 
 // NOTES-04: the custom-font dialog took focus out of the note, the note left
 // edit mode, and the bar that owned the dialog unmounted it within a frame.
 test('Add custom font opens a dialog that stays, and closing it returns to the note', async ({ page }) => {
   await editA(page);
-  await page.getByTitle('Font family').click();
-  await page.getByRole('button', { name: '+ Add custom font…' }).click();
+  await openCustomFonts(page);
   const dialog = page.locator('.cfont');
   await expect(dialog).toBeVisible();
   await page.waitForTimeout(300);
@@ -41,9 +45,9 @@ test('Add custom font opens a dialog that stays, and closing it returns to the n
 // a big note. The bar now reads the size the caret's text actually renders at.
 test('size steppers work from the note\'s own size', async ({ page }) => {
   await editA(page);
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await expect(size).toHaveValue('15');
-  const plus = page.getByRole('button', { name: 'Increase font size' });
+  const plus = sizeUp(page);
   await plus.click();
   await plus.click();
   await expect(size).toHaveValue('17');
@@ -64,9 +68,9 @@ test('a note that is already 24px steps up from 24, not down to 16', async ({ pa
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
   await page.keyboard.type('big');
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await expect(size).toHaveValue('24');
-  await page.getByRole('button', { name: 'Increase font size' }).click();
+  await sizeUp(page).click();
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(25);
   await expect(size).toHaveValue('25');
 });
@@ -86,10 +90,10 @@ test('a note size stored before sizes rendered keeps its 15px look', async ({ pa
   await page.locator(A_EDIT).waitFor();
   await page.keyboard.type('old');
   await expect(page.locator(A_EDIT)).toHaveCSS('font-size', '15px');
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await expect(size).toHaveValue('15');
   // A pick from here on is the size the note shows.
-  await page.getByRole('button', { name: 'Increase font size' }).click();
+  await sizeUp(page).click();
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(16);
   await expect(page.locator(A_EDIT)).toHaveCSS('font-size', '16px');
   await page.mouse.click(5, 5);
@@ -100,33 +104,32 @@ test('with the caret in a heading the size box shows the note size it would chan
   await editA(page, 'Title');
   await page.evaluate(() => window.__soleilNoteTest.getActiveEditor().commands.setHeading({ level: 1 }));
   await expect(page.locator(`${A_EDIT} h1`)).toHaveText('Title');
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await expect(size).toHaveValue('15');
-  await page.getByRole('button', { name: 'Increase font size' }).click();
+  await sizeUp(page).click();
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(16);
 });
 
 test('picking a whole-note font names it on the font button', async ({ page }) => {
   await editA(page);
-  await page.getByTitle('Font family').click();
-  await page.locator('.font-pop-row', { hasText: /^Mono$/ }).click();
-  await expect(page.getByTitle('Font family')).toContainText('JetBrains Mono');
+  await pickFont(page, 'Mono');
+  await expect(fontButton(page)).toHaveAttribute('aria-label', /^Font: JetBrains Mono\b/);
 });
 
 // NOTES-15: the text-colour bar only updated where a colour mark existed, so
 // it kept showing the last coloured span (or near-white on a light note).
 test('the text colour bar follows the caret out of coloured text', async ({ page }) => {
   await editA(page, 'plain');
-  const bar = page.locator('.tob-color-bar').first();
-  const plainInk = await bar.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const ink = async () => (await shownColour(page, 'Text color')).color;
+  const plainInk = await ink();
   await page.keyboard.type(' red');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft');
-  await page.getByTitle('Text color').click();
-  await page.locator('.tob-pop .tob-sw[style*="239, 68, 68"]').click();
-  await expect(bar).toHaveCSS('background-color', 'rgb(239, 68, 68)');
+  await colourButton(page, 'Text color').click();
+  await swatch(page, '#ef4444').click();
+  await expect.poll(ink).toBe('rgb(239, 68, 68)');
   // Back into "plain" (Home is not line-start on every platform).
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowLeft');
-  await expect(bar).toHaveCSS('background-color', plainInk);
+  await expect.poll(ink).toBe(plainInk);
 });
 
 // NOTES-13: a caret-only size typed into the size box never handed focus back,
@@ -134,7 +137,7 @@ test('the text colour bar follows the caret out of coloured text', async ({ page
 // with nothing focused and a click elsewhere no longer closed it.
 test('Enter in the size box hands the caret back to the note', async ({ page }) => {
   await editA(page);
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await size.click();
   await size.fill('20');
   await page.keyboard.press('Enter');
@@ -146,27 +149,27 @@ test('Enter in the size box hands the caret back to the note', async ({ page }) 
 
 test('clicking away from the size box applies the size and ends editing', async ({ page }) => {
   await editA(page);
-  const size = page.locator('.tob-size-combo');
+  const size = sizeField(page);
   await size.click();
   await size.fill('22');
   await page.mouse.click(5, 5);
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('fontSize'))).toBe(22);
   await expect(page.locator(A_EDIT)).toHaveCount(0);
-  await expect(page.locator('.tob')).toHaveCount(0);
+  await expect(noteBar(page)).toHaveCount(0);
 });
 
 // NOTES-14: a press on the bar's padding, a separator or a popover label
 // moved focus to <body>, which read as leaving the note.
 test('clicking the toolbar between buttons keeps the note in edit mode', async ({ page }) => {
   await editA(page);
-  await page.locator('.tob .tob-sep').first().click({ force: true });
+  await pressBarGap(page);
   await expect(page.locator(A_EDIT)).toBeFocused();
-  await expect(page.locator('.tob')).toBeVisible();
+  await expect(noteBar(page)).toBeVisible();
 
-  await page.getByTitle('Font family').click();
-  await page.locator('.font-pop-label', { hasText: 'FONTS' }).click();
+  await fontButton(page).click();
+  await fontListHead(page).click();
   await expect(page.locator(A_EDIT)).toBeFocused();
-  await expect(page.locator('.font-pop')).toBeVisible();
+  await expect(fontList(page)).toBeVisible();
 });
 
 // NOTES-17: the editor chunk loads on the first edit of a session, and the
@@ -201,8 +204,7 @@ test('Add custom font from the legacy note editor stays open too', async ({ page
   const body = page.locator('.note-body[contenteditable="true"]');
   await body.waitFor();
   await page.keyboard.type('legacy');
-  await page.getByTitle('Font family').click();
-  await page.getByRole('button', { name: '+ Add custom font…' }).click();
+  await openCustomFonts(page);
   await page.waitForTimeout(300);
   await expect(page.locator('.cfont')).toBeVisible();
   await page.keyboard.press('Escape');

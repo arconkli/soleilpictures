@@ -73,6 +73,7 @@ import { probeFile } from '../lib/mediaProbe.js';
 import { InfoHost } from '../components/info/InfoHost.jsx';
 import { PlayerHost } from '../components/film/PlayerHost.jsx';
 import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
+import { holdNoteTypeAhead } from '../lib/noteTypeAhead.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -362,6 +363,9 @@ function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
+// A board with no groups, the same [] each render (CanvasSurface memoizes on it).
+const NO_GROUPS = [];
+
 function getNextZ(cards) {
   return cards.reduce((max, card) => Math.max(max, card.z || 0), 0) + 1;
 }
@@ -600,7 +604,9 @@ export function LocalBoardsApp({ user, signOut }) {
     }
     setLocalState(prev => {
       const current = prev.boardState[currentId] || { cards: [], arrows: [], strokes: [] };
+      // The rest of the board's state (its groups) comes along as it is.
       const nextCurrent = updater({
+        ...current,
         cards: [...current.cards],
         arrows: [...current.arrows],
         strokes: [...current.strokes],
@@ -920,6 +926,7 @@ export function LocalBoardsApp({ user, signOut }) {
       h,
     });
     setAutoFocusId(id);
+    holdNoteTypeAhead(id);
   };
 
   const addTextLink = (clickPos = null) => {
@@ -1665,6 +1672,51 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const goTo = (index) => setStack(prev => prev.slice(0, index + 1));
 
+  // Card groups, as App.jsx keeps them (the ydoc's 'groups' map): a record on
+  // the board for each, and `groupId` on its cards. Each change is an undo step.
+  const setCardsGroup = (cardIds, groupId) => {
+    const ids = new Set(cardIds || []);
+    if (!ids.size) return;
+    updateBoardState(state => ({
+      ...state,
+      cards: state.cards.map(card => (ids.has(card.id) ? { ...card, groupId } : card)),
+    }));
+  };
+  const patchGroup = (groupId, patch) => updateBoardState(state => ({
+    ...state,
+    groups: (state.groups || []).map(g => (g.id === groupId ? { ...g, ...patch } : g)),
+  }));
+  const groupMutators = {
+    createGroup: ({ name, cardIds, outline = false } = {}) => {
+      if (!cardIds?.length) return null;
+      const id = createId('g');
+      const ids = new Set(cardIds);
+      updateBoardState(state => ({
+        ...state,
+        groups: [...(state.groups || []), {
+          id, name: (name || 'Group').slice(0, 80), outline: !!outline, color: null, width: 1, createdAt: Date.now(),
+        }],
+        cards: state.cards.map(card => (ids.has(card.id) ? { ...card, groupId: id } : card)),
+      }));
+      return id;
+    },
+    ungroup: (groupId) => {
+      if (!groupId) return;
+      const at = (r) => r && typeof r === 'object' && r.type === 'group' && r.id === groupId;
+      updateBoardState(state => ({
+        ...state,
+        groups: (state.groups || []).filter(g => g.id !== groupId),
+        cards: state.cards.map(card => (card.groupId === groupId ? { ...card, groupId: null } : card)),
+        arrows: state.arrows.filter(a => !at(a.from) && !at(a.to)),
+      }));
+    },
+    renameGroup: (groupId, name) => groupId && patchGroup(groupId, { name: String(name || '').slice(0, 80) }),
+    setGroupOutline: (groupId, patch) => groupId && patchGroup(groupId,
+      'outline' in patch ? { ...patch, outline: !!patch.outline } : patch),
+    addToGroup: (groupId, cardIds) => groupId && setCardsGroup(cardIds, groupId),
+    removeFromGroup: (cardIds) => setCardsGroup(cardIds, null),
+  };
+
   const mutators = {
     addCard,
     addCards,
@@ -1711,6 +1763,7 @@ export function LocalBoardsApp({ user, signOut }) {
     renameBoardById,
     deleteBoardsById,
     setBoardBgColor,
+    ...groupMutators,
     undo: () => {
       const h = histFor(currentId);
       if (!h.undo.length) return;
@@ -2120,6 +2173,7 @@ export function LocalBoardsApp({ user, signOut }) {
                 clearFocusRequest={() => setFocusRequest(null)}
                 arrows={currentState.arrows}
                 strokes={currentState.strokes}
+                groups={currentState.groups || NO_GROUPS}
                 gridTemplates={currentTemplates}
                 gridSequences={currentSequences}
                 onOpenBoard={openBoard}

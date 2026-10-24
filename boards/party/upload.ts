@@ -922,11 +922,21 @@ export class UploadParty {
         );
         const boardWorkspace = rows?.[0]?.workspace_id;
         if (boardWorkspace !== workspaceId) {
-          const member = await supabaseGet(
-            `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=user_id`,
-            accessToken,
-          );
-          allowed = !!member && member.length > 0;
+          // 0530 can_open_workspace first: a team member has no explicit
+          // workspace_members row. Anything but true (an error, or a 404
+          // before 0530 is live) falls back to the row read, which fails
+          // closed.
+          const opens = await supabaseRpc("can_open_workspace", { p_workspace_id: workspaceId }, accessToken)
+            .catch(() => null);
+          if (opens === true) {
+            allowed = true;
+          } else {
+            const member = await supabaseGet(
+              `workspace_members?workspace_id=eq.${encodeURIComponent(workspaceId)}&user_id=eq.${encodeURIComponent(userId)}&select=user_id`,
+              accessToken,
+            );
+            allowed = !!member && member.length > 0;
+          }
         }
       }
     } else {

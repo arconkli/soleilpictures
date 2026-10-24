@@ -68,6 +68,19 @@ function reserveSize(img, src) {
   else { img.removeAttribute('width'); img.removeAttribute('height'); }
 }
 
+// The image bar's icons in the doc look (components/doc/docLook.css): the
+// look's bars draw Phosphor's regular, so these are its drawings (align left,
+// centre and right, a full width's out-arrows, the bin), in place of today's
+// glyphs.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const LOOK_ICONS = {
+  left: 'M48,40V216a8,8,0,0,1-16,0V40a8,8,0,0,1,16,0Zm16,64V64A16,16,0,0,1,80,48h96a16,16,0,0,1,16,16v40a16,16,0,0,1-16,16H80A16,16,0,0,1,64,104Zm16,0h96V64H80Zm152,48v40a16,16,0,0,1-16,16H80a16,16,0,0,1-16-16V152a16,16,0,0,1,16-16H216A16,16,0,0,1,232,152Zm-16,40V152H80v40H216Z',
+  center: 'M208,136H136V120h48a16,16,0,0,0,16-16V64a16,16,0,0,0-16-16H136V32a8,8,0,0,0-16,0V48H72A16,16,0,0,0,56,64v40a16,16,0,0,0,16,16h48v16H48a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16h72v16a8,8,0,0,0,16,0V208h72a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136ZM72,64H184v40H72ZM208,192H48V152H208v40Z',
+  right: 'M224,40V216a8,8,0,0,1-16,0V40a8,8,0,0,1,16,0ZM192,64v40a16,16,0,0,1-16,16H80a16,16,0,0,1-16-16V64A16,16,0,0,1,80,48h96A16,16,0,0,1,192,64Zm-16,0H80v40h96Zm16,88v40a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V152a16,16,0,0,1,16-16H176A16,16,0,0,1,192,152Zm-16,0H40v40H176Z',
+  full: 'M136,40V216a8,8,0,0,1-16,0V40a8,8,0,0,1,16,0ZM96,120H35.31l18.35-18.34A8,8,0,0,0,42.34,90.34l-32,32a8,8,0,0,0,0,11.32l32,32a8,8,0,0,0,11.32-11.32L35.31,136H96a8,8,0,0,0,0-16Zm149.66,2.34-32-32a8,8,0,0,0-11.32,11.32L220.69,120H160a8,8,0,0,0,0,16h60.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,122.34Z',
+  remove: 'M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z',
+};
+
 export const ImageResizable = Image.extend({
   addAttributes() {
     return {
@@ -126,6 +139,9 @@ export const ImageResizable = Image.extend({
         // The glyph alone named it "⇤" to a screen reader.
         b.setAttribute('aria-label', title);
         b.className = 'tt-img-tb-btn';
+        b.dataset.icon = val || 'remove';
+        // An alignment says whether it's the image's (update() keeps it).
+        if (val) { b.dataset.align = val; b.setAttribute('aria-pressed', String(val === (node.attrs.align || 'center'))); }
         b.addEventListener('mousedown', (e) => e.preventDefault());
         b.addEventListener('click', (e) => {
           e.preventDefault();
@@ -151,6 +167,26 @@ export const ImageResizable = Image.extend({
       });
       tb.appendChild(remove);
       frame.appendChild(tb);
+      const aligns = [...tb.querySelectorAll('[data-align]')];
+      // Which look the bar is drawn in is the surface's it's on (the doc
+      // look's is .dl-surface), known once the image is on the page: so at
+      // its first selection, before the bar first shows.
+      let drawn = false;
+      const drawLook = () => {
+        drawn = true;
+        if (!dom.closest('.dl-surface')) return;
+        for (const b of tb.querySelectorAll('.tt-img-tb-btn')) {
+          const svg = document.createElementNS(SVG_NS, 'svg');
+          for (const [k, v] of [['viewBox', '0 0 256 256'], ['width', '18'], ['height', '18'], ['fill', 'currentColor'], ['aria-hidden', 'true']]) svg.setAttribute(k, v);
+          const path = document.createElementNS(SVG_NS, 'path');
+          path.setAttribute('d', LOOK_ICONS[b.dataset.icon]);
+          svg.appendChild(path);
+          b.replaceChildren(svg);
+          // The look's tooltip (components/toolbar/tipHost.js), not the browser's.
+          b.dataset.tlTip = b.title;
+          b.removeAttribute('title');
+        }
+      };
 
       // Where the bar goes: above the image while the view it scrolls in has
       // room for it there. Without room (the image opens the doc, or its top
@@ -266,12 +302,14 @@ export const ImageResizable = Image.extend({
           }
           if (updatedNode.attrs.width !== img.style.width) img.style.width = updatedNode.attrs.width || '';
           dom.className = `tt-img-wrap tt-img-align-${updatedNode.attrs.align || 'center'}${clip ? ' is-selected' : ''}`;
+          for (const b of aligns) b.setAttribute('aria-pressed', String(b.dataset.align === (updatedNode.attrs.align || 'center')));
           if (clip) schedulePlace();
           return true;
         },
         // No handles or align bar for a reader — they could only no-op.
         selectNode() {
           if (!editor.isEditable) return;
+          if (!drawn) drawLook();
           dom.classList.add('is-selected');
           watchPlace(true);
         },

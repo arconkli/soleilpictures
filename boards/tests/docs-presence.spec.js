@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { zoomIn } from './helpers/docFrame.js';
 
 // Doc presence: a peer's caret is a DOCUMENT position, resolved against this
 // tab's own layout (DOCS-10), and the overlay is quiet when nothing moves
@@ -54,9 +55,7 @@ test('DOCS-10: a peer caret lands on the same word at any local zoom', async ({ 
   const pos = await peerCaretAt(page, 'target');
   await expectCaretOn(page, pos);
   // Zoom in locally: the caret must follow the text, not stay at peer pixels.
-  await page.locator('.doc-tb button[aria-label="Zoom in"]').click();
-  await page.locator('.doc-tb button[aria-label="Zoom in"]').click();
-  await page.locator('.doc-tb button[aria-label="Zoom in"]').click();
+  await zoomIn(page.locator('.doc-card-modal'), 3);
   await expectCaretOn(page, pos);
 });
 

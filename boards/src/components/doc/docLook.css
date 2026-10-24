@@ -96,6 +96,26 @@
 @media (hover: none) and (pointer: coarse) {
   .dl-head .doc-card-share { height: 40px; }
   .dl-dot { top: 9px; right: 9px; }
+  /* The title takes a finger: 40px to tap, the header's line no taller. */
+  .dl-head .doc-card-title-input.dl-title { padding: 10px 0; margin: -8px 0; }
+}
+
+/* The header, the footer and the side panel wear the page list's grain, as
+   the header and footer they stand in for do (styles.css PANEL GRAIN, tier 1,
+   its dial). */
+.dl-head, .dl-foot, .dl-panel { isolation: isolate; }
+.dl-foot { position: relative; }
+.dl-head::after, .dl-foot::after, .dl-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--grain-url);
+  background-repeat: repeat;
+  background-size: 320px 240px;
+  opacity: 0.025;
+  z-index: -1;
+  border-radius: inherit;
 }
 
 /* ── The body: page list, page, side panel; the footer under all three ── */
@@ -444,6 +464,77 @@
 .dl-fr:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .dl-fr mark { padding: 0 1px; border-radius: 2px; background: color-mix(in oklab, #ffa500 22%, transparent); color: var(--ink-0); }
 .dl-find-more { margin: 0; padding: 10px 18px 0; font-size: 12px; color: var(--ink-2); }
+/* ── Elements (AC-script): the eight, in the script's own type, then the
+   script's settings. ── */
+.dl-ish { display: flex; align-items: center; margin: 0; padding: 12px 16px 5px; font: 600 10.5px/1.3 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.dl-els { padding-top: 4px; }
+.dl-el {
+  display: flex;
+  align-items: center;
+  width: calc(100% - 16px);
+  height: 28px;
+  margin: 0 8px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+.dl-el-t { font: 400 13.5px/1 'Courier Prime', 'Courier New', Courier, monospace; }
+.dl-el-chk { margin-left: auto; }
+.dl-el.is-on { background: var(--bg-act); color: var(--ink-0); }
+.dl-el[aria-disabled='true'] { color: var(--ink-3); cursor: default; }
+@media (hover: hover) {
+  .dl-el:hover:not(.is-on, [aria-disabled='true']) { background: var(--tl-hov); }
+}
+.dl-el:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.dl-note { margin: 0; padding: 6px 18px 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-2); }
+.dl-drow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 1px 16px;
+  border: 0;
+  background: none;
+  font: 400 12.5px/1.3 var(--font-sans);
+  color: var(--ink-2);
+  text-align: left;
+}
+.dl-drow > span:first-child { flex: 1 1 auto; white-space: nowrap; }
+/* "Pair with the speech above" wants the row's room: its right edge sits in
+   the gutter, as the mockup has it, rather than the label breaking. */
+.dl-drow-pair { padding-right: 8px; }
+button.dl-drow { cursor: pointer; }
+.dl-drow:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.dl-tog {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  transition: background-color .15s ease;
+}
+.dl-tog::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+  transition: transform .15s ease;
+}
+.dl-sw[aria-checked='true'] .dl-tog { background: var(--soleil); box-shadow: none; }
+.dl-sw[aria-checked='true'] .dl-tog::after { transform: translateX(16px); }
+@media (prefers-reduced-motion: reduce) {
+  .dl-tog, .dl-tog::after { transition: none; }
+}
+
 /* The hits lit in the page: a soft fill, the one that's on deeper and ringed,
    the text in its own ink. */
 .dl-surface .doc-find-hit { border-bottom: 0; border-radius: 2px; background: color-mix(in oklab, #ffa500 16%, transparent); }
@@ -506,7 +597,18 @@
   flex-shrink: 0;
   min-width: 0;
   padding: 12px 12px 0;
-  background: var(--bg-0);
+  /* The page's ground (styles.css .doc-paper), film grain and all, the tiles
+     ending at the row's bottom edge so they carry on into the page's: the bar
+     floats over the ground the page lies on, not a band of its own. */
+  background-color: var(--bg-0);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--bg-0) 97%, transparent),
+      color-mix(in srgb, var(--bg-0) 97%, transparent)
+    ),
+    var(--grain-url);
+  background-size: auto, 320px 240px;
+  background-position: 0 0, 0 100%;
 }
 .dl-cap > .tl-bar { max-width: 100%; }
 /* Before the bar's chunk is in: its room, so the page doesn't jump. */
@@ -516,6 +618,7 @@
 /* The widths lib/docBarFold.js counts on (DOC_BAR_SIZES.desktop; .touch in
    the block under a finger below). */
 .dl-bar .tl-btn.dl-w-doc { width: 80px; }
+.dl-bar .tl-btn.dl-w-script { width: 128px; }
 .dl-bar .tl-btn.dl-w-docicon { width: 44px; }
 .dl-bar .tl-btn.dl-w-style { width: 96px; }
 .dl-bar .tl-btn.dl-w-font { width: 86px; }
@@ -545,6 +648,9 @@
 .dl-bar .size-combo-wrap.is-tl .size-combo:focus { background: var(--tl-hov); box-shadow: inset 0 0 0 1px var(--line-2); }
 .dl-bar .size-combo-wrap.is-tl .size-combo:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .dl-bar .size-combo-wrap.is-tl .size-combo-arrow.tl-btn {
+  /* Over the field's right end, as .size-combo-arrow is (a .tl-btn is
+     relative, and in the row it took the field's room: "16" didn't show). */
+  position: absolute;
   right: 2px;
   width: 20px;
   min-width: 0;
@@ -620,21 +726,36 @@
   .dl-surface .doc-bookmarks-row,
   .dl-surface .sp-scenenav-item { height: 40px; font-size: 14.5px; }
   .dl-surface .doc-bookmarks-item { font-size: 14.5px; }
+  /* The page list's "+"s take a finger, still one column: the head's and a
+     row's, 40px, each its list's margin in from the edge. */
+  .dl-surface .doc-tree-add-root,
+  .dl-surface .doc-tree-add { width: 40px; height: 40px; border-radius: 10px; }
+  .dl-surface .doc-tree-row { padding-right: 0; }
   .dl-crumb { font-size: 14.5px; }
-  .dl-seg > button { height: 34px; font-size: 13.5px; }
-  .dl-seg.is-sm > button { height: 34px; font-size: 13px; }
-  .dl-mini { height: 36px; padding: 0 11px; font-size: 13px; }
-  .dl-reply input { height: 36px; font-size: 16px; }
-  .dl-reply-send { top: 5px; right: 5px; width: 26px; height: 26px; }
-  .dl-th-del { width: 36px; height: 36px; margin: -11px -10px -11px auto; opacity: 1; }
+  .dl-seg > button { height: 40px; font-size: 13.5px; }
+  .dl-seg.is-sm > button { height: 40px; font-size: 13px; }
+  .dl-mini { height: 40px; padding: 0 12px; font-size: 13px; }
+  .dl-reply input { height: 40px; padding-right: 44px; font-size: 16px; }
+  /* 40px to tap; its square, 28px, drawn in the middle. */
+  .dl-reply-send { top: 0; right: 0; width: 40px; height: 40px; padding: 6px; border-radius: 12px; background-clip: content-box; }
+  /* A finger has no keys: the hint doesn't show them. */
+  .dl-cmts-none .tl-keys { display: none; }
+  .dl-th-del { position: relative; z-index: 1; width: 40px; height: 40px; margin: -13px -12px -13px auto; opacity: 1; }
+  /* The quote takes a finger: out to the card's top edge and over the gap
+     under it (a tap anywhere on the card does what the quote does), under
+     Delete's reach. */
+  .dl-th-q { position: relative; padding: 10px 0; margin: -10px 0 -2px; }
   .dl-field { height: 40px; }
   /* Under 16px iOS zooms the page in on focus. */
   .dl-field input { font-size: 16px; }
   .dl-fr { padding: 9px 12px; font-size: 14.5px; }
-  .dl-foot { height: 36px; font-size: 13px; }
-  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
+  .dl-el { height: 40px; }
+  .dl-drow { min-height: 44px; font-size: 14px; }
+  .dl-foot { height: 44px; font-size: 13px; }
+  .dl-foot .tl-btn.dl-foot-zoom { height: 40px; }
   /* The bar's widths under a finger (DOC_BAR_SIZES.touch). */
   .dl-bar .tl-btn.dl-w-doc { width: 88px; }
+  .dl-bar .tl-btn.dl-w-script { width: 136px; }
   .dl-bar .tl-btn.dl-w-docicon { width: 52px; }
   .dl-bar .tl-btn.dl-w-style { width: 104px; }
   .dl-bar .tl-btn.dl-w-font { width: 96px; }
@@ -669,8 +790,6 @@
     z-index: 30;
     box-shadow: -16px 0 48px rgba(0, 0, 0, .3);
   }
-  .dl-foot { height: 36px; font-size: 13px; }
-  .dl-foot .tl-btn.dl-foot-zoom { height: 32px; }
 }
 
 /* ── On a phone the side panel is a sheet from the bottom (mockup C-phone2),
@@ -700,13 +819,14 @@
   animation: dl-sheet-in .24s cubic-bezier(.2, .8, .2, 1);
 }
 [data-theme='light'] .dl-panel.is-sheet { box-shadow: 0 -12px 40px rgba(10, 10, 12, .16); }
-.dl-panel.is-sheet .dl-tabs { padding-top: 2px; }
+.dl-panel.is-sheet .dl-tabs { padding-top: 0; }
+/* A finger's height to tap or drag, its handle drawn in the middle. */
 .dl-sheet-grab {
   display: grid;
   place-items: center;
   flex-shrink: 0;
   width: 100%;
-  height: 22px;
+  height: 40px;
   padding: 0;
   border: 0;
   background: none;
@@ -720,4 +840,261 @@
 @keyframes dl-scrim-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .dl-panel.is-sheet, .dl-sheet-scrim { animation: none; transition: none; }
+}
+
+/* ── An empty doc's other ways in (mockup S-open): under "Start writing…",
+   in the paper, where DocStarters places it. ── */
+.dl-starters {
+  position: absolute;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font: 400 13px/1.3 var(--font-sans);
+  color: var(--ink-2);
+}
+.dl-starter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  color: var(--ink-1);
+  font: inherit;
+  cursor: pointer;
+}
+.dl-starter svg { color: var(--ink-2); }
+[data-theme="light"] .dl-starter { background: #f4f4f6; }
+@media (hover: hover) {
+  .dl-starter:hover { background: var(--bg-3); color: var(--ink-0); }
+}
+.dl-starter:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+@media (hover: none) and (pointer: coarse) {
+  .dl-starter { height: 40px; font-size: 14.5px; }
+}
+
+/* ── A table's bar (mockup G-table): in the paper, over the table's top right
+   edge, where DocTableBar places it. ── */
+.tl-bar.dl-tbar { position: absolute; z-index: 6; }
+/* Header row keeps the check's place while it's off, so turning it on and
+   off moves nothing else in the bar. */
+.dl-tbar .dl-tb-head.is-off { padding-left: calc(var(--tl-is) + 14px); }
+
+/* ── A table in the doc look (mockup G-table): a grid of hairlines, the
+   header row in the interface's type on a shade, the cell the caret is in
+   ringed (docExtensions/CaretCell.js), a reader's as an editor's. ── */
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(.tt-table, .tableWrapper > table) {
+  border-top: 0;
+  border-bottom: 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(.tt-table, .tableWrapper) :is(td, th) {
+  border: 1px solid var(--line-2);
+  padding: 7px 10px;
+}
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(.tt-table, .tableWrapper) th {
+  background: var(--bg-2);
+  color: var(--ink-1);
+  font: 600 12.5px/1.45 var(--font-sans);
+}
+:root[data-doc-look="a"][data-theme='light'] .doc-paper .tt-editor :is(.tt-table, .tableWrapper) th { background: #f4f4f6; }
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(td, th) > * { margin-top: 0; margin-bottom: 0; }
+:root[data-doc-look="a"] .doc-paper .tt-editor :is(td, th) > * + * { margin-top: .5em; }
+:root[data-doc-look="a"] .doc-paper .tt-editor .dl-cell-on { box-shadow: inset 0 0 0 2px var(--soleil); }
+/* Room over a table being edited (Tiptap's wrapper) for its bar, which would
+   otherwise cover the line above (the mockup leaves the gap). */
+:root[data-doc-look="a"] .doc-paper .tt-editor .tableWrapper { margin-top: calc(var(--tl-bs) + 2 * var(--tl-pad) + 2px); }
+
+/* ── A phone (mockups A-phone, A-phone2, S-phone). The header is Close,
+   Pages, the title over its line, Share and ⋯ (DocHeadA's phone); the row of
+   tools rides on the keyboard while the text has the focus (DocBarA's
+   phone), and there's no footer: the line has the saving, ⋯ the zoom and
+   the counts. ── */
+.dl-head.is-phone { gap: 0; padding: 0 4px; }
+.dl-head.is-phone .tl-btn { --tl-bs: 44px; --tl-is: 22px; --tl-br: 12px; flex-shrink: 0; }
+.dl-ptitle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 4px;
+}
+.dl-head.is-phone .doc-card-title-input.dl-title {
+  width: 100%;
+  min-width: 0;
+  /* A finger's height to tap, over the line under it (which a tap goes
+     through), the header no taller. */
+  padding: 8px 0 18px;
+  margin: -8px 0 -18px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.dl-psub {
+  position: relative;
+  pointer-events: none;
+  overflow: hidden;
+  font: 400 11.5px/1.35 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dl-head.is-phone .doc-card-share { width: 44px; height: 44px; margin: 0; padding: 0; justify-content: center; box-shadow: none; }
+.dl-head.is-phone .doc-card-share span { display: none; }
+.dl-head.is-phone .dl-dot { top: 9px; right: 7px; }
+
+/* The row on the keyboard (--dl-kb, what the keyboard covers): the whole
+   width, scrolling sideways, its right edge fading while there's more, and
+   the keyboard's own button after a hairline. */
+.tl-bar.dl-acc {
+  --tl-bs: 42px; --tl-is: 22px; --tl-br: 10px; --tl-gap: 2px; --tl-sg: 9px; --tl-sep: 22px; --tl-fs: 15px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--dl-kb, 0px);
+  z-index: 50;
+  width: auto;
+  max-width: none;
+  height: 50px;
+  padding: 0 4px 0 6px;
+  border-radius: 0;
+  background: var(--bg-2);
+  box-shadow: 0 -1px 0 var(--line-2);
+}
+:root[data-theme='light'] .tl-bar.dl-acc { background: #f6f6f8; }
+.dl-acc-row {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.dl-acc-row::-webkit-scrollbar { display: none; }
+.dl-acc-row.has-more {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+}
+.dl-bar.dl-acc .tl-btn.dl-w-style { width: 86px; }
+.dl-bar.dl-acc .tl-btn.dl-w-element { width: 132px; }
+.dl-bar.dl-acc .tl-btn.dl-w-caret { width: 54px; }
+.tl-bar.dl-acc .tl-btn.dl-acc-kb { margin-left: 7px; }
+.tl-bar.dl-acc .tl-btn.dl-acc-kb::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--line-2);
+}
+@media (max-width: 640px) {
+  /* The page is the screen's width, its words 22px in (A-phone), with room
+     under the last line for the row on the keyboard (DocSurface's keyboard
+     pad adds --dl-acc-room to what the keyboard covers). */
+  .dl-surface .doc-paper { --dl-acc-room: 50px; }
+  /* Prose (a phone shows a paged doc continuous too) is one sheet the width
+     of the screen, with nothing round it. A screenplay keeps its page. */
+  .dl-surface .doc-paper:not(.is-screenplay) { padding: 0 0 96px; background: var(--bg-1); }
+  :root[data-theme='light'] .dl-surface .doc-paper:not(.is-screenplay) { background: var(--bg-3); }
+  .dl-surface .doc-paper:not(.is-screenplay):not(.is-fit-width) .doc-editor-wrap:not(.doc-flow) {
+    min-height: 0;
+    padding: 18px 22px 48px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .doc-card-modal-full.dl { border: 0; }
+  /* The row on the keyboard has the selection bubble's formats, and a tap on
+     it keeps the selection: the bubble would only cover the words, and the
+     phone's own menu over them. */
+  .dl-surface .doc-bubble { display: none; }
+  /* The pages drawer (A-phone2): 304px, its rows a finger's. */
+  .doc-surface.dl-surface.mobile-rail-open .doc-rail.doc-rail-left { width: min(82%, 304px); box-shadow: 1px 0 0 var(--line-2), 16px 0 48px rgba(0, 0, 0, .3); border-right: 0; }
+  /* The head's "+" over the rows' (their margin is 10px here; the drawer
+     block's 8px is a tablet's). */
+  .doc-surface.dl-surface.mobile-rail-open .doc-tree-head { height: 48px; padding-right: 10px; }
+  .dl-surface .doc-tree-kicker,
+  .dl-surface .doc-bookmarks-head,
+  .dl-surface .sp-scenenav-head { font-size: 11.5px; }
+  .dl-surface .doc-tree-row,
+  .dl-surface .doc-bookmarks-row,
+  .dl-surface .sp-scenenav-item { height: 46px; margin: 0 10px; font-size: 16px; }
+  .dl-surface .doc-bookmarks-item { font-size: 16px; }
+}
+
+/* The selection bubble (a touch device's, DocPageEditor) and an image's bar
+   (docExtensions/ImageResizable.js) in the look's language: the menus' glass
+   at 94%, since both sit over the page's words, the look's corners, its
+   regular icons, and what's on (a format; the image's alignment) the look's
+   gold tint and ring rather than a gold fill. The bubble's display is left
+   alone: on a phone it doesn't show (the row on the keyboard has its
+   formats). */
+.dl-surface .doc-bubble {
+  gap: 2px;
+  padding: 4px;
+  border: 0;
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-menu-lift);
+}
+.dl-surface .doc-bubble button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: 10px;
+  color: var(--ink-1);
+}
+.dl-surface .doc-bubble button svg { width: 20px; height: 20px; }
+.dl-surface .doc-bubble button:active { background: var(--tl-hov); }
+.dl-surface .doc-bubble button.is-active {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+.dl-surface .doc-bubble button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+
+.dl-surface .tt-img-tb {
+  gap: 2px;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: var(--tl-blur);
+  backdrop-filter: var(--tl-blur);
+  box-shadow: inset 0 0 0 1px var(--tl-glass-line), var(--tl-glass-shadow), var(--tl-lift);
+}
+.dl-surface .tt-img-tb::after { display: none; }
+.dl-surface .tt-img-tb-btn { width: 32px; height: 32px; border-radius: 8px; color: var(--ink-1); }
+.dl-surface .tt-img-tb-btn svg { width: 18px; height: 18px; }
+.dl-surface .tt-img-tb-btn:hover { background: var(--tl-hov); color: var(--ink-0); }
+.dl-surface .tt-img-tb-btn[aria-pressed='true'] {
+  background: var(--tl-on);
+  box-shadow: inset 0 0 0 1px var(--tl-on-line);
+  color: var(--ink-0);
+}
+.dl-surface .tt-img-tb-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-surface .tt-img-tb-sep { height: 16px; margin: 0 4px; }
+:root[data-theme='light'] .dl-surface :is(.doc-bubble, .tt-img-tb) {
+  background: color-mix(in oklab, #fcfcfd 94%, transparent);
+}
+@media (pointer: coarse) {
+  .dl-surface .tt-img-tb { border-radius: 14px; }
+  .dl-surface .tt-img-tb-btn { width: 40px; height: 40px; border-radius: 10px; }
+  .dl-surface .tt-img-tb-btn svg { width: 20px; height: 20px; }
+  .dl-surface .tt-img-tb-sep { height: 22px; }
 }

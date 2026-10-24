@@ -3,6 +3,7 @@
 // (scoped-stylesheet override, content never mutated), while preserving accent
 // colors that already read fine. Driven via ?docqa=1 (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
 
 async function openDoc(page) {
   await page.goto('/?docqa=1');
@@ -75,6 +76,8 @@ test('an accent color that already reads fine is preserved in both themes', asyn
 // The toolbar's colours show where they end in either theme: the white one on
 // the light menu, the black one on the dark menu, by its fill or by its edge.
 test('every colour in the doc toolbar’s menu stands out from the menu, in either theme', async ({ page }) => {
+  // Today's colour menu. The look's is doc-bar-a.spec.js's.
+  await todaysLook(page);
   await openDoc(page);
   for (const theme of ['light', 'dark']) {
     await setTheme(page, theme);

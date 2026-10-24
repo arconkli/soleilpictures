@@ -8,6 +8,7 @@
 // peer edits don't flip your own indicator.
 
 import { useEffect, useState } from 'react';
+import { docCounts } from '../lib/docCounts.js';
 
 export function useDocStatus({ editor, boardId = null }) {
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
@@ -24,9 +25,8 @@ export function useDocStatus({ editor, boardId = null }) {
     const count = () => {
       timer = 0;
       if (editor.isDestroyed) return;
-      const text = editor.state.doc.textContent || '';
-      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      setCounts((c) => (c.words === words && c.chars === text.length ? c : { words, chars: text.length }));
+      const { words, chars } = docCounts(editor.state.doc);
+      setCounts((c) => (c.words === words && c.chars === chars ? c : { words, chars }));
     };
     const tick = () => { clearTimeout(timer); timer = setTimeout(count, 300); };
     count();
@@ -81,5 +81,5 @@ export function useDocStatus({ editor, boardId = null }) {
     return `Saved ${Math.floor(ago / 3600)}h ago`;
   })();
 
-  return { words: counts.words, chars: counts.chars, online, saving, saveError, savedLabel };
+  return { words: counts.words, chars: counts.chars, online, saving, saveError, savedAt, savedLabel };
 }

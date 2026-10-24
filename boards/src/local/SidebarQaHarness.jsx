@@ -30,6 +30,8 @@ import { readGridModel } from '../lib/gridState.js';
 import { buildCardIndexRow } from '../lib/cardIndexRow.js';
 import { FloatingChrome } from '../components/chrome/FloatingChrome.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { tip } from '../lib/looks.js';
+import { ariaKeys } from '../lib/ariaKeys.js';
 import { ChevronLeft, ChevronRight, PanelLeftOpen, PanelLeftClose, Undo, Redo, Search, Sun, Share2, History, Trash2, Columns2, Question, Settings, Maximize2, LayoutGrid, Home, MessageSquare, Plus } from '../lib/icons.js';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { NewClusterButton } from '../components/NewClusterButton.jsx';
@@ -731,11 +733,11 @@ export function SidebarQaHarness() {
                     <Icon as={PanelLeftOpen} size={16} />
                   </button>
                 )}
-                <button className="tb-brand" aria-label="Clusters home" onClick={() => say('home')}>
+                <button className="tb-brand" {...tip('Home')} aria-label="Clusters home" onClick={() => say('home')}>
                   <ClustersMark size={20} />
                 </button>
-                <button className="tb-icon tb-hist" aria-label="Back" disabled><Icon as={ChevronLeft} size={15} /></button>
-                <button className="tb-icon tb-hist" aria-label="Forward" disabled><Icon as={ChevronRight} size={15} /></button>
+                <button className="tb-icon tb-hist" {...tip('Back')} aria-label="Back" disabled><Icon as={ChevronLeft} size={15} /></button>
+                <button className="tb-icon tb-hist" {...tip('Forward')} aria-label="Forward" disabled><Icon as={ChevronRight} size={15} /></button>
                 <div className="crumbs" data-tour="nav">
                   {[...(BOARDS[active]?.parent_board_id ? [BOARDS[BOARDS[active].parent_board_id]] : []), BOARDS[active]].map((b, i, all) => (
                     <span key={b.id} style={{ display: 'contents' }}>
@@ -753,16 +755,19 @@ export function SidebarQaHarness() {
             right={(
               <>
                 {!coarse && <button className="tb-admin-btn" onClick={() => say('admin')}>Admin</button>}
-                <button className="tb-icon" aria-label="Undo"><Icon as={Undo} size={16} /></button>
-                <button className="tb-icon" aria-label="Redo" disabled><Icon as={Redo} size={16} /></button>
-                <button className="tb-icon" aria-label="Search"><Icon as={Search} size={16} /></button>
+                <button className="tb-icon" {...tip('Undo', 'Mod+Z', 'Undo (⌘Z)')} aria-label="Undo"
+                        aria-keyshortcuts={ariaKeys('Mod+Z')}><Icon as={Undo} size={16} /></button>
+                <button className="tb-icon" {...tip('Redo', 'Mod+Shift+Z', 'Redo (⌘⇧Z)')} aria-label="Redo"
+                        aria-keyshortcuts={ariaKeys('Mod+Shift+Z')} disabled><Icon as={Redo} size={16} /></button>
+                <button className="tb-icon" {...tip('Search', 'Mod+K', 'Search (⌘K)')} aria-label="Search"
+                        aria-keyshortcuts={ariaKeys('Mod+K')}><Icon as={Search} size={16} /></button>
                 {!coarse ? (
                   <>
-                    <button className="tb-icon tb-icon-split" title="Pin alongside…" aria-label="Split view"
+                    <button className="tb-icon tb-icon-split" {...tip('Pin alongside…')} aria-label="Split view"
                             aria-pressed={false} onClick={() => say('split')}>
                       <Icon as={Columns2} size={16} />
                     </button>
-                    <button className="tb-icon" aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>
+                    <button className="tb-icon" {...tip('Toggle theme')} aria-label="Toggle theme"><Icon as={Sun} size={16} /></button>
                     {notifBell}
                   </>
                 ) : notifBell}
@@ -773,7 +778,7 @@ export function SidebarQaHarness() {
                     <Icon as={Maximize2} size={16} />
                   </button>
                 )}
-                <button className="tb-btn tb-share" aria-label="Share this cluster" onClick={() => say('share')}>
+                <button className="tb-btn tb-share" {...tip('Share this cluster')} aria-label="Share this cluster" onClick={() => say('share')}>
                   <Icon as={Share2} size={14} /> <span className="tb-btn-label">Share</span>
                 </button>
               </>

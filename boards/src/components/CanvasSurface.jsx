@@ -26,7 +26,7 @@ function schedExpandOf(card, ydoc) {
 }
 import { isEditableTarget, isEditablePointerTarget } from '../lib/isEditableTarget.js';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
-import { anyModalOpen } from '../lib/modalGuard.js';
+import { anyModalOpen, registerModalOpen } from '../lib/modalGuard.js';
 
 // Full-screen surfaces that sit over the board and own the keyboard: Settings,
 // the pricing modal, the PDF viewer, the image lightbox, the photo editor, the
@@ -58,12 +58,24 @@ import { toListItem } from '../lib/listItem.js';
 
 // Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
 const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
+// What's up while its code loads: a layer of its own (lib/modalGuard.js), so
+// Escape cancels the open, rather than reaching nothing and the viewer opening
+// a moment later anyway.
+function PdfViewerLoading({ onClose }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => registerModalOpen({ onEscape: () => { closeRef.current(); return true; } }), []);
+  return <div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>;
+}
 // A file with no viewer of its own opens here (Download + Share).
 const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'));
 // Panels kept mounted behind an `open` prop that only a click opens: each loads
 // at its first open and stays mounted from then on (lib/lazyPanel.jsx).
 const SketchPadOverlay = lazyPanel(() => import('./SketchPadOverlay.jsx').then(m => ({ default: m.SketchPadOverlay })));
 const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then(m => ({ default: m.GridTemplatePanel })));
+// The selection's bar in the toolbar look (held: lib/looks.js), a chunk
+// today's look never fetches.
+const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
 
 // Reuse ShapeCard as our drag-preview renderer.
@@ -81,9 +93,10 @@ import {
   MessageCircle, MessageCircleOff,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
-  Calendar as CalendarPh, X,
+  Calendar as CalendarPh, X, Minus,
 } from '../lib/icons.js';
-import { Icon } from './Icon.jsx';
+import { Icon, IconWeightContext } from './Icon.jsx';
+import { keyCaps, tip, tlTip, toolbarLook } from '../lib/looks.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
@@ -442,6 +455,10 @@ const DRAW_DEFAULT_COLOR = '#f5f5f6';
 const isDefaultInk = (c) => typeof c === 'string' && c.trim().toLowerCase() === DRAW_DEFAULT_COLOR;
 const THEME_INK_STYLE = { color: 'var(--ink-0)' };
 const DRAW_DEFAULT_WIDTH = 3;
+// The toolbar look's draw bar offers 2, 4, 8 and 16 and starts on 4 (A-draw),
+// so it shows what the pen draws with from the first stroke; today's starts
+// between two of its widths.
+const DRAW_DEFAULT_WIDTH_A = 4;
 const ERASER_DEFAULT_WIDTH = 16;
 // The stroke/arrow/snap/shape SVGs are positioned at (0,0) in canvas space with
 // NO viewBox and `overflow: visible`, so their child paths render at raw board
@@ -758,6 +775,19 @@ export function CanvasSurface({
       el.removeEventListener('pointerenter', claim, { capture: true });
     };
   }, [paneId]);
+  // The canvas never scrolls: the board pans and zooms by its transform, and
+  // the canvas clips what lies past its edges (overflow hidden). A focus can
+  // still scroll a box that clips, to bring what it focused into view —
+  // writing in a grid's box past the right edge did — and the tool rail, the
+  // zoom and the bars on the canvas slid out of place until a reload
+  // (canvas-stays-put.spec). Put it straight back.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const back = () => { if (el.scrollLeft || el.scrollTop) el.scrollTo(0, 0); };
+    el.addEventListener('scroll', back, { passive: true });
+    return () => el.removeEventListener('scroll', back);
+  }, []);
   // Closing the split hands the shortcuts back to the main pane — otherwise
   // a split that closed while active would leave 'split' claimed forever and
   // dead-key the whole app.
@@ -1890,7 +1920,7 @@ export function CanvasSurface({
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
-    width: DRAW_DEFAULT_WIDTH,
+    width: toolbarLook() ? DRAW_DEFAULT_WIDTH_A : DRAW_DEFAULT_WIDTH,
     eraserWidth: ERASER_DEFAULT_WIDTH,
   });
   // Seed shape tool from the resolved workspace defaults. Without this,
@@ -9057,15 +9087,44 @@ export function CanvasSurface({
     ]);
   };
 
+  // The selection's bar in the toolbar look, on a desktop (components/toolbar/
+  // SelectionBarA.jsx). It shows what the card menu offers the selection, kept
+  // while the selection holds (buildMenu walks every cluster: not for each of
+  // a drag's frames), and uses that menu built afresh: ⋯ opens the menu itself
+  // over the bar, and Delete is ⌫'s.
+  const selBarOn = toolbarLook() && !isTouch;
+  const selFirst = selBarOn && selected.size >= 2 ? selected.values().next().value : null;
+  const selBarItems = useMemo(() => (selFirst && cardById[selFirst] ? buildMenu(cardById[selFirst]) : EMPTY_ITEMS),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selFirst, selected, groups, boards, canEdit]);
+  const selBarNow = useRef(null);
+  useLayoutEffect(() => {
+    selBarNow.current = {
+      items: () => (selFirst && cardByIdRef.current[selFirst] ? buildMenu(cardByIdRef.current[selFirst]) : EMPTY_ITEMS),
+      more: (r) => setCtx({ open: true, x: r.left, y: r.top - 6, above: true, cardId: selFirst }),
+      del: () => doDeleteSelected(),
+    };
+  });
+  const [selBarApi] = useState(() => ({
+    items: () => selBarNow.current?.items() || EMPTY_ITEMS,
+    more: (r) => selBarNow.current?.more(r),
+    del: () => selBarNow.current?.del(),
+  }));
+  useEffect(() => { if (toolbarLook()) SelectionBarA.warm?.(); }, []);
+
   // ── Background pointer + context ──────────────────────────────────────────
   // New-card pop-in: ids appearing after the first render get .is-new for
   // ~280ms (scale+fade keyframes; disabled under prefers-reduced-motion).
   // Seeded from the first cards array and reset per board so board loads
   // and switches never wave; bulk arrivals (paste, board switch races)
-  // skip the animation too.
+  // skip the animation too. Each arrival's timer outlives the effect's next
+  // run: `cards` changing again inside the 280ms (a second card, the first
+  // one's text) used to clear it and leave the first marked new for good.
   const knownCardIdsRef = useRef(null);
+  const newCardTimersRef = useRef(new Set());
   const [newCardIds, setNewCardIds] = useState(() => new Set());
   useEffect(() => { knownCardIdsRef.current = null; setNewCardIds(new Set()); }, [board.id]);
+  useEffect(() => () => { newCardTimersRef.current.forEach(clearTimeout); }, []);
   useEffect(() => {
     const ids = new Set(cards.map(c => c.id));
     if (knownCardIdsRef.current === null) { knownCardIdsRef.current = ids; return; }
@@ -9074,13 +9133,14 @@ export function CanvasSurface({
     if (fresh.length === 0 || fresh.length > 8) return;
     setNewCardIds(prev => new Set([...prev, ...fresh]));
     const t = setTimeout(() => {
+      newCardTimersRef.current.delete(t);
       setNewCardIds(prev => {
         const next = new Set(prev);
         fresh.forEach(id => next.delete(id));
         return next;
       });
     }, 280);
-    return () => clearTimeout(t);
+    newCardTimersRef.current.add(t);
   }, [cards, board.id]);
 
   // Double-click on empty canvas drops a note right there — the fastest
@@ -12485,20 +12545,27 @@ export function CanvasSurface({
   const tools = [
     // `keys`: what picks it from the keyboard (the shortcut handler above),
     // for aria-keyshortcuts. With W A S D movement on, A and D move instead.
-    { id: 'select', title: 'Select / move (V)', label: 'Select tool', icon: MousePointer2, keys: 'V' },
-    { id: 'pan',    title: 'Pan canvas (H or Space)', label: 'Pan tool', icon: Hand, keys: 'H' },
+    // `tip`: its words in the toolbar look's tooltip, which shows `keys` in
+    // caps beside them (`title`, today's, says the key itself).
+    { id: 'select', title: 'Select / move (V)', tip: 'Select / move', label: 'Select tool', icon: MousePointer2, keys: 'V' },
+    { id: 'pan',    title: 'Pan canvas (H or Space)', tip: 'Pan canvas, or hold Space', label: 'Pan tool', icon: Hand, keys: 'H' },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'text',   title: 'Add note (N)', label: 'Add note tool', icon: NotePencil, keys: 'N' },
+    { id: 'text',   title: 'Add note (N)', tip: 'Add note', label: 'Add note tool', icon: NotePencil, keys: 'N' },
     { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
     { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: clusterGlyph(), keys: clusterNudgesAllowed() ? 'C' : undefined },
-    { id: 'grid',   title: 'Add grid (G)', label: 'Add grid tool', icon: GridNine, keys: 'G' },
-    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
+    { id: 'grid',   title: 'Add grid (G)', tip: 'Add grid', label: 'Add grid tool', icon: GridNine, keys: 'G' },
+    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', tip: 'Arrow — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
     // Draw was moved off the rail deliberately — on a desktop D reaches it
     // instantly and the rail stays uncluttered. A touch device has no keyboard
     // and no right-click, which left the rail "+" submenu as the only way in,
     // for the tool people most want on a tablet. Put it back, on touch only.
-    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
+    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', tip: 'Draw', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
   ];
+  // The toolbar look (lib/looks.js): its tooltips, regular icons and the
+  // menu's keys in caps; toolbarLook.css dresses the rest.
+  const tbLook = toolbarLook();
+  // The zoom slider's place, 0..1000 on a log scale (ZOOM_MIN..ZOOM_MAX).
+  const zoomPos = Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN));
 
   // The rail "+" holds only the SECONDARY creators — anything already on the
   // rail (Note, Image, Doc, Cluster, Grid) is intentionally absent so the two
@@ -12514,7 +12581,7 @@ export function CanvasSurface({
     { title: 'Tools', items: [
       // On touch Draw sits on the rail itself, so listing it here too would put
       // the same tool two taps apart in the same strip.
-      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw (D)', action: () => setSelectedTool('draw') }]),
+      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw', keys: getWasdPan() ? undefined : 'D', action: () => setSelectedTool('draw') }]),
       { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => setSelectedTool('shape') },
       { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => setSelectedTool('palette') },
     ]},
@@ -13969,11 +14036,13 @@ export function CanvasSurface({
              railPressRef.current.scrolled = false;
              startTouchScrollGesture(e, { onEngage: () => { railPressRef.current.scrolled = true; } });
            }}>
+        <IconWeightContext.Provider value={tbLook ? 'regular' : null}>
         <div className="cnv-add-wrap">
           <div
             ref={addBtnRef}
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
             data-tip="Add"
+            {...(tbLook ? tlTip('Add', null, 'right') : {})}
             role="button"
             tabIndex={0}
             aria-label="Add menu"
@@ -14023,7 +14092,8 @@ export function CanvasSurface({
                       // ::after tooltip content into the name ("Shape Draw a
                       // shape"), which also breaks getByRole('menuitem') lookups.
                       aria-label={item.label}
-                      data-tip={item.tip}
+                      aria-keyshortcuts={item.keys}
+                      {...(tbLook ? tlTip(item.tip, null, 'right') : { 'data-tip': item.keys ? `${item.tip} (${item.keys})` : item.tip })}
                       onClick={() => {
                         setAddMenuOpen(false);
                         item.action();
@@ -14031,6 +14101,9 @@ export function CanvasSurface({
                     >
                       <span className="cnv-add-ico" aria-hidden="true"><Icon as={item.icon} size={16} /></span>
                       <span className="cnv-add-lbl">{item.label}</span>
+                      {tbLook && item.keys && (
+                        <span className="tl-keys" aria-hidden="true">{keyCaps(item.keys).map((k) => <kbd key={k}>{k}</kbd>)}</span>
+                      )}
                     </button>
                   ))}
                 </Fragment>
@@ -14072,6 +14145,7 @@ export function CanvasSurface({
           const btn = (
             <div className={`cnv-tool ${active ? 'active' : ''}${teaches ? ' cnv-tool-teach' : ''}`}
                  data-tip={teaches ? undefined : t.title}
+                 {...(tbLook && !teaches ? tlTip(t.tip || t.title, t.keys, 'right') : {})}
                  data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
                  role="button"
                  tabIndex={0}
@@ -14133,6 +14207,7 @@ export function CanvasSurface({
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
              data-tip="Keyboard shortcuts (?)"
+             {...(tbLook ? tlTip('Keyboard shortcuts', '?', 'right') : {})}
              role="button"
              tabIndex={0}
              aria-label="Keyboard shortcuts"
@@ -14146,6 +14221,7 @@ export function CanvasSurface({
              onClick={() => onRailControlClick(openHelp)}>
           <Icon as={Question} size={20} />
         </div>
+        </IconWeightContext.Provider>
       </div>
 
       <SaveTemplateDialog
@@ -14241,9 +14317,14 @@ export function CanvasSurface({
           <button className="cnv-hint-btn" onClick={() => setTouchSelecting(false)}>Done</button>
         </div>
       )}
-      {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (
+      {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (selBarOn ? (
+        <Suspense fallback={null}>
+          <SelectionBarA count={selected.size + selectedStrokes.size + selectedArrows.size} items={selBarItems}
+                         api={selBarApi} canDelete={canEdit} />
+        </Suspense>
+      ) : (
         <div className="cnv-selcount">{selected.size + selectedStrokes.size + selectedArrows.size} selected</div>
-      )}
+      ))}
       {/* Empty-board starter: a contained, frosted panel of card-type tiles so
           the first "add a card" gesture lets you CHOOSE what to drop (image /
           note / upload / doc) instead of force-dropping a note. Each tile routes
@@ -14459,14 +14540,20 @@ export function CanvasSurface({
         {/* −, + and 100% keep the view's centre where it is, like ⌘−/⌘=. A bare
             setZoom scales around the board origin (transform-origin 0 0), so
             what you were looking at slid away with every click. */}
+        {/* The toolbar look draws − and + as icons, and fills the slider's
+            track up to its knob (--zf, toolbarLook.css). */}
         <button aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')}
-                onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>−</button>
+                {...tip('Zoom out', 'Mod+-', null, tbLook)}
+                onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>
+          {tbLook ? <Icon as={Minus} size={18} weight="regular" /> : '−'}
+        </button>
         <input
           className="cnv-zoom-slider"
           type="range"
           min="0" max="1000" step="1"
           // log scale: 0..1000 → ZOOM_MIN..ZOOM_MAX
-          value={Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN))}
+          value={zoomPos}
+          style={tbLook ? { '--zf': `${zoomPos / 10}%` } : undefined}
           onInput={(e) => {
             markZooming();
             const v = Number(e.target.value) / 1000;
@@ -14482,14 +14569,14 @@ export function CanvasSurface({
             setZoom(z);
             setPan({ x: newPanX, y: newPanY });
           }}
-          title="Drag to zoom"
+          {...tip('Drag to zoom', null, 'Drag to zoom', tbLook)}
           aria-label="Zoom"
           aria-valuetext={`${Math.round(zoom * 100)}%`}
         />
         {/* What it shows, then what it does: Enter on it is ⌘0. (Double-click
             fits the cluster; the keyboard has ⇧1 for that.) */}
         <button type="button" className="cnv-zoom-val"
-              title="Click: 100% · Double-click: Full Cluster"
+              {...tip('Click: 100% · Double-click: Full Cluster', 'Mod+0', 'Click: 100% · Double-click: Full Cluster', tbLook)}
               aria-label={`${Math.round(zoom * 100)}% — reset to 100%`}
               aria-keyshortcuts={ariaKeys('Mod+0')}
               onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
@@ -14497,7 +14584,10 @@ export function CanvasSurface({
           {Math.round(zoom * 100)}%
         </button>
         <button aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')}
-                onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>+</button>
+                {...tip('Zoom in', 'Mod+=', null, tbLook)}
+                onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>
+          {tbLook ? <Icon as={Plus} size={18} weight="regular" /> : '+'}
+        </button>
       </div>
 
       {/* Master comments-visibility toggle. Always rendered — left-click
@@ -14507,10 +14597,13 @@ export function CanvasSurface({
           of currently-visible comments (or the archived count when
           comments are muted, so the user still feels there's
           something to bring back). */}
+      {/* The toolbar look makes it a small island of its own (toolbarLook.css),
+          its tooltip the glass one. */}
       <button className={`cnv-comments-eye ${commentsVisible ? '' : 'is-muted'}`}
-              title={commentsVisible
+              {...tip(commentsVisible
                 ? 'Hide all comments (right-click for archive)'
-                : 'Show all comments (right-click for archive)'}
+                : 'Show all comments (right-click for archive)', null, undefined, tbLook)}
+              aria-label={`${commentsVisible ? 'Hide' : 'Show'} all comments${visibleCommentCount > 0 ? `, ${visibleCommentCount} showing` : ''}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleCommentsVisible}
               onContextMenu={(e) => {
@@ -14519,7 +14612,7 @@ export function CanvasSurface({
                 const r = e.currentTarget.getBoundingClientRect();
                 setCommentArchive({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
               }}>
-        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={14} weight="light" />
+        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={tbLook ? 16 : 14} weight={tbLook ? 'regular' : 'light'} />
         {/* Badge counts only currently-visible (open, non-archived)
             comments — resolved and hidden don't count, since they're
             archived and live in the popover instead. */}
@@ -14544,6 +14637,7 @@ export function CanvasSurface({
         open={ctx.open}
         x={ctx.x}
         y={ctx.y}
+        above={!!ctx.above}
         // Built only while open: ctx.cardId outlives the menu, and buildMenu
         // (cycle checks across every board for a cluster card) used to run on
         // every canvas render after the first right-click, drag frames included.
@@ -14864,7 +14958,7 @@ export function CanvasSurface({
         );
       })()}
       {pdfViewer && (
-        <Suspense fallback={<div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>}>
+        <Suspense fallback={<PdfViewerLoading onClose={() => setPdfViewer(null)} />}>
           {(() => {
             const shareCard = pdfViewer.cardId ? cards.find(x => x.id === pdfViewer.cardId) : null;
             const shareTarget = (canEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))

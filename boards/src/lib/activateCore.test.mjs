@@ -20,6 +20,8 @@ import {
   mirrorFieldsFromSubscription,
   netMonthlyFromSubscription,
   periodEndFromSubscription,
+  isTeamItem,
+  isTeamObject,
   pickReusableCustomer,
   planFromPriceId,
   planFromSubscription,
@@ -200,6 +202,15 @@ test('pickReusableCustomer proves ownership', () => {
   assert.equal(pickReusableCustomer([dead], 'u1'), null);
   assert.equal(pickReusableCustomer([], 'u1'), null);
 });
+test('pickReusableCustomer never hands out a team\'s customer (S3)', () => {
+  // A team's customer carries no user stamp, so it used to read as unclaimed:
+  // a Creator checkout with the same email would have taken the team's card,
+  // invoices and subscription for the person.
+  const team = { id: 'cus_team', metadata: { soleil_kind: 'team', soleil_owner_id: 'u1' } };
+  const unclaimed = { id: 'cus_unclaimed', metadata: {} };
+  assert.equal(pickReusableCustomer([team], 'u1'), null);
+  assert.deepEqual(pickReusableCustomer([team, unclaimed], 'u1'), { customer: unclaimed, needsStamp: true });
+});
 test('decideCheckoutRoute: two racing tabs both hit the Stripe-side guard', () => {
   // Tab 2 arrives after tab 1 paid: the mirror is still empty but Stripe
   // already has the live sub — must route to portal, never a second checkout.
@@ -279,6 +290,21 @@ test('storage is recognised by price id when the config names no products', () =
   const r = subscriptionItems(twoItem({ blocks: 3 }), cfg);
   assert.equal(r.creator.price.id, 'price_m');
   assert.equal(r.storageBlocks, 3);
+});
+
+test('a team\'s subscription is never a Creator plan (S3)', () => {
+  const cfg = { ...CFG, teamProduct: 'prod_team', teamPrices: { monthly: 'price_tm', annual: 'price_ta' } };
+  const seat = item('price_tm', 'prod_team', 1500, { qty: 5 });
+  const s = { id: 'sub_t', status: 'trialing', items: { data: [seat] } };
+  assert.equal(isTeamItem(seat, cfg), true);
+  const r = subscriptionItems(s, cfg);
+  assert.equal(r.creator, null, 'never the rest[0] fallback');
+  assert.deepEqual(r.unknown, [], 'a team seat is not an unknown Creator price either');
+  assert.deepEqual(activationDecision(s, cfg), { live: false, reason: 'no_creator_item' });
+  // By its metadata alone, even with no team ids configured.
+  const stamped = { ...sub(usdPrice(1500)), metadata: { soleil_kind: 'team' } };
+  assert.equal(isTeamObject(stamped), true);
+  assert.deepEqual(activationDecision(stamped), { live: false, reason: 'team_subscription' });
 });
 
 test('a subscription that is only storage is not a plan', () => {

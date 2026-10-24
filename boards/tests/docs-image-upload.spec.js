@@ -9,6 +9,7 @@
 // ?docqa=1&uploads=1: the harness gives the doc a workspace, a host cluster and
 // a stand-in for R2 (window.__soleilDocTest.uploads) the spec drives by hand.
 import { expect, test } from '@playwright/test';
+import { insertRow } from './helpers/docFrame.js';
 import path from 'node:path';
 
 const PHOTO = path.resolve('src/local/qa-photos/street.jpg');
@@ -33,8 +34,7 @@ async function openWithUploads(page) {
 
 async function pickFromToolbar(page) {
   const chooser = page.waitForEvent('filechooser');
-  await page.locator('.doc-card-modal .doc-tb button[title^="Insert"]').first().click();
-  await page.getByRole('menuitem', { name: /Image/ }).click();
+  await insertRow(page.locator('.doc-card-modal'), /Image/);
   await (await chooser).setFiles(PHOTO);
 }
 

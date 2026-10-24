@@ -47,6 +47,24 @@ async function openDoc(page) {
     '<h2>Sundown Highway</h2><p>A night drive across the desert, told in three long takes.</p>'));
 }
 
+// The doc's words selected: the bubble is up (a phone in the doc look has
+// none: the row on the keyboard has its formats).
+async function selectInDoc(page) {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().selectAll().run());
+  if (page.viewportSize().width <= 640 && await page.evaluate(() => document.documentElement.dataset.docLook === 'a')) return false;
+  await page.locator('.doc-bubble').waitFor();
+  return true;
+}
+// A picture in the doc, tapped: its bar is up.
+async function pickDocImage(page) {
+  await openDoc(page);
+  await page.evaluate(() => window.__soleilDocTest.editor.chain().focus('end')
+    .setImage({ src: '/src/local/qa-photos/street.jpg' }).run());
+  await page.locator('.doc-card-modal .ProseMirror img').first().tap();
+  await page.locator('.tt-img-wrap.is-selected .tt-img-tb').waitFor();
+  return true;
+}
 // An arrow drawn across the middle of an empty board, then picked: its
 // popover is up.
 async function pickAnArrow(page) {
@@ -83,14 +101,66 @@ const CLIP = readFileSync(new URL('../fixtures/media/frames-vp9.mp4', import.met
 // names them as it passes; their text and their visibility are judged now.
 // Home with `drawer=0`: on a phone the harness opens the drawer over it, as
 // the menu button would.
+const DOC_LOOK = { 'soleil.dev.docLook': '1' };
+// Today's doc bars, held to today's look (the look's are the 'doc look …'
+// pages, which its dev switch would otherwise take these to).
+const TODAYS_DOC = { 'soleil.dev.docLook': '0' };
+// The same for the canvas's bars and the toolbar look (lib/appHost.js
+// toolbarLookAllowed; its pages are the '… look' ones).
+const TB_LOOK = { 'soleil.dev.toolbarLook': '1' };
+const TODAYS_BARS = { 'soleil.dev.toolbarLook': '0' };
+
+// The look's note bar (NoteBarA), on the local board's note: one of its
+// buttons tapped and the menu it opens up.
+async function noteBarMenu(page, name, menu) {
+  await editNote(page);
+  await page.locator('.tob').getByRole('button', { name }).tap();
+  await page.locator(menu).waitFor();
+  return true;
+}
+
+// The draw tool and the shape tool armed: their bars are up.
+async function drawTool(page) {
+  if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
+  await page.locator('.tob').waitFor();
+  return true;
+}
+async function shapeTool(page) {
+  await tapOn(page, '.cnv-tools [aria-label="Add menu"]');
+  await page.locator('.cnv-add-menu [role="menuitem"][aria-label="Shape"]').tap();
+  await page.locator('.tob').waitFor();
+  return true;
+}
+// The sketch pad, opened from the draw tool's bar.
+async function openSketchPad(page) {
+  if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
+  await page.locator('.tob').getByRole('button', { name: 'Open a fullscreen drawing canvas' }).tap();
+  await page.locator('.sketchpad-frame').waitFor();
+  return true;
+}
+// One of the look's canvas bars' buttons tapped, and the menu it opens up;
+// false where the bar doesn't have it on this device.
+async function barMenu(page, name, menu) {
+  const btn = page.locator('.tob').getByRole('button', { name });
+  if (!(await btn.count())) return false;
+  await btn.first().tap();
+  await page.locator(menu).waitFor();
+  return true;
+}
+
 const PAGES = [
-  { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]' },
+  { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TODAYS_BARS },
   { name: 'home', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]' },
   { name: 'home naming', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]',
     // The map's bottom bar, or a phone's row under the search.
     open: (page) => tapOn(page, '.ch-bar .ch-quiet, .ch-find-row .ch-quiet'), scope: '.ch-naming' },
-  { name: 'bar menu', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
+  { name: 'bar menu', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TODAYS_BARS,
     open: (page) => tapOn(page, '.chrome-more-btn'), scope: '.chrome-menu' },
+  // The top islands in the toolbar look (FloatingChrome, toolbarLook.css), and
+  // ⋯'s menu, the look's (ChromeMoreA).
+  { name: 'sidebar + board look', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TB_LOOK },
+  { name: 'bar menu look', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TB_LOOK,
+    open: (page) => tapOn(page, '.chrome-more-btn'), scope: '.tl-menu' },
   { name: 'new cluster', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
     open: (page) => tapOn(page, '.tb-newcluster'), scope: '.ncl-pop' },
   { name: 'cluster switcher', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
@@ -117,7 +187,9 @@ const PAGES = [
   { name: 'import guide', url: '/?importqa=1&guide=1', ready: '#root[data-importqa-ready]' },
   { name: 'import ask', url: '/?importqa=1&dialog=free', ready: '#root[data-importqa-ready]' },
   { name: 'upload menu', url: '/?importqa=1&menu=1', ready: '#root[data-importqa-ready]' },
-  { name: 'canvas', url: '/?local=1&reset=1', ready: '.canvas-wrap .card' },
+  { name: 'canvas', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS },
+  // The rail, the top islands and the comments toggle over the rail.
+  { name: 'canvas look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK },
   { name: 'files', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await page.locator('.view-pill--primary .view-pill-btn').nth(1).tap();
@@ -151,30 +223,51 @@ const PAGES = [
       await page.locator('.ctx-menu').waitFor();
       return true;
     }, scope: '.ctx-menu' },
-  { name: 'note bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+  { name: 'note bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
     open: (page) => editNote(page), scope: '.tob',
     dense: (w) => (w > 640 ? '.tob-btn, .size-combo, .size-combo-arrow' : null) },
-  { name: 'note colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+  { name: 'note colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
     open: async (page) => {
       await editNote(page);
       await page.locator('.tob').getByRole('button', { name: 'Text color' }).tap();
       await page.locator('.tob-pop').waitFor();
       return true;
     }, scope: '.tob-pop' },
-  { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+  // The note bar in the toolbar look, folded under a finger to its five
+  // groups and ⋯ (NoteBarA; note-bar-look.spec.js), and each of its menus.
+  { name: 'note bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => editNote(page), scope: '.tob' },
+  { name: 'note bar look fonts', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => noteBarMenu(page, /^Font/, '.nb-font-pop'), scope: '.nb-font-pop' },
+  { name: 'note bar look colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => noteBarMenu(page, 'Text color', '.nb-colour-menu'), scope: '.nb-colour-menu' },
+  { name: 'note bar look more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: (page) => noteBarMenu(page, 'More formatting', '.nb-more'), scope: '.nb-more' },
+  // The background's menu, off ⋯ (a phone's are ⋯'s own: 'note bar look more').
+  { name: 'note bar look background', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
     open: async (page) => {
-      if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
-      await page.locator('.tob').waitFor();
+      await noteBarMenu(page, 'More formatting', '.nb-more');
+      const row = page.locator('.nb-more').getByRole('menuitem', { name: 'Card background' });
+      if (!(await row.count())) return false;
+      await row.tap();
+      await page.locator('.nb-colour-menu').waitFor();
       return true;
-    }, scope: '.tob' },
-  { name: 'shape bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    }, scope: '.nb-colour-menu' },
+  // A phone's lists are a menu of their own.
+  { name: 'note bar look lists', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
     open: async (page) => {
-      await tapOn(page, '.cnv-tools [aria-label="Add menu"]');
-      await page.locator('.cnv-add-menu [role="menuitem"][aria-label="Shape"]').tap();
-      await page.locator('.tob').waitFor();
+      await editNote(page);
+      const lists = page.locator('.tob').getByRole('button', { name: /^Lists/ });
+      if (!(await lists.count())) return false;
+      await lists.tap();
+      await page.locator('.tl-menu.tob-menu').waitFor();
       return true;
-    }, scope: '.tob' },
-  { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    }, scope: '.tl-menu.tob-menu' },
+  { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
+    open: drawTool, scope: '.tob' },
+  { name: 'shape bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
+    open: shapeTool, scope: '.tob' },
+  { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
     open: async (page) => {
       await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
       await page.locator('.tob').waitFor();
@@ -183,20 +276,54 @@ const PAGES = [
   { name: 'an arrow picked', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
     open: async (page) => { await pickAnArrow(page); return true; }, scope: '.arrow-popover',
     dense: () => '.arrow-popover button, .arrow-popover input' },
-  { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
+  { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TODAYS_BARS,
     open: async (page) => {
       await pickAnArrow(page);
       await page.locator('.arrow-popover [title="No arrowheads"]').click();
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return true;
     }, scope: '.tob' },
-  { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+  // ── The look's draw, shape, line and arrow bars (components/toolbar/CanvasBarsA.jsx) ──
+  { name: 'draw bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: drawTool, scope: '.tob' },
+  { name: 'draw bar look menu', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await drawTool(page); return barMenu(page, 'Brush, color and width', '.db-menu'); },
+    scope: '.db-menu' },
+  { name: 'shape bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: shapeTool, scope: '.tob' },
+  { name: 'shape bar look shapes', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await shapeTool(page); return barMenu(page, /^Shape: /, '.tl-menu.tob-menu'); },
+    scope: '.tl-menu.tob-menu' },
+  { name: 'shape bar look fill', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await shapeTool(page); return barMenu(page, 'Fill', '.sb-colour-menu'); },
+    scope: '.sb-colour-menu' },
+  { name: 'shape bar look more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: async (page) => { await shapeTool(page); return barMenu(page, 'More shape options', '.sb-more'); },
+    scope: '.sb-more' },
+  { name: 'arrow bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
     open: async (page) => {
-      if (!(await tapOn(page, '.cnv-tools [aria-label="Free-draw tool"]'))) await page.keyboard.press('d');
-      await page.locator('.tob').getByRole('button', { name: 'Open a fullscreen drawing canvas' }).tap();
-      await page.locator('.sketchpad-frame').waitFor();
+      await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
+      await page.locator('.tob').waitFor();
       return true;
-    }, scope: '.sketchpad-frame' },
+    }, scope: '.tob' },
+  { name: 'line bar look', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+    open: async (page) => {
+      await pickAnArrow(page);
+      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await page.locator('.tob[aria-label="Line"]').waitFor();
+      return true;
+    }, scope: '.tob' },
+  { name: 'line bar look more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+    open: async (page) => {
+      await pickAnArrow(page);
+      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await page.locator('.tob[aria-label="Line"]').waitFor();
+      return barMenu(page, 'More line options', '.ln-more');
+    }, scope: '.ln-more' },
+  { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
+    open: openSketchPad, scope: '.sketchpad-frame' },
+  { name: 'sketch pad look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+    open: openSketchPad, scope: '.sketchpad-frame' },
   // Two versions, so its header carries the version pills (on a phone, their menu).
   { name: 'review player', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
@@ -217,37 +344,37 @@ const PAGES = [
     }, scope: '.frv' },
 
   // ── A doc's bars ──
-  { name: 'doc toolbar', url: '/?docqa=1', ready: '#root',
+  { name: 'doc toolbar', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => { await openDoc(page); return true; }, scope: '.doc-card-modal .doc-tb' },
-  { name: 'screenplay toolbar', url: '/?docqa=1', ready: '#root',
+  { name: 'screenplay toolbar', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').tap();
       await page.locator('.doc-paper.is-screenplay .ProseMirror').waitFor();
       return true;
     }, scope: '.doc-card-modal .doc-tb' },
-  { name: 'doc insert menu', url: '/?docqa=1', ready: '#root',
+  { name: 'doc insert menu', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb [aria-label="Insert a block"]').tap();
       await page.locator('.doc-insert-menu').waitFor();
       return true;
     }, scope: '.doc-insert-menu' },
-  { name: 'doc export menu', url: '/?docqa=1', ready: '#root',
+  { name: 'doc export menu', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb [aria-label="Export"]').tap();
       await page.locator('.doc-export-menu').waitFor();
       return true;
     }, scope: '.doc-export-menu' },
-  { name: 'doc size presets', url: '/?docqa=1', ready: '#root',
+  { name: 'doc size presets', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb .size-combo-arrow').tap();
       await page.locator('.size-combo-pop').waitFor();
       return true;
     }, scope: '.size-combo-pop' },
-  { name: 'doc find', url: '/?docqa=1', ready: '#root',
+  { name: 'doc find', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: 'Find', exact: true }).tap();
@@ -255,7 +382,7 @@ const PAGES = [
       return true;
     }, scope: '.doc-find' },
   // Docked beside the board: the bar's narrow form.
-  { name: 'docked doc toolbar', url: '/?docqa=1&panes=1', ready: '[data-docqa-panes-ready]',
+  { name: 'docked doc toolbar', url: '/?docqa=1&panes=1', ready: '[data-docqa-panes-ready]', storage: TODAYS_DOC,
     open: async (page) => {
       const dock = page.locator('[data-docqa-card="doc-a"] .doc-card').getByRole('button', { name: 'Open beside' });
       if (!(await dock.count())) return false;
@@ -263,36 +390,102 @@ const PAGES = [
       await page.locator('[data-doc-pane="split"] .doc-tb').waitFor();
       return true;
     }, scope: '[data-doc-pane="split"] .doc-tb' },
-  { name: 'doc colours', url: '/?docqa=1', ready: '#root',
+  { name: 'doc colours', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb .doc-tb-colorwrap > button').first().tap();
       await page.locator('.doc-tb-colorpop').waitFor();
       return true;
     }, scope: '.doc-tb-colorpop' },
-  { name: 'doc fonts', url: '/?docqa=1', ready: '#root',
+  { name: 'doc fonts', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: /^Font(: .+)?$/ }).tap();
       await page.locator('.font-pop').waitFor();
       return true;
     }, scope: '.font-pop' },
-  { name: 'doc selection', url: '/?docqa=1', ready: '#root',
+  { name: 'doc selection', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
+    open: selectInDoc, scope: '.doc-bubble' },
+  { name: 'doc image', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
+    open: pickDocImage, scope: '.tt-img-tb' },
+  // ── The doc look's (shipped 2026-10-24, lib/appHost.js docLookAllowed) ──
+  { name: 'doc look selection', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: selectInDoc, scope: '.doc-bubble' },
+  { name: 'doc look image', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: pickDocImage, scope: '.tt-img-tb' },
+  { name: 'doc look', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => { await openDoc(page); return true; },
+    scope: '.doc-card-modal :is(.dl-head, .dl-bar, .dl-foot)' },
+  { name: 'doc look, the row on the keyboard', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
     open: async (page) => {
       await openDoc(page);
-      await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().selectAll().run());
-      await page.locator('.doc-bubble').waitFor();
-      return true;
-    }, scope: '.doc-bubble' },
-  { name: 'doc image', url: '/?docqa=1', ready: '#root',
+      await page.locator('.doc-card-modal .ProseMirror p').first().tap();
+      await page.waitForTimeout(300);
+      return (await page.locator('.dl-acc').count()) > 0;
+    }, scope: '.dl-acc' },
+  { name: 'doc look more', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
     open: async (page) => {
       await openDoc(page);
-      await page.evaluate(() => window.__soleilDocTest.editor.chain().focus('end')
-        .setImage({ src: '/src/local/qa-photos/street.jpg' }).run());
-      await page.locator('.doc-card-modal .ProseMirror img').first().tap();
-      await page.locator('.tt-img-wrap.is-selected .tt-img-tb').waitFor();
+      const phone = page.locator('.dl-head').getByRole('button', { name: /^More/ });
+      if (await phone.count()) await phone.tap();
+      else await page.locator('.dl-bar').getByRole('button', { name: 'More', exact: true }).tap();
+      await page.locator('.dl-more').waitFor();
       return true;
-    }, scope: '.tt-img-tb' },
+    }, scope: '.dl-more' },
+  { name: 'doc look comments', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      // A thread on "night", its card open by a tap on the words.
+      await page.evaluate(() => {
+        const T = window.__soleilDocTest;
+        const id = T.addCommentThread(T.ydoc, { body: 'Which road?', author: 'Maya Chen', authorId: 'u-maya', scope: T.getScope() });
+        const ed = T.editor;
+        let at = null;
+        ed.state.doc.descendants((n, pos) => { if (at == null && n.isText && n.text.includes('night')) at = pos + n.text.indexOf('night'); return at == null; });
+        ed.chain().setTextSelection({ from: at, to: at + 5 }).setMark('comment', { id }).setTextSelection(1).run();
+      });
+      await page.locator('.doc-card-modal .tt-comment').first().tap();
+      await page.locator('.dl-panel .dl-th.is-on .dl-reply').waitFor();
+      return true;
+    }, scope: '.dl-panel' },
+  { name: 'doc look find', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      const phone = page.locator('.dl-head').getByRole('button', { name: /^More/ });
+      if (await phone.count()) {
+        await phone.tap();
+        await page.getByRole('menu', { name: 'More' }).getByRole('menuitem', { name: /^Find/ }).tap();
+      } else {
+        await page.locator('.dl-head').getByRole('button', { name: /^Comments/ }).tap();
+        await page.locator('.dl-panel').getByRole('tab', { name: 'Find' }).tap();
+      }
+      await page.locator('.dl-panel').getByRole('textbox', { name: 'Find', exact: true }).fill('night');
+      await page.locator('.dl-panel .dl-fr').first().waitFor();
+      return true;
+    }, scope: '.dl-panel' },
+  { name: 'doc look table', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent(
+        '<p>Shots.</p><table><tr><th>#</th><th>Shot</th></tr><tr><td>1</td><td>Wide</td></tr></table>'));
+      await page.locator('.doc-card-modal .ProseMirror td').nth(1).tap();
+      await page.locator('.dl-tbar').waitFor();
+      return true;
+    }, scope: '.dl-tbar' },
+  { name: 'doc look pages', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+    open: async (page) => {
+      await openDoc(page);
+      await page.evaluate(() => {
+        const T = window.__soleilDocTest;
+        for (const name of ['Act two', 'Act three']) T.addPage(T.ydoc, { name, scope: T.getScope() });
+      });
+      // A drawer on a phone or a portrait iPad; open beside the page already
+      // on a landscape one.
+      const show = page.locator('.dl-head').getByRole('button', { name: 'Show pages' });
+      if (await show.count()) await show.tap();
+      await page.locator('.doc-card-modal .doc-tree-add').first().waitFor();
+      return true;
+    }, scope: '.doc-card-modal .doc-rail-left' },
 ];
 
 // selector → why it may be smaller than a finger.
@@ -400,6 +593,11 @@ for (const p of PAGES) {
         localStorage.setItem('soleil.dev.clusterNudges', '1');
       } catch (_) {}
     });
+    if (p.storage) {
+      await page.addInitScript((kv) => {
+        try { for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v); } catch (_) {}
+      }, p.storage);
+    }
     await page.goto(p.url);
     await page.waitForSelector(p.ready, { timeout: 30000 });
     // What only the dev harness draws: the LOCAL QA banner over the bar's top

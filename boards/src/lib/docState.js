@@ -935,7 +935,26 @@ export function readDocSummary(ydoc, max = 240, scope) {
     const frag = pageContentMap(ydoc, scope)?.get(firstPage.id);
     firstText = pageFragmentToText(frag, max);
   }
-  return { pages, firstText, firstPageName: firstPage?.name || '' };
+  // Nothing written yet (the closed card's Start writing): no page, or one
+  // page whose every sheet is blank.
+  const empty = !pages.length || (pages.length === 1 && getPageSheetIds(ydoc, pages[0].id, scope).every((sid) => (
+    blankFragment(sid === pages[0].id ? pageContentMap(ydoc, scope)?.get(sid) : sheetContentMap(ydoc, scope)?.get(sid))
+  )));
+  return { pages, firstText, firstPageName: firstPage?.name || '', empty };
+}
+
+// A fragment with nothing in it: no text but spaces, and no element but empty
+// text blocks (a picture, a table, a rule or an embed is something).
+const BLANK_NODES = new Set(['paragraph', 'heading', 'screenplayBlock', 'hardBreak']);
+function blankNode(node) {
+  if (typeof node.toDelta === 'function' && typeof node.toArray !== 'function') {
+    try { return node.toDelta().every((d) => typeof d.insert === 'string' && !d.insert.trim()); } catch (_) { return false; }
+  }
+  if (node.nodeName && !BLANK_NODES.has(node.nodeName)) return false;
+  return (node.toArray?.() || []).every(blankNode);
+}
+export function blankFragment(frag) {
+  return !frag || (frag.toArray?.() || []).every(blankNode);
 }
 
 // ── The first page follows the card's title ─────────────────────────────────
@@ -986,6 +1005,21 @@ export function writeScriptBody(ydoc, scope, docJSON, { name = 'Untitled' } = {}
     if (frag) frag.insert(0, nodes);
   }, DOC_ORIGIN);
   return pageId;
+}
+
+// …or into a page already there: a new doc, still empty, made a script by
+// "Import a script" (the doc look's start, mockup S-open). The page's own
+// (empty) lines go and the script's come, in one transaction, so the doc is
+// the script and not a second page beside an empty one.
+export function writeScriptIntoPage(ydoc, scope, pageId, docJSON) {
+  const nodes = (docJSON && Array.isArray(docJSON.content)) ? docJSON.content.map(scriptNodeToYXml).filter(Boolean) : [];
+  const frag = pageId ? pageContentMap(ydoc, scope)?.get(pageId) : null;
+  if (!nodes.length || !frag) return false;
+  ydoc.transact(() => {
+    if (frag.length) frag.delete(0, frag.length);
+    frag.insert(0, nodes);
+  }, DOC_ORIGIN);
+  return true;
 }
 
 function scriptNodeToYXml(node) {

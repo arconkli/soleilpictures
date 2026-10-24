@@ -50,10 +50,12 @@ export function DocCommentsTab({
   const counts = { all: ordered.length, open: open.length, resolved: ordered.length - open.length };
   const shown = filter === 'open' ? open : filter === 'resolved' ? ordered.filter((t) => t.resolved) : ordered;
 
-  // The caret in commented words picks their card.
+  // The caret in an open thread's words picks its card (a resolved one's
+  // words read as plain text: DocSurface).
+  const resolvedIds = useMemo(() => new Set(threads.filter((t) => t.resolved).map((t) => t.id)), [threads]);
   const atCaret = useEditorState({
     editor,
-    selector: () => commentAtCaret(editor),
+    selector: () => commentAtCaret(editor, resolvedIds),
   });
   useEffect(() => { if (atCaret) onSelect?.(atCaret); }, [atCaret]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -100,13 +102,13 @@ export function DocCommentsTab({
   );
 }
 
-// The thread whose words the caret is in (or just before), or null.
-function commentAtCaret(editor) {
+// The open thread whose words the caret is in (or just before), or null.
+function commentAtCaret(editor, resolved) {
   if (!editor || editor.isDestroyed) return null;
   try {
     const $p = editor.state.doc.resolve(editor.state.selection.from);
     const marks = [...$p.marks(), ...($p.nodeAfter?.marks || [])];
-    return marks.find((m) => m.type.name === 'comment' && m.attrs.id)?.attrs.id || null;
+    return marks.find((m) => m.type.name === 'comment' && m.attrs.id && !resolved.has(m.attrs.id))?.attrs.id || null;
   } catch (_) { return null; }
 }
 

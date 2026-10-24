@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon, IconWeightContext } from '../Icon.jsx';
 import { Btn } from '../toolbar/Toolbar.jsx';
@@ -8,20 +8,25 @@ import { FileShareButton } from '../fileShare/FileShareButton.jsx';
 import { useMessagesUi } from '../../hooks/useOpenDm.js';
 import { useDocFrame } from '../../hooks/useDocFrame.js';
 import { useDocStatus } from '../../hooks/useDocStatus.js';
+import { screenplayCounts } from '../docExtensions/screenplay/ScreenplayPagination.js';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
+import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { docSharesAllowed } from '../../lib/appHost.js';
 import { isShareableDoc } from '../../lib/fileShares.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import {
-  SidebarSimple, Sidebar, ChevronRight, Eye, ChatCircleText, ChatsCircle, CornersOut, X,
+  SidebarSimple, Sidebar, ChevronRight, Eye, ChatCircleText, ChatsCircle, CornersOut, X, MoreHorizontal,
   CloudCheck, CloudArrowUp, CloudSlash, CloudWarning,
 } from '../../lib/icons.js';
 import './docLook.css';
 
 // The one row of tools and the side panel's tabs come in the same chunk.
-export { DocBarA } from './DocBarA.jsx';
+export { DocBarA, DocMoreA } from './DocBarA.jsx';
 export { DocCommentsTab } from './DocCommentsTab.jsx';
 export { DocFindTab } from './DocFindTab.jsx';
+export { DocElementsTab } from './DocElementsTab.jsx';
+export { DocStarters } from './DocStarters.jsx';
+export { DocTableBar } from './DocTableBar.jsx';
 
 // The doc editor's frame in the doc look (the owner's pick of 2026-10-21:
 // direction A, with C's side panel; mockups dx Main, A-dock, AC-comments,
@@ -32,11 +37,18 @@ export { DocFindTab } from './DocFindTab.jsx';
 // The header. The page list's toggle and the side panel's change what the
 // surface under it owns, through the frame (lib/docFrame.js); the rest is the
 // window's own, as in the header it replaces (DocCard.jsx DocCardOverlay).
+//
+// On a phone (mockups A-phone, S-phone) it is Close, Pages, the title with a
+// line under it (how the doc's saving, who else is in it), Share and ⋯, which
+// holds the rest: the surface's DocMoreA, opened through the frame.
 export function DocHeadA({
   frame, card, scope, boards, canEdit = true, isPublic = false, mode, titleInputRef, focusTitle = false,
   onUpdate, onSetMode, onClose, peersOnCard = [], onJumpToPeer,
 }) {
   const f = useDocFrame(frame);
+  const { isPhone } = useBreakpoint();
+  const messagesUi = useMessagesUi();
+  const moreRef = useRef(null);
   const cluster = (scope?.boardId && boards?.[scope.boardId]?.name) || null;
   const titleRef = useRef(null);
   const setTitle = (el) => {
@@ -52,12 +64,57 @@ export function DocHeadA({
     titleRef.current?.select?.();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const open = f.openComments;
+  const pagesBtn = (
+    <Btn icon={SidebarSimple} label={f.railOpen ? 'Hide pages' : 'Show pages'}
+         aria-expanded={f.railOpen} disabled={!f.ready}
+         onClick={() => frame?.act.toggleRail()} />
+  );
+  const title = (
+    <input className="doc-card-title-input dl-title"
+           ref={setTitle}
+           aria-label="Document title"
+           value={card.title || ''}
+           placeholder="Untitled doc"
+           readOnly={!canEdit}
+           onChange={(e) => { if (canEdit) onUpdate?.({ title: e.target.value }); }}
+           onKeyDown={(e) => {
+             // Named, Enter goes on to the text (mockup S-open).
+             if (e.key !== 'Enter' || isComposingKey(e) || !canEdit) return;
+             e.preventDefault();
+             frame?.act.focusText?.();
+           }} />
+  );
+  // Share this doc on its own (held: docSharesAllowed), as before.
+  const share = !isPublic && canEdit && scope?.boardId && docSharesAllowed() && isShareableDoc(card) ? (
+    <FileShareButton variant="doc" surface="doc" boardId={scope.boardId} cardId={card.id}
+                     card={{ id: card.id, kind: 'doc', title: card.title || 'Untitled doc' }} />
+  ) : null;
+  if (isPhone) {
+    const unread = !isPublic ? messagesUi?.unread || 0 : 0;
+    return (
+      <IconWeightContext.Provider value="regular">
+        <div className="dl-head is-phone">
+          <Btn icon={X} label="Close document" onClick={onClose} />
+          {pagesBtn}
+          <div className="dl-ptitle">
+            {title}
+            <PhoneLine boardId={scope?.boardId || (scope ? null : card.id)} showSave={f.showSave !== false}
+                       canEdit={canEdit} isPublic={isPublic} fresh={focusTitle} peers={peersOnCard} />
+          </div>
+          {share}
+          <Btn ref={moreRef} icon={MoreHorizontal} label={unread > 0 ? `More, ${unread} unread messages` : 'More'}
+               aria-haspopup="menu" aria-expanded={!!f.moreOpen} disabled={!f.ready}
+               onClick={(e) => frame?.act.toggleMore?.(moreRef, e.detail === 0)}>
+            {unread > 0 && <span className="dl-dot" aria-hidden="true" />}
+          </Btn>
+        </div>
+      </IconWeightContext.Provider>
+    );
+  }
   return (
     <IconWeightContext.Provider value="regular">
       <div className="dl-head">
-        <Btn icon={SidebarSimple} label={f.railOpen ? 'Hide pages' : 'Show pages'}
-             aria-expanded={f.railOpen} disabled={!f.ready}
-             onClick={() => frame?.act.toggleRail()} />
+        {pagesBtn}
         <div className="dl-crumb">
           {/* One box, so a narrow window drops both (Icon's inline display
               would outrank a class's). */}
@@ -67,13 +124,7 @@ export function DocHeadA({
               <Icon as={ChevronRight} size={12} className="dl-crumb-s" />
             </span>
           )}
-          <input className="doc-card-title-input dl-title"
-                 ref={setTitle}
-                 aria-label="Document title"
-                 value={card.title || ''}
-                 placeholder="Untitled doc"
-                 readOnly={!canEdit}
-                 onChange={(e) => { if (canEdit) onUpdate?.({ title: e.target.value }); }} />
+          {title}
         </div>
         {!canEdit && (
           <span className="dl-chip"><Icon as={Eye} size={14} />View only</span>
@@ -94,11 +145,7 @@ export function DocHeadA({
             )}
           </div>
         )}
-        {/* Share this doc on its own (held: docSharesAllowed), as before. */}
-        {!isPublic && canEdit && scope?.boardId && docSharesAllowed() && isShareableDoc(card) && (
-          <FileShareButton variant="doc" surface="doc" boardId={scope.boardId} cardId={card.id}
-                           card={{ id: card.id, kind: 'doc', title: card.title || 'Untitled doc' }} />
-        )}
+        {share}
         {!isPublic && (
           <Btn icon={ChatCircleText} label={open > 0 ? `Comments, ${open} open` : 'Comments'}
                toggle on={f.panelOpen} disabled={!f.ready}
@@ -115,6 +162,28 @@ export function DocHeadA({
       </div>
     </IconWeightContext.Provider>
   );
+}
+
+// The line under a phone's title: "New doc" for one just added, until it
+// first saves; then how it's saving, and who else is in it ("Saved · Maya is
+// here"). A reader's says so instead of saving.
+function PhoneLine({ boardId, showSave, canEdit, isPublic, fresh, peers }) {
+  const { online, saving, saveError, savedAt } = useDocStatus({ editor: null, boardId });
+  const names = [...new Set(peers.map((p) => (p.user?.name || '').trim().split(/\s+/)[0]).filter(Boolean))];
+  const here = names.length === 0 ? null
+    : names.length === 1 ? `${names[0]} is here`
+      : names.length === 2 ? `${names[0]} and ${names[1]} are here`
+        : `${names[0]} and ${names.length - 1} others are here`;
+  let state = null;
+  if (isPublic) state = null;
+  else if (!canEdit) state = 'View only';
+  else if (showSave) {
+    state = !online ? 'Offline' : saveError ? "Couldn't save" : saving ? 'Saving…'
+      : fresh && !savedAt ? 'New doc' : 'Saved';
+  }
+  const line = [state, here].filter(Boolean).join(' · ');
+  if (!line) return null;
+  return <span className="dl-psub">{line}</span>;
 }
 
 // Messages, as the header before this had it (DocCard.jsx
@@ -262,14 +331,37 @@ function useSheetGrab(sheetRef, onClose) {
 }
 
 // The footer, across the window under the page list, the page and the panel:
-// the save state with its cloud, the words, and the zoom as a menu.
+// the save state with its cloud, the words (a script's page and scenes), and
+// the zoom as a menu.
 const ZOOMS = [50, 75, 100, 125, 150, 200];
 
+// A script's page and scenes, read as the caret moves and the pages are laid
+// out again, a few times a second at most.
+function useScriptCounts(editor, on) {
+  const [counts, setCounts] = useState(null);
+  useEffect(() => {
+    if (!on || !editor || editor.isDestroyed) { setCounts(null); return undefined; }
+    let t = 0;
+    const read = () => {
+      t = 0;
+      if (editor.isDestroyed) return;
+      const n = screenplayCounts(editor.state);
+      setCounts((c) => (c && c.page === n.page && c.of === n.of && c.scenes === n.scenes ? c : n));
+    };
+    const soon = () => { if (!t) t = setTimeout(read, 120); };
+    read();
+    editor.on('transaction', soon);
+    return () => { clearTimeout(t); editor.off('transaction', soon); };
+  }, [editor, on]);
+  return counts;
+}
+
 export function DocFootA({
-  editor, boardId = null, showSave = true,
+  editor, boardId = null, showSave = true, screenplay = false,
   zoom = 1, fitMode = false, fitEligible = false, onZoom, onZoomIn, onZoomOut, onZoomReset,
 }) {
   const { words, online, saving, saveError, savedLabel } = useDocStatus({ editor, boardId });
+  const script = useScriptCounts(editor, screenplay);
   const cloud = !online ? CloudSlash : saveError ? CloudWarning : saving ? CloudArrowUp : CloudCheck;
   const tone = !online ? ' is-offline' : saveError ? ' is-error' : saving ? ' is-saving' : '';
   const pct = Math.round(zoom * 100);
@@ -280,7 +372,11 @@ export function DocFootA({
           <span className={`dl-foot-status${tone}`}><Icon as={cloud} size={15} />{savedLabel}</span>
         )}
         <span className="dl-sp" />
-        <span className="dl-foot-words">{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</span>
+        <span className="dl-foot-words">
+          {script
+            ? `Page ${script.page} of ${script.of} · ${script.scenes.toLocaleString()} ${script.scenes === 1 ? 'scene' : 'scenes'}`
+            : `${words.toLocaleString()} ${words === 1 ? 'word' : 'words'}`}
+        </span>
         <MenuButton text={`${pct}%`} label={`Zoom, ${pct}%`} menuLabel="Zoom" caret
                     className="dl-foot-zoom" side="above" align="end">
           <MenuItem label="Zoom in" keys="Mod+=" onSelect={onZoomIn} />

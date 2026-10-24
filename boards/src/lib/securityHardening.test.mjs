@@ -248,6 +248,13 @@ test('a file or doc share reaches people only while its sharer can edit, and an 
   }
 });
 
+// ── 0608: purging is the managers', from the trash ─────────────────────────
+
+test('only an owner or co-owner removes a cluster for good, and only from the trash', () => {
+  assert.ok(latestMatch(/alter policy "boards delete by members" on public\.boards\s+using \(public\.can_manage_workspace\(workspace_id\) and deleted_at is not null\);/));
+  assert.ok(latestMatch(/alter policy "bv delete by writers" on public\.board_versions\s+using \(exists \(select 1 from public\.boards b\s+where b\.id = board_versions\.board_id\s+and public\.can_manage_workspace\(b\.workspace_id\)\)\);/));
+});
+
 // ── 0609: webhooks are read by the owner ───────────────────────────────────
 
 test('a webhook\'s address and deliveries are read by the workspace owner only', () => {
@@ -260,11 +267,19 @@ test('a webhook\'s address and deliveries are read by the workspace owner only',
 
 // ── 0610: an upload reserves its owner's space ─────────────────────────────
 
-test('an upload is recorded only if it fits the drive it fills, checked under one lock per owner', () => {
+test('an upload is recorded only if it fits the drive it fills, checked under one lock per drive', () => {
+  // 0610 drew the drive from the key's workspace owner; since 0650 it is that
+  // workspace's team's drive when it has one, and the owner's otherwise.
   const b = latestDefinition('record_upload_intent').body;
-  assert.match(b, /select created_by into v_owner from public\.workspaces where id = v_ws;/, 'the drive is the key\'s workspace owner\'s');
-  assert.match(b, /perform pg_advisory_xact_lock\(hashtextextended\('soleil\.upload_space:' \|\| v_owner::text, 0\)\);/);
-  assert.match(b, /if public\._storage_used_bytes\(v_owner\) \+ public\._storage_pending_bytes\(v_owner\) \+ p_bytes\s+> public\._storage_quota_bytes\(v_owner\) then\s+return false;/);
-  assert.ok(b.indexOf('pg_advisory_xact_lock(') < b.indexOf('_storage_used_bytes(')
-    && b.indexOf('_storage_quota_bytes(') < b.indexOf('insert into public.upload_intents'), 'lock, then check, then record');
+  assert.match(b, /v_ws := split_part\(p_key, '\/', 1\)::uuid;/, 'the key\'s own workspace');
+  assert.match(b, /select created_by, org_id into v_owner, v_org from public\.workspaces where id = v_ws;/,
+    'the drive is the key\'s workspace\'s');
+  assert.match(b, /perform pg_advisory_xact_lock\(hashtextextended\('soleil\.upload_space:' \|\| coalesce\('org:' \|\| v_org::text, v_owner::text\), 0\)\);/,
+    'one lock per drive: the team\'s, or the owner\'s under 0610\'s key');
+  assert.match(b, /if public\._drive_used_bytes\(v_org, v_owner\) \+ p_bytes\s+> public\._drive_quota_bytes\(v_org, v_owner\) then\s+return false;/);
+  assert.match(latestDefinition('_drive_used_bytes').body,
+    /then public\._org_storage_used_bytes\(p_org\) \+ public\._org_storage_pending_bytes\(p_org\)\s+else public\._storage_used_bytes\(p_owner\) \+ public\._storage_pending_bytes\(p_owner\) end/,
+    'used + pending, on either drive');
+  assert.ok(b.indexOf('pg_advisory_xact_lock(') < b.indexOf('_drive_used_bytes(')
+    && b.indexOf('_drive_quota_bytes(') < b.indexOf('insert into public.upload_intents'), 'lock, then check, then record');
 });

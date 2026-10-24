@@ -8,6 +8,8 @@
 // A doc's and a note's text keep Tab for themselves, so ⌥F10 is the way from
 // the words to their bar, and Esc the way back to the caret.
 import { expect, test } from '@playwright/test';
+import { todaysLook } from './helpers/docFrame.js';
+import { colourList, inToolbarLook } from './helpers/noteBar.js';
 
 // Tab stops inside a bar: what Tab can land on, outside a menu of its own.
 const stops = (bar) => bar.evaluate((el) => [...el.querySelectorAll('button, [role="button"], input, select, textarea, a[href], [tabindex]')]
@@ -52,6 +54,9 @@ async function openDoc(page) {
 }
 
 test.describe('the doc toolbar', () => {
+  // Today's bar. The look's keys are doc-bar-a.spec.js's.
+  test.beforeEach(({ page }) => todaysLook(page));
+
   test('is one Tab stop, and ← → Home End walk it, round from either end', async ({ page }) => {
     await openDoc(page);
     const bar = page.locator('.doc-card-modal .doc-tb');
@@ -198,8 +203,11 @@ test.describe('the note bar', () => {
     await expect(bar).toHaveAttribute('role', 'toolbar');
     await expect(bar).toHaveAttribute('aria-label', 'Text formatting');
     const m = await mod(page);
+    // The toolbar look says Strikethrough, and its key (helpers/noteBar.js).
+    const look = await inToolbarLook(page);
+    const strike = look ? 'Strikethrough' : 'Strike';
     const named = [
-      ['Bold', `${m}+B`], ['Italic', `${m}+I`], ['Underline', `${m}+U`], ['Strike'], ['Clear formatting', `${m}+\\`],
+      ['Bold', `${m}+B`], ['Italic', `${m}+I`], ['Underline', `${m}+U`], [strike, look ? `${m}+Shift+S` : undefined], ['Clear formatting', `${m}+\\`],
       ['Bulleted list'], ['Numbered list'], ['Checklist'], ['Align left'], ['Align center'], ['Align right'],
       ['Center in the box'], ['Add comment', `${m}+Alt+M`], ['Text color'], ['Card background'],
       ['Decrease font size'], ['Increase font size'], ['Preset sizes'],
@@ -209,7 +217,7 @@ test.describe('the note bar', () => {
       await expect(b, name).toHaveCount(1);
       if (keys) await expect(b, name).toHaveAttribute('aria-keyshortcuts', keys);
     }
-    for (const name of ['Bold', 'Italic', 'Underline', 'Strike', 'Bulleted list', 'Numbered list', 'Checklist',
+    for (const name of ['Bold', 'Italic', 'Underline', strike, 'Bulleted list', 'Numbered list', 'Checklist',
       'Align left', 'Align center', 'Align right', 'Center in the box']) {
       await expect(bar.getByRole('button', { name, exact: true }), name).toHaveAttribute('aria-pressed', /^(true|false)$/);
     }
@@ -220,7 +228,7 @@ test.describe('the note bar', () => {
     expect(glyphNamed(await bar.ariaSnapshot())).toEqual([]);
     // Its colours are named too.
     await bar.getByRole('button', { name: 'Text color', exact: true }).click();
-    const pop = page.locator('.tob-pop');
+    const pop = colourList(page);
     await expect(pop).toBeVisible();
     expect(glyphNamed(await pop.ariaSnapshot())).toEqual([]);
   });
@@ -352,15 +360,33 @@ test.describe('on the canvas', () => {
     const bar = page.locator('.tob');
     await expect(bar).toHaveAttribute('role', 'toolbar');
     await expect(bar).toHaveAttribute('aria-label', 'Shape');
-    await expect(bar.getByRole('combobox', { name: 'Shape', exact: true })).toHaveCount(1);
-    await expect(bar.getByRole('combobox', { name: 'Line style', exact: true })).toHaveCount(1);
-    const stroke = bar.getByRole('button', { name: /^Stroke #/ });
-    const fill = bar.getByRole('button', { name: /^(Fill #|No fill$)/ });
-    expect(await stroke.count()).toBeGreaterThan(4);
-    expect(await fill.count()).toBeGreaterThan(4);
-    for (const set of [stroke, fill]) {
-      expect(await set.evaluateAll((els) => els.every((el) => /^(true|false)$/.test(el.getAttribute('aria-pressed') || '')))).toBe(true);
-      expect(await set.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-pressed') === 'true').length)).toBe(1);
+    if (await inToolbarLook(page)) {
+      // The look's: the shape and the line style are menus that name what's
+      // picked, and the stroke and the fill are chips whose menus say which
+      // colour is on (components/toolbar/CanvasBarsA.jsx).
+      await expect(bar.getByRole('button', { name: /^Shape: / })).toHaveCount(1);
+      await expect(bar.getByRole('button', { name: /^Line style: / })).toHaveCount(1);
+      for (const name of ['Stroke color', 'Fill']) {
+        await bar.getByRole('button', { name, exact: true }).click();
+        const menu = page.getByRole('menu', { name });
+        const rows = menu.getByRole('menuitemradio');
+        expect(await rows.count()).toBeGreaterThan(4);
+        expect(await rows.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-checked') === 'true').length)).toBe(1);
+        expect(glyphNamed(await menu.ariaSnapshot())).toEqual([]);
+        await page.keyboard.press('Escape');
+        await expect(menu).toHaveCount(0);
+      }
+    } else {
+      await expect(bar.getByRole('combobox', { name: 'Shape', exact: true })).toHaveCount(1);
+      await expect(bar.getByRole('combobox', { name: 'Line style', exact: true })).toHaveCount(1);
+      const stroke = bar.getByRole('button', { name: /^Stroke #/ });
+      const fill = bar.getByRole('button', { name: /^(Fill #|No fill$)/ });
+      expect(await stroke.count()).toBeGreaterThan(4);
+      expect(await fill.count()).toBeGreaterThan(4);
+      for (const set of [stroke, fill]) {
+        expect(await set.evaluateAll((els) => els.every((el) => /^(true|false)$/.test(el.getAttribute('aria-pressed') || '')))).toBe(true);
+        expect(await set.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-pressed') === 'true').length)).toBe(1);
+      }
     }
     expect(glyphNamed(await bar.ariaSnapshot())).toEqual([]);
     expect(await stops(bar)).toBe(1);
@@ -382,18 +408,24 @@ test.describe('on the canvas', () => {
   });
 
   test('the draw bar says which mode, brush, colour and width are on', async ({ page }) => {
+    // The look's row unfolded: a narrower window folds it a step at a time
+    // (draw-bar-look.spec.js has the folds).
+    const look = await inToolbarLook(page);
+    if (look) await page.setViewportSize({ width: 1440, height: 900 });
     await page.keyboard.press('d');
     const bar = page.locator('.tob');
     await expect(bar).toHaveAttribute('aria-label', 'Drawing');
     const modes = bar.getByRole('button', { name: /^(Pen|Eraser|Lasso)$/ });
     expect(await modes.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-pressed') === 'true').length)).toBe(1);
-    // Each says what it shows: lit, pressed. (The width you start with, 3,
-    // isn't one of the four offered, so none of them is.)
+    // Each says what it shows: lit, pressed. (Today's bar starts on a width,
+    // 3, that isn't one of the four it offers, so none of them is; the
+    // look's starts on 4.)
+    const lit = look ? 'is-on' : 'is-active';
     for (const set of [modes, bar.getByRole('button', { name: / brush$/ }), bar.getByRole('button', { name: /^Colou?r #/ }),
       bar.getByRole('button', { name: /^Stroke width / })]) {
       expect(await set.count()).toBeGreaterThan(1);
       expect(await set.evaluateAll((els) => els.map((el) => `${el.getAttribute('aria-pressed')}`)))
-        .toEqual(await set.evaluateAll((els) => els.map((el) => `${el.classList.contains('is-active')}`)));
+        .toEqual(await set.evaluateAll((els, c) => els.map((el) => `${el.classList.contains(c)}`), lit));
     }
     expect(glyphNamed(await bar.ariaSnapshot())).toEqual([]);
     expect(await stops(bar)).toBe(1);
@@ -426,17 +458,28 @@ test('a line\'s bar names its parts, and walking through its fields writes nothi
   await page.locator('.arrow-popover [title="No arrowheads"]').click();
   const bar = page.locator('.tob');
   await expect(bar).toHaveAttribute('aria-label', 'Line');
-  await expect(bar.getByRole('combobox', { name: 'Line style', exact: true })).toHaveCount(1);
-  const swatches = bar.getByRole('button', { name: /^Color #/ });
-  expect(await swatches.count()).toBeGreaterThan(4);
-  expect(await swatches.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-pressed') === 'true').length)).toBe(1);
+  const look = await inToolbarLook(page);
+  if (look) {
+    // The look's: the colour is a chip whose menu says which is on.
+    await expect(bar.getByRole('button', { name: /^Line style: / })).toHaveCount(1);
+    await bar.getByRole('button', { name: 'Line color', exact: true }).click();
+    const rows = page.getByRole('menu', { name: 'Line color' }).getByRole('menuitemradio');
+    expect(await rows.count()).toBeGreaterThan(4);
+    expect(await rows.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-checked') === 'true').length)).toBe(1);
+    await page.keyboard.press('Escape');
+  } else {
+    await expect(bar.getByRole('combobox', { name: 'Line style', exact: true })).toHaveCount(1);
+    const swatches = bar.getByRole('button', { name: /^Color #/ });
+    expect(await swatches.count()).toBeGreaterThan(4);
+    expect(await swatches.evaluateAll((els) => els.filter((el) => el.getAttribute('aria-pressed') === 'true').length)).toBe(1);
+  }
   expect(glyphNamed(await bar.ariaSnapshot())).toEqual([]);
   expect(await stops(bar)).toBe(1);
   // Out of the undo window of the arrowheads, then through the bar and back.
   await page.waitForTimeout(800);
   await enter(bar);
   const names = await walk(page);
-  expect(names).toContain('Line style');
+  expect(names).toContain(look ? 'Line style: Solid' : 'Line style');
   await page.waitForTimeout(800);
   // So the last thing to undo is still taking the heads off: the bar goes.
   await page.keyboard.press(`${await mod(page)}+z`);

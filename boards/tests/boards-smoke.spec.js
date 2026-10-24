@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { openFullFiles } from './files-helpers.js';
+import { inToolbarLook } from './helpers/noteBar.js';
 
 test('default route keeps the sign-in interface intact', async ({ page }) => {
   await page.goto('/');
@@ -89,7 +90,7 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
   await expect(page.getByText('Click on the canvas to place a shape')).toBeVisible();
-  await expect(page.locator('.tob').getByText('Shape')).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Shape' })).toBeVisible();
   await canvas.click({ position: { x: 220, y: 580 } });
 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
@@ -104,10 +105,11 @@ test('local QA mode exposes the core canvas tools cleanly', async ({ page }) => 
   await page.getByRole('menuitem', { name: 'Draw', exact: true }).click();
   await expect(page.getByTitle('Erase strokes')).toHaveCount(0);
   await expect(page.getByText('Drag to draw')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pen', exact: true })).toHaveClass(/is-active/);
+  await expect(page.getByRole('button', { name: 'Pen', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Eraser' })).toBeVisible();
-  // Thickness controls render as buttons inside .tob-thickness, not as labeled text.
-  await expect(page.locator('.tob .tob-thickness button').first()).toBeVisible();
+  // Thickness controls render as buttons, not as labeled text (the toolbar
+  // look's are named by their width; today's sit in .tob-thickness).
+  await expect(page.locator('.tob .tob-thickness button, .tob [aria-label^="Stroke width"]').first()).toBeVisible();
   const strokePathCount = await page.locator('.strokes-layer path').count();
   await canvas.dragTo(canvas, {
     sourcePosition: { x: 560, y: 440 },
@@ -133,8 +135,14 @@ test('local QA mode keeps toolbar color picker polished and contained', async ({
 
   await page.getByRole('button', { name: 'Add menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Shape', exact: true }).click();
-  await expect(page.locator('.tob').getByText('Shape')).toBeVisible();
-  await page.locator('.tob').getByTitle(/Custom hex/).first().click();
+  await expect(page.getByRole('toolbar', { name: 'Shape' })).toBeVisible();
+  if (await inToolbarLook(page)) {
+    // The toolbar look's custom colour is + in the stroke's menu.
+    await page.locator('.tob').getByRole('button', { name: 'Stroke color', exact: true }).click();
+    await page.getByRole('menu', { name: 'Stroke color' }).getByRole('menuitem', { name: 'Custom color' }).click();
+  } else {
+    await page.locator('.tob').getByTitle(/Custom hex/).first().click();
+  }
 
   const picker = page.locator('.cp-pop');
   await expect(picker).toBeVisible();

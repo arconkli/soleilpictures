@@ -16,6 +16,7 @@ import { parseScriptText, isEmptyScript, scriptBody, SCRIPT_FILE_RE } from './sc
 import {
   initCardDocStore, cardScope, setTitlePage, getTitlePage, getDocUndoManager,
   writeScriptBody, readPages, pageContentMap, readDocSummary, followTitle, renamePage,
+  writeScriptIntoPage, addPage, getOrCreatePageContent,
 } from './docState.js';
 
 const FOUNTAIN = [
@@ -201,4 +202,28 @@ test('the closed card\'s title field and the open doc share that one rule', () =
   const ds = read('../components/DocSurface.jsx');
   assert.match(ds, /followTitle\(ydoc, scope, prev, titleOverride\);/);
   assert.doesNotMatch(ds, /const DEFAULT_NAMES = /, 'one copy of the rule, in docState');
+});
+
+// The doc look's "Import a script" (mockup S-open): a new doc, still empty,
+// becomes the script in its one page — not a second page beside an empty one.
+test('a script imported into an empty doc fills its page, and the schema reads it back whole', () => {
+  const ydoc = new Y.Doc();
+  const ym = new Y.Map();
+  ydoc.getMap('cards').set('doc-1', ym);
+  ym.set('kind', 'doc');
+  initCardDocStore(ydoc, ym);
+  const scope = cardScope(ym);
+  const id = addPage(ydoc, { name: 'Untitled doc', scope });
+  // As the editor leaves an empty page: one empty paragraph.
+  getOrCreatePageContent(ydoc, id, scope).push([new Y.XmlElement('paragraph')]);
+  const parsed = parseScriptText(FULL, 'night.fountain');
+  assert.equal(writeScriptIntoPage(ydoc, scope, id, scriptBody(parsed)), true);
+  const root = yXmlFragmentToProseMirrorRootNode(pageContentMap(ydoc, scope).get(id), schema);
+  root.check();
+  assert.deepEqual(root.toJSON(), schema.nodeFromJSON(scriptBody(parsed)).toJSON());
+  assert.equal(readPages(ydoc, scope).length, 1, 'still one page');
+  assert.equal(readDocSummary(ydoc, 600, scope).empty, false);
+  // Nothing to write, or no such page: nothing written.
+  assert.equal(writeScriptIntoPage(ydoc, scope, id, null), false);
+  assert.equal(writeScriptIntoPage(ydoc, scope, 'nope', scriptBody(parsed)), false);
 });

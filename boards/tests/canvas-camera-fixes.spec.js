@@ -139,10 +139,12 @@ test('zoom widget buttons and ⌘0 keep the view centre in place', async ({ page
   const a = await centreWorld();
   // dispatchEvent: at the harness viewport the settings gear overlaps the
   // widget's corner, and the click under test is the handler, not the layout.
+  // By name: the toolbar look draws − and + as icons.
+  const zoomBtn = (name) => page.locator('.cnv-zoom').getByRole('button', { name, exact: true });
   for (const step of [
-    () => page.locator('.cnv-zoom button', { hasText: '+' }).dispatchEvent('click'),
-    () => page.locator('.cnv-zoom button', { hasText: '−' }).dispatchEvent('click'),
-    () => page.locator('.cnv-zoom button', { hasText: '−' }).dispatchEvent('click'),
+    () => zoomBtn('Zoom in').dispatchEvent('click'),
+    () => zoomBtn('Zoom out').dispatchEvent('click'),
+    () => zoomBtn('Zoom out').dispatchEvent('click'),
     () => page.locator('.cnv-zoom-val').dispatchEvent('click'),
     () => page.keyboard.press('ControlOrMeta+0'),
   ]) {

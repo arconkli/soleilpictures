@@ -173,7 +173,7 @@ test('0530: the re-emits keep what earlier migrations pinned', () => {
   const manage = code(def('can_manage_workspace').body);
   assert.match(manage, /auth\.uid\(\) is not null\s+and public\._actor_active\(\)/);
   assert.match(manage, /m\.role = 'coowner'/);
-  assert.match(manage, /or public\._org_ws_role_for\(ws, auth\.uid\(\)\) = 'coowner'\s*\)/, 'a third OR inside the parenthesis');
+  assert.match(manage, /or coalesce\(public\._org_ws_role_for\(ws, auth\.uid\(\)\) = 'coowner', false\)\s*\)/, 'a third OR inside the parenthesis');
   const t = code(def('transfer_workspace_ownership').body);
   assert.match(t, /if v_old <> auth\.uid\(\) then/);
   assert.doesNotMatch(t, /can_manage_workspace/, 'a team admin still cannot hand a workspace over');
@@ -188,7 +188,7 @@ test('0530: the re-emits keep what earlier migrations pinned', () => {
   assert.match(merge, /_org_ws_role_for\(p_workspace_id, auth\.uid\(\)\) in \('coowner', 'editor'\)/);
   assert.match(merge, /\? 'icon_url'\s+and not public\.can_manage_workspace\(p_workspace_id\)/);
   const link = code(def('_workspace_invite_link_live').body);
-  assert.match(link, /or public\._org_ws_role_for\(l\.workspace_id, l\.created_by\) = 'coowner'/);
+  assert.match(link, /or coalesce\(public\._org_ws_role_for\(l\.workspace_id, l\.created_by\) = 'coowner', false\)/);
   const dir = code(def('workspace_user_directory').body);
   assert.match(dir, /returns table\s*\(\s*user_id\s+uuid,\s*workspace_id uuid,\s*title\s+text,\s*email\s+text,\s*created_at\s+timestamptz\s*\)/i);
   assert.match(dir, /case when w\.org_id is null or wm\.user_id = auth\.uid\(\) or public\.can_manage_workspace\(wm\.workspace_id\)\s+then u\.email end as email/,
@@ -240,6 +240,28 @@ test('0530: _org_ws_role_for is the one rule', () => {
   assert.ok(b.includes('p_user is not null'));
   const ids = flat(code(def('_my_org_workspace_ids').body));
   assert.ok(ids.includes('o.closed_at is null') && ids.includes("(m.role in ('owner', 'admin') or w.org_visibility = 'team')"));
+});
+
+test('0530–0535: every comparison with the team role is coalesced', () => {
+  // Outside a team _org_ws_role_for answers NULL, and NULL = 'coowner' is
+  // NULL. A boolean helper built on it then answers NULL for everyone with no
+  // team, and `if not can_manage_workspace(…) then raise` lets them by. Probe
+  // A's parity check caught can_manage_workspace doing exactly that.
+  const files = [ACCESS, SEATS, '0532_teams_rpcs.sql', '0533_teams_people.sql',
+    '0534_teams_joining.sql', '0535_teams_read.sql'];
+  const call = 'public._org_ws_role_for(';
+  let compared = 0;
+  for (const f of files) {
+    const s = flat(code(fileText(f)));
+    for (let i = s.indexOf(call); i !== -1; i = s.indexOf(call, i + 1)) {
+      let j = i + call.length;
+      for (let depth = 1; depth; j++) depth += s[j] === '(' ? 1 : s[j] === ')' ? -1 : 0;
+      if (!/^\s*(=|<>|!=|in \()/.test(s.slice(j))) continue;
+      compared++;
+      assert.ok(s.slice(0, i).endsWith('coalesce('), `${f}: ${s.slice(i, j + 16)} is not coalesced`);
+    }
+  }
+  assert.ok(compared >= 5, 'the comparisons were found');
 });
 
 test('0530: the rooms\' re-checks are the security session\'s (0620–0622); 0530 requires them and never redefines them', () => {
@@ -408,10 +430,7 @@ test('0522–0531 write no parent_board_id and carry no live figures', () => {
   for (const f of [TABLES, ACCESS, SEATS]) {
     const c = code(fileText(f));
     assert.doesNotMatch(c, /set\s+parent_board_id/i, `${f} must not move a board`);
-    // 0522 went live on the owner's go (2026-10-22); the rest wait for theirs.
-    const status = f === TABLES
-      ? /STATUS: written 2026-10-22\. Applied 2026-10-22 \(owner's go\), teams closed\./
-      : /STATUS: written 2026-10-22\. NOT APPLIED until the owner says go\./;
-    assert.match(fileText(f), status, `${f}: header`);
+    // All three went live on the owner's go (2026-10-22), teams still closed.
+    assert.match(fileText(f), /STATUS: written 2026-10-22\. Applied 2026-10-22 \(owner's go\), teams closed\./, `${f}: header`);
   }
 });

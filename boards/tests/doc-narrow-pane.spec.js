@@ -5,7 +5,7 @@
 // page list tucks away to its toggle, which brings it back for as long as the
 // doc stays narrow and stores nothing. A wide doc is as it always was.
 import { expect, test } from '@playwright/test';
-import { setScreenplay } from './helpers/docFrame.js';
+import { dockFromCard, setScreenplay } from './helpers/docFrame.js';
 import { wrapLines } from '../src/lib/screenplayPaginate.js';
 import { elementWidth } from '../src/lib/screenplayMetrics.js';
 
@@ -25,11 +25,12 @@ const card = (page, id) => page.locator(`[data-docqa-card="${id}"] .doc-card`);
 const pane = (page, which) => page.locator(`[data-doc-pane="${which}"]`);
 
 async function dock(page, id) {
-  await card(page, id).getByRole('button', { name: 'Open beside' }).click();
+  await dockFromCard(card(page, id));
   await expect(pane(page, 'split').locator('.doc-paper')).toBeVisible();
 }
+// On the page's corner: an empty doc's middle is the look's Start writing.
 async function besideIt(page, id) {
-  await card(page, id).locator('.doc-card-page').dblclick();
+  await card(page, id).locator('.doc-card-page').dblclick({ position: { x: 12, y: 12 } });
   await expect(pane(page, 'beside').locator('.doc-paper')).toBeVisible();
 }
 
@@ -139,7 +140,7 @@ test('the page list tucks away in a narrow pane, and its toggle brings it back w
 
 test('a script with room for its page is as it always was: actual size, the list open', async ({ page }) => {
   await open(page, DESK);
-  await card(page, 'doc-b').locator('.doc-card-page').dblclick();
+  await card(page, 'doc-b').locator('.doc-card-page').dblclick({ position: { x: 12, y: 12 } });
   const full = page.locator('.doc-card-modal-full');
   await expect(full).toBeVisible();
   await setScreenplay(full, true);

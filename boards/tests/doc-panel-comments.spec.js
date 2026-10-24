@@ -1,5 +1,5 @@
 // The doc look's side panel, Comments (the owner's pick of 2026-10-21, mockup
-// AC-comments), held to a dev opt-in (lib/appHost.js docLookAllowed): every
+// AC-comments), shipped 2026-10-24 (lib/appHost.js docLookAllowed): every
 // thread of the doc, open and resolved, in the doc's order, a card each with
 // the words it's on; a reply, Resolve, Reopen and Delete on the card; a card
 // takes you to its words on whatever page they're on, and the words take you
@@ -207,6 +207,53 @@ test('clicking commented words opens the panel on their card and lights them', a
   });
   await expect(card(page, lit)).toHaveClass(/is-on/);
   await expect(card(page, sign)).not.toHaveClass(/is-on/);
+});
+
+test('a resolved thread\'s words read as plain text, and its card still lights them', async ({ page }) => {
+  await openDoc(page);
+  const [sign, night] = await writeWithComments(page, '<p>Keep the motel sign lit all night</p>', [
+    { word: 'sign', body: 'Which sign?', author: 'Maya Chen', authorId: 'u-maya' },
+    { word: 'night', body: 'Or dusk?' },
+  ]);
+  const looks = (id) => mark(page, id).evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return [cs.backgroundColor, cs.textDecorationColor, cs.cursor];
+  });
+  const resting = await looks(night);
+  await page.evaluate((id) => {
+    const T = window.__soleilDocTest;
+    T.resolveComment(T.ydoc, id, true, T.getScope(), { by: 'docqa-user', byName: 'QA Tester' });
+  }, sign);
+  // No tint, no dotted rule, no hand; the open one beside it keeps them.
+  await expect.poll(() => looks(sign)).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)', 'text']);
+  expect(await looks(night)).toEqual(resting);
+  expect(resting[2]).toBe('pointer');
+  // A click puts the caret in its words and opens nothing.
+  await mark(page, sign).click();
+  await expect(modal(page).locator('.tt-editor').first()).toBeFocused();
+  await expect(panel(page)).toBeHidden();
+  await expect(page.locator('.comment-inline-pop')).toHaveCount(0);
+  // The caret in its words picks no card; in an open thread's, it does.
+  await openPanel(page);
+  await expect(card(page, sign)).toHaveClass(/is-res/);
+  const caretIn = (word) => page.evaluate((word) => {
+    const ed = window.__soleilDocTest.editor;
+    ed.commands.setTextSelection(ed.getText().indexOf(word) + 2);
+  }, word);
+  await caretIn('night');
+  await expect(card(page, night)).toHaveClass(/is-on/);
+  await caretIn('sign');
+  await page.waitForTimeout(400);
+  await expect(card(page, sign)).not.toHaveClass(/is-on/);
+  await expect(card(page, night)).toHaveClass(/is-on/);
+  // Its card still shows where it was.
+  await card(page, sign).locator('.dl-th-q').click();
+  await expect(card(page, sign)).toHaveClass(/is-on/);
+  const colour = await litColour(page);
+  await expect.poll(() => background(mark(page, sign)), { timeout: 4000 }).toBe(colour);
+  // Reopened, its words are a comment's again.
+  await card(page, sign).getByRole('button', { name: 'Reopen' }).click();
+  await expect.poll(() => looks(sign).then((l) => l[2])).toBe('pointer');
 });
 
 test('a card for words on another page opens that page and shows the words', async ({ page }) => {

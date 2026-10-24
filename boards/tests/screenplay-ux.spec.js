@@ -2,7 +2,9 @@
 // mode, the Courier layout class, Tab/Enter element cycling, and auto-uppercase.
 
 import { expect, test } from '@playwright/test';
-import { setScreenplay } from './helpers/docFrame.js';
+import {
+  exportRow, expectElementsLive, insertRow, pairDual, setScreenplay, setTitlePage, todaysLook,
+} from './helpers/docFrame.js';
 
 async function openDoc(page) {
   await page.goto('/?docqa=1');
@@ -43,6 +45,8 @@ test('toggling screenplay mode seeds a Scene Heading + Courier layout', async ({
 });
 
 test('the Screenplay toggle is a labeled pill that does not overlap its toolbar neighbors', async ({ page }) => {
+  // Today's bar. The look's screenplay bar is doc-bar-a.spec.js's.
+  await todaysLook(page);
   await openDoc(page);
   // The toggle exists in both modes; check it in prose mode (where the `+`
   // button and the heading <select> flank it) and again in screenplay mode.
@@ -80,10 +84,8 @@ test('Title Page toggle adds an editable on-page title page that persists', asyn
   await openDoc(page);
   await enableScreenplay(page);
 
-  // The toolbar exposes a screenplay-only Title Page pill.
-  const tpToggle = page.locator('.doc-tb-titlepage-toggle');
-  await expect(tpToggle).toBeVisible();
-  await tpToggle.click();
+  // A screenplay-only switch: the bar's Title Page pill, the look's side panel.
+  await setTitlePage(page.locator('.doc-card-modal'), true);
 
   // A real on-page title page appears as the first sheet.
   const titlePage = page.locator('.doc-card-modal .sp-title-page');
@@ -106,7 +108,7 @@ test('Title Page toggle adds an editable on-page title page that persists', asyn
   expect(tp.authors).toBe('Andrew Conklin');
 
   // Toggling it off removes the page.
-  await tpToggle.click();
+  await setTitlePage(page.locator('.doc-card-modal'), false);
   await expect(titlePage).toHaveCount(0);
 });
 
@@ -170,7 +172,7 @@ test('deleting everything leaves an editable Scene Heading (not a dead paragraph
   expect(state.firstEl).toBe('scene');
   expect(state.activeSp).toBe(true);
   // The element selector is live again (not grayed out).
-  await expect(page.locator('.doc-card-modal .doc-tb-select')).toBeEnabled();
+  await expectElementsLive(page.locator('.doc-card-modal'));
   // And typing/auto-format works — a slugline forms inside a screenplayBlock.
   await page.locator('.doc-card-modal .tt-editor').first().click();
   await page.keyboard.type('ext. street - night');
@@ -231,6 +233,8 @@ test('scene navigator numbering matches the gutters when numbers are locked', as
 });
 
 test('the Dual button is a no-op when the caret is not inside a speech', async ({ page }) => {
+  // Today's bar. The look's Scene numbers and Pair are the side panel's: doc-panel-elements.spec.js.
+  await todaysLook(page);
   await openDoc(page);
   await enableScreenplay(page);
   await page.evaluate(() => {
@@ -254,6 +258,8 @@ test('the Dual button is a no-op when the caret is not inside a speech', async (
 });
 
 test('the Scene # pill toggles scene numbers off and on', async ({ page }) => {
+  // Today's bar. The look's Scene numbers and Pair are the side panel's: doc-panel-elements.spec.js.
+  await todaysLook(page);
   await openDoc(page);
   await enableScreenplay(page);
   await page.evaluate(() => {
@@ -325,7 +331,7 @@ test('Dual button pairs two speeches and renders them side by side', async ({ pa
     ed.state.doc.descendants((node, p) => { if (node.attrs?.element === 'character' && node.textContent === 'MARY') pos = p + 1; });
     if (pos != null) ed.commands.setTextSelection(pos);
   });
-  await page.locator('button[title^="Dual dialogue"]').click();
+  await pairDual(page.locator('.doc-card-modal'));
 
   // Both cues now carry left/right and top-align into two columns.
   const cues = await page.evaluate(() => {
@@ -868,7 +874,7 @@ test('toggling Screenplay converts existing prose to script blocks (and back)', 
     { element: 'action', text: 'A guard sleeps.' },
   ]);
   // The element selector is live (it was disabled on paragraph content).
-  await expect(page.locator('.doc-card-modal .doc-tb-select')).toBeEnabled();
+  await expectElementsLive(page.locator('.doc-card-modal'));
   // Toggle back → paragraphs again, text intact.
   await setScreenplay(page.locator('.doc-card-modal'), false);
   await expect(page.locator('.doc-paper.is-screenplay')).toHaveCount(0);
@@ -979,6 +985,8 @@ test('slugline auto-detect keeps inline marks (promotes element without flatteni
 });
 
 test('screenplay mode has no "+" insert menu (the element dropdown handles elements)', async ({ page }) => {
+  // Today's bar. The look's screenplay bar is doc-bar-a.spec.js's.
+  await todaysLook(page);
   await openDoc(page);
   await enableScreenplay(page);
   // The "+" is hidden in screenplay mode — the element <select> + Tab cover
@@ -988,6 +996,8 @@ test('screenplay mode has no "+" insert menu (the element dropdown handles eleme
 });
 
 test('the "+" insert menu holds only insert-content items, not toolbar duplicates', async ({ page }) => {
+  // Today's Insert menu. The look's is doc-bar-a.spec.js's.
+  await todaysLook(page);
   await openDoc(page);
   await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
   const menu = page.locator('.doc-insert-menu');
@@ -1020,11 +1030,8 @@ test('the "+" insert menu actually inserts a table (and is not clipped)', async 
   await openDoc(page);
   const editor = page.locator('.doc-card-modal .tt-editor').first();
   await editor.click();
-  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
-  const menu = page.locator('.doc-insert-menu');
-  await expect(menu).toBeVisible();
-  // The item must be a real hit target — the toolbar must not clip the menu.
-  await menu.locator('.doc-insert-item', { hasText: 'Table' }).click({ timeout: 4000 });
+  // The row must be a real hit target — the toolbar must not clip the menu.
+  await insertRow(page.locator('.doc-card-modal'), 'Table');
   await expect(page.locator('.doc-card-modal .tt-editor table').first()).toBeVisible();
 });
 
@@ -1032,8 +1039,7 @@ test('Tab moves between table cells instead of typing two spaces', async ({ page
   await openDoc(page);
   const editor = page.locator('.doc-card-modal .tt-editor').first();
   await editor.click();
-  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
-  await page.locator('.doc-insert-menu .doc-insert-item', { hasText: 'Table' }).click();
+  await insertRow(page.locator('.doc-card-modal'), 'Table');
   await expect(page.locator('.doc-card-modal .tt-editor table').first()).toBeVisible();
   await page.keyboard.type('one');
   await page.keyboard.press('Tab');          // → next cell (used to insert "  ")
@@ -1055,10 +1061,9 @@ test('Tab moves between table cells instead of typing two spaces', async ({ page
 test('screenplay export menu offers Fountain + Final Draft import/export', async ({ page }) => {
   await openDoc(page);
   await enableScreenplay(page);
-  await page.locator('.doc-card-modal .doc-export-wrap button').first().click();
-  await expect(page.getByRole('menuitem', { name: /Export Fountain/ })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Export Final Draft/ })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Import Fountain/ })).toBeVisible();
+  await expect(await exportRow(page.locator('.doc-card-modal'), 'fountain')).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /^(Export )?Final Draft/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /^Import Fountain/ })).toBeVisible();
 });
 
 test('line spacing matches industry standard (true 6 lines/inch, shot=2 blank lines, first line at top margin)', async ({ page }) => {
