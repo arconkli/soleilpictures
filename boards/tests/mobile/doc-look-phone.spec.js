@@ -22,6 +22,9 @@ async function openDoc(page, { query = '' } = {}) {
   await page.evaluate(() => window.__soleilDocTest.openCard());
   await expect(modal(page)).toBeVisible();
   await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
+  // Measured once it has come in: its 200ms scale-in had the header's 44px
+  // buttons at 43.99.
+  await modal(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
 }
 
 const modal = (page) => page.locator('.doc-card-modal');

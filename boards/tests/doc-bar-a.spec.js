@@ -6,6 +6,7 @@
 // runs the editor command today's bar runs. Driven in the ?docqa=1 harness.
 
 import { expect, test } from '@playwright/test';
+import { exportRow, setScreenplay } from './helpers/docFrame.js';
 
 test.skip(({ isMobile }) => isMobile, 'the bar under a finger is D7');
 
@@ -325,6 +326,24 @@ test('Print or save as PDF closes the menu at once, and the other exports still 
     menu(page).getByRole('menuitem', { name: 'Markdown' }).click(),
   ]);
   expect(download.suggestedFilename()).toMatch(/\.md$/);
+});
+
+// A script's Export is a list of formats, as the owner's pick drew it: the
+// PDF first, a file like the others, then Fountain and Final Draft.
+test('a screenplay\'s Export is its formats, the PDF first', async ({ page }) => {
+  await openDoc(page);
+  await setScreenplay(modal(page), true);
+  await expect(modal(page).locator('.doc-paper.is-screenplay')).toBeVisible();
+  const pdf = await exportRow(modal(page), 'pdf');
+  await expect(pdf).toBeVisible();
+  // The rows of the menu the PDF's row is in, each one's name without its
+  // extension.
+  const names = await pdf.evaluate((row) => [...row.closest('[role="menu"]').querySelectorAll('[role="menuitem"] .tl-mt')]
+    .map((t) => (t.querySelector('span') || t).textContent));
+  const at = names.indexOf('PDF');
+  expect(names.slice(at, at + 3)).toEqual(['PDF', 'Fountain', 'Final Draft']);
+  expect(names).not.toContain('Export PDF');
+  expect(names).not.toContain('Print or save as PDF');
 });
 
 // One Escape, one layer: a menu off the bar takes its Escape, and the doc

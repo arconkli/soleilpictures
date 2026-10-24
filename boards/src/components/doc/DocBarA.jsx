@@ -19,7 +19,7 @@ import { docCounts } from '../../lib/docCounts.js';
 import { DOC_COLORS, FONTS, HEADING_OPTIONS, SIZES, readBar } from '../../lib/docBarState.js';
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, BookmarkSimple, ChatCircleText, ChatsCircle, Clapperboard, Code,
-  CodeBlock, DownloadSimple, Eraser, FileHtml, FileText, Files, HighlighterCircle, Image, Italic, Keyboard, LayoutGrid, Link,
+  CodeBlock, DownloadSimple, Eraser, FileHtml, FilePdf, FileText, Files, HighlighterCircle, Image, Italic, Keyboard, LayoutGrid, Link,
   List, ListChecks, ListOrdered, MagnifyingGlassPlus, MarkdownLogo, Minus, MoreHorizontal, PanelRight, Plus, Printer, Quote,
   Search, Strikethrough, Table, TextAUnderline, TextHOne, Type, Underline, Undo, Redo,
 } from '../../lib/icons.js';
@@ -637,11 +637,14 @@ function ColourRows({ color, onPick, onClear }) {
   );
 }
 
+// A script's PDF is a file like its other formats, so it is a format here,
+// first (the owner's pick); a document's is the browser's print.
 function ExportRows({ ex, screenplay, canEdit }) {
   return (
     <>
       {screenplay && (
         <>
+          <MenuItem icon={FilePdf} label="PDF" sub=".pdf" onSelect={ex.exportPDF} />
           <MenuItem icon={FileText} label="Fountain" sub=".fountain" onSelect={ex.exportFountain} />
           <MenuItem icon={FileText} label="Final Draft" sub=".fdx" onSelect={ex.exportFdx} />
           {canEdit && <MenuItem icon={DownloadSimple} label="Import Fountain or Final Draft…" onSelect={ex.importScript} />}
@@ -650,8 +653,10 @@ function ExportRows({ ex, screenplay, canEdit }) {
       )}
       <MenuItem icon={FileHtml} label="HTML" onSelect={ex.exportHTML} />
       <MenuItem icon={MarkdownLogo} label="Markdown" onSelect={ex.exportMarkdown} />
-      <MenuItem icon={Printer} label={ex.pdfLabel === 'Print / Save as PDF' ? 'Print or save as PDF' : ex.pdfLabel}
-                onSelect={ex.exportPDF} />
+      {!screenplay && (
+        <MenuItem icon={Printer} label={ex.pdfLabel === 'Print / Save as PDF' ? 'Print or save as PDF' : ex.pdfLabel}
+                  onSelect={ex.exportPDF} />
+      )}
     </>
   );
 }

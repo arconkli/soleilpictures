@@ -133,7 +133,7 @@ export async function expectLayoutShown(scope, paged) {
 // Export (a reader's bar has Export of its own). `kind` is pdf, markdown,
 // html, fountain or fdx.
 const EXPORTS = {
-  pdf: /^(Export PDF|Print \/ Save as PDF|Print or save as PDF)/,
+  pdf: /^(Export PDF|PDF|Print \/ Save as PDF|Print or save as PDF)/,
   markdown: /^(Export )?Markdown/,
   html: /^(Export )?HTML/,
   fountain: /^(Export )?Fountain/,
