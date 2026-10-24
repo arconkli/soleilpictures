@@ -14,7 +14,7 @@ import Typography from '@tiptap/extension-typography';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { v4 as uuid } from 'uuid';
-import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText } from '../lib/docState.js';
+import { getOrCreatePageContent, getOrCreateSheetContent, readPagesWithText, readThread } from '../lib/docState.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { ImageUploadPlaceholders, uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
 import { CaretCell } from './docExtensions/CaretCell.js';
@@ -527,7 +527,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     // impossible to hit on touch, so the highlight looked decorative. Checked
     // first: a comment can overlap a link, and the comment is the more
     // specific intent when you click the highlighted run.
-    const commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
+    let commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
+    // In the doc look a resolved thread's words read as plain text (its panel
+    // lists it): the click is for an open thread over them, or for the text.
+    if (onShowThread) {
+      while (commentEl && readThread(ydoc, commentEl.dataset.commentId, scope)?.resolved) {
+        commentEl = commentEl.parentElement?.closest('.tt-comment[data-comment-id]') || null;
+      }
+    }
     if (commentEl && !isPublic) {
       e.preventDefault();
       setLinkHover(null);

@@ -604,6 +604,15 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const openFindRef = useRef(openFind);
   openFindRef.current = openFind;
   const openComments = useMemo(() => comments.filter((t) => !t.resolved).length, [comments]);
+  // In the look, a resolved thread's words read as plain text: the panel's
+  // Resolved lists it, and picking its card there lights them. Ids are the
+  // comment keys' (lib/commentKeys.js), so a rule can name them as they are.
+  const resolvedRule = useMemo(() => {
+    const ids = comments.filter((t) => t.resolved && /^[A-Za-z0-9_-]{1,64}$/.test(t.id || ''));
+    return ids.length
+      ? `${ids.map((t) => `.dl-surface .tt-comment[data-comment-id="${t.id}"]`).join(',')}{background:transparent;text-decoration-color:transparent;cursor:text}`
+      : '';
+  }, [comments]);
   // A phone's ⋯, in the look's header (DocMoreA): open or not, against the
   // header's button, and whether a key opened it.
   const [more, setMore] = useState({ open: false, byKey: false });
@@ -1556,7 +1565,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {/* The picked thread's words lit in the page, and the one jumped to
           flashed: a rule on the mark's id, since ProseMirror owns the spans
           and redraws over a class put on one. Ids are the comment keys'
-          (lib/commentKeys.js), so nothing in one needs escaping. */}
+          (lib/commentKeys.js), so nothing in one needs escaping. Resolved
+          threads' words first, so a picked one's card still lights them. */}
+      {lookA && resolvedRule && <style>{resolvedRule}</style>}
       {panelOpen && panel.tab === 'comments' && /^[A-Za-z0-9_-]{1,64}$/.test(panelThread || '') && (
         <style>{`.dl-surface .tt-comment[data-comment-id="${panelThread}"]{background:var(--soleil-soft);text-decoration-color:var(--soleil)}`}</style>
       )}
