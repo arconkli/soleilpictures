@@ -15,6 +15,9 @@ export interface Env {
   R2_BUCKET?: string;
   R2_ACCESS_KEY_ID?: string;
   R2_SECRET_ACCESS_KEY?: string;
+  // Which deploy is answering (wrangler.jsonc's version_metadata): report.ts
+  // names a failure's release by it.
+  CF_VERSION_METADATA?: { id?: string; tag?: string };
 }
 
 export const DEFAULT_SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";

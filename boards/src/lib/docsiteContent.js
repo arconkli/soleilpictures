@@ -45655,7 +45655,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters' own servers record their failures the same way: which route or background job failed and what kind of answer it got, never what was sent to it, and with no account or browser attached."
+     "v": "Clusters' own servers record their failures the same way: which route, background job or live sync room failed (a room by its cluster's id, never its name) and what kind of answer it got, never what was sent to it, and with no account or browser attached."
     }
    ]
   },

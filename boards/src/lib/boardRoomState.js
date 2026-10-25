@@ -55,6 +55,17 @@ export const MERGE_ORIGIN = 'soleil:cold-load';
 export const FOREIGN_GRACE_MS = 3_000;
 const READ_TIMEOUT_MS = 10_000;
 const WRITE_TIMEOUT_MS = 20_000;
+// When the room says its saves are failing (the `report` hook): at the third
+// failure in a row, and again when the board has gone unsaved this long.
+export const SAVE_FAILURES_REPORTED = 3;
+export const UNSAVED_REPORTED_MS = 2 * 60_000;
+
+// A failed read or write of board_state as the error a report says: what was
+// called, its status and the code its body names (serverErrors.js reads that
+// and nothing else of the body), or what went wrong before any answer.
+function failure(what, r) {
+  return new Error(r?.status >= 100 ? `${what} ${r.status}: ${r.reason || ''}` : `${what}: ${r?.reason || 'failed'}`);
+}
 
 // Sent with every request this room makes, so a board_state write can be told
 // apart in request.headers (PostgREST) from the old room's and a browser's.
@@ -182,6 +193,10 @@ export class BoardRoomState {
     fetchImpl = fetch, graceMs = FOREIGN_GRACE_MS,
     setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (t) => clearTimeout(t),
     log = (...a) => console.warn(...a), now, clock = () => Date.now(),
+    // (kind, info): a failure the room records (party/report.ts). room_load
+    // when the stored board can't be read or decoded; room_save when saves
+    // keep failing, and when the board has gone unsaved too long.
+    report = null,
   }) {
     this.boardId = boardId;
     this.cfg = { boardId, supabaseUrl, serviceRoleKey, fetchImpl, ...(now ? { now } : {}) };
@@ -197,6 +212,10 @@ export class BoardRoomState {
     this.lastFlushedB64 = null;
     this.stopped = false;
     this.dirty = false;           // a flush failed and has not succeeded since
+    this.failures = 0;            // failed flushes in a row
+    this.dirtySince = null;       // when the first of them failed
+    this.reported = { failing: false, unsaved: false };
+    this.report = report;
     this.inFlight = null;         // the running flush, so flushes never overlap
     this.again = false;           // a flush was asked for while one ran
     this.forceNext = false;       // ...and that ask was a forced one
@@ -211,6 +230,29 @@ export class BoardRoomState {
 
   get pendingForeign() { return this.foreignTimer !== null; }
 
+  // Never throws: recording a failure must not be what stops a save.
+  problem(kind, info) {
+    try { this.report?.(kind, { boardId: this.boardId, ...info }); } catch (_) { /* best effort */ }
+  }
+
+  // A flush that failed, counted; the third in a row is reported, once.
+  failed(what, r) {
+    this.dirty = true;
+    if (this.dirtySince === null) this.dirtySince = this.clock();
+    this.failures += 1;
+    if (this.failures >= SAVE_FAILURES_REPORTED && !this.reported.failing) {
+      this.reported.failing = true;
+      this.problem('room_save', { error: failure(what, r), attempt: this.failures });
+    }
+  }
+
+  saved() {
+    this.dirty = false;
+    this.failures = 0;
+    this.dirtySince = null;
+    this.reported = { failing: false, unsaved: false };
+  }
+
   // Cold start: merge board_state into `doc` (the room's doc-to-be, already
   // holding whatever the room kept locally). Never throws. On a failed read
   // the doc is left as it is and lastSeen stays unknown, so the first flush
@@ -223,6 +265,7 @@ export class BoardRoomState {
     if (ver.ok) this.versionBaseline = ver.version;
     if (!cur.ok) {
       this.log(`[boardRoomState ${this.boardId}] load failed status=${cur.status} ${String(cur.reason).slice(0, 200)}`);
+      this.problem('room_load', { error: failure('read board_state', cur) });
       return false;
     }
     this.lastSeen = cur.exists ? cur.updatedAt : null;
@@ -234,6 +277,7 @@ export class BoardRoomState {
         // lastSeen unknown so nothing overwrites it without a fresh read.
         this.lastSeen = undefined;
         this.log(`[boardRoomState ${this.boardId}] stored doc did not decode: ${e?.message || e}`);
+        this.problem('room_load', { what: 'stored doc decode', error: e });
         return false;
       }
     }
@@ -281,7 +325,7 @@ export class BoardRoomState {
       // Unknown baseline: read before writing, every time.
       const cur = await readBoardState({ ...this.cfg, withDoc: false });
       if (this.stopped) return false;
-      if (!cur.ok) { this.dirty = true; return false; }
+      if (!cur.ok) { this.failed('read board_state', cur); return false; }
       if (cur.exists) { this.deferForeign(); return false; }
       this.lastSeen = null;
     }
@@ -293,7 +337,7 @@ export class BoardRoomState {
       // matched no row) or comes after (and replaces this one).
       this.lastSeen = res.updatedAt;
       this.lastFlushedB64 = b64;
-      this.dirty = false;
+      this.saved();
       return true;
     }
     if (res.conflict) {
@@ -301,8 +345,8 @@ export class BoardRoomState {
       this.deferForeign();
       return false;
     }
-    this.dirty = true;
     this.log(`[boardRoomState ${this.boardId}] flush failed status=${res.status} ${res.reason || ''}`);
+    this.failed('write board_state', res);
     return false;
   }
 
@@ -319,8 +363,17 @@ export class BoardRoomState {
   }
 
   // A failed flush is retried on the room's alarm as well as on the next edit.
+  // A board unsaved past UNSAVED_REPORTED_MS is reported, once, from here.
   async retryIfDirty() {
     if (this.dirty && !this.stopped && !this.pendingForeign) await this.flush({ force: true });
+    if (this.dirty && this.dirtySince !== null && !this.reported.unsaved
+        && this.clock() - this.dirtySince >= UNSAVED_REPORTED_MS) {
+      this.reported.unsaved = true;
+      this.problem('room_save', {
+        what: 'board unsaved', phase: 'unsaved', ms: this.clock() - this.dirtySince, attempt: this.failures,
+        error: new Error('its saves have failed for over two minutes'),
+      });
+    }
   }
 
   deferForeign() {
@@ -345,7 +398,7 @@ export class BoardRoomState {
     if (!cur.ok) {
       // Leave the baseline unknown: the next flush reads again before writing.
       this.lastSeen = undefined;
-      this.dirty = true;
+      this.failed('read board_state', cur);
       return false;
     }
     if (ver.ok && typeof ver.version === 'number') {
@@ -378,10 +431,12 @@ export class BoardRoomState {
         Y.applyUpdate(doc, b64ToBytes(cur.doc), MERGE_ORIGIN);
       } catch (e) {
         this.log(`[boardRoomState ${this.boardId}] foreign doc did not decode: ${e?.message || e}`);
+        this.problem('room_load', { what: 'stored doc decode', phase: 'merge', error: e });
         // Do not adopt a baseline we could not read: overwriting it later
         // would destroy whatever it held. Try again after another window.
         this.lastSeen = undefined;
         this.dirty = true;
+        if (this.dirtySince === null) this.dirtySince = this.clock();
         return false;
       } finally {
         doc.off('update', mark);
@@ -393,7 +448,7 @@ export class BoardRoomState {
     // already holds exactly this room's bytes, there is nothing to write back.
     if (!changed && cur.doc && bytesToB64(Y.encodeStateAsUpdate(doc)) === cur.doc) {
       this.lastFlushedB64 = cur.doc;
-      this.dirty = false;
+      this.saved();
       return true;
     }
     // Otherwise the row lacks something this room holds: write the union.

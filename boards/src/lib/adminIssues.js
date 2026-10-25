@@ -58,6 +58,14 @@ const KIND_LABELS = {
   api: 'API failed',
   job: 'Background job',
   degraded: 'Served without data',
+  room_save: 'Live sync save',
+  room_load: 'Live sync load',
+  room: 'Live sync room',
+  op_log: 'Change history',
+  alert: 'Alert not raised',
+  doc_room: 'Shared doc room',
+  bridge: 'Shared doc mirror',
+  access_check: 'Access check',
 };
 
 export function kindLabel(kind) {

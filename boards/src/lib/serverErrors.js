@@ -114,8 +114,10 @@ const clamp = (s, n) => (s == null || s === '' ? null : String(s).slice(0, n));
 //            without a read it asked for) | the Party's own words
 //   error    what was thrown
 //   request  the Request it happened on, for its method, host and route
-//   status, code, ms, phase, op   what the context says
-//   job      a job's name; what  a degraded read's name
+//   status, code, ms, phase, op, attempt   what the context says
+//   job      a job's name; what  what failed (a degraded read, a room's step),
+//            which the message leads with
+//   boardId  the board a room's failure is about: its id, never its name
 export function serverErrorRow(info, state, now = Date.now()) {
   if (!info || !SERVER_SOURCES.includes(info.source)) return null;
   const kind = String(info.kind || 'error').slice(0, 40);
@@ -137,8 +139,11 @@ export function serverErrorRow(info, state, now = Date.now()) {
   const answered = `${method || 'GET'} ${route ? `/${route}` : 'a request'}: ${failureWords(Number(info.status) || 500)}`;
   let message;
   if (kind === 'degraded') message = `${info.what || 'a read'}: ${readFailure(e, hosts)}`;
-  else if (kind === 'job') message = `${info.job || 'job'}: ${errorWords(raw, hosts) || 'failed'}`;
-  else message = errorWords(raw, hosts) || answered;
+  else {
+    const head = kind === 'job' ? (info.job || 'job') : info.what;
+    const said = errorWords(raw, hosts);
+    message = head ? `${head}: ${said || 'failed'}` : (said || answered);
+  }
   message = message.slice(0, 300);
   // A stack's first line is its message again, body and all: it is replaced
   // by the row's own, and only the frames are kept.
@@ -177,6 +182,8 @@ export function serverErrorRow(info, state, now = Date.now()) {
       code: info.code || call?.code,
       phase: info.phase,
       tag: info.job || info.what,
+      board_id: info.boardId,
+      attempt: info.attempt,
       ms: info.ms,
       http,
     }),
@@ -184,6 +191,18 @@ export function serverErrorRow(info, state, now = Date.now()) {
 }
 
 const STATE = makeServerErrorState();
+
+// What a guard caught, for the 5xx it answered with: the Worker's and the
+// Party's front doors record every 5xx once, and add the error when a guard
+// left one here. Keyed by the Request, which every handler is handed as it
+// came in.
+const CAUGHT = new WeakMap();
+export function answeredWith(request, error, extra) {
+  if (request && typeof request === 'object') CAUGHT.set(request, { error, ...extra });
+}
+export function answerOf(request) {
+  return (request && typeof request === 'object' && CAUGHT.get(request)) || {};
+}
 
 // Write one failure, in ctx.waitUntil when there is a ctx; the promise is
 // returned for a caller with none (a cron job) to wait on. Never throws, never

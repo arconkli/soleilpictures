@@ -5,16 +5,8 @@
 import { BUILD_SHA } from './buildInfo.js';
 import { reportServerError, watchJob } from './serverErrors.js';
 
-// What a guard caught, for the 5xx it answered with. worker.fetch records
-// every 5xx once, at the door, and adds the error when a guard left one here.
-// Keyed by the Request, which every handler is handed as it came in.
-const CAUGHT = new WeakMap();
-export function answeredWith(request, error, extra) {
-  if (request && typeof request === 'object') CAUGHT.set(request, { error, ...extra });
-}
-export function answerOf(request) {
-  return (request && typeof request === 'object' && CAUGHT.get(request)) || {};
-}
+// A guard hands the door what it caught (worker.handleFetch records it).
+export { answeredWith, answerOf } from './serverErrors.js';
 
 export function reportWorkerError(env, ctx, info) {
   return reportServerError(env, ctx, { source: 'worker', release: BUILD_SHA, ...info });

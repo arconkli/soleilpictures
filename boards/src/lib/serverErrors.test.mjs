@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import {
   serverErrorRow, makeServerErrorState, serverEnv, scrubServerText, isOurFailure, failedCall, watchJob,
 } from './serverErrors.js';
-import { answeredWith, answerOf } from './workerErrors.js';
+import { answeredWith, answerOf } from './serverErrors.js';
+import * as workerErrors from './workerErrors.js';
 import { ERROR_CONTEXT_KEYS } from './errorCore.js';
 
 const SRC = new URL('../', import.meta.url).pathname;
@@ -120,6 +121,10 @@ test('a 5xx answered with nothing thrown is named by its route', () => {
 });
 
 test('a guard hands the door what it caught, by the request', () => {
+  // One handover for both Workers: the Worker's modules import it from
+  // workerErrors.js, the Party's from here.
+  assert.equal(workerErrors.answeredWith, answeredWith);
+  assert.equal(workerErrors.answerOf, answerOf);
   const request = req('https://clusters.soleilpictures.com/api/tags/apply');
   assert.deepEqual(answerOf(request), {});
   const e = new Error('x');
@@ -203,4 +208,162 @@ test('a job that swallows a failure so its run goes on still records it', () => 
     const src = read(file);
     for (const c of calls) assert.ok(src.includes(`await jobFailed(env, ${c}`), `${file} records ${c}`);
   }
+});
+
+// ── The live sync server (party/report.ts) ──────────────────────────────────
+
+const BOARD = '8d0c6a4e-1f7b-4c1e-9a55-3b1d2f0e9c11';
+const party = (path, method = 'POST') => req(`https://soleil-boards-party.arconkli.workers.dev${path}`, method);
+
+test("a room's failure is a party row: the call that failed, the board's id, the attempt", () => {
+  // What boardRoomState.js reports at the third failed save in a row: the
+  // call, its status and the body (for its code) as report.ts callFailed says it.
+  const row = serverErrorRow({
+    source: 'party', kind: 'room_save', release: 'party-0a1b2c3d', boardId: BOARD, attempt: 3,
+    error: new Error('write board_state 500: {"code":"57014","details":"card My Film","message":"canceling statement"}'),
+  }, makeServerErrorState(), 0);
+  assert.equal(row.source, 'party');
+  assert.equal(row.kind, 'room_save');
+  assert.equal(row.severity, 'error');
+  assert.equal(row.message, 'write board_state: statement timeout (57014)');
+  assert.equal(row.release, 'party-0a1b2c3d');
+  assert.equal(row.env, 'prod');
+  assert.equal(row.path, null);
+  assert.equal(row.user_agent, null);
+  assert.deepEqual(row.context, { op: 'room_save', code: '57014', board_id: BOARD, attempt: 3 });
+  assert.doesNotMatch(JSON.stringify(row), /My Film/);
+  // A step of the room's own leads its message, and is its tag.
+  const step = serverErrorRow({
+    source: 'party', kind: 'room', what: 'local compaction', boardId: BOARD,
+    error: new RangeError('Invalid typed array length: 4096'),
+  }, makeServerErrorState(), 0);
+  assert.equal(step.message, 'local compaction: Invalid typed array length: 4096');
+  assert.equal(step.name, 'RangeError');
+  assert.deepEqual(step.context, { op: 'room', tag: 'local compaction', board_id: BOARD });
+  // A thrown call (report.ts callFailed with no answer): what, then why.
+  const lost = serverErrorRow({ source: 'party', kind: 'op_log', boardId: BOARD,
+    error: new Error('rpc append_board_op: timed out') }, makeServerErrorState(), 0);
+  assert.equal(lost.message, 'rpc append_board_op: timed out');
+  // Only a uuid is a board's id: a room's name is never anything else.
+  const named = serverErrorRow({ source: 'party', kind: 'room', what: 'alarm', boardId: 'My Film', error: new Error('x') },
+    makeServerErrorState(), 0);
+  assert.equal(named.context.board_id, undefined);
+});
+
+test("the Party's 5xx is its route on its only host, which is production", () => {
+  const row = serverErrorRow({
+    source: 'party', kind: 'route', status: 502,
+    request: party(`/parties/upload/${BOARD}/mpu/create?x=My%20Film`),
+    error: new Error('R2 multipart create failed'),
+  }, makeServerErrorState(), 0);
+  assert.equal(row.env, 'prod');
+  assert.equal(row.path, '/parties/upload/:x/mpu/create');
+  assert.equal(row.message, 'R2 multipart create failed');
+  assert.deepEqual(row.context.http, { method: 'POST', svc: 'party', route: 'parties/upload/:x/mpu/create', status: 502 });
+  assert.doesNotMatch(JSON.stringify(row), /My%20Film|8d0c6a4e/);
+  // A share bundle the database could not answer says which call and why.
+  const bundle = serverErrorRow({
+    source: 'party', kind: 'route', status: 503, request: party(`/parties/upload/${BOARD}/share-bundle`),
+    error: new Error('rpc get_share_bundle 503: <html>upstream connect error</html>'),
+  }, makeServerErrorState(), 0);
+  assert.equal(bundle.message, 'rpc get_share_bundle: unavailable');
+  // Nothing thrown: the route and the answer.
+  const bare = serverErrorRow({ source: 'party', kind: 'route', status: 503, request: party(`/parties/main/${BOARD}`, 'GET') },
+    makeServerErrorState(), 0);
+  assert.equal(bare.message, 'GET /parties/main/:x: unavailable');
+});
+
+test('an access check is recorded only when the failure is ours', () => {
+  // auth.ts checkFailed: never a refused token (401, skipped before this),
+  // never the database's own answer; a gateway, a timeout, a grant or a
+  // function a migration took away, yes.
+  assert.equal(isOurFailure(new Error('select boards 400: {"code":"22P02","message":"invalid input syntax for type uuid"}')), false);
+  assert.equal(isOurFailure(new Error('rpc can_write_board 503: upstream')), true);
+  assert.equal(isOurFailure(new Error('rpc can_write_board: timed out')), true);
+  assert.equal(isOurFailure(new Error('rpc doc_room_access 404: {"code":"PGRST202","message":"Could not find the function"}')), true);
+  assert.equal(isOurFailure(new Error('select workspace_members 403: {"code":"42501","message":"permission denied"}')), true);
+});
+
+test('the live sync server records every 5xx it answers, and each place its rooms fail', () => {
+  const P = new URL('../../party/', import.meta.url).pathname;
+  const rd = (f) => readFileSync(P + f, 'utf8');
+
+  // report.ts: the service key from the env, the release from the deploy's
+  // version, and an access check's report kept for the door.
+  const report = rd('report.ts');
+  assert.match(report, /import \{ reportServerError \} from "\.\.\/src\/lib\/serverErrors\.js";/);
+  assert.match(report, /bound = \{ SUPABASE_URL: env\.SUPABASE_URL \|\| DEFAULT_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: env\.SUPABASE_SERVICE_ROLE_KEY \};/);
+  assert.match(report, /const id = env\.CF_VERSION_METADATA\?\.id;\s*release = typeof id === "string" && id \? `party-\$\{id\.slice\(0, 8\)\}` : null;/);
+  assert.match(report, /if \(!waiter && doors > 0\) \{\s*if \(waiting\.length < 50\) waiting\.push\(info\);\s*return Promise\.resolve\(\);\s*\}/);
+  assert.match(report, /return reportServerError\(bound, waiter \?\? null, \{ source: "party", release, \.\.\.info \}\);/);
+  assert.match(rd('wrangler.jsonc'), /"version_metadata": \{ "binding": "CF_VERSION_METADATA" \}/);
+
+  // The door: every request through it, the access checks' reports written
+  // in its waitUntil, a 5xx recorded once with what a guard caught, and a throw
+  // past everything recorded before it goes on to Cloudflare's error page.
+  const index = rd('index.ts');
+  const door = index.slice(index.indexOf('export default {'));
+  assert.match(door, /bindReports\(env\);\s*doorOpened\(\);/);
+  assert.match(door, /res = await answer\(request, env\);/);
+  assert.match(door, /await reportParty\(\{ kind: "route", error: e, request, status: 500, phase: "tail" \}, ctx\);\s*throw e;/);
+  assert.match(door, /\} finally \{[^}]*doorClosed\(ctx\);\s*\}/);
+  assert.match(door, /if \(res\.status >= 500\) void reportParty\(\{ kind: "route", request, status: res\.status, \.\.\.answerOf\(request\) \}, ctx\);/);
+  assert.match(index, /console\.error\("\[party\] routing failed", e\);\s*answeredWith\(request, e\);\s*return new Response\("Party unavailable", \{ status: 503 \}\);/);
+
+  // Every room that reports binds its env first.
+  for (const [f, cls] of [['board.ts', 'BoardParty'], ['doc.ts', 'DocParty'], ['workspace.ts', 'WorkspaceParty']]) {
+    const src = rd(f);
+    const ctor = src.slice(src.indexOf(`export class ${cls}`));
+    assert.match(ctor, /constructor\(ctx: DurableObjectState, env: Env\) \{\s*super\(ctx, env\);\s*bindReports\(env\);/, `${cls} binds its reports`);
+  }
+
+  // The board room: its saves and loads (boardRoomState.js), and each step of
+  // its own that fails.
+  const board = rd('board.ts');
+  assert.match(board, /report: \(kind: string, info: Record<string, unknown>\) => \{ void reportParty\(\{ kind, \.\.\.info \}, this\.ctx\); \},/);
+  assert.match(board, /private problem\(what: string, error: unknown, kind = "room"\) \{\s*void reportParty\(\{ kind, what, error, boardId: this\.name \}, this\.ctx\);/);
+  for (const c of ['"local log append", e)', '"local update apply", e, "room_load")', '"local compaction", e)',
+    '"op log install", e, "op_log")', '"alarm", e)', '"reset broadcast", e)', '"reset storage", e)']) {
+    assert.ok(board.includes(`this.problem(${c}`), `board.ts records ${c}`);
+  }
+  assert.match(rd('opLog.ts'), /void reportParty\(\{ kind: "op_log", error: callFailed\("rpc append_board_op", res, text\), boardId \}\);/);
+  assert.match(rd('opLog.ts'), /void reportParty\(\{ kind: "op_log", error: callFailed\("rpc append_board_op", null, "", e\), boardId \}\);/);
+  assert.equal([...rd('anomalyDetector.ts').matchAll(/void reportParty\(\{ kind: "alert", error: callFailed\("insert workspace_anomaly_alerts", /g)].length, 2);
+
+  // A shared doc's room, and the board's mirror of it.
+  const doc = rd('doc.ts');
+  assert.equal([...doc.matchAll(/void reportParty\(\{ kind: "doc_room", error: callFailed\(`rpc \$\{name\}`, /g)].length, 2);
+  for (const c of ['"build", e)', '"subscribe", e)', 'null, callFailed("bridge subscribe", res))', '"board copy apply", e)',
+    '"push to board", new Error(', '"board push apply", e)']) {
+    assert.ok(doc.includes(`this.problem(${c}`), `doc.ts records ${c}`);
+  }
+  const bridge = rd('bridge.ts');
+  for (const c of ['"load subscriptions", e)', '"filter", e)', 'null, callFailed("bridge push", res))', '"push", e)', '"apply", e)']) {
+    assert.ok(bridge.includes(`this.problem(${c}`), `bridge.ts records ${c}`);
+  }
+  assert.match(rd('workspace.ts'), /void reportParty\(\{ kind: "room", what: "workspace sweep alarm", error: e \}, this\.ctx\);/);
+
+  // Every access check that can fail records why, and none fails silently.
+  const auth = rd('auth.ts');
+  for (const fn of ['async function supabaseGet', 'async function canWriteBoardUncached', 'export async function bannedAmong',
+    'export async function accessAmong', 'export async function workspaceAccessAmong', 'async function canOpenWorkspace',
+    'export async function docRoomAccess']) {
+    const at = auth.indexOf(fn);
+    assert.ok(at >= 0, `${fn} is still read`);
+    const body = auth.slice(at, auth.indexOf('\n}\n', at));
+    assert.match(body, /if \(!res\.ok\) \{ await (?:checkFailed|serviceCheckFailed|\(accessToken \? checkFailed : serviceCheckFailed\))\(/, `${fn} records an answer that failed`);
+    assert.match(body, /catch \(e\) \{\s*await (?:checkFailed|serviceCheckFailed)\(.*, null, e\);/, `${fn} records a throw`);
+    assert.doesNotMatch(body, /catch \(_\)/, `${fn} swallows nothing`);
+  }
+  assert.match(auth, /async function checkFailed\(what: string, res: Response \| null, thrown\?: unknown\) \{\s*if \(res\?\.status === 401\) return;[\s\S]{0,200}if \(isOurFailure\(error\)\) void reportParty\(\{ kind: "access_check", error \}\);/);
+
+  // The upload Worker's 5xx answers say why: the call and its code, or R2.
+  const upload = rd('upload.ts');
+  for (const c of ['"rpc get_share_bundle", rpcRes, msg)', '"rpc get_file_share", rpcRes, msg)',
+    '"rpc get_file_share_posters", rpcRes, ', '"rpc get_file_share", rpcRes, await', '"insert images", ins, ',
+    '"rpc get_public_board_bundle", rpcRes, msg)']) {
+    assert.ok(upload.includes(`answeredWith(req, callFailed(${c}`), `upload.ts hands over ${c}`);
+  }
+  assert.ok(upload.includes('answeredWith(req, new Error("R2 copy failed"));'));
+  assert.ok(upload.includes('answeredWith(req, new Error("R2 multipart create failed"));'));
 });

@@ -23,6 +23,7 @@
 import * as Y from "yjs";
 import { classifyUpdate, hashUpdateBytes } from "../src/lib/op_classifier.js";
 import { installAnomalyDetector } from "./anomalyDetector";
+import { callFailed, reportParty } from "./report";
 
 // Base64 encode/decode (Cloudflare Workers have atob/btoa globally).
 function bytesToB64(bytes: Uint8Array): string {
@@ -175,9 +176,11 @@ export function installOpLogCapture(opts: InstallOptions): void {
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         console.warn(`[opLog ${boardId}] append failed status=${res.status} body=${text.slice(0, 200)}`);
+        void reportParty({ kind: "op_log", error: callFailed("rpc append_board_op", res, text), boardId });
       }
     } catch (e: any) {
       console.warn(`[opLog ${boardId}] capture threw: ${e?.message || e}`);
+      void reportParty({ kind: "op_log", error: callFailed("rpc append_board_op", null, "", e), boardId });
     }
   });
 }

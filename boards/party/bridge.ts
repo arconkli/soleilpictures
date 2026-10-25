@@ -25,6 +25,7 @@ import { getServerByName } from "partyserver";
 import { extractDocSubtree, filterTransaction, replacesDoc, validateGuestUpdate } from "../src/lib/docRoomBridge.js";
 import { PRESENCE_FLUSH_MS, decodePresence, docPresenceOf, encodePresence } from "../src/lib/docRoomPresence.js";
 import type { Env } from "./env";
+import { callFailed, reportParty } from "./report";
 
 const SUBS_KEY = "bridgeSubs";
 const PUSH_DELAY_MS = 50;
@@ -88,6 +89,12 @@ export class BoardBridge {
 
   get size() { return this.subs.size; }
 
+  // A failure of the mirror's, recorded (report.ts) by what failed and the
+  // board's id.
+  private problem(what: string | null, error: unknown) {
+    void reportParty({ kind: "bridge", ...(what ? { what } : {}), error, boardId: this.host.name }, this.host.ctx);
+  }
+
   private get awareness(): awarenessProtocol.Awareness {
     return (this.host.document as unknown as { awareness: awarenessProtocol.Awareness }).awareness;
   }
@@ -103,6 +110,7 @@ export class BoardBridge {
       }
     } catch (e) {
       console.warn(`[board ${this.host.name}] bridge subscriptions did not load`, e);
+      this.problem("load subscriptions", e);
     }
   }
 
@@ -136,6 +144,7 @@ export class BoardBridge {
         update = filterTransaction(this.host.document, tr, sub.cardId, { variant: sub.variant, sent: sub.sent });
       } catch (e) {
         console.error(`[board ${this.host.name}] bridge filter failed for ${sub.room}`, e);
+        this.problem("filter", e);
         void this.close(sub.room, 4012, "rebuild");
         continue;
       }
@@ -159,10 +168,14 @@ export class BoardBridge {
       });
       // No one there any more: drop it. It subscribes again when someone opens it.
       if (res.status === 410) await this.drop(sub.room);
-      else if (!res.ok) await this.close(sub.room, 4012, "rebuild");
+      else if (!res.ok) {
+        this.problem(null, callFailed("bridge push", res));
+        await this.close(sub.room, 4012, "rebuild");
+      }
     } catch (e) {
       // The room can't hear us: make it rebuild from the board, so nothing is missed.
       console.warn(`[board ${this.host.name}] bridge push to ${sub.room} failed`, e);
+      this.problem("push", e);
       await this.close(sub.room, 4012, "rebuild");
     }
   }
@@ -341,6 +354,7 @@ export class BoardBridge {
         Y.applyUpdate(this.host.document, bytes, { docRoom: room, actor } satisfies DocRoomOrigin);
       } catch (e) {
         console.error(`[board ${this.host.name}] a doc room's update did not apply`, e);
+        this.problem("apply", e);
         return new Response("Did not apply", { status: 422 });
       }
       return new Response(null, { status: 204 });

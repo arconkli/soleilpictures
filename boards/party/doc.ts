@@ -36,6 +36,7 @@ import * as awarenessProtocol from "y-protocols/awareness";
 import { bannedAmong } from "./auth";
 import { DEFAULT_SUPABASE_URL, type Env } from "./env";
 import { bridgeHeaders, isBridgeRequest } from "./bridge";
+import { bindReports, callFailed, reportParty } from "./report";
 import { validateGuestUpdate, r2KeysIn } from "../src/lib/docRoomBridge.js";
 import { PRESENCE_FLUSH_MS, decodePresence, docPresenceOf, encodePresence } from "../src/lib/docRoomPresence.js";
 import {
@@ -97,11 +98,13 @@ async function serviceRpc(env: Env, name: string, args: Record<string, unknown>)
     });
     if (!res.ok) {
       console.warn(`[doc] ${name} answered ${res.status}`);
+      void reportParty({ kind: "doc_room", error: callFailed(`rpc ${name}`, res, await res.text().catch(() => "")) });
       return FAILED;
     }
     return await res.json();
   } catch (e) {
     console.warn(`[doc] ${name} failed`, e);
+    void reportParty({ kind: "doc_room", error: callFailed(`rpc ${name}`, null, "", e) });
     return FAILED;
   }
 }
@@ -110,6 +113,17 @@ export class DocParty extends YServer<Env> {
   static options = { hibernate: false };
   // Nothing is saved here: the board holds the doc.
   static callbackOptions = { debounceWait: 60_000, debounceMaxWait: 120_000, timeout: 5_000 };
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    bindReports(env);
+  }
+
+  // A failure of this room's, recorded (report.ts) by what failed and, once
+  // the room knows it, its board's id.
+  private problem(what: string | null, error: unknown) {
+    void reportParty({ kind: "doc_room", ...(what ? { what } : {}), error, boardId: this.target?.boardId }, this.ctx);
+  }
 
   private target: { shareId: string; variant: "edit" | "view"; gen: string; boardId: string; cardId: string } | null = null;
   private dead: { code: number; reason: string } | null = null;
@@ -144,6 +158,7 @@ export class DocParty extends YServer<Env> {
     if (!this.ready) {
       this.ready = this.prepare().catch((e) => {
         console.error(`[doc ${this.name}] the room could not be built`, e);
+        this.problem("build", e);
         this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
       });
     }
@@ -187,6 +202,7 @@ export class DocParty extends YServer<Env> {
       });
     } catch (e) {
       console.warn(`[doc ${this.name}] subscribe failed`, e);
+      this.problem("subscribe", e);
       this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
       return;
     }
@@ -198,6 +214,7 @@ export class DocParty extends YServer<Env> {
     }
     if (!res.ok) {
       console.warn(`[doc ${this.name}] the board answered ${res.status} to subscribe`);
+      this.problem(null, callFailed("bridge subscribe", res));
       this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
       return;
     }
@@ -215,6 +232,7 @@ export class DocParty extends YServer<Env> {
     } catch (e) {
       // Whatever landed of it, this copy is thrown away (leave(), from onConnect).
       console.error(`[doc ${this.name}] the board's copy did not apply`, e);
+      this.problem("board copy apply", e);
       this.dead = { code: CLOSE.UNAVAILABLE, reason: "unavailable" };
     }
   }
@@ -444,7 +462,11 @@ export class DocParty extends YServer<Env> {
       // Keep it, in order, and try again; past three failures the room starts over.
       this.queue.unshift(...updates.map((u) => ({ update: u, actor })));
       this.failures += 1;
-      if (this.failures >= 3) { this.startOver(); return; }
+      if (this.failures >= 3) {
+        this.problem("push to board", new Error("three pushes in a row failed; the room starts over"));
+        this.startOver();
+        return;
+      }
       if (!this.flushTimer) this.flushTimer = setTimeout(() => { void this.flush(); }, 500 * this.failures);
       return;
     }
@@ -540,6 +562,7 @@ export class DocParty extends YServer<Env> {
         Y.applyUpdate(this.document, bytes, "board");
       } catch (e) {
         console.error(`[doc ${this.name}] a board push did not apply`, e);
+        this.problem("board push apply", e);
         this.sendAway(CLOSE.MOVED, "rebuild");
         return new Response("Did not apply", { status: 422 });
       }
