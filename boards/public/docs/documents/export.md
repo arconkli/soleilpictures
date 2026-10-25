@@ -2,7 +2,7 @@
 
 > Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
-_Source: https://clusters.soleilpictures.com/docs/documents/export · Updated 2026-10-24_
+_Source: https://clusters.soleilpictures.com/docs/documents/export · Updated 2026-10-25_
 
 Export is in the toolbar's **⋯** (on a phone, the header's **⋯**). Someone
 with view access can export too.
@@ -36,7 +36,11 @@ complete anywhere at the cost of size; an image linked from a site that refuses
 the download stays a link.
 
 The right choice for moving writing into another tool without reformatting it by
-hand.
+hand. A screenplay's Markdown keeps every line, one to a paragraph, with scene
+headings in bold; Fountain keeps the screenplay's own format.
+
+An AI assistant you have [connected](/docs/mcp) reads a doc the same way, as
+Markdown page by page, with `fetch`.
 
 ## HTML
 

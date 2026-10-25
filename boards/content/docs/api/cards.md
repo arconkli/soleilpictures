@@ -5,7 +5,7 @@ h1: Cards API
 navLabel: Cards
 section: developers
 order: 4
-updated: 2026-10-20
+updated: 2026-10-25
 answer: Read a board's cards with GET /boards/:id/cards, add up to {{fact:maxCardsPerCall}} at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 faq:
   - q: What happens if I send an unrecognised kind?
@@ -275,6 +275,53 @@ card ids do not fit in a query string, and making a destructive call look like a
 
 Every removed card comes back, so the response is the undo — with the same
 exceptions as the single delete below.
+
+## `GET /boards/:id/cards/:cardId`
+
+One card, as the list gives it, and `url`, the link that opens the board with
+the card picked. `?include=` works as it does on the list.
+
+```json
+{ "board_id": "9f1c…", "card": { "id": "c-12", "kind": "note", … },
+  "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:c-12" }
+```
+
+## `GET /boards/:id/cards/:cardId/doc`
+
+A doc card's text: every page, in the order its page list shows them, as
+Markdown.
+
+```json
+{
+  "board_id": "9f1c…", "card_id": "c-3", "title": "Treatment", "url": "…",
+  "page_count": 2,
+  "pages": [
+    { "id": "p1", "title": "Opening", "parent_id": null, "depth": 0,
+      "markdown": "A diner at night…\n", "chars": 1840, "hash": "5d1f0c2a", "truncated": false },
+    { "id": "p2", "title": "Close", "parent_id": null, "depth": 0,
+      "markdown": null, "chars": 960, "hash": "0be4a9d1", "truncated": false }
+  ],
+  "complete": false
+}
+```
+
+| Parameter | |
+|---|---|
+| `page` | One page, by its `id` |
+| `max_chars` | Markdown handed back across the pages: {{fact:docReadDefaultChars}} characters by default, at most {{fact:docReadMaxChars}} |
+
+Pages fill in order until `max_chars` runs out. The page that crosses it is cut
+and marked `truncated`, and any after it come back with `markdown: null`, so
+every page is listed with its length in `chars` either way. `complete` says
+whether you have all of it; read the rest one `page` at a time. A page nested
+under another carries that page's id in `parent_id`, and a `depth` one more.
+
+Links in the text carry their real address, and comments are left out. An
+uploaded image's source is `r2:` followed by its storage key. A screenplay
+reads one line to a paragraph, scene headings in bold. `hash` changes whenever
+the page's Markdown does.
+
+A card that is not a doc answers `400`, naming the route that reads it.
 
 ## `PATCH /boards/:id/cards/:cardId`
 

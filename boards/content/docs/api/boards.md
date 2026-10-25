@@ -211,9 +211,9 @@ identifiers, so running it again finds them instead of creating them twice.
 
 ## `GET /boards/:id`
 
-`{ "board": … }`, or `404` — which is also what you get for a board that exists
-but is not yours. The API never confirms the existence of something you cannot
-see.
+`{ "board": …, "capacity": …, "url": … }`, where `url` opens the board in the
+app — or `404`, which is also what you get for a board that exists but is not
+yours. The API never confirms the existence of something you cannot see.
 
 ## `PATCH /boards/:id`
 

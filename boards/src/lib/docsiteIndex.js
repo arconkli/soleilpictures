@@ -1793,7 +1793,7 @@ export const DOCS_PAGES = [
     "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.",
     "section": "documents",
     "order": 2,
-    "updated": "2026-10-24",
+    "updated": "2026-10-25",
     "navLabel": "Exporting documents",
     "headings": [
       {
@@ -3391,7 +3391,7 @@ export const DOCS_PAGES = [
     "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
     "section": "developers",
     "order": 4,
-    "updated": "2026-10-20",
+    "updated": "2026-10-25",
     "navLabel": "Cards",
     "headings": [
       {
@@ -3425,6 +3425,14 @@ export const DOCS_PAGES = [
       {
         "id": "delete-boards-id-cards-many-at-once",
         "text": "DELETE /boards/:id/cards — many at once"
+      },
+      {
+        "id": "get-boards-id-cards-cardid",
+        "text": "GET /boards/:id/cards/:cardId"
+      },
+      {
+        "id": "get-boards-id-cards-cardid-doc",
+        "text": "GET /boards/:id/cards/:cardId/doc"
       },
       {
         "id": "patch-boards-id-cards-cardid",

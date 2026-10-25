@@ -11,6 +11,8 @@
     "DELETE /webhooks/:id",
     "GET /audit?since=&cursor=&limit=",
     "GET /boards/:id",
+    "GET /boards/:id/cards/:cardId",
+    "GET /boards/:id/cards/:cardId/doc?page=&max_chars= — a doc card, page by page, as Markdown",
     "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
     "GET /boards/:id/export?format=json|omc",
     "GET /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=",
@@ -95,6 +97,10 @@
     {
       "name": "export_board",
       "schema": "3ee79da6ad8e"
+    },
+    {
+      "name": "fetch",
+      "schema": "c1f1c4508b07"
     },
     {
       "name": "get_board",

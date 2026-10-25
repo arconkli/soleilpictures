@@ -29146,7 +29146,39 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The right choice for moving writing into another tool without reformatting it by hand."
+     "v": "The right choice for moving writing into another tool without reformatting it by hand. A screenplay's Markdown keeps every line, one to a paragraph, with scene headings in bold; Fountain keeps the screenplay's own format."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An AI assistant you have "
+    },
+    {
+     "t": "link",
+     "v": "connected",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "connected"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " reads a doc the same way, as Markdown page by page, with "
+    },
+    {
+     "t": "code",
+     "v": "fetch"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -51036,11 +51068,19 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "code",
-     "v": "{ \"board\": … }"
+     "v": "{ \"board\": …, \"capacity\": …, \"url\": … }"
     },
     {
      "t": "text",
-     "v": ", or "
+     "v": ", where "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens the board in the app — or "
     },
     {
      "t": "code",
@@ -51048,7 +51088,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see."
+     "v": ", which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see."
     }
    ]
   },
@@ -55512,6 +55552,240 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Every removed card comes back, so the response is the undo — with the same exceptions as the single delete below."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/cards/:cardId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/cards/:cardId"
+    }
+   ],
+   "id": "get-boards-id-cards-cardid"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One card, as the list gives it, and "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": ", the link that opens the board with the card picked. "
+    },
+    {
+     "t": "code",
+     "v": "?include="
+    },
+    {
+     "t": "text",
+     "v": " works as it does on the list."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"board_id\": \"9f1c…\", \"card\": { \"id\": \"c-12\", \"kind\": \"note\", … },\n  \"url\": \"https://clusters.soleilpictures.com/?to=c:9f1c…:c-12\" }"
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/cards/:cardId/doc",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/cards/:cardId/doc"
+    }
+   ],
+   "id": "get-boards-id-cards-cardid-doc"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A doc card's text: every page, in the order its page list shows them, as Markdown."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\", \"card_id\": \"c-3\", \"title\": \"Treatment\", \"url\": \"…\",\n  \"page_count\": 2,\n  \"pages\": [\n    { \"id\": \"p1\", \"title\": \"Opening\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": \"A diner at night…\\n\", \"chars\": 1840, \"hash\": \"5d1f0c2a\", \"truncated\": false },\n    { \"id\": \"p2\", \"title\": \"Close\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": null, \"chars\": 960, \"hash\": \"0be4a9d1\", \"truncated\": false }\n  ],\n  \"complete\": false\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "page"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One page, by its "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "max_chars"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Markdown handed back across the pages: 20,000 characters by default, at most 200,000"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pages fill in order until "
+    },
+    {
+     "t": "code",
+     "v": "max_chars"
+    },
+    {
+     "t": "text",
+     "v": " runs out. The page that crosses it is cut and marked "
+    },
+    {
+     "t": "code",
+     "v": "truncated"
+    },
+    {
+     "t": "text",
+     "v": ", and any after it come back with "
+    },
+    {
+     "t": "code",
+     "v": "markdown: null"
+    },
+    {
+     "t": "text",
+     "v": ", so every page is listed with its length in "
+    },
+    {
+     "t": "code",
+     "v": "chars"
+    },
+    {
+     "t": "text",
+     "v": " either way. "
+    },
+    {
+     "t": "code",
+     "v": "complete"
+    },
+    {
+     "t": "text",
+     "v": " says whether you have all of it; read the rest one "
+    },
+    {
+     "t": "code",
+     "v": "page"
+    },
+    {
+     "t": "text",
+     "v": " at a time. A page nested under another carries that page's id in "
+    },
+    {
+     "t": "code",
+     "v": "parent_id"
+    },
+    {
+     "t": "text",
+     "v": ", and a "
+    },
+    {
+     "t": "code",
+     "v": "depth"
+    },
+    {
+     "t": "text",
+     "v": " one more."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Links in the text carry their real address, and comments are left out. An uploaded image's source is "
+    },
+    {
+     "t": "code",
+     "v": "r2:"
+    },
+    {
+     "t": "text",
+     "v": " followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. "
+    },
+    {
+     "t": "code",
+     "v": "hash"
+    },
+    {
+     "t": "text",
+     "v": " changes whenever the page's Markdown does."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A card that is not a doc answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": ", naming the route that reads it."
     }
    ]
   },
@@ -61863,6 +62137,64 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "fetch"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " — "
+      },
+      {
+       "t": "code",
+       "v": "board:<board id>"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card:<board id>:<card id>"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "doc:<board id>:<card id>"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": ":<page id>"
+      },
+      {
+       "t": "text",
+       "v": " for one page), or a link from the app · one board, card or doc as text to read, "
+      },
+      {
+       "t": "code",
+       "v": "{ id, title, text, url, metadata }"
+      },
+      {
+       "t": "text",
+       "v": ", up to 40,000 characters"
       }
      ]
     ],

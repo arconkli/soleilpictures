@@ -992,3 +992,116 @@ test('share_board and unshare_board over /mcp', async () => {
   assert.ok(!un.body.result.isError, JSON.stringify(un.body.result));
   assert.equal(un.body.result.structuredContent.revoked, 1);
 });
+
+// ── one card, a doc's pages, and fetch ───────────────────────────────────────
+
+// A board holding a note, an image and a doc card whose two pages are real
+// fragments, written the way the app writes them.
+function putDocBoard(id) {
+  const doc = new Y.Doc();
+  const map = doc.getMap('cards');
+  map.set('n1', cardToYMap({ id: 'n1', kind: 'note', body: 'Coffee, black.', x: 0, y: 300 }));
+  map.set('i1', cardToYMap({ id: 'i1', kind: 'image', title: 'Booth', src: 'r2:w1/a.webp', caption: 'Red vinyl', x: 0, y: 0 }));
+  const card = new Y.Map();
+  map.set('d1', card);
+  card.set('id', 'd1'); card.set('kind', 'doc'); card.set('title', 'Treatment'); card.set('x', 300); card.set('y', 0);
+  const pages = new Y.Array();
+  const content = new Y.Map();
+  card.set('docPages', pages); card.set('docPageContent', content);
+  card.set('docPageSheets', new Y.Map()); card.set('docSheetContent', new Y.Map());
+  for (const [i, [pid, name, words]] of [['p1', 'Opening', 'A diner at night.'], ['p2', 'Close', 'Dawn.']].entries()) {
+    pages.push([{ id: pid, name, parent_id: null, order: i }]);
+    const frag = new Y.XmlFragment();
+    content.set(pid, frag);
+    const para = new Y.XmlElement('paragraph');
+    frag.insert(0, [para]);
+    const text = new Y.XmlText();
+    para.insert(0, [text]);
+    text.insert(0, words);
+  }
+  boards.set(id, {
+    row: { id, name: 'Diner', workspace_id: 'w1', parent_board_id: null, view: 'canvas', deleted_at: null,
+      updated_at: '2026-10-01T00:00:00+00:00' },
+    doc: bytesToB64(Y.encodeStateAsUpdate(doc)),
+  });
+}
+
+test('one card by id, with its link; a path below a card that is not /doc is unknown', async () => {
+  putDocBoard(B1);
+  const res = await api('GET', `/boards/${B1}/cards/n1`);
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.card.body, 'Coffee, black.');
+  assert.equal(res.body.url, `https://clusters.test/?to=c:${B1}:n1`);
+  assert.equal((await api('GET', `/boards/${B1}/cards/zz`)).status, 404);
+  assert.equal((await api('GET', `/boards/${B1}/cards/n1/comments`)).status, 404);
+  assert.equal((await api('PATCH', `/boards/${B1}/cards/n1/anything`, { title: 'x' })).status, 404,
+    'a deeper path no longer rewrites the card');
+  const board = await api('GET', `/boards/${B1}`);
+  assert.equal(board.body.url, `https://clusters.test/?to=b:${B1}`);
+});
+
+test('a doc card reads as Markdown, page by page, within a character budget', async () => {
+  putDocBoard(B1);
+  const res = await api('GET', `/boards/${B1}/cards/d1/doc`);
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.title, 'Treatment');
+  assert.equal(res.body.page_count, 2);
+  assert.equal(res.body.complete, true);
+  assert.deepEqual(res.body.pages.map((p) => [p.id, p.title, p.markdown]),
+    [['p1', 'Opening', 'A diner at night.\n'], ['p2', 'Close', 'Dawn.\n']]);
+
+  const one = await api('GET', `/boards/${B1}/cards/d1/doc?page=p2`);
+  assert.deepEqual(one.body.pages.map((p) => p.id), ['p2']);
+  assert.equal(one.body.page_count, 2);
+  const tight = await api('GET', `/boards/${B1}/cards/d1/doc?max_chars=5`);
+  assert.equal(tight.body.complete, false);
+  assert.deepEqual(tight.body.pages.map((p) => [p.markdown, p.truncated]), [['A din', true], [null, false]]);
+
+  assert.equal((await api('GET', `/boards/${B1}/cards/d1/doc?page=nope`)).status, 404);
+  const note = await api('GET', `/boards/${B1}/cards/n1/doc`);
+  assert.equal(note.status, 400);
+  assert.match(note.body.error, /is a note, not a doc/);
+  assert.equal((await api('PATCH', `/boards/${B1}/cards/d1/doc`, { markdown: 'x' })).status, 405);
+});
+
+const fetchTool = async (id) => (await mcp('tools/call', { name: 'fetch', arguments: { id } })).body.result;
+
+test('fetch reads a board, a card, a doc and a page, in ChatGPT\'s shape', async () => {
+  scopes = ['read'];
+  putDocBoard(B1);
+  const board = await fetchTool(`board:${B1}`);
+  assert.ok(!board.isError, JSON.stringify(board));
+  const b = board.structuredContent;
+  assert.deepEqual(Object.keys(b).sort(), ['id', 'metadata', 'text', 'title', 'url']);
+  assert.equal(b.id, `board:${B1}`);
+  assert.equal(b.url, `https://clusters.test/?to=b:${B1}`);
+  assert.equal(b.metadata.card_count, 3);
+  // Reading order: the image and the doc share the top row, the note is below.
+  assert.match(b.text, /^# Diner\n\n3 cards, in reading order:\n\n- \*\*Booth\*\* — image \(card i1\): Red vinyl · Image: w1\/a\.webp/);
+  assert.match(b.text, /- \*\*Treatment\*\* — doc \(card d1\): fetch doc:[^:]+:d1 for its text\n- note \(card n1\): Coffee, black\.$/);
+  assert.equal(JSON.parse(board.content[0].text).id, b.id, 'the text block carries the same JSON');
+
+  const doc = (await fetchTool(`card:${B1}:d1`)).structuredContent;
+  assert.equal(doc.title, 'Treatment');
+  assert.equal(doc.text, '## Opening\n\nA diner at night.\n\n## Close\n\nDawn.');
+  assert.equal(doc.metadata.card_kind, 'doc');
+
+  const page = (await fetchTool(`doc:${B1}:d1:p2`)).structuredContent;
+  assert.equal(page.id, `doc:${B1}:d1:p2`);
+  assert.equal(page.title, 'Treatment — Close');
+  assert.equal(page.text, 'Dawn.');
+
+  const viaLink = (await fetchTool(`https://clusters.soleilpictures.com/?to=c:${B1}:n1`)).structuredContent;
+  assert.equal(viaLink.id, `card:${B1}:n1`);
+  assert.equal(viaLink.text, 'Coffee, black.');
+});
+
+test('fetch says what an id should look like, and where a non-doc is read', async () => {
+  putDocBoard(B1);
+  const bad = await fetchTool('board:not-a-uuid');
+  assert.equal(bad.isError, true);
+  assert.match(bad.content[0].text, /id must be board:<board id>/);
+  const notDoc = await fetchTool(`doc:${B1}:n1`);
+  assert.equal(notDoc.isError, true);
+  assert.match(notDoc.content[0].text, new RegExp(`fetch card:${B1}:n1 reads it`));
+});

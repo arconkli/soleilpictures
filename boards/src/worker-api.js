@@ -44,8 +44,9 @@ import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.j
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards, readBoardCardsChecked,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
-  readBoardGroups, writeBoardGroups,
+  readBoardGroups, writeBoardGroups, withBoardCards,
 } from './lib/scoutBoard.js';
+import { DOC_READ, readDocPages } from './lib/docMarkdown.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
@@ -1152,6 +1153,8 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards/:id/cards',
         'PATCH  /boards/:id/cards            {"cards":[…]}  — bulk',
         'DELETE /boards/:id/cards            {"card_ids":[…]}  — bulk',
+        'GET    /boards/:id/cards/:cardId',
+        'GET    /boards/:id/cards/:cardId/doc?page=&max_chars=  — a doc card, page by page, as Markdown',
         'PATCH  /boards/:id/cards/:cardId',
         'DELETE /boards/:id/cards/:cardId',
         'POST   /boards/:id/cards/move',
@@ -2482,6 +2485,8 @@ async function dispatch(url, request, env, ctx) {
             : Math.max(0, Number(cap.cap) - Number(cap.used ?? 0)),
           capped: !!cap.is_capped,
         } : null,
+        // Opens the board in the app this API is served from.
+        url: boardUrl(url.origin, id),
       });
     }
 
@@ -3282,6 +3287,65 @@ async function dispatch(url, request, env, ctx) {
       cards: await decorateCards(env, token, id, page.items, include),
       total: all.length,
       ...pageMeta(page),
+    });
+  }
+
+  // Below a card, only /doc is a route. Anything else used to fall through to
+  // the card itself, so a PATCH meant for something deeper would have rewritten
+  // the card.
+  const leaf = parts[4];
+  if (subId && leaf !== undefined && (leaf !== 'doc' || parts.length > 5)) {
+    throw fail(404, 'not_found', 'unknown endpoint');
+  }
+
+  // GET /boards/:id/cards/:cardId — one card, as the list gives it.
+  if (subId && !leaf && method === 'GET') {
+    trace.route = '/boards/:id/cards/:cardId';
+    const include = parseInclude(url, ['props', 'identifiers', 'raw']);
+    const card = (await readBoardCards(env, id, token)).find((c) => String(c.id) === subId);
+    if (!card) throw fail(404, 'not_found', 'card not found');
+    return json({
+      board_id: id,
+      card: (await decorateCards(env, token, id, [card], include))[0],
+      url: cardUrl(url.origin, id, subId),
+    });
+  }
+
+  // GET /boards/:id/cards/:cardId/doc?page=&max_chars= — a doc card's pages as
+  // Markdown, read from its fragments in the board's document
+  // (lib/docMarkdown.js): every page listed, the text bounded by max_chars,
+  // one page by ?page=. Read only — nothing here may create a page or a
+  // fragment on a board that someone may have open.
+  if (leaf === 'doc') {
+    if (method !== 'GET') throw fail(405, 'method_not_allowed', 'a doc is read here, not written');
+    trace.route = '/boards/:id/cards/:cardId/doc';
+    const pageId = url.searchParams.get('page') || null;
+    const rawMax = Number(url.searchParams.get('max_chars'));
+    const maxChars = Math.max(1, Math.min(
+      Number.isFinite(rawMax) && rawMax > 0 ? Math.floor(rawMax) : DOC_READ.defaultChars, DOC_READ.maxChars));
+    const out = await withBoardCards(env, id, token, ({ cards, doc }) => {
+      const card = cards.find((c) => String(c.id) === subId);
+      if (!card) return { missing: true };
+      if ((card.kind || 'note') !== 'doc') return { kind: card.kind || 'note' };
+      const scope = {
+        pages: card.docPages, content: card.docPageContent,
+        pageSheets: card.docPageSheets, sheetContent: card.docSheetContent,
+      };
+      return { title: card.title ?? null, read: readDocPages(doc, scope, { pageId, maxChars }) };
+    });
+    if (out.missing) throw fail(404, 'not_found', 'card not found');
+    if (out.kind) {
+      throw fail(400, 'bad_request', `card ${subId} is a ${out.kind}, not a doc — GET /boards/${id}/cards/${subId} reads it`);
+    }
+    if (!out.read) throw fail(404, 'not_found', 'this doc has no such page');
+    return json({
+      board_id: id,
+      card_id: subId,
+      title: out.title,
+      url: cardUrl(url.origin, id, subId),
+      page_count: out.read.total,
+      pages: out.read.pages,
+      complete: out.read.pages.every((p) => p.markdown !== null && !p.truncated),
     });
   }
 

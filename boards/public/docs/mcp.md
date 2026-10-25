@@ -194,6 +194,7 @@ quietly failing.
 |---|---|
 | `read_board` | `board_id`, `full?`, `include?`, `source?`, `since?`, paging |
 | `view_board` | `board_id`, `limit?` (default 12, up to 24), `cursor?`, `card_ids?` (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card |
+| `fetch` | `id` — `board:<board id>`, `card:<board id>:<card id>`, `doc:<board id>:<card id>` (`:<page id>` for one page), or a link from the app · one board, card or doc as text to read, `{ id, title, text, url, metadata }`, up to 40,000 characters |
 | `view_image` | `image_key` — fetch an image card's actual picture |
 | `list_images` | `workspace_id?`, `board_id?`, `since?`, `cursor?` |
 | `export_board` | `board_id`, `format?` (`json`\|`omc`) |

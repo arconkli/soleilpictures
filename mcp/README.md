@@ -53,7 +53,7 @@ under **Settings → Connections**. `SOLEIL_API_BASE` overrides the host.
 
 ## What it can do
 
-36 tools: search, read and export boards, look at a whole board or the images on it,
+37 tools: search, read and export boards and docs, look at a whole board or the images on it,
 create boards and cards in bulk, lay a board out as justified rows or masonry, share it by link,
 import from URLs, attach identifiers from other systems, move and delete things,
 and read the audit log. Three prompts for describing, organising and importing.

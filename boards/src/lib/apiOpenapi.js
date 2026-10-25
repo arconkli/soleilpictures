@@ -423,6 +423,15 @@ export function openapiDocument(origin) {
       },
       '/boards/{id}/cards/{cardId}': {
         parameters: [boardIdParam, { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } }],
+        get: {
+          summary: 'One card, with the link that opens it',
+          operationId: 'getCard',
+          parameters: [q('include', 'props, identifiers and/or raw, comma-separated')],
+          responses: {
+            200: okJson('The card', { type: 'object' }),
+            404: { $ref: '#/components/responses/NotFound' },
+          },
+        },
         patch: {
           summary: 'Change a card in place',
           description: 'Only the fields you send change. The id cannot be changed.',
@@ -837,6 +846,20 @@ export function openapiDocument(origin) {
             q('card_ids', 'Comma-separated card ids, instead of paging'),
             q('cursor', 'From a previous next_cursor'),
             limitParam,
+          ],
+        }),
+      },
+      '/boards/{id}/cards/{cardId}/doc': {
+        get: op('readDoc', 'A doc card\'s pages as Markdown', {
+          description: 'Every page in page-list order, each with its Markdown, length and hash. '
+            + 'max_chars bounds the Markdown across pages: the page that crosses it is cut '
+            + '(truncated), later ones come back with markdown null, and complete says whether '
+            + 'all of it is here. page reads one page by id.',
+          parameters: [
+            boardIdParam,
+            { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } },
+            q('page', 'One page, by its id'),
+            q('max_chars', 'Markdown to hand back across the pages', { type: 'integer', minimum: 1 }),
           ],
         }),
       },

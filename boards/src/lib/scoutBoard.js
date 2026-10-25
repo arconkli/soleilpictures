@@ -1116,7 +1116,9 @@ export async function withBoardCards(env, boardId, accessToken, use) {
   try {
     let templates = {};
     try { templates = doc.getMap('gridTemplates').toJSON(); } catch (_) { /* none */ }
-    return await use({ cards: readCards(doc), templates, loaded });
+    // `doc` for readers that need more than the cards — a doc card's links
+    // live in the board's own links map. Read it; never write through it.
+    return await use({ cards: readCards(doc), templates, loaded, doc });
   } finally {
     try { ws?.close(); } catch (_) { /* already gone */ }
     doc.destroy();

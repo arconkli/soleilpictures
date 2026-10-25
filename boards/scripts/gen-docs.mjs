@@ -74,7 +74,8 @@ import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '.
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
 import { GALLERY } from '../src/lib/gallery.js';
-import { TOOLS as MCP_TOOLS } from '../src/lib/mcpTools.js';
+import { DOC_READ } from '../src/lib/docMarkdown.js';
+import { TOOLS as MCP_TOOLS, FETCH_MAX_CHARS } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
@@ -522,6 +523,10 @@ export const FACTS = {
   galleryInlineTotal: `${GALLERY.inlineTotalMaxBytes / MB} MB`,
   galleryOriginalMax: `${GALLERY.originalMaxBytes / 1024} KB`,
   viewBoardCloseMax: String(MCP_TOOLS.find((t) => t.name === 'view_board').inputSchema.properties.card_ids.maxItems),
+  // A doc read's Markdown budget (lib/docMarkdown.js) and fetch's (mcpTools.js).
+  docReadDefaultChars: DOC_READ.defaultChars.toLocaleString('en-US'),
+  docReadMaxChars: DOC_READ.maxChars.toLocaleString('en-US'),
+  fetchMaxChars: FETCH_MAX_CHARS.toLocaleString('en-US'),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

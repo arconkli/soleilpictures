@@ -2713,7 +2713,7 @@ A: Yes. The scene navigator lists every scene heading with its number, and click
 ========================================================================
 # Exporting documents
 URL: https://clusters.soleilpictures.com/docs/documents/export
-Updated: 2026-10-24
+Updated: 2026-10-25
 
 Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
@@ -2740,7 +2740,9 @@ Markdown
 
 Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link.
 
-The right choice for moving writing into another tool without reformatting it by hand.
+The right choice for moving writing into another tool without reformatting it by hand. A screenplay's Markdown keeps every line, one to a paragraph, with scene headings in bold; Fountain keeps the screenplay's own format.
+
+An AI assistant you have connected reads a doc the same way, as Markdown page by page, with fetch.
 
 HTML
 
@@ -5135,7 +5137,7 @@ An update changes name and view. A matched board stays where it is unless the en
 
 GET /boards/:id
 
-{ "board": … }, or 404 — which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see.
+{ "board": …, "capacity": …, "url": … }, where url opens the board in the app — or 404, which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see.
 
 PATCH /boards/:id
 
@@ -5435,7 +5437,7 @@ A: Yes. Nothing about tokens has changed. OAuth is for applications that other p
 ========================================================================
 # Cards API
 URL: https://clusters.soleilpictures.com/docs/api/cards
-Updated: 2026-10-20
+Updated: 2026-10-25
 
 Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
@@ -5614,6 +5616,39 @@ DELETE /boards/:id/cards — many at once
 Sent as a JSON body on DELETE, which is unusual but deliberate: a thousand card ids do not fit in a query string, and making a destructive call look like a POST would mislead every proxy, log and permission check between you and it.
 
 Every removed card comes back, so the response is the undo — with the same exceptions as the single delete below.
+
+GET /boards/:id/cards/:cardId
+
+One card, as the list gives it, and url, the link that opens the board with the card picked. ?include= works as it does on the list.
+
+{ "board_id": "9f1c…", "card": { "id": "c-12", "kind": "note", … },
+  "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:c-12" }
+
+GET /boards/:id/cards/:cardId/doc
+
+A doc card's text: every page, in the order its page list shows them, as Markdown.
+
+{
+  "board_id": "9f1c…", "card_id": "c-3", "title": "Treatment", "url": "…",
+  "page_count": 2,
+  "pages": [
+    { "id": "p1", "title": "Opening", "parent_id": null, "depth": 0,
+      "markdown": "A diner at night…\n", "chars": 1840, "hash": "5d1f0c2a", "truncated": false },
+    { "id": "p2", "title": "Close", "parent_id": null, "depth": 0,
+      "markdown": null, "chars": 960, "hash": "0be4a9d1", "truncated": false }
+  ],
+  "complete": false
+}
+
+Parameter | 
+page | One page, by its id
+max_chars | Markdown handed back across the pages: 20,000 characters by default, at most 200,000
+
+Pages fill in order until max_chars runs out. The page that crosses it is cut and marked truncated, and any after it come back with markdown: null, so every page is listed with its length in chars either way. complete says whether you have all of it; read the rest one page at a time. A page nested under another carries that page's id in parent_id, and a depth one more.
+
+Links in the text carry their real address, and comments are left out. An uploaded image's source is r2: followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. hash changes whenever the page's Markdown does.
+
+A card that is not a doc answers 400, naming the route that reads it.
 
 PATCH /boards/:id/cards/:cardId
 
@@ -6489,6 +6524,7 @@ Reading
 Tool | Input
 read_board | board_id, full?, include?, source?, since?, paging
 view_board | board_id, limit? (default 12, up to 24), cursor?, card_ids? (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card
+fetch | id — board:<board id>, card:<board id>:<card id>, doc:<board id>:<card id> (:<page id> for one page), or a link from the app · one board, card or doc as text to read, { id, title, text, url, metadata }, up to 40,000 characters
 view_image | image_key — fetch an image card's actual picture
 list_images | workspace_id?, board_id?, since?, cursor?
 export_board | board_id, format? (json|omc)
