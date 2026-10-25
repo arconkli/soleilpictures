@@ -206,11 +206,12 @@ on insert and answered `too_soon`, `sent`, `closed` and `team_not_member` from r
   check would page about a new path that sends email (`securityAudit.test.mjs` names it on purpose);
 - spends the inviter's daily invitation allowance (`_invite_budget_take`, 20 a day, 5 on day one) for every
   invite, in the trigger, so a list past it refuses the whole `invite_to_team` call with
-  "invite limit reached: …" (hint `invite_limit_reached`, or `sending_on_hold`). The client must show that
-  sentence: `teamCopy.refusalLine` maps neither hint yet;
+  "invite limit reached: …" (hint `invite_limit_reached`, or `sending_on_hold`, which resend now raises too);
 - `resend_team_invite` answers `'closed'` for a claimed, revoked or expired invite (an expired one no longer
-  holds a seat, so reviving it could overfill the team); the client's Resend (hidden on a live team) and a
-  `resendTeamInvite` wrapper come once 0541 is applied.
+  holds a seat, so reviving it could overfill the team).
+- [x] The client: `resendTeamInvite`, Resend on a live team's pending invites (once a day; a closed invite says
+  invite them again), and lines for `invite_limit_reached` and `sending_on_hold`. Until 0541 is applied, Resend
+  answers "That isn't ready yet." (PGRST202).
 Order: message the session that froze send-transactional-email, deploy it built on the live function plus
 this hunk (read back byte for byte), then apply 0541.
 

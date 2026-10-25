@@ -9,7 +9,7 @@ const NAMES = [
   'renameTeam', 'setTeamRole', 'removeFromTeam', 'revokeTeamInvite', 'approveTeamRequest',
   'keepTeamRequestViewer', 'removeTeamSeat', 'addTeamSeats', 'setTeamWhenFull', 'inviteToTeam',
   'setTeamLink', 'resetTeamLink', 'setTeamDomainOn', 'addTeamDomain', 'removeTeamDomain',
-  'checkTeamDomain', 'closeTeam', 'leaveTeam', 'openTeamPortal', 'setTeamSeatPerk',
+  'checkTeamDomain', 'closeTeam', 'leaveTeam', 'openTeamPortal', 'setTeamSeatPerk', 'resendTeamInvite',
 ];
 
 function fake(over = {}) {
@@ -74,10 +74,23 @@ test('addDomain normalises: trim, lowercase, @, and an IDN to its xn-- form', as
   assert.deepEqual(calls, [['addTeamDomain', { p_org_id: O, p_domain: 'xn--bcher-kva.de' }]]);
 });
 
-test('resend is not available yet', async () => {
-  const { res, calls } = await one('resend', { personId: 'invite:abc' });
-  assert.deepEqual(res, { ok: false, refusal: { code: 'not_yet' } });
+test('resend sends a team invite again, once a day, and only while it is open (0541)', async () => {
+  let { res, calls } = await one('resend', { personId: 'invite:abc' }, { resendTeamInvite: 'sent' });
+  assert.deepEqual(calls, [['resendTeamInvite', { p_invite_id: 'abc' }]]);
+  assert.deepEqual(res, { ok: true, data: 'sent' });
+  ({ res } = await one('resend', { personId: 'invite:abc' }, { resendTeamInvite: 'too_soon' }));
+  assert.deepEqual(res, { ok: false, refusal: { code: 'resend_too_soon' } });
+  ({ res } = await one('resend', { personId: 'invite:abc' }, { resendTeamInvite: 'closed' }));
+  assert.deepEqual(res, { ok: false, refusal: { code: 'invite_closed' } });
+  ({ res, calls } = await one('resend', { personId: 'pending:abc' }));
+  assert.deepEqual(res, { ok: false, refusal: { code: 'unsupported' } });
   assert.deepEqual(calls, []);
+});
+
+test('a function the database doesn\'t have yet reads as not ready', async () => {
+  const api = { resendTeamInvite: async () => { throw Object.assign(new Error('Could not find the function'), { code: 'PGRST202' }); } };
+  const res = await runTeamAction(api, O, 'resend', { personId: 'invite:abc' });
+  assert.deepEqual(res, { ok: false, refusal: { code: 'not_yet' } });
 });
 
 test('revoke only handles team invites', async () => {

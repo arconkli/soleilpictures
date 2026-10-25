@@ -43,8 +43,13 @@ export async function runTeamAction(api, orgId, type, payload = {}) {
         if (!id.startsWith('invite:')) return { ok: false, refusal: { code: 'unsupported' } };
         return ok(await api.revokeTeamInvite({ p_invite_id: id.slice('invite:'.length) }));
       }
-      case 'resend':
-        return { ok: false, refusal: { code: 'not_yet' } };
+      case 'resend': {
+        const id = String(p.personId || '');
+        if (!id.startsWith('invite:')) return { ok: false, refusal: { code: 'unsupported' } };
+        const r = await api.resendTeamInvite({ p_invite_id: id.slice('invite:'.length) });
+        if (r === 'sent') return ok(r);
+        return { ok: false, refusal: { code: r === 'too_soon' ? 'resend_too_soon' : 'invite_closed' } };
+      }
       case 'approve':
         return ok(await api.approveTeamRequest({ p_request_id: p.requestId, p_add_seat: !!p.addSeat }));
       case 'keepViewer':
@@ -99,6 +104,8 @@ export async function runTeamAction(api, orgId, type, payload = {}) {
   } catch (err) {
     const r = teamRefusal(err);
     if (r) return { ok: false, refusal: { code: r.kind, needed: r.needed } };
+    // PostgREST has no such function: its migration isn't applied yet.
+    if (err?.code === 'PGRST202') return { ok: false, refusal: { code: 'not_yet' } };
     return { ok: false, refusal: { code: 'failed', message: err?.message ?? null } };
   }
 }

@@ -11,6 +11,7 @@ const FILES = [
   '0522_teams_tables.sql', '0530_teams_access.sql', '0531_teams_seats.sql',
   '0532_teams_rpcs.sql', '0533_teams_people.sql', '0534_teams_joining.sql',
   '0535_teams_read.sql', '0538_teams_billing.sql', '0540_teams_setup_and_domains.sql',
+  '0541_team_invite_email.sql',
 ];
 const fileText = (f) => readFileSync(join(MIGRATIONS_DIR, f), 'utf8');
 const sql = FILES.map(fileText).join('\n');
@@ -23,7 +24,7 @@ test('every hint appears in the team SQL', () => {
 
 test('each key is its own hint string', () => {
   for (const [k, v] of Object.entries(TEAM_HINT)) assert.equal(k, v);
-  assert.equal(Object.keys(TEAM_HINT).length, 21);
+  assert.equal(Object.keys(TEAM_HINT).length, 23);
 });
 
 test('teamRefusal maps a fake PostgrestError for each hint', () => {

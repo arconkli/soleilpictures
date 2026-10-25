@@ -72,6 +72,13 @@ export async function revokeTeamInvite({ p_invite_id } = {}) {
   return data;
 }
 
+// 0541: 'sent' | 'too_soon' (once a day) | 'closed' (claimed, revoked or expired).
+export async function resendTeamInvite({ p_invite_id } = {}) {
+  const { data, error } = await supabase.rpc('resend_team_invite', { p_invite_id });
+  if (error) throw error;
+  return data;
+}
+
 export async function acceptTeamInvite({ p_token } = {}) {
   const { data, error } = await supabase.rpc('accept_team_invite', { p_token });
   if (error) throw error;

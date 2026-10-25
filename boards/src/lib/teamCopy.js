@@ -30,6 +30,12 @@ const REFUSAL = {
   team_has_plan: 'This team has a plan. Manage it from billing.',
   // new_account: _refuse_if_new (0375) refuses an account under 72 hours old.
   new_account: 'That opens up once your account is three days old.',
+  // 0541: the daily invitation allowance (0358/0375) and a sending hold (0369).
+  invite_limit_reached: 'You’ve reached today’s invite limit. Try again tomorrow.',
+  sending_on_hold: 'Sending is paused on your account while we review unusual activity.',
+  // resend_team_invite (0541)
+  resend_too_soon: 'That invite went out in the last day. Try again tomorrow.',
+  invite_closed: 'That invite was used, withdrawn or has expired. Invite them again.',
   // team-billing
   not_available: 'That isn’t available yet.',
   price_mismatch: 'The price changed. Check it and try again.',
@@ -66,6 +72,7 @@ const SUCCESS = {
   role: 'Role changed.',
   remove: 'Removed.',
   revoke: 'Invite revoked.',
+  resend: 'Invite sent again.',
   approve: 'Approved.',
   keepViewer: 'Kept as a viewer.',
   removeSeat: 'Seat removed.',

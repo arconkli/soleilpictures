@@ -416,9 +416,11 @@ begin
   if v_i.claimed_at is not null or v_i.revoked_at is not null or v_i.expires_at <= now() then
     return 'closed';
   end if;
+  -- An account on a sending hold sends nothing (0369), refused as every
+  -- other invitation refuses it (0375).
   if not public._actor_can_send() then
-    raise exception 'sharing is paused on this account while we review unusual activity'
-      using errcode = '42501';
+    raise exception 'invite limit reached: sharing is paused on this account while we review unusual activity.'
+      using errcode = 'P0001', hint = 'sending_on_hold';
   end if;
   if coalesce(v_i.resent_at, v_i.created_at) > now() - interval '1 day' then
     return 'too_soon';

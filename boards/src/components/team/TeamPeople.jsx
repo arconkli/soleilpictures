@@ -163,7 +163,13 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
               <span className="tp-rowacts">
                 {manager && p.invited && (
                   <>
-                    {!live && <button type="button" className="tp-link" onClick={() => { onAction('resend', { personId: p.id, now: Date.now() }); onToast('Preview: nobody was emailed.'); }} {...lock}>Resend</button>}
+                    {(!live || String(p.id).startsWith('invite:')) && (
+                      <button type="button" className="tp-link" {...lock} onClick={() => {
+                        if (live) { go('resend', { personId: p.id }); return; }
+                        onAction('resend', { personId: p.id, now: Date.now() });
+                        onToast('Preview: nobody was emailed.');
+                      }}>Resend</button>
+                    )}
                     {(!live || String(p.id).startsWith('invite:')) && (
                       <button type="button" className="tp-link" onClick={() => (live ? go('revoke', { personId: p.id }) : onAction('revoke', { personId: p.id }))} {...lock}>Revoke</button>
                     )}

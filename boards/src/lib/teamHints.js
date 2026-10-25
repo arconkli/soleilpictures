@@ -1,4 +1,4 @@
-// teamHints.js — the hints the Team plan's SQL (0522, 0530-0535, 0538, 0540) raises, as
+// teamHints.js — the hints the Team plan's SQL (0522, 0530-0535, 0538, 0540, 0541) raises, as
 // the app reads them. Every refusal carries one of these in the error's
 // `hint`; teamHints.test.mjs reads the SQL and holds the strings together.
 // Pure, so it runs in node.
@@ -25,6 +25,8 @@ export const TEAM_HINT = {
   team_has_plan: 'team_has_plan',                   // paying again while the plan is still live: manage it instead
   team_domain_missing: 'team_domain_missing',      // 0540: that domain isn't on this team
   new_account: 'new_account',
+  invite_limit_reached: 'invite_limit_reached',     // 0541: an invite spends the inviter's daily allowance (0358/0375)
+  sending_on_hold: 'sending_on_hold',               // 0541: this account's sending is paused (0369)
 };
 
 // What a failed team call means: null when it wasn't a team refusal, else

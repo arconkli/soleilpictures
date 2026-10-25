@@ -17,7 +17,8 @@ test('every TEAM_HINT has its own line', () => {
 
 test('the team-billing and domain-check codes have lines', () => {
   for (const c of ['not_available', 'price_mismatch', 'stale_preview', 'stripe_error', 'no_plan', 'no_seat_item',
-    'retry', 'network', 'auth required', 'not_yet', 'unsupported', 'too_many', 'team_domain_missing']) {
+    'retry', 'network', 'auth required', 'not_yet', 'unsupported', 'too_many', 'team_domain_missing',
+    'resend_too_soon', 'invite_closed']) {
     assert.notEqual(refusalLine({ code: c }), DEFAULT, c);
   }
 });
