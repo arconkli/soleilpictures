@@ -39,6 +39,7 @@ import { runWorkspaceDiscovery } from '../lib/aiDiscovery.js';
 import { backfillTagAgainstWorkspace } from '../lib/aiBackfill.js';
 import { warmupWorkspaceEmbeddings } from '../lib/aiWarmup.js';
 import { propagateTagToGroups } from '../lib/aiGroupPropagation.js';
+import { TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 
 // Round 19: mount-time work (warmup, centroid seeding) gets pushed to
 // idle so it can't compete with the boot/paint window. Same pattern
@@ -357,19 +358,42 @@ export function useAiTagger(workspaceId) {
             // applies (which propagation itself emits) would loop back
             // through here otherwise.
             if (r.source_kind === 'card') scheduleGroupPropagate(r.target_id);
-          })
-      .on('postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'entity_links', filter: `source_workspace=eq.${workspaceId}` },
-          (payload) => {
-            const r = payload?.old || {};
-            if (r.target_kind !== 'tag' || r.link_kind !== 'applied') return;
-            const key = `${r.source_kind}:${r.source_id}`;
-            const set = appliedRef.current.get(key);
-            if (set) set.delete(r.target_id);
-            scheduleCentroidRecompute(r.target_id);
           });
     ch.subscribe();
+    // A realtime DELETE carries only the row id (replica identity default),
+    // so it can never say which tag came off; tagsApi announces every removal
+    // in-page instead. Re-read the applied set then, and recompute the
+    // centroid of each tag that lost a member.
+    let reseedTimer = null;
+    const reseed = () => {
+      clearTimeout(reseedTimer);
+      reseedTimer = setTimeout(async () => {
+        const { data, error } = await supabase.from('entity_links')
+          .select('source_kind, source_id, target_id')
+          .eq('source_workspace', workspaceId)
+          .eq('target_kind', 'tag')
+          .eq('link_kind', 'applied');
+        if (error || !data) return;
+        const next = new Map();
+        for (const r of data) {
+          const key = `${r.source_kind}:${r.source_id}`;
+          if (!next.has(key)) next.set(key, new Set());
+          next.get(key).add(r.target_id);
+        }
+        const lost = new Set();
+        for (const [key, set] of appliedRef.current) {
+          const now = next.get(key);
+          for (const tagId of set) if (!now || !now.has(tagId)) lost.add(tagId);
+        }
+        appliedRef.current.clear();
+        for (const [key, set] of next) appliedRef.current.set(key, set);
+        for (const tagId of lost) scheduleCentroidRecompute(tagId);
+      }, 1000);
+    };
+    document.addEventListener(TAG_LINKS_CHANGED, reseed);
     return () => {
+      document.removeEventListener(TAG_LINKS_CHANGED, reseed);
+      clearTimeout(reseedTimer);
       try { supabase.removeChannel(ch); } catch {}
       // Cancel any pending recomputes / propagations on unmount.
       for (const h of centroidDebounceRef.current.values()) clearTimeout(h);

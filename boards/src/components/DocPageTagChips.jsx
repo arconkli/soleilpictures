@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
-import { untagDocPage, tagDocPage, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
+import { untagDocPage, restoreDocTagRows, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { isDeleteEvent } from '../lib/tagSurface.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -118,12 +118,14 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     // Optimistic local drop — realtime will reconcile.
     setTagIds(prev => prev.filter(id => id !== tagId));
     try {
-      await untagDocPage({ workspaceId, docCardId, pageId, tagId });
+      const removed = await untagDocPage({ workspaceId, docCardId, pageId, tagId });
       undoToast(feedback, {
         message: 'Tag removed',
         onUndo: async () => {
           try {
-            await tagDocPage({ workspaceId, docCardId, pageId, tagId });
+            // Exactly the rows that came off: the page row and every range,
+            // not one page row in their place.
+            await restoreDocTagRows({ workspaceId, docCardId, pageId, tagId, rows: removed });
             setTagIds(prev => (prev.includes(tagId) ? prev : [...prev, tagId]));
           } catch (_) {}
         },

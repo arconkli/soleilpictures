@@ -29,6 +29,7 @@ import {
   untagCard, untagBoard, untagGroup,
   confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion,
   tagCard, tagGroup, tagBoard, tagDocPage,
+  untagDocPage, restoreDocTagRows,
   getRelatedEntities, TAG_LINKS_CHANGED,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
@@ -86,6 +87,7 @@ function kindIcon(kind) { return KIND_ICON[kind] || StickyNote; }
 // Is this get_things_tagged row the item a menu action targeted?
 // target: { id, boardId } as built by the render helpers' menuTarget.
 function isRowFor(r, targetKind, target) {
+  if (targetKind === 'doc') return r.kind === 'doc' && r.card_id === target.id && r.page_id === target.pageId;
   if (targetKind === 'board') return r.kind === 'board' && (r.board_id || r.id) === target.id;
   if (targetKind === 'group') {
     return r.kind === 'group' && (r.group_id || r.id) === target.id && r.board_id === target.boardId;
@@ -491,6 +493,14 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     () => suggestions.filter(s => !suggestionAlreadyApplied(s, rows)),
     [suggestions, rows]);
 
+  // A page that carries the tag is listed with the tagged items; "Appears
+  // in" keeps the rest (mentions, and pages the page index hasn't caught up
+  // on), so no page is listed twice.
+  const mentionsShown = useMemo(() => {
+    const tagged = new Set((rows || []).filter(r => r.kind === 'doc').map(r => `${r.card_id}:${r.page_id || ''}`));
+    return mentions.filter(m => !tagged.has(`${m.doc_card_id}:${m.page_id || ''}`));
+  }, [mentions, rows]);
+
   // ── Actions ─────────────────────────────────────────────────────────────
   // Remove always dismisses too. Otherwise the autotag triggers
   // re-apply the tag on the next card_index UPDATE if the text
@@ -499,6 +509,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
   // manually re-tag the item; the user-application path clears the
   // dismissal so it doesn't get filtered next round.
   const removeTag = async (target) => {
+    if (target.kind === 'doc') return removeDocTag(target);
     try {
       const targetKind = target.kind === 'group' ? 'group' :
                          target.kind === 'board' ? 'board' : 'card';
@@ -601,7 +612,56 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     }
   };
 
+  // A doc row is a page: the tag comes off the page row and every range of
+  // it, and stays off for the automatic paths (lib/tagsApi.js). doc used to
+  // fall into the card branch, which deleted nothing and said "Tag removed".
+  const removeDocTag = async (target) => {
+    const ws = workspaceId || tag.workspace_id;
+    if (!target.pageId) {
+      feedback?.toast?.({ type: 'error', code: 'tag_doc_no_page', message: 'Open the page to remove this tag.' });
+      return;
+    }
+    try {
+      const removed = await untagDocPage({ workspaceId: ws, docCardId: target.id, pageId: target.pageId, tagId: tag.id, userId });
+      if (removed.length === 0) {
+        feedback?.toast?.({ type: 'error', code: 'tag_remove_noop', message: 'Nothing was removed. Reload and try again.' });
+        reloadRowsRef.current?.();
+        return;
+      }
+      setRows(prev => prev.filter(r => !isRowFor(r, 'doc', target)));
+      undoToast(feedback, {
+        message: 'Tag removed',
+        onUndo: async () => {
+          try {
+            await restoreDocTagRows({ workspaceId: ws, docCardId: target.id, pageId: target.pageId, tagId: tag.id, rows: removed });
+            reloadRowsRef.current?.();
+          } catch (err) {
+            feedback?.toast?.({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+          }
+        },
+      });
+    } catch (err) {
+      feedback?.toast?.({ type: 'error', code: 'tag_remove_failed', message: 'Remove failed: ' + (err.message || err) });
+    }
+  };
+
   const confirmTag = async (target) => {
+    if (target.kind === 'doc') {
+      try {
+        const n = target.pageId
+          ? await confirmAppliedTag({ sourceKind: 'doc', sourceId: target.id, sourcePageId: target.pageId, tagId: tag.id })
+          : 0;
+        if (n === 0) {
+          feedback?.toast?.({ type: 'error', code: 'tag_confirm_noop', message: 'Nothing to confirm on this page.' });
+          return;
+        }
+        try { logEvent(EV.TAG_CONFIRM, { tag_id: tag.id, target_kind: 'doc' }); } catch (_) {}
+        reloadRowsRef.current?.();
+      } catch (err) {
+        feedback?.toast?.({ type: 'error', code: 'tag_confirm_failed', message: 'Confirm failed: ' + (err.message || err) });
+      }
+      return;
+    }
     try {
       const sourceKind = target.kind === 'group' ? 'group' :
                          target.kind === 'board' ? 'board' : 'card';
@@ -631,12 +691,17 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     const excerpt = itemExcerpt(c);
     const dKey = directCardKey(c.board_id, c.card_id);
     const directSource = directCardSet.get(dKey); // undefined if not tagged
-    const navTarget = {
-      kind: c.kind, id: `${c.board_id}:${c.card_id}`,
-      board_id: c.board_id, card_id: c.card_id,
-    };
+    // A doc row is a page: 'docPos' opens the doc at that page (a plain
+    // 'doc' target only flashed the card, or with no board_id did nothing).
+    const navTarget = c.kind === 'doc' && c.page_id
+      ? { kind: 'docPos', id: c.card_id, board_id: c.board_id, card_id: c.card_id, page_id: c.page_id }
+      : {
+          kind: c.kind, id: `${c.board_id}:${c.card_id}`,
+          board_id: c.board_id, card_id: c.card_id,
+        };
     const menuTarget = {
       kind: c.kind, id: c.card_id, boardId: c.board_id,
+      pageId: c.page_id || null,
       source: directSource, // null if it's a child preview, not directly tagged
       title: c.title || null,
     };
@@ -1131,11 +1196,11 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           )
         )}
 
-        {mentions.length > 0 && (
+        {mentionsShown.length > 0 && (
           <div className="tag-detail-mentions">
             <div className="tag-profile-section-head">Appears in</div>
             <div className="tag-detail-mention-list">
-              {mentions.map(m => {
+              {mentionsShown.map(m => {
                 // 'docPos': App routes it through the entity navigator, which
                 // opens the doc AT this page. As a plain 'doc' row it only
                 // flashed the card on its cluster (or, with no board_id,

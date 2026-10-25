@@ -117,10 +117,13 @@ export async function propagateTagToGroups({ workspaceId, tagId, boardId = null 
   }
   if (newRows.length === 0) return { applied: 0 };
 
-  const { error: insErr } = await supabase.from('entity_links').insert(newRows);
-  if (insErr && insErr.code !== '23505') {
-    console.warn('[group-propagate] insert', insErr.message);
-    return { applied: 0 };
+  // One row at a time: a multi-row insert is all or nothing, so one group
+  // another tab had just written (23505) used to drop every other group.
+  let applied = 0;
+  for (const row of newRows) {
+    const { error: insErr } = await supabase.from('entity_links').insert(row);
+    if (!insErr) applied += 1;
+    else if (insErr.code !== '23505') console.warn('[group-propagate] insert', insErr.message);
   }
-  return { applied: newRows.length };
+  return { applied };
 }

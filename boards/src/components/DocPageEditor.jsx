@@ -23,7 +23,7 @@ import { Icon } from './Icon.jsx';
 import { Bold, HighlighterCircle, Italic, Link, Underline } from '../lib/icons.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
-import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
+import { untagDocRange, tagDocRange, restoreDocTagRows } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
@@ -275,7 +275,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       const leading = raw.length - raw.replace(/^\s+/, '').length;
       const startOffset = (from - paraStart) - leading;
       if (startOffset < 0 || startOffset + length > trimmed.length) return null;
-      return { pHash: contentHash(trimmed), startOffset, length };
+      // text lets the range follow its word when the paragraph is edited
+      // (lib/docRangeReconcile.js).
+      return { pHash: contentHash(trimmed), startOffset, length, text: el.textContent || '' };
     } catch (_) {
       return null;
     }
@@ -1312,7 +1314,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                             closeTagHover={() => setTagHover(null)}
                             onRemoveTag={editable && scope?.docCardId ? async (info) => {
                               try {
-                                await untagDocRange({
+                                const removed = await untagDocRange({
                                   workspaceId,
                                   docCardId: scope.docCardId,
                                   pageId,
@@ -1323,9 +1325,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                                   message: 'Tag removed',
                                   onUndo: async () => {
                                     try {
-                                      await tagDocRange({
+                                      await restoreDocTagRows({
                                         workspaceId, docCardId: scope.docCardId, pageId,
-                                        tagId: info.tagId, sourceAnchor: info.sourceAnchor, source: 'user',
+                                        tagId: info.tagId, rows: removed,
                                       });
                                     } catch (err) {
                                       feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
@@ -1427,7 +1429,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             setTagHover(null);
             const removedTagId = tagHover.tagId;
             try {
-              await untagDocRange({
+              const removed = await untagDocRange({
                 workspaceId,
                 docCardId: scope.docCardId,
                 pageId,
@@ -1438,9 +1440,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                 message: 'Tag removed',
                 onUndo: async () => {
                   try {
-                    await tagDocRange({
+                    await restoreDocTagRows({
                       workspaceId, docCardId: scope.docCardId, pageId,
-                      tagId: removedTagId, sourceAnchor: anchor, source: 'user',
+                      tagId: removedTagId, rows: removed,
                     });
                   } catch (err) {
                     feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });

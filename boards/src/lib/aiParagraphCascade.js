@@ -19,6 +19,7 @@ import { applyCards, embedCards, parsePgvector } from './tagsClient.js';
 import { tagDocRange } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 import { cosineDist, NO_MATCH_DIST } from './clusterMath.js';
+import { AUTO_RANGE_SOURCES, planRangeReconcile } from './docRangeReconcile.js';
 
 // Verdict cache: skip the /apply round-trip when we've already
 // scored a (paragraph, tag) pair for this content. Keyed by
@@ -277,6 +278,7 @@ export async function runParagraphCascade({
       .eq('source_anchor->>pHash', pHash)
       .eq('source_anchor->>startOffset', startOffsetStr)
       .eq('source_anchor->>length', lengthStr)
+      .in('source', AUTO_RANGE_SOURCES)
       .then(({ error }) => { if (error) console.warn('[paragraph-cascade] delete stale', error.message); });
   }
 
@@ -288,27 +290,16 @@ export async function runParagraphCascade({
   }
   lastAppliedKeysRef.set(pageId, carry);
 
-  // 7. Stale GC: drop range rows whose pHash isn't in the current
-  //    paragraph set (paragraph text edited / paragraph deleted).
-  const currentHashes = new Set(paragraphs.map(p => p.pHash));
-  try {
-    const { data: existing } = await supabase.from('entity_links')
-      .select('id, source_anchor')
-      .eq('source_kind', 'doc')
-      .eq('source_id', docCardId)
-      .eq('source_page_id', pageId)
-      .eq('target_kind', 'tag')
-      .eq('link_kind', 'applied')
-      .not('source_anchor', 'is', null);
-    const orphans = (existing || []).filter(r => {
-      const h = r?.source_anchor?.pHash;
-      return h && !currentHashes.has(h);
-    }).map(r => r.id);
-    if (orphans.length > 0) {
-      await supabase.from('entity_links').delete().in('id', orphans);
-      if (isDebug()) console.info(`[paragraph-cascade] GC removed ${orphans.length} orphan range row${orphans.length === 1 ? '' : 's'}`);
-    }
-  } catch (e) { console.warn('[paragraph-cascade] GC failed', e?.message || e); }
+  // 7. Orphaned anchors (paragraph edited or deleted): the cascade's own
+  //    rows are dropped, a person's ranges move with their word
+  //    (lib/docRangeReconcile.js).
+  const gc = await reconcilePageRanges({
+    docCardId, pageId, paragraphs,
+    nameOf: (tagId) => tagCentroids?.get?.(tagId)?.name || '',
+  });
+  if (isDebug() && (gc.dropped || gc.moved || gc.toPage)) {
+    console.info(`[paragraph-cascade] ranges: ${gc.dropped} dropped, ${gc.moved} moved, ${gc.toPage} to page`);
+  }
 
   try {
     console.info(`[paragraph-cascade] page ${pageId.slice(0, 8)} → ${paragraphs.length} paragraph${paragraphs.length === 1 ? '' : 's'}, ${finalResults.length} word${finalResults.length === 1 ? '' : 's'} (added: ${toAdd.length}, removed: ${toRemove.length})`);
@@ -348,6 +339,7 @@ async function wipePageRangeRows({ docCardId, pageId }) {
     .eq('target_kind', 'tag')
     .eq('link_kind', 'applied')
     .not('source_anchor', 'is', null)
+    .in('source', AUTO_RANGE_SOURCES)
     .then(({ error }) => { if (error) console.warn('[paragraph-cascade] wipe page', error.message); });
 }
 
@@ -389,6 +381,49 @@ export async function loadWorkspaceTagCentroids(workspaceId) {
       color: t.color,
       description: t.description || null,
     });
+  }
+  return out;
+}
+
+// Apply the plan to one page. Never throws: a failed step leaves the row as
+// it was (an orphaned anchor only stops rendering) and the next edit retries.
+export async function reconcilePageRanges({ docCardId, pageId, paragraphs, nameOf }) {
+  const out = { dropped: 0, moved: 0, toPage: 0 };
+  if (!supabase || !docCardId || !pageId || !Array.isArray(paragraphs)) return out;
+  try {
+    const { data: rows, error } = await supabase.from('entity_links')
+      .select('id, source, target_id, source_anchor')
+      .eq('source_kind', 'doc')
+      .eq('source_id', String(docCardId))
+      .eq('source_page_id', String(pageId))
+      .eq('target_kind', 'tag')
+      .eq('link_kind', 'applied')
+      .not('source_anchor', 'is', null);
+    if (error) throw error;
+    const plan = planRangeReconcile(rows || [], paragraphs, nameOf);
+    if (plan.drop.length) {
+      const { error: e } = await supabase.from('entity_links').delete()
+        .in('id', plan.drop)
+        .in('source', AUTO_RANGE_SOURCES);
+      if (e) throw e;
+      out.dropped = plan.drop.length;
+    }
+    // A unique violation means the target already carries this tag (the same
+    // word, or the page itself), so the orphan is redundant.
+    for (const m of plan.move) {
+      const { error: e } = await supabase.from('entity_links').update({ source_anchor: m.anchor }).eq('id', m.id);
+      if (e?.code === '23505') await supabase.from('entity_links').delete().eq('id', m.id);
+      else if (e) throw e;
+      out.moved += 1;
+    }
+    for (const id of plan.toPage) {
+      const { error: e } = await supabase.from('entity_links').update({ source_anchor: null }).eq('id', id);
+      if (e?.code === '23505') await supabase.from('entity_links').delete().eq('id', id);
+      else if (e) throw e;
+      out.toPage += 1;
+    }
+  } catch (err) {
+    console.warn('[doc-ranges] reconcile failed', err?.message || err);
   }
   return out;
 }
