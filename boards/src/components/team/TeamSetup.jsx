@@ -1,13 +1,22 @@
-// TeamSetup — /team/new, the buying walk-through's setup (the owner's Buy
-// mockup, 2026-10-21): team name and which workspaces move in → seats and
-// yearly or monthly → where Stripe would take the card → bring your people →
-// done. Preview host and dev only (TierRouter guards the route); look only:
-// nothing is charged, nobody is emailed, nothing is saved on the server.
+// TeamSetup — /team/new, the buying walk's setup, in two modes. Preview host
+// and dev only (TierRouter guards the route).
 //
-// It wears the workspace setup's frame (setup/setup.css and its Behind), and
-// only the pieces that setup doesn't have live in teamSetup.css. "Open the
+// Real (teamsAllowed() and no sample role): team name and which of the
+// person's own personal workspaces move in → the seats those workspaces need,
+// seats and yearly or monthly → Stripe Checkout (team-billing). The walk ends
+// at "Continue to payment"; after paying Stripe returns to /team?checkout=…,
+// which opens the new team's page on its Joining tab, where people are
+// invited and domains added. lib/teamSetupData.js holds the pieces node tests.
+//
+// Sample (readTeamPreview() returns a role: the admin's preview, the owner's
+// Buy mockup of 2026-10-21): the same two steps on sample data, then where
+// Stripe would take the card → bring your people → done. Look only: nothing
+// is charged, nobody is emailed, nothing is saved on the server. "Open the
 // team page" hands over to the app through lib/teamPreview.js: the role, the
 // typed name and "open the page on the next boot".
+//
+// It wears the workspace setup's frame (setup/setup.css and its Behind), and
+// only the pieces that setup doesn't have live in teamSetup.css.
 import '../setup/setup.css';
 import './teamSetup.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -18,10 +27,18 @@ import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { parseEmails } from '../../lib/inviteSubmit.js';
 import { sampleTeam, SAMPLE_SETUP_WORKSPACES } from '../../lib/teamSample.js';
 import { money, sizeLabel, storageQuota, joinUrl, TEAM_SEAT_MIN, TEAM_SEAT_PRICE } from '../../lib/teamModel.js';
-import { writeTeamPreview, writeTeamPreviewName, requestTeamPageOnBoot } from '../../lib/teamPreview.js';
+import { writeTeamPreview, writeTeamPreviewName, requestTeamPageOnBoot, readTeamPreview } from '../../lib/teamPreview.js';
+import { teamsAllowed } from '../../lib/appHost.js';
+import { supabase } from '../../lib/supabase.js';
+import { pickPresenceColor } from '../../lib/presenceColor.js';
+import { previewTeamSeats } from '../../lib/teamsApi.js';
+import { startTeamCheckout } from '../../lib/teamBillingApi.js';
+import { refusalLine } from '../../lib/teamCopy.js';
+import { loadOwnPersonalWorkspaces, seatFloor, checkoutPlan } from '../../lib/teamSetupData.js';
 
 const SEAT_MAX = 100;
 const STEPS = ['team', 'seats', 'people'];
+const REAL_STEPS = ['team', 'seats'];
 const clampSeats = (n) => Math.max(TEAM_SEAT_MIN, Math.min(SEAT_MAX, n));
 const plural = (n, one, many = `${one}s`) => (n === 1 ? one : many);
 const list = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
@@ -47,10 +64,10 @@ function Switch({ on, onChange, label }) {
   return <button type="button" className={`tm-sw${on ? ' is-on' : ''}`} role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} />;
 }
 
-function Stepper({ value, onChange, big = false }) {
+function Stepper({ value, onChange, big = false, min = TEAM_SEAT_MIN }) {
   return (
     <span className={`tm-step${big ? ' is-big' : ''}`}>
-      <button type="button" aria-label="One fewer seat" disabled={value <= TEAM_SEAT_MIN} onClick={() => onChange(clampSeats(value - 1))}>
+      <button type="button" aria-label="One fewer seat" disabled={value <= min} onClick={() => onChange(Math.max(min, clampSeats(value - 1)))}>
         <Icon as={Minus} size={big ? 14 : 12} weight="regular" />
       </button>
       <b data-seats>{value}</b>
@@ -66,8 +83,18 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
   const url = useMemo(readUrl, []);
   const [today] = useState(() => Date.now());
   const [step, setStep] = useState('team');
-  const [name, setName] = useState('Northlight Films');
-  const [picked, setPicked] = useState(() => SAMPLE_SETUP_WORKSPACES.slice(0, 3).map((w) => w.id));
+  const [real] = useState(() => teamsAllowed() && !readTeamPreview());
+  const steps = real ? REAL_STEPS : STEPS;
+  const [name, setName] = useState(real ? '' : 'Northlight Films');
+  const [picked, setPicked] = useState(() => (real ? [] : SAMPLE_SETUP_WORKSPACES.slice(0, 3).map((w) => w.id)));
+  // Real mode: the person's own personal workspaces (null while loading), and
+  // what the server says a team of the picked ones needs.
+  const [own, setOwn] = useState(null);
+  const [answer, setAnswer] = useState(null);
+  const [closedLine, setClosedLine] = useState('');
+  const [paying, setPaying] = useState(false);
+  const [payLine, setPayLine] = useState('');
+  const [reask, setReask] = useState(0);
   const [endCreator, setEndCreator] = useState(true);
   // null follows the picked workspaces' editors; a number is what the URL or the stepper set.
   const [seatsSet, setSeatsSet] = useState(url.seats);
@@ -82,7 +109,8 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
 
   const chosen = SAMPLE_SETUP_WORKSPACES.filter((w) => picked.includes(w.id));
   const editors = new Set(chosen.flatMap((w) => w.editors)).size;
-  const seats = clampSeats(seatsSet ?? editors);
+  const needed = real ? seatFloor(answer) : TEAM_SEAT_MIN;
+  const seats = real ? Math.max(needed, clampSeats(seatsSet ?? needed)) : clampSeats(seatsSet ?? editors);
   const yearly = billing === 'year';
   const total = money((yearly ? TEAM_SEAT_PRICE.year : TEAM_SEAT_PRICE.month) * seats);
   const chargeDay = new Date(today + 14 * 864e5).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -93,21 +121,63 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
   const parsed = parseEmails(emails).valid;
   const k = parsed.length;
   const people = useMemo(() => sampleTeam('owner').people.slice(0, 6), []);
-  const stepNo = STEPS.indexOf(step) + 1;
+  const stepNo = steps.indexOf(step) + 1;
 
   useEffect(() => { panelRef.current?.focus?.(); }, [step]);
+
+  useEffect(() => {
+    if (!real) return undefined;
+    let live = true;
+    loadOwnPersonalWorkspaces(supabase, user?.id).then((rows) => {
+      if (!live) return;
+      setOwn(rows);
+      setPicked(rows.map((w) => w.id));
+    });
+    return () => { live = false; };
+  }, [real, user?.id]);
+
+  // Ask what the picked workspaces need, once the picking settles. A stale
+  // answer is dropped; any failure leaves 3 and lets checkout decide.
+  useEffect(() => {
+    if (!real || own == null) return undefined;
+    let live = true;
+    setClosedLine('');
+    const t = setTimeout(async () => {
+      let n = null;
+      try { n = await previewTeamSeats({ p_workspace_ids: picked }); } catch (e) {
+        if (live && (e?.hint === 'teams_closed' || e?.hint === 'team_exists')) setClosedLine(refusalLine({ code: e.hint }));
+      }
+      if (live) setAnswer(n);
+    }, 300);
+    return () => { live = false; clearTimeout(t); };
+  }, [real, own, picked, reask]);
 
   const toggleWs = (id) => {
     setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
     if (url.seats == null) setSeatsSet(null);
+    setPayLine('');
   };
 
   const stripLine = {
-    team: `Team · ${chosen.length} ${plural(chosen.length, 'workspace')} moving in · ${editors} ${plural(editors, 'person', 'people')} who edit`,
+    team: real ? `Team · ${picked.length} ${plural(picked.length, 'workspace')} moving in` : `Team · ${chosen.length} ${plural(chosen.length, 'workspace')} moving in · ${editors} ${plural(editors, 'person', 'people')} who edit`,
     seats: `Team · ${seats} seats · billed ${yearly ? 'yearly' : 'monthly'}`,
     people: `Team · ${seats} seats · 14 days free`,
     done: `Team · ${seats} seats${sent ? ` · ${sent} ${plural(sent, 'invite')} out` : ''}`,
   }[step];
+
+  const pay = async () => {
+    if (paying) return;
+    setPaying(true);
+    setPayLine('');
+    const res = await startTeamCheckout({ name: typed, color: null, workspaceIds: picked, seats, plan: checkoutPlan(billing), endCreator: false });
+    if (res && res.ok && res.url) {
+      window.location.assign(res.url);
+      return;
+    }
+    setPayLine(refusalLine({ code: res?.error, needed: Number(res?.detail) || undefined }));
+    if (res?.error === 'team_seats_needed') setReask((n) => n + 1);
+    setPaying(false);
+  };
 
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(`https://${joinUrl('nl-7f3k2q')}`); } catch (_) {}
@@ -129,6 +199,7 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
   };
 
   const back = () => setStep(step === 'people' ? 'seats' : 'team');
+  const cancel = () => navigate(real ? '/' : '/pricing');
 
   return (
     <div className={`su tm ${isPhone ? 'is-phone' : 'is-desk'} at-${step}`}>
@@ -140,10 +211,12 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
             <span className={`su-strip-name${typed ? '' : ' is-empty'}`}>{shown}</span>
             <span className="su-strip-line">{stripLine}</span>
           </span>
+          {!real && (
           <span className="su-strip-faces" aria-hidden="true">
             {people.map((p) => <span key={p.id} className="su-face" style={{ background: p.color }}>{p.name.charAt(0)}</span>)}
             {seats > people.length && <span className="su-face tm-more">+{seats - people.length}</span>}
           </span>
+          )}
         </div>
 
         <main className="su-panel" ref={panelRef} tabIndex={-1} aria-labelledby="su-h">
@@ -153,11 +226,11 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
             </button>
           )}
           {stepNo > 0 && (
-            <div className="su-steps" aria-label={`Step ${stepNo} of ${STEPS.length}`}>
+            <div className="su-steps" aria-label={`Step ${stepNo} of ${steps.length}`}>
               <span className="su-bars" aria-hidden="true">
-                {STEPS.map((s, i) => <span key={s} className={`su-bar${i + 1 < stepNo ? ' is-done' : i + 1 === stepNo ? ' is-now' : ''}`} />)}
+                {steps.map((s, i) => <span key={s} className={`su-bar${i + 1 < stepNo ? ' is-done' : i + 1 === stepNo ? ' is-now' : ''}`} />)}
               </span>
-              <span className="su-stepof">Step {stepNo} of {STEPS.length}</span>
+              <span className="su-stepof">Step {stepNo} of {steps.length}</span>
             </div>
           )}
 
@@ -170,22 +243,28 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
                 <input id="tm-name" className="su-input" type="text" autoComplete="off" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="su-field">
-                <div className="su-label tm-label">Which workspaces move in?<em>{picked.length} of {SAMPLE_SETUP_WORKSPACES.length}</em></div>
+                <div className="su-label tm-label">Which workspaces move in?<em>{picked.length} of {real ? (own || []).length : SAMPLE_SETUP_WORKSPACES.length}</em></div>
+                {real && own != null && own.length === 0 ? (
+                  <p className="tm-hint">You have no personal workspaces to move in. The team starts empty, and you can make team workspaces in it.</p>
+                ) : (
                 <div className="tm-wsl" role="group" aria-label="Workspaces that move in">
-                  {SAMPLE_SETUP_WORKSPACES.map((w) => {
+                  {(real ? (own || []).map((w) => ({ id: w.id, name: w.name, color: pickPresenceColor(w.id), letter: (w.name || '?').trim().charAt(0).toUpperCase() || '?', sub: 'Personal workspace' }))
+                    : SAMPLE_SETUP_WORKSPACES.map((w) => ({ ...w, sub: w.editors.length > 1 ? `${w.editors.length} people who can edit` : 'Just you' }))).map((w) => {
                     const on = picked.includes(w.id);
                     return (
                       <button key={w.id} type="button" className="tm-ws" role="checkbox" aria-checked={on} onClick={() => toggleWs(w.id)}>
                         <span className={`tm-chk${on ? ' is-on' : ''}`}><Icon as={Check} size={11} weight="regular" /></span>
                         <span className="tm-ws-av" style={{ background: w.color }}>{w.letter}</span>
-                        <span className="tm-ws-t"><b>{w.name}</b><span>{w.editors.length > 1 ? `${w.editors.length} people who can edit` : 'Just you'}</span></span>
+                        <span className="tm-ws-t"><b>{w.name}</b><span>{w.sub}</span></span>
                         <span className="tm-ws-tail">{on ? 'Moves in' : 'Stays personal'}</span>
                       </button>
                     );
                   })}
                 </div>
+                )}
                 <p className="tm-hint">Every cluster, file and link stays where it is. Workspaces you leave out stay yours, and you can move one in later.</p>
               </div>
+              {!real && (
               <div className="tm-box">
                 <Icon as={Info} size={16} weight="regular" />
                 <span className="tm-box-t">
@@ -194,9 +273,11 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
                 </span>
                 <Switch on={endCreator} onChange={setEndCreator} label="End Creator with credit" />
               </div>
+              )}
+              {real && closedLine && <p className="su-error" role="alert">{closedLine}</p>}
               <div className="su-actions">
-                <button type="button" className="su-btn su-primary" disabled={!typed || picked.length === 0} onClick={() => setStep('seats')}>Continue</button>
-                <button type="button" className="su-btn su-quiet" onClick={() => navigate('/pricing')}>Cancel</button>
+                <button type="button" className="su-btn su-primary" disabled={!typed || (real ? (own == null || !!closedLine) : picked.length === 0)} onClick={() => setStep('seats')}>Continue</button>
+                <button type="button" className="su-btn su-quiet" onClick={cancel}>Cancel</button>
               </div>
             </div>
           )}
@@ -204,9 +285,9 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
           {step === 'seats' && (
             <div className="su-step">
               <h1 className="su-h" id="su-h">How many seats?</h1>
-              <p className="su-sub">A seat is anyone who can edit, guests from outside the team too. {editors} {plural(editors, 'person', 'people')} edit these workspaces today, so we started there.</p>
+              <p className="su-sub">A seat is anyone who can edit, guests from outside the team too. {real ? (needed > TEAM_SEAT_MIN ? `${needed} people edit these workspaces today, so we started there.` : `Teams start at ${TEAM_SEAT_MIN} seats.`) :`${editors} ${plural(editors, 'person', 'people')} edit these workspaces today, so we started there.`}</p>
               <div className="su-field tm-seatrow">
-                <Stepper big value={seats} onChange={setSeatsSet} />
+                <Stepper big value={seats} min={real ? needed : TEAM_SEAT_MIN} onChange={setSeatsSet} />
                 <span className="tm-seatrow-t"><b>{seats} seats</b><span>At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at renewal.</span></span>
               </div>
               <div className="su-field tm-opts" role="radiogroup" aria-label="Billing">
@@ -224,11 +305,12 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
               </div>
               <p className="tm-hint">Your card is charged {total} on {chargeDay} unless you cancel before. Until then the team’s storage holds 100 GB.</p>
               <div className="su-actions tm-actions-pay">
-                <button type="button" className="su-btn su-primary" onClick={() => setStep('people')}>
-                  Continue to payment<Icon as={ArrowRight} size={14} weight="regular" />
+                <button type="button" className="su-btn su-primary" disabled={real && paying} onClick={real ? pay : () => setStep('people')}>
+                  {real && paying ? 'Opening Stripe…' : <>Continue to payment<Icon as={ArrowRight} size={14} weight="regular" /></>}
                 </button>
                 <span className="tm-lock"><Icon as={Lock} size={12} weight="regular" />Payment is through Stripe</span>
               </div>
+              {real && payLine && <p className="su-error" role="alert">{payLine}</p>}
             </div>
           )}
 

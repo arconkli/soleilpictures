@@ -150,14 +150,15 @@ its test owners.
 
 ## Task 6: setup, real
 
-- [ ] `/team/new` lists the caller's own personal workspaces (a direct select; no `boardsApi` import),
-  asks `preview_team_seats` (debounced) for "N people edit these workspaces today", and keeps the seat
-  stepper at that count or more.
-- [ ] "Continue to payment" calls `startTeamCheckout` and goes to Stripe. `teams_closed`, `team_exists`,
+- [x] `/team/new` lists the caller's own personal workspaces (a direct select; no `boardsApi` import),
+  asks `preview_team_seats` (debounced) how many seats they need, and keeps the seat stepper at that
+  count or more ("N people edit these workspaces today", or "Teams start at 3 seats").
+- [x] "Continue to payment" calls `startTeamCheckout` and goes to Stripe. `teams_closed`, `team_exists`,
   `team_seats_needed` and `team_checkout_rate` each say what to do. Ending Creator with credit stays
   off until S3b.
-- [ ] After payment, the people step invites by email (`invite_to_team`) and the joining step adds a
-  domain; Done opens the team's page.
+- [x] The real walk ends at payment: Stripe returns to `/team?checkout=…` (Task 5), which opens the new
+  team's page on its Joining tab, and People invites by email from there. The sample walk keeps its
+  people and done steps for the admin's preview.
 
 ## Task 7: joining
 
