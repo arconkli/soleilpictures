@@ -541,6 +541,19 @@ export const EV = Object.freeze({
   SCOUT_SIGNUP_OK:         'scout_signup_ok',             // accepted {pos,status:'queued'|'texted',is_new}
   SCOUT_SIGNUP_ERROR:      'scout_signup_error',          // refused {pos,reason:'invalid'|'rate'|'server'|'network'}
 
+  // ── Connecting an app or AI assistant by OAuth (/oauth/authorize, the
+  //    consent page). The step before it, signing in, is landing_view with path
+  //    '/oauth/authorize'; the grant itself is the server's oauth_consent_granted
+  //    (0224); admin_mcp_funnel joins them per client. Props come from
+  //    lib/oauthConnect.js connectEventProps {client_id,client_kind:'dcr'|'cimd',
+  //    redirect_host,scopes,new_account}: the redirect HOST only ('loopback' for
+  //    a callback on the person's computer, 'cursor:' for a private scheme),
+  //    never the code, the state or the challenge. ──
+  OAUTH_AUTHORIZE_VIEW:    'oauth_authorize_view',        // the consent screen shown for a valid request (once per client per page load)
+  OAUTH_CONSENT_ALLOWED:   'oauth_consent_allowed',       // Connect pressed and the code issued, beaconed before the redirect
+  OAUTH_CONSENT_DENIED:    'oauth_consent_denied',        // Cancel pressed, beaconed before the redirect
+  OAUTH_AUTHORIZE_ERROR:   'oauth_authorize_error',       // the screen refused the request {stage:'request'|'client'|'consent',reason} — reason is consentRequestFault's code at 'request', else the server's OAuth error code, http_<status> or 'network'
+
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
   //    tagging pays off. ──

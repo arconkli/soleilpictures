@@ -140,4 +140,15 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.MSG_SEND],
     failure: [EV.MSG_SEND],
   },
+
+  // Connecting an app or AI assistant by OAuth (pages/OAuthConsentPage.jsx),
+  // the way into the API and the MCP server. The server logs the grant itself
+  // (oauth_consent_granted, 0224); admin_mcp_funnel follows each client from
+  // registration to its first call and first write.
+  oauthConnect: {
+    exposure: [EV.OAUTH_AUTHORIZE_VIEW],
+    action: [EV.OAUTH_CONSENT_ALLOWED, EV.OAUTH_CONSENT_DENIED],
+    outcome: [EV.OAUTH_CONSENT_ALLOWED],
+    failure: [EV.OAUTH_AUTHORIZE_ERROR],
+  },
 });

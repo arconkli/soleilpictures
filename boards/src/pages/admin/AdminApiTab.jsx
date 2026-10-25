@@ -90,20 +90,100 @@ function Table({ title, sub, columns, rows, empty, renderRow }) {
   );
 }
 
+// A step's time, or a dash for a step not reached.
+function StepCell({ at }) {
+  return at
+    ? <td className="admin-muted admin-api-when" title={fmtDateTime(at)}>{relativeTime(at)}</td>
+    : <td className="admin-muted">—</td>;
+}
+
+// Where a connection stops (0700 admin_mcp_funnel): people per step, by where
+// the app sends them back after the consent screen. Shown, Allowed, Cancelled
+// and Errors are the consent page's events (lib/oauthConnect.js); Registered,
+// Token, Called and Wrote are the server's own rows. It sits above the traffic
+// because it matters most before there is any.
+function ConnectFunnel({ funnel, failed }) {
+  if (failed || !funnel) {
+    return (
+      <section className="admin-chart-panel admin-chart-panel-wide">
+        <header className="admin-chart-head"><h3 className="admin-chart-title">Connecting</h3></header>
+        <div className="admin-chart-body"><div className="admin-empty">The connect funnel did not load.</div></div>
+      </section>
+    );
+  }
+  const n = (v) => formatCount(Number(v) || 0);
+  const dim = (v) => (Number(v) > 0 ? '' : 'admin-muted');
+  return (
+    <>
+      <Table
+        title="Connecting"
+        sub={`people per step, by where the app sends them back · ${n(funnel.signed_out_arrivals)} reached the sign-in on the way · ${n(funnel.server_grants)} granted (server's count)`}
+        columns={['Where', 'Registered', 'Shown', 'Allowed', 'Cancelled', 'Errors', 'Token', 'Called', 'Wrote']}
+        rows={funnel.hosts || []}
+        empty="No app registered or connected in this window."
+        renderRow={(h) => (
+          <tr key={h.host}>
+            <td><code className="admin-api-tool">{h.host}</code></td>
+            <td className={dim(h.registered)}>{n(h.registered)}</td>
+            <td className={dim(h.viewed)}>
+              {n(h.viewed)}
+              {Number(h.new_accounts) > 0 && <span className="admin-muted"> · {n(h.new_accounts)} new</span>}
+            </td>
+            <td className={dim(h.allowed)}>{n(h.allowed)}</td>
+            <td className={dim(h.denied)}>{n(h.denied)}</td>
+            <td className={dim(h.errors)}>{n(h.errors)}</td>
+            <td className={dim(h.token)}>{n(h.token)}</td>
+            <td className={dim(h.called)} title={`${n(h.tool_calls)} tool calls`}>{n(h.called)}</td>
+            <td className={dim(h.wrote)} title={`${n(h.writes)} writes`}>{n(h.wrote)}</td>
+          </tr>
+        )}
+      />
+      <Table
+        title="Recent connections"
+        sub="each app that registered or was used in the window, newest activity first"
+        columns={['App', 'Where', 'Registered', 'Shown', 'Allowed', 'Token', 'First call', 'Calls', 'Writes']}
+        rows={funnel.recent || []}
+        empty="Nothing in this window."
+        renderRow={(r) => (
+          <tr key={r.client_id}>
+            <td>
+              <b>{r.client_name || 'unnamed'}</b>
+              <span className="admin-muted"> · {r.kind}</span>
+              {r.disabled && <span className="admin-badge-banned">disabled</span>}
+            </td>
+            <td><code className="admin-api-tool">{r.host}</code></td>
+            <StepCell at={r.registered_at} />
+            <StepCell at={r.viewed_at} />
+            {!r.allowed_at && r.denied_at
+              ? <td className="admin-muted admin-api-when" title={fmtDateTime(r.denied_at)}>cancelled</td>
+              : <StepCell at={r.allowed_at} />}
+            <StepCell at={r.token_at} />
+            <StepCell at={r.first_call_at} />
+            <td className={dim(r.tool_calls)}>{n(r.tool_calls)}</td>
+            <td className={dim(r.writes)}>{n(r.writes)}</td>
+          </tr>
+        )}
+      />
+    </>
+  );
+}
+
 export function AdminApiTab() {
   const [days, setDays] = useState(30);
   const [onlyErrors, setOnlyErrors] = useState(false);
 
   const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
-    const [ov, series, tools, routes, callers, recent] = await Promise.all([
+    const [ov, series, tools, routes, callers, recent, funnel] = await Promise.all([
       supabase.rpc('admin_api_overview', { p_days: days }),
       supabase.rpc('admin_api_series', { p_days: days }),
       supabase.rpc('admin_api_tools', { p_days: days, p_limit: 25 }),
       supabase.rpc('admin_api_routes', { p_days: days, p_limit: 25 }),
       supabase.rpc('admin_api_callers', { p_days: days, p_limit: 50 }),
       supabase.rpc('admin_api_recent', { p_limit: RECENT_LIMIT, p_only_errors: onlyErrors }),
+      supabase.rpc('admin_mcp_funnel', { p_days: days }),
     ]);
     for (const r of [ov, series, tools, routes, callers, recent]) if (r.error) throw r.error;
+    // The funnel failing leaves the traffic readable; it says so in its place.
     return {
       overview: ov.data || null,
       series: series.data || [],
@@ -111,6 +191,8 @@ export function AdminApiTab() {
       routes: routes.data || [],
       callers: callers.data || [],
       recent: recent.data || [],
+      funnel: funnel.error ? null : (funnel.data || null),
+      funnelFailed: !!funnel.error,
     };
   }, [days, onlyErrors]);
 
@@ -173,6 +255,8 @@ export function AdminApiTab() {
               sub={`${formatCount(ov?.webhooks?.active || 0)} webhook${ov?.webhooks?.active === 1 ? '' : 's'} · ${formatCount(ov?.identifiers || 0)} identifiers`}
             />
           </div>
+
+          <ConnectFunnel funnel={data?.funnel} failed={data?.funnelFailed} />
 
           {!everCalled ? <NeverUsed overview={ov} /> : (
             <>

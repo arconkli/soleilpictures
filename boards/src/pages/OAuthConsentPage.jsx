@@ -26,7 +26,10 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { Lock, Check, X } from '../lib/icons.js';
-import { consentError, consentRequestProblem } from '../lib/oauthConsentCopy.js';
+import { consentError, consentRequestProblem, consentRequestFault } from '../lib/oauthConsentCopy.js';
+import { connectEventProps } from '../lib/oauthConnect.js';
+import { logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
 // What each scope actually lets an assistant do, in the words of the product
 // rather than the words of the API. "write" is not a permission anyone can
@@ -71,6 +74,7 @@ export function OAuthConsentPage() {
   const scopes = (params.get('scope') || 'read write')
     .split(/[\s,]+/).map((s) => s.trim().toLowerCase())
     .filter((s) => s in SCOPE_COPY);
+  const shown = scopes.length ? scopes : ['read', 'write'];
 
   const [client, setClient] = useState(null);
   const [problem, setProblem] = useState(null);
@@ -79,8 +83,21 @@ export function OAuthConsentPage() {
   // Everything wrong with the REQUEST itself, decided before any network call.
   // Phrased for the person who clicked, not the person who integrated — see
   // lib/oauthConsentCopy.js.
-  const requestProblem = consentRequestProblem({
-    clientId, redirectUri, responseType, codeChallenge, challengeMethod,
+  const request = { clientId, redirectUri, responseType, codeChallenge, challengeMethod };
+  const requestProblem = consentRequestProblem(request);
+
+  // What the connect funnel records at each step — lib/oauthConnect.js decides
+  // what may go in (a host, never the redirect URI; never the code or state).
+  const eventProps = () => connectEventProps({
+    clientId, redirectUri, scopes: shown, userCreatedAt: user?.created_at,
+  });
+
+  // A failure the page shows, with where it happened and why, for the error
+  // event. The person reads consentError's sentence either way.
+  const fail = (stage, reason, description) => setProblem({
+    ...consentError(reason === 'network' ? 'server_error' : reason, description),
+    stage,
+    reason,
   });
 
   useEffect(() => {
@@ -93,18 +110,18 @@ export function OAuthConsentPage() {
         const body = await res.json().catch(() => null);
         if (!alive) return;
         if (!res.ok) {
-          setProblem(consentError(body?.error, body?.error_description));
+          fail('client', body?.error || `http_${res.status}`, body?.error_description);
           return;
         }
         if (!body?.redirect_uri_registered) {
           // Deliberately NOT redirected back with an error — an unregistered
           // callback is the thing we refuse to send anything to at all.
-          setProblem(consentError('invalid_redirect_uri'));
+          fail('client', 'invalid_redirect_uri');
           return;
         }
         setClient(body);
       } catch {
-        if (alive) setProblem(consentError('server_error'));
+        if (alive) fail('client', 'network');
       }
     })();
     return () => { alive = false; };
@@ -133,18 +150,33 @@ export function OAuthConsentPage() {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok || !body?.redirect_to) {
-        setProblem(consentError(body?.error, body?.error_description));
+        fail('consent', body?.error || (res.ok ? 'no_redirect' : `http_${res.status}`), body?.error_description);
         setBusy('');
         return;
       }
+      // Beaconed: the redirect on the next line unloads the page.
+      logEventNow(path === '/oauth/deny' ? EV.OAUTH_CONSENT_DENIED : EV.OAUTH_CONSENT_ALLOWED, eventProps());
       window.location.assign(body.redirect_to);
     } catch {
-      setProblem(consentError('server_error'));
+      fail('consent', 'network');
       setBusy('');
     }
   };
 
+  useEffect(() => {
+    if (client) logEventOnce(`oauth_view:${clientId}`, EV.OAUTH_AUTHORIZE_VIEW, eventProps());
+  }, [client]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fatal = requestProblem || problem;
+  const failStage = requestProblem ? 'request' : problem?.stage;
+  const failReason = requestProblem ? consentRequestFault(request) : problem?.reason;
+  useEffect(() => {
+    if (!failReason) return;
+    logEventOnce(`oauth_error:${failStage}:${failReason}`, EV.OAUTH_AUTHORIZE_ERROR, {
+      ...eventProps(), stage: failStage, reason: String(failReason).slice(0, 40),
+    });
+  }, [failStage, failReason]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (fatal) {
     return (
       <Shell>
@@ -166,7 +198,6 @@ export function OAuthConsentPage() {
     );
   }
 
-  const shown = scopes.length ? scopes : ['read', 'write'];
   const host = (() => {
     try { return new URL(redirectUri).host || new URL(redirectUri).protocol; } catch { return redirectUri; }
   })();
