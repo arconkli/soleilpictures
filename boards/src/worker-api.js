@@ -47,6 +47,10 @@ import {
   readBoardGroups, writeBoardGroups, withBoardCards, editCardLive,
 } from './lib/scoutBoard.js';
 import { DOC_READ, readDocPages } from './lib/docMarkdown.js';
+import {
+  COMMENTS, COMMENT_FIELDS, STATUSES, isBoardCommentId, boardThreads, cardThreads, namesFrom,
+  authorIds, pageThreads, publicThread, readNewComment, anchorOf, commentRow, placeComment,
+} from './lib/apiComments.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
@@ -760,6 +764,19 @@ async function indexDocPages(env, token, workspaceId, cardId, pages) {
   }
 }
 
+// The names a comment list shows (lib/apiComments.js namesFrom), read as the
+// user, so whoever they can't see stays "Member" as in the app. Best effort: a
+// thread still reads without its author's name.
+async function commentNames(env, token, ids) {
+  if (!ids.length) return new Map();
+  const [profiles, users] = await Promise.all([
+    userSelect(env, token, 'member_profiles', `user_id=in.(${ids.join(',')})&select=user_id,display_name`)
+      .catch(() => []),
+    userRpc(env, token, 'users_by_ids', { p_user_ids: ids }).catch(() => []),
+  ]);
+  return namesFrom(profiles, users);
+}
+
 function pageParams(url) {
   const rawLimit = Number(url.searchParams.get('limit'));
   const rawOffset = Number(url.searchParams.get('offset'));
@@ -1209,6 +1226,11 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards/:id/groups',
         'PATCH  /boards/:id/groups/:groupId',
         'DELETE /boards/:id/groups/:groupId  — ungroups, never deletes cards',
+        'GET    /boards/:id/comments?status=open|resolved|all&limit=&cursor=  — threads, on the canvas and inside docs and notes',
+        'POST   /boards/:id/comments        {"body":…,"card_id"|"group_id"|"x","y"|"reply_to":…}',
+        'PATCH  /boards/:id/comments/:commentId  {"resolved":true|false}',
+        'DELETE /boards/:id/comments/:commentId  — your own, and restorable',
+        'POST   /boards/:id/comments/:commentId/restore',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
@@ -3309,6 +3331,169 @@ async function dispatch(url, request, env, ctx) {
       pages: made.map(publicDocPage),
       live: true,
     }, 201);
+  }
+
+  // /boards/:id/comments — the board's comment threads and the ones inside its
+  // docs and notes, as one list (lib/apiComments.js). The board's own are
+  // written as the user, so the comments table's policies decide, as they do
+  // in the app: anyone who can open a board may comment on it; a thread's
+  // author or an editor of the board may resolve it; only its author deletes a
+  // comment (an editor resolves someone else's instead), and a deleted one can
+  // be restored. A thread inside a doc or a note is read here and answered in
+  // the app.
+  if (sub === 'comments') {
+    const action = parts[4];
+    if (parts.length > 5 || (action !== undefined && action !== 'restore')) {
+      throw fail(404, 'not_found', 'unknown endpoint');
+    }
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    const noSuch = (commentId) => (/^cm_/.test(String(commentId))
+      ? fail(400, 'bad_request', 'that thread is inside a doc or a note: reply to it or resolve it in the app')
+      : fail(404, 'not_found', 'no such comment on this board'));
+    // One of the board's own comments; with `deleted`, one in its trash too.
+    const commentOnBoard = async (commentId, { deleted = false } = {}) => {
+      if (!isBoardCommentId(commentId)) throw noSuch(commentId);
+      const rows = await userSelect(env, token, 'comments', `id=eq.${commentId}&board_id=eq.${id}`
+        + `${deleted ? '' : '&deleted_at=is.null'}&select=${COMMENT_FIELDS},deleted_at`);
+      if (!rows?.[0]) throw noSuch(commentId);
+      return rows[0];
+    };
+    const threadUrl = (t) => (t.card_id != null ? cardUrl(url.origin, id, t.card_id) : boardUrl(url.origin, id));
+
+    if (!subId && method === 'GET') {
+      trace.route = '/boards/:id/comments';
+      const status = url.searchParams.get('status') || 'open';
+      if (!STATUSES.includes(status)) throw fail(400, 'bad_request', `status must be ${STATUSES.join(', ')}`);
+      const rawLimit = Number(url.searchParams.get('limit'));
+      const limit = Math.max(1, Math.min(
+        Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : COMMENTS.defaultLimit, COMMENTS.maxLimit));
+      const offset = decodeCursor(url.searchParams.get('cursor'));
+      if (offset === null) throw fail(400, 'bad_request', 'cursor must be a next_cursor this endpoint gave out');
+      const [rows, inCards] = await Promise.all([
+        userSelect(env, token, 'comments', `board_id=eq.${id}&deleted_at=is.null`
+          + `&select=${COMMENT_FIELDS}&order=created_at.asc&limit=${COMMENTS.maxRows}`),
+        withBoardCards(env, id, token, ({ cards, loaded }) => ({
+          loaded,
+          threads: cardThreads(cards),
+          cards: new Map(cards.map((c) => [String(c.id), { kind: c.kind || 'note', title: c.title }])),
+        })),
+      ]);
+      const threads = [...boardThreads(rows), ...inCards.threads];
+      const names = await commentNames(env, token, authorIds(threads));
+      const { counts, page, hasMore } = pageThreads(threads, { status, offset, limit });
+      const notes = [];
+      if (!inCards.loaded) notes.push('the threads inside docs and notes could not be read just now, so these are the board\'s own');
+      if ((rows || []).length >= COMMENTS.maxRows) notes.push(`only the board's first ${COMMENTS.maxRows} comments were read`);
+      return json({
+        board_id: id,
+        url: boardUrl(url.origin, id),
+        status,
+        counts,
+        threads: page.map((t) => publicThread(t, { names, userId: auth.userId, cards: inCards.cards, url: threadUrl(t) })),
+        has_more: hasMore,
+        next_cursor: hasMore ? encodeCursor(offset + page.length) : null,
+        ...(notes.length ? { note: notes.join('; ') } : {}),
+      });
+    }
+
+    if (!subId && method === 'POST') {
+      trace.route = '/boards/:id/comments';
+      const input = readNewComment(body);
+      if (input.problem) throw fail(400, 'bad_request', input.problem);
+      let anchor = input.anchor;
+      let replyTo = null;
+      let offset = null;
+      if (input.replyTo) {
+        // Into the thread, under its first comment, where the thread is: as a
+        // reply made in the app goes (CanvasComment's submitReply).
+        const parent = await commentOnBoard(input.replyTo);
+        const root = parent.reply_to ? await commentOnBoard(parent.reply_to) : parent;
+        anchor = anchorOf(root);
+        replyTo = root.id;
+      } else if (anchor.kind !== 'point') {
+        // What it is on, checked, and where its bubble goes (a point is its
+        // own place).
+        const [onBoard, shown] = await Promise.all([
+          withBoardCards(env, id, token, ({ cards, doc, loaded }) => ({
+            loaded,
+            cards: cards.map((c) => ({ id: String(c.id), x: c.x, y: c.y, w: c.w, h: c.h, groupId: c.groupId ?? null })),
+            groups: new Set(doc.getMap('groups').keys()),
+          })),
+          userSelect(env, token, 'comments', `board_id=eq.${id}&deleted_at=is.null&reply_to=is.null`
+            + `&resolved=is.false&hidden=is.false&select=${COMMENT_FIELDS}&limit=${COMMENTS.maxRows}`),
+        ]);
+        if (!onBoard.loaded) {
+          throw fail(503, 'room_unavailable', 'the board could not be read to place the comment; nothing was written — try again');
+        }
+        if (anchor.kind === 'card' && !onBoard.cards.some((c) => c.id === String(anchor.id))) {
+          throw fail(404, 'not_found', 'no such card on this board');
+        }
+        if (anchor.kind === 'group' && !onBoard.groups.has(String(anchor.id))) {
+          throw fail(404, 'not_found', 'no such group on this board');
+        }
+        offset = placeComment(anchor, { cards: onBoard.cards, comments: shown || [] });
+      }
+      const [saved] = (await userInsert(env, token, 'comments', [commentRow({
+        workspaceId: board.workspace_id, boardId: id, author: auth.userId, body: input.body, anchor, replyTo, offset,
+      })])) || [];
+      if (!saved) throw fail(502, 'upstream_error', 'the comment was not saved — try again');
+      const names = await commentNames(env, token, [auth.userId]);
+      const link = threadUrl({ card_id: anchor.kind === 'card' ? anchor.id : null });
+      // A new thread as the list has it; a reply as a thread's replies are,
+      // naming its thread.
+      const thread = publicThread(boardThreads([{ ...saved, reply_to: null }])[0],
+        { names, userId: auth.userId, url: link });
+      const comment = replyTo
+        ? { id: thread.id, reply_to: replyTo, body: thread.body, author_id: thread.author_id,
+          author_name: thread.author_name, by_you: true, created_at: thread.created_at, url: link }
+        : thread;
+      return json({ board_id: id, comment, url: link }, 201);
+    }
+
+    if (!subId) throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+
+    if (action === 'restore') {
+      if (method !== 'POST') throw fail(405, 'method_not_allowed', 'a comment is restored with POST');
+      trace.route = '/boards/:id/comments/:commentId/restore';
+      const c = await commentOnBoard(subId, { deleted: true });
+      // Its author or an editor of the board, as restore_comment decides
+      // (42501 → 403). Restoring one that isn't deleted changes nothing.
+      if (c.deleted_at) await userRpc(env, token, 'restore_comment', { p_comment_id: subId });
+      return json({ board_id: id, comment_id: subId, restored: true, url: threadUrl({ card_id: c.anchor_kind === 'card' ? c.anchor_id : null }) });
+    }
+
+    if (method === 'PATCH') {
+      trace.route = '/boards/:id/comments/:commentId';
+      if (typeof body?.resolved !== 'boolean' || Object.keys(body).length !== 1) {
+        throw fail(400, 'bad_request', 'send {"resolved": true} to resolve a thread, or {"resolved": false} to reopen it');
+      }
+      const c = await commentOnBoard(subId);
+      if (c.reply_to) throw fail(400, 'bad_request', `that is a reply: resolve its thread, ${c.reply_to}`);
+      // A refused update matches no rows, which PostgREST answers as a success:
+      // the rows coming back are what says it happened (as the app's
+      // updateComment checks).
+      const out = await userPatch(env, token, 'comments', `id=eq.${subId}&board_id=eq.${id}`, { resolved: body.resolved });
+      if (!out?.length) throw fail(403, 'forbidden', 'only the thread\'s author or an editor of this board can resolve it');
+      return json({ board_id: id, comment_id: subId, resolved: body.resolved, url: threadUrl({ card_id: c.anchor_kind === 'card' ? c.anchor_id : null }) });
+    }
+
+    if (method === 'DELETE') {
+      trace.route = '/boards/:id/comments/:commentId';
+      const c = await commentOnBoard(subId);
+      if (c.author !== auth.userId) {
+        throw fail(403, 'forbidden', 'only its author deletes a comment; an editor resolves someone else\'s thread instead');
+      }
+      await userRpc(env, token, 'soft_delete_comment', { p_comment_id: subId });
+      return json({
+        board_id: id,
+        comment_id: subId,
+        deleted: true,
+        restore: `POST /api/v1/boards/${id}/comments/${subId}/restore`,
+      });
+    }
+
+    throw fail(405, 'method_not_allowed', `${method} is not supported here`);
   }
 
   if (sub !== 'cards') throw fail(404, 'not_found', 'unknown endpoint');

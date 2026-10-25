@@ -3477,7 +3477,7 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 ========================================================================
 # Comments
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
-Updated: 2026-10-12
+Updated: 2026-10-25
 
 A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 
@@ -3498,7 +3498,7 @@ Threads
 
 Comments thread with replies. Resolve when the thing is dealt with — resolved comments are archived rather than deleted, so the record of why something changed survives.
 
-Resolving, hiding and deleting a comment is for its author and for people who can edit the board. Someone with view-only access sees those buttons on their own comments only.
+Resolving and hiding a comment is for its author and for people who can edit the board; deleting one is for its author. Someone with view-only access sees those buttons on their own comments only.
 
 Mentions
 
@@ -3519,6 +3519,10 @@ Who can comment
 On the canvas, anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
 
 A comment on a text range is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access.
+
+From your own code, or an assistant
+
+The Comments API lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments under the same rules. Connected over MCP, an assistant can read the feedback on a board, act on it, reply and resolve what it dealt with.
 
 Comments versus votes
 
@@ -4620,6 +4624,10 @@ POST /boards/:id/cards/move | Move cards to another board
 GET /boards/:id/cards/:cardId/doc | A doc's pages as Markdown
 POST /boards/:id/docs | Write a new doc from Markdown
 PATCH /boards/:id/cards/:cardId/doc/pages/:pageId | Rewrite or edit one page, safely
+GET /boards/:id/comments | A board's comment threads, those inside its docs included
+POST /boards/:id/comments | Comment on a card, a group, a spot or the board, or reply in a thread
+PATCH /boards/:id/comments/:commentId | Resolve or reopen a thread
+DELETE /boards/:id/comments/:commentId | Delete your own comment — restorable
 POST /uploads | Upload an image, get a key back
 GET /images/:key | Read an image back
 GET /resolve | Find an object by a foreign identifier
@@ -5716,7 +5724,7 @@ max_chars | Markdown handed back across the pages: 20,000 characters by default,
 
 Pages fill in order until max_chars runs out. The page that crosses it is cut and marked truncated, and any after it come back with markdown: null, so every page is listed with its length in chars either way. complete says whether you have all of it; read the rest one page at a time. A page nested under another carries that page's id in parent_id, and a depth one more.
 
-Links in the text carry their real address, and comments are left out. An uploaded image's source is r2: followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. hash changes whenever the page's Markdown does, and a read of one page carries it as the ETag.
+Links in the text carry their real address, and comments are left out: GET /boards/:id/comments lists them, with the text each is on. An uploaded image's source is r2: followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. hash changes whenever the page's Markdown does, and a read of one page carries it as the ETag.
 
 A card that is not a doc answers 400, naming the route that reads it.
 
@@ -5821,6 +5829,128 @@ A: Pictures already in the cluster, yes. Write ![caption](r2:<image_key>) with t
 
 Q: Why did I get 503 room_unavailable?
 A: A doc is written through the cluster's live room or not at all, and the room couldn't be reached or didn't confirm the change. Nothing was written, so it is safe to try again.
+
+
+========================================================================
+# Comments API
+URL: https://clusters.soleilpictures.com/docs/api/comments
+Updated: 2026-10-25
+
+GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST /boards/:id/comments adds a comment on a card, a group, a spot or the whole board, or a reply in a thread. PATCH resolves or reopens a thread, and DELETE removes your own comment, which can be restored for 30 days.
+
+A board's comments are read and written here: the bubbles on its canvas, and, to read, the threads inside its docs and notes. Everything runs as you, so the API lets you do with a comment exactly what the app does.
+
+GET /boards/:id/comments
+
+Every comment thread on the board, in one list: on the canvas, and inside its docs and notes.
+
+{
+  "board_id": "9f1c…", "url": "…", "status": "open",
+  "counts": { "open": 2, "resolved": 5 },
+  "threads": [
+    { "id": "cm_k3v8x0q2", "on": "doc", "card_id": "d-4", "card_kind": "doc", "card_title": "Treatment",
+      "page_id": "p_7hd2w9zr8b0e", "page_title": "Opening", "quote": "at night",
+      "body": "Too slow?", "author_id": "…", "author_name": "Sam Park", "by_you": false,
+      "created_at": "2026-10-24T18:02:11.000Z", "resolved": false, "replies": [], "url": "…" },
+    { "id": "6a0e…", "on": "card", "card_id": "c-3", "card_kind": "image", "card_title": "Hero still",
+      "body": "Too dark", "author_id": "…", "author_name": "Ana Ruiz", "by_you": true,
+      "created_at": "2026-10-20T10:00:00.000Z", "resolved": false,
+      "replies": [
+        { "id": "41bd…", "body": "Agreed", "author_id": "…", "author_name": "Sam Park", "by_you": false,
+          "created_at": "2026-10-21T10:00:00.000Z" }
+      ],
+      "url": "…" }
+  ],
+  "has_more": false, "next_cursor": null
+}
+
+Parameter | 
+status | open (the default), resolved, or all
+limit | Threads per page: 50 by default, at most 200
+cursor | The next_cursor of the page before
+
+The liveliest thread comes first: one moves up when someone replies to it. counts tells you how many are open and resolved, whichever you asked for.
+
+Each thread says what it is on, and carries only the fields that go with it:
+
+on | Means | Also carries
+card | A bubble on a card | card_id, card_kind, card_title
+group | A bubble on a group | group_id
+point | A bubble at a spot on the canvas | x, y
+board | A bubble about the board as a whole | —
+doc | A thread on a run of a doc's text | card_id, page_id, page_title, quote
+note | A thread on a run of a note's text | card_id, quote
+
+quote is the text the thread is on, up to 300 characters. A name is the one the person set, else one made from their email, as the app shows it. by_you marks what you wrote. A thread someone hid on the canvas carries hidden: true. When the threads inside docs and notes can't be read just then, the list holds the board's own and a note says so.
+
+POST /boards/:id/comments
+
+A comment, in your name.
+
+{ "body": "Warmer grade?", "card_id": "c-3" }
+
+Field | 
+body | Required. Up to 4,000 characters
+card_id | On that card
+group_id | On that group
+x, y | At that spot on the canvas
+reply_to | In that thread, as a reply
+
+Send one of card_id, group_id, or x and y, or none of them for a comment about the board as a whole. The bubble is placed as the app places one: beside its card or group, on the side where it covers least, and a comment on the whole board beside everything on it.
+
+A reply takes no place of its own: it goes into the thread, under its first comment, wherever the thread is, so it stays with the card when the card moves. reply_to can name the thread or any reply in it.
+
+{
+  "board_id": "9f1c…",
+  "comment": { "id": "6a0e…", "on": "card", "card_id": "c-3", "card_kind": "image", "card_title": "Hero still",
+    "body": "Warmer grade?", "author_id": "…", "author_name": "Ana Ruiz", "by_you": true,
+    "created_at": "…", "resolved": false, "replies": [], "url": "…" },
+  "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:c-3"
+}
+
+That is a 201. A reply comes back as a thread's replies do, with reply_to naming its thread.
+
+PATCH /boards/:id/comments/:commentId
+
+{ "resolved": true }
+
+Resolves a thread, as its Resolve button does, or reopens it with false. Name the thread: a reply answers 400, naming its thread.
+
+DELETE /boards/:id/comments/:commentId
+
+Deletes a comment you wrote. Its replies go with it, and come back with it. Like every delete, it needs a token with the delete scope. It can be restored for 30 days:
+
+POST /boards/:id/comments/:commentId/restore
+
+Brings a deleted comment back. Restoring one that isn't deleted changes nothing.
+
+Who can do what
+
+ | Who
+Comment, or reply | Anyone who can open the board, viewers included
+Resolve or reopen | The thread's author, or anyone who can edit the board
+Delete | The comment's author
+Restore | Its author, or anyone who can edit the board
+
+Anything else answers 403. A board you can't open, or a comment that isn't on it, answers 404.
+
+Threads inside docs and notes
+
+A thread on a run of text inside a doc or a note lives in the doc itself, beside its words. The list reads them, with the text they are on; their ids start cm_. They are answered and resolved in the app, so writing one here answers 400.
+
+## Frequently asked questions
+
+Q: Who can comment, resolve or delete over the API?
+A: The same people as in the app. Anyone who can open a board can comment on it. A thread's author, or anyone who can edit the board, can resolve it. Only a comment's author can delete it.
+
+Q: Can I reply to a comment inside a doc?
+A: Threads inside a doc or a note are listed, with the text they are on, and answered or resolved in the app. Over the API they are read only.
+
+Q: Is the person I reply to told?
+A: A reply can email the author of the thread, as a reply made in the app does, when they are away and haven't turned reply emails off.
+
+Q: Can an AI assistant read and answer comments?
+A: Yes. The MCP server's list_comments, add_comment and resolve_comments tools are these endpoints, so an assistant can read the feedback on a board, act on it and resolve what it dealt with.
 
 
 ========================================================================
@@ -6649,6 +6779,7 @@ list_images | workspace_id?, board_id?, since?, cursor?
 export_board | board_id, format? (json|omc)
 get_metadata | board_id, cards? — identifiers and properties
 list_audit | since?, cursor? — recent writes and image fetches
+list_comments | board_id, status? (open|resolved|all), limit? (up to 200), cursor? — the board's comment threads, those inside its docs and notes with the text they are on
 
 Writing
 
@@ -6659,6 +6790,8 @@ add_cards | board_id, cards[] — up to 1000, on_conflict?
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
 write_doc | board_id, pages[] — up to 50, each { title?, markdown }; title?, x?, y? for a new doc, or card_id and parent_page_id? to add pages to one · a doc written from Markdown
+add_comment | board_id, body, and card_id?, group_id?, x? and y?, or reply_to? — a comment in the person's name, placed beside what it is about, or a reply in a thread
+resolve_comments | board_id, comment_ids[] (up to 50), resolved? — resolve threads, or reopen them with false; lists any refused
 edit_doc_page | board_id, card_id, page_id, and markdown with page_hash, or edits[] (up to 50), or title · marked destructive, since a rewrite takes words away; the board goes to Version history first
 import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
 arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out

@@ -76,6 +76,7 @@ import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
 import { GALLERY } from '../src/lib/gallery.js';
 import { DOC_READ } from '../src/lib/docMarkdown.js';
 import { DOC_WRITE } from '../src/lib/docWrite.js';
+import { COMMENTS } from '../src/lib/apiComments.js';
 import { TOOLS as MCP_TOOLS, FETCH_MAX_CHARS } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
@@ -322,6 +323,20 @@ if (!errorRetention) {
   throw new Error('gen-docs: the error-record retention was not found — update the extractor');
 }
 
+// How long a deleted comment can be restored (purge_old_deleted_comments,
+// scheduled nightly by migration 0052). Defined before migrations wrote
+// `public.`, so it is looked for under either spelling.
+const commentRestore = readdirSync(MIGRATIONS)
+  .filter((f) => f.endsWith('.sql'))
+  .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
+  .map((f) => readFileSync(resolve(MIGRATIONS, f), 'utf8'))
+  .filter((sql) => /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?purge_old_deleted_comments\s*\(/i.test(sql))
+  .pop()
+  ?.match(/deleted_at\s*<\s*\(?\s*now\(\)\s*-\s*interval\s*'(\d+) days'/i);
+if (!commentRestore) {
+  throw new Error('gen-docs: how long a deleted comment is kept was not found — update the extractor');
+}
+
 // How much text automatic tagging may send for embedding per account per day
 // (tags_embed_budget_take, migration 0381).
 const embedBudget = latestSqlDefining('tags_embed_budget_take')
@@ -533,6 +548,14 @@ export const FACTS = {
   docWriteMaxPages: String(DOC_WRITE.maxPages),
   docWriteMaxEdits: String(DOC_WRITE.maxEdits),
   docWriteMaxTitle: String(DOC_WRITE.maxTitle),
+  // Comments over the API (lib/apiComments.js), and how long a deleted one
+  // can be brought back.
+  commentMaxChars: COMMENTS.maxBody.toLocaleString('en-US'),
+  commentListDefault: String(COMMENTS.defaultLimit),
+  commentListMax: String(COMMENTS.maxLimit),
+  commentResolveMax: String(COMMENTS.maxResolve),
+  commentQuoteMax: String(COMMENTS.maxQuote),
+  commentRestoreDays: commentRestore[1],
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

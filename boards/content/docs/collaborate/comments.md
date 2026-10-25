@@ -5,7 +5,7 @@ h1: Comments
 navLabel: Comments
 section: collaborate
 order: 3
-updated: 2026-10-12
+updated: 2026-10-25
 answer: A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 faq:
   - q: Can I comment on empty canvas?
@@ -16,6 +16,7 @@ faq:
     a: They are archived rather than deleted, so the record of a decision survives.
 related:
   - /docs/documents/comments-and-tags
+  - /docs/api/comments
   - /docs/collaborate/notifications
   - /docs/canvas/vote-cards
 ---
@@ -42,9 +43,9 @@ Comments thread with replies. **Resolve** when the thing is dealt with —
 resolved comments are archived rather than deleted, so the record of why
 something changed survives.
 
-Resolving, hiding and deleting a comment is for its author and for people who
-can edit the board. Someone with view-only access sees those buttons on their
-own comments only.
+Resolving and hiding a comment is for its author and for people who can edit
+the board; deleting one is for its author. Someone with view-only access sees
+those buttons on their own comments only.
 
 ## Mentions
 
@@ -75,6 +76,13 @@ comments need an account.
 A comment on a **text range** is different: it lives inside the document's text,
 so it follows edit access. A viewer can open a document's comment threads and
 read them, but adding, replying to, resolving or deleting one needs edit access.
+
+## From your own code, or an assistant
+
+The [Comments API](/docs/api/comments) lists a board's threads, the ones inside
+its documents included, and adds, resolves and deletes comments under the same
+rules. Connected over [MCP](/docs/mcp), an assistant can read the feedback on a
+board, act on it, reply and resolve what it dealt with.
 
 ## Comments versus votes
 

@@ -200,6 +200,7 @@ quietly failing.
 | `export_board` | `board_id`, `format?` (`json`\|`omc`) |
 | `get_metadata` | `board_id`, `cards?` — identifiers and properties |
 | `list_audit` | `since?`, `cursor?` — recent writes and image fetches |
+| `list_comments` | `board_id`, `status?` (`open`\|`resolved`\|`all`), `limit?` (up to 200), `cursor?` — the board's [comment](/docs/api/comments) threads, those inside its docs and notes with the text they are on |
 
 **Writing**
 
@@ -211,6 +212,8 @@ quietly failing.
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `write_doc` | `board_id`, `pages[]` — up to 50, each `{ title?, markdown }`; `title?`, `x?`, `y?` for a new doc, or `card_id` and `parent_page_id?` to add pages to one · a [doc](/docs/api/docs) written from Markdown |
+| `add_comment` | `board_id`, `body`, and `card_id?`, `group_id?`, `x?` and `y?`, or `reply_to?` — a comment in the person's name, placed beside what it is about, or a reply in a thread |
+| `resolve_comments` | `board_id`, `comment_ids[]` (up to 50), `resolved?` — resolve threads, or reopen them with `false`; lists any refused |
 | `edit_doc_page` | `board_id`, `card_id`, `page_id`, and `markdown` with `page_hash`, or `edits[]` (up to 50), or `title` · marked destructive, since a rewrite takes words away; the board goes to Version history first |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |

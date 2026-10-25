@@ -56,7 +56,9 @@ every page is listed with its length in `chars` either way. `complete` says
 whether you have all of it; read the rest one `page` at a time. A page nested
 under another carries that page's id in `parent_id`, and a `depth` one more.
 
-Links in the text carry their real address, and comments are left out. An
+Links in the text carry their real address, and comments are left out:
+[`GET /boards/:id/comments`](/docs/api/comments) lists them, with the text each
+is on. An
 uploaded image's source is `r2:` followed by its storage key. A screenplay
 reads one line to a paragraph, scene headings in bold. `hash` changes whenever
 the page's Markdown does, and a read of one `page` carries it as the `ETag`.

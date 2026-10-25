@@ -37113,7 +37113,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Resolving, hiding and deleting a comment is for its author and for people who can edit the board. Someone with view-only access sees those buttons on their own comments only."
+     "v": "Resolving and hiding a comment is for its author and for people who can edit the board; deleting one is for its author. Someone with view-only access sees those buttons on their own comments only."
     }
    ]
   },
@@ -37253,6 +37253,57 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "From your own code, or an assistant",
+   "inline": [
+    {
+     "t": "text",
+     "v": "From your own code, or an assistant"
+    }
+   ],
+   "id": "from-your-own-code-or-an-assistant"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "link",
+     "v": "Comments API",
+     "href": "/docs/api/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments under the same rules. Connected over "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", an assistant can read the feedback on a board, act on it, reply and resolve what it dealt with."
     }
    ]
   },
@@ -47185,6 +47236,77 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "GET /boards/:id/comments"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A board's "
+      },
+      {
+       "t": "link",
+       "v": "comment",
+       "href": "/docs/api/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " threads, those inside its docs included"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/comments"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Comment on a card, a group, a spot or the board, or reply in a thread"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "PATCH /boards/:id/comments/:commentId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Resolve or reopen a thread"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE /boards/:id/comments/:commentId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Delete your own comment — restorable"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "POST /uploads"
       }
      ],
@@ -56298,7 +56420,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Links in the text carry their real address, and comments are left out. An uploaded image's source is "
+     "v": "Links in the text carry their real address, and comments are left out: "
+    },
+    {
+     "t": "link",
+     "v": "`GET /boards/:id/comments`",
+     "href": "/docs/api/comments",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists them, with the text each is on. An uploaded image's source is "
     },
     {
      "t": "code",
@@ -57239,6 +57376,892 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Search inside documents finds what you wrote straight away."
+    }
+   ]
+  }
+ ],
+ "/docs/api/comments": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A board's "
+    },
+    {
+     "t": "link",
+     "v": "comments",
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are read and written here: the bubbles on its canvas, and, to read, the threads inside its docs and notes. Everything runs as you, so the API lets you do with a comment exactly what the app does."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/comments",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/comments"
+    }
+   ],
+   "id": "get-boards-id-comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every comment thread on the board, in one list: on the canvas, and inside its docs and notes."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\", \"url\": \"…\", \"status\": \"open\",\n  \"counts\": { \"open\": 2, \"resolved\": 5 },\n  \"threads\": [\n    { \"id\": \"cm_k3v8x0q2\", \"on\": \"doc\", \"card_id\": \"d-4\", \"card_kind\": \"doc\", \"card_title\": \"Treatment\",\n      \"page_id\": \"p_7hd2w9zr8b0e\", \"page_title\": \"Opening\", \"quote\": \"at night\",\n      \"body\": \"Too slow?\", \"author_id\": \"…\", \"author_name\": \"Sam Park\", \"by_you\": false,\n      \"created_at\": \"2026-10-24T18:02:11.000Z\", \"resolved\": false, \"replies\": [], \"url\": \"…\" },\n    { \"id\": \"6a0e…\", \"on\": \"card\", \"card_id\": \"c-3\", \"card_kind\": \"image\", \"card_title\": \"Hero still\",\n      \"body\": \"Too dark\", \"author_id\": \"…\", \"author_name\": \"Ana Ruiz\", \"by_you\": true,\n      \"created_at\": \"2026-10-20T10:00:00.000Z\", \"resolved\": false,\n      \"replies\": [\n        { \"id\": \"41bd…\", \"body\": \"Agreed\", \"author_id\": \"…\", \"author_name\": \"Sam Park\", \"by_you\": false,\n          \"created_at\": \"2026-10-21T10:00:00.000Z\" }\n      ],\n      \"url\": \"…\" }\n  ],\n  \"has_more\": false, \"next_cursor\": null\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "status"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "open"
+      },
+      {
+       "t": "text",
+       "v": " (the default), "
+      },
+      {
+       "t": "code",
+       "v": "resolved"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "all"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "limit"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Threads per page: 50 by default, at most 200"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "cursor"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The "
+      },
+      {
+       "t": "code",
+       "v": "next_cursor"
+      },
+      {
+       "t": "text",
+       "v": " of the page before"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The liveliest thread comes first: one moves up when someone replies to it. "
+    },
+    {
+     "t": "code",
+     "v": "counts"
+    },
+    {
+     "t": "text",
+     "v": " tells you how many are open and resolved, whichever you asked for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each thread says what it is "
+    },
+    {
+     "t": "code",
+     "v": "on"
+    },
+    {
+     "t": "text",
+     "v": ", and carries only the fields that go with it:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "code",
+      "v": "on"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Means"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Also carries"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "card"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble on a card"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_kind"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_title"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "group"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble on a "
+      },
+      {
+       "t": "link",
+       "v": "group",
+       "href": "/docs/canvas/groups",
+       "children": [
+        {
+         "t": "text",
+         "v": "group"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "group_id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "point"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble at a spot on the canvas"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble about the board as a whole"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "doc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A thread on a run of a doc's text"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "page_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "page_title"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "quote"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "note"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A thread on a run of a note's text"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "quote"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "quote"
+    },
+    {
+     "t": "text",
+     "v": " is the text the thread is on, up to 300 characters. A name is the one the person set, else one made from their email, as the app shows it. "
+    },
+    {
+     "t": "code",
+     "v": "by_you"
+    },
+    {
+     "t": "text",
+     "v": " marks what you wrote. A thread someone hid on the canvas carries "
+    },
+    {
+     "t": "code",
+     "v": "hidden: true"
+    },
+    {
+     "t": "text",
+     "v": ". When the threads inside docs and notes can't be read just then, the list holds the board's own and a "
+    },
+    {
+     "t": "code",
+     "v": "note"
+    },
+    {
+     "t": "text",
+     "v": " says so."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/comments",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/comments"
+    }
+   ],
+   "id": "post-boards-id-comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A comment, in your name."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"body\": \"Warmer grade?\", \"card_id\": \"c-3\" }"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "body"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Required. Up to 4,000 characters"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "On that card"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "group_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "On that group"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "At that spot on the canvas"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "reply_to"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "In that thread, as a reply"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Send one of "
+    },
+    {
+     "t": "code",
+     "v": "card_id"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "group_id"
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "code",
+     "v": "x"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "y"
+    },
+    {
+     "t": "text",
+     "v": ", or none of them for a comment about the board as a whole. The bubble is placed as the app places one: beside its card or group, on the side where it covers least, and a comment on the whole board beside everything on it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A reply takes no place of its own: it goes into the thread, under its first comment, wherever the thread is, so it stays with the card when the card moves. "
+    },
+    {
+     "t": "code",
+     "v": "reply_to"
+    },
+    {
+     "t": "text",
+     "v": " can name the thread or any reply in it."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"comment\": { \"id\": \"6a0e…\", \"on\": \"card\", \"card_id\": \"c-3\", \"card_kind\": \"image\", \"card_title\": \"Hero still\",\n    \"body\": \"Warmer grade?\", \"author_id\": \"…\", \"author_name\": \"Ana Ruiz\", \"by_you\": true,\n    \"created_at\": \"…\", \"resolved\": false, \"replies\": [], \"url\": \"…\" },\n  \"url\": \"https://clusters.soleilpictures.com/?to=c:9f1c…:c-3\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That is a "
+    },
+    {
+     "t": "code",
+     "v": "201"
+    },
+    {
+     "t": "text",
+     "v": ". A reply comes back as a thread's replies do, with "
+    },
+    {
+     "t": "code",
+     "v": "reply_to"
+    },
+    {
+     "t": "text",
+     "v": " naming its thread."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "PATCH /boards/:id/comments/:commentId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/comments/:commentId"
+    }
+   ],
+   "id": "patch-boards-id-comments-commentid"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"resolved\": true }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Resolves a thread, as its "
+    },
+    {
+     "t": "strong",
+     "v": "Resolve",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resolve"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button does, or reopens it with "
+    },
+    {
+     "t": "code",
+     "v": "false"
+    },
+    {
+     "t": "text",
+     "v": ". Name the thread: a reply answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": ", naming its thread."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "DELETE /boards/:id/comments/:commentId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "DELETE /boards/:id/comments/:commentId"
+    }
+   ],
+   "id": "delete-boards-id-comments-commentid"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deletes a comment you wrote. Its replies go with it, and come back with it. Like every delete, it needs a token with the "
+    },
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": " scope. It can be restored for 30 days:"
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/comments/:commentId/restore",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/comments/:commentId/restore"
+    }
+   ],
+   "id": "post-boards-id-comments-commentid-restore"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Brings a deleted comment back. Restoring one that isn't deleted changes nothing."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Who can do what",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can do what"
+    }
+   ],
+   "id": "who-can-do-what"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Who"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Comment, or reply"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Anyone who can open the board, viewers included"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Resolve or reopen"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The thread's author, or anyone who can edit the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The comment's author"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Restore"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its author, or anyone who can edit the board"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Anything else answers "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": ". A board you can't open, or a comment that isn't on it, answers "
+    },
+    {
+     "t": "code",
+     "v": "404"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Threads inside docs and notes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Threads inside docs and notes"
+    }
+   ],
+   "id": "threads-inside-docs-and-notes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A thread on a run of text inside a doc or a note lives in the doc itself, beside its words. The list reads them, with the text they are on; their ids start "
+    },
+    {
+     "t": "code",
+     "v": "cm_"
+    },
+    {
+     "t": "text",
+     "v": ". They are answered and resolved in the app, so writing one here answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   }
@@ -63439,6 +64462,87 @@ export const DOCS_CONTENT = {
        "v": " — recent writes and image fetches"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_comments"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "status?"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "open"
+      },
+      {
+       "t": "text",
+       "v": "|"
+      },
+      {
+       "t": "code",
+       "v": "resolved"
+      },
+      {
+       "t": "text",
+       "v": "|"
+      },
+      {
+       "t": "code",
+       "v": "all"
+      },
+      {
+       "t": "text",
+       "v": "), "
+      },
+      {
+       "t": "code",
+       "v": "limit?"
+      },
+      {
+       "t": "text",
+       "v": " (up to 200), "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      },
+      {
+       "t": "text",
+       "v": " — the board's "
+      },
+      {
+       "t": "link",
+       "v": "comment",
+       "href": "/docs/api/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " threads, those inside its docs and notes with the text they are on"
+      }
+     ]
     ]
    ]
   },
@@ -63744,6 +64848,114 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " written from Markdown"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "add_comment"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "body"
+      },
+      {
+       "t": "text",
+       "v": ", and "
+      },
+      {
+       "t": "code",
+       "v": "card_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "group_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "x?"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "y?"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "reply_to?"
+      },
+      {
+       "t": "text",
+       "v": " — a comment in the person's name, placed beside what it is about, or a reply in a thread"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "resolve_comments"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "comment_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 50), "
+      },
+      {
+       "t": "code",
+       "v": "resolved?"
+      },
+      {
+       "t": "text",
+       "v": " — resolve threads, or reopen them with "
+      },
+      {
+       "t": "code",
+       "v": "false"
+      },
+      {
+       "t": "text",
+       "v": "; lists any refused"
       }
      ]
     ],

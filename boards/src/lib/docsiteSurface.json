@@ -4,6 +4,7 @@
     "DELETE /boards/:id",
     "DELETE /boards/:id/cards {\"card_ids\":[…]} — bulk",
     "DELETE /boards/:id/cards/:cardId",
+    "DELETE /boards/:id/comments/:commentId — your own, and restorable",
     "DELETE /boards/:id/groups/:groupId — ungroups, never deletes cards",
     "DELETE /boards/:id/share-link — revokes the view links you may revoke",
     "DELETE /service-accounts/:id",
@@ -14,6 +15,7 @@
     "GET /boards/:id/cards/:cardId",
     "GET /boards/:id/cards/:cardId/doc?page=&max_chars= — a doc card, page by page, as Markdown",
     "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
+    "GET /boards/:id/comments?status=open|resolved|all&limit=&cursor= — threads, on the canvas and inside docs and notes",
     "GET /boards/:id/export?format=json|omc",
     "GET /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=",
     "GET /boards/:id/groups",
@@ -34,6 +36,7 @@
     "PATCH /boards/:id/cards {\"cards\":[…]} — bulk",
     "PATCH /boards/:id/cards/:cardId",
     "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId {\"markdown\":…,\"page_hash\":…} | {\"edits\":[…]} | {\"title\":…}",
+    "PATCH /boards/:id/comments/:commentId {\"resolved\":true|false}",
     "PATCH /boards/:id/groups/:groupId",
     "PATCH /webhooks/:id",
     "POST /boards",
@@ -42,6 +45,8 @@
     "POST /boards/:id/cards",
     "POST /boards/:id/cards/:cardId/doc/pages {\"pages\":[…],\"parent_page_id\":…} — pages added",
     "POST /boards/:id/cards/move",
+    "POST /boards/:id/comments {\"body\":…,\"card_id\"|\"group_id\"|\"x\",\"y\"|\"reply_to\":…}",
+    "POST /boards/:id/comments/:commentId/restore",
     "POST /boards/:id/docs {\"title\":…,\"pages\":[{\"title\":…,\"markdown\":…}]} — a new doc card",
     "POST /boards/:id/groups",
     "POST /boards/:id/import {\"items\":[{\"url\":…}]} — re-runnable",
@@ -64,6 +69,10 @@
     {
       "name": "add_cards",
       "schema": "fadbbf590c5d"
+    },
+    {
+      "name": "add_comment",
+      "schema": "77319751510b"
     },
     {
       "name": "arrange_board",
@@ -130,6 +139,10 @@
       "schema": "618a15b2b193"
     },
     {
+      "name": "list_comments",
+      "schema": "a023016d804b"
+    },
+    {
       "name": "list_deleted_boards",
       "schema": "80e95ddda416"
     },
@@ -160,6 +173,10 @@
     {
       "name": "rename_board",
       "schema": "0a21becb78ba"
+    },
+    {
+      "name": "resolve_comments",
+      "schema": "4b18b7813b59"
     },
     {
       "name": "resolve_identifier",

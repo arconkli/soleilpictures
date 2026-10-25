@@ -2285,7 +2285,7 @@ export const DOCS_PAGES = [
     "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
-    "updated": "2026-10-12",
+    "updated": "2026-10-25",
     "navLabel": "Comments",
     "headings": [
       {
@@ -2313,12 +2313,17 @@ export const DOCS_PAGES = [
         "text": "Who can comment"
       },
       {
+        "id": "from-your-own-code-or-an-assistant",
+        "text": "From your own code, or an assistant"
+      },
+      {
         "id": "comments-versus-votes",
         "text": "Comments versus votes"
       }
     ],
     "related": [
       "/docs/documents/comments-and-tags",
+      "/docs/api/comments",
       "/docs/collaborate/notifications",
       "/docs/canvas/vote-cards"
     ],
@@ -3533,6 +3538,70 @@ export const DOCS_PAGES = [
       {
         "q": "Why did I get 503 room_unavailable?",
         "a": "A doc is written through the cluster's live room or not at all, and the room couldn't be reached or didn't confirm the change. Nothing was written, so it is safe to try again."
+      }
+    ]
+  },
+  {
+    "path": "/docs/api/comments",
+    "title": "Comments API — Read, Add and Resolve Comments — Soleil Clusters",
+    "metaDescription": "List every comment thread on a Soleil Clusters board over REST, the ones inside its docs included, and add, resolve, delete or restore comments.",
+    "h1": "Comments API",
+    "answer": "GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST /boards/:id/comments adds a comment on a card, a group, a spot or the whole board, or a reply in a thread. PATCH resolves or reopens a thread, and DELETE removes your own comment, which can be restored for 30 days.",
+    "section": "developers",
+    "order": 4.6,
+    "updated": "2026-10-25",
+    "navLabel": "Comments",
+    "headings": [
+      {
+        "id": "get-boards-id-comments",
+        "text": "GET /boards/:id/comments"
+      },
+      {
+        "id": "post-boards-id-comments",
+        "text": "POST /boards/:id/comments"
+      },
+      {
+        "id": "patch-boards-id-comments-commentid",
+        "text": "PATCH /boards/:id/comments/:commentId"
+      },
+      {
+        "id": "delete-boards-id-comments-commentid",
+        "text": "DELETE /boards/:id/comments/:commentId"
+      },
+      {
+        "id": "post-boards-id-comments-commentid-restore",
+        "text": "POST /boards/:id/comments/:commentId/restore"
+      },
+      {
+        "id": "who-can-do-what",
+        "text": "Who can do what"
+      },
+      {
+        "id": "threads-inside-docs-and-notes",
+        "text": "Threads inside docs and notes"
+      }
+    ],
+    "related": [
+      "/docs/collaborate/comments",
+      "/docs/api/docs",
+      "/docs/mcp"
+    ],
+    "faq": [
+      {
+        "q": "Who can comment, resolve or delete over the API?",
+        "a": "The same people as in the app. Anyone who can open a board can comment on it. A thread's author, or anyone who can edit the board, can resolve it. Only a comment's author can delete it."
+      },
+      {
+        "q": "Can I reply to a comment inside a doc?",
+        "a": "Threads inside a doc or a note are listed, with the text they are on, and answered or resolved in the app. Over the API they are read only."
+      },
+      {
+        "q": "Is the person I reply to told?",
+        "a": "A reply can email the author of the thread, as a reply made in the app does, when they are away and haven't turned reply emails off."
+      },
+      {
+        "q": "Can an AI assistant read and answer comments?",
+        "a": "Yes. The MCP server's list_comments, add_comment and resolve_comments tools are these endpoints, so an assistant can read the feedback on a board, act on it and resolve what it dealt with."
       }
     ]
   },

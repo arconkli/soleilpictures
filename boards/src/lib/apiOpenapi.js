@@ -941,6 +941,48 @@ export function openapiDocument(origin) {
           }),
         }),
       },
+      '/boards/{id}/comments': {
+        get: op('listComments', 'The board\'s comment threads, those inside its docs and notes included', {
+          description: 'Liveliest first, each with its replies and who wrote what. A thread inside a doc '
+            + 'or a note carries the text it is on (quote) and is read only here. counts says how '
+            + 'many threads are open and resolved.',
+          parameters: [
+            boardIdParam,
+            q('status', 'open (the default), resolved or all', { type: 'string', enum: ['open', 'resolved', 'all'] }),
+            q('limit', 'Threads per page', { type: 'integer', minimum: 1 }),
+            q('cursor', 'From a previous next_cursor'),
+          ],
+        }),
+        post: op('addComment', 'A comment on a card, a group, a spot or the board, or a reply', {
+          description: 'Send one of card_id, group_id, or x and y, or none of them for the board as a '
+            + 'whole; it is placed beside what it is on, where it covers least (201). reply_to puts '
+            + 'it in that thread instead, where the thread is.',
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            body: { type: 'string' },
+            card_id: { type: 'string' },
+            group_id: { type: 'string' },
+            x: { type: 'number' },
+            y: { type: 'number' },
+            reply_to: { type: 'string', description: 'A comment in the thread to reply in' },
+          }, ['body']),
+        }),
+      },
+      '/boards/{id}/comments/{commentId}': {
+        patch: op('resolveComment', 'Resolve a thread, or reopen it', {
+          description: 'Its author, or anyone who can edit the board. A reply answers 400, naming its thread.',
+          parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: jsonBody({ resolved: { type: 'boolean' } }, ['resolved']),
+        }),
+        delete: op('deleteComment', 'Delete your own comment, restorable', {
+          parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
+        }),
+      },
+      '/boards/{id}/comments/{commentId}/restore': {
+        post: op('restoreComment', 'Bring a deleted comment back', {
+          parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
+        }),
+      },
       '/boards/{id}/share-link': {
         get: op('listShareLinks', 'The board\'s live view-only links', { parameters: [boardIdParam] }),
         post: op('shareBoard', 'The board\'s view-only link, made only when none fits', {
