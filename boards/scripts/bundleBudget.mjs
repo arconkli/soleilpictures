@@ -78,7 +78,7 @@ export const NEVER_IN_APP = [
 export const LAZY_IN_APP = [
   // App.jsx
   'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette', 'TagDetailView',
-  'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive',
+  'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive', 'NewWorkspaceDialog',
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx

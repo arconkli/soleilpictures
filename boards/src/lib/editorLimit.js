@@ -12,14 +12,22 @@ export const EDITOR_LIMIT = 10;
 // can make room; anyone else can ask the owner to.
 export const EDITOR_LIMIT_HINT = 'editor_limit';
 export const EDITOR_LIMIT_ASK_HINT = 'editor_limit_ask_owner';
+// A team's seats (Team plan): the doors refuse with one of these when the team
+// has no seat left and none can be added on its own. The owner or an admin can
+// add a seat; anyone else asks an admin.
+export const TEAM_SEATS_FULL_HINT = 'team_seats_full';
+export const TEAM_SEATS_ASK_HINT = 'team_seats_ask_admin';
 
 // What a failed share, invite or role change means for the limit: null when
 // it wasn't the limit, else { ask }, which is true when the caller isn't the
 // account's owner and can only ask them. supabase-js keeps the hint on the
 // error it hands back. A wrapper that re-threw a plain Error keeps only the
 // message, and _editor_refuse starts that with "editor limit reached:".
+// A team's refusal also carries `team: true`.
 export function editorLimitRefusal(err) {
   const hint = err?.hint;
+  if (hint === TEAM_SEATS_FULL_HINT) return { ask: false, team: true };
+  if (hint === TEAM_SEATS_ASK_HINT) return { ask: true, team: true };
   if (hint === EDITOR_LIMIT_HINT) return { ask: false };
   if (hint === EDITOR_LIMIT_ASK_HINT) return { ask: true };
   const msg = String(err?.message ?? '');
@@ -54,6 +62,13 @@ export function normalizeEditorCapacity(rowOrRows) {
 // off.
 export function editorLimitStage(cap) {
   if (!cap || !cap.enforced) return null;
+  // A team counts its seats on the server: full only when no seat is left and
+  // none can be added on its own. Never 'over', never full by count alone.
+  if (cap.subject === 'team') {
+    if (cap.full) return 'full';
+    const spare = cap.limit - cap.taken;
+    return spare === 1 || spare === 2 ? 'near' : 'room';
+  }
   if (cap.taken > cap.limit) return 'over';
   if (cap.full || cap.taken >= cap.limit) return 'full';
   if (cap.limit - cap.taken <= 2) return 'near';
@@ -90,6 +105,25 @@ export function editorLimitNote(cap, { ownerName = null, asked = false } = {}) {
   const stage = editorLimitStage(cap);
   if (!stage || stage === 'room') return null;
   const { limit, taken } = cap;
+  if (cap.subject === 'team') {
+    const none = { seeWho: null, ask: null, done: null };
+    if (stage === 'full') {
+      return {
+        stage, lead: `All ${limit} of the team’s seats are in use.`,
+        body: cap.isAccountOwner
+          ? 'Invite people to view, or add a seat on the team’s page.'
+          : 'Invite people to view. An admin of the team can add a seat.',
+        ...none,
+      };
+    }
+    if (!cap.isAccountOwner) return null;
+    const left = limit - taken;
+    return {
+      stage, lead: `${left} ${left === 1 ? 'seat' : 'seats'} left on the team.`,
+      body: 'Each person who can edit uses a seat. Viewers are free.',
+      ...none,
+    };
+  }
   if (cap.isAccountOwner) {
     if (stage === 'over') {
       return {
@@ -127,6 +161,11 @@ export function editorLimitNote(cap, { ownerName = null, asked = false } = {}) {
 // A door's refusal (editorLimitRefusal) as one sentence for a toast.
 export function editorLimitRefusalMessage(refusal, { ownerName = null, limit = EDITOR_LIMIT } = {}) {
   if (!refusal) return '';
+  if (refusal.team) {
+    return refusal.ask
+      ? 'All of the team’s seats are in use. Invite them to view, or ask an admin of the team for a seat.'
+      : 'All of the team’s seats are in use. Invite them to view, or add a seat on the team’s page.';
+  }
   if (!refusal.ask) {
     return `No places left for people who can edit: your plan has room for ${limit}. Invite them to view, or make room.`;
   }

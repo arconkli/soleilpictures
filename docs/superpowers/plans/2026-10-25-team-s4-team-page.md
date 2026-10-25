@@ -176,10 +176,15 @@ its test owners.
 
 ## Task 8: team workspaces
 
-- [ ] New workspace asks "Northlight Films / Just me" (+ Private) when the caller holds a seat, as the
-  Daily board shows, and calls `create_team_workspace` for the team.
-- [ ] The share panel in a team workspace whose seats are full says so and offers "Invite to view
-  instead" (Daily board), from the `team_seats_*` hints.
+- [x] New workspace asks "{team} / Just me" (+ Private for the team's owner and admins) when the caller holds a
+  seat, as the Daily board shows, and calls `create_team_workspace` for the team (`NewWorkspaceDialog`, lazy).
+  Everyone without a seat keeps the plain name prompt.
+- [x] The share panel and Members in a team workspace speak of the team's seats (`editorLimit.js`, subject
+  'team'): "All N of the team's seats are in use." and invite to view; the doors' refusals (`team_seats_full`,
+  `team_seats_ask_admin`) say the same, in the setup's invite step too.
+- [ ] Later: "Add a seat and invite" for owners and admins (needs team-billing live, after the price pick), and
+  the Daily board's member flow ("Lena joins as a viewer, and we ask the admins"): `share_board` refuses
+  instead, and `_team_request` takes a user id, so an invite by address can't ask yet (a server change).
 
 ## Task 9: the invite email
 

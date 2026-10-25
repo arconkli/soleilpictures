@@ -67,7 +67,8 @@ export async function runInvites(emails, send) {
       // 0521: the account has no room for another editor. One run sends every
       // address with the same role, so the rest would be refused the same way.
       const full = editorLimitRefusal(e);
-      if (full) { limit = { kind: 'editors', ask: full.ask, reason: msg, unsent: list.slice(i) }; break; }
+      // A team workspace's full seats (0531) keep `team`, so the line says seats.
+      if (full) { limit = { kind: 'editors', ask: full.ask, ...(full.team ? { team: true } : {}), reason: msg, unsent: list.slice(i) }; break; }
       fail.push({ email, reason: msg });
     }
   }

@@ -328,6 +328,7 @@ const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryM
 const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })));
 const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
 const TeamPageLive = lazyWithReload(() => import('./components/team/TeamPageLive.jsx'));
+const NewWorkspaceDialog = lazyWithReload(() => import('./components/team/NewWorkspaceDialog.jsx'));
 const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
 const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
 const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
@@ -4787,7 +4788,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── New workspace ────────────────────────────────────────────────────────
   // `thenHome`: asked for from Home, so the new workspace opens on Home — its
   // projects panel, with Studio and New project — rather than on its canvas.
+  const [newWsAsk, setNewWsAsk] = useState(null);
   const addNewWorkspace = async ({ thenHome = false } = {}) => {
+    // Someone who holds a team seat chooses who the workspace is for.
+    const seatTeam = teamsAllowed()
+      ? ((realTeam && realTeam.holds_seat ? realTeam : null) || myTeams.find((t) => t.holds_seat) || null)
+      : null;
+    if (seatTeam) { setNewWsAsk({ team: seatTeam, thenHome }); return; }
     const name = await feedback.prompt({
       title: 'New workspace',
       label: 'Workspace name',
@@ -4806,6 +4813,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('addNewWorkspace failed', e);
       feedback.toast({ type: 'error', code: 'workspace_create_failed', message: 'Could not create workspace: ' + (e.message || e) });
+    }
+  };
+
+  const createFromDialog = async ({ name, forTeam, isPrivate }) => {
+    const ask = newWsAsk;
+    try {
+      let wsId = null;
+      if (forTeam) {
+        const { createTeamWorkspace } = await import('./lib/teamsApi.js');
+        const res = await createTeamWorkspace({ p_org_id: ask.team.org_id, p_name: name, p_root_name: 'Studio', p_private: !!isPrivate });
+        wsId = res?.workspace_id || null;
+      } else {
+        const ws = await createWorkspace({ name, userId: user.id });
+        wsId = ws?.id || null;
+      }
+      if (!wsId) throw new Error('no workspace id');
+      setNewWsAsk(null);
+      await onWorkspacesChanged?.();
+      if (ask?.thenHome === true) markHomeAfterSwitch(wsId);
+      onSwitchWorkspace?.(wsId);
+      return { ok: true };
+    } catch (e) {
+      console.error('createFromDialog failed', e);
+      const [{ teamRefusal }, { refusalLine }] = await Promise.all([import('./lib/teamHints.js'), import('./lib/teamCopy.js')]);
+      return { ok: false, line: refusalLine(teamRefusal(e)) };
     }
   };
 
@@ -11591,6 +11623,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <Suspense fallback={null}>
           <TeamPageLive key={realTeam.org_id} orgId={realTeam.org_id} initialTab={teamPage.tab} onClose={closeRealTeamPage}
                         onToast={(message) => feedback.toast({ type: 'info', message })} />
+        </Suspense>
+      )}
+
+      {newWsAsk && (
+        <Suspense fallback={null}>
+          <NewWorkspaceDialog team={newWsAsk.team}
+                              userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || ''}
+                              defaultFor={workspace?.org_id === newWsAsk.team.org_id ? 'team' : 'me'}
+                              onCancel={() => setNewWsAsk(null)} onCreate={createFromDialog} />
         </Suspense>
       )}
 
