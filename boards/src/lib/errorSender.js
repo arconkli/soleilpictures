@@ -1,0 +1,200 @@
+// errorSender.js — the half of error reporting that loads on the first failure.
+//
+// errorReporting.js notices and hands over; this decides. It drops noise
+// (errorNoise.js), folds repeats, turns a failed request, a file that didn't
+// load or a logged Error into a row (0580's shape), and sends rows to
+// public.client_errors in batches, retrying once when the database is the one
+// failing. A dev build puts rows on window.__errorSink for the specs and never
+// sends them.
+//
+// Imports only what the entry chunk already holds (and errorCore.js, which is
+// this chunk's), so loading it never pulls in a part of the app.
+
+import { isNoise, isBotUA } from './errorNoise.js';
+import { classifyHttpFailure, bodyCode, routeOf, dedupeKey, crumbNames, errorContext } from './errorCore.js';
+import { unwatchedFetch } from './netWatch.js';
+import { eventEnv } from './eventEnv.js';
+import { getAppSessionId } from './appSession.js';
+
+const MAX_ROWS = 50;      // one page load's share; 0580 also caps a session at 300 an hour
+const BATCH_MS = 2000;
+const MAX_BODY = 48_000;  // keepalive allows 64 KB in flight
+
+const EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'svg', 'heic', 'mp4', 'webm', 'mov', 'm4v',
+  'mp3', 'm4a', 'wav', 'ogg', 'aac', 'flac', 'pdf', 'js', 'css', 'woff2', 'woff']);
+
+let cfg = null;
+let hosts = {};
+let rows = 0;
+let timer = 0;
+let queue = [];
+const seen = new Set();
+const reported = new WeakSet();
+// A logged Error waits for the batch: React logs a render crash to the console
+// before the error boundary reports it, and the boundary's row (a crash) wins.
+const held = new Map();
+
+export function start(c) {
+  cfg = c;
+  let supabase = null;
+  try { supabase = new URL(c.restUrl).host; } catch (_) {}
+  hosts = { app: location.host, supabase };
+}
+
+const ua = () => navigator.userAgent || '';
+
+function appSession() {
+  try { return getAppSessionId(); } catch (_) { return null; }
+}
+
+function base(m, kind, extra) {
+  return {
+    session_id: m.sessionId,
+    user_id: m.userId,
+    app_session_id: appSession(),
+    kind,
+    path: m.path,
+    release: cfg.release,
+    env: eventEnv(cfg.dev),
+    user_agent: ua().slice(0, 500),
+    breadcrumbs: crumbNames(m.crumbs, hosts),
+    context: errorContext({ online: m.online, vis: m.vis, ...extra }),
+    name: null,
+    stack: null,
+    component_stack: null,
+    severity: null,
+  };
+}
+
+function once(key) {
+  if (seen.has(key)) return false;
+  seen.add(key);
+  return true;
+}
+
+function push(row, uncapped) {
+  if (!uncapped) {
+    if (rows >= MAX_ROWS) return;
+    rows += 1;
+  }
+  queue.push(row);
+  schedule();
+}
+
+function errorRow(error, opts, m) {
+  const kind = opts.kind || 'error';
+  const message = String(error?.message || error || '').slice(0, 2000);
+  const stack = typeof error?.stack === 'string' ? error.stack.slice(0, 8000) : null;
+  if (error?.name === 'AbortError' || isNoise(message, stack, ua())) return null;
+  if (!once(dedupeKey(kind, message, stack))) return null;
+  return {
+    ...base(m, kind, { ...(opts.op ? { op: String(opts.op) } : null), ...(opts.context || null) }),
+    severity: opts.severity || null,
+    name: typeof error?.name === 'string' ? error.name.slice(0, 200) : null,
+    message,
+    stack,
+    component_stack: typeof opts.componentStack === 'string' ? opts.componentStack.slice(0, 8000) : null,
+  };
+}
+
+async function takeHttp({ f, m }) {
+  if (!routeOf(f.url, hosts)) return;
+  let pg = null;
+  if (f.body) { try { pg = bodyCode(await f.body.text()); } catch (_) {} }
+  const v = classifyHttpFailure({ ...f, online: m.online, pg }, hosts);
+  if (!v || !once(`http|${v.message}`)) return;
+  push({ ...base(m, 'http', { http: v.http }), severity: v.severity, name: 'HttpFailure', message: v.message });
+}
+
+export function take(it) {
+  try {
+    const m = it.m;
+    if (it.t === 'err') {
+      if (it.error && typeof it.error === 'object') {
+        if (reported.has(it.error)) return;
+        reported.add(it.error);
+        held.delete(it.error);
+      }
+      const row = errorRow(it.error, it.opts || {}, m);
+      if (row) push(row);
+    } else if (it.t === 'con') {
+      if (reported.has(it.error) || held.has(it.error)) return;
+      const label = typeof it.label === 'string' ? it.label.slice(0, 80) : null;
+      const row = errorRow(it.error, { kind: 'console', severity: 'warning', op: label }, m);
+      if (row) { held.set(it.error, row); schedule(); }
+    } else if (it.t === 'toast') {
+      const code = typeof it.code === 'string' && /^[a-z][a-z0-9_]{1,59}$/.test(it.code) ? it.code : 'uncoded';
+      if (!once(`toast|${code}`)) return;
+      push({ ...base(m, 'toast', { code, group: typeof it.group === 'string' ? it.group : null }),
+        severity: 'error', name: 'Toast', message: `toast:${code}` });
+    } else if (it.t === 'http') {
+      void takeHttp(it);
+    } else if (it.t === 'res') {
+      const el = it.el;
+      const src = el.currentSrc || el.src || el.href || '';
+      const r = src && routeOf(src, hosts);
+      if (!r) return;
+      const tag = String(el.tagName).toLowerCase();
+      let ext = null;
+      try { ext = (/\.([a-z0-9]{2,5})$/i.exec(new URL(src, location.href).pathname) || [])[1]?.toLowerCase(); } catch (_) {}
+      const message = `${tag} ${r.svc}/${r.route}${ext && EXTS.has(ext) ? ` .${ext}` : ''} did not load`;
+      if (!once(`res|${message}`)) return;
+      push({ ...base(m, 'resource', { tag, host: r.svc }), severity: 'warning', name: 'ResourceError', message });
+    } else if (it.t === 'perf') {
+      if (isBotUA(ua())) return;
+      let stack = null;
+      try { stack = JSON.stringify(it.context || {}, null, 2).slice(0, 8000); } catch (_) {}
+      push({ ...base(m, 'perf'), severity: 'warning', name: 'PerfIncident', message: String(it.bucket).slice(0, 2000), stack }, true);
+    }
+  } catch (_) { /* never into the app */ }
+}
+
+function schedule() {
+  if (!timer) timer = setTimeout(flush, BATCH_MS);
+}
+
+export function flush() {
+  clearTimeout(timer);
+  timer = 0;
+  for (const [error, row] of held) {
+    reported.add(error);
+    if (rows < MAX_ROWS) { rows += 1; queue.push(row); }
+  }
+  held.clear();
+  if (!queue.length) return;
+  const batch = queue;
+  queue = [];
+  if (cfg.dev) {
+    try { (window.__errorSink ||= []).push(...batch); } catch (_) {}
+    return;
+  }
+  let chunk = [];
+  let size = 2;
+  for (const row of batch) {
+    const n = JSON.stringify(row).length + 1;
+    if (chunk.length && size + n > MAX_BODY) { post(chunk, 0); chunk = []; size = 2; }
+    chunk.push(row);
+    size += n;
+  }
+  if (chunk.length) post(chunk, 0);
+}
+
+function post(chunk, attempt) {
+  const body = JSON.stringify(chunk);
+  unwatchedFetch()(cfg.restUrl, {
+    method: 'POST',
+    keepalive: body.length < 60_000,
+    headers: { apikey: cfg.key, 'content-type': 'application/json', prefer: 'return=minimal' },
+    body,
+  }).then((res) => {
+    // The database or the network was the one failing: once more, later.
+    if (!res.ok && attempt === 0 && (res.status >= 500 || res.status === 429)) {
+      setTimeout(() => post(chunk, 1), 3000);
+    }
+  }, () => {
+    try {
+      navigator.sendBeacon(`${cfg.restUrl}?apikey=${encodeURIComponent(cfg.key)}`,
+        new Blob([body], { type: 'application/json' }));
+    } catch (_) {}
+  });
+}

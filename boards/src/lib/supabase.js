@@ -76,6 +76,10 @@ function makeNamespacedStorage(suffix) {
 
 export let supabase = (url && publicKey)
   ? createClient(url, publicKey, {
+      // supabase-js keeps the fetch it is given; this one looks the global up
+      // on each call, so lib/netWatch.js, installed after this module runs,
+      // sees every query, RPC, auth call and upload.
+      global: { fetch: (...a) => fetch(...a) },
       auth: {
         persistSession: true,
         autoRefreshToken: true,

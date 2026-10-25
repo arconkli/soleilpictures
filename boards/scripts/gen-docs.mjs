@@ -300,6 +300,14 @@ if (!originRetention) {
   throw new Error('gen-docs: the request-origin retention was not found — update the extractor');
 }
 
+// How long an error record is kept (purge_old_client_errors, scheduled by
+// migration 0108 with the days it is called with).
+const errorRetention = latestSqlDefining('purge_old_client_errors')
+  ?.match(/\$\$\s*select public\.purge_old_client_errors\((\d+)\);\s*\$\$/);
+if (!errorRetention) {
+  throw new Error('gen-docs: the error-record retention was not found — update the extractor');
+}
+
 // How much text automatic tagging may send for embedding per account per day
 // (tags_embed_budget_take, migration 0381).
 const embedBudget = latestSqlDefining('tags_embed_budget_take')
@@ -453,6 +461,8 @@ export const FACTS = {
   workspaceLinksNewPerDay: wsLink.newPerDay,
   // Days a request's hashed network and browser are kept (0378).
   requestOriginRetentionDays: originRetention[1],
+  // Days an error record is kept before the nightly purge deletes it (0108).
+  clientErrorRetentionDays: errorRetention[1],
   // Characters of text automatic tagging reads per account per day (0381).
   embedCharsPerDay: Number(embedBudget[1]).toLocaleString('en-US'),
   maxCardsPerCall: String(api.maxCardsPerCall),

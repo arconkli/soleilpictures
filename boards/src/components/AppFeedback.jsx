@@ -2,6 +2,7 @@ import { createContext, Suspense, useCallback, useContext, useMemo, useRef, useS
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { isSilenced } from '../lib/captureState.js';
 import { placeGroupedToast, releaseToastGroup } from '../lib/toastGroup.js';
+import { reportToast } from '../lib/errorReporting.js';
 
 // The visual layer (confirm/prompt dialogs + toast stack) is the only part of
 // this always-mounted provider that pulls in @phosphor-icons + react-dom's
@@ -115,8 +116,12 @@ export function FeedbackProvider({ children }) {
   //
   // Returns a function that takes the toast down early — for a "working on
   // it" toast whose work has finished. Callers that ignore it lose nothing.
-  const toast = useCallback(({ type = 'info', message, action = null, actions = null, ttl = 4200, onDismiss = null, group = null, groupMessage = null }) => {
+  // `code`: a toast that says something failed names the failure, in
+  // snake_case. It is how the failure is reported (lib/errorReporting.js),
+  // since the text can quote a name; one without a code is 'uncoded'.
+  const toast = useCallback(({ type = 'info', message, code = null, action = null, actions = null, ttl = 4200, onDismiss = null, group = null, groupMessage = null }) => {
     if (!message) return () => {};
+    if (type === 'error' || type === 'warning') reportToast(type, code, group);
     // Capture Mode (admin-only) mutes toasts so a stray "Copied" or an undo
     // strip can't land in the middle of a take. Read from the module rather
     // than React state on purpose: `toast` sits in the useMemo'd context value
@@ -144,6 +149,8 @@ export function FeedbackProvider({ children }) {
   }, [dismissToast]);
 
   const value = useMemo(() => ({ confirm, prompt, toast }), [confirm, prompt, toast]);
+  // Dev only: a spec raises a real toast through this (error-collection.spec.js).
+  if (import.meta.env.DEV && typeof window !== 'undefined') window.__soleilToast = toast;
 
   return (
     <FeedbackContext.Provider value={value}>
