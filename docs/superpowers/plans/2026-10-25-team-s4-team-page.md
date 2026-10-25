@@ -57,12 +57,12 @@ its test owners.
 
 | File | Responsibility |
 |---|---|
-| `supabase/migrations/0540_teams_setup_and_domains.sql` | `preview_team_seats`, `team_domain_challenge`, `resend_team_invite`; proof |
-| `supabase/migrations/0541_team_invite_email.sql` | `_outbound_gate` learns `team_invite`; the `org_invites` email trigger; proof |
+| `supabase/migrations/0540_teams_setup_and_domains.sql` | `preview_team_seats`, `team_domain_challenge`; proof |
+| `supabase/migrations/0541_team_invite_email.sql` | `_outbound_gate` learns `team_invite`; the `org_invites` email trigger; `resend_team_invite`; proof |
 | `boards/src/worker.js` (+ a small `lib/teamDomainCheck.js` core) | `POST /api/team/domain-check`; the daily re-check |
 | `supabase/functions/send-transactional-email/index.ts` | The `team_invite` template |
 | `boards/src/lib/teamBillingApi.js` | The `team-billing` calls, never throwing |
-| `boards/src/lib/teamsApi.js` | Adds `getTeamBilling`, `previewTeamSeats`, `resendTeamInvite`, `checkTeamDomain` |
+| `boards/src/lib/teamsApi.js` | Adds `getTeamBilling`, `previewTeamSeats`, `checkTeamDomain` (`resendTeamInvite` with 0541) |
 | `boards/src/lib/teamSnapshot.js` | `toTeamSnapshot(team, billing, now)` |
 | `boards/src/hooks/useTeam.js` | Load, reload, and `act(type, payload)` |
 | `boards/src/components/team/*.jsx` | `onAction` instead of `dispatch`; the real actions; no "Preview:" toast on a real team |
@@ -81,10 +81,9 @@ its test owners.
 - [ ] `team_domain_challenge(p_org_id uuid, p_domain text) returns table (txt_name text, txt_value
   text, verified boolean)`: owner or admin only (`team_not_member` / `team_not_admin`), the row's
   name and `soleil-verification=<token>`. The Worker reads it as the caller, so it never decides who may.
-- [ ] `resend_team_invite(p_invite_id uuid) returns text`: owner or admin of the invite's team; an open
-  invite only; `sent` or `too_soon` (one a day per invite, a `resent_at` column on `org_invites`).
-  The email itself comes with 0541; until then the RPC records the resend and sends nothing.
-- [ ] Pins in `teamsS4Migration.test.mjs`: the savepoint and `SLPV0` in `preview_team_seats`, its
+- [x] Written 2026-10-25 (compiles on a local copy of live's shape, its proof passes there); applies on
+  the owner's go for S4.
+- [x] Pins in `teamsS4Migration.test.mjs`: the savepoint and `SLPV0` in `preview_team_seats`, its
   refusals in start_team_checkout's order, both RPCs revoked from `public, anon`, the proof block, no
   DROP, no overloads.
 - [ ] A rolled-back probe G on live: a test owner previews 3 for an empty pick and the right count for
@@ -110,8 +109,8 @@ its test owners.
   (`{ok:false, error:'auth required'|'network'|'http_<status>'|<server code>}`). Exports
   `startTeamCheckout`, `verifyTeamCheckout`, `openTeamPortal`, `previewTeamSeatsCost`, `addTeamSeats`,
   `syncTeam`, `newSeatRequestId`. Every call sends `return_origin: location.origin`.
-- [ ] `teamsApi.js` gains `getTeamBilling`, `previewTeamSeats`, `resendTeamInvite`; `checkTeamDomain`
-  calls the Worker route.
+- [ ] `teamsApi.js` gains `getTeamBilling` and `previewTeamSeats`; `checkTeamDomain` calls the Worker
+  route (`resendTeamInvite` comes with 0541, Task 9).
 - [ ] `toTeamSnapshot(team, billing, now)`: `plan` from billing (`interval`, `seats`, `renewsAt`,
   `trialEndsAt`, `status`, `cancelAtPeriodEnd`), `storage` (`usedBytes`, `quotaBytes`), `unpaid`
   (`since`, `graceEndsAt`, `viewOnly`), `whenFull` (`mode`, `monthlyLimit`, `addedThisMonth`); a
@@ -181,7 +180,10 @@ its test owners.
   invited them, the team, the role, and the `?teaminvite=` link.
 - [ ] 0541: `_outbound_gate` (re-emitted from its live body) counts `team_invite` as stranger mail
   under the invite budget; an `org_invites` insert trigger and `resend_team_invite` call
-  `_notify_email('team_invite', …)`. Applied only once the template is live.
+  `_notify_email('team_invite', …)`. `resend_team_invite(p_invite_id uuid) returns text` (owner or
+  admin; an open invite; `sent`, or `too_soon` within a day of the last send, kept in a `resent_at`
+  column) lives here too, so it never says "sent" before an email can go. Applied only once the
+  template is live.
 - [ ] Deploy the template built on the live function plus this hunk, after messaging the session that
   froze it.
 
