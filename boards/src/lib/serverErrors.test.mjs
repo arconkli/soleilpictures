@@ -219,19 +219,24 @@ test("a room's failure is a party row: the call that failed, the board's id, the
   // What boardRoomState.js reports at the third failed save in a row: the
   // call, its status and the body (for its code) as report.ts callFailed says it.
   const row = serverErrorRow({
-    source: 'party', kind: 'room_save', release: 'party-0a1b2c3d', boardId: BOARD, attempt: 3,
+    source: 'party', kind: 'save', op: 'room_flush', release: 'party-0a1b2c3d', boardId: BOARD, attempt: 3,
     error: new Error('write board_state 500: {"code":"57014","details":"card My Film","message":"canceling statement"}'),
   }, makeServerErrorState(), 0);
   assert.equal(row.source, 'party');
-  assert.equal(row.kind, 'room_save');
+  assert.equal(row.kind, 'save');
   assert.equal(row.severity, 'error');
   assert.equal(row.message, 'write board_state: statement timeout (57014)');
   assert.equal(row.release, 'party-0a1b2c3d');
   assert.equal(row.env, 'prod');
   assert.equal(row.path, null);
   assert.equal(row.user_agent, null);
-  assert.deepEqual(row.context, { op: 'room_save', code: '57014', board_id: BOARD, attempt: 3 });
+  assert.deepEqual(row.context, { op: 'room_flush', code: '57014', board_id: BOARD, attempt: 3 });
   assert.doesNotMatch(JSON.stringify(row), /My Film/);
+  // 0581 emails when saves fail for 3 people in 30 minutes; a room's failed
+  // saves count there by this kind, with its board standing in for a person.
+  const breaking = readFileSync(new URL('../../../supabase/migrations/0581_only_breaking_problems_email.sql', import.meta.url), 'utf8');
+  assert.match(breaking, /when e\.kind = 'save' then 'saves'/);
+  assert.match(breaking, /count\(distinct coalesce\(b\.person, 'board:' \|\| \(b\.context->>'board_id'\)\)\)/);
   // A step of the room's own leads its message, and is its tag.
   const step = serverErrorRow({
     source: 'party', kind: 'room', what: 'local compaction', boardId: BOARD,

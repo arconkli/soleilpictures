@@ -194,8 +194,10 @@ export class BoardRoomState {
     setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (t) => clearTimeout(t),
     log = (...a) => console.warn(...a), now, clock = () => Date.now(),
     // (kind, info): a failure the room records (party/report.ts). room_load
-    // when the stored board can't be read or decoded; room_save when saves
-    // keep failing, and when the board has gone unsaved too long.
+    // when the stored board can't be read or decoded; save (op room_flush)
+    // when saves keep failing, and when the board has gone unsaved too long:
+    // the browser's kind, so 0581's saves rule counts a room's failed saves,
+    // its board standing in for the person.
     report = null,
   }) {
     this.boardId = boardId;
@@ -242,7 +244,7 @@ export class BoardRoomState {
     this.failures += 1;
     if (this.failures >= SAVE_FAILURES_REPORTED && !this.reported.failing) {
       this.reported.failing = true;
-      this.problem('room_save', { error: failure(what, r), attempt: this.failures });
+      this.problem('save', { op: 'room_flush', error: failure(what, r), attempt: this.failures });
     }
   }
 
@@ -369,8 +371,8 @@ export class BoardRoomState {
     if (this.dirty && this.dirtySince !== null && !this.reported.unsaved
         && this.clock() - this.dirtySince >= UNSAVED_REPORTED_MS) {
       this.reported.unsaved = true;
-      this.problem('room_save', {
-        what: 'board unsaved', phase: 'unsaved', ms: this.clock() - this.dirtySince, attempt: this.failures,
+      this.problem('save', {
+        op: 'room_flush', what: 'board unsaved', phase: 'unsaved', ms: this.clock() - this.dirtySince, attempt: this.failures,
         error: new Error('its saves have failed for over two minutes'),
       });
     }

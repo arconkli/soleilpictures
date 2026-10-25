@@ -441,7 +441,9 @@ test('saves that keep failing are reported once, at the third, and a save ends t
   table.failNext(3);
   for (let i = 0; i < 3; i++) assert.equal(await s.flush(), false);
   assert.equal(r.seen.length, 1);
-  assert.equal(r.seen[0].kind, 'room_save');
+  // The browser's kind: 0581's saves rule counts it, the board for the person.
+  assert.equal(r.seen[0].kind, 'save');
+  assert.equal(r.seen[0].op, 'room_flush');
   assert.equal(r.seen[0].boardId, BOARD);
   assert.equal(r.seen[0].attempt, 3);
   // What serverErrors.js reads: the call, its status, the body for its code.
@@ -472,7 +474,8 @@ test('a board left unsaved past two minutes is reported once, from the alarm', a
   assert.equal(unsaved().length, 0);
   t += 61_000; table.failNext(1); await s.retryIfDirty();
   assert.equal(unsaved().length, 1);
-  assert.equal(unsaved()[0].kind, 'room_save');
+  assert.equal(unsaved()[0].kind, 'save');
+  assert.equal(unsaved()[0].op, 'room_flush');
   assert.ok(unsaved()[0].ms >= 120_000);
   t += 60_000; table.failNext(1); await s.retryIfDirty();
   assert.equal(unsaved().length, 1, 'once per streak');
