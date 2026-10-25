@@ -42,7 +42,10 @@ export const CEILINGS = {
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
-  appJs: 685_000,
+  // 2026-10-24: +1.0 KB for DOMPurify 3.4.17, the security patch for
+  // GHSA-cg2g-xh64-v4q7 and GHSA-c6gr-qvv4-5v3f (about +0.5 KB brotli; notes
+  // sanitize as they render, so it stays in the closure).
+  appJs: 686_000,
   appCss: 21_000,
 };
 
