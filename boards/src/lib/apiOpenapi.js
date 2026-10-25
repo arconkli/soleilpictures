@@ -944,8 +944,8 @@ export function openapiDocument(origin) {
       '/boards/{id}/comments': {
         get: op('listComments', 'The board\'s comment threads, those inside its docs and notes included', {
           description: 'Liveliest first, each with its replies and who wrote what. A thread inside a doc '
-            + 'or a note carries the text it is on (quote) and is read only here. counts says how '
-            + 'many threads are open and resolved.',
+            + 'or a note carries the text it is on (quote). counts says how many threads are open and '
+            + 'resolved.',
           parameters: [
             boardIdParam,
             q('status', 'open (the default), resolved or all', { type: 'string', enum: ['open', 'resolved', 'all'] }),
@@ -953,10 +953,12 @@ export function openapiDocument(origin) {
             q('cursor', 'From a previous next_cursor'),
           ],
         }),
-        post: op('addComment', 'A comment on a card, a group, a spot or the board, or a reply', {
+        post: op('addComment', 'A comment on a card, a group, a spot, the board or words in a doc, or a reply', {
           description: 'Send one of card_id, group_id, or x and y, or none of them for the board as a '
-            + 'whole; it is placed beside what it is on, where it covers least (201). reply_to puts '
-            + 'it in that thread instead, where the thread is.',
+            + 'whole; it is placed beside what it is on, where it covers least (201). quote, with a '
+            + 'doc\'s card_id, starts a thread on those words inside the doc instead (page_id names '
+            + 'the page when they are on more than one). reply_to puts it in that thread, wherever '
+            + 'the thread is. Inside docs and notes only an editor of the board writes.',
           parameters: [boardIdParam],
           requestBody: jsonBody({
             body: { type: 'string' },
@@ -964,17 +966,29 @@ export function openapiDocument(origin) {
             group_id: { type: 'string' },
             x: { type: 'number' },
             y: { type: 'number' },
+            quote: { type: 'string', description: 'With a doc\'s card_id: the words to comment on' },
+            page_id: { type: 'string', description: 'With quote: the page the words are on' },
             reply_to: { type: 'string', description: 'A comment in the thread to reply in' },
           }, ['body']),
+        }),
+        patch: op('resolveComments', 'Resolve or reopen several threads at once', {
+          description: 'Each thread is checked on its own: the answer lists those changed, those not on '
+            + 'the board, and those refused with a code and a reason.',
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            comment_ids: { type: 'array', items: { type: 'string' } },
+            resolved: { type: 'boolean' },
+          }, ['comment_ids', 'resolved']),
         }),
       },
       '/boards/{id}/comments/{commentId}': {
         patch: op('resolveComment', 'Resolve a thread, or reopen it', {
-          description: 'Its author, or anyone who can edit the board. A reply answers 400, naming its thread.',
+          description: 'On the canvas, its author or anyone who can edit the board; inside a doc or a '
+            + 'note, anyone who can edit the board. A reply answers 400, naming its thread.',
           parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
           requestBody: jsonBody({ resolved: { type: 'boolean' } }, ['resolved']),
         }),
-        delete: op('deleteComment', 'Delete your own comment, restorable', {
+        delete: op('deleteComment', 'Delete your own comment; restorable, except a thread inside a doc', {
           parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
         }),
       },

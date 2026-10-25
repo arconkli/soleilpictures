@@ -4,7 +4,9 @@
 // threads. What they pin: one list holds the board's threads and the ones
 // inside its docs, named as the app names people; a comment lands where the
 // app would put it, a reply in its thread; resolving and deleting are only
-// for those the app lets do them, and a deleted comment comes back.
+// for those the app lets do them, and a deleted comment comes back. Inside a
+// doc, an editor's reply, resolve and new thread on its words reach the room
+// filed as the app files them, and nothing is written when the room is away.
 //
 // Run: node --test src/lib/commentsRoute.test.mjs
 
@@ -17,8 +19,12 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { handleApiRoute } from '../worker-api.js';
 import { cardToYMap } from './yhelpers.js';
-import { cardScope, initCardDocStore, addPage, pageContentMap, addCommentThread } from './docState.js';
+import {
+  cardScope, initCardDocStore, addPage, pageContentMap, addCommentThread, addCommentReply, readComments,
+} from './docState.js';
 import { pickCommentOffset } from './commentPlacement.js';
+import { pickPresenceColor } from './presenceColor.js';
+import { collectQuotes } from './apiComments.js';
 
 const ENV = {
   SUPABASE_URL: 'https://db.test',
@@ -84,6 +90,7 @@ class FakeRoomSocket {
 // The board: an image, a card beside it, a group of the two, a note, and a
 // doc whose first page has a thread on "at night".
 let docThread;
+let docPage;
 function seedBoard({ down = false } = {}) {
   const doc = new Y.Doc();
   const cards = doc.getMap('cards');
@@ -97,6 +104,7 @@ function seedBoard({ down = false } = {}) {
   initCardDocStore(doc, d1);
   const scope = cardScope(d1);
   const p1 = addPage(doc, { name: 'Opening', scope });
+  docPage = p1;
   docThread = addCommentThread(doc, { pageId: p1, body: 'Too slow?', author: 'Sam', authorId: U2, scope });
   doc.transact(() => {
     const para = new Y.XmlElement('paragraph');
@@ -126,7 +134,9 @@ function matches(r, q) {
     if (['select', 'order', 'limit'].includes(k)) continue;
     const want = v.replace(/^(eq|is)\./, '');
     const have = r[k];
-    if (v.startsWith('is.')) {
+    if (v.startsWith('in.(')) {
+      if (!v.slice(4, -1).split(',').includes(String(have))) return false;
+    } else if (v.startsWith('is.')) {
       if (want === 'null' ? have != null : String(!!have) !== want) return false;
     } else if (String(have) !== want) return false;
   }
@@ -158,7 +168,10 @@ beforeEach(() => {
       })));
     }
     if (path === 'member_profiles') return reply([{ user_id: U1, display_name: 'Ana Ruiz' }]);
-    if (path === 'rpc/users_by_ids') return reply([{ user_id: U2, email: 'sam.park@x.com' }]);
+    if (path === 'rpc/users_by_ids') {
+      const emails = { [U1]: 'ana.r@x.com', [U2]: 'sam.park@x.com' };
+      return reply(body.p_user_ids.filter((u) => emails[u]).map((u) => ({ user_id: u, email: emails[u] })));
+    }
     if (path === 'comments') {
       if (method === 'GET') return reply(table.filter((r) => matches(r, u.searchParams)));
       if (method === 'POST') {
@@ -316,10 +329,8 @@ test('POST /comments with reply_to: into the thread, under its first comment, wh
     ['author_id', 'author_name', 'body', 'by_you', 'created_at', 'id', 'reply_to', 'url']);
   assert.equal(r.body.comment.reply_to, t1.id);
 
-  const inDoc = await api('POST', `/boards/${B1}/comments`, { body: 'x', reply_to: docThread });
-  assert.equal(inDoc.status, 400);
-  assert.match(inDoc.body.error, /inside a doc or a note/);
   assert.equal((await api('POST', `/boards/${B1}/comments`, { body: 'x', reply_to: randomUUID() })).status, 404);
+  assert.equal((await api('POST', `/boards/${B1}/comments`, { body: 'x', reply_to: 'cm_nope' })).status, 404);
   assert.equal((await api('POST', `/boards/${B1}/comments`, { body: 'x', reply_to: r1.id, card_id: 'c1' })).status, 400);
 });
 
@@ -336,8 +347,8 @@ test('PATCH /comments/:id: resolved by its author or an editor, threads only', a
   assert.match(replyOne.body.error, new RegExp(t1.id));
   assert.equal((await api('PATCH', `/boards/${B1}/comments/${t1.id}`, { resolved: 'yes' })).status, 400);
   assert.equal((await api('PATCH', `/boards/${B1}/comments/${t1.id}`, { resolved: true, body: 'x' })).status, 400);
-  assert.equal((await api('PATCH', `/boards/${B1}/comments/${docThread}`, { resolved: true })).status, 400);
   assert.equal((await api('PATCH', `/boards/${B1}/comments/${randomUUID()}`, { resolved: true })).status, 404);
+  assert.equal((await api('PATCH', `/boards/${B1}/comments/cm_nope`, { resolved: true })).status, 404);
 
   writers.clear();
   table.find((x) => x.id === t1.id).resolved = false;
@@ -397,10 +408,175 @@ test('MCP: list_comments, add_comment, resolve_comments', async () => {
   const res = await tool('resolve_comments', { board_id: B1, comment_ids: [t1.id, missing, docThread, t1.id] });
   assert.notEqual(res.isError, true, JSON.stringify(res));
   const out = res.structuredContent;
-  assert.deepEqual([out.changed, out.not_found, out.refused.map((x) => x.id)], [[t1.id], [missing], [docThread]]);
-  assert.match(out.refused[0].reason, /inside a doc or a note/);
+  assert.deepEqual([out.changed, out.not_found, out.refused], [[t1.id, docThread], [missing], []]);
   assert.equal(table.find((x) => x.id === t1.id).resolved, true);
+  assert.equal(roomThreads('d1')[0].resolved, true);
+
+  const inDoc = await tool('add_comment', { board_id: B1, body: 'Name it', card_id: 'd1', quote: 'A diner' });
+  assert.notEqual(inDoc.isError, true, JSON.stringify(inDoc));
+  assert.deepEqual([inDoc.structuredContent.comment.on, inDoc.structuredContent.comment.quote], ['doc', 'A diner']);
 
   const bad = await tool('add_comment', { board_id: B1, body: 'x', card_id: 'c1', x: 1, y: 2 });
   assert.equal(bad.isError, true);
+});
+
+// ── Inside a doc ────────────────────────────────────────────────────────────
+
+const roomCard = (cardId) => rooms.get(B1).doc.getMap('cards').get(cardId);
+const roomThreads = (cardId) => readComments(null, { comments: roomCard(cardId).get('docComments') });
+const roomQuotes = () => collectQuotes(pageContentMap(rooms.get(B1).doc, cardScope(roomCard('d1'))).get(docPage));
+
+test('inside a doc: a reply and a resolve, filed as the app files them', async () => {
+  seedBoard();
+  const r = await api('POST', `/boards/${B1}/comments`, { body: '  Tighten it  ', reply_to: docThread });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.deepEqual(Object.keys(r.body.comment).sort(),
+    ['author_id', 'author_name', 'body', 'by_you', 'created_at', 'id', 'reply_to', 'url']);
+  assert.deepEqual([r.body.comment.reply_to, r.body.comment.body, r.body.comment.author_name, r.body.comment.by_you],
+    [docThread, 'Tighten it', 'Ana Ruiz', true]);
+  assert.match(r.body.url, new RegExp(`\\?to=c:${B1}:d1$`));
+  const replyId = r.body.comment.id;
+  assert.match(replyId, /^cr_/);
+  assert.ok(roomCard('d1').get('docComments').has(`${docThread}~r~${replyId}`), 'beside the thread, as the app files a reply');
+  const [t] = roomThreads('d1');
+  assert.deepEqual(t.replies.map((x) => [x.id, x.body, x.author, x.authorId, x.authorColor]),
+    [[replyId, 'Tighten it', 'Ana Ruiz', U1, pickPresenceColor(U1)]]);
+  assert.equal(roomCard('d1').get('updatedAt'), undefined, 'a comment is no edit of the card');
+
+  const viaReply = await api('POST', `/boards/${B1}/comments`, { body: 'And the ending', reply_to: replyId });
+  assert.equal(viaReply.body.comment.reply_to, docThread, 'a reply to a reply goes into the thread');
+
+  const done = await api('PATCH', `/boards/${B1}/comments/${docThread}`, { resolved: true });
+  assert.deepEqual([done.status, done.body.resolved], [200, true], JSON.stringify(done.body));
+  assert.match(done.body.url, new RegExp(`\\?to=c:${B1}:d1$`));
+  const [after] = roomThreads('d1');
+  assert.deepEqual([after.resolved, after.resolvedBy, after.resolvedByName], [true, U1, 'Ana Ruiz']);
+
+  const late = await api('POST', `/boards/${B1}/comments`, { body: 'x', reply_to: docThread });
+  assert.deepEqual([late.status, late.body.code], [409, 'conflict'], 'as in the app: reopen it first');
+  assert.match(late.body.error, /reopen it first/);
+  assert.equal((await api('PATCH', `/boards/${B1}/comments/${docThread}`, { resolved: false })).body.resolved, false);
+  assert.equal(roomThreads('d1')[0].resolved, false);
+
+  const replyOne = await api('PATCH', `/boards/${B1}/comments/${replyId}`, { resolved: true });
+  assert.equal(replyOne.status, 400);
+  assert.match(replyOne.body.error, new RegExp(docThread));
+});
+
+test('inside a doc: a new thread on its words, highlighted as a selection is', async () => {
+  seedBoard();
+  const made = await api('POST', `/boards/${B1}/comments`, { body: 'Which diner?', card_id: 'd1', quote: 'A  diner' });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const c = made.body.comment;
+  assert.match(c.id, /^cm_/);
+  assert.deepEqual([c.on, c.card_id, c.card_kind, c.card_title, c.page_id, c.page_title, c.quote, c.body, c.author_name, c.by_you, c.resolved, c.replies],
+    ['doc', 'd1', 'doc', 'Treatment', docPage, 'Opening', 'A diner', 'Which diner?', 'Ana Ruiz', true, false, []]);
+  assert.equal(roomQuotes().get(c.id), 'A diner', 'the room\'s page carries its mark');
+  assert.equal(roomQuotes().get(docThread), 'at night', 'and the thread already there keeps its own');
+  const [head] = roomThreads('d1').filter((x) => x.id === c.id);
+  assert.deepEqual([head.pageId, head.author, head.authorId, head.authorColor, head.resolved], [docPage, 'Ana Ruiz', U1, pickPresenceColor(U1), false]);
+  const list = await api('GET', `/boards/${B1}/comments`);
+  assert.equal(list.body.threads.find((x) => x.id === c.id).quote, 'A diner');
+
+  const n = (await api('POST', `/boards/${B1}/comments`, { body: 'x', card_id: 'd1', quote: 'n' }));
+  assert.deepEqual([n.status, n.body.code], [400, 'bad_request']);
+  assert.match(n.body.error, /2 times \(Opening\)/);
+  for (const [b, status, code, re] of [
+    [{ body: 'x', card_id: 'd1', quote: 'a diner' }, 400, 'bad_request', /aren't in this doc/],
+    [{ body: 'x', card_id: 'd1', quote: 'diner', page_id: 'nope' }, 404, 'not_found', /no page nope/],
+    [{ body: 'x', card_id: 'c2', quote: 'x' }, 400, 'bad_request', /in a note take a comment in the app/],
+    [{ body: 'x', card_id: 'c1', quote: 'x' }, 400, 'bad_request', /isn't one/],
+    [{ body: 'x', card_id: 'zz', quote: 'x' }, 404, 'not_found', /no such card/],
+  ]) {
+    const r = await api('POST', `/boards/${B1}/comments`, b);
+    assert.deepEqual([r.status, r.body.code], [status, code], JSON.stringify(b));
+    assert.match(r.body.error, re);
+  }
+  // Code takes no comment, as a selection of it takes none in the editor.
+  const { doc } = rooms.get(B1);
+  doc.transact(() => {
+    const para = new Y.XmlElement('paragraph');
+    const text = new Y.XmlText();
+    para.insert(0, [text]);
+    pageContentMap(doc, cardScope(roomCard('d1'))).get(docPage).push([para]);
+    text.insert(0, 'Run ');
+    text.insert(4, 'npm test', { code: {} });
+  });
+  const code = await api('POST', `/boards/${B1}/comments`, { body: 'x', card_id: 'd1', quote: 'npm test' });
+  assert.deepEqual([code.status, code.body.code], [400, 'bad_request']);
+  assert.match(code.body.error, /code, which takes no comment/);
+  assert.equal(roomThreads('d1').length, 2, 'nothing written for any of them');
+});
+
+test('inside a doc: only an editor writes, and nothing is written with the room away', async () => {
+  seedBoard();
+  writers.clear();
+  for (const [method, path, b] of [
+    ['POST', `/boards/${B1}/comments`, { body: 'x', reply_to: docThread }],
+    ['POST', `/boards/${B1}/comments`, { body: 'x', card_id: 'd1', quote: 'diner' }],
+    ['PATCH', `/boards/${B1}/comments/${docThread}`, { resolved: true }],
+    ['DELETE', `/boards/${B1}/comments/${docThread}`],
+  ]) {
+    const r = await api(method, path, b);
+    assert.deepEqual([r.status, r.body.code], [403, 'forbidden'], `${method} ${JSON.stringify(b)}`);
+    assert.match(r.body.error, /editor/);
+  }
+  assert.equal(roomThreads('d1')[0].replies.length, 0);
+
+  seedBoard({ down: true });
+  writers.add(B1);
+  for (const b of [{ body: 'x', reply_to: docThread }, { body: 'x', card_id: 'd1', quote: 'diner' }]) {
+    const r = await api('POST', `/boards/${B1}/comments`, b);
+    assert.deepEqual([r.status, r.body.code], [503, 'room_unavailable'], JSON.stringify(b));
+  }
+  assert.equal(roomThreads('d1')[0].replies.length, 0);
+});
+
+test('inside a doc: deleting your own thread takes it and its highlight; no restore', async () => {
+  seedBoard();
+  const theirs = await api('DELETE', `/boards/${B1}/comments/${docThread}`);
+  assert.deepEqual([theirs.status, theirs.body.code], [403, 'forbidden'], 'Sam\'s thread: resolve it instead');
+
+  const mine = (await api('POST', `/boards/${B1}/comments`, { body: 'Which diner?', card_id: 'd1', quote: 'A diner' })).body.comment;
+  const gone = await api('DELETE', `/boards/${B1}/comments/${mine.id}`);
+  assert.equal(gone.status, 200, JSON.stringify(gone.body));
+  assert.deepEqual([gone.body.deleted, gone.body.restore], [true, null]);
+  assert.deepEqual(roomThreads('d1').map((x) => x.id), [docThread]);
+  assert.equal(roomQuotes().has(mine.id), false, 'its highlight goes with it');
+  assert.equal(roomQuotes().get(docThread), 'at night');
+  assert.equal(rpcs.length, 0, 'the board\'s comments table is never touched');
+
+  const busy = (await api('POST', `/boards/${B1}/comments`, { body: 'Too long', card_id: 'd1', quote: 'diner' })).body.comment;
+  const scope = { comments: roomCard('d1').get('docComments') };
+  addCommentReply(rooms.get(B1).doc, busy.id, { body: 'Disagree', author: 'Sam', authorId: U2, scope });
+  const held = await api('DELETE', `/boards/${B1}/comments/${busy.id}`);
+  assert.deepEqual([held.status, held.body.code], [409, 'conflict'], 'someone else has replied');
+  const replyId = roomThreads('d1').find((x) => x.id === busy.id).replies[0].id;
+  assert.equal((await api('DELETE', `/boards/${B1}/comments/${replyId}`)).status, 400);
+  assert.equal((await api('DELETE', `/boards/${B1}/comments/cm_nope`)).status, 404);
+
+  const back = await api('POST', `/boards/${B1}/comments/${mine.id}/restore`);
+  assert.deepEqual([back.status, back.body.code], [400, 'bad_request']);
+});
+
+test('PATCH /comments: several threads of either kind, each answered', async () => {
+  seedBoard();
+  const { t1, r1 } = seedThreads();
+  const missing = randomUUID();
+  const r = await api('PATCH', `/boards/${B1}/comments`, { comment_ids: [docThread, t1.id, r1.id, missing, 'cm_nope'], resolved: true });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual([r.body.changed, r.body.not_found], [[docThread, t1.id], [missing, 'cm_nope']]);
+  assert.deepEqual(r.body.refused.map((x) => [x.id, x.code]), [[r1.id, 'bad_request']]);
+  assert.equal(table.find((x) => x.id === t1.id).resolved, true);
+  assert.equal(roomThreads('d1')[0].resolved, true);
+  const again = await api('PATCH', `/boards/${B1}/comments`, { comment_ids: [docThread, t1.id], resolved: true });
+  assert.deepEqual(again.body.changed, [docThread, t1.id], 'already so is done');
+
+  assert.equal((await api('PATCH', `/boards/${B1}/comments`, { comment_ids: [t1.id] })).status, 400);
+
+  seedBoard({ down: true });
+  const away = await api('PATCH', `/boards/${B1}/comments`, { comment_ids: [docThread, t1.id], resolved: false });
+  assert.equal(away.status, 200);
+  assert.deepEqual(away.body.changed, [t1.id], 'the board\'s own are still changed');
+  assert.deepEqual(away.body.refused.map((x) => [x.id, x.code]), [[docThread, 'room_unavailable']]);
 });

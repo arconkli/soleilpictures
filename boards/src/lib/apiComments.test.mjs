@@ -27,8 +27,9 @@ const { prosemirrorJSONToYXmlFragment } = await import('y-prosemirror');
 const { baseDocExtensions } = await import('../components/docExtensions/baseExtensions.js');
 const {
   COMMENTS, boardThreads, cardThreads, collectQuotes, namesFrom, authorIds, pageThreads, publicThread,
-  readNewComment, anchorOf, commentRow, placeComment, isBoardCommentId,
+  readNewComment, anchorOf, commentRow, placeComment, isBoardCommentId, readResolveMany, findCardThread, docAuthor,
 } = await import('./apiComments.js');
+const { pickPresenceColor } = await import('./presenceColor.js');
 const {
   cardScope, initCardDocStore, addPage, pageContentMap, addCommentThread, addCommentReply, resolveComment,
 } = await import('./docState.js');
@@ -205,6 +206,18 @@ test('a new comment: checked, and where it goes', () => {
   assert.deepEqual(readNewComment({ body: 'hi', x: 10.4, y: -3.6 }).anchor, { kind: 'point', x: 10, y: -4 });
   assert.deepEqual(readNewComment({ body: 'hi', reply_to: 'r1' }), { body: 'hi', replyTo: 'r1' });
 
+  // On words in a doc: the doc's card, the words, and the page if need be.
+  assert.deepEqual(readNewComment({ body: 'hi', card_id: 'd1', quote: 'at night', page_id: 'p1' }).anchor,
+    { kind: 'doc', id: 'd1', quote: 'at night', pageId: 'p1' });
+  assert.deepEqual(readNewComment({ body: 'hi', card_id: 'd1', quote: 'at night' }).anchor,
+    { kind: 'doc', id: 'd1', quote: 'at night', pageId: null });
+  assert.match(problem({ body: 'hi', quote: 'at night' }), /quote goes with card_id/);
+  assert.match(problem({ body: 'hi', group_id: 'g1', quote: 'at night' }), /quote goes with card_id/);
+  assert.match(problem({ body: 'hi', card_id: 'd1', page_id: 'p1' }), /page_id goes with quote/);
+  assert.match(problem({ body: 'hi', card_id: 'd1', quote: '  ' }), /quote must be the words/);
+  assert.match(problem({ body: 'hi', card_id: 'd1', quote: 'x'.repeat(COMMENTS.maxAnchor + 1) }), /at most/);
+  assert.match(problem({ body: 'hi', reply_to: 'cm_1', quote: 'x' }), /a reply sits with its thread/);
+
   // A reply goes where its thread is, as CanvasComment's parentAnchor has it.
   assert.deepEqual(anchorOf({ anchor_kind: 'point', anchor_x: 5, anchor_y: 6 }), { kind: 'point', x: 5, y: 6 });
   assert.deepEqual(anchorOf({ anchor_kind: 'doc_range', anchor_id: 'd1' }), { kind: 'card', id: 'd1' });
@@ -242,9 +255,42 @@ test('placed as the app places one: beside its card where it covers least; on th
   assert.deepEqual(placeComment({ kind: 'board' }, {}), { x: 0, y: 0 }, 'an empty board: where the canvas puts it');
 });
 
+test('resolving several: checked before anything is touched', () => {
+  const problem = (b) => readResolveMany(b).problem;
+  assert.deepEqual(readResolveMany({ comment_ids: ['a', 'b', 'a'], resolved: false }), { ids: ['a', 'b'], resolved: false });
+  assert.match(problem({ comment_ids: ['a'] }), /resolved must be/);
+  assert.match(problem({ comment_ids: [], resolved: true }), /comment_ids must list/);
+  assert.match(problem({ comment_ids: ['a', 7], resolved: true }), /must be comment ids/);
+  assert.match(problem({ comment_ids: Array(COMMENTS.maxResolve + 1).fill('a'), resolved: true }), /at most/);
+  assert.match(problem({ comment_ids: ['a'], resolved: true, body: 'x' }), /body isn't taken/);
+});
+
+test('a thread inside a doc or a note, found by its id or a reply\'s', () => {
+  const { ydoc, t1, t3 } = board();
+  const cards = ydoc.getMap('cards');
+  const a = findCardThread(cards, t1);
+  assert.deepEqual([a.cardId, a.kind, a.thread.id, a.replyId], ['d1', 'doc', t1, undefined]);
+  const replyId = a.thread.replies[0].id;
+  const r = findCardThread(cards, replyId);
+  assert.deepEqual([r.cardId, r.thread.id, r.replyId], ['d1', t1, replyId]);
+  assert.equal(findCardThread(cards, t3).kind, 'note');
+  assert.equal(findCardThread(cards, 'cm_nope'), null);
+  assert.equal(findCardThread(cards, `${t1}~s`), null, 'an entry\'s key is no thread');
+  assert.equal(findCardThread(cards, '11111111-1111-4111-8111-111111111111'), null);
+});
+
+test('who a comment written in a doc is filed as: as the app files its person', () => {
+  assert.deepEqual(docAuthor({ profile: { display_name: 'Ana Ruiz', color: '#123456' }, email: 'ana@x.com', userId: 'u1' }),
+    { name: 'Ana Ruiz', color: '#123456' });
+  assert.deepEqual(docAuthor({ profile: null, email: 'sam.park@x.com', userId: 'u2' }),
+    { name: 'Sam Park', color: pickPresenceColor('u2') });
+  assert.equal(docAuthor({ userId: 'u3' }).name, 'Member');
+});
+
 test('the MCP tools\' limits are the API\'s', () => {
   const tool = (n) => TOOLS.find((t) => t.name === n).inputSchema.properties;
   assert.equal(tool('add_comment').body.maxLength, COMMENTS.maxBody);
+  assert.equal(tool('add_comment').quote.maxLength, COMMENTS.maxAnchor);
   assert.equal(tool('list_comments').limit.maximum, COMMENTS.maxLimit);
   assert.equal(tool('resolve_comments').comment_ids.maxItems, COMMENTS.maxResolve);
 });

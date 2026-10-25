@@ -555,6 +555,7 @@ export const FACTS = {
   commentListMax: String(COMMENTS.maxLimit),
   commentResolveMax: String(COMMENTS.maxResolve),
   commentQuoteMax: String(COMMENTS.maxQuote),
+  commentAnchorMax: String(COMMENTS.maxAnchor),
   commentRestoreDays: commentRestore[1],
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),

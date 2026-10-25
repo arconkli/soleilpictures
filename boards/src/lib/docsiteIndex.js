@@ -3544,9 +3544,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/api/comments",
     "title": "Comments API — Read, Add and Resolve Comments — Soleil Clusters",
-    "metaDescription": "List every comment thread on a Soleil Clusters board over REST, the ones inside its docs included, and add, resolve, delete or restore comments.",
+    "metaDescription": "List every comment thread on a Soleil Clusters board over REST, docs included, and add, reply, resolve, delete or restore comments.",
     "h1": "Comments API",
-    "answer": "GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST /boards/:id/comments adds a comment on a card, a group, a spot or the whole board, or a reply in a thread. PATCH resolves or reopens a thread, and DELETE removes your own comment, which can be restored for 30 days.",
+    "answer": "GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST adds a comment on a card, a group, a spot, the whole board or words in a doc, or a reply in any thread. PATCH resolves or reopens threads, and DELETE removes your own comment.",
     "section": "developers",
     "order": 4.6,
     "updated": "2026-10-25",
@@ -3563,6 +3563,10 @@ export const DOCS_PAGES = [
       {
         "id": "patch-boards-id-comments-commentid",
         "text": "PATCH /boards/:id/comments/:commentId"
+      },
+      {
+        "id": "patch-boards-id-comments",
+        "text": "PATCH /boards/:id/comments"
       },
       {
         "id": "delete-boards-id-comments-commentid",
@@ -3593,7 +3597,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I reply to a comment inside a doc?",
-        "a": "Threads inside a doc or a note are listed, with the text they are on, and answered or resolved in the app. Over the API they are read only."
+        "a": "Yes, if you can edit the board, as in the app. You can also resolve threads there, and start one on words in a doc by quoting them."
       },
       {
         "q": "Is the person I reply to told?",
@@ -3601,7 +3605,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can an AI assistant read and answer comments?",
-        "a": "Yes. The MCP server's list_comments, add_comment and resolve_comments tools are these endpoints, so an assistant can read the feedback on a board, act on it and resolve what it dealt with."
+        "a": "Yes. The MCP server's list_comments, add_comment and resolve_comments tools are these endpoints, so an assistant can read the feedback on a board, act on it, resolve what it dealt with, and comment on a doc's words."
       }
     ]
   },

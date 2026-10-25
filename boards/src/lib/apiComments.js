@@ -15,6 +15,7 @@ import { readComments, readPages, getPageSheetIds } from './docState.js';
 import { fragmentToJSON } from './docMarkdown.js';
 import { pickCommentOffset } from './commentPlacement.js';
 import { emailToName } from './personName.js';
+import { pickPresenceColor } from './presenceColor.js';
 
 export const COMMENTS = {
   // A comment's words, at most: where the app cuts one in a doc or a note
@@ -29,6 +30,8 @@ export const COMMENTS = {
   maxResolve: 50,
   // How much of the text a doc's comment is on comes back with it.
   maxQuote: 300,
+  // How long the words a new comment in a doc is put on may be.
+  maxAnchor: 2000,
 };
 
 // What a read of the board's own comments selects.
@@ -39,8 +42,9 @@ export const STATUSES = ['open', 'resolved', 'all'];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A board's own comment has a uuid; a thread inside a doc or a note has the
-// id docState gave it ('cm_…').
+// id docState gave it ('cm_…'), and a reply in one 'cr_…'.
 export const isBoardCommentId = (id) => UUID.test(String(id || ''));
+const CARD_COMMENT_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 const iso = (ms) => (Number.isFinite(ms) ? new Date(ms).toISOString() : null);
 const time = (s) => {
@@ -257,7 +261,8 @@ const MAX_COORD = 1_000_000_000;
 
 // A new comment as POST /boards/:id/comments takes it: its words, and where it
 // goes — on a card, on a group, at a point (x and y), on the board as a whole
-// (none of those), or into a thread (reply_to, where it sits with the thread).
+// (none of those), on words inside a doc (card_id with quote, and page_id to
+// say which page), or into a thread (reply_to, where it sits with the thread).
 // `{ problem }` names what's wrong with it.
 export function readNewComment(b) {
   if (!b || typeof b !== 'object' || Array.isArray(b)) return { problem: 'send a JSON object with body' };
@@ -266,11 +271,20 @@ export function readNewComment(b) {
   if (body.length > COMMENTS.maxBody) {
     return { problem: `body is ${body.length} characters; a comment holds at most ${COMMENTS.maxBody}` };
   }
-  const placed = ['card_id', 'group_id', 'x', 'y'].filter((k) => b[k] != null);
+  const placed = ['card_id', 'group_id', 'x', 'y', 'quote', 'page_id'].filter((k) => b[k] != null);
   if (b.reply_to != null) {
     if (typeof b.reply_to !== 'string' || !b.reply_to) return { problem: 'reply_to must be a comment id' };
-    if (placed.length) return { problem: 'a reply sits with its thread: leave out card_id, group_id, x and y' };
+    if (placed.length) return { problem: 'a reply sits with its thread: leave out card_id, group_id, x, y, quote and page_id' };
     return { body, replyTo: b.reply_to };
+  }
+  if (b.page_id != null && b.quote == null) return { problem: 'page_id goes with quote: the page the words are on' };
+  if (b.quote != null) {
+    if (b.card_id == null) return { problem: 'quote goes with card_id: the doc the words are in' };
+    if (typeof b.quote !== 'string' || !b.quote.trim()) return { problem: 'quote must be the words the comment is on' };
+    if (b.quote.length > COMMENTS.maxAnchor) {
+      return { problem: `quote is ${b.quote.length} characters; a comment goes on at most ${COMMENTS.maxAnchor}` };
+    }
+    if (b.page_id != null && (typeof b.page_id !== 'string' || !b.page_id)) return { problem: 'page_id must be a page id' };
   }
   const atPoint = b.x != null || b.y != null;
   if (atPoint && !(Number.isFinite(b.x) && Number.isFinite(b.y))) return { problem: 'x and y go together, as numbers' };
@@ -284,11 +298,58 @@ export function readNewComment(b) {
   for (const k of ['card_id', 'group_id']) {
     if (b[k] != null && (typeof b[k] !== 'string' || !b[k])) return { problem: `${k} must be an id` };
   }
-  const anchor = b.card_id != null ? { kind: 'card', id: b.card_id }
+  const inDoc = b.quote != null ? { kind: 'doc', id: b.card_id, quote: b.quote, pageId: b.page_id ?? null } : null;
+  const anchor = inDoc || (b.card_id != null ? { kind: 'card', id: b.card_id }
     : b.group_id != null ? { kind: 'group', id: b.group_id }
       : atPoint ? { kind: 'point', x: Math.round(b.x), y: Math.round(b.y) }
-        : { kind: 'board' };
+        : { kind: 'board' });
   return { body, anchor };
+}
+
+// What PATCH /boards/:id/comments takes: the threads, and whether to resolve
+// them or reopen them.
+export function readResolveMany(b) {
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return { problem: 'send {"comment_ids": [...], "resolved": true}' };
+  const extra = Object.keys(b).find((k) => k !== 'comment_ids' && k !== 'resolved');
+  if (extra) return { problem: `${extra} isn't taken here: send comment_ids and resolved` };
+  if (typeof b.resolved !== 'boolean') return { problem: 'resolved must be true (resolve them) or false (reopen them)' };
+  if (!Array.isArray(b.comment_ids) || !b.comment_ids.length) return { problem: 'comment_ids must list thread ids' };
+  if (b.comment_ids.length > COMMENTS.maxResolve) return { problem: `at most ${COMMENTS.maxResolve} threads a call` };
+  if (b.comment_ids.some((x) => typeof x !== 'string' || !x)) return { problem: 'comment_ids must be comment ids' };
+  return { ids: [...new Set(b.comment_ids)], resolved: b.resolved };
+}
+
+// ── Threads inside docs and notes ───────────────────────────────────────────
+
+// The thread inside a doc or a note that `id` names, among a board's cards
+// (the cards Y.Map, live): the thread itself, or one of its replies
+// (`replyId` then). Null when no card holds it.
+export function findCardThread(cardsMap, id) {
+  if (typeof id !== 'string' || !CARD_COMMENT_ID.test(id)) return null;
+  for (const [cardId, ym] of cardsMap.entries()) {
+    if (!ym || typeof ym.get !== 'function') continue;
+    const kind = ym.get('kind') || 'note';
+    if (kind !== 'doc' && kind !== 'note') continue;
+    const comments = ym.get('docComments');
+    if (!comments || typeof comments.forEach !== 'function') continue;
+    for (const thread of readComments(null, { comments })) {
+      const at = { cardId: String(cardId), kind, ym, comments, thread };
+      if (thread.id === id) return at;
+      if (thread.replies.some((r) => r.id === id)) return { ...at, replyId: id };
+    }
+  }
+  return null;
+}
+
+// Who a comment written in a doc or a note is filed as, as the app files its
+// own person (App.jsx's currentUser): the name they set, else one made from
+// their email (as the API names everyone; the app's own fallback is the
+// email's first half), and their colour, else the one presence gives them.
+export function docAuthor({ profile = null, email = null, userId }) {
+  return {
+    name: profile?.display_name || emailToName(email) || 'Member',
+    color: profile?.color || pickPresenceColor(userId),
+  };
 }
 
 // Where a reply goes: where its thread is, as the app's reply does

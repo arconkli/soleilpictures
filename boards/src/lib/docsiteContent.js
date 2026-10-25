@@ -37303,7 +37303,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", an assistant can read the feedback on a board, act on it, reply and resolve what it dealt with."
+     "v": ", an assistant can read the feedback on a board, act on it, reply, resolve what it dealt with, and comment on the words of a document."
     }
    ]
   },
@@ -47271,7 +47271,21 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Comment on a card, a group, a spot or the board, or reply in a thread"
+       "v": "Comment on a card, a group, a spot, the board or words in a doc, or reply in a thread"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "PATCH /boards/:id/comments"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Resolve or reopen several threads at once"
       }
      ]
     ],
@@ -47299,7 +47313,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Delete your own comment — restorable"
+       "v": "Delete your own comment — restorable on the canvas"
       }
      ]
     ],
@@ -57401,7 +57415,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are read and written here: the bubbles on its canvas, and, to read, the threads inside its docs and notes. Everything runs as you, so the API lets you do with a comment exactly what the app does."
+     "v": " are read and written here: the bubbles on its canvas, and the threads inside its docs and notes. Everything runs as you, so the API lets you do with a comment exactly what the app does."
     }
    ]
   },
@@ -57429,7 +57443,40 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"board_id\": \"9f1c…\", \"url\": \"…\", \"status\": \"open\",\n  \"counts\": { \"open\": 2, \"resolved\": 5 },\n  \"threads\": [\n    { \"id\": \"cm_k3v8x0q2\", \"on\": \"doc\", \"card_id\": \"d-4\", \"card_kind\": \"doc\", \"card_title\": \"Treatment\",\n      \"page_id\": \"p_7hd2w9zr8b0e\", \"page_title\": \"Opening\", \"quote\": \"at night\",\n      \"body\": \"Too slow?\", \"author_id\": \"…\", \"author_name\": \"Sam Park\", \"by_you\": false,\n      \"created_at\": \"2026-10-24T18:02:11.000Z\", \"resolved\": false, \"replies\": [], \"url\": \"…\" },\n    { \"id\": \"6a0e…\", \"on\": \"card\", \"card_id\": \"c-3\", \"card_kind\": \"image\", \"card_title\": \"Hero still\",\n      \"body\": \"Too dark\", \"author_id\": \"…\", \"author_name\": \"Ana Ruiz\", \"by_you\": true,\n      \"created_at\": \"2026-10-20T10:00:00.000Z\", \"resolved\": false,\n      \"replies\": [\n        { \"id\": \"41bd…\", \"body\": \"Agreed\", \"author_id\": \"…\", \"author_name\": \"Sam Park\", \"by_you\": false,\n          \"created_at\": \"2026-10-21T10:00:00.000Z\" }\n      ],\n      \"url\": \"…\" }\n  ],\n  \"has_more\": false, \"next_cursor\": null\n}"
+   "code": "{\n  \"board_id\": \"9f1c…\", \"status\": \"open\", \"counts\": { \"open\": 2, \"resolved\": 5 },\n  \"threads\": [\n    { \"id\": \"cm_k3v8x0q2\", \"on\": \"doc\", \"card_id\": \"d-4\", \"card_title\": \"Treatment\",\n      \"page_title\": \"Opening\", \"quote\": \"at night\",\n      \"body\": \"Too slow?\", \"author_name\": \"Sam Park\", \"by_you\": false, \"resolved\": false, \"replies\": [] },\n    { \"id\": \"6a0e…\", \"on\": \"card\", \"card_id\": \"c-3\", \"card_title\": \"Hero still\",\n      \"body\": \"Too dark\", \"author_name\": \"Ana Ruiz\", \"by_you\": true, \"resolved\": false,\n      \"replies\": [{ \"id\": \"41bd…\", \"body\": \"Agreed\", \"author_name\": \"Sam Park\", \"by_you\": false }] }\n  ],\n  \"has_more\": false, \"next_cursor\": null\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every thread and reply also carries "
+    },
+    {
+     "t": "code",
+     "v": "author_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "created_at"
+    },
+    {
+     "t": "text",
+     "v": ", and every thread a "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " that opens it in the app."
+    }
+   ]
   },
   {
    "type": "table",
@@ -57910,6 +57957,50 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "quote"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "With a doc's "
+      },
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ": on those words in the doc"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "page_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "With "
+      },
+      {
+       "t": "code",
+       "v": "quote"
+      },
+      {
+       "t": "text",
+       "v": ": the page the words are on"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "reply_to"
       }
      ],
@@ -57968,7 +58059,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A reply takes no place of its own: it goes into the thread, under its first comment, wherever the thread is, so it stays with the card when the card moves. "
+     "v": "A reply takes no place of its own: it goes into its thread, wherever the thread is, so it stays with the card when the card moves. "
     },
     {
      "t": "code",
@@ -57981,16 +58072,11 @@ export const DOCS_CONTENT = {
    ]
   },
   {
-   "type": "code",
-   "lang": "json",
-   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"comment\": { \"id\": \"6a0e…\", \"on\": \"card\", \"card_id\": \"c-3\", \"card_kind\": \"image\", \"card_title\": \"Hero still\",\n    \"body\": \"Warmer grade?\", \"author_id\": \"…\", \"author_name\": \"Ana Ruiz\", \"by_you\": true,\n    \"created_at\": \"…\", \"resolved\": false, \"replies\": [], \"url\": \"…\" },\n  \"url\": \"https://clusters.soleilpictures.com/?to=c:9f1c…:c-3\"\n}"
-  },
-  {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "That is a "
+     "v": "It answers "
     },
     {
      "t": "code",
@@ -57998,7 +58084,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". A reply comes back as a thread's replies do, with "
+     "v": " with the comment as the list has it, or a reply as a thread's replies are, with "
     },
     {
      "t": "code",
@@ -58007,6 +58093,74 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " naming its thread."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "On words in a doc",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On words in a doc"
+    }
+   ],
+   "id": "on-words-in-a-doc"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a doc's "
+    },
+    {
+     "t": "code",
+     "v": "card_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "quote"
+    },
+    {
+     "t": "text",
+     "v": ", the comment starts a thread on those words, highlighted as a selection is when you comment in the app. Quote them as "
+    },
+    {
+     "t": "link",
+     "v": "reading the doc",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "reading the doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives them (spacing, curly quotes and Markdown marks don't matter), up to 2000 characters. Words that aren't there, or are there more than once, answer "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": " saying so: quote more of the words around them, or name the page with "
+    },
+    {
+     "t": "code",
+     "v": "page_id"
+    },
+    {
+     "t": "text",
+     "v": ". A note's words take a comment in the app."
     }
    ]
   },
@@ -58069,6 +58223,72 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "PATCH /boards/:id/comments",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/comments"
+    }
+   ],
+   "id": "patch-boards-id-comments"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"comment_ids\": [\"cm_k3v8x0q2\", \"6a0e…\"], \"resolved\": true }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 50 threads of either kind at once, each checked on its own. The answer lists them as "
+    },
+    {
+     "t": "code",
+     "v": "changed"
+    },
+    {
+     "t": "text",
+     "v": " (one already so counts), "
+    },
+    {
+     "t": "code",
+     "v": "not_found"
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "code",
+     "v": "refused"
+    },
+    {
+     "t": "text",
+     "v": ", each refusal with a "
+    },
+    {
+     "t": "code",
+     "v": "code"
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "code",
+     "v": "reason"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "DELETE /boards/:id/comments/:commentId",
    "inline": [
     {
@@ -58083,7 +58303,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Deletes a comment you wrote. Its replies go with it, and come back with it. Like every delete, it needs a token with the "
+     "v": "Deletes a comment you wrote. On the canvas its replies go with it, and come back with it. Like every delete, it needs a token with the "
     },
     {
      "t": "code",
@@ -58117,6 +58337,23 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A thread of yours inside a doc can be deleted until someone else replies in it ("
+    },
+    {
+     "t": "code",
+     "v": "409"
+    },
+    {
+     "t": "text",
+     "v": " after that: resolve it instead). Its highlight goes with it, for good."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Who can do what",
@@ -58140,7 +58377,13 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Who"
+      "v": "On the canvas"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Inside docs and notes"
      }
     ]
    ],
@@ -58155,7 +58398,33 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Anyone who can open the board, viewers included"
+       "v": "Anyone who can open the board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An editor"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Start a thread on words"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An editor, in a doc"
       }
      ]
     ],
@@ -58169,7 +58438,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The thread's author, or anyone who can edit the board"
+       "v": "The thread's author, or an editor"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An editor"
       }
      ]
     ],
@@ -58185,6 +58460,12 @@ export const DOCS_CONTENT = {
        "t": "text",
        "v": "The comment's author"
       }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The thread's author"
+      }
      ]
     ],
     [
@@ -58197,7 +58478,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Its author, or anyone who can edit the board"
+       "v": "Its author, or an editor"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
       }
      ]
     ]
@@ -58208,7 +58495,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Anything else answers "
+     "v": "An editor is anyone who can edit the board. Anything else answers "
     },
     {
      "t": "code",
@@ -58245,7 +58532,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A thread on a run of text inside a doc or a note lives in the doc itself, beside its words. The list reads them, with the text they are on; their ids start "
+     "v": "Their ids start "
     },
     {
      "t": "code",
@@ -58253,15 +58540,39 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". They are answered and resolved in the app, so writing one here answers "
+     "v": ", and their replies' "
     },
     {
      "t": "code",
-     "v": "400"
+     "v": "cr_"
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". They live in the doc itself and are written through the board's live room, so everyone with it open sees them at once. When the room can't be reached nothing is written, and the answer is "
+    },
+    {
+     "t": "code",
+     "v": "503"
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "room_unavailable"
+    },
+    {
+     "t": "text",
+     "v": ": try again. As in the app, a resolved thread takes no reply until it is reopened ("
+    },
+    {
+     "t": "code",
+     "v": "409"
+    },
+    {
+     "t": "text",
+     "v": ")."
     }
    ]
   }
@@ -64913,7 +65224,31 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — a comment in the person's name, placed beside what it is about, or a reply in a thread"
+       "v": "; "
+      },
+      {
+       "t": "code",
+       "v": "quote?"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "page_id?"
+      },
+      {
+       "t": "text",
+       "v": " with a doc's "
+      },
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": " — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply"
       }
      ]
     ],
@@ -64955,7 +65290,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": "; lists any refused"
+       "v": "; lists any refused, with why"
       }
      ]
     ],
@@ -66779,7 +67114,22 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Idempotency key in flight, a refused reparent, or a doc page from an older layout"
+       "v": "Idempotency key in flight, a refused reparent, a doc page from an older layout, or a "
+      },
+      {
+       "t": "link",
+       "v": "comment thread",
+       "href": "/docs/api/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment thread"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "'s state"
       }
      ],
      [

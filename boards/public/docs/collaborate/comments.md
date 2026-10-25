@@ -65,7 +65,8 @@ read them, but adding, replying to, resolving or deleting one needs edit access.
 The [Comments API](/docs/api/comments) lists a board's threads, the ones inside
 its documents included, and adds, resolves and deletes comments under the same
 rules. Connected over [MCP](/docs/mcp), an assistant can read the feedback on a
-board, act on it, reply and resolve what it dealt with.
+board, act on it, reply, resolve what it dealt with, and comment on the words of
+a document.
 
 ## Comments versus votes
 

@@ -39,7 +39,7 @@ be reworded; the code is the contract.
 | `403` | `forbidden` / `insufficient_scope` | Not permitted, or the token lacks the scope | No |
 | `404` | `not_found` | Not found, **or** not visible to you | No |
 | `405` | `method_not_allowed` | Wrong method for that path | No |
-| `409` | `conflict` | Idempotency key in flight, a refused reparent, or a doc page from an older layout | Sometimes |
+| `409` | `conflict` | Idempotency key in flight, a refused reparent, a doc page from an older layout, or a [comment thread](/docs/api/comments)'s state | Sometimes |
 | `409` | `page_changed` | A [doc page](/docs/api/docs) changed after you read it; read it again | No |
 | `409` | `identifier_conflict` | An [identifier](/docs/api/metadata) already belongs to something else | No |
 | `413` | `payload_too_large` | An [image](/docs/api/images) over {{fact:maxUploadMb}}, or more Markdown than a [doc write](/docs/api/docs) takes | No |

@@ -49,9 +49,10 @@ permissions to drift out of step with app permissions.
 | `POST /boards/:id/docs` | Write a new doc from Markdown |
 | `PATCH /boards/:id/cards/:cardId/doc/pages/:pageId` | Rewrite or edit one page, safely |
 | `GET /boards/:id/comments` | A board's [comment](/docs/api/comments) threads, those inside its docs included |
-| `POST /boards/:id/comments` | Comment on a card, a group, a spot or the board, or reply in a thread |
+| `POST /boards/:id/comments` | Comment on a card, a group, a spot, the board or words in a doc, or reply in a thread |
+| `PATCH /boards/:id/comments` | Resolve or reopen several threads at once |
 | `PATCH /boards/:id/comments/:commentId` | Resolve or reopen a thread |
-| `DELETE /boards/:id/comments/:commentId` | Delete your own comment — restorable |
+| `DELETE /boards/:id/comments/:commentId` | Delete your own comment — restorable on the canvas |
 | `POST /uploads` | [Upload an image](/docs/api/images), get a key back |
 | `GET /images/:key` | Read an image back |
 | `GET /resolve` | Find an object by a [foreign identifier](/docs/api/metadata) |

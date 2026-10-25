@@ -1072,6 +1072,28 @@ export async function editCardLive(env, {
   }
 }
 
+// The same for a change that isn't one card's fields (comment threads inside
+// several docs at once): live room only, prepare(doc) on the synced board,
+// write(doc, prepared) in the one transaction pushed. Nothing awaits between
+// the two, so what prepare saw is what write changes. Cards keep their
+// updatedAt: a comment isn't an edit of the card. Returns { result }, or
+// { unchanged: true } when prepare says there is nothing to write.
+export async function editBoardLive(env, { boardId, accessToken, prepare = null, write }) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    if (!board.live) throw roomUnavailable('the cluster could not be reached; nothing was written');
+    const prepared = prepare ? prepare(board.doc) : null;
+    if (prepared?.unchanged) return { unchanged: true };
+    let result;
+    const live = await commitDoc(env, boardId, board, () => { result = write(board.doc, prepared); }, { confirm: true });
+    if (!live) throw roomUnavailable('the cluster did not take the change; nothing was written');
+    return { result };
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 export async function updateCardOnBoard(env, {
   boardId, workspaceId, userId, accessToken, cardId, patch,
 }) {

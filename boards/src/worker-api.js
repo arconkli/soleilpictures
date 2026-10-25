@@ -44,13 +44,17 @@ import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.j
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards, readBoardCardsChecked,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
-  readBoardGroups, writeBoardGroups, withBoardCards, editCardLive,
+  readBoardGroups, writeBoardGroups, withBoardCards, editCardLive, editBoardLive,
 } from './lib/scoutBoard.js';
 import { DOC_READ, readDocPages } from './lib/docMarkdown.js';
 import {
   COMMENTS, COMMENT_FIELDS, STATUSES, isBoardCommentId, boardThreads, cardThreads, namesFrom,
   authorIds, pageThreads, publicThread, readNewComment, anchorOf, commentRow, placeComment,
+  readResolveMany, findCardThread, docAuthor,
 } from './lib/apiComments.js';
+import { addCommentThread, addCommentReply, resolveComment, deleteCommentThread } from './lib/docState.js';
+import { commentReplyKey } from './lib/commentKeys.js';
+import { findQuote, markQuote, unmarkThread } from './lib/docCommentAnchor.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
@@ -628,10 +632,10 @@ export function pgLikeValue(q) {
 // can_write_board is the app's own predicate, evaluated as the user. It walks
 // the parent chain and honours workspace membership, editor shares and the
 // waitlist gate — none of which this file should be re-deriving.
-async function requireBoardWrite(env, token, boardId) {
+async function requireBoardWrite(env, token, boardId, refusal = 'you cannot write to that board') {
   const ok = await userRpc(env, token, 'can_write_board', { p_board_id: boardId })
     .catch(() => false);
-  if (ok !== true) throw fail(403, 'forbidden', 'you cannot write to that board');
+  if (ok !== true) throw fail(403, 'forbidden', refusal);
 }
 
 // ── Multipart uploads ────────────────────────────────────────────────────────
@@ -775,6 +779,17 @@ async function commentNames(env, token, ids) {
     userRpc(env, token, 'users_by_ids', { p_user_ids: ids }).catch(() => []),
   ]);
   return namesFrom(profiles, users);
+}
+
+// Who the caller is filed as on a comment written inside a doc or a note: the
+// name and colour the app files them under (apiComments.docAuthor).
+async function commentAuthor(env, token, userId) {
+  const [profiles, users] = await Promise.all([
+    userSelect(env, token, 'member_profiles', `user_id=eq.${userId}&select=user_id,display_name,color`)
+      .catch(() => []),
+    userRpc(env, token, 'users_by_ids', { p_user_ids: [userId] }).catch(() => []),
+  ]);
+  return docAuthor({ profile: profiles?.[0] || null, email: users?.[0]?.email || null, userId });
 }
 
 function pageParams(url) {
@@ -1227,9 +1242,10 @@ async function dispatch(url, request, env, ctx) {
         'PATCH  /boards/:id/groups/:groupId',
         'DELETE /boards/:id/groups/:groupId  — ungroups, never deletes cards',
         'GET    /boards/:id/comments?status=open|resolved|all&limit=&cursor=  — threads, on the canvas and inside docs and notes',
-        'POST   /boards/:id/comments        {"body":…,"card_id"|"group_id"|"x","y"|"reply_to":…}',
+        'POST   /boards/:id/comments        {"body":…,"card_id"|"group_id"|"x","y"|"reply_to":…}; "quote" (and "page_id") with a doc card puts it on those words',
+        'PATCH  /boards/:id/comments        {"comment_ids":[…],"resolved":true|false}',
         'PATCH  /boards/:id/comments/:commentId  {"resolved":true|false}',
-        'DELETE /boards/:id/comments/:commentId  — your own, and restorable',
+        'DELETE /boards/:id/comments/:commentId  — your own; restorable, except a thread inside a doc',
         'POST   /boards/:id/comments/:commentId/restore',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
@@ -3339,8 +3355,11 @@ async function dispatch(url, request, env, ctx) {
   // in the app: anyone who can open a board may comment on it; a thread's
   // author or an editor of the board may resolve it; only its author deletes a
   // comment (an editor resolves someone else's instead), and a deleted one can
-  // be restored. A thread inside a doc or a note is read here and answered in
-  // the app.
+  // be restored. The threads inside docs and notes are the card's own, written
+  // through the board's live room, and as in the app only an editor of the
+  // board writes in them (DocCommentsTab's canEdit): a reply, resolving, a new
+  // thread on words in a doc (lib/docCommentAnchor.js), and deleting one's own
+  // thread in a doc while no one else has replied in it.
   if (sub === 'comments') {
     const action = parts[4];
     if (parts.length > 5 || (action !== undefined && action !== 'restore')) {
@@ -3348,18 +3367,216 @@ async function dispatch(url, request, env, ctx) {
     }
     const board = await boardForUser(env, token, id);
     if (!board) throw fail(404, 'not_found', 'board not found');
-    const noSuch = (commentId) => (/^cm_/.test(String(commentId))
-      ? fail(400, 'bad_request', 'that thread is inside a doc or a note: reply to it or resolve it in the app')
-      : fail(404, 'not_found', 'no such comment on this board'));
+    const noSuch = () => fail(404, 'not_found', 'no such comment on this board');
     // One of the board's own comments; with `deleted`, one in its trash too.
     const commentOnBoard = async (commentId, { deleted = false } = {}) => {
-      if (!isBoardCommentId(commentId)) throw noSuch(commentId);
+      if (!isBoardCommentId(commentId)) throw noSuch();
       const rows = await userSelect(env, token, 'comments', `id=eq.${commentId}&board_id=eq.${id}`
         + `${deleted ? '' : '&deleted_at=is.null'}&select=${COMMENT_FIELDS},deleted_at`);
-      if (!rows?.[0]) throw noSuch(commentId);
+      if (!rows?.[0]) throw noSuch();
       return rows[0];
     };
     const threadUrl = (t) => (t.card_id != null ? cardUrl(url.origin, id, t.card_id) : boardUrl(url.origin, id));
+    const when = (ms) => new Date(Number.isFinite(ms) ? ms : Date.now()).toISOString();
+    const editorsOnly = () => requireBoardWrite(env, token, id,
+      'only an editor of this board writes in the threads inside its docs and notes, as in the app');
+    // A write in the threads inside docs and notes: checked against the board
+    // as its room has it, then written through the room, or not at all.
+    const writeInCards = (prepare, write) => throughRoom(() => editBoardLive(env, {
+      boardId: id, accessToken: token, prepare, write,
+    }));
+
+    // Resolve or reopen some of the board's own threads: one read, one write,
+    // as the user (a refused update matches no rows, so the rows coming back
+    // are what says it happened, as the app's updateComment checks).
+    const resolveOnBoard = async (ids, resolved, out) => {
+      const rows = await userSelect(env, token, 'comments', `id=in.(${ids.join(',')})&board_id=eq.${id}`
+        + '&deleted_at=is.null&select=id,reply_to,anchor_kind,anchor_id');
+      const found = new Map((rows || []).map((r) => [r.id, r]));
+      const threads = [];
+      for (const cid of ids) {
+        const r = found.get(cid);
+        if (!r) out.not_found.push(cid);
+        else if (r.reply_to) {
+          out.refused.push({ id: cid, status: 400, code: 'bad_request', reason: `that is a reply: resolve its thread, ${r.reply_to}` });
+        } else {
+          threads.push(cid);
+          out.cards.set(cid, r.anchor_kind === 'card' ? r.anchor_id : null);
+        }
+      }
+      if (!threads.length) return;
+      const done = await userPatch(env, token, 'comments', `id=in.(${threads.join(',')})&board_id=eq.${id}`, { resolved });
+      const ok = new Set((done || []).map((r) => r.id));
+      for (const cid of threads) {
+        if (ok.has(cid)) out.changed.push(cid);
+        else {
+          out.refused.push({ id: cid, status: 403, code: 'forbidden',
+            reason: 'only the thread\'s author or an editor of this board can resolve it' });
+        }
+      }
+    };
+
+    // The same for threads inside docs and notes, all in one write (a resolve
+    // filed beside each thread, naming who resolved it, as the app files one).
+    const resolveInCards = async (ids, resolved, out) => {
+      const refuse = (cid, status, code, reason) => out.refused.push({ id: cid, status, code, reason });
+      const editor = await userRpc(env, token, 'can_write_board', { p_board_id: id }).catch(() => false);
+      if (editor !== true) {
+        for (const cid of ids) {
+          refuse(cid, 403, 'forbidden', 'only an editor of this board resolves the threads inside its docs and notes, as in the app');
+        }
+        return;
+      }
+      const me = await commentAuthor(env, token, auth.userId);
+      const plan = [];
+      try {
+        await writeInCards((doc) => {
+          const cards = doc.getMap('cards');
+          for (const cid of ids) {
+            const at = findCardThread(cards, cid);
+            if (!at) out.not_found.push(cid);
+            else if (at.replyId) refuse(cid, 400, 'bad_request', `that is a reply: resolve its thread, ${at.thread.id}`);
+            else {
+              out.cards.set(cid, at.cardId);
+              if (at.thread.resolved === resolved) out.changed.push(cid);
+              else plan.push(at);
+            }
+          }
+          return plan.length ? null : { unchanged: true };
+        }, (doc) => {
+          for (const at of plan) {
+            resolveComment(doc, at.thread.id, resolved, { comments: at.comments }, { by: auth.userId, byName: me.name });
+          }
+        });
+        for (const at of plan) out.changed.push(at.thread.id);
+      } catch (e) {
+        if (e?.code !== 'room_unavailable') throw e;
+        // Nothing was written. The room was away before the board could be
+        // read (nothing sorted yet), or didn't take the change.
+        for (const cid of plan.length ? plan.map((at) => at.thread.id) : ids) refuse(cid, 503, 'room_unavailable', e.message);
+      }
+    };
+
+    // A reply in a thread inside a doc or a note, filed beside the thread as
+    // the app files one (docState.addCommentReply).
+    const replyInCard = async ({ body: words, replyTo }) => {
+      const [, me] = await Promise.all([editorsOnly(), commentAuthor(env, token, auth.userId)]);
+      let at = null;
+      const { result } = await writeInCards((doc) => {
+        at = findCardThread(doc.getMap('cards'), replyTo);
+        if (!at) throw noSuch();
+        // The app offers no reply on a resolved thread, only Reopen.
+        if (at.thread.resolved) {
+          throw fail(409, 'conflict', 'that thread is resolved: reopen it first '
+            + `(PATCH /api/v1/boards/${id}/comments/${at.thread.id} with {"resolved": false})`);
+        }
+      }, (doc) => {
+        const replyId = addCommentReply(doc, at.thread.id, {
+          body: words, author: me.name, authorId: auth.userId, authorColor: me.color, mentions: [],
+          scope: { comments: at.comments },
+        });
+        return { replyId, ts: at.comments.get(commentReplyKey(at.thread.id, replyId))?.ts };
+      });
+      const link = cardUrl(url.origin, id, at.cardId);
+      return json({
+        board_id: id,
+        comment: {
+          id: result.replyId, reply_to: at.thread.id, body: words, author_id: auth.userId,
+          author_name: me.name, by_you: true, created_at: when(result.ts), url: link,
+        },
+        url: link,
+      }, 201);
+    };
+
+    // A new thread on words in a doc: filed as the app's addCommentThread
+    // files one, and its mark put on the words (lib/docCommentAnchor.js).
+    const startInDoc = async ({ body: words, anchor }) => {
+      const [, me] = await Promise.all([editorsOnly(), commentAuthor(env, token, auth.userId)]);
+      const { result } = await writeInCards((doc) => {
+        const ym = doc.getMap('cards').get(String(anchor.id));
+        if (!ym || typeof ym.get !== 'function') throw fail(404, 'not_found', 'no such card on this board');
+        const kind = ym.get('kind') || 'note';
+        if (kind === 'note') {
+          throw fail(400, 'bad_request', 'words in a note take a comment in the app; leave out quote to comment on the note');
+        }
+        if (kind !== 'doc') throw fail(400, 'bad_request', `quote is for the words in a doc, and card ${anchor.id} isn't one`);
+        const found = findQuote(ym, anchor.quote, { pageId: anchor.pageId });
+        if (found.problem === 'page') throw fail(404, 'not_found', `this doc has no page ${anchor.pageId}`);
+        if (found.problem === 'none') {
+          throw fail(400, 'bad_request', `those words aren't in this doc${anchor.pageId ? ' on that page' : ''}: `
+            + `quote them as the doc has them (GET /api/v1/boards/${id}/cards/${anchor.id}/doc)`);
+        }
+        if (found.problem === 'code') {
+          throw fail(400, 'bad_request', 'those words are code, which takes no comment: quote the words around it');
+        }
+        if (found.problem === 'many') {
+          throw fail(400, 'bad_request', `those words are in this doc ${found.count} times `
+            + `(${found.pages.slice(0, 5).join(', ')}): quote more of the words around them`
+            + `${anchor.pageId ? '' : ', or name page_id'}`);
+        }
+        return { ym, found };
+      }, (doc, { ym, found }) => {
+        // Not initCardDocStore: it also gathers a page's old stacked sheets
+        // into one, which would move the very words being marked.
+        if (!ym.get('docComments')) ym.set('docComments', new Y.Map());
+        const comments = ym.get('docComments');
+        const threadId = addCommentThread(doc, {
+          pageId: found.pageId, body: words, author: me.name, authorId: auth.userId, authorColor: me.color,
+          mentions: [], scope: { comments },
+        });
+        markQuote(found.ranges, threadId);
+        return {
+          threadId, ts: comments.get(threadId)?.ts, title: ym.get('title') || null,
+          pageId: found.pageId, pageName: found.pageName, quote: found.quote,
+        };
+      });
+      const link = cardUrl(url.origin, id, anchor.id);
+      const comment = publicThread({
+        id: result.threadId, on: 'doc', card_id: String(anchor.id), group_id: null, x: null, y: null,
+        page_id: result.pageId, page_title: result.pageName, quote: result.quote,
+        body: words, author_id: auth.userId, author_name: me.name, created_at: when(result.ts),
+        resolved: false, hidden: false, replies: [],
+      }, {
+        names: new Map([[auth.userId, me.name]]),
+        userId: auth.userId,
+        cards: new Map([[String(anchor.id), { kind: 'doc', title: result.title }]]),
+        url: link,
+      });
+      return json({ board_id: id, comment, url: link }, 201);
+    };
+
+    // Deleting your own thread in a doc, while no one else has replied in it:
+    // the thread, everything filed under it, and its mark on the words, as the
+    // app's delete takes them. There is no restore for it.
+    const deleteInDoc = async (threadId) => {
+      await editorsOnly();
+      let cardId = null;
+      await writeInCards((doc) => {
+        const at = findCardThread(doc.getMap('cards'), threadId);
+        if (!at) throw noSuch();
+        if (at.replyId) throw fail(400, 'bad_request', `a reply inside a doc or a note stays with its thread, ${at.thread.id}`);
+        if (at.kind !== 'doc') throw fail(400, 'bad_request', 'a thread inside a note is deleted in the app; resolve it instead');
+        if (at.thread.authorId !== auth.userId) {
+          throw fail(403, 'forbidden', 'only its author deletes a thread; resolve someone else\'s instead');
+        }
+        if (at.thread.replies.some((r) => r.authorId !== auth.userId)) {
+          throw fail(409, 'conflict', 'someone else has replied in that thread: resolve it instead');
+        }
+        cardId = at.cardId;
+        return { at };
+      }, (doc, { at }) => {
+        unmarkThread(at.ym, at.thread.id);
+        deleteCommentThread(doc, at.thread.id, { comments: at.comments });
+      });
+      return json({
+        board_id: id,
+        comment_id: threadId,
+        deleted: true,
+        restore: null,
+        note: 'a thread inside a doc is gone once deleted: there is no restore for it',
+        url: cardUrl(url.origin, id, cardId),
+      });
+    };
 
     if (!subId && method === 'GET') {
       trace.route = '/boards/:id/comments';
@@ -3401,6 +3618,8 @@ async function dispatch(url, request, env, ctx) {
       trace.route = '/boards/:id/comments';
       const input = readNewComment(body);
       if (input.problem) throw fail(400, 'bad_request', input.problem);
+      if (input.replyTo && !isBoardCommentId(input.replyTo)) return replyInCard(input);
+      if (input.anchor?.kind === 'doc') return startInDoc(input);
       let anchor = input.anchor;
       let replyTo = null;
       let offset = null;
@@ -3451,11 +3670,36 @@ async function dispatch(url, request, env, ctx) {
       return json({ board_id: id, comment, url: link }, 201);
     }
 
+    // Several threads at once, of either kind: what changed, what isn't on the
+    // board, and what was refused and why, in the order asked.
+    if (!subId && method === 'PATCH') {
+      trace.route = '/boards/:id/comments';
+      const ask = readResolveMany(body);
+      if (ask.problem) throw fail(400, 'bad_request', ask.problem);
+      const out = { changed: [], not_found: [], refused: [], cards: new Map() };
+      const own = ask.ids.filter(isBoardCommentId);
+      const inside = ask.ids.filter((cid) => !isBoardCommentId(cid));
+      if (own.length) await resolveOnBoard(own, ask.resolved, out);
+      if (inside.length) await resolveInCards(inside, ask.resolved, out);
+      const inOrder = (list) => ask.ids.filter((cid) => list.includes(cid));
+      return json({
+        board_id: id,
+        resolved: ask.resolved,
+        changed: inOrder(out.changed),
+        not_found: inOrder(out.not_found),
+        refused: ask.ids.flatMap((cid) => out.refused.filter((r) => r.id === cid))
+          .map((r) => ({ id: r.id, code: r.code, reason: r.reason })),
+      });
+    }
+
     if (!subId) throw fail(405, 'method_not_allowed', `${method} is not supported here`);
 
     if (action === 'restore') {
       if (method !== 'POST') throw fail(405, 'method_not_allowed', 'a comment is restored with POST');
       trace.route = '/boards/:id/comments/:commentId/restore';
+      if (!isBoardCommentId(subId)) {
+        throw fail(400, 'bad_request', 'a thread inside a doc or a note has no restore: deleting one takes it away for good');
+      }
       const c = await commentOnBoard(subId, { deleted: true });
       // Its author or an editor of the board, as restore_comment decides
       // (42501 → 403). Restoring one that isn't deleted changes nothing.
@@ -3468,18 +3712,17 @@ async function dispatch(url, request, env, ctx) {
       if (typeof body?.resolved !== 'boolean' || Object.keys(body).length !== 1) {
         throw fail(400, 'bad_request', 'send {"resolved": true} to resolve a thread, or {"resolved": false} to reopen it');
       }
-      const c = await commentOnBoard(subId);
-      if (c.reply_to) throw fail(400, 'bad_request', `that is a reply: resolve its thread, ${c.reply_to}`);
-      // A refused update matches no rows, which PostgREST answers as a success:
-      // the rows coming back are what says it happened (as the app's
-      // updateComment checks).
-      const out = await userPatch(env, token, 'comments', `id=eq.${subId}&board_id=eq.${id}`, { resolved: body.resolved });
-      if (!out?.length) throw fail(403, 'forbidden', 'only the thread\'s author or an editor of this board can resolve it');
-      return json({ board_id: id, comment_id: subId, resolved: body.resolved, url: threadUrl({ card_id: c.anchor_kind === 'card' ? c.anchor_id : null }) });
+      const out = { changed: [], not_found: [], refused: [], cards: new Map() };
+      await (isBoardCommentId(subId) ? resolveOnBoard : resolveInCards)([subId], body.resolved, out);
+      if (out.not_found.length) throw noSuch();
+      const [no] = out.refused;
+      if (no) throw fail(no.status, no.code, no.reason);
+      return json({ board_id: id, comment_id: subId, resolved: body.resolved, url: threadUrl({ card_id: out.cards.get(subId) ?? null }) });
     }
 
     if (method === 'DELETE') {
       trace.route = '/boards/:id/comments/:commentId';
+      if (!isBoardCommentId(subId)) return deleteInDoc(subId);
       const c = await commentOnBoard(subId);
       if (c.author !== auth.userId) {
         throw fail(403, 'forbidden', 'only its author deletes a comment; an editor resolves someone else\'s thread instead');

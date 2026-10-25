@@ -4,7 +4,7 @@
     "DELETE /boards/:id",
     "DELETE /boards/:id/cards {\"card_ids\":[…]} — bulk",
     "DELETE /boards/:id/cards/:cardId",
-    "DELETE /boards/:id/comments/:commentId — your own, and restorable",
+    "DELETE /boards/:id/comments/:commentId — your own; restorable, except a thread inside a doc",
     "DELETE /boards/:id/groups/:groupId — ungroups, never deletes cards",
     "DELETE /boards/:id/share-link — revokes the view links you may revoke",
     "DELETE /service-accounts/:id",
@@ -36,6 +36,7 @@
     "PATCH /boards/:id/cards {\"cards\":[…]} — bulk",
     "PATCH /boards/:id/cards/:cardId",
     "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId {\"markdown\":…,\"page_hash\":…} | {\"edits\":[…]} | {\"title\":…}",
+    "PATCH /boards/:id/comments {\"comment_ids\":[…],\"resolved\":true|false}",
     "PATCH /boards/:id/comments/:commentId {\"resolved\":true|false}",
     "PATCH /boards/:id/groups/:groupId",
     "PATCH /webhooks/:id",
@@ -45,7 +46,7 @@
     "POST /boards/:id/cards",
     "POST /boards/:id/cards/:cardId/doc/pages {\"pages\":[…],\"parent_page_id\":…} — pages added",
     "POST /boards/:id/cards/move",
-    "POST /boards/:id/comments {\"body\":…,\"card_id\"|\"group_id\"|\"x\",\"y\"|\"reply_to\":…}",
+    "POST /boards/:id/comments {\"body\":…,\"card_id\"|\"group_id\"|\"x\",\"y\"|\"reply_to\":…}; \"quote\" (and \"page_id\") with a doc card puts it on those words",
     "POST /boards/:id/comments/:commentId/restore",
     "POST /boards/:id/docs {\"title\":…,\"pages\":[{\"title\":…,\"markdown\":…}]} — a new doc card",
     "POST /boards/:id/groups",
@@ -72,7 +73,7 @@
     },
     {
       "name": "add_comment",
-      "schema": "77319751510b"
+      "schema": "3c001c31d8db"
     },
     {
       "name": "arrange_board",

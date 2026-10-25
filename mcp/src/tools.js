@@ -901,10 +901,12 @@ export const TOOLS = [
     title: 'Comment on a board',
     description: 'WRITES a comment on a board, in the name of the person signed in: on a card '
       + '(card_id), on a group (group_id), at a spot (x and y), or on the board as a whole (none of '
-      + 'them); it is placed beside what it is on, where it covers least. With reply_to it replies in '
-      + 'that thread instead, where the thread is. Everyone who can open the board sees it, and the '
-      + 'author of a thread replied to may be emailed, so write as the person would. A thread inside a '
-      + 'doc or a note is answered in the app. Returns the comment and a link to it.',
+      + 'them); it is placed beside what it is on, where it covers least. To comment on words inside a '
+      + 'doc, give the doc\'s card_id and quote: the words as fetch shows them, and page_id when they '
+      + 'are on more than one page; they are highlighted, as a selection is in the app. With reply_to '
+      + 'it replies in that thread instead, wherever the thread is. Inside docs and notes only an editor '
+      + 'of the board writes. Everyone who can open the board sees it, and the author of a thread '
+      + 'replied to may be emailed, so write as the person would. Returns the comment and a link to it.',
     annotations: WRITES,
     inputSchema: schema({
       board_id: uuid('The board'),
@@ -915,6 +917,9 @@ export const TOOLS = [
       x: num('A spot on the board, with y'),
       y: num('A spot on the board, with x'),
       reply_to: str('A thread to reply in: a comment id from list_comments'),
+      // COMMENTS.maxAnchor (lib/apiComments.js); a test keeps the two equal.
+      quote: str('Words in the doc named by card_id to comment on, as the doc has them', { minLength: 1, maxLength: 2000 }),
+      page_id: str('The doc page the quoted words are on'),
     }, ['board_id', 'body']),
     outputSchema: looseObject({
       board_id: { type: 'string' },
@@ -1071,9 +1076,10 @@ export const TOOLS = [
     title: 'Resolve comment threads',
     description: 'CHANGES whether comment threads on a board are resolved: resolved true (the default) '
       + 'puts them away, as the Resolve button does, and false reopens them. Takes thread ids from '
-      + 'list_comments. A thread\'s author or an editor of the board may resolve it; the answer lists '
-      + 'the threads changed and any refused or not found. A thread inside a doc or a note is resolved '
-      + 'in the app. Resolve only what the person asked to, or what you have just dealt with.',
+      + 'list_comments, on the canvas or inside docs and notes. On the canvas a thread\'s author or an '
+      + 'editor of the board may resolve it; inside docs and notes, an editor. The answer lists the '
+      + 'threads changed, any refused (with why) and any not found. Resolve only what the person asked '
+      + 'to, or what you have just dealt with.',
     annotations: EDITS,
     inputSchema: schema({
       board_id: uuid('The board'),
@@ -1092,28 +1098,13 @@ export const TOOLS = [
       resolved: { type: 'boolean' },
       changed: { type: 'array', items: { type: 'string' } },
       not_found: { type: 'array', items: { type: 'string' } },
-      refused: { type: 'array', items: looseObject({ id: { type: 'string' }, reason: { type: 'string' } }) },
+      refused: { type: 'array', items: looseObject({ id: { type: 'string' }, code: { type: 'string' }, reason: { type: 'string' } }) },
     }),
-    // One PATCH a thread, in order: each is its own permission check, and a
+    // One call for all of them: each thread is its own permission check, and a
     // refusal of one says why without failing the rest.
-    call: async (a, { api }) => {
-      const resolved = a.resolved !== false;
-      const out = { board_id: a.board_id, resolved, changed: [], not_found: [], refused: [] };
-      for (const id of [...new Set(a.comment_ids)]) {
-        try {
-          await api(`/boards/${a.board_id}/comments/${encodeURIComponent(id)}`, { method: 'PATCH', body: { resolved } });
-          out.changed.push(id);
-        } catch (e) {
-          // A token that can't write can't resolve any of them: that is the
-          // answer, once.
-          if (e?.code === 'insufficient_scope') throw e;
-          if (e?.status === 404) out.not_found.push(id);
-          else if (e?.status === 400 || e?.status === 403) out.refused.push({ id, reason: e.message });
-          else throw e;
-        }
-      }
-      return out;
-    },
+    call: (a, { api }) => api(`/boards/${a.board_id}/comments`, {
+      method: 'PATCH', body: { comment_ids: a.comment_ids, resolved: a.resolved !== false },
+    }),
   },
   {
     name: 'move_cards',
