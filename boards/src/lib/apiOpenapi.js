@@ -169,7 +169,7 @@ export function openapiDocument(origin) {
       securitySchemes: {
         bearerAuth: {
           type: 'http', scheme: 'bearer',
-          description: 'A personal access token from Settings → API. Looks like `sk_live_…`.',
+          description: 'A personal access token from Settings → Connections. Looks like `sk_live_…`.',
         },
       },
       schemas: { Card: card, Board: board, Error: errorSchema },

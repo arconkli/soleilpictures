@@ -222,6 +222,8 @@
     "client_auth client_secret_basic",
     "client_auth client_secret_post",
     "client_auth none",
+    "flag authorization_response_iss_parameter_supported",
+    "flag client_id_metadata_document_supported",
     "grant authorization_code",
     "grant refresh_token",
     "pkce S256",
@@ -310,6 +312,11 @@
     "oauthRefreshDays": 90,
     "oauthCodeTtlSeconds": 120,
     "oauthMaxRedirectUris": 10,
+    "oauthRefreshMaxDays": 180,
+    "oauthRefreshRetrySeconds": 30,
+    "oauthMetadataMaxKb": 5,
+    "oauthMetadataCacheMinMinutes": 5,
+    "oauthMetadataCacheMaxHours": 24,
     "maxConnectedApps": 20
   },
   "settingsTabs": [

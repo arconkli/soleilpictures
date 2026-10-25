@@ -177,7 +177,7 @@ test('every recognised failure says whether anything was shared', () => {
   // It is the actual question someone has on that screen, and the answer is
   // always no — each of these fires before a code is ever issued.
   for (const code of ['invalid_client', 'invalid_request', 'invalid_redirect_uri',
-    'invalid_target', 'access_denied', 'server_error']) {
+    'invalid_target', 'access_denied', 'server_error', 'temporarily_unavailable']) {
     assert.match(consentError(code).body, /nothing has been shared/i, `${code} must say it`);
     assert.ok(consentError(code).title.length > 0, `${code} needs a title`);
   }

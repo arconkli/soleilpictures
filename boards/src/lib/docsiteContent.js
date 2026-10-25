@@ -51529,6 +51529,229 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Client metadata documents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Client metadata documents"
+    }
+   ],
+   "id": "client-metadata-documents"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The simplest client registers nothing. Publish your metadata as JSON at an "
+    },
+    {
+     "t": "code",
+     "v": "https"
+    },
+    {
+     "t": "text",
+     "v": " URL and use "
+    },
+    {
+     "t": "strong",
+     "v": "that URL as your `client_id`",
+     "children": [
+      {
+       "t": "text",
+       "v": "that URL as your "
+      },
+      {
+       "t": "code",
+       "v": "client_id"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "link",
+     "v": "Client ID Metadata Documents",
+     "href": "https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/",
+     "children": [
+      {
+       "t": "text",
+       "v": "Client ID Metadata Documents"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). The authorization server metadata says "
+    },
+    {
+     "t": "code",
+     "v": "client_id_metadata_document_supported: true"
+    },
+    {
+     "t": "text",
+     "v": ", and this is how Claude, Claude Code, ChatGPT and VS Code connect."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"client_id\": \"https://shotplanner.example/oauth/client.json\",\n  \"client_name\": \"Shot Planner\",\n  \"redirect_uris\": [\"https://shotplanner.example/callback\"],\n  \"token_endpoint_auth_method\": \"none\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "We fetch it when the person first lands on the consent screen, and it has to pass these checks:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "code",
+      "v": "client_id"
+     },
+     {
+      "t": "text",
+      "v": " is "
+     },
+     {
+      "t": "strong",
+      "v": "exactly",
+      "children": [
+       {
+        "t": "text",
+        "v": "exactly"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " the URL it is served from. The URL is "
+     },
+     {
+      "t": "code",
+      "v": "https"
+     },
+     {
+      "t": "text",
+      "v": ", on the default port, with a path, no fragment and a public host."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It answers "
+     },
+     {
+      "t": "code",
+      "v": "200"
+     },
+     {
+      "t": "text",
+      "v": " with JSON at that URL. Redirects are not followed, and the document can be at most 5 KB."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "redirect_uris"
+     },
+     {
+      "t": "text",
+      "v": " follow the same rules as registration, below."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "token_endpoint_auth_method"
+     },
+     {
+      "t": "text",
+      "v": " is "
+     },
+     {
+      "t": "code",
+      "v": "none"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "private_key_jwt"
+     },
+     {
+      "t": "text",
+      "v": ". A published document cannot keep a secret, so the "
+     },
+     {
+      "t": "code",
+      "v": "client_secret_*"
+     },
+     {
+      "t": "text",
+      "v": " methods are refused. Either way the client is public, and PKCE is what proves it at the token endpoint."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "grant_types"
+     },
+     {
+      "t": "text",
+      "v": ", if present, includes "
+     },
+     {
+      "t": "code",
+      "v": "authorization_code"
+     },
+     {
+      "t": "text",
+      "v": ". Grants we do not issue are ignored."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A good document is trusted for its "
+    },
+    {
+     "t": "code",
+     "v": "Cache-Control"
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "max-age"
+    },
+    {
+     "t": "text",
+     "v": ", at least 5 minutes and at most 24 hours, and read again after that. A document that failed is never cached, so fix it and try again straight away. The consent screen names the host the document came from."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Registering",
    "inline": [
     {
@@ -51543,7 +51766,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Registration is "
+     "v": "If you would rather not publish a document, registration is "
     },
     {
      "t": "strong",
@@ -51557,7 +51780,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — no review, no application form, no key to request:"
+     "v": ": no review, no application form, no key to request."
     }
    ]
   },
@@ -51625,6 +51848,60 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". A URI with a fragment is refused: the response is appended to the query, and a URI that already has a fragment cannot be extended safely."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A loopback redirect URI matches on "
+    },
+    {
+     "t": "strong",
+     "v": "any port",
+     "children": [
+      {
+       "t": "text",
+       "v": "any port"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "link",
+     "v": "RFC 8252 §7.3",
+     "href": "https://datatracker.ietf.org/doc/html/rfc8252#section-7.3",
+     "children": [
+      {
+       "t": "text",
+       "v": "RFC 8252 §7.3"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). Register or publish "
+    },
+    {
+     "t": "code",
+     "v": "http://127.0.0.1/callback"
+    },
+    {
+     "t": "text",
+     "v": " and come back on whichever port the operating system gave you. Host, path and query still have to match exactly, and "
+    },
+    {
+     "t": "code",
+     "v": "https"
+    },
+    {
+     "t": "text",
+     "v": " URIs never get this exception."
     }
    ]
   },
@@ -51954,7 +52231,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Rotates on every use; valid 90 days from last use"
+       "v": "Rotates on every use. Valid 90 days from last use, at most 180 days after the person connected"
       }
      ]
     ],
@@ -52039,8 +52316,62 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": the old one is replaced in the same statement that claims it, so a replayed refresh finds nothing. Store the new one."
+     "v": ": the old one is replaced in the same statement that claims it. Store the new one."
     }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Retrying within 30 seconds.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Retrying within 30 seconds."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " If a response never reached you, sending the same refresh token again within 30 seconds gets you a fresh pair."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Presenting it any later.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Presenting it any later."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A refresh token that was already exchanged is treated as stolen. The connection is revoked along with its access token, and the person has to approve the app again."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Concurrent processes.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Concurrent processes."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Several processes sharing one connection should refresh through one place. Otherwise one of them will eventually present a spent token."
+     }
+    ]
    ]
   },
   {
@@ -52222,7 +52553,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", or a confidential client failed to authenticate"
+       "v": ", a metadata document that could not be read or failed the checks above (the "
+      },
+      {
+       "t": "code",
+       "v": "error_description"
+      },
+      {
+       "t": "text",
+       "v": " says which), or a confidential client failed to authenticate"
       }
      ]
     ],
@@ -52317,6 +52656,32 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " exist"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "temporarily_unavailable"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "503"
+      },
+      {
+       "t": "text",
+       "v": " (or "
+      },
+      {
+       "t": "code",
+       "v": "429"
+      },
+      {
+       "t": "text",
+       "v": " when one address looks up too many new clients). We, or your metadata document's host, did not answer. Retry; it is never a reason to throw a connection away"
       }
      ]
     ]
@@ -59342,7 +59707,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " metadata; the client registers itself, opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box."
+     "v": " metadata. The client identifies itself (Claude, ChatGPT and VS Code by the address of their own published metadata, others by registering), opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box."
     }
    ]
   },

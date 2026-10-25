@@ -488,6 +488,13 @@ export const FACTS = {
   oauthRefreshDays: String(api.oauthRefreshDays),
   oauthCodeTtl: `${api.oauthCodeTtlSeconds} seconds`,
   oauthMaxRedirectUris: String(api.oauthMaxRedirectUris),
+  // A refresh token's ceiling and its retry window (0701), and what a client
+  // metadata document may weigh and how long it is trusted (oauthClients.js).
+  oauthRefreshMaxDays: String(api.oauthRefreshMaxDays),
+  oauthRefreshRetry: `${api.oauthRefreshRetrySeconds} seconds`,
+  oauthMetadataMaxSize: `${api.oauthMetadataMaxKb} KB`,
+  oauthMetadataCacheMin: `${api.oauthMetadataCacheMinMinutes} minutes`,
+  oauthMetadataCacheMax: `${api.oauthMetadataCacheMaxHours} hours`,
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

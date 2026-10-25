@@ -1,6 +1,6 @@
 # API quickstart
 
-> Mint a token with write access under Settings then API, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
+> Mint a token with write access under Settings then Connections, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
 
 _Source: https://clusters.soleilpictures.com/docs/api/quickstart · Updated 2026-08-08_
 

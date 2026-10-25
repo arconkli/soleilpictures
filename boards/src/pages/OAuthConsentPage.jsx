@@ -225,7 +225,7 @@ export function OAuthConsentPage() {
 
       <div className="oauth-note t-meta">
         It will reach exactly what you can reach — no more. You can disconnect it at any time in
-        {' '}<b>Settings → API</b>, and everything it does is recorded in your audit log.
+        {' '}<b>Settings → Connections</b>, and everything it does is recorded in your audit log.
       </div>
 
       <div className="oauth-actions">

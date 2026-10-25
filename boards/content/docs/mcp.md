@@ -64,8 +64,9 @@ same thing: your own session, under ordinary row-level security.
 A URL. That is the whole setup.
 
 The first call comes back `401` with a pointer to our
-[OAuth](/docs/api/oauth) metadata; the client registers itself, opens a browser,
-and you approve the connection on one screen. No token is ever copied, and if
+[OAuth](/docs/api/oauth) metadata. The client identifies itself (Claude,
+ChatGPT and VS Code by the address of their own published metadata, others by
+registering), opens a browser, and you approve the connection on one screen. No token is ever copied, and if
 you do not have an account yet you get one on that screen — signing in is a
 single email box.
 

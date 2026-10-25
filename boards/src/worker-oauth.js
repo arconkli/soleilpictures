@@ -31,13 +31,24 @@
 
 import { userRpc } from './lib/apiAuth.js';
 import { scoutRpc } from './lib/scoutDb.js';
+import { publicHttpsUrlProblem, fetchFollowingSafely, UnsafeFetchError } from './lib/safeUrl.js';
+import { readCapped, makeRateLimiter } from './lib/webImageSave.js';
+import {
+  MAX_REDIRECT_URIS, METADATA_MAX_BYTES, METADATA_TIMEOUT_MS,
+  redirectUriProblem, isMetadataClientId, clientKind, clientHost,
+  clientMetadataFromDocument, metadataCacheSeconds, anyRedirectMatches,
+} from './lib/oauthClients.js';
+
+export { redirectUriProblem };
 
 // An access token is short-lived and refreshed; that is the OAuth 2.1 default
 // and it means a leaked token is a one-hour problem rather than a forever one.
+// A refresh token slides REFRESH_TTL_DAYS from its last use, never past 180
+// days after the person connected, and is single-use (both enforced in
+// oauth_refresh_rotate, 0701).
 const ACCESS_TTL_SECONDS = 3600;
 const REFRESH_TTL_DAYS = 90;
 const CODE_TTL_SECONDS = 120;
-const MAX_REDIRECT_URIS = 10;
 
 // The scopes a client gets if it asks for nothing. Deleting is deliberately NOT
 // in it — the product's existing rule is that an agent may be allowed to build
@@ -93,6 +104,8 @@ async function sha256Hex(input) {
 const randomHex = (bytes) => [...crypto.getRandomValues(new Uint8Array(bytes))]
   .map((b) => b.toString(16).padStart(2, '0')).join('');
 
+const clientIp = (request) => request.headers.get('cf-connecting-ip') || null;
+
 // ── The resource being protected ─────────────────────────────────────────────
 
 // The canonical URI of this MCP server, per RFC 8707 §2: no fragment, no
@@ -109,6 +122,11 @@ const mcpResource = (origin) => `${origin}/api/v1/mcp`;
 const acceptableResources = (origin) => new Set([
   origin, `${origin}/`, `${origin}/api/v1`, `${origin}/api/v1/`, mcpResource(origin),
 ]);
+
+const resourceIsOurs = (origin, resource) => {
+  const ours = acceptableResources(origin);
+  return ours.has(resource) || ours.has(resource.replace(/\/$/, '') || origin);
+};
 
 export function protectedResourceMetadata(origin, { resource } = {}) {
   return {
@@ -141,45 +159,130 @@ export function authorizationServerMetadata(origin) {
     // errors, so we must say so — a client that sees this true and then no
     // `iss` is required to REJECT the response, which is the point.
     authorization_response_iss_parameter_supported: true,
+    // A client may name itself by the https URL of its own metadata instead of
+    // registering (lib/oauthClients.js). Claude and ChatGPT use it only when
+    // this is true AND `none` is among the auth methods above.
+    client_id_metadata_document_supported: true,
     service_documentation: `${origin}/docs/mcp`,
   };
 }
 
-// ── Redirect URIs ────────────────────────────────────────────────────────────
+// ── Clients ──────────────────────────────────────────────────────────────────
 
-// What a client may be sent back to.
+// The client a request names: { client } or { error, detail, status }.
 //
-// Open redirection is the classic way an authorization code is stolen, so this
-// is an allowlist by shape, not a denylist:
+// A registered client is a row. A metadata client is a row too, once its
+// document has been read: `refresh` (the consent page's lookup, and the
+// approval itself) reads the document again when the stored copy is missing or
+// past its time, so consent is only ever given against a document checked
+// recently. The token and revocation endpoints never fetch: a code or a token
+// can only exist for a client that already has a row, and a refresh must not
+// fail because someone else's server was slow.
 //
-//   · https anywhere — the ordinary case for a hosted client.
-//   · http ONLY on loopback, for a command-line client that has no domain
-//     (RFC 8252 §7.3). `localhost` is included alongside the literals because
-//     that is what people write, though the literals are what RFC 8252 prefers.
-//   · a private scheme (cursor://, vscode://, com.example.app:/cb) — how a
-//     desktop or mobile client receives a callback.
-//
-// A fragment is refused outright: the authorization response is appended to the
-// query, and a URI that already carries a fragment cannot be extended safely.
-export function redirectUriProblem(raw) {
-  let u;
-  try { u = new URL(raw); } catch { return 'not a valid absolute URI'; }
-  if (u.hash) return 'must not contain a fragment';
+// A database that did not answer is a 503, never "unknown client":
+// invalid_client tells a client to throw its registration away, which is the
+// wrong reaction to our own outage.
+async function getClient(env, clientId, { refresh = false, ip = null } = {}) {
+  let row;
+  try {
+    const rows = await scoutRpc(env, 'oauth_client_get', { p_client_id: clientId });
+    row = Array.isArray(rows) ? rows[0] : rows;
+  } catch (e) {
+    console.error('[oauth] client lookup', e?.message);
+    return { error: 'temporarily_unavailable', detail: 'try again in a moment', status: 503 };
+  }
+  if (!row?.client_id) row = null;
 
-  const scheme = u.protocol.replace(/:$/, '').toLowerCase();
-  if (['javascript', 'data', 'file', 'blob', 'vbscript'].includes(scheme)) {
-    return `the ${scheme} scheme is not allowed`;
+  if (!isMetadataClientId(clientId) || !refresh) {
+    return row ? { client: row } : { error: 'invalid_client', detail: 'unknown client' };
   }
-  if (scheme === 'https') return null;
-  if (scheme === 'http') {
-    const host = u.hostname.toLowerCase();
-    return (host === '127.0.0.1' || host === '::1' || host === '[::1]' || host === 'localhost')
-      ? null
-      : 'http is only allowed on loopback (127.0.0.1, ::1, localhost)';
+  const expires = Date.parse(row?.metadata_expires_at || '');
+  if (row && expires > Date.now()) return { client: row };
+
+  if (!metadataFetchAllow(ip || 'unknown')) {
+    return { error: 'temporarily_unavailable', detail: 'too many client lookups from this address — try again in a minute', status: 429 };
   }
-  // A private-use scheme. Must look like a reverse-DNS or app name, not a
-  // browser-interpretable pseudo-scheme.
-  return /^[a-z][a-z0-9+.-]*$/.test(scheme) ? null : 'unrecognised URI scheme';
+  const got = await fetchClientMetadata(clientId);
+  if (got.problem) {
+    // A document that could not be REACHED is not one that has gone away: a
+    // copy checked within the last day carries a sign-in through a blip on the
+    // client's side. One that answered and was wrong is believed.
+    if (row && got.transient && expires + METADATA_GRACE_MS > Date.now()) return { client: row };
+    return {
+      error: got.transient ? 'temporarily_unavailable' : 'invalid_client',
+      detail: `the client metadata document at ${clientId} ${got.problem}`,
+      status: got.transient ? 503 : 400,
+    };
+  }
+
+  try {
+    const rows = await scoutRpc(env, 'oauth_client_upsert_cimd', {
+      p_client_id: clientId,
+      p_meta: { ...got.meta, scope: normalizeScopeString(got.meta.scope) || DEFAULT_SCOPES.join(' ') },
+      p_ttl_seconds: got.ttl,
+      p_ip: ip,
+    });
+    const saved = Array.isArray(rows) ? rows[0] : rows;
+    // Nothing back means the client is disabled; a re-read never revives it.
+    return saved?.client_id ? { client: saved } : { error: 'invalid_client', detail: 'unknown client' };
+  } catch (e) {
+    if (/too many client registrations/i.test(e?.body || e?.message || '')) {
+      return { error: 'temporarily_unavailable', detail: 'too many new clients from this address — try again later', status: 429 };
+    }
+    console.error('[oauth] client metadata save', e?.message);
+    return { error: 'temporarily_unavailable', detail: 'try again in a moment', status: 503 };
+  }
+}
+
+// A day past its time, a stored document still stands in for one that cannot
+// be fetched (never for one that answered and failed the checks).
+const METADATA_GRACE_MS = 24 * 3600 * 1000;
+
+// Each lookup fetches a URL somebody typed, so an address gets a handful a
+// minute. Per isolate: it bounds a loop, not a determined crowd, and the per
+// address registration limit in oauth_client_upsert_cimd is the durable one.
+const metadataFetchAllow = makeRateLimiter({ perMinute: 10 });
+
+// Fetch and check a metadata document: { meta, ttl } or { problem, transient }.
+// `problem` completes "the client metadata document at <url> …"; `transient`
+// marks the failures worth retrying (a timeout, a 5xx), as opposed to a
+// document that answered and was wrong, which is never cached either.
+async function fetchClientMetadata(url) {
+  const unsafe = publicHttpsUrlProblem(url);
+  if (unsafe) return { problem: `cannot be fetched: its URL ${unsafe}` };
+
+  let res;
+  try {
+    ({ res } = await fetchFollowingSafely(url, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
+    }, {
+      check: (u) => publicHttpsUrlProblem(u.href),
+      // §5: redirects are never followed. The document lives at its id.
+      maxHops: 0,
+    }));
+  } catch (e) {
+    if (e instanceof UnsafeFetchError) {
+      return { problem: e.code === 'too_many_redirects' ? 'redirected; it must be served at its own URL' : 'cannot be fetched' };
+    }
+    return { problem: e?.name === 'TimeoutError' ? 'did not answer in time' : 'could not be reached', transient: true };
+  }
+  if (res.status !== 200) {
+    try { await res.body?.cancel?.(); } catch { /* already closed */ }
+    return { problem: `answered ${res.status}`, transient: res.status >= 500 || res.status === 429 };
+  }
+
+  let doc;
+  try {
+    doc = JSON.parse(new TextDecoder().decode(await readCapped(res, METADATA_MAX_BYTES)));
+  } catch (e) {
+    if (e?.code === 'too_large') return { problem: `is larger than ${METADATA_MAX_BYTES / 1024} KB` };
+    if (e?.name === 'TimeoutError') return { problem: 'did not answer in time', transient: true };
+    return { problem: 'is not JSON' };
+  }
+  const read = clientMetadataFromDocument(doc, url);
+  if (read.problem) return { problem: read.problem };
+  return { meta: read.meta, ttl: metadataCacheSeconds(res.headers.get('cache-control')) };
 }
 
 // ── Client authentication ────────────────────────────────────────────────────
@@ -202,10 +305,9 @@ async function authenticateClient(env, params, request) {
 
   if (!clientId) return { error: 'invalid_client', detail: 'client_id is required' };
 
-  const client = await scoutRpc(env, 'oauth_client_get', { p_client_id: clientId })
-    .catch(() => null);
-  const row = Array.isArray(client) ? client[0] : client;
-  if (!row || !row.client_id) return { error: 'invalid_client', detail: 'unknown client' };
+  const found = await getClient(env, clientId);
+  if (found.error) return found;
+  const row = found.client;
 
   if (row.client_secret_hash) {
     if (!secret) return { error: 'invalid_client', detail: 'this client must present its secret' };
@@ -306,7 +408,7 @@ export async function handleOAuthRoute(url, request, env) {
           software_version: meta.software_version ? String(meta.software_version).slice(0, 60) : null,
           client_secret_hash: secret ? await sha256Hex(secret) : null,
         },
-        p_ip: request.headers.get('cf-connecting-ip') || null,
+        p_ip: clientIp(request),
       });
       row = Array.isArray(rows) ? rows[0] : rows;
     } catch (e) {
@@ -340,10 +442,11 @@ export async function handleOAuthRoute(url, request, env) {
   if (pathname === '/oauth/client' && request.method === 'GET') {
     const clientId = url.searchParams.get('client_id') || '';
     const redirectUri = url.searchParams.get('redirect_uri') || '';
-    const rows = await scoutRpc(env, 'oauth_client_get', { p_client_id: clientId }).catch(() => null);
-    const row = Array.isArray(rows) ? rows[0] : rows;
-    if (!row?.client_id) return oauthError('invalid_client', 'unknown client', 404);
-    const known = (row.redirect_uris || []).includes(redirectUri);
+    const found = await getClient(env, clientId, { refresh: true, ip: clientIp(request) });
+    if (found.error) {
+      return oauthError(found.error, found.detail, found.status || 404);
+    }
+    const row = found.client;
     return json({
       client_id: row.client_id,
       client_name: row.client_name,
@@ -351,7 +454,12 @@ export async function handleOAuthRoute(url, request, env) {
       logo_uri: row.logo_uri,
       // Never echo the registered list back — it would let anyone enumerate a
       // client's callbacks. Just say whether the one presented is among them.
-      redirect_uri_registered: known,
+      redirect_uri_registered: anyRedirectMatches(row.redirect_uris, redirectUri),
+      // Who vouches for the name above: a metadata client's comes from a host
+      // its owner serves (shown on the consent screen), a registered client's
+      // only from what it typed into /oauth/register.
+      client_kind: clientKind(row.client_id),
+      client_host: clientHost(row.client_id),
       scopes_supported: ALL_SCOPES,
     });
   }
@@ -390,9 +498,15 @@ export async function handleOAuthRoute(url, request, env) {
     }
     // RFC 8707. A token is minted for a named audience; a resource we do not
     // serve is a request to mint a credential for somebody else.
-    if (resource && !acceptableResources(origin).has(resource.replace(/\/$/, '') || origin)
-        && !acceptableResources(origin).has(resource)) {
+    if (resource && !resourceIsOurs(origin, resource)) {
       return oauthError('invalid_target', 'that resource is not served here');
+    }
+    // A metadata client is approved against a document read recently, not a
+    // copy from last week: the page fetched it moments ago, so this is usually
+    // just the row.
+    if (isMetadataClientId(clientId)) {
+      const found = await getClient(env, clientId, { refresh: true, ip: clientIp(request) });
+      if (found.error) return oauthError(found.error, found.detail, found.status || 400);
     }
 
     const code = `ac_${randomHex(32)}`;
@@ -408,6 +522,12 @@ export async function handleOAuthRoute(url, request, env) {
         p_ttl_seconds: CODE_TTL_SECONDS,
       });
     } catch (e) {
+      // userRpc's message is already the database's own sentence, never its
+      // envelope; but a database that did not answer is not a refusal.
+      if (!e?.status || e.status >= 500) {
+        console.error('[oauth] consent', e?.message);
+        return oauthError('temporarily_unavailable', 'try again in a moment', 503);
+      }
       const message = e?.message || 'could not record that approval';
       const status = /unknown client|redirect_uri/i.test(message) ? 400 : 403;
       return oauthError(/redirect_uri|unknown client/i.test(message) ? 'invalid_request' : 'access_denied',
@@ -431,11 +551,11 @@ export async function handleOAuthRoute(url, request, env) {
     try { body = await request.json(); } catch { body = null; }
     const clientId = String(body?.client_id || '');
     const redirectUri = String(body?.redirect_uri || '');
-    const rows = await scoutRpc(env, 'oauth_client_get', { p_client_id: clientId }).catch(() => null);
-    const row = Array.isArray(rows) ? rows[0] : rows;
+    const found = await getClient(env, clientId);
+    if (found.status === 503) return oauthError(found.error, found.detail, 503);
     // Same rule as everywhere else: never redirect to a URI we have not
     // verified belongs to the client.
-    if (!row?.client_id || !(row.redirect_uris || []).includes(redirectUri)) {
+    if (found.error || !anyRedirectMatches(found.client.redirect_uris, redirectUri)) {
       return oauthError('invalid_request', 'unknown client or redirect_uri');
     }
     const back = new URL(redirectUri);
@@ -454,8 +574,16 @@ export async function handleOAuthRoute(url, request, env) {
     const params = await readForm(request);
     if (!params) return oauthError('invalid_request', 'could not read the request body');
 
+    // RFC 8707 §2.2: a token requested for a resource we do not serve is
+    // refused before anything is spent. (Which of OUR resources a token may be
+    // used at is not enforced yet: clients still in use ask for the MCP path
+    // and then call the REST API with what they get.)
+    if (params.getAll('resource').some((r) => r && !resourceIsOurs(origin, r))) {
+      return oauthError('invalid_target', 'that resource is not served here');
+    }
+
     const authed = await authenticateClient(env, params, request);
-    if (authed.error) return oauthError(authed.error, authed.detail, 401);
+    if (authed.error) return oauthError(authed.error, authed.detail, authed.status || 401);
     const client = authed.client;
 
     const grantType = params.get('grant_type') || '';
@@ -535,7 +663,7 @@ export async function handleOAuthRoute(url, request, env) {
     const params = await readForm(request);
     if (!params) return oauthError('invalid_request', 'could not read the request body');
     const authed = await authenticateClient(env, params, request);
-    if (authed.error) return oauthError(authed.error, authed.detail, 401);
+    if (authed.error) return oauthError(authed.error, authed.detail, authed.status || 401);
 
     const token = params.get('token') || '';
     if (token) {

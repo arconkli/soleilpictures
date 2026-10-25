@@ -21,10 +21,13 @@ const FALLBACK = {
 };
 
 const BY_CODE = {
+  // Also a client named by its metadata document when that document could not
+  // be read or failed its checks: the person can fix neither.
   invalid_client: {
-    title: 'That link is out of date',
-    body: 'The application that sent you here is no longer registered with Clusters. '
-      + 'Try connecting again from the app you started in. Nothing has been shared.',
+    title: 'We could not confirm that app',
+    body: 'The application that sent you here is no longer registered with Clusters, or its '
+      + 'published details could not be read. Try connecting again from the app you started in. '
+      + 'Nothing has been shared.',
   },
   invalid_request: {
     title: 'That link is incomplete',
@@ -47,6 +50,11 @@ const BY_CODE = {
   server_error: {
     title: 'Something went wrong on our end',
     body: 'Not your doing, and nothing has been shared. Try again in a moment.',
+  },
+  // Our database, or the app's own published details, did not answer in time.
+  temporarily_unavailable: {
+    title: 'We could not check that app just now',
+    body: 'Try again in a moment, or start again from the app you were in. Nothing has been shared.',
   },
 };
 

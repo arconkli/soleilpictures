@@ -4718,7 +4718,7 @@ A: Yes, OpenAPI at /api/v1/openapi.json. It is served without authentication, be
 URL: https://clusters.soleilpictures.com/docs/api/quickstart
 Updated: 2026-08-08
 
-Mint a token with write access under Settings then API, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
+Mint a token with write access under Settings then Connections, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
 
 1. Get a token
 
@@ -4881,7 +4881,7 @@ A: Two requests. POST the bytes to /uploads to get an image_key, then create a c
 URL: https://clusters.soleilpictures.com/docs/api/authentication
 Updated: 2026-10-07
 
-Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
+Two ways in. For your own scripts, create a personal access token under Settings then Connections and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
 
 Which one do you want
 
@@ -5217,9 +5217,9 @@ A: Usually. DELETE is a soft delete and POST /boards/:id/restore puts it back, w
 ========================================================================
 # Connecting an app (OAuth)
 URL: https://clusters.soleilpictures.com/docs/api/oauth
-Updated: 2026-10-07
+Updated: 2026-10-24
 
-Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
+Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.
 
 There are two ways into this API.
 
@@ -5243,9 +5243,30 @@ That header is the entry point. Follow it:
 
 Both are public and cacheable. A discovery document you need a credential to read is not discovery.
 
+Client metadata documents
+
+The simplest client registers nothing. Publish your metadata as JSON at an https URL and use that URL as your client_id (Client ID Metadata Documents). The authorization server metadata says client_id_metadata_document_supported: true, and this is how Claude, Claude Code, ChatGPT and VS Code connect.
+
+{
+  "client_id": "https://shotplanner.example/oauth/client.json",
+  "client_name": "Shot Planner",
+  "redirect_uris": ["https://shotplanner.example/callback"],
+  "token_endpoint_auth_method": "none"
+}
+
+We fetch it when the person first lands on the consent screen, and it has to pass these checks:
+
+client_id is exactly the URL it is served from. The URL is https, on the default port, with a path, no fragment and a public host.
+It answers 200 with JSON at that URL. Redirects are not followed, and the document can be at most 5 KB.
+redirect_uris follow the same rules as registration, below.
+token_endpoint_auth_method is none or private_key_jwt. A published document cannot keep a secret, so the client_secret_* methods are refused. Either way the client is public, and PKCE is what proves it at the token endpoint.
+grant_types, if present, includes authorization_code. Grants we do not issue are ignored.
+
+A good document is trusted for its Cache-Control max-age, at least 5 minutes and at most 24 hours, and read again after that. A document that failed is never cached, so fix it and try again straight away. The consent screen names the host the document came from.
+
 Registering
 
-Registration is open and dynamic — no review, no application form, no key to request:
+If you would rather not publish a document, registration is open and dynamic: no review, no application form, no key to request.
 
 curl -X POST https://clusters.soleilpictures.com/oauth/register \
   -H 'content-type: application/json' \
@@ -5259,6 +5280,8 @@ curl -X POST https://clusters.soleilpictures.com/oauth/register \
   "client_name": "Shot Planner", "redirect_uris": ["https://shotplanner.example/callback"] }
 
 At most 10 redirect URIs. They must be https, http on loopback (127.0.0.1, ::1, localhost — for a command-line client with no domain), or a private scheme like shotplanner://. A URI with a fragment is refused: the response is appended to the query, and a URI that already has a fragment cannot be extended safely.
+
+A loopback redirect URI matches on any port (RFC 8252 §7.3). Register or publish http://127.0.0.1/callback and come back on whichever port the operating system gave you. Host, path and query still have to match exactly, and https URIs never get this exception.
 
 Leave token_endpoint_auth_method as none unless your client can genuinely keep a secret. A desktop app, a CLI and a browser extension cannot — PKCE is what proves identity there, and a "secret" shipped inside a download is not one.
 
@@ -5316,13 +5339,17 @@ Tokens
 
  | 
 Access token | 60 minutes, sent as Authorization: Bearer …
-Refresh token | Rotates on every use; valid 90 days from last use
+Refresh token | Rotates on every use. Valid 90 days from last use, at most 180 days after the person connected
 Scopes | delete · read · write — the same three scopes a token has
 
 curl -X POST https://clusters.soleilpictures.com/oauth/token \
   -d grant_type=refresh_token -d refresh_token=rt_… -d client_id=soleil_a1b2…
 
-Refresh tokens are single-use: the old one is replaced in the same statement that claims it, so a replayed refresh finds nothing. Store the new one.
+Refresh tokens are single-use: the old one is replaced in the same statement that claims it. Store the new one.
+
+Retrying within 30 seconds. If a response never reached you, sending the same refresh token again within 30 seconds gets you a fresh pair.
+Presenting it any later. A refresh token that was already exchanged is treated as stolen. The connection is revoked along with its access token, and the person has to approve the app again.
+Concurrent processes. Several processes sharing one connection should refresh through one place. Otherwise one of them will eventually present a spent token.
 
 delete is never granted by default. Ask for it in scope only if the application genuinely needs to destroy things — the product's rule is that an assistant can be allowed to build without being allowed to destroy, and a default that quietly included delete would undo that for every connection.
 
@@ -5345,12 +5372,13 @@ Failures use the OAuth shape, so a client can branch on them:
 { "error": "invalid_grant", "error_description": "that authorization code is not valid" }
 
  | 
-invalid_client | Unknown client_id, or a confidential client failed to authenticate
+invalid_client | Unknown client_id, a metadata document that could not be read or failed the checks above (the error_description says which), or a confidential client failed to authenticate
 invalid_grant | Code or refresh token expired, already used, or not yours
 invalid_request | A required parameter is missing or malformed
 invalid_redirect_uri | Registration was refused — see the shape rules above
 invalid_target | The resource named is not served here
 unsupported_grant_type | Only authorization_code and refresh_token exist
+temporarily_unavailable | 503 (or 429 when one address looks up too many new clients). We, or your metadata document's host, did not answer. Retry; it is never a reason to throw a connection away
 
 A bad redirect_uri is never redirected to. If the URI is not one the client registered, the person sees an error page and nothing is sent anywhere — bouncing an error to an unverified address is the open redirect the check exists to prevent.
 
@@ -5363,13 +5391,13 @@ Always answers 200, even for a token that was never valid, per RFC 7009. Saying 
 ## Frequently asked questions
 
 Q: Do I need to register an application first?
-A: No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request.
+A: No. Either use the https URL of a client metadata document you publish as your client_id, which is how Claude, ChatGPT and VS Code connect, or POST your client metadata to /oauth/register and get a client_id back immediately. There is no review queue and no key to request.
 
 Q: Is PKCE required?
 A: Yes, with S256. The plain method is not supported at all, because OAuth 2.1 removes it.
 
 Q: How long do tokens last?
-A: An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use.
+A: An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use, but never more than 180 days after the person connected; then they approve the app again.
 
 Q: What happens if someone disconnects the app?
 A: The access token is revoked in the same statement, so it stops working immediately rather than at its next expiry.
@@ -6303,7 +6331,7 @@ Hosted — nothing to install, nothing to paste
 
 A URL. That is the whole setup.
 
-The first call comes back 401 with a pointer to our OAuth metadata; the client registers itself, opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box.
+The first call comes back 401 with a pointer to our OAuth metadata. The client identifies itself (Claude, ChatGPT and VS Code by the address of their own published metadata, others by registering), opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box.
 
 Afterwards the connection is listed under Settings → Connections → Connected apps, where you can see what it has done and disconnect it.
 

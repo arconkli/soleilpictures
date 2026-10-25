@@ -3087,7 +3087,7 @@ export const DOCS_PAGES = [
     "title": "API Quickstart — Soleil Clusters",
     "metaDescription": "Working Soleil Clusters API examples in curl, TypeScript and Python — authenticate, create a board, add cards, read them back and clean up.",
     "h1": "API quickstart",
-    "answer": "Mint a token with write access under Settings then API, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.",
+    "answer": "Mint a token with write access under Settings then Connections, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.",
     "section": "developers",
     "order": 1,
     "updated": "2026-08-08",
@@ -3151,7 +3151,7 @@ export const DOCS_PAGES = [
     "title": "API Authentication and Tokens — Soleil Clusters",
     "metaDescription": "Mint, scope and revoke Soleil Clusters personal access tokens. How bearer auth works, why a token acts as you, and how to keep one safe.",
     "h1": "Authentication",
-    "answer": "Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.",
+    "answer": "Two ways in. For your own scripts, create a personal access token under Settings then Connections and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.",
     "section": "developers",
     "order": 2,
     "updated": "2026-10-07",
@@ -3308,15 +3308,19 @@ export const DOCS_PAGES = [
     "title": "Connect an App with OAuth — Soleil Clusters API",
     "metaDescription": "Soleil Clusters is an OAuth 2.1 authorization server — open client registration, PKCE and RFC 9728 discovery, so an MCP client connects with no token to paste.",
     "h1": "Connecting an app (OAuth)",
-    "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.",
+    "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.",
     "section": "developers",
     "order": 3,
-    "updated": "2026-10-07",
+    "updated": "2026-10-24",
     "navLabel": "OAuth",
     "headings": [
       {
         "id": "discovery",
         "text": "Discovery"
+      },
+      {
+        "id": "client-metadata-documents",
+        "text": "Client metadata documents"
       },
       {
         "id": "registering",
@@ -3355,7 +3359,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Do I need to register an application first?",
-        "a": "No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request."
+        "a": "No. Either use the https URL of a client metadata document you publish as your client_id, which is how Claude, ChatGPT and VS Code connect, or POST your client metadata to /oauth/register and get a client_id back immediately. There is no review queue and no key to request."
       },
       {
         "q": "Is PKCE required?",
@@ -3363,7 +3367,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How long do tokens last?",
-        "a": "An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use."
+        "a": "An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use, but never more than 180 days after the person connected; then they approve the app again."
       },
       {
         "q": "What happens if someone disconnects the app?",

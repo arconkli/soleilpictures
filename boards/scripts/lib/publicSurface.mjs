@@ -301,8 +301,14 @@ export function oauthEndpoints() {
     return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : [];
   };
 
+  // The yes/no capabilities a client branches on: dropping metadata-document
+  // support would strand every Claude and ChatGPT connection mid-sign-in.
+  const flag = (key) => new RegExp(`${key}:\\s*true`).test(src);
+  const flags = ['client_id_metadata_document_supported', 'authorization_response_iss_parameter_supported'];
+
   const found = [
     ...[...paths].map((p) => `route ${p}`),
+    ...flags.filter(flag).map((k) => `flag ${k}`),
     ...capability('grant_types_supported').map((g) => `grant ${g}`),
     ...capability('code_challenge_methods_supported').map((c) => `pkce ${c}`),
     ...capability('token_endpoint_auth_methods_supported').map((a) => `client_auth ${a}`),
@@ -401,9 +407,24 @@ export function apiFacts() {
   const tokens = mintSql.match(/revoked_at is null and oauth_client_id is null\) >= (\d+)/);
   if (!tokens) throw new Error('publicSurface: token cap not found in 0224_oauth_authorization_server.sql');
 
-  const oauthSql = read('supabase/migrations/0224_oauth_authorization_server.sql');
-  const connections = oauthSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
-  if (!connections) throw new Error('publicSurface: connection cap not found in 0224');
+  // oauth_authorize_consent and oauth_refresh_rotate were last defined by 0701,
+  // so the connection cap, the refresh ceiling and the retry window are read
+  // from there: the version that runs, same rule as the rate limit above.
+  const oauthSql = read('supabase/migrations/0701_oauth_metadata_clients_refresh_reuse.sql');
+  const oauthSqlPick = (re, what) => {
+    const m = oauthSql.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in 0701_oauth_metadata_clients_refresh_reuse.sql`);
+    return Number(m[1]);
+  };
+  const connections = oauthSqlPick(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/, 'connection cap');
+
+  // A metadata document's limits live beside the code that enforces them.
+  const clientsSrc = read('boards/src/lib/oauthClients.js');
+  const clientsPick = (re, what) => {
+    const m = clientsSrc.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in oauthClients.js`);
+    return Number(m[1]);
+  };
 
   const oauthSrc = read('boards/src/worker-oauth.js');
   const oauthPick = (re, what) => {
@@ -435,8 +456,13 @@ export function apiFacts() {
     oauthAccessTtlMinutes: oauthPick(/const ACCESS_TTL_SECONDS = (\d+)/, 'ACCESS_TTL_SECONDS') / 60,
     oauthRefreshDays: oauthPick(/const REFRESH_TTL_DAYS = (\d+)/, 'REFRESH_TTL_DAYS'),
     oauthCodeTtlSeconds: oauthPick(/const CODE_TTL_SECONDS = (\d+)/, 'CODE_TTL_SECONDS'),
-    oauthMaxRedirectUris: oauthPick(/const MAX_REDIRECT_URIS = (\d+)/, 'MAX_REDIRECT_URIS'),
-    maxConnectedApps: Number(connections[1]),
+    oauthMaxRedirectUris: clientsPick(/export const MAX_REDIRECT_URIS = (\d+)/, 'MAX_REDIRECT_URIS'),
+    oauthRefreshMaxDays: oauthSqlPick(/og\.created_at \+ interval '(\d+) days'/, 'refresh ceiling'),
+    oauthRefreshRetrySeconds: oauthSqlPick(/used_at < now\(\) - interval '(\d+) seconds'/, 'refresh retry window'),
+    oauthMetadataMaxKb: clientsPick(/export const METADATA_MAX_BYTES = (\d+) \* 1024/, 'METADATA_MAX_BYTES'),
+    oauthMetadataCacheMinMinutes: clientsPick(/export const METADATA_CACHE_MIN_SECONDS = (\d+)/, 'METADATA_CACHE_MIN_SECONDS') / 60,
+    oauthMetadataCacheMaxHours: clientsPick(/export const METADATA_CACHE_MAX_SECONDS = (\d+)/, 'METADATA_CACHE_MAX_SECONDS') / 3600,
+    maxConnectedApps: connections,
   };
 }
 
