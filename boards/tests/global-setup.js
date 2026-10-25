@@ -26,7 +26,7 @@ const LAZY_MODULES = [
   'components/ListSurface.jsx', 'components/MessagesPanel.jsx', 'components/SettingsPanel.jsx',
   'components/ShareModal.jsx', 'components/CommandPalette.jsx', 'components/TagDetailView.jsx',
   'components/TrashModal.jsx', 'components/VersionHistoryModal.jsx', 'components/WorkspaceRecoveryModal.jsx',
-  'components/EntityBacklinksPanel.jsx', 'lib/importStart.js', 'components/team/TeamPage.jsx',
+  'components/EntityBacklinksPanel.jsx', 'lib/importStart.js', 'components/team/TeamPage.jsx', 'components/team/TeamPageLive.jsx',
   'auth/PricingPage.jsx', 'components/team/TeamPlanCard.jsx', 'components/team/TeamSetup.jsx', 'auth/PricingSuccess.jsx', 'auth/WelcomePage.jsx', 'auth/WaitlistConfirm.jsx',
   'components/film/FilmPlayer.jsx', 'components/cards/ScheduleCard.jsx', 'components/SketchPadOverlay.jsx',
   'components/GridTemplatePanel.jsx', 'components/SaveTemplateDialog.jsx', 'components/clusterBrowser/DetailPanel.jsx',

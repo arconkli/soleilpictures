@@ -168,14 +168,12 @@ export function editorLimitAllowed() {
 // ---------------------------------------------------------------------------
 // The Team plan
 //
-// Teams, seats and team workspaces (0522, 0530-0535). Closed everywhere until
-// the plan launches with its page and docs; the server's own switch
-// (app_config.teams_open) refuses creating a team before then. Opt-in on dev
-// with localStorage soleil.dev.teams = '1'.
-export const TEAMS_DEV_FLAG = 'soleil.dev.teams';
+// Teams, seats and team workspaces (0522, 0530-0535). Open on the preview host
+// and in dev; closed on production until the plan launches with its docs. The
+// server's own switch (app_config.teams_open) still refuses creating a team
+// before then.
 export function teamsAllowed() {
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(TEAMS_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return onPreviewHost() || !!import.meta.env.DEV;
 }
 
 // ---------------------------------------------------------------------------

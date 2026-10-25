@@ -6,6 +6,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, Profiler, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { pickPresenceColor } from './lib/presenceColor.js';
+import { useMyTeams } from './hooks/useMyTeams.js';
+import { readTeamReturn } from './lib/teamReturn.js';
 import * as perf from './lib/perf.js';
 import { isEditableTarget, isEditablePointerTarget } from './lib/isEditableTarget.js';
 import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
@@ -237,7 +239,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed, teamsAllowed } from './lib/appHost.js';
 import { FilesLookContext } from './components/clusterBrowser/filesLook.js';
 import { getSetupOutcome } from './lib/setupGate.js';
 import { workToFirstBoardKind } from './lib/workspaceSetup.js';
@@ -325,6 +327,7 @@ const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m 
 const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })));
 const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })));
 const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
+const TeamPageLive = lazyWithReload(() => import('./components/team/TeamPageLive.jsx'));
 const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
 const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
 const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
@@ -6033,7 +6036,49 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => { live = false; };
   }, [captureAllowed, teamAs]);
   const teamPage = useTeamPage();
-  useEffect(() => { if (!team) closeTeamPage(); }, [team]);
+  // A real team (the Team plan, held by teamsAllowed): the person's own, from
+  // list_my_teams. The admin's sample above wins while it is set.
+  const [teamReturn] = useState(() => readTeamReturn(window.location.pathname, window.location.search));
+  const { teams: myTeams, loaded: myTeamsLoaded, reload: reloadMyTeams } = useMyTeams(user);
+  const realTeam = useMemo(() => {
+    if (team) return null;
+    return myTeams.find((t) => t.role === 'owner') || myTeams[0] || null;
+  }, [team, myTeams]);
+  useEffect(() => { if (!team && !realTeam && myTeamsLoaded) closeTeamPage(); }, [team, realTeam, myTeamsLoaded]);
+  const closeRealTeamPage = useCallback(() => {
+    closeTeamPage();
+    try {
+      if (/^\/team\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/');
+    } catch (_) {}
+    reloadMyTeams();
+    onWorkspacesChanged?.();
+  }, [reloadMyTeams, onWorkspacesChanged]);
+  const selectWorkspaceFromMenu = (id) => {
+    // From Home (the files sidebar's has no switcher of its own), land
+    // on Home in the other workspace too.
+    if (filesSidebar && currentSurface === 'home' && id !== workspace.id) markHomeAfterSwitch(id);
+    onSwitchWorkspace(id); setCurrentSurface('board');
+  };
+  const realTeamMenu = useMemo(() => {
+    if (!realTeam) return null;
+    const rows = (workspaces || []).filter((w) => w.org_id === realTeam.org_id);
+    return {
+      name: realTeam.name,
+      ids: rows.map((w) => w.id),
+      workspaces: rows.map((w) => ({
+        id: w.id,
+        name: w.name,
+        letter: (w.name || '').trim().charAt(0).toUpperCase() || realTeam.letter,
+        color: realTeam.color || pickPresenceColor(w.id),
+        private: w.org_visibility === 'private',
+      })),
+      manage: realTeam.role === 'owner' || realTeam.role === 'admin',
+      viewOnly: false,
+      activeId: workspace.id,
+      onOpenPage: () => openTeamPage(),
+      onPickWorkspace: (w) => selectWorkspaceFromMenu(w.id),
+    };
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   // The setup's "Open the team page" reloads the app and asks for the page
   // once. Wait until the boot has landed: the landing fallback can still move
   // the stack when the boards arrive, in the same render this flag flips.
@@ -6086,6 +6131,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       window.history.replaceState({}, '', u.pathname + u.search + u.hash);
     } catch (_) {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Landing on /team: Stripe's success (?checkout=cs_…), a backed-out checkout,
+  // the Customer Portal's return (?billing=1) or the plain link. Read once at
+  // the first render (teamReturn); acted on once the teams have loaded.
+  const teamReturnDone = useRef(false);
+  const [teamOpenWanted, setTeamOpenWanted] = useState(null);
+  useEffect(() => {
+    if (!teamReturn || !myTeamsLoaded || teamReturnDone.current) return;
+    teamReturnDone.current = true;
+    import('./lib/teamReturnRun.js').then(({ runTeamReturn }) => runTeamReturn(teamReturn, {
+      hasTeam: !!realTeam,
+      toast: (message) => feedback.toast({ type: 'info', message }),
+      reloadTeams: reloadMyTeams,
+      refreshWorkspaces: () => onWorkspacesChanged?.(),
+      open: (tab) => setTeamOpenWanted(tab),
+    })).catch((e) => console.warn('team return', e));
+  }, [teamReturn, myTeamsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Open the page once the team is in the list (after a checkout it arrives
+  // with the reload).
+  useEffect(() => {
+    if (!teamOpenWanted || !realTeam) return;
+    openTeamPage(teamOpenWanted);
+    setTeamOpenWanted(null);
+  }, [teamOpenWanted, realTeam]);
 
   // The ephemeral phone reframe. Solved against a width derived from the
   // board's own median card size and how many cards should read across the
@@ -10567,7 +10636,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             viewOnly: team.status === 'view_only',
             onOpenPage: () => openTeamPage(),
             onPickWorkspace: (w) => feedback.toast({ type: 'info', message: `Preview: ${w.name} is an example workspace in the test team.` }),
-          } : null}
+          } : realTeamMenu}
         />
       )}
     </div>
@@ -11515,6 +11584,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <Suspense fallback={null}>
           <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} onClose={closeTeamPage}
                     onToast={(message) => feedback.toast({ type: 'info', message })} />
+        </Suspense>
+      )}
+
+      {!team && realTeam && teamPage && (
+        <Suspense fallback={null}>
+          <TeamPageLive key={realTeam.org_id} orgId={realTeam.org_id} initialTab={teamPage.tab} onClose={closeRealTeamPage}
+                        onToast={(message) => feedback.toast({ type: 'info', message })} />
         </Suspense>
       )}
 

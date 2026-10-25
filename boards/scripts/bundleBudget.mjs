@@ -56,7 +56,11 @@ export const CEILINGS = {
   // 2026-10-25: +1 KB for tags where people work: Tag… on a group and on the
   // cluster, Tag selection… in a document, `#name` in Cmd-K, one tag count,
   // the workspace AI switch (the retired emergent-theme code paid for part).
-  appJs: 690_000,
+  // 2026-10-25: +1 KB for the Team plan in the app (held by teamsAllowed):
+  // the person's teams and the team's workspaces in the workspace menu, and
+  // reading a landing on /team. The page, its data, and verifying a return
+  // from Stripe load later (TeamPageLive, teamsApi, teamReturnRun).
+  appJs: 691_000,
   appCss: 21_000,
 };
 
@@ -74,7 +78,7 @@ export const NEVER_IN_APP = [
 export const LAZY_IN_APP = [
   // App.jsx
   'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette', 'TagDetailView',
-  'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage',
+  'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive',
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx

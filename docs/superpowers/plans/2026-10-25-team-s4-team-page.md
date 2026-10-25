@@ -141,10 +141,10 @@ its test owners.
 
 ## Task 5: getting there
 
-- [ ] `teamsAllowed()`: the preview host or dev.
-- [ ] App, when allowed and signed in: `list_my_teams()` once; the workspace menu's team section shows
+- [x] `teamsAllowed()`: the preview host or dev.
+- [x] App, when allowed and signed in: `list_my_teams()` once; the workspace menu's team section shows
   the real team and its Team page; `/team` opens it (TierRouter renders the app for `/team`).
-- [ ] The checkout return: `?checkout=cs_…` verifies, retrying while `not_complete` (2, 4, 8 s), then
+- [x] The checkout return: `?checkout=cs_…` verifies, retrying while `not_complete` (2, 4, 8 s), then
   opens the team's page (a new team goes to setup's people step); `?checkout=canceled` says nothing was
   charged; `?billing=1` reloads billing. The URL goes back to `/` when the page closes.
 
