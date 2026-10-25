@@ -74,13 +74,16 @@ async function rpc(method, params = {}, { era = 'modern', token = TOKEN, label }
 }
 
 // A tool result's data: structuredContent when the tool declares it, else the
-// JSON in its first text block.
+// JSON in its first text block, after the summary line when it has one.
 function data(json) {
   const r = json?.result;
   if (!r) return null;
   if (r.structuredContent) return r.structuredContent;
   const text = r.content?.find((c) => c.type === 'text')?.text;
-  try { return JSON.parse(text); } catch { return text ?? null; }
+  for (const t of [text, text?.slice(text.indexOf('\n\n') + 2)]) {
+    try { return JSON.parse(t); } catch { /* the next reading */ }
+  }
+  return text ?? null;
 }
 
 const call = (name, a, opts) => rpc('tools/call', { name, arguments: a }, opts);
@@ -133,10 +136,15 @@ async function modernRun() {
     const cards = added?.cards || added?.created || [];
     check(cards.length === 3, `add_cards made 3 cards (got ${cards.length})`);
 
-    const read = data((await call('read_board', { board_id: boardId })).json);
+    const readRaw = (await call('read_board', { board_id: boardId })).json;
+    const read = data(readRaw);
     const readCards = read?.cards || [];
     check(readCards.length === 3, `read_board sees 3 cards (got ${readCards.length})`);
     check(read?.board?.id === boardId && Array.isArray(read?.groups), 'read_board carries the board and its groups');
+    const firstLine = String(readRaw?.result?.content?.[0]?.text || '').split('\n')[0];
+    check(/^Board "mcp-e2e .*" · 3 cards · https:\/\/\S+\?to=b:/.test(firstLine), `read_board's first line says what it read (${firstLine})`);
+    check(Object.keys(read || {})[0] === 'untrusted', 'and its answer opens with the notice on people\'s text');
+    check(readCards.every((c) => c.x === undefined), 'concise by default: no positions');
 
     await call('update_boards', { boards: [{ board_id: boardId, name: `mcp-e2e ${stamp} renamed` }] });
     const renamed = data((await call('read_board', { board_id: boardId, limit: 1 })).json);

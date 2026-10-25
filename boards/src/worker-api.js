@@ -1828,6 +1828,15 @@ async function dispatch(url, request, env, ctx) {
 
     const boards = paginate(boardRows, limit, offset);
     const cards = paginate(cardRows, limit, offset);
+    // The board each card is on, by name, so a hit says where it is without a
+    // second call. One select for the page; a board that can't be read leaves
+    // the name null rather than failing the search.
+    const onIds = [...new Set(cards.items.map((r) => r.board_id))];
+    const boardNames = new Map(onIds.length
+      ? (await userSelect(env, token, 'boards',
+        `id=in.${encodeURIComponent(pgInList(onIds))}&select=id,name`).catch(() => []) || [])
+        .map((b) => [b.id, b.name])
+      : []);
     return json({
       query: q,
       // Each hit with a link that opens it in the app this API is served from.
@@ -1836,6 +1845,7 @@ async function dispatch(url, request, env, ctx) {
         ...cards,
         items: cards.items.map((r) => ({
           board_id: r.board_id,
+          board_name: boardNames.get(r.board_id) ?? null,
           card_id: r.card_id,
           kind: r.kind,
           title: r.title ?? null,
@@ -2306,7 +2316,10 @@ async function dispatch(url, request, env, ctx) {
 
       const rows = await userSelect(env, token, 'boards', q);
       const page = paginate(rows, limit, offset);
-      const boards = await decorateBoards(env, token, page.items, include);
+      // Each with the link that opens it in the app, except a deleted board,
+      // which no link opens until it is restored.
+      const boards = (await decorateBoards(env, token, page.items, include))
+        .map((b) => ({ ...b, url: b.deleted ? null : boardUrl(url.origin, b.id) }));
       if (!delta) return json({ boards, ...pageMeta(page) });
       const last = page.items[page.items.length - 1];
       return json({
@@ -2695,6 +2708,7 @@ async function dispatch(url, request, env, ctx) {
         created_at: b.created_at,
         updated_at: b.updated_at,
         deleted: !!b.deleted,
+        url: b.deleted ? null : boardUrl(url.origin, b.id),
       })),
       count: (rows || []).length,
     });
@@ -2811,7 +2825,7 @@ async function dispatch(url, request, env, ctx) {
     if (!b) throw fail(404, 'not_found', 'board not found');
     await userRpc(env, token, 'restore_board', { p_board_id: id });
     const after = await boardForUser(env, token, id, { includeDeleted: true });
-    return json({ restored: true, board: publicBoard(after || b) });
+    return json({ restored: true, board: publicBoard(after || b), url: boardUrl(url.origin, id) });
   }
 
   // GET /boards/:id/export?format=json|omc

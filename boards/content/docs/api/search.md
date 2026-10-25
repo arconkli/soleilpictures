@@ -41,7 +41,8 @@ curl -s "$SOLEIL_API/search?q=diner&kind=card&limit=20" \
 
 Boards and cards come back in separate lists, each carrying enough to act on
 without a second lookup — a card result includes its `board_id`, so you can
-`PATCH` it straight away — and a `url` that opens it in the app.
+`PATCH` it straight away, and `board_name`, so you can say where it is — and a
+`url` that opens it in the app.
 
 Everything runs **under your permissions**. Boards you cannot open do not
 appear, and there is no mode that searches beyond what your account can see.

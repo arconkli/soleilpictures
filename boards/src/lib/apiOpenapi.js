@@ -47,6 +47,10 @@ const board = {
     deleted: { type: 'boolean' },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: ['string', 'null'], format: 'date-time' },
+    url: {
+      type: ['string', 'null'],
+      description: 'Opens the board in the app. On lists, search hits and new boards; null for a deleted board.',
+    },
   },
 };
 
@@ -246,7 +250,7 @@ export function openapiDocument(origin) {
             limitParam, offsetParam,
           ],
           responses: {
-            200: okJson('Matching boards and cards, each with a url that opens it in the app. Card hits carry a 300-character excerpt, not the whole card.', {
+            200: okJson('Matching boards and cards, each with a url that opens it in the app. Card hits carry a 300-character excerpt, not the whole card, and board_name, the name of the board they are on.', {
               type: 'object',
               properties: {
                 query: { type: 'string' },
@@ -276,7 +280,7 @@ export function openapiDocument(origin) {
             limitParam, offsetParam,
           ],
           responses: {
-            200: okJson('A page of boards', {
+            200: okJson('A page of boards, each with a url that opens it in the app (null for a deleted board)', {
               type: 'object',
               properties: { boards: { type: 'array', items: board }, ...pageProps },
             }),
@@ -366,7 +370,12 @@ export function openapiDocument(origin) {
         post: {
           summary: 'Restore a soft-deleted board',
           operationId: 'restoreBoard',
-          responses: { 200: okJson('The restored board', { type: 'object' }) },
+          responses: {
+            200: okJson('The restored board, and a url that opens it in the app', {
+              type: 'object',
+              properties: { restored: { type: 'boolean' }, board, url: { type: 'string' } },
+            }),
+          },
         },
       },
       '/boards/{id}/cards': {
@@ -753,7 +762,7 @@ export function openapiDocument(origin) {
         },
       },
       '/boards/tree': {
-        get: op('getBoardTree', 'A whole board hierarchy in one call', {
+        get: op('getBoardTree', 'A whole board hierarchy in one call, each board with its link', {
           parameters: [
             q('root', 'A board id to start from', { type: 'string', format: 'uuid' }),
             q('workspace', 'Or a whole workspace', { type: 'string', format: 'uuid' }),

@@ -117,7 +117,7 @@
     },
     {
       "name": "list_boards",
-      "schema": "cb573e39e24d"
+      "schema": "28b7c9739435"
     },
     {
       "name": "list_comments",
@@ -133,7 +133,7 @@
     },
     {
       "name": "read_board",
-      "schema": "81fb61531b2f"
+      "schema": "93dc485d40ac"
     },
     {
       "name": "resolve_comments",

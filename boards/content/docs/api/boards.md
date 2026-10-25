@@ -76,7 +76,9 @@ curl "$SOLEIL_API/boards?parent=root&limit=50" -H "Authorization: Bearer $SOLEIL
 { "boards": [ … ], "limit": 50, "offset": 0, "has_more": true, "next_offset": 50 }
 ```
 
-Follow `next_offset` until it comes back `null`.
+Each board carries the `url` that opens it in the app, or `null` for a deleted
+board, which no link opens until it is restored. Follow `next_offset` until it
+comes back `null`.
 
 ### Asking what changed
 
@@ -122,16 +124,16 @@ curl "$SOLEIL_API/boards/tree?root=$BOARD&depth=6" -H "Authorization: Bearer $SO
 { "root": "3b7e…", "count": 214,
   "boards": [
     { "id": "3b7e…", "parent_board_id": null, "name": "THE FALL",
-      "depth": 0, "card_count": 0, "updated_at": "…", "deleted": false },
+      "depth": 0, "card_count": 0, "updated_at": "…", "deleted": false, "url": "https://…" },
     { "id": "9f1c…", "parent_board_id": "3b7e…", "name": "Costume",
-      "depth": 1, "card_count": 42, "updated_at": "…", "deleted": false }
+      "depth": 1, "card_count": 42, "updated_at": "…", "deleted": false, "url": "https://…" }
   ] }
 ```
 
 Pass `root` (a board id) or `workspace`, and optionally `depth` (default 10,
 maximum 20). Results are flat with a `depth` and a `parent_board_id`, so you can
 rebuild the tree in whatever shape you need without the response nesting for
-you.
+you. Each board's `url` opens it in the app.
 
 A show's structure — title, department, sequence, shot — is the first thing any
 integration walks, and `?parent=` costs a request per node.
@@ -272,7 +274,9 @@ JSON body on `DELETE` so a destructive call stays a `DELETE`.
 
 ## `POST /boards/:id/restore`
 
-Puts a soft-deleted board back. Find deleted boards with `GET /boards?deleted=1`.
+Puts a soft-deleted board back, and answers with
+`{ "restored": true, "board": …, "url": … }`, where `url` opens it in the app.
+Find deleted boards with `GET /boards?deleted=1`.
 
 Restoring a board that is already live is a no-op, so a retry is safe.
 

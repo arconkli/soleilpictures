@@ -27,7 +27,8 @@
 // permission model, which is the only way the two cannot drift apart.
 
 import {
-  HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, toolManifest, ApiError, describeApiError,
+  HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, UNTRUSTED_NOTE, toolManifest, ApiError,
+  describeApiError,
 } from './mcpTools.js';
 import { checkArgs, argsProblemText } from './mcpValidate.js';
 
@@ -245,6 +246,40 @@ function internalFailure(id, e) {
   return err(id, ERR.INTERNAL, `internal error (ref ${ref})`);
 }
 
+// What a call answers: one text block, the tool's summary line and then the
+// JSON, and the same JSON as structuredContent when the tool declares it. An
+// answer quoting people's text begins with the notice saying how to read it
+// (INJ-6, UNTRUSTED_NOTE). search and fetch have no summary, so their text
+// stays the bare JSON ChatGPT parses.
+export function toolResult(tool, args, out) {
+  const marked = (o) => (tool.peoplesText && o && typeof o === 'object' && !Array.isArray(o)
+    ? { untrusted: UNTRUSTED_NOTE, ...o } : o);
+  if (tool.blocks) {
+    // Words and pictures interleaved (view_board), handed over as they are,
+    // with the manifest the outputSchema describes beside them.
+    return { content: out.content, structuredContent: marked(out.structured) };
+  }
+  const data = marked(out);
+  let line = null;
+  try {
+    // A courtesy: a summary that fails costs the line, never the answer, so a
+    // write that worked can't read as a failure.
+    line = tool.summary && data && typeof data === 'object' ? tool.summary(data, args) : null;
+  } catch (e) {
+    console.error('[mcp] summary failed', tool.name, e);
+  }
+  // Compact: indentation is a quarter of the tokens and tells a model nothing.
+  const json = JSON.stringify(data);
+  return {
+    content: [{ type: 'text', text: line ? `${clipLine(line)}\n\n${json}` : json }],
+    ...(tool.outputSchema && data && typeof data === 'object' ? { structuredContent: data } : {}),
+  };
+}
+const clipLine = (s) => {
+  const t = String(s).replace(/\s+/g, ' ').trim();
+  return t.length > 400 ? `${t.slice(0, 400)}…` : t;
+};
+
 async function callTool(tools, name, rawArgs, ctx) {
   const tool = tools.find((t) => t.name === name);
   if (!tool) return { unknown: true };
@@ -256,17 +291,7 @@ async function callTool(tools, name, rawArgs, ctx) {
   // idempotency key from the tool name and its arguments.
   const callCtx = typeof ctx?.forTool === 'function' ? ctx.forTool(tool, args) : ctx;
   try {
-    const out = await tool.call(args, callCtx);
-    if (tool.blocks) {
-      // Words and pictures interleaved (view_board), handed over as they are,
-      // with the manifest the outputSchema describes beside them.
-      return { content: out.content, structuredContent: out.structured };
-    }
-    return {
-      // Compact: indentation is a quarter of the tokens and tells a model nothing.
-      content: [{ type: 'text', text: JSON.stringify(out) }],
-      ...(tool.outputSchema && out && typeof out === 'object' ? { structuredContent: out } : {}),
-    };
+    return toolResult(tool, args, await tool.call(args, callCtx));
   } catch (e) {
     // A refusal the API or the tool meant is the model's to read. Anything
     // else is ours to find, so it is logged whole and described only vaguely.
