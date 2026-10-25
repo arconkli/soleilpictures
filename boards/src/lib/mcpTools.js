@@ -466,7 +466,7 @@ export const TOOLS = [
       on_conflict: str('Set to "identifier" to update rather than duplicate', { enum: ['identifier'] }),
       boards: {
         type: 'array',
-        description: 'The boards to create, 1 to 500',
+        description: 'The boards to create',
         minItems: 1,
         maxItems: 500,
         items: schema({
@@ -494,7 +494,7 @@ export const TOOLS = [
       on_conflict: str('Set to "identifier" to update rather than duplicate', { enum: ['identifier'] }),
       cards: {
         type: 'array',
-        description: 'The cards to add, 1 to 1000',
+        description: 'The cards to add',
         minItems: 1,
         maxItems: 1000,
         items: schema({
@@ -580,7 +580,7 @@ export const TOOLS = [
       + 'than failing the whole batch.',
     annotations: EDITS,
     inputSchema: schema({
-      board_ids: { type: 'array', description: 'The boards to move, 1 to 500', minItems: 1, maxItems: 500, items: { type: 'string' } },
+      board_ids: { type: 'array', description: 'The boards to move', minItems: 1, maxItems: 500, items: { type: 'string' } },
       parent_board_id: { type: ['string', 'null'], description: 'null moves them to the top level' },
     }, ['board_ids']),
     call: (a, { api }) => api('/boards/move', { method: 'POST', body: a }),
@@ -639,7 +639,7 @@ export const TOOLS = [
       board_id: uuid('The board'),
       cards: {
         type: 'array',
-        description: 'The cards to change, 1 to 1000: each an id and the fields to set',
+        description: 'The cards to change: each an id and the fields to set',
         minItems: 1,
         maxItems: 1000,
         items: looseObject({ id: str('The card to change') }),
@@ -722,7 +722,7 @@ export const TOOLS = [
     annotations: DESTROYS,
     inputSchema: schema({
       board_id: uuid('The board'),
-      card_ids: { type: 'array', description: 'The cards to delete, 1 to 1000', minItems: 1, maxItems: 1000, items: { type: 'string' } },
+      card_ids: { type: 'array', description: 'The cards to delete', minItems: 1, maxItems: 1000, items: { type: 'string' } },
     }, ['board_id', 'card_ids']),
     call: (a, { api }) => api(`/boards/${a.board_id}/cards`,
       { method: 'DELETE', body: { card_ids: a.card_ids } }),

@@ -60433,7 +60433,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " — up to 500, "
       },
       {
        "t": "code",
@@ -60735,7 +60735,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " — up to 500, "
       },
       {
        "t": "code",
@@ -60831,7 +60831,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — many at once"
+       "v": " — up to 1000 at once, each an "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " and the fields to set"
       }
      ]
     ],
@@ -61004,6 +61012,10 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "card_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 1000"
       }
      ]
     ],

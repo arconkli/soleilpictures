@@ -54,7 +54,7 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "3aea3657c499"
+      "schema": "fadbbf590c5d"
     },
     {
       "name": "arrange_board",
@@ -70,7 +70,7 @@
     },
     {
       "name": "create_boards",
-      "schema": "88c69d2a239f"
+      "schema": "4374a7fe7a57"
     },
     {
       "name": "create_group",
@@ -86,7 +86,7 @@
     },
     {
       "name": "delete_cards",
-      "schema": "7f23997dbdce"
+      "schema": "9dac8e19196e"
     },
     {
       "name": "export_board",
@@ -130,11 +130,11 @@
     },
     {
       "name": "move_boards",
-      "schema": "78b849270ae8"
+      "schema": "cb8020e96f3e"
     },
     {
       "name": "move_cards",
-      "schema": "6c24680d4ff2"
+      "schema": "4b891252fe12"
     },
     {
       "name": "read_board",
@@ -166,7 +166,7 @@
     },
     {
       "name": "update_cards",
-      "schema": "e0dce4228639"
+      "schema": "d22dcc8c0e42"
     },
     {
       "name": "upload_file",

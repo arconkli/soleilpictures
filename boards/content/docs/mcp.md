@@ -210,7 +210,7 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `create_board` | `name`, `workspace_id?`, `parent_board_id?`, `identifiers?`, `props?` |
-| `create_boards` | `boards[]`, `on_conflict?` — build a structure in one call; each entry takes the same fields as `create_board` |
+| `create_boards` | `boards[]` — up to {{fact:maxBoardsPerCall}}, `on_conflict?` — build a structure in one call; each entry takes the same fields as `create_board` |
 | `add_cards` | `board_id`, `cards[]` — up to {{fact:maxCardsPerCall}}, `on_conflict?` |
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
@@ -218,9 +218,9 @@ quietly failing.
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
 | `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
 | `rename_board` | `board_id`, `name?`, `view?`, `parent_board_id?` |
-| `move_boards` | `board_ids[]`, `parent_board_id` |
+| `move_boards` | `board_ids[]` — up to {{fact:maxBoardsPerCall}}, `parent_board_id` |
 | `update_card` | `board_id`, `card_id`, plus any field `add_cards` takes — `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, and any of the eight kinds |
-| `update_cards` | `board_id`, `cards[]` — many at once |
+| `update_cards` | `board_id`, `cards[]` — up to {{fact:maxCardsPerCall}} at once, each an `id` and the fields to set |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
 | `set_metadata` | `board_id`, `card_id?`, `identifiers?`, `props?` |
 | `restore_board` | `board_id` |
@@ -230,7 +230,7 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `delete_card` | `board_id`, `card_id` |
-| `delete_cards` | `board_id`, `card_ids[]` |
+| `delete_cards` | `board_id`, `card_ids[]` — up to {{fact:maxCardsPerCall}} |
 | `delete_board` | `board_id` |
 
 Card `kind` is {{fact:apiCardKinds}}, defaulting to `note`.
