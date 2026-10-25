@@ -57,6 +57,10 @@ import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from '.
 import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
+  GALLERY, boardPictures, pickRendition, encodeCursor, decodeCursor, boardUrl, cardUrl,
+  makeInlineBudget, bytesToBase64,
+} from './lib/gallery.js';
+import {
   webhookUrlProblem, runWebhooks, deliverOne, hasPendingWork, WEBHOOK_EVENTS,
   AFTER_WRITE_DRAIN,
 } from './lib/webhooks.js';
@@ -1128,6 +1132,7 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards            {"boards":[…]}  — bulk, up to 500',
         'GET    /boards/:id',
         'GET    /boards/:id/export?format=json|omc',
+        'GET    /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=',
         'POST   /boards/:id/import          {"items":[{"url":…}]}  — re-runnable',
         'POST   /boards/:id/arrange         {"layout":"justified|masonry|grid|row|column"}',
         'GET    /boards/:id/groups',
@@ -2960,6 +2965,133 @@ async function dispatch(url, request, env, ctx) {
         identifiers: cardMeta.get(String(c.id))?.identifiers ?? [],
       })),
       count: cards.length,
+    });
+  }
+
+  // GET /boards/:id/gallery — the board's pictures in the order a person reads
+  // them, at a size a model can afford to look at (lib/gallery.js). inline=1
+  // embeds them as base64 under a byte budget, so an agent sees a board in one
+  // request rather than one per picture; card_ids picks pictures to look at
+  // closely, with size=preview.
+  if (sub === 'gallery' && method === 'GET') {
+    trace.route = '/boards/:id/gallery';
+    const sizeParam = url.searchParams.get('size');
+    if (sizeParam && !['sm', 'preview'].includes(sizeParam)) {
+      throw fail(400, 'bad_request', 'size must be sm or preview');
+    }
+    const size = sizeParam || 'sm';
+    const inline = ['1', 'true'].includes(url.searchParams.get('inline') || '');
+    const rawLimit = Number(url.searchParams.get('limit'));
+    const limit = Math.max(1, Math.min(
+      Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : GALLERY.defaultLimit, GALLERY.maxLimit));
+    const offset = decodeCursor(url.searchParams.get('cursor'));
+    if (offset == null) throw fail(400, 'bad_request', 'cursor is not one this endpoint issued');
+    const wanted = [...new Set((url.searchParams.get('card_ids') || '')
+      .split(',').map((s) => s.trim()).filter(Boolean))];
+    if (wanted.length > GALLERY.maxCardIds) {
+      throw fail(400, 'bad_request', `at most ${GALLERY.maxCardIds} card_ids — got ${wanted.length}`);
+    }
+
+    const rows = await userSelect(env, token, 'boards', `id=eq.${id}&deleted_at=is.null`
+      + '&select=id,name,workspace_id,thumb_key,thumb_updated_at&limit=1');
+    const b = rows?.[0];
+    if (!b) throw fail(404, 'not_found', 'board not found');
+
+    const cards = await readBoardCards(env, id, token);
+    const pictures = boardPictures(cards);
+    let page;
+    if (wanted.length) {
+      const byId = new Map(pictures.map((p) => [String(p.card.id), p]));
+      const missing = wanted.filter((cid) => !byId.has(cid));
+      if (missing.length) {
+        throw fail(404, 'not_found', `no picture on this board for card ${missing.slice(0, 3).join(', ')}`
+          + ' — only image cards, and videos with a poster frame, have one');
+      }
+      page = wanted.map((cid) => byId.get(cid));
+    } else {
+      page = pictures.slice(offset, offset + limit);
+    }
+    const hasMore = !wanted.length && offset + page.length < pictures.length;
+
+    // The rows behind this page, read AS THE USER: whoever may read a picture
+    // may read its renditions, and one they cannot see is listed without them.
+    const keys = [...new Set(page.map((p) => p.key))];
+    const imageRows = keys.length
+      ? await userSelect(env, token, 'images',
+        `storage_path=in.${encodeURIComponent(pgInList(keys))}&deleted_at=is.null`
+        + '&select=storage_path,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,'
+        + 'width,height,size_bytes')
+      : [];
+    const rowByKey = new Map((imageRows || []).map((r) => [r.storage_path, r]));
+
+    // Bytes in reading order, the board's own picture first: each embedded
+    // while it fits, the rest listed with the reason they were not.
+    const fits = makeInlineBudget(size);
+    const embed = async (key) => {
+      if (!env.IMAGES) return { reason: 'storage_unavailable' };
+      const obj = await env.IMAGES.get(key);
+      if (!obj) return { reason: 'missing' };
+      const reason = fits(obj.size);
+      if (reason) {
+        try { await obj.body.cancel(); } catch (_) { /* nothing to release */ }
+        return { reason };
+      }
+      return {
+        data: bytesToBase64(new Uint8Array(await obj.arrayBuffer())),
+        mime: obj.httpMetadata?.contentType || 'image/webp',
+        bytes: obj.size,
+      };
+    };
+
+    let thumbnail = null;
+    if (b.thumb_key && !wanted.length && offset === 0) {
+      thumbnail = { updated_at: b.thumb_updated_at ?? null };
+      if (inline) Object.assign(thumbnail, await embed(b.thumb_key));
+    }
+
+    const items = [];
+    for (const [i, p] of page.entries()) {
+      const c = p.card;
+      const row = rowByKey.get(p.key);
+      const rendition = pickRendition(row, size);
+      const item = {
+        card_id: String(c.id),
+        kind: c.kind || 'image',
+        position: wanted.length ? null : offset + i + 1,
+        title: c.title ?? null,
+        caption: (textOf(c) || '').slice(0, 280) || null,
+        x: c.x, y: c.y, w: c.w, h: c.h,
+        image_key: p.key,
+        ...(p.from === 'poster' ? { poster: true } : {}),
+        width: row?.width ?? null,
+        height: row?.height ?? null,
+        rendition: rendition ? { variant: rendition.variant, width: rendition.width, height: rendition.height } : null,
+        url: cardUrl(url.origin, id, c.id),
+      };
+      if (inline) {
+        Object.assign(item, rendition ? await embed(rendition.key) : { reason: row ? 'no_rendition' : 'not_found' });
+      }
+      items.push(item);
+    }
+
+    // Bytes leaving, as with GET /images/:key: the question a studio's review
+    // asks is who took a copy, and when.
+    if (inline) trace.log = true;
+
+    return json({
+      board: {
+        id: b.id,
+        name: b.name,
+        workspace_id: b.workspace_id,
+        url: boardUrl(url.origin, b.id),
+        card_count: cards.length,
+        picture_count: pictures.length,
+        thumbnail,
+      },
+      size,
+      pictures: items,
+      has_more: hasMore,
+      next_cursor: hasMore ? encodeCursor(offset + page.length) : null,
     });
   }
 

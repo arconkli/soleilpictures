@@ -73,6 +73,8 @@ import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
+import { GALLERY } from '../src/lib/gallery.js';
+import { TOOLS as MCP_TOOLS } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
@@ -510,6 +512,16 @@ export const FACTS = {
   oauthTokenPerMinute: perMinute('OAUTH_TOKEN'),
   oauthLookupPerMinute: perMinute('OAUTH_LOOKUP'),
   oauthRegistrationsPerHour: String(api.oauthRegistrationsPerHour),
+  // A board's gallery: its pages and what one answer may embed (lib/gallery.js),
+  // and how many pictures view_board looks at closely (the tool's own schema).
+  galleryDefaultLimit: String(GALLERY.defaultLimit),
+  galleryMaxLimit: String(GALLERY.maxLimit),
+  galleryMaxCardIds: String(GALLERY.maxCardIds),
+  galleryInlineEach: `${GALLERY.inlineSmMaxBytes / 1024} KB`,
+  galleryInlinePreviewEach: `${GALLERY.inlinePreviewMaxBytes / MB} MB`,
+  galleryInlineTotal: `${GALLERY.inlineTotalMaxBytes / MB} MB`,
+  galleryOriginalMax: `${GALLERY.originalMaxBytes / 1024} KB`,
+  viewBoardCloseMax: String(MCP_TOOLS.find((t) => t.name === 'view_board').inputSchema.properties.card_ids.maxItems),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

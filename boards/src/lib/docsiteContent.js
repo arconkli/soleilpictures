@@ -56579,7 +56579,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for the downscaled copy the app stores when an image is uploaded — roughly 900px and about 48 kB, against ~470 kB for a typical original. It is more than enough to look at, and about ten times cheaper to move, which matters if you are reading a whole moodboard or handing images to a model."
+     "v": " for the downscaled copy the app stores when an image is uploaded, usually a small fraction of the original's bytes. It is more than enough to look at and far cheaper to move, which matters if you are reading a whole moodboard or handing images to a model."
     }
    ]
   },
@@ -56633,6 +56633,345 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " asks for this by default."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/gallery",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/gallery"
+    }
+   ],
+   "id": "get-boards-id-gallery"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A board's pictures in the order a person reads it, top to bottom and left to right: image cards, and videos with a poster frame. It is how an agent "
+    },
+    {
+     "t": "strong",
+     "v": "looks at a board",
+     "children": [
+      {
+       "t": "text",
+       "v": "looks at a board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " without fetching every picture one by one, and what the MCP server's "
+    },
+    {
+     "t": "code",
+     "v": "view_board"
+    },
+    {
+     "t": "text",
+     "v": " reads."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"https://clusters.soleilpictures.com/api/v1/boards/$BOARD/gallery?inline=1\" \\\n  -H \"Authorization: Bearer $TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board\": { \"id\": \"…\", \"name\": \"Diner — night\", \"url\": \"https://clusters.soleilpictures.com/?to=b:…\",\n             \"card_count\": 42, \"picture_count\": 25,\n             \"thumbnail\": { \"updated_at\": \"…\", \"data\": \"UklGR…\", \"mime\": \"image/webp\", \"bytes\": 15800 } },\n  \"size\": \"sm\",\n  \"pictures\": [\n    { \"card_id\": \"c-81\", \"kind\": \"image\", \"position\": 1, \"title\": \"Neon sign\", \"caption\": null,\n      \"image_key\": \"…\", \"width\": 4032, \"height\": 3024,\n      \"rendition\": { \"variant\": \"sm\", \"width\": 640, \"height\": 480 },\n      \"url\": \"https://clusters.soleilpictures.com/?to=c:…:c-81\",\n      \"data\": \"UklGR…\", \"mime\": \"image/webp\", \"bytes\": 31200 }\n  ],\n  \"has_more\": true,\n  \"next_cursor\": \"p12\"\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "limit"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Pictures per page: 12 by default, at most 24"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "cursor"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "next_cursor"
+      },
+      {
+       "t": "text",
+       "v": " from the previous page"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "inline"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "1"
+      },
+      {
+       "t": "text",
+       "v": " embeds each picture as base64 in "
+      },
+      {
+       "t": "code",
+       "v": "data"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "size"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "sm"
+      },
+      {
+       "t": "text",
+       "v": ", the smaller rendition (the default), or "
+      },
+      {
+       "t": "code",
+       "v": "preview"
+      },
+      {
+       "t": "text",
+       "v": ", the larger one"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Comma-separated, at most 24: these pictures instead of a page"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "thumbnail"
+    },
+    {
+     "t": "text",
+     "v": " is the board drawn whole, as the app last stored it, on the first page only and "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " when the board has none. A video's picture is its poster frame, marked "
+    },
+    {
+     "t": "code",
+     "v": "\"poster\": true"
+    },
+    {
+     "t": "text",
+     "v": ". With "
+    },
+    {
+     "t": "code",
+     "v": "card_ids"
+    },
+    {
+     "t": "text",
+     "v": " the pictures come in the order named, "
+    },
+    {
+     "t": "code",
+     "v": "position"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " and there is no next page. Each picture names the rendition it would show: the smaller one asked for, the other one when it is missing, and the original only when it is at most 400 KB."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With "
+    },
+    {
+     "t": "code",
+     "v": "inline=1"
+    },
+    {
+     "t": "text",
+     "v": ", pictures are embedded in reading order while they fit: at most 400 KB each (1 MB with "
+    },
+    {
+     "t": "code",
+     "v": "size=preview"
+    },
+    {
+     "t": "text",
+     "v": ") and 1.5 MB for the whole answer. One that does not fit carries a "
+    },
+    {
+     "t": "code",
+     "v": "reason"
+    },
+    {
+     "t": "text",
+     "v": " instead of "
+    },
+    {
+     "t": "code",
+     "v": "data"
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "too_large"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "budget"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "no_rendition"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "not_found"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "missing"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "storage_unavailable"
+    },
+    {
+     "t": "text",
+     "v": "). Ask for it by "
+    },
+    {
+     "t": "code",
+     "v": "card_ids"
+    },
+    {
+     "t": "text",
+     "v": ", or for fewer at a time. Embedding pictures is a read of their bytes, so it is written to the "
+    },
+    {
+     "t": "link",
+     "v": "audit log",
+     "href": "/docs/api/audit",
+     "children": [
+      {
+       "t": "text",
+       "v": "audit log"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " like "
+    },
+    {
+     "t": "code",
+     "v": "GET /images/:key"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -61204,6 +61543,48 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": ", paging"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "view_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "limit?"
+      },
+      {
+       "t": "text",
+       "v": " (default 12, up to 24), "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids?"
+      },
+      {
+       "t": "text",
+       "v": " (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card"
       }
      ]
     ],

@@ -825,6 +825,21 @@ export function openapiDocument(origin) {
           ],
         }),
       },
+      '/boards/{id}/gallery': {
+        get: op('boardGallery', 'A board\'s pictures in reading order, optionally embedded', {
+          description: 'Image cards, and videos with a poster frame, in the order a person reads '
+            + 'the board, with the rendition to show. inline=1 embeds them as base64 under a byte '
+            + 'budget; card_ids with size=preview looks at particular pictures more closely.',
+          parameters: [
+            boardIdParam,
+            q('inline', '1 to embed each picture as base64', { type: 'string', enum: ['0', '1'] }),
+            q('size', 'sm, the smaller rendition (default), or preview, the larger one', { type: 'string', enum: ['sm', 'preview'] }),
+            q('card_ids', 'Comma-separated card ids, instead of paging'),
+            q('cursor', 'From a previous next_cursor'),
+            limitParam,
+          ],
+        }),
+      },
       '/resolve': {
         get: op('resolveIdentifier', 'Find an object by a foreign identifier', {
           parameters: [

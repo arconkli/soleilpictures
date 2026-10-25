@@ -683,3 +683,187 @@ test('cards moving between one team\'s workspaces stay on one meter, whoever own
   assert.equal(asked, false);
   assert.equal(r.status, 200, JSON.stringify(r.body));
 });
+
+// ── GET /boards/:id/gallery and view_board ───────────────────────────────────
+
+// An R2 bucket in memory that remembers which keys were read, and which bodies
+// were let go unread.
+function fakeBucket(objects) {
+  const read = [];
+  const cancelled = [];
+  return {
+    read,
+    cancelled,
+    async get(key) {
+      read.push(key);
+      const bytes = objects[key];
+      if (!bytes) return null;
+      return {
+        size: bytes.length,
+        httpMetadata: { contentType: 'image/webp' },
+        body: { cancel: async () => { cancelled.push(key); } },
+        arrayBuffer: async () => bytes.slice().buffer,
+      };
+    },
+  };
+}
+
+const bytesOf = (n, fill = 7) => new Uint8Array(n).fill(fill);
+
+function galleryBoard() {
+  putBoard(B1, [
+    { id: 'n1', kind: 'note', body: 'a note', x: 0, y: 0, w: 200, h: 100 },
+    { id: 'i2', kind: 'image', src: 'r2:w1/b.webp', x: 300, y: 10, w: 200, h: 150 },
+    { id: 'i1', kind: 'image', src: 'r2:w1/a.webp', caption: 'Neon\nsign', x: 0, y: 200, w: 200, h: 150 },
+    { id: 'v1', kind: 'video', src: 'r2:w1/v.mp4', poster: 'r2:w1/p.webp', x: 300, y: 210, w: 200, h: 150 },
+    { id: 'i3', kind: 'image', src: 'r2:elsewhere/secret.webp', x: 0, y: 600, w: 200, h: 150 },
+    { id: 'i4', kind: 'image', src: 'https://example.com/linked.jpg', x: 300, y: 600, w: 200, h: 150 },
+  ], { name: 'Diner', thumb_key: 'w1/thumbs/b1.webp', thumb_updated_at: '2026-10-20T00:00:00+00:00' });
+  // The rows this user can read. elsewhere/secret.webp is on the board but not
+  // theirs, so it has no row here.
+  const rows = [
+    { storage_path: 'w1/a.webp', preview_sm_path: 'w1/a_sm.webp', preview_sm_w: 640, preview_sm_h: 480,
+      preview_path: 'w1/a_pv.webp', preview_w: 1280, preview_h: 960, width: 4000, height: 3000, size_bytes: 2_000_000 },
+    { storage_path: 'w1/b.webp', width: 300, height: 200, size_bytes: 1000 },
+    { storage_path: 'w1/p.webp', preview_path: 'w1/p_pv.webp', preview_w: 1280, preview_h: 720, width: 1920, height: 1080, size_bytes: 900_000 },
+  ];
+  on('GET', 'images', (c) => {
+    const keys = idFromQuery(c.query, 'storage_path') || [];
+    return reply(rows.filter((r) => keys.includes(r.storage_path)));
+  });
+  return fakeBucket({
+    'w1/thumbs/b1.webp': bytesOf(5, 1),
+    'w1/a_sm.webp': bytesOf(30, 2),
+    'w1/a_pv.webp': bytesOf(60, 3),
+    'w1/b.webp': bytesOf(10, 4),
+    'w1/p_pv.webp': bytesOf(20, 5),
+    'elsewhere/secret.webp': bytesOf(10, 9),
+  });
+}
+
+async function withBucket(bucket, fn) {
+  ENV.IMAGES = bucket;
+  try { return await fn(); } finally { delete ENV.IMAGES; }
+}
+
+test('the gallery lists a board\'s pictures in reading order, the board\'s own picture first, and pages them', async () => {
+  const bucket = galleryBoard();
+  await withBucket(bucket, async () => {
+    const first = await api('GET', `/boards/${B1}/gallery?inline=1&limit=3`);
+    assert.equal(first.status, 200, JSON.stringify(first.body));
+    const g = first.body;
+    assert.equal(g.board.name, 'Diner');
+    assert.equal(g.board.url, `https://clusters.test/?to=b:${B1}`);
+    assert.equal(g.board.card_count, 6);
+    assert.equal(g.board.picture_count, 4, 'a note and a linked image are not pictures');
+    assert.equal(g.board.thumbnail.data, Buffer.from(bytesOf(5, 1)).toString('base64'));
+    assert.deepEqual(g.pictures.map((p) => [p.card_id, p.position]), [['i2', 1], ['i1', 2], ['v1', 3]]);
+
+    const [i2, i1, v1] = g.pictures;
+    assert.equal(i2.rendition.variant, 'original', 'a small original stands in for missing renditions');
+    assert.equal(i2.data, Buffer.from(bytesOf(10, 4)).toString('base64'));
+    assert.deepEqual(i1.rendition, { variant: 'sm', width: 640, height: 480 });
+    assert.equal(i1.caption, 'Neon\nsign');
+    assert.equal(i1.url, `https://clusters.test/?to=c:${B1}:i1`);
+    assert.equal(i1.mime, 'image/webp');
+    assert.equal(v1.poster, true);
+    assert.equal(v1.rendition.variant, 'preview', 'the small one is missing, so the larger one');
+    assert.equal(g.has_more, true);
+    assert.equal(g.next_cursor, 'p3');
+
+    const next = await api('GET', `/boards/${B1}/gallery?inline=1&limit=3&cursor=p3`);
+    assert.equal(next.status, 200);
+    assert.equal(next.body.board.thumbnail, null, 'only the first page carries the board\'s picture');
+    assert.deepEqual(next.body.pictures.map((p) => [p.card_id, p.position, p.reason]), [['i3', 4, 'not_found']]);
+    assert.equal(next.body.pictures[0].data, undefined);
+    assert.equal(next.body.has_more, false);
+    assert.equal(next.body.next_cursor, null);
+  });
+  // Bytes are read only from a rendition of a row this user can read: never
+  // from a key a card merely names.
+  assert.ok(!bucket.read.includes('elsewhere/secret.webp'));
+  assert.ok(!bucket.read.includes('w1/a.webp'), 'a large original is never read');
+});
+
+test('without inline the gallery is the manifest alone, and reads no bytes', async () => {
+  const bucket = galleryBoard();
+  await withBucket(bucket, async () => {
+    const res = await api('GET', `/boards/${B1}/gallery`);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.pictures.length, 4);
+    assert.ok(res.body.pictures.every((p) => p.data === undefined && p.reason === undefined));
+    assert.deepEqual(res.body.board.thumbnail, { updated_at: '2026-10-20T00:00:00+00:00' });
+  });
+  assert.deepEqual(bucket.read, []);
+});
+
+test('in the gallery, card_ids looks closely at the pictures named, at the larger size', async () => {
+  const bucket = galleryBoard();
+  await withBucket(bucket, async () => {
+    const res = await api('GET', `/boards/${B1}/gallery?inline=1&size=preview&card_ids=i1,v1`);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.size, 'preview');
+    assert.equal(res.body.board.thumbnail, null);
+    assert.deepEqual(res.body.pictures.map((p) => [p.card_id, p.position, p.rendition.variant]),
+      [['i1', null, 'preview'], ['v1', null, 'preview']]);
+    assert.equal(res.body.pictures[0].data, Buffer.from(bytesOf(60, 3)).toString('base64'));
+    assert.equal(res.body.has_more, false);
+
+    const none = await api('GET', `/boards/${B1}/gallery?card_ids=n1`);
+    assert.equal(none.status, 404);
+    assert.match(none.body.error, /no picture on this board for card n1/);
+  });
+});
+
+test('the gallery refuses what it did not issue or cannot serve', async () => {
+  galleryBoard();
+  const bad = async (q) => (await api('GET', `/boards/${B1}/gallery${q}`));
+  assert.equal((await bad('?size=huge')).status, 400);
+  assert.equal((await bad('?cursor=36')).status, 400);
+  const many = Array.from({ length: 25 }, (_, i) => `c${i}`).join(',');
+  const tooMany = await bad(`?card_ids=${many}`);
+  assert.equal(tooMany.status, 400);
+  assert.match(tooMany.body.error, /at most 24 card_ids/);
+  assert.equal((await api('GET', `/boards/${B2}/gallery`)).status, 404, 'a board this user cannot see');
+});
+
+test('a picture too heavy to embed is listed with why, and its body let go unread', async () => {
+  const bucket = galleryBoard();
+  bucket.get = ((get) => async (key) => {
+    const obj = await get(key);
+    if (obj && key === 'w1/a_sm.webp') obj.size = 10 * 1024 * 1024;
+    return obj;
+  })(bucket.get.bind(bucket));
+  await withBucket(bucket, async () => {
+    const res = await api('GET', `/boards/${B1}/gallery?inline=1`);
+    const i1 = res.body.pictures.find((p) => p.card_id === 'i1');
+    assert.equal(i1.reason, 'too_large');
+    assert.equal(i1.data, undefined);
+    assert.ok(res.body.pictures.find((p) => p.card_id === 'v1').data, 'the next picture still shows');
+  });
+  assert.deepEqual(bucket.cancelled, ['w1/a_sm.webp']);
+});
+
+test('view_board over /mcp answers in words and pictures, for a read-only token', async () => {
+  scopes = ['read'];
+  const bucket = galleryBoard();
+  await withBucket(bucket, async () => {
+    const res = await mcp('tools/call', { name: 'view_board', arguments: { board_id: B1, limit: 2 } });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const { content, isError } = res.body.result;
+    assert.ok(!isError, JSON.stringify(content));
+    assert.deepEqual(content.map((b) => b.type), ['text', 'image', 'text', 'image', 'text', 'image']);
+    assert.match(content[0].text, /^Board "Diner" · 4 pictures among 6 cards · https:\/\/clusters\.test\/\?to=b:/);
+    assert.match(content[0].text, /cursor "p2"/);
+    assert.equal(content[2].text, '#1 card i2');
+    assert.equal(content[4].text, '#2 card i1 — Neon sign');
+    assert.equal(content[5].mimeType, 'image/webp');
+    const { structuredContent: sc } = res.body.result;
+    assert.equal(sc.board.id, B1);
+    assert.deepEqual(sc.pictures.map((p) => [p.card_id, p.shown]), [['i2', true], ['i1', true]]);
+    assert.ok(!JSON.stringify(sc).includes(Buffer.from(bytesOf(30, 2)).toString('base64')), 'no bytes in the manifest');
+
+    const wrong = await mcp('tools/call', { name: 'view_board', arguments: { board_id: B1, card_ids: ['a', 'b', 'c', 'd', 'e'] } });
+    assert.equal(wrong.body.result.isError, true, 'more than four card_ids is refused before the call');
+  });
+});

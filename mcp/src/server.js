@@ -253,6 +253,11 @@ async function callTool(tools, name, rawArgs, ctx) {
   const callCtx = typeof ctx?.forTool === 'function' ? ctx.forTool(tool, args) : ctx;
   try {
     const out = await tool.call(args, callCtx);
+    if (tool.blocks) {
+      // Words and pictures interleaved (view_board), handed over as they are,
+      // with the manifest the outputSchema describes beside them.
+      return { content: out.content, structuredContent: out.structured };
+    }
     if (tool.image) {
       // view_image returns bytes. An image block is the entire point of the
       // tool — a base64 string in a text block is not something a model can see.

@@ -3499,6 +3499,10 @@ export const DOCS_PAGES = [
         "text": "GET /images/:key"
       },
       {
+        "id": "get-boards-id-gallery",
+        "text": "GET /boards/:id/gallery"
+      },
+      {
         "id": "why-the-images-row-matters",
         "text": "Why the images row matters"
       },

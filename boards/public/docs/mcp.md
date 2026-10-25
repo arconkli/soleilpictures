@@ -193,6 +193,7 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `read_board` | `board_id`, `full?`, `include?`, `source?`, `since?`, paging |
+| `view_board` | `board_id`, `limit?` (default 12, up to 24), `cursor?`, `card_ids?` (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card |
 | `view_image` | `image_key` — fetch an image card's actual picture |
 | `list_images` | `workspace_id?`, `board_id?`, `since?`, `cursor?` |
 | `export_board` | `board_id`, `format?` (`json`\|`omc`) |

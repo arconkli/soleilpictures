@@ -12,6 +12,7 @@
     "GET /boards/:id",
     "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
     "GET /boards/:id/export?format=json|omc",
+    "GET /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=",
     "GET /boards/:id/groups",
     "GET /boards/tree?root=&workspace=&depth=",
     "GET /boards?workspace=&parent=&deleted=&since=&cursor=&include=&limit=&offset=",
@@ -175,6 +176,10 @@
     {
       "name": "upload_image",
       "schema": "2c5d898ac6e5"
+    },
+    {
+      "name": "view_board",
+      "schema": "f8bddeb19b54"
     },
     {
       "name": "view_image",
