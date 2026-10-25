@@ -44,7 +44,7 @@ import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.j
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards, readBoardCardsChecked,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
-  readBoardGroups, writeBoardGroups, withBoardCards, editCardLive, editBoardLive,
+  readBoardGroups, readBoardCardsAndGroups, writeBoardGroups, withBoardCards, editCardLive, editBoardLive,
 } from './lib/scoutBoard.js';
 import { DOC_READ, readDocPages } from './lib/docMarkdown.js';
 import {
@@ -1830,7 +1830,8 @@ async function dispatch(url, request, env, ctx) {
     const cards = paginate(cardRows, limit, offset);
     return json({
       query: q,
-      boards: { ...boards, items: boards.items.map(publicBoard) },
+      // Each hit with a link that opens it in the app this API is served from.
+      boards: { ...boards, items: boards.items.map((b) => ({ ...publicBoard(b), url: boardUrl(url.origin, b.id) })) },
       cards: {
         ...cards,
         items: cards.items.map((r) => ({
@@ -1844,6 +1845,7 @@ async function dispatch(url, request, env, ctx) {
           excerpt: r.body ? String(r.body).slice(0, 300) : null,
           workspace_id: r.workspace_id,
           updated_at: r.updated_at,
+          url: cardUrl(url.origin, r.board_id, r.card_id),
         })),
       },
     });
@@ -2504,6 +2506,7 @@ async function dispatch(url, request, env, ctx) {
         boards: prepared.map((b) => ({
           ...publicBoard({ ...b, created_at: now }),
           created: createdIds.has(b.id),
+          url: boardUrl(url.origin, b.id),
         })),
         created: creates.length,
         updated: updates.length,
@@ -2583,6 +2586,7 @@ async function dispatch(url, request, env, ctx) {
       return json({
         board: publicBoard(created || { id: boardId, name, workspace_id: workspaceId }),
         created: !existing,
+        url: boardUrl(url.origin, boardId),
       }, existing ? 200 : 201);
     }
 
@@ -4024,7 +4028,7 @@ async function dispatch(url, request, env, ctx) {
   if (!subId && method === 'GET') {
     trace.route = '/boards/:id/cards';
     const { limit, offset } = pageParams(url);
-    const include = parseInclude(url, ['props', 'identifiers', 'raw']);
+    const include = parseInclude(url, ['props', 'identifiers', 'raw', 'groups']);
 
     // ?source=index — the projection in card_index instead of the Y.Doc.
     //
@@ -4103,13 +4107,17 @@ async function dispatch(url, request, env, ctx) {
 
     // Read through the live room when we can, so a card added seconds ago by a
     // collaborator is visible rather than missing until the next snapshot.
-    const all = await readBoardCards(env, id, token);
+    // include=groups reads the board's groups in the same open.
+    const { cards: all, groups } = include.has('groups')
+      ? await readBoardCardsAndGroups(env, id, token)
+      : { cards: await readBoardCards(env, id, token), groups: null };
     const slice = all.slice(offset, offset + limit + 1);
     const page = paginate(slice, limit, offset);
     return json({
       board_id: id,
       source: 'live',
       cards: await decorateCards(env, token, id, page.items, include),
+      ...(groups ? { groups: groups.map(publicGroup) } : {}),
       total: all.length,
       ...pageMeta(page),
     });

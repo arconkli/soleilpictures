@@ -53,10 +53,14 @@ under **Settings → Connections**. `SOLEIL_API_BASE` overrides the host.
 
 ## What it can do
 
-44 tools: search, read, write and export boards and docs, look at a whole board or the images on it,
-create boards and cards in bulk, lay a board out as justified rows or masonry, share it by link,
-read, add and resolve comments, list tags and tag cards, import from URLs, attach identifiers from
-other systems, move and delete things, and read the audit log. Three prompts for describing, organising and importing.
+30 tools: search and fetch, read, write and export boards and docs, look at a whole board or the
+images on it, create and change boards and cards in bulk, lay a board out as justified rows or masonry,
+share it by link, read, add and resolve comments, list tags and tag cards, import from URLs, attach
+identifiers from other systems, move and delete things, and read the audit log. Five prompts: make a
+moodboard from a brief, review a board, organise one, write a treatment from one, and plan an import.
+
+Version 3.0 folded fifteen tools into others (`get_board` into `read_board`, `update_card` into
+`update_cards`, and so on). Calling an old name says which tool does it now.
 
 Full reference: <https://clusters.soleilpictures.com/docs/mcp>
 

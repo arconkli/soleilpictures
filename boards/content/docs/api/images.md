@@ -5,7 +5,7 @@ h1: Images API
 navLabel: Images and uploads
 section: developers
 order: 5
-updated: 2026-10-02
+updated: 2026-10-25
 answer: POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 faq:
   - q: How do I add a photo to a board from code?
@@ -228,7 +228,7 @@ curl -sD- -o shot.webp \
 # x-image-variant: preview
 ```
 
-The MCP server's `view_image` asks for this by default.
+The MCP server's `view_board` shows pictures at this size when it is asked to look closely at a few.
 
 ## `GET /boards/:id/gallery`
 

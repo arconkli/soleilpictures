@@ -3673,7 +3673,7 @@ export const DOCS_PAGES = [
     "answer": "POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.",
     "section": "developers",
     "order": 5,
-    "updated": "2026-10-02",
+    "updated": "2026-10-25",
     "navLabel": "Images and uploads",
     "headings": [
       {
@@ -3909,7 +3909,7 @@ export const DOCS_PAGES = [
     "answer": "GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
     "section": "developers",
     "order": 9,
-    "updated": "2026-08-08",
+    "updated": "2026-10-25",
     "navLabel": "Search",
     "headings": [
       {
@@ -4078,7 +4078,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is it the same set of tools either way?",
-        "a": "Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart."
+        "a": "Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0."
       }
     ]
   },

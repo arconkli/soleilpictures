@@ -51117,11 +51117,19 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "{ \"board\": … }"
+     "v": "{ \"board\": …, \"url\": … }"
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", where "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens the new board in the app."
     }
    ]
   },
@@ -51180,7 +51188,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", each board with the "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " that opens it."
     }
    ]
   },
@@ -55236,6 +55252,51 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "The card exactly as the canvas stores it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "groups"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The board's "
+      },
+      {
+       "t": "link",
+       "v": "groups",
+       "href": "/docs/api/arrange",
+       "children": [
+        {
+         "t": "text",
+         "v": "groups"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", as "
+      },
+      {
+       "t": "code",
+       "v": "groups"
+      },
+      {
+       "t": "text",
+       "v": " beside the cards, read in the same pass (not with "
+      },
+      {
+       "t": "code",
+       "v": "source=index"
+      },
+      {
+       "t": "text",
+       "v": ")"
       }
      ]
     ]
@@ -60359,11 +60420,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "view_image"
+     "v": "view_board"
     },
     {
      "t": "text",
-     "v": " asks for this by default."
+     "v": " shows pictures at this size when it is asked to look closely at a few."
     }
    ]
   },
@@ -63205,7 +63266,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " it straight away."
+     "v": " it straight away — and a "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " that opens it in the app."
     }
    ]
   },
@@ -64965,21 +65034,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "— · the account, its scopes, rate limit, and whether it is a service account"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_workspaces"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "—"
+       "v": "— · the account, its scopes, rate limit, whether it is a service account, and the workspaces it can see"
       }
      ]
     ],
@@ -64993,7 +65048,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "q"
+       "v": "query"
       },
       {
        "t": "text",
@@ -65029,7 +65084,117 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", paging"
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "limit?"
+      },
+      {
+       "t": "text",
+       "v": " (default 20 of each kind, up to 100), "
+      },
+      {
+       "t": "code",
+       "v": "offset?"
+      },
+      {
+       "t": "text",
+       "v": " · boards and cards by their words, boards first, each result "
+      },
+      {
+       "t": "code",
+       "v": "{ id, title, url }"
+      },
+      {
+       "t": "text",
+       "v": " with an excerpt for a card — the shape ChatGPT asks of a search tool; each "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " is one "
+      },
+      {
+       "t": "code",
+       "v": "fetch"
+      },
+      {
+       "t": "text",
+       "v": " reads"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "fetch"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " — "
+      },
+      {
+       "t": "code",
+       "v": "board:<board id>"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card:<board id>:<card id>"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "doc:<board id>:<card id>"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": ":<page id>"
+      },
+      {
+       "t": "text",
+       "v": " for one page), or a link from the app · one board, card or doc as text to read, "
+      },
+      {
+       "t": "code",
+       "v": "{ id, title, text, url, metadata }"
+      },
+      {
+       "t": "text",
+       "v": ", up to 40,000 characters; a doc's "
+      },
+      {
+       "t": "code",
+       "v": "metadata.pages"
+      },
+      {
+       "t": "text",
+       "v": " carry each page's "
+      },
+      {
+       "t": "code",
+       "v": "hash"
       }
      ]
     ],
@@ -65079,33 +65244,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", paging"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "board_tree"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "root?"
-      },
-      {
-       "t": "text",
-       "v": " or "
-      },
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
+       "v": ", paging · one level at a time; with "
       },
       {
        "t": "code",
@@ -65113,25 +65252,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — a whole hierarchy in one call"
-      }
-     ]
-    ],
-    [
-     [
+       "v": " (up to 20) a whole hierarchy in one call, at most 500 boards; with "
+      },
       {
        "t": "code",
-       "v": "get_board"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
+       "v": "deleted?"
       },
       {
        "t": "text",
-       "v": " — one board, with how much of the card allowance is used"
+       "v": " the boards that can still be restored"
       }
      ]
     ],
@@ -65158,38 +65287,6 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " — find something by an id from another system"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_deleted_boards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_groups"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": " — the labelled sets on a board"
       }
      ]
     ]
@@ -65273,7 +65370,31 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", paging"
+       "v": ", paging · the board with its link, fields and how much of the card allowance is used, its groups, and a page of its cards; "
+      },
+      {
+       "t": "code",
+       "v": "format?"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "json"
+      },
+      {
+       "t": "text",
+       "v": "|"
+      },
+      {
+       "t": "code",
+       "v": "omc"
+      },
+      {
+       "t": "text",
+       "v": ") for the whole board as one document instead"
       }
      ]
     ],
@@ -65316,226 +65437,6 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "fetch"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "id"
-      },
-      {
-       "t": "text",
-       "v": " — "
-      },
-      {
-       "t": "code",
-       "v": "board:<board id>"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "card:<board id>:<card id>"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "doc:<board id>:<card id>"
-      },
-      {
-       "t": "text",
-       "v": " ("
-      },
-      {
-       "t": "code",
-       "v": ":<page id>"
-      },
-      {
-       "t": "text",
-       "v": " for one page), or a link from the app · one board, card or doc as text to read, "
-      },
-      {
-       "t": "code",
-       "v": "{ id, title, text, url, metadata }"
-      },
-      {
-       "t": "text",
-       "v": ", up to 40,000 characters; a doc's "
-      },
-      {
-       "t": "code",
-       "v": "metadata.pages"
-      },
-      {
-       "t": "text",
-       "v": " carry each page's "
-      },
-      {
-       "t": "code",
-       "v": "hash"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "view_image"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "image_key"
-      },
-      {
-       "t": "text",
-       "v": " — fetch an image card's actual picture"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_images"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "board_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "since?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "cursor?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "export_board"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "format?"
-      },
-      {
-       "t": "text",
-       "v": " ("
-      },
-      {
-       "t": "code",
-       "v": "json"
-      },
-      {
-       "t": "text",
-       "v": "|"
-      },
-      {
-       "t": "code",
-       "v": "omc"
-      },
-      {
-       "t": "text",
-       "v": ")"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "get_metadata"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "cards?"
-      },
-      {
-       "t": "text",
-       "v": " — identifiers and properties"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_audit"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "since?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "cursor?"
-      },
-      {
-       "t": "text",
-       "v": " — recent writes and image fetches"
       }
      ]
     ],
@@ -65684,6 +65585,32 @@ export const DOCS_CONTENT = {
        "v": " everything carrying it"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_audit"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "since?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      },
+      {
+       "t": "text",
+       "v": " — recent writes and image fetches"
+      }
+     ]
     ]
    ]
   },
@@ -65723,17 +65650,25 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "create_board"
+       "v": "create_boards"
       }
      ],
      [
       {
        "t": "code",
-       "v": "name"
+       "v": "boards[]"
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " — one, or up to 500, each "
+      },
+      {
+       "t": "code",
+       "v": "{ name, workspace_id?, parent_board_id?, view?, identifiers?, props? }"
+      },
+      {
+       "t": "text",
+       "v": "; "
       },
       {
        "t": "code",
@@ -65745,53 +65680,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "parent_board_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "identifiers?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "props?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "create_boards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "boards[]"
-      },
-      {
-       "t": "text",
-       "v": " — up to 500, "
-      },
-      {
-       "t": "code",
        "v": "on_conflict?"
       },
       {
        "t": "text",
-       "v": " — build a structure in one call; each entry takes the same fields as "
+       "v": " · each board comes back with its "
       },
       {
        "t": "code",
-       "v": "create_board"
+       "v": "url"
       }
      ]
     ],
@@ -65822,6 +65719,48 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "on_conflict?"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "import_urls"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "urls[]"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "titles?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "dry_run?"
+      },
+      {
+       "t": "text",
+       "v": " — bring reference in from the web; safe to re-run"
       }
      ]
     ],
@@ -65996,6 +65935,48 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "create_group"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "name"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "color?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "shape?"
+      },
+      {
+       "t": "text",
+       "v": " — say a set of cards is one thing"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "add_comment"
       }
      ],
@@ -66081,18 +66062,68 @@ export const DOCS_CONTENT = {
        "v": " — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply"
       }
      ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Changing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Changing"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Tool"
+     }
     ],
+    [
+     {
+      "t": "text",
+      "v": "Input"
+     }
+    ]
+   ],
+   "rows": [
     [
      [
       {
        "t": "code",
-       "v": "resolve_comments"
+       "v": "update_boards"
       }
      ],
      [
       {
        "t": "code",
+       "v": "boards[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 100, each a "
+      },
+      {
+       "t": "code",
        "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " and any of "
+      },
+      {
+       "t": "code",
+       "v": "name"
       },
       {
        "t": "text",
@@ -66100,27 +66131,43 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "comment_ids[]"
+       "v": "view"
       },
       {
        "t": "text",
-       "v": " (up to 50), "
+       "v": ", "
       },
       {
        "t": "code",
-       "v": "resolved?"
+       "v": "parent_board_id"
       },
       {
        "t": "text",
-       "v": " — resolve threads, or reopen them with "
+       "v": " ("
       },
       {
        "t": "code",
-       "v": "false"
+       "v": "null"
       },
       {
        "t": "text",
-       "v": "; lists any refused, with why"
+       "v": " for the top level), "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
+       "v": " · each board is changed on its own, and the answer lists the boards updated and why any failed"
       }
      ]
     ],
@@ -66128,7 +66175,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "tag_cards"
+       "v": "update_cards"
       }
      ],
      [
@@ -66142,15 +66189,39 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "card_ids[]"
+       "v": "cards[]"
       },
       {
        "t": "text",
-       "v": " (up to 200), "
+       "v": " — up to 1000, each an "
       },
       {
        "t": "code",
-       "v": "add[]?"
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " and any field "
+      },
+      {
+       "t": "code",
+       "v": "add_cards"
+      },
+      {
+       "t": "text",
+       "v": " takes — "
+      },
+      {
+       "t": "code",
+       "v": "group_id"
+      },
+      {
+       "t": "text",
+       "v": " (empty to ungroup), "
+      },
+      {
+       "t": "code",
+       "v": "z"
       },
       {
        "t": "text",
@@ -66158,26 +66229,35 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "remove[]?"
+       "v": "rotation"
       },
       {
        "t": "text",
-       "v": " (tag names or ids, up to 10 each) — put "
+       "v": ", "
       },
       {
-       "t": "link",
-       "v": "tags",
-       "href": "/docs/api/tags",
-       "children": [
-        {
-         "t": "text",
-         "v": "tags"
-        }
-       ]
+       "t": "code",
+       "v": "section_header"
       },
       {
        "t": "text",
-       "v": " on cards or take them off, as the Tag menu does; a new name makes the tag"
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
+       "v": ", and any of the eight kinds"
       }
      ]
     ],
@@ -66251,48 +66331,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "import_urls"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "urls[]"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "titles?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "dry_run?"
-      },
-      {
-       "t": "text",
-       "v": " — bring reference in from the web; safe to re-run"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
        "v": "arrange_board"
       }
      ],
@@ -66335,208 +66373,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "create_group"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "name"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "color?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "shape?"
-      },
-      {
-       "t": "text",
-       "v": " — say a set of cards is one thing"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "rename_board"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "name?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "view?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "parent_board_id?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "move_boards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_ids[]"
-      },
-      {
-       "t": "text",
-       "v": " — up to 500, "
-      },
-      {
-       "t": "code",
-       "v": "parent_board_id"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "update_card"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "card_id"
-      },
-      {
-       "t": "text",
-       "v": ", plus any field "
-      },
-      {
-       "t": "code",
-       "v": "add_cards"
-      },
-      {
-       "t": "text",
-       "v": " takes — "
-      },
-      {
-       "t": "code",
-       "v": "group_id"
-      },
-      {
-       "t": "text",
-       "v": " (empty to ungroup), "
-      },
-      {
-       "t": "code",
-       "v": "z"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "rotation"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "section_header"
-      },
-      {
-       "t": "text",
-       "v": ", and any of the eight kinds"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "update_cards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "cards[]"
-      },
-      {
-       "t": "text",
-       "v": " — up to 1000 at once, each an "
-      },
-      {
-       "t": "code",
-       "v": "id"
-      },
-      {
-       "t": "text",
-       "v": " and the fields to set"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
        "v": "move_cards"
       }
      ],
@@ -66567,7 +66403,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "set_metadata"
+       "v": "tag_cards"
       }
      ],
      [
@@ -66581,7 +66417,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "card_id?"
+       "v": "card_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 200), "
+      },
+      {
+       "t": "code",
+       "v": "add[]?"
       },
       {
        "t": "text",
@@ -66589,7 +66433,40 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "identifiers?"
+       "v": "remove[]?"
+      },
+      {
+       "t": "text",
+       "v": " (tag names or ids, up to 10 each) — put "
+      },
+      {
+       "t": "link",
+       "v": "tags",
+       "href": "/docs/api/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tags"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on cards or take them off, as the Tag menu does; a new name makes the tag"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "resolve_comments"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
       },
       {
        "t": "text",
@@ -66597,7 +66474,27 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "props?"
+       "v": "comment_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 50), "
+      },
+      {
+       "t": "code",
+       "v": "resolved?"
+      },
+      {
+       "t": "text",
+       "v": " — resolve threads, or reopen them with "
+      },
+      {
+       "t": "code",
+       "v": "false"
+      },
+      {
+       "t": "text",
+       "v": "; lists any refused, with why"
       }
      ]
     ],
@@ -66724,28 +66621,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "delete_card"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "card_id"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
        "v": "delete_cards"
       }
      ],
@@ -66764,7 +66639,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — up to 1000"
+       "v": " — one, or up to 1000"
       }
      ]
     ],
@@ -67035,6 +66910,366 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Renamed in 3.0",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Renamed in 3.0"
+    }
+   ],
+   "id": "renamed-in-3-0"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Version 3.0 folded fifteen tools into the ones above, so an assistant has fewer, clearer tools to choose between. Calling an old name answers "
+    },
+    {
+     "t": "code",
+     "v": "-32602"
+    },
+    {
+     "t": "text",
+     "v": " with "
+    },
+    {
+     "t": "code",
+     "v": "renamed_to"
+    },
+    {
+     "t": "text",
+     "v": " in its "
+    },
+    {
+     "t": "code",
+     "v": "data"
+    },
+    {
+     "t": "text",
+     "v": ", naming the tool that does it now, and the message says how; an assistant still holding the old list corrects itself from that."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Before 3.0"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Now"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_workspaces"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "whoami"
+      },
+      {
+       "t": "text",
+       "v": ", which lists the workspaces"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board_tree"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "list_boards"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "depth"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_deleted_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "list_boards"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "deleted: true"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "get_board"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "list_groups"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "get_metadata"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "read_board"
+      },
+      {
+       "t": "text",
+       "v": ", which carries the board, its fields, its capacity and its groups"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "export_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "read_board"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "format"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "view_image"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "view_board"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_images"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "read_board"
+      },
+      {
+       "t": "text",
+       "v": "; the "
+      },
+      {
+       "t": "link",
+       "v": "Images API",
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "Images API"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " still lists stored files"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "create_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "create_boards"
+      },
+      {
+       "t": "text",
+       "v": " with one entry"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "rename_board"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "move_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "update_boards"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "set_metadata"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "update_boards"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "update_cards"
+      },
+      {
+       "t": "text",
+       "v": ", with "
+      },
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "update_card"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "update_cards"
+      },
+      {
+       "t": "text",
+       "v": " with one entry"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "delete_card"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "delete_cards"
+      },
+      {
+       "t": "text",
+       "v": " with one id"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The local package's 2.x releases carry their own copy of the tools, so they keep the old names until they are updated."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "Prompts",
    "inline": [
@@ -67050,7 +67285,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Three starting points, offered by name rather than buried in a tool description:"
+     "v": "Starting points a person picks by name (slash commands in Claude Code), each a short plan in the tools' own words:"
     }
    ]
   },
@@ -67075,13 +67310,43 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "describe_board"
+       "v": "moodboard"
       }
      ],
      [
       {
+       "t": "code",
+       "v": "brief"
+      },
+      {
        "t": "text",
-       "v": "Looks at every image and writes what the board is reaching for"
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "workspace_id?"
+      },
+      {
+       "t": "text",
+       "v": " — builds a finished cluster from a brief: pictures from the web, a palette, notes and a short treatment, laid out, with its link"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "review_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — says what a board is going for, what is missing and what to add next; changes nothing"
       }
      ]
     ],
@@ -67094,8 +67359,30 @@ export const DOCS_CONTENT = {
      ],
      [
       {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
        "t": "text",
-       "v": "Proposes a grouping into child boards, without moving anything"
+       "v": " — proposes groups, or boards inside it, without moving anything until asked"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "treatment"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — writes a treatment as a doc on the board, grounded in what is on it"
       }
      ]
     ],
@@ -67108,11 +67395,44 @@ export const DOCS_CONTENT = {
      ],
      [
       {
+       "t": "code",
+       "v": "workspace_id"
+      },
+      {
        "t": "text",
-       "v": "Turns a file listing into a plan of boards and cards, with identifiers so it can be re-run"
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "listing"
+      },
+      {
+       "t": "text",
+       "v": " — turns a file listing into a plan of boards and cards, with identifiers so it can be re-run"
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "describe_board"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "review_board"
+    },
+    {
+     "t": "text",
+     "v": " since 3.0."
+    }
    ]
   },
   {
@@ -67422,11 +67742,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Deleting returns the card.",
+     "v": "Deleting returns the cards.",
      "children": [
       {
        "t": "text",
-       "v": "Deleting returns the card."
+       "v": "Deleting returns the cards."
       }
      ]
     },
@@ -67436,11 +67756,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "delete_card"
+     "v": "delete_cards"
     },
     {
      "t": "text",
-     "v": " responds with the card it removed. That object is the undo — pass it back to "
+     "v": " responds with the cards it removed. Those objects are the undo — pass them back to "
     },
     {
      "t": "code",
@@ -67448,7 +67768,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to restore it. Worth keeping in context before destructive work. Card kinds "
+     "v": " to restore them. Worth keeping in context before destructive work. Card kinds "
     },
     {
      "t": "code",
@@ -67610,7 +67930,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures."
+     "v": " It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures, and lists the workspaces."
     }
    ]
   },

@@ -2,7 +2,7 @@
 
 > POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 
-_Source: https://clusters.soleilpictures.com/docs/api/images · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/api/images · Updated 2026-10-25_
 
 Uploading is **one request**. No presign, no multi-step S3 dance — which is what
 makes it usable from a single tool call.
@@ -208,7 +208,7 @@ curl -sD- -o shot.webp \
 # x-image-variant: preview
 ```
 
-The MCP server's `view_image` asks for this by default.
+The MCP server's `view_board` shows pictures at this size when it is asked to look closely at a few.
 
 ## `GET /boards/:id/gallery`
 

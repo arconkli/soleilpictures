@@ -9,7 +9,7 @@
     "source": "github",
     "subfolder": "mcp"
   },
-  "version": "2.1.1",
+  "version": "3.0.0",
   "remotes": [
     {
       "type": "streamable-http",
@@ -21,7 +21,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "soleil-clusters-mcp",
-      "version": "2.1.1",
+      "version": "3.0.0",
       "transport": {
         "type": "stdio"
       },

@@ -145,6 +145,7 @@ moved on this board since I last looked" without reading the board.
 | `props` | The card's [properties](/docs/api/metadata) |
 | `identifiers` | Its [foreign identifiers](/docs/api/metadata) |
 | `raw` | The card exactly as the canvas stores it |
+| `groups` | The board's [groups](/docs/api/arrange), as `groups` beside the cards, read in the same pass (not with `source=index`) |
 
 `raw` exists because the card object above is a deliberately narrow projection,
 and the app has kinds it does not describe — a grid carries its cells and

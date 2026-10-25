@@ -73,7 +73,7 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "fadbbf590c5d"
+      "schema": "3ea0b5e0e818"
     },
     {
       "name": "add_comment",
@@ -84,16 +84,8 @@
       "schema": "0c0ed0233403"
     },
     {
-      "name": "board_tree",
-      "schema": "2ee2385bb700"
-    },
-    {
-      "name": "create_board",
-      "schema": "732f33f976a7"
-    },
-    {
       "name": "create_boards",
-      "schema": "4374a7fe7a57"
+      "schema": "84cc9e70a479"
     },
     {
       "name": "create_group",
@@ -104,10 +96,6 @@
       "schema": "51d451cff7c1"
     },
     {
-      "name": "delete_card",
-      "schema": "0c70e576498a"
-    },
-    {
       "name": "delete_cards",
       "schema": "9dac8e19196e"
     },
@@ -116,20 +104,8 @@
       "schema": "e15364129588"
     },
     {
-      "name": "export_board",
-      "schema": "3ee79da6ad8e"
-    },
-    {
       "name": "fetch",
       "schema": "c1f1c4508b07"
-    },
-    {
-      "name": "get_board",
-      "schema": "151312b54d3d"
-    },
-    {
-      "name": "get_metadata",
-      "schema": "f37d3aee7802"
     },
     {
       "name": "import_urls",
@@ -141,35 +117,15 @@
     },
     {
       "name": "list_boards",
-      "schema": "618a15b2b193"
+      "schema": "cb573e39e24d"
     },
     {
       "name": "list_comments",
       "schema": "a023016d804b"
     },
     {
-      "name": "list_deleted_boards",
-      "schema": "80e95ddda416"
-    },
-    {
-      "name": "list_groups",
-      "schema": "51d451cff7c1"
-    },
-    {
-      "name": "list_images",
-      "schema": "963e26f2bf1e"
-    },
-    {
       "name": "list_tags",
       "schema": "c4291e844460"
-    },
-    {
-      "name": "list_workspaces",
-      "schema": "e3b0c44298fc"
-    },
-    {
-      "name": "move_boards",
-      "schema": "cb8020e96f3e"
     },
     {
       "name": "move_cards",
@@ -177,11 +133,7 @@
     },
     {
       "name": "read_board",
-      "schema": "b536d828d599"
-    },
-    {
-      "name": "rename_board",
-      "schema": "0a21becb78ba"
+      "schema": "81fb61531b2f"
     },
     {
       "name": "resolve_comments",
@@ -197,11 +149,7 @@
     },
     {
       "name": "search",
-      "schema": "fdbf75288110"
-    },
-    {
-      "name": "set_metadata",
-      "schema": "1232151219e0"
+      "schema": "f762f7615158"
     },
     {
       "name": "share_board",
@@ -216,12 +164,12 @@
       "schema": "f96ed34d3b0c"
     },
     {
-      "name": "update_card",
-      "schema": "2829ce10b930"
+      "name": "update_boards",
+      "schema": "e08dabe95cf1"
     },
     {
       "name": "update_cards",
-      "schema": "d22dcc8c0e42"
+      "schema": "4b34d7891980"
     },
     {
       "name": "upload_file",
@@ -236,10 +184,6 @@
       "schema": "f8bddeb19b54"
     },
     {
-      "name": "view_image",
-      "schema": "269e8d3e4d7d"
-    },
-    {
       "name": "whoami",
       "schema": "e3b0c44298fc"
     },
@@ -249,9 +193,11 @@
     }
   ],
   "mcpPrompts": [
-    "describe_board",
     "import_plan",
-    "organize_board"
+    "moodboard",
+    "organize_board",
+    "review_board",
+    "treatment"
   ],
   "mcpProtocol": {
     "versions": [

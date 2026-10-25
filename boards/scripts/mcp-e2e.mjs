@@ -104,19 +104,21 @@ async function modernRun() {
   check(disc.json?.result?.supportedVersions?.includes(MODERN), 'server/discover lists 2026-07-28');
   const list = await rpc('tools/list', {});
   const names = new Set((list.json?.result?.tools || []).map((t) => t.name));
-  check(names.has('create_board') && names.has('read_board'), 'modern tools/list has the core tools');
+  check(names.has('create_boards') && names.has('read_board'), 'modern tools/list has the core tools');
 
   const me = data((await call('whoami', {})).json);
   check(!!me, 'whoami answers');
-  const spaces = data((await call('list_workspaces', {})).json);
-  const workspaceId = args.workspace || spaces?.workspaces?.[0]?.id;
-  if (!check(!!workspaceId, 'a workspace to work in')) return;
+  const workspaceId = args.workspace || me?.workspaces?.[0]?.id;
+  if (!check(!!workspaceId, 'whoami lists a workspace to work in')) return;
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const marker = `e2e${Date.now().toString(36)}`;
-  const created = data((await call('create_board', { name: `mcp-e2e ${stamp}`, workspace_id: workspaceId })).json);
-  const boardId = created?.board?.id || created?.id;
-  if (!check(!!boardId, 'create_board returns the board')) return;
+  const created = data((await call('create_boards', {
+    workspace_id: workspaceId, boards: [{ name: `mcp-e2e ${stamp}` }],
+  })).json);
+  const boardId = created?.boards?.[0]?.id;
+  if (!check(!!boardId, 'create_boards returns the board')) return;
+  check(/\?to=b:/.test(created?.boards?.[0]?.url || ''), 'and its link in the app');
 
   try {
     const added = data((await call('add_cards', {
@@ -134,6 +136,11 @@ async function modernRun() {
     const read = data((await call('read_board', { board_id: boardId })).json);
     const readCards = read?.cards || [];
     check(readCards.length === 3, `read_board sees 3 cards (got ${readCards.length})`);
+    check(read?.board?.id === boardId && Array.isArray(read?.groups), 'read_board carries the board and its groups');
+
+    await call('update_boards', { boards: [{ board_id: boardId, name: `mcp-e2e ${stamp} renamed` }] });
+    const renamed = data((await call('read_board', { board_id: boardId, limit: 1 })).json);
+    check(/renamed$/.test(renamed?.board?.name || ''), 'update_boards renamed it');
 
     const first = cards[0]?.id || readCards[0]?.id;
     if (first) {
@@ -146,8 +153,13 @@ async function modernRun() {
     check(dry?.dry_run === true, 'arrange_board dry_run writes nothing and says so');
     await call('arrange_board', { board_id: boardId, layout: 'masonry' });
 
-    const found = data((await call('search', { q: marker, workspace_id: workspaceId })).json);
-    check(JSON.stringify(found || '').includes(marker), 'search finds the new card by its words');
+    const found = data((await call('search', { query: marker, workspace_id: workspaceId })).json);
+    const hit = (found?.results || []).find((r) => r.kind === 'card');
+    check(!!hit && JSON.stringify(found).includes(marker), 'search finds the new card by its words');
+    if (hit) {
+      const fetched = data((await call('fetch', { id: hit.id })).json);
+      check(String(fetched?.text || '').includes(marker), 'fetch reads the card search found');
+    }
 
     if (first) {
       await call('delete_cards', { board_id: boardId, card_ids: [first] });
@@ -159,11 +171,13 @@ async function modernRun() {
     const unknown = await call('no_such_tool', {});
     check(unknown.json?.error?.code === -32602 && Array.isArray(unknown.json?.error?.data?.available),
       'an unknown tool answers -32602 with the tools that exist');
+    const old = await call('get_board', { board_id: boardId });
+    check(old.json?.error?.data?.renamed_to === 'read_board', 'a tool from before 3.0 names the one that does it now');
     const missing = await call('read_board', {});
     check(!!(missing.json?.error || missing.json?.result?.isError), 'a missing required argument is refused');
   } finally {
     await call('delete_board', { board_id: boardId });
-    const trash = data((await call('list_deleted_boards', { workspace_id: workspaceId })).json);
+    const trash = data((await call('list_boards', { deleted: true, workspace_id: workspaceId })).json);
     check(JSON.stringify(trash || '').includes(boardId), 'the deleted board is in the bin');
     if (KEEP) {
       await call('restore_board', { board_id: boardId });

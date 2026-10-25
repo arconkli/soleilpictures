@@ -153,7 +153,7 @@ Only `name` is required.
 - No `parent_board_id` → top level.
 - `view` is `"canvas"` unless you pass exactly `"list"`.
 
-Returns `201` with `{ "board": … }`.
+Returns `201` with `{ "board": …, "url": … }`, where `url` opens the new board in the app.
 
 ### Creating many at once
 
@@ -169,7 +169,7 @@ Pass a `boards` array instead, up to {{fact:maxBoardsPerCall}} per call:
 }
 ```
 
-Returns `201` with `{ "boards": [ … ], "created": 2 }`.
+Returns `201` with `{ "boards": [ … ], "created": 2 }`, each board with the `url` that opens it.
 
 This matters when you are importing an existing library, because a large one is
 a **tree** — a board per scene, reel or shoot — so the first thing an import

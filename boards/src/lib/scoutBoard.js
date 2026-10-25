@@ -1227,18 +1227,35 @@ export async function withBoardCards(env, boardId, accessToken, use) {
 // The API had no access to any of this, which meant an integration could place
 // forty cards and not express that they were one thing.
 
+// A board's groups, oldest first, from its open doc.
+function groupsOf(doc) {
+  const out = [];
+  doc.getMap('groups').forEach((v, id) => {
+    const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
+    if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
+  });
+  return out.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+}
+
 export async function readBoardGroups(env, boardId, accessToken = null) {
   const board = await openBoard(env, boardId, accessToken);
   try {
-    const out = [];
-    board.doc.getMap('groups').forEach((v, id) => {
-      const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
-      if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
-    });
-    return out.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    return groupsOf(board.doc);
   } finally {
     try { board.ws?.close(); } catch (_) { /* already gone */ }
     board.doc.destroy();
+  }
+}
+
+// The cards and the groups in one open, for a reader that wants both (the
+// MCP read_board): opening the board twice costs a second room connection.
+export async function readBoardCardsAndGroups(env, boardId, accessToken = null) {
+  const { doc, ws, loaded } = await openBoard(env, boardId, accessToken);
+  try {
+    return { cards: readCards(doc), groups: groupsOf(doc), loaded };
+  } finally {
+    try { ws?.close(); } catch (_) { /* already gone */ }
+    doc.destroy();
   }
 }
 

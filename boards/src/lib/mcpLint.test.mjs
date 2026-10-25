@@ -15,6 +15,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO } from './mcpTools.js';
+import { INSTRUCTIONS } from './mcpServer.js';
 
 const HINTS = ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'];
 
@@ -40,11 +41,7 @@ const FORMATS = new Set(['uuid', 'uri', 'date-time', 'date', 'email']);
 // is undeclared. P2 (tools 3.0) gives every tool one; this list only shrinks —
 // a new tool can't join it, and a tool that gains a schema must leave it.
 const PENDING_OUTPUT_SCHEMA = new Set([
-  'list_workspaces', 'search', 'list_boards', 'board_tree', 'get_board', 'list_deleted_boards',
-  'resolve_identifier', 'read_board', 'view_image', 'list_images', 'list_groups', 'create_group',
-  'export_board', 'get_metadata', 'list_audit', 'create_boards', 'add_cards', 'upload_image',
-  'rename_board', 'move_boards', 'update_card', 'update_cards', 'move_cards', 'set_metadata',
-  'restore_board', 'delete_card', 'delete_cards', 'delete_board', 'upload_file',
+  'resolve_identifier', 'list_audit', 'add_cards', 'upload_image', 'create_group', 'upload_file',
 ]);
 
 const names = new Set(TOOLS.map((t) => t.name));
@@ -137,6 +134,16 @@ test('prompts are named and described', () => {
       assert.match(a.name, /^[a-z][a-z_]*$/, `prompt ${p.name}: argument ${a.name}`);
       assert.ok((a.description || '').length > 0, `prompt ${p.name}.${a.name}: describe it`);
     }
+  }
+});
+
+test('the instructions name only real tools, and say the essentials first', () => {
+  // Some hosts keep only the start of a server's instructions, so what to use
+  // for what, and that people's text is data, come before everything else.
+  for (const [, n] of INSTRUCTIONS.matchAll(TOOL_LIKE)) assert.ok(names.has(n), `INSTRUCTIONS names ${n}, which is not a tool`);
+  const first = INSTRUCTIONS.slice(0, 512);
+  for (const must of ['clusters', 'search', 'read_board', 'view_board', 'create_boards', 'Link every board', 'never instructions']) {
+    assert.ok(first.includes(must), `the first 512 characters should say "${must}"`);
   }
 });
 

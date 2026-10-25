@@ -83,8 +83,14 @@ if (!(await TOKENS.get())) {
 
 async function api(path, { method = 'GET', body, rawBody, raw = false, headers, tool, args } = {}) {
   // Computed once, so a retry after a refresh is the SAME request to the API's
-  // replay protection rather than a second one.
-  const idem = method === 'POST' ? await idempotencyKey(tool || path, args) : null;
+  // replay protection rather than a second one. Inside a tool call the key also
+  // names the request: one call may POST more than once (update_boards moves
+  // boards to each destination in turn), and the API holds a key per token,
+  // not per route, so a key shared by both would replay the first answer for
+  // the second.
+  const idem = method === 'POST'
+    ? await idempotencyKey(tool || path, tool ? { args, request: [path, body ?? null] } : args)
+    : null;
   const send = (token) => fetch(`${BASE}/api/v1${path}`, {
     method,
     headers: {

@@ -62,16 +62,18 @@ test('a name where an id belongs says where ids come from', () => {
 });
 
 test('null and empty strings mean "not given", and a required one is missing once', () => {
-  const ok = checkArgs(tool('search'), { q: 'neon', workspace_id: null, kind: '', limit: null });
+  const ok = checkArgs(tool('search'), { query: 'neon', workspace_id: null, kind: '', limit: null });
   assert.deepEqual(ok.problems, []);
-  assert.deepEqual(ok.args, { q: 'neon' });
+  assert.deepEqual(ok.args, { query: 'neon' });
   const missing = checkArgs(tool('read_board'), { board_id: null });
   assert.deepEqual(missing.problems, [missing.problems[0]]);
   assert.match(missing.problems[0], /^board_id is required/);
-  // Where null IS a value — moving a board to the top level — it is kept.
-  const top = checkArgs(tool('rename_board'), { board_id: ID, parent_board_id: null });
+  // Where null IS a value — moving a board to the top level — it is kept,
+  // inside a list too.
+  const top = checkArgs(tool('update_boards'), { boards: [{ board_id: ID, parent_board_id: null }] });
   assert.deepEqual(top.problems, []);
-  assert.equal(top.args.parent_board_id, null);
+  assert.equal(top.args.boards[0].parent_board_id, null);
+  assert.ok('parent_board_id' in top.args.boards[0]);
 });
 
 test('numbers, booleans and lists sent as text are read as what they obviously are', () => {
@@ -111,16 +113,16 @@ test('too many items says to split the call, and ranges say what they allow', ()
   assert.match(problems[0], /^urls takes at most 100 items \(got 101\) — split it across calls$/);
   const range = checkArgs(tool('read_board'), { board_id: ID, limit: 9000 });
   assert.match(range.problems[0], /^limit must be at most 500 \(got 9000\)$/);
-  const short = checkArgs(tool('search'), { q: 'a' });
-  assert.match(short.problems[0], /^q must be at least 2 characters \(got 1\)$/);
+  const short = checkArgs(tool('search'), { query: 'a' });
+  assert.match(short.problems[0], /^query must be at least 2 characters \(got 1\)$/);
 });
 
 test('free-form properties keep every key, nulls included — null is how a key is removed', () => {
-  const { args, problems } = checkArgs(tool('set_metadata'), {
-    board_id: ID, props: { 'shot.status': 'final', 'shot.notes': null },
+  const { args, problems } = checkArgs(tool('update_cards'), {
+    board_id: ID, cards: [{ id: 'c-1', props: { 'shot.status': 'final', 'shot.notes': null } }],
   });
   assert.deepEqual(problems, []);
-  assert.deepEqual(args.props, { 'shot.status': 'final', 'shot.notes': null });
+  assert.deepEqual(args.cards[0].props, { 'shot.status': 'final', 'shot.notes': null });
 });
 
 test('a value of the wrong kind says what it is and what was wanted', () => {

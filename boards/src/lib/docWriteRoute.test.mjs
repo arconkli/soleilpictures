@@ -328,5 +328,5 @@ test('write_doc, fetch and edit_doc_page over MCP', async () => {
 
   const wrong = await tool('write_doc', { board_id: B1, card_id: cardId, title: 'x', pages: [{ markdown: 'y' }] });
   assert.equal(wrong.isError, true);
-  assert.match(wrong.content[0].text, /update_card renames/);
+  assert.match(wrong.content[0].text, /update_cards renames/);
 });

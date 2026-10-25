@@ -246,7 +246,7 @@ export function openapiDocument(origin) {
             limitParam, offsetParam,
           ],
           responses: {
-            200: okJson('Matching boards and cards. Card hits carry a 300-character excerpt, not the whole card.', {
+            200: okJson('Matching boards and cards, each with a url that opens it in the app. Card hits carry a 300-character excerpt, not the whole card.', {
               type: 'object',
               properties: {
                 query: { type: 'string' },
@@ -374,13 +374,15 @@ export function openapiDocument(origin) {
         get: {
           summary: 'Every card on a board',
           operationId: 'listCards',
-          parameters: [limitParam, offsetParam],
+          parameters: [limitParam, offsetParam,
+            q('include', 'props, identifiers, raw and/or groups, comma-separated; groups adds the board\'s groups beside the cards')],
           responses: {
             200: okJson('A page of cards', {
               type: 'object',
               properties: {
                 board_id: { type: 'string', format: 'uuid' },
                 cards: { type: 'array', items: card },
+                groups: { type: 'array', items: { type: 'object' }, description: 'With include=groups' },
                 total: { type: 'integer' },
                 ...pageProps,
               },
