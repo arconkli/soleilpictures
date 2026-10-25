@@ -136,6 +136,10 @@ export function copyArgs({ plan, probe, kind, input, output, zscale = false }) {
     args.push('-an');
   }
 
+  // The copy is for playing: no tags (a phone's location rides in them), no
+  // chapters, and no timecode track, which the MP4 muxer would otherwise write
+  // from a camera file's timecode tag. The original keeps all of it.
+  args.push('-map_metadata', '-1', '-map_chapters', '-1', '-write_tmcd', '0');
   args.push('-movflags', '+faststart', '-max_muxing_queue_size', '1024', '-y', output);
   return args;
 }

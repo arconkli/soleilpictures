@@ -55,6 +55,17 @@ test('mov H.264 + pcm: video copied, audio to aac 160k stereo', () => {
   assert.equal(arg(a, '-ac'), '2');
 });
 
+test('the copy carries no tags, chapters or timecode track', () => {
+  const probe = probeOf([vstream(), astream({ codec_name: 'pcm_s24le' }), { index: 2, codec_type: 'data', codec_tag_string: 'tmcd' }]);
+  for (const a of [build(probe, 'mov'), build(probeOf([vstream({ codec_name: 'hevc' })]), 'mov')]) {
+    assert.equal(arg(a, '-map_metadata'), '-1');
+    assert.equal(arg(a, '-map_chapters'), '-1');
+    assert.equal(arg(a, '-write_tmcd'), '0');
+    assert.ok(a.indexOf('-write_tmcd') < a.indexOf('/t/out'), 'output options come before the output');
+    assert.ok(!a.some((x) => /^0:d/.test(x)), 'no data stream is mapped');
+  }
+});
+
 test('AIFF audio job: -vn, aac 256k', () => {
   const probe = probeOf([astream({ codec_name: 'pcm_s16be' })], { format_name: 'aiff' });
   const a = build(probe, 'aif', 'audio');

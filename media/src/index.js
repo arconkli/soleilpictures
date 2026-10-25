@@ -57,12 +57,12 @@ async function loop() {
   try {
     while (!stopping) {
       let job = null;
+      let failed = false;
       try {
         job = await api.claim();
       } catch (e) {
+        failed = true;
         console.warn(`[media] claim failed (${e?.status || scrubError(e?.message)}), backing off`);
-        await sleep(BACKOFF_MS);
-        continue;
       }
       if (job) {
         console.log(`[media] job ${job.key} (${job.kind}, attempt ${job.attempts})`);
@@ -70,11 +70,13 @@ async function loop() {
         lastWork = Date.now();
         continue;
       }
+      // No work, or a Worker that can't be asked: either way the machine stops
+      // once idle, or a Worker that is down would keep it running for good.
       if (Date.now() - lastWork >= IDLE_EXIT_MS) {
         console.log('[media] idle, exiting');
         process.exit(0);
       }
-      await sleep(IDLE_POLL_MS);
+      await sleep(failed ? BACKOFF_MS : IDLE_POLL_MS);
     }
   } finally {
     looping = false;
