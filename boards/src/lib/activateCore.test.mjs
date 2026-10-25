@@ -294,7 +294,7 @@ test('storage is recognised by price id when the config names no products', () =
 
 test('a team\'s subscription is never a Creator plan (S3)', () => {
   const cfg = { ...CFG, teamProduct: 'prod_team', teamPrices: { monthly: 'price_tm', annual: 'price_ta' } };
-  const seat = item('price_tm', 'prod_team', 1500, { qty: 5 });
+  const seat = item('price_tm', 'prod_team', 2500, { qty: 5 });
   const s = { id: 'sub_t', status: 'trialing', items: { data: [seat] } };
   assert.equal(isTeamItem(seat, cfg), true);
   const r = subscriptionItems(s, cfg);
@@ -302,7 +302,7 @@ test('a team\'s subscription is never a Creator plan (S3)', () => {
   assert.deepEqual(r.unknown, [], 'a team seat is not an unknown Creator price either');
   assert.deepEqual(activationDecision(s, cfg), { live: false, reason: 'no_creator_item' });
   // By its metadata alone, even with no team ids configured.
-  const stamped = { ...sub(usdPrice(1500)), metadata: { soleil_kind: 'team' } };
+  const stamped = { ...sub(usdPrice(2500)), metadata: { soleil_kind: 'team' } };
   assert.equal(isTeamObject(stamped), true);
   assert.deepEqual(activationDecision(stamped), { live: false, reason: 'team_subscription' });
 });

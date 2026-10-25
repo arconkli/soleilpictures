@@ -7,7 +7,7 @@ import './teamPlanCard.css';
 import { Icon } from '../Icon.jsx';
 import { Plus, Minus } from '../../lib/icons.js';
 import {
-  money, sizeLabel, TEAM_SEAT_MIN, TEAM_SEAT_PRICE, TEAM_STORAGE_PER_SEAT, TEAM_STORAGE_FLOOR,
+  money, sizeLabel, TEAM_SEAT_MIN, TEAM_SEAT_PRICE, TEAM_STORAGE_PER_SEAT,
 } from '../../lib/teamModel.js';
 
 export const TEAM_SEAT_MAX = 100;
@@ -46,7 +46,7 @@ export default function TeamPlanCard({ plan = 'monthly', seats, setSeats, onStar
 
       <ul className="pp-team-bens">
         <li><b>A seat for each person who edits</b><span>Guests from outside the team use one too. Add or drop seats any time.</span></li>
-        <li><b>Storage that grows with you</b><span>{sizeLabel(TEAM_STORAGE_PER_SEAT)} a seat, at least {sizeLabel(TEAM_STORAGE_FLOOR)}, shared by the whole team.</span></li>
+        <li><b>Storage that grows with you</b><span>{sizeLabel(TEAM_STORAGE_PER_SEAT)} a seat, shared by the whole team.</span></li>
         <li><b>One team, one bill</b><span>A team page for people, seats and joining by link or company email.</span></li>
       </ul>
 

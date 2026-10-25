@@ -33,9 +33,9 @@
 // billingCopy.js, which names the code enforcing every price.
 
 export const TEAM_SEAT_MIN = 3;
-export const TEAM_SEAT_PRICE = Object.freeze({ month: 15, year: 144 });
+export const TEAM_SEAT_PRICE = Object.freeze({ month: 25, year: 240 });
 export const TEAM_STORAGE_BLOCK_MONTHLY = 25;
-export const TEAM_STORAGE_PER_SEAT = 250e9;
+export const TEAM_STORAGE_PER_SEAT = 1e12;
 export const TEAM_STORAGE_FLOOR = 1e12;
 
 const DAY = 864e5;

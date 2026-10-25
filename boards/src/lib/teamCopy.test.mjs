@@ -36,16 +36,16 @@ test('team_seats_needed names the shortfall when it has one', () => {
 });
 
 test('a paying preview names the unit and today, from the preview', () => {
-  const line = seatPriceLine({ ok: true, seats: 6, from_seats: 5, unit_amount: 1500, interval: 'month', amount_today: 825, proration_date: 1 });
-  assert.equal(line, '1 seat at $15 a month, $8.25 today.');
-  const two = seatPriceLine({ ok: true, seats: 7, from_seats: 5, unit_amount: 14400, interval: 'year', amount_today: 20000, proration_date: 1 });
-  assert.equal(two, '2 seats at $144 a year each, $200 today.');
+  const line = seatPriceLine({ ok: true, seats: 6, from_seats: 5, unit_amount: 2500, interval: 'month', amount_today: 825, proration_date: 1 });
+  assert.equal(line, '1 seat at $25 a month, $8.25 today.');
+  const two = seatPriceLine({ ok: true, seats: 7, from_seats: 5, unit_amount: 24000, interval: 'year', amount_today: 20000, proration_date: 1 });
+  assert.equal(two, '2 seats at $240 a year each, $200 today.');
 });
 
 test('a trialing preview charges nothing and names the trial end', () => {
   const end = Date.UTC(2026, 10, 12, 12) / 1000;
-  const line = seatPriceLine({ ok: true, seats: 4, from_seats: 3, unit_amount: 1500, interval: 'month', trialing: true, amount_today: 0, trial_end: end });
-  assert.equal(line, '1 seat at $15 a month. Nothing today: your trial ends November 12, 2026.');
+  const line = seatPriceLine({ ok: true, seats: 4, from_seats: 3, unit_amount: 2500, interval: 'month', trialing: true, amount_today: 0, trial_end: end });
+  assert.equal(line, '1 seat at $25 a month. Nothing today: your trial ends November 12, 2026.');
   assert.ok(!/today\./.test(line.replace('Nothing today', '')));
 });
 

@@ -13,6 +13,9 @@ import { latestDefinition, MIGRATIONS_DIR } from './migrationText.mjs';
 const METERS = '0536_teams_pay_meters.sql';
 const GATES = '0537_teams_pay_gates.sql';
 const UPLOADS = '0650_teams_pay_upload_reserve.sql';   // after 0610, which wrote the live body
+const SEAT_DRIVE = '0539_team_seat_storage.sql';
+// Re-emitted later on purpose: a seat's drive went to 1 TB with the $25 seat (0539).
+const LATER = { _team_storage_seat_bytes: SEAT_DRIVE };
 const fileText = (f) => readFileSync(join(MIGRATIONS_DIR, f), 'utf8');
 const code = (s) => s.replace(/--[^\n]*/g, '');   // comments are not wiring
 const def = (fn) => {
@@ -54,7 +57,7 @@ test('every function lives in its S2b file, and nothing later in the folder over
   for (const [f, fns] of Object.entries(OWN)) {
     assert.deepEqual([...code(fileText(f)).matchAll(/create or replace function public\.(\w+)\(/gi)].map((m) => m[1]).sort(),
       [...fns].sort(), `${f} defines exactly its share`);
-    for (const fn of fns) assert.equal(def(fn).file, f, `${fn}'s latest definition must be ${f}`);
+    for (const fn of fns) assert.equal(def(fn).file, LATER[fn] ?? f, `${fn}'s latest definition must be ${LATER[fn] ?? f}`);
   }
 });
 
@@ -137,10 +140,10 @@ test('the seat perk is a seat in an open, active team that keeps the perk on', (
 
 // ── 0537 and 0650: files ─────────────────────────────────────────────────────
 
-test('the drives are in the code\'s units: 1 TB is 1 TiB, 250 GB and 50 GB are GiB', () => {
+test('the drives are in the code\'s units: 1 TB is 1 TiB, 50 GB is GiB', () => {
   const lit = (fn) => Number(body(fn).match(/select (\d+)::bigint;/)[1]);
   assert.equal(lit('_team_storage_floor_bytes'), 2 ** 40);
-  assert.equal(lit('_team_storage_seat_bytes'), 250 * 2 ** 30);
+  assert.equal(lit('_team_storage_seat_bytes'), 2 ** 40, 'a seat brings 1 TB, as Creator (0539)');
   assert.equal(lit('_seat_perk_storage_bytes'), 50 * 2 ** 30);
   const team = body('_org_storage_quota_bytes');
   assert.match(team, /case when o\.first_paid_at is null\s+then public\._storage_quota_trial_bytes\(\)/, 'the trial drive until the first payment');
@@ -204,4 +207,16 @@ test('helpers are server-only and the app\'s gates keep exactly their grants', (
   assert.match(gates, /having count\(\*\) > 1/, 'no overloads (PGRST203)');
   assert.match(gates, /p\.proname = '_storage_quota_bytes'\) <> 2 then/, 'the plan drive and the person\'s, and no third');
   assert.match(uploads, /p\.proname = 'record_upload_intent'\) <> 1 then/);
+});
+
+test('0539 re-emits only a seat\'s drive, in one transaction that proves its grant', () => {
+  const sql = fileText(SEAT_DRIVE);
+  assert.match(sql, /^begin;$/m);
+  assert.match(sql, /commit;\s*$/);
+  assert.deepEqual([...code(sql).matchAll(/create or replace function public\.(\w+)\(/gi)].map((m) => m[1]), ['_team_storage_seat_bytes']);
+  assert.match(sql, /revoke execute on function public\._team_storage_seat_bytes\(\) from public, anon, authenticated;/);
+  assert.match(sql, /has_function_privilege\('anon'/);
+  assert.match(sql, /has_function_privilege\('authenticated'/);
+  assert.match(sql, /^--\s+_team_storage_seat_bytes\s+[0-9a-f]{32}$/m, 'names the body it starts from');
+  assert.doesNotMatch(code(sql), /\bdrop\s+(function|table|trigger|policy)\b/i);
 });

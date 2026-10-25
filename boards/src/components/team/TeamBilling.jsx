@@ -60,7 +60,7 @@ export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onClo
             <span className="tp-card-k">Storage</span>
             <span className="tp-card-big">{sizeLabel(storage.usedBytes)}<small>of {sizeLabel(storage.quotaBytes)}</small></span>
             <div className="tp-meter"><span style={{ width: `${Math.min(100, (storage.usedBytes / storage.quotaBytes) * 100)}%` }} /></div>
-            <p className="tp-card-t">250 GB a seat, at least 1 TB, shared by the whole team.</p>
+            <p className="tp-card-t">1 TB a seat, shared by the whole team.</p>
             {!live && teamCan(role, 'addStorage') && (
               <div className="tp-card-acts">
                 <button type="button" className="tp-btn tp-btn-sm" onClick={() => onToast('Preview: nothing was charged.')}>

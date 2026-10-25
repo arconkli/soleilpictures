@@ -30,7 +30,8 @@ and lapse, all behind the holds. While teams stay closed, nothing changes for an
 ## Global constraints
 
 - Owner decisions, from `docs/superpowers/specs/2026-10-21-team-plan-and-editor-limit-design.md` (final):
-  - Price and seats: $15 a seat a month or $144 a year; minimum 3 seats; self-serve up to 100.
+  - Price and seats: $25 a seat a month or $240 a year (the owner's pick 2026-10-25, first $15 / $144);
+    minimum 3 seats; self-serve up to 100. A seat brings 1 TB of drive (0539).
   - A 14-day trial with a card required. The drive is 100 GB until the first payment, and seats added
     during the trial are charged at conversion.
   - Unused seats drop at renewal, never below 3.
@@ -196,7 +197,7 @@ checkout complete (twice), the mirror guard, entitlement, trim and the seat outb
 ## Task 5: hand-off, on the owner's go
 
 - [ ] Create the live Stripe objects with the Stripe MCP: the product "Clusters Team", and the prices
-  `team_seat_monthly` ($15) and `team_seat_annual` ($144), per unit, recurring.
+  `team_seat_monthly` ($25) and `team_seat_annual` ($240), per unit, recurring.
 - [ ] Set the secrets `STRIPE_PRODUCT_TEAM`, `STRIPE_PRICE_TEAM_MONTHLY` and `STRIPE_PRICE_TEAM_ANNUAL`.
 - [x] Apply 0538 in parts, then verify the bodies by md5 and run probe F. Done 2026-10-25: eight
   records, 17 bodies md5-matched, probe F 9/9 on live (rolled back; F5 builds its lapsed team

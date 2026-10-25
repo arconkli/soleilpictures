@@ -53,7 +53,7 @@ const teamSub = ({ status = 'active', seats = 5, blocks = 0, extra = {} } = {}) 
   items: {
     data: [
       ...(blocks ? [item('price_sm', 'prod_storage', 2500, { qty: blocks })] : []),
-      item('price_tm', 'prod_team', 1500, { qty: seats }),
+      item('price_tm', 'prod_team', 2500, { qty: seats }),
     ],
   },
   ...extra,
@@ -67,14 +67,14 @@ test('the seat price the code checks is the price the page shows', () => {
 });
 
 test('teamPriceMatches refuses a price that would charge what the page did not show', () => {
-  const ok = { active: true, currency: 'usd', unit_amount: 1500, billing_scheme: 'per_unit', recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' } };
+  const ok = { active: true, currency: 'usd', unit_amount: 2500, billing_scheme: 'per_unit', recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' } };
   assert.equal(teamPriceMatches(ok, 'monthly'), true);
   assert.equal(teamPriceMatches({ ...ok, unit_amount: 1600 }, 'monthly'), false, 'edited in the dashboard');
   assert.equal(teamPriceMatches(ok, 'annual'), false, 'a monthly price is not the annual one');
   assert.equal(teamPriceMatches({ ...ok, active: false }, 'monthly'), false);
   assert.equal(teamPriceMatches({ ...ok, billing_scheme: 'tiered' }, 'monthly'), false);
   assert.equal(teamPriceMatches({ ...ok, recurring: { ...ok.recurring, usage_type: 'metered' } }, 'monthly'), false);
-  assert.equal(teamPriceMatches({ ...ok, unit_amount: 14400, recurring: { interval: 'year', interval_count: 1 } }, 'annual'), true);
+  assert.equal(teamPriceMatches({ ...ok, unit_amount: 24000, recurring: { interval: 'year', interval_count: 1 } }, 'annual'), true);
   assert.equal(teamPriceMatches(ok, 'weekly'), false);
   assert.equal(teamPriceIdFor('monthly', CFG), 'price_tm');
   assert.equal(teamPriceIdFor('annual', CFG), 'price_ta');
