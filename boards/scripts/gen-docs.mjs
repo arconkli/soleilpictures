@@ -75,6 +75,7 @@ import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
 import { GALLERY } from '../src/lib/gallery.js';
 import { DOC_READ } from '../src/lib/docMarkdown.js';
+import { DOC_WRITE } from '../src/lib/docWrite.js';
 import { TOOLS as MCP_TOOLS, FETCH_MAX_CHARS } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
@@ -527,6 +528,11 @@ export const FACTS = {
   docReadDefaultChars: DOC_READ.defaultChars.toLocaleString('en-US'),
   docReadMaxChars: DOC_READ.maxChars.toLocaleString('en-US'),
   fetchMaxChars: FETCH_MAX_CHARS.toLocaleString('en-US'),
+  // What one doc write may carry (lib/docWrite.js).
+  docWriteMaxChars: DOC_WRITE.maxChars.toLocaleString('en-US'),
+  docWriteMaxPages: String(DOC_WRITE.maxPages),
+  docWriteMaxEdits: String(DOC_WRITE.maxEdits),
+  docWriteMaxTitle: String(DOC_WRITE.maxTitle),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

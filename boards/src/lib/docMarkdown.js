@@ -102,13 +102,27 @@ export function resolveDocMarks(doc, ydoc) {
 // Covers paragraph/heading/lists/taskList/blockquote/codeBlock/code/marks/
 // link/image/hardBreak/horizontalRule/table + sub/superscript + boardEmbed,
 // and a screenplay's lines, one paragraph each with scene headings in bold.
+//
+// Written to be read back (docWrite.js reads it, and matches a page's blocks
+// by it): every line of a block inside a list item or a quote carries the
+// item's indent or the quote's `>`, a line break is a trailing backslash (two
+// in a row can't turn into a blank line, as trailing spaces would), and a
+// code block's lines go out exactly as they are.
 const INLINE = new Set(['text', 'hardBreak', 'image']);
+const LISTS = new Set(['bulletList', 'orderedList', 'taskList']);
 export function jsonToMarkdown(doc) {
   const out = [];
-  const renderInline = (nodes = []) => nodes.map(renderInlineNode).join('');
+  // One blank line between blocks, never two (Markdown has no empty block).
+  const blank = () => { if (out.length && out[out.length - 1] !== '') out.push(''); };
+  const renderInline = (nodes = []) => {
+    // A break that ends a block shows nothing, and a backslash there would.
+    let end = nodes.length;
+    while (end > 0 && nodes[end - 1]?.type === 'hardBreak') end--;
+    return nodes.slice(0, end).map(renderInlineNode).join('');
+  };
   const renderInlineNode = (n) => {
     if (n.type === 'text') return wrapMarks(n.text || '', n.marks || []);
-    if (n.type === 'hardBreak') return '  \n';
+    if (n.type === 'hardBreak') return '\\\n';
     if (n.type === 'image') return `![${n.attrs?.alt || ''}](${n.attrs?.src || ''})`;
     return '';
   };
@@ -127,84 +141,96 @@ export function jsonToMarkdown(doc) {
     }
     return s;
   };
-  const renderBlock = (node, depth = 0) => {
+  const line = (s) => { if (s) out.push(s); blank(); };
+  const renderBlock = (node) => {
     if (!node) return;
     switch (node.type) {
-      case 'doc': (node.content || []).forEach(c => renderBlock(c, depth)); break;
-      case 'paragraph': out.push(renderInline(node.content)); out.push(''); break;
+      case 'doc': (node.content || []).forEach(renderBlock); break;
+      case 'paragraph': line(renderInline(node.content)); break;
       case 'heading': {
         const lvl = Number(node.attrs?.level) || 1;
-        out.push('#'.repeat(Math.min(6, lvl)) + ' ' + renderInline(node.content));
-        out.push('');
+        line('#'.repeat(Math.min(6, lvl)) + ' ' + renderInline(node.content));
         break;
       }
-      case 'bulletList': (node.content || []).forEach((li) => renderListItem(li, '-', depth)); out.push(''); break;
-      case 'orderedList': (node.content || []).forEach((li, i) => renderListItem(li, `${i + 1}.`, depth)); out.push(''); break;
-      case 'taskList': (node.content || []).forEach(li => renderTaskItem(li, depth)); out.push(''); break;
-      case 'blockquote': (node.content || []).forEach(c => {
-        const before = out.length;
-        renderBlock(c, depth);
-        for (let i = before; i < out.length; i++) out[i] = '> ' + out[i];
-      }); out.push(''); break;
+      case 'bulletList': renderList(node, () => '-'); break;
+      case 'orderedList': {
+        const start = Number.isInteger(node.attrs?.start) && node.attrs.start >= 0 ? node.attrs.start : 1;
+        renderList(node, (i) => `${start + i}.`);
+        break;
+      }
+      case 'taskList': renderList(node, (_i, li) => `- [${li.attrs?.checked ? 'x' : ' '}]`, 2); break;
+      case 'blockquote': {
+        const lines = [];
+        (node.content || []).forEach((c, i) => {
+          if (i) lines.push('');
+          lines.push(...blockLines(c));
+        });
+        lines.forEach((l) => out.push(l ? `> ${l}` : '>'));
+        blank();
+        break;
+      }
       case 'codeBlock': {
         const lang = node.attrs?.language || '';
         const text = (node.content || []).map(c => c.text || '').join('');
-        out.push('```' + lang); out.push(text); out.push('```'); out.push('');
+        out.push('```' + lang, ...(text ? text.split('\n') : []), '```');
+        blank();
         break;
       }
-      case 'horizontalRule': out.push('---'); out.push(''); break;
-      case 'image': out.push(`![${node.attrs?.alt || ''}](${node.attrs?.src || ''})`); out.push(''); break;
+      case 'horizontalRule': line('---'); break;
+      case 'image': line(`![${node.attrs?.alt || ''}](${node.attrs?.src || ''})`); break;
       case 'boardEmbed': {
         const label = node.attrs?.label || (node.attrs?.cardId ? 'Card' : 'Board');
-        out.push(`> ↗ ${label}`); out.push('');
+        line(`> ↗ ${label}`);
         break;
       }
-      case 'table': renderTable(node); out.push(''); break;
+      case 'table': renderTable(node); blank(); break;
       case 'screenplayBlock': {
         const text = renderInline(node.content);
-        out.push(node.attrs?.element === 'scene' && text ? `**${text}**` : text); out.push('');
+        line(node.attrs?.element === 'scene' && text ? `**${text}**` : text);
         break;
       }
       default:
         if (!node.content) break;
         // A block this does not know still has words in it: a run of inline
         // content reads as a paragraph rather than vanishing.
-        if (node.content.every(c => INLINE.has(c.type))) { out.push(renderInline(node.content)); out.push(''); }
-        else node.content.forEach(c => renderBlock(c, depth));
+        if (node.content.every(c => INLINE.has(c.type))) line(renderInline(node.content));
+        else node.content.forEach(renderBlock);
     }
   };
-  const renderListItem = (li, marker, depth) => {
-    const indent = '  '.repeat(depth);
-    const inner = [];
-    (li.content || []).forEach((child) => {
-      if (child.type === 'paragraph') inner.push(renderInline(child.content));
-      else {
-        const save = out.length;
-        renderBlock(child, depth + 1);
-        const lines = out.splice(save).filter(Boolean);
-        inner.push(lines.join('\n'));
-      }
-    });
-    out.push(indent + marker + ' ' + (inner[0] || ''));
-    for (let i = 1; i < inner.length; i++) out.push(indent + '  ' + inner[i]);
-  };
-  const renderTaskItem = (li, depth) => {
-    const indent = '  '.repeat(depth);
-    const checked = li.attrs?.checked ? '[x]' : '[ ]';
-    const text = (li.content || [])
-      .filter(c => c.type === 'paragraph')
-      .map(c => renderInline(c.content)).join(' ');
-    out.push(indent + '- ' + checked + ' ' + text);
-  };
-  // Serialize a table cell's FULL block content (not just first-paragraph text),
-  // escaping pipes and joining blocks with <br> so multi-paragraph / list cells
-  // survive.
-  const renderCell = (cell) => {
+  // One block on its own, as lines, with no blank line after it.
+  const blockLines = (node) => {
     const save = out.length;
-    (cell.content || []).forEach(c => renderBlock(c, 0));
-    const lines = out.splice(save).filter(Boolean);
-    return lines.join(' ').replace(/\|/g, '\\|').trim();
+    renderBlock(node);
+    const lines = out.splice(save).join('\n').split('\n');
+    while (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return lines;
   };
+  // Each item's blocks: the first beside its marker, every other line indented
+  // to where the item's text starts, so it stays in the item when read back. A
+  // blank line keeps a second block its own (a paragraph would otherwise run
+  // on into the first); a list inside an item follows straight on.
+  const renderList = (list, markerOf, width = null) => {
+    (list.content || []).forEach((li, i) => {
+      const marker = markerOf(i, li);
+      const pad = ' '.repeat(width ?? marker.length + 1);
+      const lines = [];
+      (li.content || []).forEach((child, k) => {
+        const own = blockLines(child);
+        const tight = LISTS.has(child.type) && !(child.type === 'orderedList' && (child.attrs?.start ?? 1) !== 1);
+        if (k && !tight && lines.some(Boolean)) lines.push('');
+        lines.push(...own);
+      });
+      const [first = '', ...rest] = lines;
+      out.push(`${marker} ${first}`);
+      for (const l of rest) out.push(l ? pad + l : '');
+    });
+    blank();
+  };
+  // A cell's whole content on its one row: its blocks and line breaks joined
+  // by <br>, pipes escaped.
+  const renderCell = (cell) => (cell.content || [])
+    .map((c) => blockLines(c).map((l) => l.replace(/\\$/, '').trimEnd()).filter(Boolean).join('<br>'))
+    .filter(Boolean).join('<br>').replace(/\|/g, '\\|').trim();
   const renderTable = (table) => {
     const rows = (table.content || []).map(row => (row.content || []).map(renderCell));
     if (!rows.length) return;
@@ -213,7 +239,7 @@ export function jsonToMarkdown(doc) {
     for (let i = 1; i < rows.length; i++) out.push('| ' + rows[i].join(' | ') + ' |');
   };
   renderBlock(doc);
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  return out.join('\n').trim() + '\n';
 }
 
 // ── A doc's pages, for a reader ─────────────────────────────────────────────

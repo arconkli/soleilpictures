@@ -270,42 +270,11 @@ the card picked. `?include=` works as it does on the list.
   "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:c-12" }
 ```
 
-## `GET /boards/:id/cards/:cardId/doc`
+## Doc cards
 
-A doc card's text: every page, in the order its page list shows them, as
-Markdown.
-
-```json
-{
-  "board_id": "9f1c…", "card_id": "c-3", "title": "Treatment", "url": "…",
-  "page_count": 2,
-  "pages": [
-    { "id": "p1", "title": "Opening", "parent_id": null, "depth": 0,
-      "markdown": "A diner at night…\n", "chars": 1840, "hash": "5d1f0c2a", "truncated": false },
-    { "id": "p2", "title": "Close", "parent_id": null, "depth": 0,
-      "markdown": null, "chars": 960, "hash": "0be4a9d1", "truncated": false }
-  ],
-  "complete": false
-}
-```
-
-| Parameter | |
-|---|---|
-| `page` | One page, by its `id` |
-| `max_chars` | Markdown handed back across the pages: 20,000 characters by default, at most 200,000 |
-
-Pages fill in order until `max_chars` runs out. The page that crosses it is cut
-and marked `truncated`, and any after it come back with `markdown: null`, so
-every page is listed with its length in `chars` either way. `complete` says
-whether you have all of it; read the rest one `page` at a time. A page nested
-under another carries that page's id in `parent_id`, and a `depth` one more.
-
-Links in the text carry their real address, and comments are left out. An
-uploaded image's source is `r2:` followed by its storage key. A screenplay
-reads one line to a paragraph, scene headings in bold. `hash` changes whenever
-the page's Markdown does.
-
-A card that is not a doc answers `400`, naming the route that reads it.
+A doc card's pages are read and written as Markdown on routes of their own: see
+the [Docs API](/docs/api/docs). `POST /boards/:id/docs` makes a doc with its
+pages already in it.
 
 ## `PATCH /boards/:id/cards/:cardId`
 

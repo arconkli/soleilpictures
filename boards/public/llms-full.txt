@@ -2738,11 +2738,11 @@ For screenplays it is vector output in Courier at correct industry metrics, and 
 
 Markdown
 
-Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link.
+Plain text with structure preserved: headings, lists and checklists (nested ones too), emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link.
 
 The right choice for moving writing into another tool without reformatting it by hand. A screenplay's Markdown keeps every line, one to a paragraph, with scene headings in bold; Fountain keeps the screenplay's own format.
 
-An AI assistant you have connected reads a doc the same way, as Markdown page by page, with fetch.
+An AI assistant you have connected reads a doc the same way, as Markdown page by page, with fetch, and writes one with write_doc and edit_doc_page. The Docs API does both for your own code.
 
 HTML
 
@@ -4582,7 +4582,7 @@ A: Export boards and documents, download original files, or read everything prog
 ========================================================================
 # The REST API
 URL: https://clusters.soleilpictures.com/docs/api
-Updated: 2026-08-10
+Updated: 2026-10-25
 
 The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.
 
@@ -4617,6 +4617,9 @@ POST /boards/:id/cards | Add cards
 PATCH /boards/:id/cards/:cardId | Change a card
 DELETE /boards/:id/cards/:cardId | Remove a card
 POST /boards/:id/cards/move | Move cards to another board
+GET /boards/:id/cards/:cardId/doc | A doc's pages as Markdown
+POST /boards/:id/docs | Write a new doc from Markdown
+PATCH /boards/:id/cards/:cardId/doc/pages/:pageId | Rewrite or edit one page, safely
 POST /uploads | Upload an image, get a key back
 GET /images/:key | Read an image back
 GET /resolve | Find an object by a foreign identifier
@@ -5624,31 +5627,9 @@ One card, as the list gives it, and url, the link that opens the board with the 
 { "board_id": "9f1c…", "card": { "id": "c-12", "kind": "note", … },
   "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:c-12" }
 
-GET /boards/:id/cards/:cardId/doc
+Doc cards
 
-A doc card's text: every page, in the order its page list shows them, as Markdown.
-
-{
-  "board_id": "9f1c…", "card_id": "c-3", "title": "Treatment", "url": "…",
-  "page_count": 2,
-  "pages": [
-    { "id": "p1", "title": "Opening", "parent_id": null, "depth": 0,
-      "markdown": "A diner at night…\n", "chars": 1840, "hash": "5d1f0c2a", "truncated": false },
-    { "id": "p2", "title": "Close", "parent_id": null, "depth": 0,
-      "markdown": null, "chars": 960, "hash": "0be4a9d1", "truncated": false }
-  ],
-  "complete": false
-}
-
-Parameter | 
-page | One page, by its id
-max_chars | Markdown handed back across the pages: 20,000 characters by default, at most 200,000
-
-Pages fill in order until max_chars runs out. The page that crosses it is cut and marked truncated, and any after it come back with markdown: null, so every page is listed with its length in chars either way. complete says whether you have all of it; read the rest one page at a time. A page nested under another carries that page's id in parent_id, and a depth one more.
-
-Links in the text carry their real address, and comments are left out. An uploaded image's source is r2: followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. hash changes whenever the page's Markdown does.
-
-A card that is not a doc answers 400, naming the route that reads it.
+A doc card's pages are read and written as Markdown on routes of their own: see the Docs API. POST /boards/:id/docs makes a doc with its pages already in it.
 
 PATCH /boards/:id/cards/:cardId
 
@@ -5702,6 +5683,144 @@ A: Upload the bytes to /uploads first, then create a card with kind image and th
 
 Q: What does live false mean in the response?
 A: The cards are saved, but a canvas someone already has open will not show them until it reloads. It is not a failure.
+
+
+========================================================================
+# Docs API
+URL: https://clusters.soleilpictures.com/docs/api/docs
+Updated: 2026-10-25
+
+A doc card's pages are read and written as Markdown. GET /boards/:id/cards/:cardId/doc reads every page with a hash of each; POST /boards/:id/docs makes a doc holding up to 50 pages; POST …/doc/pages adds pages; PATCH …/doc/pages/:pageId rewrites, edits or renames one page. A rewrite names the hash the page was read at, so it never erases a change made since, and it keeps every block it didn't change, comments included.
+
+A doc card holds pages of writing. Over the API you read them and write them as Markdown, page by page: the same Markdown the export gives you.
+
+GET /boards/:id/cards/:cardId/doc
+
+A doc card's text: every page, in the order its page list shows them, as Markdown.
+
+{
+  "board_id": "9f1c…", "card_id": "c-3", "title": "Treatment", "url": "…",
+  "page_count": 2,
+  "pages": [
+    { "id": "p1", "title": "Opening", "parent_id": null, "depth": 0,
+      "markdown": "A diner at night…\n", "chars": 1840, "hash": "5d1f0c2a", "truncated": false },
+    { "id": "p2", "title": "Close", "parent_id": null, "depth": 0,
+      "markdown": null, "chars": 960, "hash": "0be4a9d1", "truncated": false }
+  ],
+  "complete": false
+}
+
+Parameter | 
+page | One page, by its id
+max_chars | Markdown handed back across the pages: 20,000 characters by default, at most 200,000
+
+Pages fill in order until max_chars runs out. The page that crosses it is cut and marked truncated, and any after it come back with markdown: null, so every page is listed with its length in chars either way. complete says whether you have all of it; read the rest one page at a time. A page nested under another carries that page's id in parent_id, and a depth one more.
+
+Links in the text carry their real address, and comments are left out. An uploaded image's source is r2: followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. hash changes whenever the page's Markdown does, and a read of one page carries it as the ETag.
+
+A card that is not a doc answers 400, naming the route that reads it.
+
+POST /boards/:id/docs
+
+A new doc card holding the pages you send, placed in free space on the board, or at x and y.
+
+{
+  "title": "Tokyo noir",
+  "pages": [
+    { "title": "Logline", "markdown": "A night-shift detective follows a dead phone through Shinjuku." },
+    { "markdown": "# Places\n\n- Shinjuku\n- [Golden Gai](https://example.com/gg)" }
+  ]
+}
+
+Field | 
+pages | Required. Up to 50, each { title?, markdown }, with up to 200,000 characters of Markdown between them
+title | The card's title. Left out, its one page's title, else "Untitled doc"
+x, y | Where the card goes. Left out, it is placed where it covers nothing
+
+A page with no title takes the words of its first heading, and a first page with neither takes the card's title, as a new doc's first page does in the app. Titles are cut at 200 characters.
+
+{
+  "board_id": "9f1c…",
+  "card": { "id": "api-m2x9k1-a81f3c", "kind": "doc", "title": "Tokyo noir", … },
+  "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:api-m2x9k1-a81f3c",
+  "pages": [
+    { "id": "p_k3v8x0q2m1c4", "title": "Logline", "parent_id": null, "depth": 0, "chars": 64, "hash": "5d1f0c2a" },
+    { "id": "p_7hd2w9zr8b0e", "title": "Places", "parent_id": null, "depth": 0, "chars": 57, "hash": "0be4a9d1" }
+  ],
+  "live": true
+}
+
+That is a 201. The doc counts as one card toward the card cap.
+
+POST /boards/:id/cards/:cardId/doc/pages
+
+More pages for a doc that exists: after the pages it has, or, with parent_page_id, under that page as its sub-pages. pages is as above. The answer is a 201 listing the new pages.
+
+PATCH /boards/:id/cards/:cardId/doc/pages/:pageId
+
+One page changed, in one of three ways:
+
+Send | Does
+markdown and page_hash | Rewrites the page. markdown is the whole page as it should now read; page_hash is the hash you read it at, or send that as If-Match
+edits | Up to 50 { "old_text", "new_text" }, applied in order. Each old_text must appear in the page's Markdown exactly once
+title | Renames the page, alone or with either of the others
+
+{
+  "markdown": "# Places\n\n- Shinjuku at 4am\n- [Golden Gai](https://example.com/gg)\n",
+  "page_hash": "0be4a9d1"
+}
+
+{
+  "board_id": "9f1c…", "card_id": "api-m2x9k1-a81f3c", "url": "…",
+  "page": { "id": "p_7hd2w9zr8b0e", "title": "Places", "parent_id": null, "depth": 0, "chars": 66, "hash": "77a0e3b4" },
+  "blocks": { "kept": 1, "removed": 1, "added": 1 },
+  "changed": true
+}
+
+Only what you changed is rewritten. The page you send is matched against the page as it stands, block by block, by each block's Markdown. A heading, paragraph, list, table or quote whose Markdown you left alone stays the same block, so a comment on it, its text colour, an embedded board and anything else Markdown has no words for stay with it. blocks counts what was kept, removed and added. Send a page back as it was and nothing is written: changed is false.
+
+A rewrite can't erase anyone's change. When the page's hash is no longer the one you name, the write is refused with 409 page_changed and nothing is written. Read the page again and make your change to that. edits need no hash, because the exact text each one names is its own check.
+
+Before a page is rewritten or edited, the board is saved to its Version history as it was, marked API.
+
+What the Markdown carries
+
+Markdown | In the doc
+# to ###### | Headings
+**bold**, *italic*, ~~strike~~, ` code , ==highlight==, <u>underline</u>, <sub>, <sup>` | The same marks
+- and 1. lists, nested | Lists, numbered from where yours starts
+- [ ] and - [x] | A checklist, when every item in the list is one
+> | A quote
+Fenced code | A code block, with its language
+Tables | Tables, each column aligned as you aligned it
+--- | A divider
+[words](https://…), a bare https:// address, mailto: | Links
+![caption](r2:<image_key>) | A picture, when the file is already on the board
+A single line break | A line break; a blank line starts a new paragraph
+
+Links go only to http, https and mailto addresses; any other keeps its words without the link. A picture is placed only from a file already on the board: an image card's image_key from GET /boards/:id/cards, written r2:<image_key> as a read gives it back (the bare key works too). Any other picture becomes a link to its address, so writing a doc never fetches anything into it. Other HTML stays as text.
+
+A screenplay is written in the app. The API writes prose docs, and answers 400 for a screenplay.
+
+Live, or not at all
+
+Doc writes go through the cluster's live room, as an edit in the app does, so anyone with the doc open sees the change land, on the board or in a doc shared on its own. When the room can't be reached, or doesn't confirm the change, the answer is 503 room_unavailable and nothing was written: try again.
+
+Search inside documents finds what you wrote straight away.
+
+## Frequently asked questions
+
+Q: Will rewriting a page lose its comments or colours?
+A: Not on the parts you leave alone. A rewrite keeps every block whose Markdown is unchanged as the same block, so a comment on it, its text colour and anything else Markdown can't express stay with it. Only the blocks you change are written fresh.
+
+Q: What if someone edits the page while my script is working on it?
+A: A whole-page rewrite names the hash of the page as you read it. If the page has changed since, the write is refused with 409 page_changed and nothing is written. Read it again and make your change to that.
+
+Q: Can a doc written through the API hold pictures?
+A: Pictures already in the cluster, yes. Write ![caption](r2:<image_key>) with the image_key of an image card on the board. Any other picture becomes a link to it, so writing a doc never fetches anything into it.
+
+Q: Why did I get 503 room_unavailable?
+A: A doc is written through the cluster's live room or not at all, and the room couldn't be reached or didn't confirm the change. Nothing was written, so it is safe to try again.
 
 
 ========================================================================
@@ -6524,7 +6643,7 @@ Reading
 Tool | Input
 read_board | board_id, full?, include?, source?, since?, paging
 view_board | board_id, limit? (default 12, up to 24), cursor?, card_ids? (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card
-fetch | id — board:<board id>, card:<board id>:<card id>, doc:<board id>:<card id> (:<page id> for one page), or a link from the app · one board, card or doc as text to read, { id, title, text, url, metadata }, up to 40,000 characters
+fetch | id — board:<board id>, card:<board id>:<card id>, doc:<board id>:<card id> (:<page id> for one page), or a link from the app · one board, card or doc as text to read, { id, title, text, url, metadata }, up to 40,000 characters; a doc's metadata.pages carry each page's hash
 view_image | image_key — fetch an image card's actual picture
 list_images | workspace_id?, board_id?, since?, cursor?
 export_board | board_id, format? (json|omc)
@@ -6539,6 +6658,8 @@ create_boards | boards[] — up to 500, on_conflict? — build a structure in on
 add_cards | board_id, cards[] — up to 1000, on_conflict?
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
+write_doc | board_id, pages[] — up to 50, each { title?, markdown }; title?, x?, y? for a new doc, or card_id and parent_page_id? to add pages to one · a doc written from Markdown
+edit_doc_page | board_id, card_id, page_id, and markdown with page_hash, or edits[] (up to 50), or title · marked destructive, since a rewrite takes words away; the board goes to Version history first
 import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
 arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
 create_group | board_id, name, color?, shape? — say a set of cards is one thing
@@ -6582,6 +6703,13 @@ upload_image with the base64 bytes and a content_type, plus file_name to keep th
 add_cards with {"kind": "image", "image_key": "…", "file_name": "…"}
 
 Images are limited to 25 MB through the API and are charged to the board owner's storage. See Images API.
+
+Writing a doc
+
+write_doc with the pages in Markdown — returns the doc's url and each page's id and hash
+edit_doc_page to change a page afterwards: edits for a few words, or the whole page as markdown with its page_hash. fetch with doc:<board id>:<card id>:<page id> reads a page and its current hash.
+
+A rewrite keeps every block it didn't change, comments and all, and is refused if the page changed since it was read. A picture goes in only from a file already on the board. The Docs API has the details.
 
 What agents should know
 
@@ -6633,7 +6761,7 @@ A: Yes, apart from upload_file, which needs a filesystem. Both servers are built
 ========================================================================
 # Errors and status codes
 URL: https://clusters.soleilpictures.com/docs/api/errors
-Updated: 2026-08-08
+Updated: 2026-10-25
 
 Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
 
@@ -6652,13 +6780,15 @@ Status | code | Means | Retry?
 403 | forbidden / insufficient_scope | Not permitted, or the token lacks the scope | No
 404 | not_found | Not found, or not visible to you | No
 405 | method_not_allowed | Wrong method for that path | No
-409 | conflict | Idempotency key in flight, or a refused reparent | Sometimes
+409 | conflict | Idempotency key in flight, a refused reparent, or a doc page from an older layout | Sometimes
+409 | page_changed | A doc page changed after you read it; read it again | No
 409 | identifier_conflict | An identifier already belongs to something else | No
-413 | payload_too_large | An image over 25 MB | No
+413 | payload_too_large | An image over 25 MB, or more Markdown than a doc write takes | No
 415 | unsupported_media_type | Upload with a missing or unrecognised Content-Type | No
 429 | — | Rate limited | Yes, after retry-after
 502 | session_unavailable | An upstream dependency is unreachable | Yes
 502 | upstream_error | A dependency answered, but not successfully | Yes
+503 | room_unavailable | A cluster's live room couldn't be reached or didn't confirm a doc write; nothing was written | Yes
 503 | storage_unavailable | Image storage is temporarily unavailable | Yes
 
 The ones worth explaining

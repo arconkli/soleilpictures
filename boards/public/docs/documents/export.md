@@ -30,8 +30,8 @@ the page breaks match what you saw while writing, because
 
 ## Markdown
 
-Plain text with structure preserved: headings, lists, emphasis, tables, code
-blocks and links. Images are embedded in the file as data URIs, so it opens
+Plain text with structure preserved: headings, lists and checklists (nested
+ones too), emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens
 complete anywhere at the cost of size; an image linked from a site that refuses
 the download stays a link.
 
@@ -40,7 +40,8 @@ hand. A screenplay's Markdown keeps every line, one to a paragraph, with scene
 headings in bold; Fountain keeps the screenplay's own format.
 
 An AI assistant you have [connected](/docs/mcp) reads a doc the same way, as
-Markdown page by page, with `fetch`.
+Markdown page by page, with `fetch`, and writes one with `write_doc` and
+`edit_doc_page`. The [Docs API](/docs/api/docs) does both for your own code.
 
 ## HTML
 

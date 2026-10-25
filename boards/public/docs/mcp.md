@@ -194,7 +194,7 @@ quietly failing.
 |---|---|
 | `read_board` | `board_id`, `full?`, `include?`, `source?`, `since?`, paging |
 | `view_board` | `board_id`, `limit?` (default 12, up to 24), `cursor?`, `card_ids?` (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card |
-| `fetch` | `id` — `board:<board id>`, `card:<board id>:<card id>`, `doc:<board id>:<card id>` (`:<page id>` for one page), or a link from the app · one board, card or doc as text to read, `{ id, title, text, url, metadata }`, up to 40,000 characters |
+| `fetch` | `id` — `board:<board id>`, `card:<board id>:<card id>`, `doc:<board id>:<card id>` (`:<page id>` for one page), or a link from the app · one board, card or doc as text to read, `{ id, title, text, url, metadata }`, up to 40,000 characters; a doc's `metadata.pages` carry each page's `hash` |
 | `view_image` | `image_key` — fetch an image card's actual picture |
 | `list_images` | `workspace_id?`, `board_id?`, `since?`, `cursor?` |
 | `export_board` | `board_id`, `format?` (`json`\|`omc`) |
@@ -210,6 +210,8 @@ quietly failing.
 | `add_cards` | `board_id`, `cards[]` — up to 1000, `on_conflict?` |
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
+| `write_doc` | `board_id`, `pages[]` — up to 50, each `{ title?, markdown }`; `title?`, `x?`, `y?` for a new doc, or `card_id` and `parent_page_id?` to add pages to one · a [doc](/docs/api/docs) written from Markdown |
+| `edit_doc_page` | `board_id`, `card_id`, `page_id`, and `markdown` with `page_hash`, or `edits[]` (up to 50), or `title` · marked destructive, since a rewrite takes words away; the board goes to Version history first |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
 | `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
@@ -265,6 +267,18 @@ Two calls:
 
 Images are limited to **25 MB** through the API and are charged
 to the board owner's storage. See [Images API](/docs/api/images).
+
+## Writing a doc
+
+1. `write_doc` with the pages in Markdown — returns the doc's `url` and each
+   page's `id` and `hash`
+2. `edit_doc_page` to change a page afterwards: `edits` for a few words, or
+   the whole page as `markdown` with its `page_hash`. `fetch` with
+   `doc:<board id>:<card id>:<page id>` reads a page and its current hash.
+
+A rewrite keeps every block it didn't change, comments and all, and is refused
+if the page changed since it was read. A picture goes in only from a file
+already on the board. The [Docs API](/docs/api/docs) has the details.
 
 ## What agents should know
 

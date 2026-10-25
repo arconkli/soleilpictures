@@ -29137,7 +29137,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link."
+     "v": "Plain text with structure preserved: headings, lists and checklists (nested ones too), emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link."
     }
    ]
   },
@@ -29178,7 +29178,38 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", and writes one with "
+    },
+    {
+     "t": "code",
+     "v": "write_doc"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "edit_doc_page"
+    },
+    {
+     "t": "text",
+     "v": ". The "
+    },
+    {
+     "t": "link",
+     "v": "Docs API",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "Docs API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " does both for your own code."
     }
    ]
   },
@@ -47097,6 +47128,63 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "GET /boards/:id/cards/:cardId/doc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A "
+      },
+      {
+       "t": "link",
+       "v": "doc",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "'s pages as Markdown"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/docs"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Write a new doc from Markdown"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rewrite or edit one page, safely"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "POST /uploads"
       }
      ],
@@ -55600,192 +55688,44 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "GET /boards/:id/cards/:cardId/doc",
+   "text": "Doc cards",
    "inline": [
     {
-     "t": "code",
-     "v": "GET /boards/:id/cards/:cardId/doc"
+     "t": "text",
+     "v": "Doc cards"
     }
    ],
-   "id": "get-boards-id-cards-cardid-doc"
+   "id": "doc-cards"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "A doc card's text: every page, in the order its page list shows them, as Markdown."
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{\n  \"board_id\": \"9f1c…\", \"card_id\": \"c-3\", \"title\": \"Treatment\", \"url\": \"…\",\n  \"page_count\": 2,\n  \"pages\": [\n    { \"id\": \"p1\", \"title\": \"Opening\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": \"A diner at night…\\n\", \"chars\": 1840, \"hash\": \"5d1f0c2a\", \"truncated\": false },\n    { \"id\": \"p2\", \"title\": \"Close\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": null, \"chars\": 960, \"hash\": \"0be4a9d1\", \"truncated\": false }\n  ],\n  \"complete\": false\n}"
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Parameter"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": ""
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "code",
-       "v": "page"
-      }
-     ],
-     [
+     "v": "A doc card's pages are read and written as Markdown on routes of their own: see the "
+    },
+    {
+     "t": "link",
+     "v": "Docs API",
+     "href": "/docs/api/docs",
+     "children": [
       {
        "t": "text",
-       "v": "One page, by its "
-      },
-      {
-       "t": "code",
-       "v": "id"
+       "v": "Docs API"
       }
      ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "max_chars"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Markdown handed back across the pages: 20,000 characters by default, at most 200,000"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
+    },
     {
      "t": "text",
-     "v": "Pages fill in order until "
+     "v": ". "
     },
     {
      "t": "code",
-     "v": "max_chars"
+     "v": "POST /boards/:id/docs"
     },
     {
      "t": "text",
-     "v": " runs out. The page that crosses it is cut and marked "
-    },
-    {
-     "t": "code",
-     "v": "truncated"
-    },
-    {
-     "t": "text",
-     "v": ", and any after it come back with "
-    },
-    {
-     "t": "code",
-     "v": "markdown: null"
-    },
-    {
-     "t": "text",
-     "v": ", so every page is listed with its length in "
-    },
-    {
-     "t": "code",
-     "v": "chars"
-    },
-    {
-     "t": "text",
-     "v": " either way. "
-    },
-    {
-     "t": "code",
-     "v": "complete"
-    },
-    {
-     "t": "text",
-     "v": " says whether you have all of it; read the rest one "
-    },
-    {
-     "t": "code",
-     "v": "page"
-    },
-    {
-     "t": "text",
-     "v": " at a time. A page nested under another carries that page's id in "
-    },
-    {
-     "t": "code",
-     "v": "parent_id"
-    },
-    {
-     "t": "text",
-     "v": ", and a "
-    },
-    {
-     "t": "code",
-     "v": "depth"
-    },
-    {
-     "t": "text",
-     "v": " one more."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Links in the text carry their real address, and comments are left out. An uploaded image's source is "
-    },
-    {
-     "t": "code",
-     "v": "r2:"
-    },
-    {
-     "t": "text",
-     "v": " followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. "
-    },
-    {
-     "t": "code",
-     "v": "hash"
-    },
-    {
-     "t": "text",
-     "v": " changes whenever the page's Markdown does."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A card that is not a doc answers "
-    },
-    {
-     "t": "code",
-     "v": "400"
-    },
-    {
-     "t": "text",
-     "v": ", naming the route that reads it."
+     "v": " makes a doc with its pages already in it."
     }
    ]
   },
@@ -56159,6 +56099,1146 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  }
+ ],
+ "/docs/api/docs": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "doc",
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " card holds pages of writing. Over the API you read them and write them as Markdown, page by page: the same Markdown the "
+    },
+    {
+     "t": "link",
+     "v": "export",
+     "href": "/docs/documents/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives you."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/cards/:cardId/doc",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/cards/:cardId/doc"
+    }
+   ],
+   "id": "get-boards-id-cards-cardid-doc"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A doc card's text: every page, in the order its page list shows them, as Markdown."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\", \"card_id\": \"c-3\", \"title\": \"Treatment\", \"url\": \"…\",\n  \"page_count\": 2,\n  \"pages\": [\n    { \"id\": \"p1\", \"title\": \"Opening\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": \"A diner at night…\\n\", \"chars\": 1840, \"hash\": \"5d1f0c2a\", \"truncated\": false },\n    { \"id\": \"p2\", \"title\": \"Close\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": null, \"chars\": 960, \"hash\": \"0be4a9d1\", \"truncated\": false }\n  ],\n  \"complete\": false\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "page"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One page, by its "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "max_chars"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Markdown handed back across the pages: 20,000 characters by default, at most 200,000"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pages fill in order until "
+    },
+    {
+     "t": "code",
+     "v": "max_chars"
+    },
+    {
+     "t": "text",
+     "v": " runs out. The page that crosses it is cut and marked "
+    },
+    {
+     "t": "code",
+     "v": "truncated"
+    },
+    {
+     "t": "text",
+     "v": ", and any after it come back with "
+    },
+    {
+     "t": "code",
+     "v": "markdown: null"
+    },
+    {
+     "t": "text",
+     "v": ", so every page is listed with its length in "
+    },
+    {
+     "t": "code",
+     "v": "chars"
+    },
+    {
+     "t": "text",
+     "v": " either way. "
+    },
+    {
+     "t": "code",
+     "v": "complete"
+    },
+    {
+     "t": "text",
+     "v": " says whether you have all of it; read the rest one "
+    },
+    {
+     "t": "code",
+     "v": "page"
+    },
+    {
+     "t": "text",
+     "v": " at a time. A page nested under another carries that page's id in "
+    },
+    {
+     "t": "code",
+     "v": "parent_id"
+    },
+    {
+     "t": "text",
+     "v": ", and a "
+    },
+    {
+     "t": "code",
+     "v": "depth"
+    },
+    {
+     "t": "text",
+     "v": " one more."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Links in the text carry their real address, and comments are left out. An uploaded image's source is "
+    },
+    {
+     "t": "code",
+     "v": "r2:"
+    },
+    {
+     "t": "text",
+     "v": " followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. "
+    },
+    {
+     "t": "code",
+     "v": "hash"
+    },
+    {
+     "t": "text",
+     "v": " changes whenever the page's Markdown does, and a read of one "
+    },
+    {
+     "t": "code",
+     "v": "page"
+    },
+    {
+     "t": "text",
+     "v": " carries it as the "
+    },
+    {
+     "t": "code",
+     "v": "ETag"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A card that is not a doc answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": ", naming the route that reads it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/docs",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/docs"
+    }
+   ],
+   "id": "post-boards-id-docs"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A new doc card holding the pages you send, placed in free space on the board, or at "
+    },
+    {
+     "t": "code",
+     "v": "x"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "y"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"title\": \"Tokyo noir\",\n  \"pages\": [\n    { \"title\": \"Logline\", \"markdown\": \"A night-shift detective follows a dead phone through Shinjuku.\" },\n    { \"markdown\": \"# Places\\n\\n- Shinjuku\\n- [Golden Gai](https://example.com/gg)\" }\n  ]\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "pages"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Required. Up to 50, each "
+      },
+      {
+       "t": "code",
+       "v": "{ title?, markdown }"
+      },
+      {
+       "t": "text",
+       "v": ", with up to 200,000 characters of Markdown between them"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "title"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The card's title. Left out, its one page's title, else \"Untitled doc\""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Where the card goes. Left out, it is placed where it covers nothing"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A page with no "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " takes the words of its first heading, and a first page with neither takes the card's title, as a new doc's first page does in the app. Titles are cut at 200 characters."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"card\": { \"id\": \"api-m2x9k1-a81f3c\", \"kind\": \"doc\", \"title\": \"Tokyo noir\", … },\n  \"url\": \"https://clusters.soleilpictures.com/?to=c:9f1c…:api-m2x9k1-a81f3c\",\n  \"pages\": [\n    { \"id\": \"p_k3v8x0q2m1c4\", \"title\": \"Logline\", \"parent_id\": null, \"depth\": 0, \"chars\": 64, \"hash\": \"5d1f0c2a\" },\n    { \"id\": \"p_7hd2w9zr8b0e\", \"title\": \"Places\", \"parent_id\": null, \"depth\": 0, \"chars\": 57, \"hash\": \"0be4a9d1\" }\n  ],\n  \"live\": true\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That is a "
+    },
+    {
+     "t": "code",
+     "v": "201"
+    },
+    {
+     "t": "text",
+     "v": ". The doc counts as one card toward the "
+    },
+    {
+     "t": "link",
+     "v": "card cap",
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card cap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/cards/:cardId/doc/pages",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/cards/:cardId/doc/pages"
+    }
+   ],
+   "id": "post-boards-id-cards-cardid-doc-pages"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "More pages for a doc that exists: after the pages it has, or, with "
+    },
+    {
+     "t": "code",
+     "v": "parent_page_id"
+    },
+    {
+     "t": "text",
+     "v": ", under that page as its sub-pages. "
+    },
+    {
+     "t": "code",
+     "v": "pages"
+    },
+    {
+     "t": "text",
+     "v": " is as above. The answer is a "
+    },
+    {
+     "t": "code",
+     "v": "201"
+    },
+    {
+     "t": "text",
+     "v": " listing the new pages."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId"
+    }
+   ],
+   "id": "patch-boards-id-cards-cardid-doc-pages-pageid"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One page changed, in one of three ways:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Send"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "markdown"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "page_hash"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rewrites the page. "
+      },
+      {
+       "t": "code",
+       "v": "markdown"
+      },
+      {
+       "t": "text",
+       "v": " is the whole page as it should now read; "
+      },
+      {
+       "t": "code",
+       "v": "page_hash"
+      },
+      {
+       "t": "text",
+       "v": " is the "
+      },
+      {
+       "t": "code",
+       "v": "hash"
+      },
+      {
+       "t": "text",
+       "v": " you read it at, or send that as "
+      },
+      {
+       "t": "code",
+       "v": "If-Match"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "edits"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Up to 50 "
+      },
+      {
+       "t": "code",
+       "v": "{ \"old_text\", \"new_text\" }"
+      },
+      {
+       "t": "text",
+       "v": ", applied in order. Each "
+      },
+      {
+       "t": "code",
+       "v": "old_text"
+      },
+      {
+       "t": "text",
+       "v": " must appear in the page's Markdown exactly once"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "title"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Renames the page, alone or with either of the others"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"markdown\": \"# Places\\n\\n- Shinjuku at 4am\\n- [Golden Gai](https://example.com/gg)\\n\",\n  \"page_hash\": \"0be4a9d1\"\n}"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\", \"card_id\": \"api-m2x9k1-a81f3c\", \"url\": \"…\",\n  \"page\": { \"id\": \"p_7hd2w9zr8b0e\", \"title\": \"Places\", \"parent_id\": null, \"depth\": 0, \"chars\": 66, \"hash\": \"77a0e3b4\" },\n  \"blocks\": { \"kept\": 1, \"removed\": 1, \"added\": 1 },\n  \"changed\": true\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Only what you changed is rewritten.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only what you changed is rewritten."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The page you send is matched against the page as it stands, block by block, by each block's Markdown. A heading, paragraph, list, table or quote whose Markdown you left alone stays the same block, so a comment on it, its text colour, an embedded board and anything else Markdown has no words for stay with it. "
+    },
+    {
+     "t": "code",
+     "v": "blocks"
+    },
+    {
+     "t": "text",
+     "v": " counts what was kept, removed and added. Send a page back as it was and nothing is written: "
+    },
+    {
+     "t": "code",
+     "v": "changed"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "false"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "A rewrite can't erase anyone's change.",
+     "children": [
+      {
+       "t": "text",
+       "v": "A rewrite can't erase anyone's change."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " When the page's hash is no longer the one you name, the write is refused with "
+    },
+    {
+     "t": "code",
+     "v": "409 page_changed"
+    },
+    {
+     "t": "text",
+     "v": " and nothing is written. Read the page again and make your change to that. "
+    },
+    {
+     "t": "code",
+     "v": "edits"
+    },
+    {
+     "t": "text",
+     "v": " need no hash, because the exact text each one names is its own check."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Before a page is rewritten or edited, the board is saved to its "
+    },
+    {
+     "t": "link",
+     "v": "Version history",
+     "href": "/docs/clusters/trash-and-recovery#version-history",
+     "children": [
+      {
+       "t": "text",
+       "v": "Version history"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " as it was, marked API."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What the Markdown carries",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the Markdown carries"
+    }
+   ],
+   "id": "what-the-markdown-carries"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Markdown"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In the doc"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "#"
+      },
+      {
+       "t": "text",
+       "v": " to "
+      },
+      {
+       "t": "code",
+       "v": "######"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Headings"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "**bold**"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "*italic*"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "~~strike~~"
+      },
+      {
+       "t": "text",
+       "v": ", `"
+      },
+      {
+       "t": "code",
+       "v": " "
+      },
+      {
+       "t": "text",
+       "v": "code"
+      },
+      {
+       "t": "code",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "==highlight=="
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "<u>underline</u>"
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "<sub>"
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "<sup>`"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The same marks"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "1."
+      },
+      {
+       "t": "text",
+       "v": " lists, nested"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Lists, numbered from where yours starts"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "- [ ]"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "- [x]"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A checklist, when every item in the list is one"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": ">"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A quote"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Fenced code"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A code block, with its language"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Tables"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tables, each column aligned as you aligned it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "---"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A divider"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "[words](https://…)"
+      },
+      {
+       "t": "text",
+       "v": ", a bare "
+      },
+      {
+       "t": "code",
+       "v": "https://"
+      },
+      {
+       "t": "text",
+       "v": " address, "
+      },
+      {
+       "t": "code",
+       "v": "mailto:"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Links"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "![caption](r2:<image_key>)"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A picture, when the file is already on the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "A single line break"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A line break; a blank line starts a new paragraph"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Links go only to "
+    },
+    {
+     "t": "code",
+     "v": "http"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "https"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "mailto"
+    },
+    {
+     "t": "text",
+     "v": " addresses; any other keeps its words without the link. A picture is placed only from a file already on the board: an image card's "
+    },
+    {
+     "t": "code",
+     "v": "image_key"
+    },
+    {
+     "t": "text",
+     "v": " from "
+    },
+    {
+     "t": "link",
+     "v": "`GET /boards/:id/cards`",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", written "
+    },
+    {
+     "t": "code",
+     "v": "r2:<image_key>"
+    },
+    {
+     "t": "text",
+     "v": " as a read gives it back (the bare key works too). Any other picture becomes a link to its address, so writing a doc never fetches anything into it. Other HTML stays as text."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A screenplay is written in the app. The API writes prose docs, and answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": " for a screenplay."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Live, or not at all",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Live, or not at all"
+    }
+   ],
+   "id": "live-or-not-at-all"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Doc writes go through the cluster's live room, as an edit in the app does, so anyone with the doc open sees the change land, on the board or in a "
+    },
+    {
+     "t": "link",
+     "v": "doc shared on its own",
+     "href": "/docs/collaborate/sharing#sharing-a-doc",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc shared on its own"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". When the room can't be reached, or doesn't confirm the change, the answer is "
+    },
+    {
+     "t": "code",
+     "v": "503 room_unavailable"
+    },
+    {
+     "t": "text",
+     "v": " and nothing was written: try again."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Search inside documents finds what you wrote straight away."
     }
    ]
   }
@@ -62194,7 +63274,19 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", up to 40,000 characters"
+       "v": ", up to 40,000 characters; a doc's "
+      },
+      {
+       "t": "code",
+       "v": "metadata.pages"
+      },
+      {
+       "t": "text",
+       "v": " carry each page's "
+      },
+      {
+       "t": "code",
+       "v": "hash"
       }
      ]
     ],
@@ -62563,6 +63655,161 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "; handles large files"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "write_doc"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "pages[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 50, each "
+      },
+      {
+       "t": "code",
+       "v": "{ title?, markdown }"
+      },
+      {
+       "t": "text",
+       "v": "; "
+      },
+      {
+       "t": "code",
+       "v": "title?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "x?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y?"
+      },
+      {
+       "t": "text",
+       "v": " for a new doc, or "
+      },
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "parent_page_id?"
+      },
+      {
+       "t": "text",
+       "v": " to add pages to one · a "
+      },
+      {
+       "t": "link",
+       "v": "doc",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " written from Markdown"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "edit_doc_page"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "page_id"
+      },
+      {
+       "t": "text",
+       "v": ", and "
+      },
+      {
+       "t": "code",
+       "v": "markdown"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "page_hash"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "edits[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 50), or "
+      },
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": " · marked destructive, since a rewrite takes words away; the board goes to Version history first"
       }
      ]
     ],
@@ -63558,6 +64805,128 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Writing a doc",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Writing a doc"
+    }
+   ],
+   "id": "writing-a-doc"
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "code",
+      "v": "write_doc"
+     },
+     {
+      "t": "text",
+      "v": " with the pages in Markdown — returns the doc's "
+     },
+     {
+      "t": "code",
+      "v": "url"
+     },
+     {
+      "t": "text",
+      "v": " and each page's "
+     },
+     {
+      "t": "code",
+      "v": "id"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "hash"
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "edit_doc_page"
+     },
+     {
+      "t": "text",
+      "v": " to change a page afterwards: "
+     },
+     {
+      "t": "code",
+      "v": "edits"
+     },
+     {
+      "t": "text",
+      "v": " for a few words, or the whole page as "
+     },
+     {
+      "t": "code",
+      "v": "markdown"
+     },
+     {
+      "t": "text",
+      "v": " with its "
+     },
+     {
+      "t": "code",
+      "v": "page_hash"
+     },
+     {
+      "t": "text",
+      "v": ". "
+     },
+     {
+      "t": "code",
+      "v": "fetch"
+     },
+     {
+      "t": "text",
+      "v": " with "
+     },
+     {
+      "t": "code",
+      "v": "doc:<board id>:<card id>:<page id>"
+     },
+     {
+      "t": "text",
+      "v": " reads a page and its current hash."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A rewrite keeps every block it didn't change, comments and all, and is refused if the page changed since it was read. A picture goes in only from a file already on the board. The "
+    },
+    {
+     "t": "link",
+     "v": "Docs API",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "Docs API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " has the details."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "What agents should know",
    "inline": [
     {
@@ -64198,13 +65567,54 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Idempotency key in flight, or a refused reparent"
+       "v": "Idempotency key in flight, a refused reparent, or a doc page from an older layout"
       }
      ],
      [
       {
        "t": "text",
        "v": "Sometimes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "409"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "page_changed"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A "
+      },
+      {
+       "t": "link",
+       "v": "doc page",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc page"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " changed after you read it; read it again"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
       }
      ]
     ],
@@ -64280,7 +65690,22 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " over 25 MB"
+       "v": " over 25 MB, or more Markdown than a "
+      },
+      {
+       "t": "link",
+       "v": "doc write",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc write"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " takes"
       }
      ],
      [
@@ -64400,6 +65825,47 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "A dependency answered, but not successfully"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "503"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "room_unavailable"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A cluster's live room couldn't be reached or didn't confirm a "
+      },
+      {
+       "t": "link",
+       "v": "doc write",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc write"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "; nothing was written"
       }
      ],
      [

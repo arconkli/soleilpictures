@@ -5,7 +5,7 @@ h1: The REST API
 navLabel: API overview
 section: developers
 order: 0
-updated: 2026-08-10
+updated: 2026-10-25
 answer: The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.
 faq:
   - q: What can the API do?
@@ -61,6 +61,9 @@ permissions to drift out of step with app permissions.
 | `PATCH /boards/:id/cards/:cardId` | Change a card |
 | `DELETE /boards/:id/cards/:cardId` | Remove a card |
 | `POST /boards/:id/cards/move` | Move cards to another board |
+| `GET /boards/:id/cards/:cardId/doc` | A [doc](/docs/api/docs)'s pages as Markdown |
+| `POST /boards/:id/docs` | Write a new doc from Markdown |
+| `PATCH /boards/:id/cards/:cardId/doc/pages/:pageId` | Rewrite or edit one page, safely |
 | `POST /uploads` | [Upload an image](/docs/api/images), get a key back |
 | `GET /images/:key` | Read an image back |
 | `GET /resolve` | Find an object by a [foreign identifier](/docs/api/metadata) |

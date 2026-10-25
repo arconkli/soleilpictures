@@ -32,7 +32,7 @@
 import * as Y from 'yjs';
 import {
   resolveApiToken, hasScope, apiUserSession, rateHeaders, normalizeApiError,
-  userSelect, userRpc, userInsert, userPatch,
+  userSelect, userRpc, userInsert, userPatch, userDelete,
   createServiceAuthUser, deleteAuthUser,
 } from './lib/apiAuth.js';
 import {
@@ -44,13 +44,13 @@ import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.j
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards, readBoardCardsChecked,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
-  readBoardGroups, writeBoardGroups, withBoardCards,
+  readBoardGroups, writeBoardGroups, withBoardCards, editCardLive,
 } from './lib/scoutBoard.js';
 import { DOC_READ, readDocPages } from './lib/docMarkdown.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
-import { bytesToB64 } from './lib/yhelpers.js';
+import { bytesToB64, readCards } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
@@ -152,11 +152,11 @@ const BYTES_FIELD = {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-  'access-control-allow-headers': 'authorization,content-type,idempotency-key,'
+  'access-control-allow-headers': 'authorization,content-type,idempotency-key,if-match,'
     + 'mcp-protocol-version,mcp-method,mcp-name',
   'access-control-expose-headers':
     'x-ratelimit-limit,x-ratelimit-remaining,x-ratelimit-reset,retry-after,'
-    + 'idempotent-replay,x-image-variant',
+    + 'idempotent-replay,x-image-variant,etag',
   'access-control-max-age': '86400',
 };
 
@@ -697,6 +697,69 @@ async function boardForUser(env, token, boardId, { includeDeleted = false } = {}
   return rows?.[0] || null;
 }
 
+// ── Docs written through the API ─────────────────────────────────────────────
+//
+// lib/docWrite.js turns Markdown into a doc's pages, written through the
+// board's live room or not at all (scoutBoard.editCardLive, and
+// addCardsToBoard's requireLive): a reader with the doc open, and a doc shared
+// on its own (DocParty's mirror), only ever hear a page through the room. It
+// loads on demand, so the Markdown parser costs only the calls that write one.
+const loadDocWrite = () => import('./lib/docWrite.js');
+
+// The room couldn't be reached, or never confirmed the change: nothing was
+// written, and trying again is the right thing to do.
+async function throughRoom(run) {
+  try {
+    return await run();
+  } catch (e) {
+    if (e?.code === 'room_unavailable') throw fail(503, 'room_unavailable', e.message);
+    throw e;
+  }
+}
+
+// A written page as the API answers with it: what GET …/doc lists for it.
+const publicDocPage = ({ text: _text, ...page }) => page;
+
+// A picture a doc written here may place: a file already on the board (or in
+// the doc), named as a read gives it back (r2:<key>) or by its bare image_key.
+const pictureFrom = (images) => (src) => {
+  if (images.has(src)) return src;
+  return images.has(`r2:${src}`) ? `r2:${src}` : false;
+};
+
+// Search inside documents reads doc_page_index, which the app writes when it
+// saves a board, and a doc written here may wait a long time for that. Written
+// as the user, row for row as the app writes it (lib/boardsApi.js
+// syncDocPageIndex): a page with no words has no row. Best-effort: the doc is
+// already written, and the app's next save writes the same rows.
+async function indexDocPages(env, token, workspaceId, cardId, pages) {
+  const rows = [];
+  const empty = [];
+  for (const p of pages) {
+    const text = String(p.text || '').slice(0, 20000);
+    if (!text.trim()) { empty.push(p.id); continue; }
+    rows.push({
+      doc_card_id: cardId,
+      page_id: p.id,
+      workspace_id: workspaceId,
+      page_title: String(p.title || '').slice(0, 200),
+      page_text: text,
+      updated_at: new Date().toISOString(),
+    });
+  }
+  try {
+    if (rows.length) {
+      await userInsert(env, token, 'doc_page_index', rows, { returning: 'minimal', onConflict: 'doc_card_id,page_id' });
+    }
+    if (empty.length) {
+      await userDelete(env, token, 'doc_page_index',
+        `doc_card_id=eq.${encodeURIComponent(cardId)}&page_id=in.${encodeURIComponent(pgInList(empty))}`);
+    }
+  } catch (e) {
+    console.warn('[api] doc_page_index', e?.message);
+  }
+}
+
 function pageParams(url) {
   const rawLimit = Number(url.searchParams.get('limit'));
   const rawOffset = Number(url.searchParams.get('offset'));
@@ -1155,6 +1218,9 @@ async function dispatch(url, request, env, ctx) {
         'DELETE /boards/:id/cards            {"card_ids":[…]}  — bulk',
         'GET    /boards/:id/cards/:cardId',
         'GET    /boards/:id/cards/:cardId/doc?page=&max_chars=  — a doc card, page by page, as Markdown',
+        'POST   /boards/:id/docs            {"title":…,"pages":[{"title":…,"markdown":…}]}  — a new doc card',
+        'POST   /boards/:id/cards/:cardId/doc/pages  {"pages":[…],"parent_page_id":…}  — pages added',
+        'PATCH  /boards/:id/cards/:cardId/doc/pages/:pageId  {"markdown":…,"page_hash":…} | {"edits":[…]} | {"title":…}',
         'PATCH  /boards/:id/cards/:cardId',
         'DELETE /boards/:id/cards/:cardId',
         'POST   /boards/:id/cards/move',
@@ -3190,6 +3256,61 @@ async function dispatch(url, request, env, ctx) {
     });
   }
 
+  // POST /boards/:id/docs — a new doc card holding pages written in Markdown.
+  // The pages go in inside the transaction that puts the card on the board, as
+  // the app's own addCard does, so the doc arrives whole; through the live room
+  // or not at all (see loadDocWrite).
+  if (sub === 'docs') {
+    if (subId) throw fail(404, 'not_found', 'unknown endpoint');
+    if (method !== 'POST') {
+      throw fail(405, 'method_not_allowed', `a doc is made here; read one at GET /boards/${id}/cards/:cardId/doc`);
+    }
+    trace.route = '/boards/:id/docs';
+    const dw = await loadDocWrite();
+    const pages = dw.preparePages(body.pages);
+    if (body.title != null && typeof body.title !== 'string') throw fail(400, 'bad_request', 'title must be a string');
+    const target = await boardForUser(env, token, id);
+    if (!target) throw fail(404, 'not_found', 'board not found');
+    await requireBoardWrite(env, token, id);
+
+    // The card takes the title given, else its one page's; a first page with
+    // no title of its own takes the card's, as a new doc's first page does in
+    // the app (docState.followTitle).
+    const title = String(body.title ?? '').trim()
+      || (pages.length === 1 && pages[0].title !== 'Untitled' ? pages[0].title : '')
+      || 'Untitled doc';
+    if (pages[0].title === 'Untitled' && title !== 'Untitled doc') pages[0].title = title.slice(0, dw.DOC_WRITE.maxTitle);
+    // The app's size for a new doc card.
+    const card = normalizeIncomingCard({ kind: 'doc', title, w: 320, h: 240, x: body.x, y: body.y });
+
+    let images = new Set();
+    let made = [];
+    const result = await throughRoom(() => addCardsToBoard(env, {
+      boardId: id,
+      workspaceId: target.workspace_id,
+      userId: auth.userId,
+      accessToken: token,
+      requireLive: true,
+      buildCards: async (existing) => {
+        images = dw.placeableImages(existing, null);
+        return layoutCards([card], existing);
+      },
+      afterInsert: (doc, cardYMap) => {
+        made = dw.writePages(doc, cardYMap, pages, { userId: auth.userId, imageAllowed: pictureFrom(images) });
+      },
+    }));
+    const placed = result.cards[0];
+    if (!placed) throw fail(409, 'conflict', 'the doc could not be placed on that board; nothing was added');
+    await indexDocPages(env, token, target.workspace_id, String(placed.id), made);
+    return json({
+      board_id: id,
+      card: publicCard(placed),
+      url: cardUrl(url.origin, id, placed.id),
+      pages: made.map(publicDocPage),
+      live: true,
+    }, 201);
+  }
+
   if (sub !== 'cards') throw fail(404, 'not_found', 'unknown endpoint');
 
   // ── /boards/:id/cards ──────────────────────────────────────────────────────
@@ -3290,11 +3411,12 @@ async function dispatch(url, request, env, ctx) {
     });
   }
 
-  // Below a card, only /doc is a route. Anything else used to fall through to
-  // the card itself, so a PATCH meant for something deeper would have rewritten
-  // the card.
+  // Below a card, only its doc is a route: /doc, /doc/pages and
+  // /doc/pages/:pageId. Anything else used to fall through to the card itself,
+  // so a PATCH meant for something deeper would have rewritten the card.
   const leaf = parts[4];
-  if (subId && leaf !== undefined && (leaf !== 'doc' || parts.length > 5)) {
+  const docPath = leaf === 'doc' && (parts.length === 5 || (parts[5] === 'pages' && parts.length <= 7));
+  if (subId && leaf !== undefined && !docPath) {
     throw fail(404, 'not_found', 'unknown endpoint');
   }
 
@@ -3314,10 +3436,13 @@ async function dispatch(url, request, env, ctx) {
   // GET /boards/:id/cards/:cardId/doc?page=&max_chars= — a doc card's pages as
   // Markdown, read from its fragments in the board's document
   // (lib/docMarkdown.js): every page listed, the text bounded by max_chars,
-  // one page by ?page=. Read only — nothing here may create a page or a
-  // fragment on a board that someone may have open.
-  if (leaf === 'doc') {
-    if (method !== 'GET') throw fail(405, 'method_not_allowed', 'a doc is read here, not written');
+  // one page by ?page= (with its hash as the ETag a rewrite names). Read only —
+  // nothing here may create a page or a fragment on a board that someone may
+  // have open.
+  if (leaf === 'doc' && parts.length === 5) {
+    if (method !== 'GET') {
+      throw fail(405, 'method_not_allowed', `a doc is read here; its pages are written at /boards/${id}/cards/${subId}/doc/pages`);
+    }
     trace.route = '/boards/:id/cards/:cardId/doc';
     const pageId = url.searchParams.get('page') || null;
     const rawMax = Number(url.searchParams.get('max_chars'));
@@ -3346,6 +3471,106 @@ async function dispatch(url, request, env, ctx) {
       page_count: out.read.total,
       pages: out.read.pages,
       complete: out.read.pages.every((p) => p.markdown !== null && !p.truncated),
+    }, 200, pageId ? { etag: `"${out.read.pages[0].hash}"` } : {});
+  }
+
+  // POST …/doc/pages — pages added to a doc in Markdown, after the ones it has
+  // or under parent_page_id. PATCH …/doc/pages/:pageId — one page rewritten
+  // from Markdown, changed by exact-text edits, or renamed. Written through the
+  // live room (see loadDocWrite), as the user who could have typed it.
+  if (leaf === 'doc') {
+    const pageId = parts[6] || null;
+    if (method !== (pageId ? 'PATCH' : 'POST')) {
+      throw fail(405, 'method_not_allowed', pageId
+        ? `a page is changed with PATCH and read at GET /boards/${id}/cards/${subId}/doc?page=${pageId}`
+        : `pages are added with POST and read at GET /boards/${id}/cards/${subId}/doc`);
+    }
+    await requireBoardWrite(env, token, id);
+    const dw = await loadDocWrite();
+    const writableDoc = (doc, ym) => {
+      const problem = dw.docProblem(doc, ym);
+      if (problem) throw fail(400, 'bad_request', `card ${subId} is ${problem}`);
+    };
+    const docUrl = cardUrl(url.origin, id, subId);
+
+    if (!pageId) {
+      trace.route = '/boards/:id/cards/:cardId/doc/pages';
+      const pages = dw.preparePages(body.pages);
+      const parentId = body.parent_page_id ?? null;
+      if (parentId !== null && typeof parentId !== 'string') {
+        throw fail(400, 'bad_request', 'parent_page_id must be the id of a page in this doc');
+      }
+      const out = await throughRoom(() => editCardLive(env, {
+        boardId: id, userId: auth.userId, accessToken: token, cardId: subId,
+        prepare: (doc, ym) => {
+          writableDoc(doc, ym);
+          if (parentId && !dw.currentPage(doc, ym, parentId)) throw fail(404, 'not_found', `this doc has no page ${parentId}`);
+          return { images: dw.placeableImages(readCards(doc), ym) };
+        },
+        write: (doc, ym, { images }) => dw.writePages(doc, ym, pages, {
+          parentId, userId: auth.userId, imageAllowed: pictureFrom(images),
+        }),
+      }));
+      if (out.missing) throw fail(404, 'not_found', 'card not found');
+      await indexDocPages(env, token, board.workspace_id, subId, out.result);
+      return json({ board_id: id, card_id: subId, url: docUrl, pages: out.result.map(publicDocPage) }, 201);
+    }
+
+    trace.route = '/boards/:id/cards/:cardId/doc/pages/:pageId';
+    const hasMarkdown = body.markdown !== undefined;
+    const hasEdits = body.edits !== undefined;
+    if (hasMarkdown && hasEdits) throw fail(400, 'bad_request', 'send markdown or edits, not both');
+    if (body.title != null && typeof body.title !== 'string') throw fail(400, 'bad_request', 'title must be a string');
+    if (!hasMarkdown && !hasEdits && body.title == null) {
+      throw fail(400, 'bad_request', 'nothing to change: send markdown (the whole page), edits, or title');
+    }
+    const tokens = hasMarkdown ? dw.pageMarkdown(body.markdown) : null;
+    // A whole-page rewrite names the page as it was read, so it can't erase a
+    // change made since; edits name the exact text they change instead.
+    const ifMatch = (request.headers.get('if-match') || '').replace(/^W\//, '').replace(/"/g, '').trim();
+    const expected = (typeof body.page_hash === 'string' && body.page_hash.trim()) || ifMatch || null;
+    if (hasMarkdown && !expected) {
+      throw fail(400, 'bad_request',
+        `a whole-page rewrite needs page_hash: the hash GET /boards/${id}/cards/${subId}/doc?page=${pageId} gives for the page`);
+    }
+    const changedSince = () => fail(409, 'page_changed', 'the page changed after it was read; read it again '
+      + `(GET /boards/${id}/cards/${subId}/doc?page=${pageId}) and make the change to that`);
+
+    let same = null;
+    const out = await throughRoom(() => editCardLive(env, {
+      boardId: id, userId: auth.userId, accessToken: token, cardId: subId,
+      checkpoint: { action: 'api-edit-doc-page', card_id: subId, page_id: pageId },
+      prepare: (doc, ym) => {
+        writableDoc(doc, ym);
+        const page = dw.currentPage(doc, ym, pageId);
+        if (!page) throw fail(404, 'not_found', 'this doc has no such page');
+        if (expected && page.hash !== expected) throw changedSince();
+        const next = hasEdits ? dw.pageMarkdown(dw.applyTextEdits(page.markdown, body.edits)) : tokens;
+        const imageAllowed = pictureFrom(dw.placeableImages(readCards(doc), ym));
+        const plan = dw.planPageEdit(doc, ym, pageId, next, { title: body.title ?? null, imageAllowed });
+        const { markdown: _m, truncated: _t, ...summary } = page;
+        same = { page: summary, blocks: { kept: plan.old.length, removed: 0, added: 0 } };
+        return { tokens: next, imageAllowed, hash: page.hash, unchanged: plan.unchanged };
+      },
+      // Checked again at the moment of writing: the room kept talking while
+      // the checkpoint was saved.
+      write: (doc, ym, prep) => {
+        if (prep.tokens && dw.currentPage(doc, ym, pageId)?.hash !== prep.hash) throw changedSince();
+        return dw.rewritePage(doc, ym, pageId, prep.tokens, {
+          title: body.title ?? null, userId: auth.userId, imageAllowed: prep.imageAllowed,
+        });
+      },
+    }));
+    if (out.missing) throw fail(404, 'not_found', 'card not found');
+    if (out.unchanged) return json({ board_id: id, card_id: subId, url: docUrl, ...same, changed: false });
+    await indexDocPages(env, token, board.workspace_id, subId, [out.result.page]);
+    return json({
+      board_id: id,
+      card_id: subId,
+      url: docUrl,
+      page: publicDocPage(out.result.page),
+      blocks: out.result.blocks,
+      changed: true,
     });
   }
 

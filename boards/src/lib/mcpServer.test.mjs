@@ -169,8 +169,9 @@ test('anything that deletes is marked destructive, and nothing else is', () => {
   const destructive = TOOLS.filter((t) => t.annotations.destructiveHint).map((t) => t.name).sort();
   // unshare_board deletes nothing anyone made, but a revoked link never opens
   // again for anyone holding it: irreversible for other people, so a client
-  // should ask first.
-  assert.deepEqual(destructive, ['delete_board', 'delete_card', 'delete_cards', 'unshare_board']);
+  // should ask first. edit_doc_page can take a page's words away; the board
+  // goes to Version history first, but getting them back is done in the app.
+  assert.deepEqual(destructive, ['delete_board', 'delete_card', 'delete_cards', 'edit_doc_page', 'unshare_board']);
   // And a read-only tool must not also claim to write.
   for (const t of TOOLS) {
     if (t.annotations.readOnlyHint) {

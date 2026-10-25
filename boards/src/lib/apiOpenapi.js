@@ -863,6 +863,84 @@ export function openapiDocument(origin) {
           ],
         }),
       },
+      '/boards/{id}/docs': {
+        post: op('writeDoc', 'A new doc card, its pages written from Markdown', {
+          description: 'Makes a doc card holding the pages given, through the board\'s live room, '
+            + 'placed in free space unless x and y say where (201). A page with no title takes its '
+            + 'first heading\'s words. Pictures are placed only from files already on the board '
+            + '(r2:<image_key>); any other picture becomes a link. 503 room_unavailable: nothing '
+            + 'was written.',
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            title: { type: 'string', description: 'The card\'s title; left out, its one page\'s, else "Untitled doc"' },
+            pages: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string' },
+                  markdown: { type: 'string' },
+                },
+                required: ['markdown'],
+              },
+            },
+            x: { type: 'number' },
+            y: { type: 'number' },
+          }, ['pages']),
+        }),
+      },
+      '/boards/{id}/cards/{cardId}/doc/pages': {
+        post: op('addDocPages', 'Pages added to a doc, written from Markdown', {
+          description: 'After the pages the doc has, or under parent_page_id as its sub-pages (201). '
+            + 'Each new page comes back with its id and hash.',
+          parameters: [
+            boardIdParam,
+            { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: jsonBody({
+            pages: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                properties: { title: { type: 'string' }, markdown: { type: 'string' } },
+                required: ['markdown'],
+              },
+            },
+            parent_page_id: { type: 'string' },
+          }, ['pages']),
+        }),
+      },
+      '/boards/{id}/cards/{cardId}/doc/pages/{pageId}': {
+        patch: op('editDocPage', 'One doc page rewritten, edited or renamed', {
+          description: 'markdown rewrites the whole page and needs page_hash (or If-Match), the '
+            + 'hash it was read at: 409 page_changed when it has changed since. edits applies '
+            + 'exact-text replacements, each old_text found once. title renames it. Blocks whose '
+            + 'Markdown is unchanged are kept as they are; a page sent back unchanged is not '
+            + 'written (changed: false). The board is saved to Version history first.',
+          parameters: [
+            boardIdParam,
+            { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'pageId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'If-Match', in: 'header', required: false, schema: { type: 'string' } },
+          ],
+          requestBody: jsonBody({
+            markdown: { type: 'string' },
+            page_hash: { type: 'string' },
+            edits: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                properties: { old_text: { type: 'string' }, new_text: { type: 'string' } },
+                required: ['old_text', 'new_text'],
+              },
+            },
+            title: { type: 'string' },
+          }),
+        }),
+      },
       '/boards/{id}/share-link': {
         get: op('listShareLinks', 'The board\'s live view-only links', { parameters: [boardIdParam] }),
         post: op('shareBoard', 'The board\'s view-only link, made only when none fits', {

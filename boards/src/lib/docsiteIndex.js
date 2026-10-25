@@ -3022,7 +3022,7 @@ export const DOCS_PAGES = [
     "answer": "The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.",
     "section": "developers",
     "order": 0,
-    "updated": "2026-08-10",
+    "updated": "2026-10-25",
     "navLabel": "API overview",
     "headings": [
       {
@@ -3431,8 +3431,8 @@ export const DOCS_PAGES = [
         "text": "GET /boards/:id/cards/:cardId"
       },
       {
-        "id": "get-boards-id-cards-cardid-doc",
-        "text": "GET /boards/:id/cards/:cardId/doc"
+        "id": "doc-cards",
+        "text": "Doc cards"
       },
       {
         "id": "patch-boards-id-cards-cardid",
@@ -3457,6 +3457,7 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/api/boards",
+      "/docs/api/docs",
       "/docs/api/images",
       "/docs/api/errors"
     ],
@@ -3472,6 +3473,66 @@ export const DOCS_PAGES = [
       {
         "q": "What does live false mean in the response?",
         "a": "The cards are saved, but a canvas someone already has open will not show them until it reloads. It is not a failure."
+      }
+    ]
+  },
+  {
+    "path": "/docs/api/docs",
+    "title": "Docs API — Read and Write Docs as Markdown — Soleil Clusters",
+    "metaDescription": "Read and write Soleil Clusters doc cards as Markdown over REST. Make a doc with its pages, add pages, rewrite or edit a page without losing anyone's changes.",
+    "h1": "Docs API",
+    "answer": "A doc card's pages are read and written as Markdown. GET /boards/:id/cards/:cardId/doc reads every page with a hash of each; POST /boards/:id/docs makes a doc holding up to 50 pages; POST …/doc/pages adds pages; PATCH …/doc/pages/:pageId rewrites, edits or renames one page. A rewrite names the hash the page was read at, so it never erases a change made since, and it keeps every block it didn't change, comments included.",
+    "section": "developers",
+    "order": 4.5,
+    "updated": "2026-10-25",
+    "navLabel": "Docs",
+    "headings": [
+      {
+        "id": "get-boards-id-cards-cardid-doc",
+        "text": "GET /boards/:id/cards/:cardId/doc"
+      },
+      {
+        "id": "post-boards-id-docs",
+        "text": "POST /boards/:id/docs"
+      },
+      {
+        "id": "post-boards-id-cards-cardid-doc-pages",
+        "text": "POST /boards/:id/cards/:cardId/doc/pages"
+      },
+      {
+        "id": "patch-boards-id-cards-cardid-doc-pages-pageid",
+        "text": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId"
+      },
+      {
+        "id": "what-the-markdown-carries",
+        "text": "What the Markdown carries"
+      },
+      {
+        "id": "live-or-not-at-all",
+        "text": "Live, or not at all"
+      }
+    ],
+    "related": [
+      "/docs/api/cards",
+      "/docs/documents/export",
+      "/docs/mcp"
+    ],
+    "faq": [
+      {
+        "q": "Will rewriting a page lose its comments or colours?",
+        "a": "Not on the parts you leave alone. A rewrite keeps every block whose Markdown is unchanged as the same block, so a comment on it, its text colour and anything else Markdown can't express stay with it. Only the blocks you change are written fresh."
+      },
+      {
+        "q": "What if someone edits the page while my script is working on it?",
+        "a": "A whole-page rewrite names the hash of the page as you read it. If the page has changed since, the write is refused with 409 page_changed and nothing is written. Read it again and make your change to that."
+      },
+      {
+        "q": "Can a doc written through the API hold pictures?",
+        "a": "Pictures already in the cluster, yes. Write ![caption](r2:<image_key>) with the image_key of an image card on the board. Any other picture becomes a link to it, so writing a doc never fetches anything into it."
+      },
+      {
+        "q": "Why did I get 503 room_unavailable?",
+        "a": "A doc is written through the cluster's live room or not at all, and the room couldn't be reached or didn't confirm the change. Nothing was written, so it is safe to try again."
       }
     ]
   },
@@ -3843,6 +3904,10 @@ export const DOCS_PAGES = [
         "text": "Adding an image"
       },
       {
+        "id": "writing-a-doc",
+        "text": "Writing a doc"
+      },
+      {
         "id": "what-agents-should-know",
         "text": "What agents should know"
       },
@@ -3896,7 +3961,7 @@ export const DOCS_PAGES = [
     "answer": "Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.",
     "section": "developers",
     "order": 11,
-    "updated": "2026-08-08",
+    "updated": "2026-10-25",
     "navLabel": "Errors",
     "headings": [
       {

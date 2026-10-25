@@ -33,13 +33,16 @@
     "PATCH /boards/:id",
     "PATCH /boards/:id/cards {\"cards\":[…]} — bulk",
     "PATCH /boards/:id/cards/:cardId",
+    "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId {\"markdown\":…,\"page_hash\":…} | {\"edits\":[…]} | {\"title\":…}",
     "PATCH /boards/:id/groups/:groupId",
     "PATCH /webhooks/:id",
     "POST /boards",
     "POST /boards {\"boards\":[…]} — bulk, up to 500",
     "POST /boards/:id/arrange {\"layout\":\"justified|masonry|grid|row|column\"}",
     "POST /boards/:id/cards",
+    "POST /boards/:id/cards/:cardId/doc/pages {\"pages\":[…],\"parent_page_id\":…} — pages added",
     "POST /boards/:id/cards/move",
+    "POST /boards/:id/docs {\"title\":…,\"pages\":[{\"title\":…,\"markdown\":…}]} — a new doc card",
     "POST /boards/:id/groups",
     "POST /boards/:id/import {\"items\":[{\"url\":…}]} — re-runnable",
     "POST /boards/:id/restore",
@@ -93,6 +96,10 @@
     {
       "name": "delete_cards",
       "schema": "9dac8e19196e"
+    },
+    {
+      "name": "edit_doc_page",
+      "schema": "e15364129588"
     },
     {
       "name": "export_board",
@@ -205,6 +212,10 @@
     {
       "name": "whoami",
       "schema": "e3b0c44298fc"
+    },
+    {
+      "name": "write_doc",
+      "schema": "0abd9bbff594"
     }
   ],
   "mcpPrompts": [
@@ -304,10 +315,12 @@
     "405 method_not_allowed",
     "409 conflict",
     "409 identifier_conflict",
+    "409 page_changed",
     "413 payload_too_large",
     "415 unsupported_media_type",
     "502 session_unavailable",
     "502 upstream_error",
+    "503 room_unavailable",
     "503 storage_unavailable"
   ],
   "apiFacts": {
