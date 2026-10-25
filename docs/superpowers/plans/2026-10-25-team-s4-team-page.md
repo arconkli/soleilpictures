@@ -92,15 +92,17 @@ its test owners.
 
 ## Task 2: the domain check (Worker)
 
-- [ ] `lib/teamDomainCheck.js` (pure, node-tested): `txtAnswers(dnsJson)` joins split strings and drops
+- [x] `lib/teamDomainCheck.js` (pure, node-tested): `txtAnswers(dnsJson)` joins split strings and drops
   quotes; `domainMatches(answers, value)`.
-- [ ] `POST /api/team/domain-check {org_id, domain}` with the user's bearer: call
+- [x] `POST /api/team/domain-check {org_id, domain}` with the user's bearer: call
   `team_domain_challenge` with the user's JWT (a refusal answers 409 with its hint), skip DNS when
   already verified, ask `https://cloudflare-dns.com/dns-query?name=<txt_name>&type=TXT` with
   `accept: application/dns-json`, and on a match call `team_domain_mark_verified(org, domain, true,
   token)` with the service key. Answers `{ok, verified}`. At most one check per user every 10 seconds.
-- [ ] The daily cron re-checks every verified domain and calls `team_domain_mark_verified(…, false)`
-  for one whose record is gone (auto-join pauses until it passes again).
+- [x] The daily cron re-checks every verified domain and calls `team_domain_mark_verified(…, false)`
+  for one whose record is gone (auto-join pauses until it passes again). Done 2026-10-25 in `worker-team.js` (six
+  checks a minute per session, per isolate; an unsure DNS answer changes nothing; `not_available`
+  until 0540 is applied); `teamRoute.test.mjs`.
 
 ## Task 3: the client's data
 

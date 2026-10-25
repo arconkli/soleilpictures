@@ -20,6 +20,7 @@
 
 import { handleTagsRoute } from './worker-tags.js';
 import { handleClustersRoute } from './worker-clusters.js';
+import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
@@ -740,6 +741,7 @@ const worker = {
       if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/clusters/')) return await handleClustersRoute(url, request, env);
+      if (url.pathname.startsWith('/api/team/')) return await handleTeamRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
       // A copy of a video or audio file that every browser can play: asked for
@@ -1117,6 +1119,9 @@ const worker = {
       // app calls is announced for retirement, leaves the catalog, or stops
       // answering. Separate from the sweep; it touches no R2.
       ctx.waitUntil(watch('ai_watch', runAiModelWatch(env)));
+      // A team's verified company domain whose TXT record is gone stops
+      // auto-joining until a check passes again (worker-team.js, 0534).
+      ctx.waitUntil(watch('team_domains', runTeamDomainRecheck(env)));
     } else if (which === '0 6 * * 1') {
       // Sundays 06:00 UTC: Cloudflare counts day-of-week 1 as Sunday, and every
       // run since 2026-09-06 has landed on one. The AEO retrieval probe (0296). Weekly
