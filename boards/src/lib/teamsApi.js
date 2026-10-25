@@ -1,6 +1,8 @@
-// teamsApi.js — one wrapper per client-callable Team RPC (0530, 0532-0535).
+// teamsApi.js — one wrapper per client-callable Team RPC (0530, 0532-0535, 0538, 0540).
 // Each throws the PostgrestError, which keeps `hint` and `details`: pass it to
-// teamRefusal() (teamHints.js). No caller yet; the Team page (S4) uses these.
+// teamRefusal() (teamHints.js). Callers: teamActions.js and hooks/useTeam.js
+// (the Team page, S4). The HTTP calls (team-billing, the domain check) are in
+// teamBillingApi.js.
 // Never .catch() a supabase.rpc() builder: it is a thenable, not a promise.
 import { supabase } from './supabase.js';
 
@@ -210,6 +212,18 @@ export async function listMyTeams() {
 
 export async function listMyTeamWorkspaces() {
   const { data, error } = await supabase.rpc('list_my_team_workspaces', {});
+  if (error) throw error;
+  return data;
+}
+
+export async function getTeamBilling({ p_org_id } = {}) {
+  const { data, error } = await supabase.rpc('get_team_billing', { p_org_id });
+  if (error) throw error;
+  return data;
+}
+
+export async function previewTeamSeats({ p_workspace_ids } = {}) {
+  const { data, error } = await supabase.rpc('preview_team_seats', { p_workspace_ids });
   if (error) throw error;
   return data;
 }

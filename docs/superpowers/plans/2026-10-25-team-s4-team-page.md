@@ -106,21 +106,25 @@ its test owners.
 
 ## Task 3: the client's data
 
-- [ ] `teamBillingApi.js`, modelled on `storageAddon.js:15-35`: `teamBilling(action, body)` posts to
+- [x] `teamBillingApi.js`, modelled on `storageAddon.js:15-35`: `teamBilling(action, body)` posts to
   `${VITE_SUPABASE_URL}/functions/v1/team-billing` with the session's bearer and never throws
   (`{ok:false, error:'auth required'|'network'|'http_<status>'|<server code>}`). Exports
   `startTeamCheckout`, `verifyTeamCheckout`, `openTeamPortal`, `previewTeamSeatsCost`, `addTeamSeats`,
   `syncTeam`, `newSeatRequestId`. Every call sends `return_origin: location.origin`.
-- [ ] `teamsApi.js` gains `getTeamBilling` and `previewTeamSeats`; `checkTeamDomain` calls the Worker
+- [x] `teamsApi.js` gains `getTeamBilling` and `previewTeamSeats`; `checkTeamDomain` calls the Worker
   route (`resendTeamInvite` comes with 0541, Task 9).
-- [ ] `toTeamSnapshot(team, billing, now)`: `plan` from billing (`interval`, `seats`, `renewsAt`,
+- [x] `toTeamSnapshot(team, billing)`: `plan` from billing (`interval`, `seats`, `renewsAt`,
   `trialEndsAt`, `status`, `cancelAtPeriodEnd`), `storage` (`usedBytes`, `quotaBytes`), `unpaid`
   (`since`, `graceEndsAt`, `viewOnly`), `whenFull` (`mode`, `monthlyLimit`, `addedThisMonth`); a
   member (no billing) gets `plan: null`, and no emails but their own (the server cuts the roster by
   role; the client never asks for more). Unit tests on fixture rows for owner, admin, member, unpaid.
-- [ ] `useTeam(orgId)` returns `{ team, loading, error, reload, act }`. `act` maps every reducer action
+- [x] `useTeam(orgId)` returns `{ team, loading, error, reload, act }`. `act` maps every reducer action
   the components dispatch to its RPC or `team-billing` call, reloads, and resolves `{ ok }` or
-  `{ refusal }`.
+  `{ refusal }`. Done 2026-10-25: `teamCalls.js` (the fetch core, node-tested), `teamBillingApi.js`,
+  `teamSnapshot.js`, `teamActions.js` (`runTeamAction`, `normalizeDomain`), `hooks/useTeam.js`. Left for
+  Task 4: `plan.card` and `receiptsTo` have no source (get_team_billing has no card; show the portal
+  instead), `plan` is null for a member, and a `pending:` (workspace) invite can't be revoked from the
+  team page yet.
 
 ## Task 4: the page, real
 
