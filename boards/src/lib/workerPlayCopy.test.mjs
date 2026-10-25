@@ -7,17 +7,20 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies, parseRange, sourceToken, cleanResult,
+  handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies, parseRange, sourceToken, cleanResult, cleanViewResult,
 } from '../worker-playCopy.js';
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WS = '0b6e2f0a-6c55-4b8e-9d0a-2a3f1c9e7b11';
 const MOV = `${WS}/4f1c2d3e-0000-4000-8000-000000000001.mov`;
 const AIFF = `${WS}/4f1c2d3e-0000-4000-8000-000000000002.aiff`;
+const HEIC = `${WS}/4f1c2d3e-0000-4000-8000-000000000003.heic`;
+const VIEW = `${WS}/previews/4f1c2d3e-0000-4000-8000-000000000003.heic.view.webp`;
+const VIEW_SM = `${WS}/previews/4f1c2d3e-0000-4000-8000-000000000003.heic.view_sm.webp`;
 const SECRET = 'box-secret-for-tests-0123456789abcdef';
 const NOW = Date.parse('2026-10-24T20:00:00Z');
 
-function world({ readable = [MOV, AIFF], jobs = {}, objects = {}, requestStates = {}, claimRows = [] } = {}) {
+function world({ readable = [MOV, AIFF, HEIC], jobs = {}, objects = {}, requestStates = {}, claimRows = [], viewClaimRows = [] } = {}) {
   const bucket = new Map(Object.entries(objects).map(([k, v]) => [k, typeof v === 'string' ? new TextEncoder().encode(v) : v]));
   const rpcs = [];
   const woke = [];
@@ -69,17 +72,21 @@ function world({ readable = [MOV, AIFF], jobs = {}, objects = {}, requestStates 
       return readable.filter((k) => decodeURIComponent(query).includes(`"${k}"`)).map((k) => ({ storage_path: k }));
     },
     svcSelect: async (_env, table, query) => {
-      assert.equal(table, 'media_copies');
       const key = decodeURIComponent(query.match(/storage_path=eq\.([^&]+)/)[1]);
+      assert.equal(table, key.endsWith('.heic') ? 'file_views' : 'media_copies', 'each key\'s job is read from its own queue');
       return jobs[key] ? [jobs[key]] : [];
     },
     svcRpc: async (_env, fn, params) => {
       rpcs.push({ fn, params });
-      if (fn === '_media_copy_request') return requestStates[params.p_storage_path + (params.p_force ? '#force' : '')] ?? 'queued';
+      if (fn === '_media_copy_request' || fn === '_file_view_request') {
+        return requestStates[params.p_storage_path + (params.p_force ? '#force' : '')] ?? 'queued';
+      }
       if (fn === '_media_copy_claim') return claimRows;
-      if (fn === '_media_copy_heartbeat') return !!jobs[params.p_storage_path];
-      if (fn === '_media_copy_finish') return params.p_state;
+      if (fn === '_file_view_claim') return viewClaimRows;
+      if (fn === '_media_copy_heartbeat' || fn === '_file_view_heartbeat') return !!jobs[params.p_storage_path];
+      if (fn === '_media_copy_finish' || fn === '_file_view_finish') return params.p_state;
       if (fn === '_media_copy_due') return requestStates.due ?? 0;
+      if (fn === '_file_view_due') return requestStates.viewDue ?? 0;
       throw new Error(`unexpected rpc ${fn}`);
     },
     fetchImpl: async (url, init) => { woke.push({ url, auth: init.headers.authorization }); return new Response(null, { status: 202 }); },
@@ -107,14 +114,16 @@ test('a member asks for copies of files they can read, and the box is woken', as
   assert.deepEqual(w.woke, [{ url: 'https://box.example/wake', auth: `Bearer ${SECRET}` }]);
 });
 
-test('what a member cannot read, or is not media, is never queued', async () => {
+test('what a member cannot read, or gets no copy or view, is never queued', async () => {
   const w = world({ readable: [] });
-  const res = await w.call('request', { headers: user, body: { keys: [MOV, `${WS}/a.jpg`, `${WS}/previews/x.play.mp4`, '../etc'] } });
+  const res = await w.call('request', { headers: user, body: { keys: [MOV, HEIC, `${WS}/a.jpg`, `${WS}/previews/x.play.mp4`, VIEW, '../etc'] } });
   const { states } = await res.json();
   assert.equal(states[MOV], 'not_found');
-  assert.equal(states[`${WS}/a.jpg`], 'not_media');
-  assert.equal(states[`${WS}/previews/x.play.mp4`], 'not_media', 'a copy is never converted');
-  assert.equal(states['../etc'], 'not_media');
+  assert.equal(states[HEIC], 'not_found');
+  assert.equal(states[`${WS}/a.jpg`], 'unsupported', 'every browser draws a JPEG');
+  assert.equal(states[`${WS}/previews/x.play.mp4`], 'unsupported', 'a copy is never converted');
+  assert.equal(states[VIEW], 'unsupported', 'nor a view');
+  assert.equal(states['../etc'], 'unsupported');
   assert.equal(w.rpcs.length, 0);
   assert.equal(w.woke.length, 0);
   assert.equal((await w.call('request', { body: { keys: [MOV] } })).status, 401, 'signed out');
@@ -131,6 +140,24 @@ test('a copy recorded as made but missing from the bucket is made again', async 
   const s2 = (await (await w2.call('request', { headers: user, body: { keys: [MOV] } })).json()).states;
   assert.equal(s2[MOV], 'done');
   assert.equal(w2.woke.length, 0, 'nothing queued, nothing woken');
+});
+
+test('a photo a browser can\'t draw is queued for a view, and a missing one is made again', async () => {
+  const w = world();
+  const { states } = await (await w.call('request', { headers: user, body: { keys: [HEIC, MOV] } })).json();
+  assert.deepEqual(states, { [HEIC]: 'queued', [MOV]: 'queued' });
+  assert.deepEqual(w.rpcs.map((r) => [r.fn, r.params.p_storage_path, r.params.p_kind]),
+    [['_file_view_request', HEIC, 'image'], ['_media_copy_request', MOV, 'video']]);
+  assert.equal(w.woke.length, 1);
+  const gone = world({ requestStates: { [HEIC]: 'done', [`${HEIC}#force`]: 'queued' } });
+  const s2 = (await (await gone.call('request', { headers: user, body: { keys: [HEIC] } })).json()).states;
+  assert.equal(s2[HEIC], 'queued');
+  assert.deepEqual(gone.rpcs.map((r) => r.params.p_force), [false, true]);
+  const there = world({ requestStates: { [HEIC]: 'done' }, objects: { [VIEW]: 'x' } });
+  assert.equal((await (await there.call('request', { headers: user, body: { keys: [HEIC] } })).json()).states[HEIC], 'done');
+  const browser = world({ requestStates: { [HEIC]: 'has_preview' } });
+  assert.equal((await (await browser.call('request', { headers: user, body: { keys: [HEIC] } })).json()).states[HEIC], 'has_preview');
+  assert.equal(browser.woke.length, 0, 'a file a browser made a preview of wakes nothing');
 });
 
 test('the box routes want the box secret; none configured is unavailable', async () => {
@@ -170,6 +197,22 @@ test('a claim hands over a source URL that opens that file during that lease onl
   assert.equal((await get('bytes=0-1', '')).status, 404);
 });
 
+test('a claim hands over views before copies, and a view\'s source opens like a copy\'s', async () => {
+  const w = world({ viewClaimRows: [{ storage_path: HEIC, kind: 'image', size_bytes: 3, attempts: 1 }],
+    claimRows: [{ storage_path: MOV, kind: 'video', size_bytes: 1, attempts: 1 }],
+    jobs: { [HEIC]: leased({ kind: 'image' }) }, objects: { [HEIC]: 'abc' } });
+  const job = await (await w.call('claim', { headers: box })).json();
+  assert.deepEqual([job.key, job.kind, job.ext, job.sizeBytes], [HEIC, 'image', 'heic', 3]);
+  assert.deepEqual(w.rpcs.map((r) => r.fn), ['_file_view_claim'], 'the copy queue is not touched while a view waits');
+  const res = await w.call(job.source.replace('/api/media/copy/', ''), { method: 'GET' });
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), 'abc');
+  const empty = world({ claimRows: [{ storage_path: MOV, kind: 'video', size_bytes: 1, attempts: 1 }] });
+  assert.equal((await (await empty.call('claim', { headers: box })).json()).key, MOV);
+  assert.deepEqual(empty.rpcs.map((r) => r.fn), ['_file_view_claim', '_media_copy_claim']);
+  assert.equal((await world().call('claim', { headers: box })).status, 204);
+});
+
 test('the source closes when the lease does', async () => {
   const w = world({ jobs: { [MOV]: leased({ lease_until: new Date(NOW - 1).toISOString() }) }, objects: { [MOV]: 'abc' } });
   const t = await sourceToken(SECRET, MOV, 1);
@@ -194,6 +237,22 @@ test('outputs only ever land on the original\'s own copy keys', async () => {
   assert.equal((await put(MOV, '../../x', 'x')).status, 400);
   const other = `${WS}/4f1c2d3e-0000-4000-8000-000000000009.mov`;
   assert.equal((await put(other, 'copy', 'x')).status, 409, 'a job that is not leased takes nothing');
+});
+
+test('a view job\'s outputs land on its own view keys only, as WebP', async () => {
+  const w = world({ jobs: { [HEIC]: leased({ kind: 'image' }) } });
+  const put = (out, body) => w.call(`upload?key=${encodeURIComponent(HEIC)}&out=${out}&step=put`, {
+    headers: { ...box, 'content-length': String(body.length) }, body,
+  });
+  assert.equal((await put('view', 'webp')).status, 200);
+  assert.equal(new TextDecoder().decode(w.bucket.get(`${VIEW}#type`)), 'image/webp');
+  assert.equal((await put('view_sm', 'sm')).status, 200);
+  assert.equal(new TextDecoder().decode(w.bucket.get(VIEW_SM)), 'sm');
+  assert.equal((await put('copy', 'x')).status, 400, 'a photo has no copy');
+  assert.equal((await put('poster', 'x')).status, 400);
+  const mov = world({ jobs: { [MOV]: leased() } });
+  const r = await mov.call(`upload?key=${encodeURIComponent(MOV)}&out=view&step=put`, { headers: { ...box, 'content-length': '1' }, body: 'x' });
+  assert.equal(r.status, 400, 'a video has no view');
 });
 
 test('a big copy goes up in parts', async () => {
@@ -236,6 +295,28 @@ test('a finish is recorded only for a running job, and a "done" must have its co
   assert.equal((await idle.call('finish', { headers: box, body: { key: MOV, state: 'skip', result: {} } })).status, 409);
 });
 
+test('a view is done only with its view in the bucket; a small one that never came is dropped', async () => {
+  const result = { view: { w: 2048, h: 1536 }, viewSm: { w: 640, h: 480 }, original: { w: 4032, h: 3024 }, probe: { loader: 'heifload' } };
+  const missing = world({ jobs: { [HEIC]: leased({ kind: 'image' }) } });
+  const r1 = await (await missing.call('finish', { headers: box, body: { key: HEIC, state: 'done', result } })).json();
+  assert.equal(r1.state, 'failed');
+  assert.equal(missing.rpcs[0].fn, '_file_view_finish');
+  assert.equal(missing.rpcs[0].params.p_result.error, 'the view never arrived');
+  const half = world({ jobs: { [HEIC]: leased({ kind: 'image' }) }, objects: { [VIEW]: 'x' } });
+  const r2 = await (await half.call('finish', { headers: box, body: { key: HEIC, state: 'done', result } })).json();
+  assert.equal(r2.state, 'done');
+  assert.deepEqual(half.rpcs[0].params.p_result.original, { w: 4032, h: 3024 });
+  assert.equal(half.rpcs[0].params.p_result.viewSm, null);
+  const beat = await half.call('heartbeat', { headers: box, body: { key: HEIC } });
+  assert.equal(beat.status, 200);
+  assert.equal(half.rpcs[1].fn, '_file_view_heartbeat');
+  const v = cleanViewResult({ view: { w: '2048', h: 0 }, original: { w: 1e9, h: 5 }, reason: 'too_large', probe: { a: 'x'.repeat(20000) } });
+  assert.equal(v.view, null);
+  assert.equal(v.original, null);
+  assert.equal(v.reason, 'too_large');
+  assert.equal(v.probe, null);
+});
+
 test('the result is kept to what the record holds', () => {
   const r = cleanResult({ copy: { w: '1920', h: 1080.4, bytes: -1 }, poster: { w: 0, h: 5 }, reason: 'Too Long!', error: 'x'.repeat(400),
     durationSec: 'NaN', probe: { format: { a: 'x'.repeat(20000) }, streams: [] } });
@@ -268,16 +349,20 @@ test('the minute cron wakes the box only while work waits', async () => {
   const busy = world({ requestStates: { due: 3 } });
   assert.equal(await tickPlayCopies(busy.env, busy.deps), 3);
   assert.equal(busy.woke.length, 1);
+  const photos = world({ requestStates: { due: 1, viewDue: 2 } });
+  assert.equal(await tickPlayCopies(photos.env, photos.deps), 3, 'both queues count');
+  assert.equal(photos.woke.length, 1);
 });
 
-test('a swept original takes its own copies with it, and nothing else', async () => {
+test('a swept original takes its own copies and views with it, and nothing else', async () => {
   const deletes = [];
   const svcDelete = async (_env, table, query) => { deletes.push([table, decodeURIComponent(query)]); return true; };
-  const n = await forgetPlayCopies({}, [MOV, AIFF, MOV, `${WS}/a.jpg`, `${WS}/previews/x.play.mp4`, '../x.mov'], { svcDelete });
-  assert.equal(n, 2);
+  const n = await forgetPlayCopies({}, [MOV, AIFF, MOV, HEIC, `${WS}/a.jpg`, `${WS}/previews/x.play.mp4`, VIEW, '../x.mov'], { svcDelete });
+  assert.equal(n, 3);
   assert.deepEqual(deletes, [
-    ['images', `storage_path=in.("${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.play.mp4","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.poster.webp","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000002.play.m4a")`],
+    ['images', `storage_path=in.("${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.play.mp4","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.poster.webp","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000002.play.m4a","${VIEW}","${VIEW_SM}")`],
     ['media_copies', `storage_path=in.("${MOV}","${AIFF}")`],
+    ['file_views', `storage_path=in.("${HEIC}")`],
   ]);
   const many = Array.from({ length: 90 }, (_, i) => `${WS}/clip-${i}.mkv`);
   deletes.length = 0;
@@ -295,5 +380,7 @@ test('the Worker routes copies here and ticks the queue every minute', () => {
   assert.match(minute, /tickPlayCopies\(env\)/);
   const sweep = w.slice(w.indexOf('async function runR2Sweep'), w.indexOf('async function runR2TombstoneSweep'));
   assert.match(sweep, /forgetPlayCopies\(env, sweptMedia\)/, 'the sweep forgets what it swept');
+  assert.equal((sweep.match(/if \(mediaKindOfKey\(row\.storage_path\) \|\| viewKindOfKey\(row\.storage_path\)\) sweptMedia\.push/g) || []).length, 2,
+    'photos with views are forgotten too');
   assert.ok(sweep.indexOf('forgetPlayCopies(') > sweep.indexOf("'mark_image_rows_swept'"), 'after the originals are marked');
 });

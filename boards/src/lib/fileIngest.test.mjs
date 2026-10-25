@@ -224,11 +224,18 @@ test('a .psd or a camera raw is a file card even when it says image/', () => {
       assert.equal(c.route, 'file', `${name} (${type || 'no type'}) is a file card`);
     }
   }
-  // Safari draws TIFF and HEIC, so they stay images (the card shows "Preview
-  // not available" on browsers that can't).
+  // TIFF and HEIC stay images: Safari draws them, and every other browser
+  // shows their view (lib/fileView.js).
   assert.equal(classifyDropFile(f('scan.tif', 'image/tiff')).route, 'image');
   assert.equal(classifyDropFile(f('IMG_1.HEIC', 'image/heic')).route, 'image');
   assert.equal(classifyDropFile(f('IMG_1.HEIC', '')).route, 'image');
+  // So does every photo that gets a view, with no type or the generic one.
+  for (const [name, type] of [['DSCF0001.HIF', ''], ['plate.exr', ''], ['scan.jp2', 'application/octet-stream'],
+                              ['a.jxl', ''], ['scan.TIFF', 'application/octet-stream']]) {
+    assert.equal(classifyDropFile(f(name, type)).route, 'image', `${name} (${type || 'no type'})`);
+  }
+  assert.equal(classifyDropFile(f('notes.txt', '')).route, 'file');
+  assert.equal(classifyDropFile(f('blob.bin', 'application/octet-stream')).route, 'file');
   assert.equal(classifyDropFile(f('a.png', 'image/png')).route, 'image');
 });
 

@@ -1,6 +1,7 @@
 // Asking for, and finding, the playable copy of a video or audio file, and
 // what a made one writes onto its card (lib/playCopy.js; the Worker's half is
-// worker-playCopy.js).
+// worker-playCopy.js). Photos' views ask through the same route
+// (askConverter, lib/fileViewClient.js).
 //
 // Never throws: an answer it couldn't get is an empty one, and the player then
 // says what it said before there were copies. The callers hand over getToken
@@ -22,11 +23,17 @@ export const WAITING_STATES = new Set(['queued', 'working']);
 
 // { [key]: state } for the media originals among `keys` — {} when it couldn't
 // ask (signed out, the cooldown, the network).
-export async function requestPlayCopies(keys, {
+export function requestPlayCopies(keys, opts) {
+  return askConverter([...new Set((keys || []).filter((k) => mediaKindOfKey(k)))].slice(0, REQUEST_MAX_KEYS), opts);
+}
+
+// The ask itself, for `list` (at most REQUEST_MAX_KEYS keys the converter
+// takes): photos' views ask the same route (lib/fileViewClient.js), and share
+// its cooldown.
+export async function askConverter(list, {
   getToken = null, fetchImpl = (...a) => fetch(...a), now = () => Date.now(),
 } = {}) {
-  const list = [...new Set((keys || []).filter((k) => mediaKindOfKey(k)))].slice(0, REQUEST_MAX_KEYS);
-  if (!list.length || now() < cooldownUntil) return {};
+  if (!list?.length || now() < cooldownUntil) return {};
   try {
     const token = getToken ? await getToken() : null;
     if (!token) return {};

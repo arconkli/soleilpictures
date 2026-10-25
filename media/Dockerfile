@@ -1,19 +1,26 @@
 # Built by media/deploy.sh from a context laid out like the repo, holding only
-# what is copied below (playCopy.js is shared with the Worker):
+# what is copied below (playCopy.js and fileView.js are shared with the Worker):
 #   sh media/deploy.sh
 FROM node:22-bookworm-slim
 
+# vips makes the views of photos (HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000). Its
+# ImageMagick, PDF and OpenSlide modules are removed: views never need them,
+# and ImageMagick reads formats that follow references to other files.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+  && apt-get install -y --no-install-recommends ffmpeg libvips-tools ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -f /usr/lib/*/vips-modules-*/vips-magick.so /usr/lib/*/vips-modules-*/vips-poppler.so \
+       /usr/lib/*/vips-modules-*/vips-openslide.so
 
-# The unprivileged user ffmpeg and ffprobe run as (MEDIA_UID/MEDIA_GID default
-# to 10001). They parse strangers' files; they get no secrets and no rights.
+# The unprivileged user ffmpeg, ffprobe and vips run as (MEDIA_UID/MEDIA_GID
+# default to 10001). They parse strangers' files; they get no secrets and no
+# rights.
 RUN groupadd -g 10001 media \
   && useradd -r -u 10001 -g media -d /tmp -s /usr/sbin/nologin media
 
 WORKDIR /app
 COPY boards/src/lib/playCopy.js ./boards/src/lib/playCopy.js
+COPY boards/src/lib/fileView.js ./boards/src/lib/fileView.js
 COPY media/package.json ./media/package.json
 COPY media/src ./media/src
 

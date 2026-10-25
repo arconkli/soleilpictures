@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { isAnimatedImageKey } from '../lib/fileIngest.js';
+import { viewKindOfKey, isViewKey } from '../lib/fileView.js';
 import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
@@ -262,7 +263,24 @@ function UnavailablePlaceholder({ rootRef, downloadSrc = null, alt = '', classNa
   );
 }
 
-// ── Basic (unchanged behavior) ──────────────────────────────────────────
+// A photo with a view (lib/fileView.js) opens on it in the single-image
+// flavor (the lightbox, Quick look): the view exists because some browser
+// can't draw the file, and the original would be a download that shows nothing
+// there. Every browser shows the same picture; Download still gives the file.
+function serverView(key) {
+  const pv = key && viewKindOfKey(key) ? getMeta(key)?.previewKey : null;
+  return pv && isViewKey(pv) ? pv : null;
+}
+
+// Wait for the view of a photo the browser couldn't draw (lib/fileViewWork.js
+// asks for it and watches it being made); `done` gets its preview key, or null
+// when there won't be one.
+function waitForView(key, done) {
+  import('../lib/fileViewWork.js').then((m) => m.awaitView(key))
+    .then((r) => done(r === 'ready' ? getMeta(key)?.previewKey || null : null), () => done(null));
+}
+
+// ── Basic ───────────────────────────────────────────────────────────────
 function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
                         // `bust` (optional): a content-version token (board
                         // thumb_updated_at) that forces a fresh presign when it
@@ -273,7 +291,11 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
                         // progressive-only props are accepted + ignored here so
                         // they never leak onto the DOM if mis-passed.
                         backfillEnabled, upgradeToFull, boardId, ...rest }) {
-  const initial = cachedUrl(src);
+  const srcKey = typeof src === 'string' && src.startsWith('r2:') ? src.slice(3) : null;
+  // The file's preview, shown in place of an original the browser can't draw.
+  const [viaPreview, setViaPreview] = useState(() => serverView(srcKey));
+  const shown = viaPreview ? `r2:${viaPreview}` : src;
+  const initial = cachedUrl(shown);
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
   // After a couple of failed presign attempts, surface a quiet "still
@@ -292,7 +314,37 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   // thumbnails and Files previews padlocked until the user navigated away
   // (MEDIA-14). Re-arms after 30 s, or at once when the browser comes online.
   const rearmedRef = useRef(false);
+  // The key whose view this is waiting on (see noPicture).
+  const viewForRef = useRef(null);
+  const [awaitingView, setAwaitingView] = useState(false);
   useEffect(() => { resignedRef.current = false; rearmedRef.current = false; setUnavailable(false); }, [src]);
+  // A new file starts on its own view, when it has one, and waits on nothing.
+  useEffect(() => {
+    viewForRef.current = null; setAwaitingView(false); setViaPreview(serverView(srcKey));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  // The browser refused the bytes. An original falls back to the file's
+  // preview when it has one, and a photo that gets a view waits for it (the
+  // shimmer, not "Preview not available"); anything else says so.
+  const showPreview = (pv) => {
+    resignedRef.current = false;
+    setUrl(cachedUrl(`r2:${pv}`) || null);
+    setViaPreview(pv);
+  };
+  const noPicture = () => {
+    const pv = srcKey && !viaPreview ? getMeta(srcKey)?.previewKey : null;
+    if (pv) { showPreview(pv); return; }
+    if (!srcKey || viaPreview || !viewKindOfKey(srcKey) || viewForRef.current) { setUnavailable(true); return; }
+    const key = srcKey;
+    viewForRef.current = key;
+    setAwaitingView(true);
+    waitForView(key, (next) => {
+      if (viewForRef.current !== key) return;
+      setAwaitingView(false);
+      if (next) showPreview(next); else setUnavailable(true);
+    });
+  };
 
   useEffect(() => {
     if (visible) return;
@@ -314,8 +366,8 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
     let retryTimer = null;
     let onOnline = null;
     let attempt = 0;
-    const isR2 = typeof src === 'string' && src.startsWith('r2:');
-    const key = isR2 ? src.slice(3) : null;
+    const isR2 = typeof shown === 'string' && shown.startsWith('r2:');
+    const key = isR2 ? shown.slice(3) : null;
     const dropOnline = () => {
       if (onOnline) { try { window.removeEventListener('online', onOnline); } catch (_) {} onOnline = null; }
     };
@@ -326,7 +378,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
       const wantBust = isR2 && bust != null && shouldBust(key, bust);
       const resolved = wantBust
         ? await getSignedUrl(key, { force: true })
-        : await resolveSrc(src);
+        : await resolveSrc(shown);
       if (cancelled) return;
       if (!resolved) {
         // Transient sign failures: retry with backoff before showing the lock.
@@ -362,22 +414,22 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
       setSlowRetry(false);
       setUrl(resolved);
       setFailed(false);
-      if (typeof src === 'string' && src.startsWith('r2:')) {
+      if (isR2) {
         refreshTimer = setTimeout(async () => {
           if (cancelled) return;
-          const fresh = await getSignedUrl(src.slice(3));
+          const fresh = await getSignedUrl(key);
           if (!cancelled && fresh) setUrl(fresh);
         }, CACHE_TTL_MS - REFRESH_BEFORE_MS);
       }
     };
     tick();
     return () => { cancelled = true; dropOnline(); if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
-  }, [src, visible, bust]);
+  }, [shown, visible, bust]);
 
   if (failed) return <BlockedPlaceholder {...rest} />;
   if (unavailable) return <UnavailablePlaceholder alt={alt} {...rest} />;
 
-  if (!url) {
+  if (!url || awaitingView) {
     // Loading shimmer; rootRef anchors the IntersectionObserver.
     return <div ref={rootRef} className={`r2-img r2-img-loading ${slowRetry ? 'r2-img-retrying' : ''}`} {...rest} />;
   }
@@ -400,7 +452,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
          {...rest}
          onLoad={(e) => { resignedRef.current = false; rest.onLoad?.(e); }}
          onError={(e) => {
-           if (typeof src === 'string' && src.startsWith('r2:') && !resignedRef.current) {
+           if (typeof shown === 'string' && shown.startsWith('r2:') && !resignedRef.current) {
              // Force a fresh sign (evicts the cached string) — the URL we were
              // handed may be an expired signature, so re-presigning WITHOUT
              // force would just hand back the same dead URL and lock the image.
@@ -410,19 +462,19 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
              // again, every second or two, for as long as it was mounted.
              resignedRef.current = true;
              const failedUrl = url;
-             getSignedUrl(src.slice(3), { force: true }).then(fresh => {
+             getSignedUrl(shown.slice(3), { force: true }).then(fresh => {
                // The same string back (the public viewer's static map) cannot
                // load any better than it just did.
-               if (fresh && fresh === failedUrl) setUnavailable(true);
+               if (fresh && fresh === failedUrl) noPicture();
                else if (fresh) setUrl(fresh);
                else setFailed(true);
              });
              // Public viewers resolve from a static presigned map, so the
              // force-sign above can't help — escalate so the viewer re-fetches
              // the bundle for fresh URLs (no-op in the authenticated app).
-             notifyImageAuthError(src.slice(3));
+             notifyImageAuthError(shown.slice(3));
            } else {
-             setUnavailable(true);
+             noPicture();
            }
            onError?.(e);
          }} />
@@ -477,6 +529,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // show these bytes, so the card says so instead of re-downloading forever.
   const resignedForRef = useRef(null);
   const [unavailable, setUnavailable] = useState(false);
+  // The key whose view the card is waiting on: a photo the browser can't draw
+  // with no preview yet shows the shimmer until its view arrives (noPicture).
+  const viewForRef = useRef(null);
+  const [awaitingView, setAwaitingView] = useState(false);
   // The original failed to display after its one re-sign while a variant
   // exists (a HEIC/TIFF whose preview Safari made, a gone original whose
   // retention-locked previews remain). The card drops back to the preview and
@@ -527,6 +583,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     resignedForRef.current = null;
     originalBrokenRef.current = false;
     fastLoadRef.current = false;
+    viewForRef.current = null;
+    setAwaitingView(false);
     setLoaded(false);
     setFailed(false);
     setUnavailable(false);
@@ -843,10 +901,31 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // pick depended on a `sizes` hint that read scale=1 before the layout effect
   // ran. One src, one decision.
 
+  // Nothing the browser can draw and no preview: a photo that gets a view
+  // waits for it, and then shows it and never goes back to the original.
+  const noPicture = () => {
+    if (!originalKey || !viewKindOfKey(originalKey) || viewForRef.current) { setUnavailable(true); return; }
+    const key = originalKey;
+    viewForRef.current = key;
+    setAwaitingView(true);
+    waitForView(key, (pv) => {
+      if (viewForRef.current !== key) return;
+      setAwaitingView(false);
+      if (!pv) { setUnavailable(true); return; }
+      originalBrokenRef.current = true;
+      upgradedRef.current = true;
+      setUrl(cachedUrl(`r2:${pv}`) || null);
+      setActiveSrc(`r2:${pv}`);
+    });
+  };
+
   if (failed) return <BlockedPlaceholder {...rest} />;
   if (unavailable) {
     return <UnavailablePlaceholder rootRef={rootRef} className={className || ''} style={style} alt={alt}
                                    downloadSrc={originalKey ? src : null} {...rest} />;
+  }
+  if (awaitingView) {
+    return <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}><div className="r2p-layer r2-img-loading" /></div>;
   }
 
   return (
@@ -889,7 +968,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                    upgradedRef.current = true;   // keeps the pre-load switch + warm-up off too
                    setActiveSrc(`r2:${meta.previewKey}`);
                  } else {
-                   setUnavailable(true);
+                   noPicture();
                  }
                };
                if (isR2 && resignedForRef.current === activeSrc) {

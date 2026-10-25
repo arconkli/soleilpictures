@@ -1,5 +1,6 @@
-// soleil-media: the converter box. Claims jobs from our Worker, runs ffmpeg,
-// hands the outputs back. See README.md.
+// soleil-media: the converter box. Claims jobs from our Worker, runs ffmpeg
+// (playable copies) or vips (views of photos), hands the outputs back. See
+// README.md.
 //
 // Scale to zero without Fly's proxy: after IDLE_EXIT_MS with no work the
 // process exits 0 and the machine stays stopped; the Worker's next /wake
@@ -10,6 +11,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import * as api from './api.js';
 import { hasZscale, killAll } from './ffmpeg.js';
 import { processJob } from './job.js';
+import { processView } from './view.js';
 import { scrubError } from './args.js';
 
 const PORT = Number(process.env.PORT || 8080);
@@ -66,7 +68,8 @@ async function loop() {
       }
       if (job) {
         console.log(`[media] job ${job.key} (${job.kind}, attempt ${job.attempts})`);
-        await processJob(job, { zscale });
+        if (job.kind === 'image') await processView(job);
+        else await processJob(job, { zscale });
         lastWork = Date.now();
         continue;
       }

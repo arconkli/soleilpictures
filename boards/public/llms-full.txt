@@ -792,7 +792,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-21
+Updated: 2026-10-24
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -810,7 +810,9 @@ Uploads go straight to storage from your browser. Large batches run a few at a t
 
 Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in Files and comes back out of Download under it. Give a card a caption and the caption is what Files shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one image.png), so it is not given one.
 
-HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all.
+Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000. Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. Download always gives the original, and the picture never counts toward your storage.
+
+A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. These photos arrive as images even when the browser reports no file type at all.
 
 To swap in a new take of an image, drop the new file onto it, or choose Edit → Upload new version…. The old one is kept as an earlier version, so you can go back to it from Info.
 
@@ -873,7 +875,10 @@ Q: Why does an image look blurry for a moment?
 A: Images load in tiers — a tiny blurred placeholder first, then a preview, then full resolution. On a board with hundreds of images this is what keeps it usable.
 
 Q: Does it handle photos straight off an iPhone?
-A: Yes, including HEIC and HEIF, even when the browser reports no file type at all.
+A: Yes. HEIC and HEIF show in every browser, not only Safari, even when the browser reports no file type at all.
+
+Q: Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?
+A: Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file.
 
 
 ========================================================================
@@ -1492,7 +1497,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-21
+Updated: 2026-10-24
 
 Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
@@ -1501,7 +1506,7 @@ Drag a file onto the canvas. The type is detected and the right kind of card is 
 What each type becomes
 
 You drop | You get
-Image (incl. HEIC/HEIF) | An image card with adjustments
+Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000) | An image card with adjustments, shown in every browser
 Video | An inline player
 Audio | A waveform player with cover art
 PDF | A page-one thumbnail opening into a full viewer

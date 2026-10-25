@@ -73,6 +73,7 @@ import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
+import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
@@ -405,6 +406,12 @@ export const FACTS = {
   playCopyMaxHours: String(PLAY_COPY_MAX_SECONDS / 3600),
   playCopyMaxSize: `${PLAY_COPY_MAX_BYTES / (1024 * MB)} GB`,
   playCopyMaxEdge: String(PLAY_COPY_MAX_EDGE),
+  // The same converter's ceilings for photos (lib/fileView.js): past these a
+  // photo gets no view and shows only where the browser can draw it. The edge
+  // is the view's long side.
+  viewEdge: String(VIEW_EDGE),
+  viewMaxSize: `${VIEW_MAX_BYTES / (1024 * MB)} GB`,
+  viewMaxMegapixels: String(VIEW_MAX_PIXELS / 1_000_000),
   // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
   // archive is assembled in the tab, and past these the tab is the thing that
   // fails. Stated so "why did my 600-file selection refuse" has an answer.

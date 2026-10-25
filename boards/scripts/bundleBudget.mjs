@@ -49,7 +49,11 @@ export const CEILINGS = {
   // audio card plays the copy its card names and notices a file its browser
   // can't play; finding, asking for and waiting on a copy load later
   // (playCopyWork).
-  appJs: 688_000,
+  // 2026-10-24: +1 KB for photo views (lib/fileView.js). A picture whose file
+  // the browser can't draw waits for the file's view and shows it, and an
+  // editor's cluster asks views for its photos; asking for and waiting on a
+  // view load later (fileViewWork).
+  appJs: 689_000,
   appCss: 21_000,
 };
 
@@ -83,6 +87,9 @@ export const LAZY_IN_APP = [
   // usePlayCopy.js, usePlayCopyBackfill.js: finding, asking for and waiting on
   // a playable copy, and writing it onto cards
   'playCopyWork',
+  // R2Image.jsx, useFileViewBackfill.js: asking for and waiting on a photo's
+  // view, and writing it onto cards
+  'fileViewWork',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

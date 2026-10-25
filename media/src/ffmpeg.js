@@ -50,15 +50,16 @@ export function killAll() {
 // Resolves with stdout (or stderr when capture is 'stderr'). Rejects on a
 // non-zero exit, a spawn error or the timeout, which is SIGKILL (a wedged
 // ffmpeg ignores anything gentler). The message carries only the tail of
-// stderr; callers scrub it before it leaves this box.
-export function run(bin, args, { timeoutMs, capture = 'stdout' } = {}) {
+// stderr; callers scrub it before it leaves this box. `env` adds settings to
+// the child's bare environment (vips' untrusted-loader block), never secrets.
+export function run(bin, args, { timeoutMs, capture = 'stdout', env = null } = {}) {
   return new Promise((resolve, reject) => {
     if (stopping) {
       reject(new Error('shutting down'));
       return;
     }
     const opts = {
-      env: { PATH, HOME: '/tmp' },
+      env: { PATH, HOME: '/tmp', ...(env || {}) },
       stdio: ['ignore', 'pipe', 'pipe'],
     };
     if (isRoot()) {

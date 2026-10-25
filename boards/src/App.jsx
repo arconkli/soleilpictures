@@ -158,6 +158,7 @@ import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
 import { useAudioPeaksBackfill } from './hooks/useAudioPeaksBackfill.js';
 import { usePdfThumbBackfill } from './hooks/usePdfThumbBackfill.js';
 import { usePlayCopyBackfill } from './hooks/usePlayCopyBackfill.js';
+import { useFileViewBackfill } from './hooks/useFileViewBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -10101,6 +10102,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // finishes is written onto its card, so every player finds it, and a file
   // never asked about is asked about (lib/playCopy.js).
   usePlayCopyBackfill({
+    cards: currentCards, canEdit: canEditCurrent,
+    workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
+    updateCardSilent: mainMutators.updateCardMeta,
+  });
+
+  // And for photos some browser can't draw (HEIC, TIFF, …): each is asked a
+  // view for, and a card still at the 4:3 it was dropped at takes the photo's
+  // shape (lib/fileView.js).
+  useFileViewBackfill({
     cards: currentCards, canEdit: canEditCurrent,
     workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
     updateCardSilent: mainMutators.updateCardMeta,

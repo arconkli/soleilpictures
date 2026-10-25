@@ -25,6 +25,7 @@ import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
 import { handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies } from './worker-playCopy.js';
 import { mediaKindOfKey } from './lib/playCopy.js';
+import { viewKindOfKey } from './lib/fileView.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
@@ -1172,14 +1173,14 @@ async function runR2Sweep(env) {
         const keys = [row.storage_path, row.preview_path, row.preview_sm_path].filter(Boolean);
         if (keys.length) await env.IMAGES.delete(keys);
         deletedIds.push(row.id);
-        if (mediaKindOfKey(row.storage_path)) sweptMedia.push(row.storage_path);
+        if (mediaKindOfKey(row.storage_path) || viewKindOfKey(row.storage_path)) sweptMedia.push(row.storage_path);
         deleted += keys.length;
       } catch (e) {
         const msg = String(e?.message || e);
         if (msg.includes('NoSuchKey') || msg.includes('404')) {
           // R2 object already gone — still close the loop in Postgres.
           deletedIds.push(row.id);
-          if (mediaKindOfKey(row.storage_path)) sweptMedia.push(row.storage_path);
+          if (mediaKindOfKey(row.storage_path) || viewKindOfKey(row.storage_path)) sweptMedia.push(row.storage_path);
           deleted++;
         } else {
           errors.push({ id: row.id, storage_path: row.storage_path, error: msg });
@@ -1191,9 +1192,10 @@ async function runR2Sweep(env) {
       try { await rpc(env, 'mark_image_rows_swept', { p_ids: deletedIds }); }
       catch (e) { console.warn('[r2-sweep] mark_swept rpc failed', e); }
     }
-    // A swept video or audio file's playable copies (0660) go with it. Its row
-    // is only marked, so nothing cascades: forgetPlayCopies deletes the copies'
-    // rows, whose tombstones the pass below drains.
+    // A swept video or audio file's playable copies (0660), or a photo's views
+    // (0661), go with it. Its row is only marked, so nothing cascades:
+    // forgetPlayCopies deletes their rows, whose tombstones the pass below
+    // drains.
     if (sweptMedia.length > 0) {
       try { await forgetPlayCopies(env, sweptMedia); }
       catch (e) { console.warn('[r2-sweep] forgetPlayCopies failed', e); }

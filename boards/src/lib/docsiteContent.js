@@ -9724,7 +9724,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all."
+     "v": "Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000. Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " always gives the original, and the picture never counts toward your storage."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. These photos arrive as images even when the browser reports no file type at all."
     }
    ]
   },
@@ -14744,7 +14767,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Image (incl. HEIC/HEIF)"
+       "v": "Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000)"
       }
      ],
      [
@@ -14765,7 +14788,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " with adjustments"
+       "v": " with adjustments, shown in every browser"
       }
      ]
     ],

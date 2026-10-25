@@ -1,21 +1,27 @@
 // worker-playCopy.js — /api/media/copy/*: the Worker's half of the converter.
 //
 // A video or audio file a browser can't play gets a copy that every browser
-// can (lib/playCopy.js says which files, and what the copies are called). The
-// converter that makes it (media/, on Fly) is kept knowing nothing: it holds
-// one secret, MEDIA_BOX_SECRET, and no storage or database credentials. This
-// file is everything else:
+// can (lib/playCopy.js says which files, and what the copies are called), and
+// a photo some browser can't draw (HEIC, TIFF, JPEG XL, OpenEXR) gets a view,
+// a WebP picture of it (lib/fileView.js). The converter that makes them
+// (media/, on Fly) is kept knowing nothing: it holds one secret,
+// MEDIA_BOX_SECRET, and no storage or database credentials. This file is
+// everything else:
 //
-//   POST request   (a signed-in member) ask for copies of files they can read
+//   POST request   (a signed-in member) ask for copies or views of files they
+//                  can read
 //   POST claim     (the box) take the next job: a 15-minute lease
-//   GET  source    (ffmpeg, with a per-job token) the original, Range-capable,
-//                  straight from the R2 binding — only while the job is leased
-//   POST upload    (the box) the copy and the poster, into R2 through the
-//                  binding (one PUT, or multipart in 64 MiB parts)
+//   GET  source    (ffmpeg, or the box's download, with a per-job token) the
+//                  original, Range-capable, straight from the R2 binding —
+//                  only while the job is leased
+//   POST upload    (the box) the copy and the poster, or the view and its
+//                  small size, into R2 through the binding (one PUT, or
+//                  multipart in 64 MiB parts)
 //   POST heartbeat (the box) keep the lease while a long encode runs
 //   POST finish    (the box) record what was made
 //
-// The queue is Postgres (media_copies, 0660), driven with the service role.
+// The queues are Postgres (media_copies, 0660; file_views, 0661), driven with
+// the service role; a key's own extension says which one its work is in.
 // Who may ask is decided as the caller: the original must come back from a
 // select made with their own token, so RLS answers "can they read it".
 //
@@ -31,6 +37,7 @@ import { verifyUser } from './lib/workerAuth.js';
 import { userSelect } from './lib/apiAuth.js';
 import { scoutRpc, scoutSelect, scoutDelete } from './lib/scoutDb.js';
 import { copyKeys, copyKeyFor, mediaKindOfKey, extOfKey, isCopyKey } from './lib/playCopy.js';
+import { viewKeys, viewKindOfKey, isViewKey } from './lib/fileView.js';
 import { makeRateLimiter } from './lib/webImageSave.js';
 
 // `<workspace uuid>/<path>`: the shape every original's key has, and nothing
@@ -43,7 +50,20 @@ const MAX_PARTS = 10_000;
 const PROBE_JSON_MAX = 16 * 1024;
 const WAKE_TIMEOUT_MS = 15_000;
 
-const CONTENT_TYPE = { video: 'video/mp4', audio: 'audio/mp4', poster: 'image/webp' };
+const CONTENT_TYPE = { video: 'video/mp4', audio: 'audio/mp4', poster: 'image/webp', view: 'image/webp' };
+
+// The two queues, by what a key's file gets: a playable copy (0660) or a view
+// (0661). The functions of each take the same arguments.
+const QUEUES = {
+  copy: {
+    table: 'media_copies', request: '_media_copy_request', claim: '_media_copy_claim',
+    heartbeat: '_media_copy_heartbeat', finish: '_media_copy_finish', due: '_media_copy_due',
+  },
+  view: {
+    table: 'file_views', request: '_file_view_request', claim: '_file_view_claim',
+    heartbeat: '_file_view_heartbeat', finish: '_file_view_finish', due: '_file_view_due',
+  },
+};
 
 const DEFAULT_DEPS = {
   verifyUser,
@@ -61,7 +81,20 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
   headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
 });
 
-const validKey = (k) => typeof k === 'string' && KEY_RE.test(k) && !k.includes('..') && !isCopyKey(k);
+const validKey = (k) => typeof k === 'string' && KEY_RE.test(k) && !k.includes('..') && !isCopyKey(k) && !isViewKey(k);
+
+// The kind of work an original's file gets ('video' | 'audio' | 'image') and
+// the queue it waits in, or null for a file that gets none.
+function workOf(key) {
+  if (!validKey(key)) return null;
+  const media = mediaKindOfKey(key);
+  if (media) return { kind: media, queue: QUEUES.copy };
+  const view = viewKindOfKey(key);
+  return view ? { kind: view, queue: QUEUES.view } : null;
+}
+
+// What a job made that must be in the bucket for it to count as done.
+const madeKey = (key, kind) => (kind === 'image' ? viewKeys(key).view : copyKeyFor(key, kind));
 
 // ── Secrets ────────────────────────────────────────────────────────────────
 
@@ -111,12 +144,14 @@ export async function wakeBox(env, d = DEFAULT_DEPS) {
 }
 
 // The minute cron: wake the box while anything waits (a lost wake, a lease
-// that ran out on a stopped machine). One indexed count when nothing does.
+// that ran out on a stopped machine). One indexed count a queue when nothing
+// does.
 export async function tickPlayCopies(env, deps = {}) {
   const d = { ...DEFAULT_DEPS, ...deps };
   if (!env.SUPABASE_SERVICE_ROLE_KEY || !env.MEDIA_BOX_URL) return 0;
   try {
-    const due = Number(await d.svcRpc(env, '_media_copy_due', {})) || 0;
+    const counts = await Promise.all([QUEUES.copy, QUEUES.view].map((q) => d.svcRpc(env, q.due, {})));
+    const due = counts.reduce((n, c) => n + (Number(c) || 0), 0);
     if (due > 0) await wakeBox(env, d);
     return due;
   } catch (err) {
@@ -126,20 +161,27 @@ export async function tickPlayCopies(env, deps = {}) {
 }
 
 // The R2 sweep reclaimed these originals. It only marks their rows, so
-// nothing cascades: delete the copies' rows (their tombstones queue the
-// objects for the sweep's second pass) and the records. A key's copies are
-// derived from it, so nothing but an original's own copies can go.
+// nothing cascades: delete the copies' and views' rows (their tombstones
+// queue the objects for the sweep's second pass) and the records. A key's
+// copies and views are derived from it, so nothing but an original's own can
+// go.
 const FORGET_BATCH = 40;
 export async function forgetPlayCopies(env, paths, deps = {}) {
   const d = { ...DEFAULT_DEPS, ...deps };
-  const originals = [...new Set(paths || [])].filter((p) => validKey(p) && mediaKindOfKey(p));
+  const originals = [...new Set(paths || [])].filter((p) => workOf(p));
+  const inList = (keys) => encodeURIComponent(`in.(${keys.map((k) => `"${k}"`).join(',')})`);
   for (let i = 0; i < originals.length; i += FORGET_BATCH) {
     const batch = originals.slice(i, i + FORGET_BATCH);
-    const copies = batch.flatMap((p) => (mediaKindOfKey(p) === 'audio'
-      ? [copyKeys(p).audio] : [copyKeys(p).video, copyKeys(p).poster]));
-    const inList = (keys) => encodeURIComponent(`in.(${keys.map((k) => `"${k}"`).join(',')})`);
-    await d.svcDelete(env, 'images', `storage_path=${inList(copies)}`);
-    await d.svcDelete(env, 'media_copies', `storage_path=${inList(batch)}`);
+    const made = batch.flatMap((p) => {
+      const kind = workOf(p).kind;
+      if (kind === 'image') return [viewKeys(p).view, viewKeys(p).sm];
+      return kind === 'audio' ? [copyKeys(p).audio] : [copyKeys(p).video, copyKeys(p).poster];
+    });
+    await d.svcDelete(env, 'images', `storage_path=${inList(made)}`);
+    for (const q of [QUEUES.copy, QUEUES.view]) {
+      const mine = batch.filter((p) => workOf(p).queue === q);
+      if (mine.length) await d.svcDelete(env, q.table, `storage_path=${inList(mine)}`);
+    }
   }
   return originals.length;
 }
@@ -172,8 +214,9 @@ export async function handlePlayCopyRoute(url, request, env, ctx = null, deps = 
   }
 }
 
-// A member asks. Each key must be a media original they can read; asking
-// again is free (one row per original) and says how it is getting on.
+// A member asks. Each key must be an original they can read whose file gets
+// a copy or a view; asking again is free (one row per original) and says how
+// it is getting on.
 async function requestCopies(request, env, ctx, d) {
   const auth = await d.verifyUser(request, env);
   if (!auth.ok) return json({ error: 'unauthorized' }, auth.status || 401);
@@ -188,8 +231,8 @@ async function requestCopies(request, env, ctx, d) {
   const states = {};
   const keys = [];
   for (const k of asked) {
-    if (validKey(k) && mediaKindOfKey(k)) keys.push(k);
-    else states[String(k).slice(0, 300)] = 'not_media';
+    if (workOf(k)) keys.push(k);
+    else states[String(k).slice(0, 300)] = 'unsupported';
   }
   if (keys.length) {
     // As the caller: a file they can't read is a file that isn't there.
@@ -199,13 +242,13 @@ async function requestCopies(request, env, ctx, d) {
     const readable = new Set((Array.isArray(rows) ? rows : []).map((r) => r.storage_path));
     for (const k of keys) {
       if (!readable.has(k)) { states[k] = 'not_found'; continue; }
-      const kind = mediaKindOfKey(k);
-      let state = await d.svcRpc(env, '_media_copy_request',
+      const { kind, queue } = workOf(k);
+      let state = await d.svcRpc(env, queue.request,
         { p_storage_path: k, p_kind: kind, p_requested_by: auth.userId, p_force: false });
-      // A copy recorded as made whose object is gone (a sweep, a bucket
-      // restore) is made again rather than played as a 404.
-      if (state === 'done' && !(await env.IMAGES?.head?.(copyKeyFor(k, kind)))) {
-        state = await d.svcRpc(env, '_media_copy_request',
+      // A copy or view recorded as made whose object is gone (a sweep, a
+      // bucket restore) is made again rather than shown as a 404.
+      if (state === 'done' && !(await env.IMAGES?.head?.(madeKey(k, kind)))) {
+        state = await d.svcRpc(env, queue.request,
           { p_storage_path: k, p_kind: kind, p_requested_by: auth.userId, p_force: true });
       }
       states[k] = state;
@@ -218,9 +261,15 @@ async function requestCopies(request, env, ctx, d) {
   return json({ states });
 }
 
+// Views first: a photo takes seconds, a film can take an hour, and a card
+// showing nothing waits on the photo.
 async function claim(env, d) {
-  const rows = await d.svcRpc(env, '_media_copy_claim', { p_lease_seconds: LEASE_SECONDS });
-  const job = Array.isArray(rows) ? rows[0] : null;
+  let job = null;
+  for (const q of [QUEUES.view, QUEUES.copy]) {
+    const rows = await d.svcRpc(env, q.claim, { p_lease_seconds: LEASE_SECONDS });
+    job = Array.isArray(rows) ? rows[0] : null;
+    if (job?.storage_path) break;
+  }
   if (!job?.storage_path) return new Response(null, { status: 204 });
   const key = job.storage_path;
   const t = await sourceToken(env.MEDIA_BOX_SECRET, key, job.attempts);
@@ -236,8 +285,9 @@ async function claim(env, d) {
 
 // The job behind a key, if it is running under a live lease.
 async function liveJob(env, d, key) {
-  if (!validKey(key)) return null;
-  const rows = await d.svcSelect(env, 'media_copies',
+  const work = workOf(key);
+  if (!work) return null;
+  const rows = await d.svcSelect(env, work.queue.table,
     `storage_path=eq.${encodeURIComponent(key)}&select=state,kind,attempts,lease_until`);
   const job = Array.isArray(rows) ? rows[0] : null;
   if (!job || job.state !== 'working' || !(Date.parse(job.lease_until) > d.now())) return null;
@@ -300,8 +350,10 @@ async function serveSource(url, request, env, d) {
   });
 }
 
-// Where an output goes: always the original's own copy key, derived here.
+// Where an output goes: always the original's own copy or view key, derived
+// here.
 function outputKey(key, out, kind) {
+  if (kind === 'image') return out === 'view' ? viewKeys(key).view : out === 'view_sm' ? viewKeys(key).sm : null;
   if (out === 'poster') return kind === 'video' ? copyKeys(key).poster : null;
   if (out === 'copy') return copyKeyFor(key, kind);
   return null;
@@ -315,7 +367,7 @@ async function upload(url, request, env, d) {
   if (!job) return json({ error: 'not_leased' }, 409);
   const target = outputKey(key, out, job.kind);
   if (!target) return json({ error: 'bad_request' }, 400);
-  const contentType = out === 'poster' ? CONTENT_TYPE.poster : CONTENT_TYPE[job.kind];
+  const contentType = out === 'copy' ? CONTENT_TYPE[job.kind] : out === 'poster' ? CONTENT_TYPE.poster : CONTENT_TYPE.view;
 
   if (step === 'put') {
     const len = Number(request.headers.get('content-length'));
@@ -354,8 +406,9 @@ async function upload(url, request, env, d) {
 async function heartbeat(request, env, d) {
   const body = await request.json().catch(() => null);
   const key = body?.key;
-  if (!validKey(key)) return json({ error: 'bad_request' }, 400);
-  const ok = await d.svcRpc(env, '_media_copy_heartbeat', { p_storage_path: key, p_lease_seconds: LEASE_SECONDS });
+  const work = workOf(key);
+  if (!work) return json({ error: 'bad_request' }, 400);
+  const ok = await d.svcRpc(env, work.queue.heartbeat, { p_storage_path: key, p_lease_seconds: LEASE_SECONDS });
   return ok === true ? json({ ok: true }) : json({ error: 'not_leased' }, 409);
 }
 
@@ -383,13 +436,44 @@ export function cleanResult(raw) {
   };
 }
 
+// What the box says a view job made: the view, its small size, and the
+// original's size upright (the browser couldn't read it at upload).
+export function cleanViewResult(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const dims = (o) => (o && typeof o === 'object' && int(o.w, 100000) && int(o.h, 100000) ? { w: int(o.w, 100000), h: int(o.h, 100000) } : null);
+  let probe = r.probe && typeof r.probe === 'object' ? r.probe : null;
+  if (probe && JSON.stringify(probe).length > PROBE_JSON_MAX) probe = null;
+  return {
+    probe,
+    view: dims(r.view),
+    viewSm: dims(r.viewSm),
+    original: dims(r.original),
+    error: typeof r.error === 'string' ? r.error.slice(0, 300) : null,
+    reason: typeof r.reason === 'string' && /^[a-z_]{1,40}$/.test(r.reason) ? r.reason : null,
+  };
+}
+
 async function finish(request, env, d) {
   const body = await request.json().catch(() => null);
   const key = body?.key;
   let state = body?.state;
-  if (!validKey(key) || !['done', 'skip', 'failed'].includes(state)) return json({ error: 'bad_request' }, 400);
+  const work = workOf(key);
+  if (!work || !['done', 'skip', 'failed'].includes(state)) return json({ error: 'bad_request' }, 400);
   const job = await liveJob(env, d, key);
   if (!job) return json({ error: 'not_leased' }, 409);
+  if (work.kind === 'image') {
+    const result = cleanViewResult(body.result);
+    if (state === 'done') {
+      if (!result.view || !(await env.IMAGES.head(viewKeys(key).view))) {
+        state = 'failed';
+        result.error = 'the view never arrived';
+        result.reason = 'error';
+      } else if (result.viewSm && !(await env.IMAGES.head(viewKeys(key).sm))) {
+        result.viewSm = null;
+      }
+    }
+    return json({ state: await d.svcRpc(env, work.queue.finish, { p_storage_path: key, p_state: state, p_result: result }) });
+  }
   const result = cleanResult(body.result);
   if (state === 'done') {
     const made = result.copy && await env.IMAGES.head(copyKeyFor(key, job.kind));
@@ -401,6 +485,6 @@ async function finish(request, env, d) {
       result.poster = null;
     }
   }
-  const out = await d.svcRpc(env, '_media_copy_finish', { p_storage_path: key, p_state: state, p_result: result });
+  const out = await d.svcRpc(env, work.queue.finish, { p_storage_path: key, p_state: state, p_result: result });
   return json({ state: out });
 }

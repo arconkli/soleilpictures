@@ -12,6 +12,8 @@
 // separately (they're async); the fallback dims here just seed the layout so a
 // batch can be arranged before uploads resolve, then corrected on the card.
 
+import { viewKindOfKey } from './fileView.js';
+
 // Inline-media thresholds. Up to these, a video, audio file or PDF uploads in
 // one request with its poster / waveform / page-1 image; over them, video and
 // audio still become inline cards but upload in parts ('largeMedia'), and a
@@ -104,13 +106,17 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   if (!canAttemptFiles && PUREREF_FILE_RE.test(name)) return { route: 'pureref', kind: null, w: 0, h: 0 };
   // Some pickers surface iPhone HEIC/HEIF with an EMPTY mime type — match the
   // extension too, or a camera-roll photo becomes a generic file card instead
-  // of a picture. Browsers that DO report a type say image/heic.
+  // of a picture. Browsers that DO report a type say image/heic. The same for
+  // every photo that gets a view (lib/fileView.js: TIFF, JPEG XL, OpenEXR,
+  // JPEG 2000, a camera's .hif), which a system with nothing registered for
+  // it hands over with no type or the generic one.
   // …except image types no browser can draw at all. Chrome calls a .psd
   // "image/vnd.adobe.photoshop" and a camera raw "image/x-sony-arw", and the
   // image route turned those into a blank card with nothing to download. As
   // file cards they keep their name, type icon and Download — what the docs
   // have always said a .psd becomes.
-  const isImage = (type.startsWith('image/') || (!type && /\.(heic|heif)$/i.test(name)))
+  const isImage = (type.startsWith('image/')
+    || ((!type || type === 'application/octet-stream') && viewKindOfKey(name) === 'image'))
     && !UNDRAWABLE_IMAGE_RE.test(name) && !/photoshop/i.test(type);
   // The same for video: a system that has nothing registered for .mov or
   // .mkv hands over no type (or the generic one), and the clip became a file
