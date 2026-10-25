@@ -28,6 +28,7 @@ import { runGated } from './backfillGate.js';
 import { enqueueVariant, dequeueVariant } from './variantQueue.js';
 import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from './partyHost.js';
 import { pdfCardHeight } from './pdfThumb.js';
+import { noteRequest, reportError } from './errorReporting.js';
 
 
 // Tier-1 preview spec (progressive image loading). The canvas shows this
@@ -219,15 +220,24 @@ function watchStall(xhr, onStall) {
   return () => clearTimeout(t);
 }
 
+// A PUT that failed, as netWatch.js records a fetch that did: the one request
+// fetch never sees. Every PUT is tried again (uploadRetry.js, putPartWithRetry),
+// so each failed try is a warning; the toast is the error if the tries run out.
+function putFailed(xhr, url, t0, extra) {
+  noteRequest({ url, method: 'PUT', status: xhr.status, ms: performance.now() - t0, retried: true, ...extra });
+}
+
 // XHR PUT with a real upload-progress callback. Browser fetch() doesn't
 // expose progress for a request body, so we drop down to XHR for the
 // PUT step. The presign + DB-insert steps still use fetch.
 function putWithProgress(url, file, { onProgress } = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const t0 = performance.now();
     let stop = () => {};
     let settled = false;
     const settle = (fn, value) => { if (settled) return; settled = true; stop(); fn(value); };
+    const fail = (err, extra) => { if (!settled) putFailed(xhr, url, t0, extra); settle(reject, err); };
     xhr.open('PUT', url, true);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
     xhr.upload.onprogress = (ev) => {
@@ -236,11 +246,11 @@ function putWithProgress(url, file, { onProgress } = {}) {
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) settle(resolve);
-      else settle(reject, new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+      else fail(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
     };
-    xhr.onerror = () => settle(reject, new Error('Upload network error'));
+    xhr.onerror = () => fail(new Error('Upload network error'));
     xhr.onabort = () => settle(reject, new Error('Upload aborted'));
-    stop = watchStall(xhr, () => settle(reject, new Error('Upload stalled')));
+    stop = watchStall(xhr, () => fail(new Error('Upload stalled'), { stalled: true }));
     xhr.send(file);
   });
 }
@@ -1108,9 +1118,11 @@ async function mpuPost(path, workspaceId, payload) {
 function putPartWithProgress(url, blob, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const t0 = performance.now();
     let stop = () => {};
     let settled = false;
     const settle = (fn, value) => { if (settled) return; settled = true; stop(); fn(value); };
+    const fail = (err, extra) => { if (!settled) putFailed(xhr, url, t0, extra); settle(reject, err); };
     xhr.open('PUT', url, true);
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable && onProgress) onProgress(ev.loaded);
@@ -1121,16 +1133,19 @@ function putPartWithProgress(url, blob, { onProgress, signal } = {}) {
         if (!etag) {
           // R2 must expose ETag via CORS (it does today). Without it we can't
           // complete the upload — surface a clear cause rather than a cryptic 502.
-          settle(reject, new Error('Missing ETag on part response (R2 CORS ExposeHeaders)'));
+          // Every large file fails the same way until the bucket is fixed.
+          const err = new Error('Missing ETag on part response (R2 CORS ExposeHeaders)');
+          reportError(err, { kind: 'upload', op: 'part_etag' });
+          settle(reject, err);
           return;
         }
         settle(resolve, etag);
-      } else settle(reject, new Error(`Part upload failed: ${xhr.status} ${xhr.statusText}`));
+      } else fail(new Error(`Part upload failed: ${xhr.status} ${xhr.statusText}`));
     };
-    xhr.onerror = () => settle(reject, new Error('Part upload network error'));
+    xhr.onerror = () => fail(new Error('Part upload network error'));
     xhr.onabort = () => settle(reject, new Error('aborted'));
     // A stalled part is retried like a dropped one (putPartWithRetry).
-    stop = watchStall(xhr, () => settle(reject, new Error('Part upload stalled')));
+    stop = watchStall(xhr, () => fail(new Error('Part upload stalled'), { stalled: true }));
     if (signal) {
       if (signal.aborted) { try { xhr.abort(); } catch (_) {} }
       else signal.addEventListener('abort', () => { try { xhr.abort(); } catch (_) {} }, { once: true });

@@ -19,6 +19,7 @@ import { getAppSessionId } from './appSession.js';
 import { bootAt } from './bootMarks.js';
 
 const MAX_ROWS = 50;      // one page load's share; 0580 also caps a session at 300 an hour
+const MAX_LOGGED = 20;    // of them, logged Errors (console.error/warn), so they never crowd out a crash
 const BATCH_MS = 2000;
 const MAX_BODY = 48_000;  // keepalive allows 64 KB in flight
 
@@ -28,6 +29,7 @@ const EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'svg', 'heic'
 let cfg = null;
 let hosts = {};
 let rows = 0;
+let logged = 0;
 let timer = 0;
 let queue = [];
 const seen = new Set();
@@ -123,10 +125,12 @@ export function take(it) {
       const row = errorRow(it.error, it.opts || {}, m);
       if (row) push(row);
     } else if (it.t === 'con') {
-      if (reported.has(it.error) || held.has(it.error)) return;
-      const label = typeof it.label === 'string' ? it.label.slice(0, 80) : null;
+      if (reported.has(it.error) || held.has(it.error) || logged >= MAX_LOGGED) return;
+      // The line's leading [tag] alone ("[uploads] poster failed for …"): the
+      // rest of a logged line can name a file or a cluster.
+      const label = typeof it.label === 'string' ? (/^\[([\w:./-]{1,40})\]/.exec(it.label) || [])[1] || null : null;
       const row = errorRow(it.error, { kind: 'console', severity: 'warning', op: label }, m);
-      if (row) { held.set(it.error, row); schedule(); }
+      if (row) { logged += 1; held.set(it.error, row); schedule(); }
     } else if (it.t === 'toast') {
       const code = typeof it.code === 'string' && /^[a-z][a-z0-9_]{1,59}$/.test(it.code) ? it.code : 'uncoded';
       if (!once(`toast|${code}`)) return;

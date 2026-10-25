@@ -125,6 +125,16 @@ test('what a failed request is: the table', () => {
     ['a big upload is as slow as it is big', { url: 'https://a.r2.cloudflarestorage.com/soleil-files/x/y', method: 'PUT',
       status: 200, ms: 40_000, slow: true }, null],
     ['a slow Storage read', { url: `${SB}/storage/v1/object/sign/files/x`, status: 200, ms: 9000, slow: true }, null],
+    // An upload's PUT goes by XHR, which fetch can't watch (uploads.js says so
+    // itself), and is tried again: a warning, and the toast is the error.
+    ['an upload PUT that dropped', { url: 'https://a.r2.cloudflarestorage.com/soleil-files/ws/u/photo.jpg', method: 'PUT',
+      status: 0, retried: true }, 'warning', 'PUT r2/soleil-files/:x: network failure'],
+    ['an upload PUT that stalled', { url: 'https://a.r2.cloudflarestorage.com/soleil-files/ws/u/photo.jpg', method: 'PUT',
+      status: 0, stalled: true, retried: true }, 'warning', 'PUT r2/soleil-files/:x: stalled'],
+    ['storage refusing an upload PUT', { url: 'https://a.r2.cloudflarestorage.com/soleil-files/ws/u/photo.jpg', method: 'PUT',
+      status: 503, retried: true }, 'warning', 'PUT r2/soleil-files/:x: unavailable'],
+    ['an upload PUT the page called off', { url: 'https://a.r2.cloudflarestorage.com/soleil-files/x', method: 'PUT',
+      status: 0, aborted: true, retried: true }, null],
     ['our own telemetry failing', { url: `${SB}/rest/v1/client_errors`, method: 'POST', status: 500 }, null],
     ['analytics failing', { url: `${SB}/rest/v1/analytics_events`, method: 'POST', status: 503 }, null],
     ['a link that will not unfurl', { url: '/api/og?url=x', status: 404 }, 'warning', 'GET worker/api/og: not found'],

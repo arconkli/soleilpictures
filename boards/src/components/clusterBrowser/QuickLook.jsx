@@ -31,6 +31,7 @@ import { FilmPlayer } from '../film/FilmPlayer.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
 import { usePlayCopy } from '../../hooks/usePlayCopy.js';
+import { reportError } from '../../lib/errorReporting.js';
 import './filesPage.css';
 
 // A signed URL for a stored file (r2:…), or the URL itself.
@@ -40,7 +41,13 @@ function useResolved(src) {
     let off = false;
     setUrl(null);
     if (!src) return undefined;
-    resolveSrc(src).then((u) => { if (!off) setUrl(u || null); }).catch(() => {});
+    // Without a link the wait below never ends: recorded, by why.
+    const failed = (e) => reportError(e, { kind: 'viewer', severity: 'warning', op: 'quicklook' });
+    resolveSrc(src).then((u) => {
+      if (off) return;
+      setUrl(u || null);
+      if (!u) failed(new Error('Quick look: no link to the file'));
+    }).catch((e) => { if (!off) failed(e); });
     return () => { off = true; };
   }, [src]);
   return url;

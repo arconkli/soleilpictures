@@ -121,17 +121,24 @@ export function postPerfIncident(bucket, context = {}) {
   try { hand({ t: 'perf', bucket, context, m: moment() }); } catch (_) {}
 }
 
+// A request that failed: { url, method, status, ms, slow?, aborted?, body? }.
+// netWatch.js hands on every fetch; uploads.js its XHR PUTs, which fetch can't
+// send (it reports no progress for a body). A crumb now, with the address kept
+// only in memory: errorSender cuts it to service and route. A toast this
+// failure causes comes after it.
+export function noteRequest(f) {
+  try {
+    crumb('http', `${f.method} ${f.slow ? 'slow' : f.status}`, f.url);
+    hand({ t: 'http', f, m: moment() });
+  } catch (_) {}
+}
+
 // Installed once from main.jsx, before anything renders: uncaught errors and
 // rejections, failed requests, files that didn't load, logged Errors, a boot
 // that never finishes, and the steps before each.
 export function installErrorWatch() {
   if (typeof window === 'undefined') return;
-  installNetWatch((f) => {
-    // A crumb now, with the address kept only in memory: errorSender cuts it to
-    // service and route. A toast this failure causes comes after it.
-    crumb('http', `${f.method} ${f.slow ? 'slow' : f.status}`, f.url);
-    hand({ t: 'http', f, m: moment() });
-  });
+  installNetWatch(noteRequest);
   // A file, picture, film or script that failed to load fires `error` on its
   // element, which doesn't bubble: only a capture listener on window hears it.
   // An uncaught exception arrives here too, on window itself.
@@ -143,16 +150,18 @@ export function installErrorWatch() {
   // PostgrestError, a Response, a CloseEvent): errorSender unpacks it
   // (describeReason.js) rather than this chunk carrying that.
   window.addEventListener('unhandledrejection', (e) => reportError(e.reason || String(e.reason), { kind: 'unhandledrejection' }));
-  // console.error holding an Error: the long tail of failures that are logged
-  // and nothing else.
-  const logError = console.error;
-  console.error = function (...args) {
-    try {
-      const err = args.find((a) => a instanceof Error);
-      if (err) hand({ t: 'con', error: err, label: args[0], m: moment() });
-    } catch (_) {}
-    return logError.apply(this, args);
-  };
+  // console.error or console.warn holding an Error: the long tail of failures
+  // that are logged and nothing else.
+  for (const level of ['error', 'warn']) {
+    const log = console[level];
+    console[level] = function (...args) {
+      try {
+        const err = args.find((a) => a instanceof Error);
+        if (err) hand({ t: 'con', error: err, label: args[0], m: moment() });
+      } catch (_) {}
+      return log.apply(this, args);
+    };
+  }
   for (const k of ['online', 'offline']) window.addEventListener(k, () => crumb('net', k));
   document.addEventListener('visibilitychange', () => {
     crumb('vis', document.visibilityState);

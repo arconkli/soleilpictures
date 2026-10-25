@@ -234,7 +234,10 @@ export function classifyHttpFailure(f, hosts = {}) {
   else if ([401, 409, 413, 429].includes(status) || ['PGRST301', 'PGRST303', '23505'].includes(pg)) severity = 'warning';
   else if (status >= 400) severity = OURS_WHEN_REFUSED.has(r.svc) ? 'error' : 'warning';
   else return null;
-  const why = f.slow ? 'slow' : lost ? 'session lost' : failureWords(status, pg);
+  // A request its caller tries again (an upload's PUT, uploadRetry.js) is a
+  // warning: if the tries run out, the person's toast is the error.
+  if (f.retried && severity === 'error') severity = 'warning';
+  const why = f.slow ? 'slow' : f.stalled ? 'stalled' : lost ? 'session lost' : failureWords(status, pg);
   const ms = Math.round(Number(f.ms) || 0);
   return {
     severity,

@@ -28,6 +28,7 @@ import { Icon } from './Icon.jsx';
 import { ChevronDown, ChevronUp, DownloadSimple, Minus, Plus, X } from '../lib/icons.js';
 import { tip, toolbarLook } from '../lib/looks.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
+import { reportError } from '../lib/errorReporting.js';
 
 // A portal still bubbles through the React tree to the card and canvas
 // handlers that rendered it; presses on the viewer are the viewer's own.
@@ -137,6 +138,12 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
     let cancelled = false;
     let localDoc = null;
     setStatus('loading');
+    // Still loading this long, in front of someone: stuck, not slow.
+    const stuck = setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        reportError(new Error('PDF still loading after 20s'), { kind: 'stuck', severity: 'warning', op: 'pdf' });
+      }
+    }, 20_000);
     (async () => {
       try {
         const url = await resolveSrc(src);
@@ -151,11 +158,15 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
         setBase(vp);
         fittedRef.current = false;
         setStatus('ready');
-      } catch (_) {
-        if (!cancelled) setStatus('error');
+      } catch (e) {
+        // "Couldn't load this PDF." is all the person sees; this keeps why
+        // (pdf.js's words, its address cut to a route by errorSender).
+        if (!cancelled) { setStatus('error'); reportError(e, { kind: 'viewer', severity: 'warning', op: 'pdf' }); }
+      } finally {
+        clearTimeout(stuck);
       }
     })();
-    return () => { cancelled = true; try { localDoc?.destroy?.(); } catch (_) {} };
+    return () => { cancelled = true; clearTimeout(stuck); try { localDoc?.destroy?.(); } catch (_) {} };
   }, [src, reloadKey]);
 
   // Fit-to-width once we know the page size + container width.

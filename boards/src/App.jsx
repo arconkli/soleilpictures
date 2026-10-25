@@ -64,6 +64,7 @@ import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolle
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { reportError } from './lib/errorReporting.js';
 import { bootMark, bootAt, bootDetail, onBootMark } from './lib/bootMarks.js';
 import { afterBoot } from './lib/afterBoot.js';
 import { takeBootRoot, bootPrefetchLanding } from './lib/bootPrefetch.js';
@@ -6902,6 +6903,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return () => clearInterval(t);
     },
     log: (name, props) => { try { logEvent(name, props); } catch (_) {} },
+    report: reportError,
     toast: (t) => feedback.toast(t),
     now: () => Date.now(),
     clusterCost: CLUSTER_CARD_COST,

@@ -56,7 +56,9 @@ test('each kind of failure lands as a row, with its trail and none of the conten
     const img = document.createElement('img');
     img.src = '/qa-missing.png';
     document.body.append(img);
-    console.error('qa console label', new Error('qa console error'));
+    // A logged line keeps its leading [tag] alone: the rest can name a file.
+    console.error(`[qa-console] could not open ${secret}`, new Error('qa console error'));
+    console.warn('[qa-warn] best effort failed', new Error('qa console warning'));
     // A rejection whose reason is a PostgrestError's shape: its details (the
     // refused row) must not come through.
     Promise.reject({ message: 'permission denied for table cards', code: '42501', details: `Failing row contains (${secret})` });
@@ -88,7 +90,10 @@ test('each kind of failure lands as a row, with its trail and none of the conten
   expect(scrubbed.message).toBe('Failed to fetch worker/s/:x');
 
   const logged = await rowWhere(page, 'a logged Error', (r) => r.kind === 'console' && r.message === 'qa console error');
-  expect(logged.context.op).toBe('qa console label');
+  expect(logged.context.op).toBe('qa-console');
+  const warned = await rowWhere(page, 'a warned Error', (r) => r.kind === 'console' && r.message === 'qa console warning');
+  expect(warned.context.op).toBe('qa-warn');
+  expect(warned.severity).toBe('warning');
 
   const toast = await rowWhere(page, 'an error toast', (r) => r.kind === 'toast');
   expect(toast.message).toBe('toast:qa_toast_failed');

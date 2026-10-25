@@ -91,9 +91,19 @@ test('a PUT that goes quiet is cut off and retried, and a clip it cannot measure
   assert.equal(isRetryableUploadError(new Error('Part upload stalled')), true);
   const src = readFileSync(join(here, 'uploads.js'), 'utf8');
   const single = src.slice(src.indexOf('function putWithProgress('), src.indexOf('function presignAndPutFile('));
-  assert.match(single, /stop = watchStall\(xhr, \(\) => settle\(reject, new Error\('Upload stalled'\)\)\)/);
+  assert.match(single, /stop = watchStall\(xhr, \(\) => fail\(new Error\('Upload stalled'\), \{ stalled: true \}\)\)/);
   const part = src.slice(src.indexOf('function putPartWithProgress('), src.indexOf('async function putPartWithRetry('));
-  assert.match(part, /stop = watchStall\(xhr, \(\) => settle\(reject, new Error\('Part upload stalled'\)\)\)/);
+  assert.match(part, /stop = watchStall\(xhr, \(\) => fail\(new Error\('Part upload stalled'\), \{ stalled: true \}\)\)/);
+  // fail() records the try (errorReporting's noteRequest, as a fetch's
+  // failure is) and settles with the same error, so the retry still sees it.
+  for (const put of [single, part]) {
+    assert.match(put, /const fail = \(err, extra\) => \{ if \(!settled\) putFailed\(xhr, url, t0, extra\); settle\(reject, err\); \};/);
+  }
+  // A PUT called off (the person stopped it, or the stall's own abort) is
+  // nobody's failure: it settles without fail().
+  assert.match(single, /xhr\.onabort = \(\) => settle\(reject, new Error\('Upload aborted'\)\);/);
+  assert.match(part, /xhr\.onabort = \(\) => settle\(reject, new Error\('aborted'\)\);/);
+  assert.match(src, /noteRequest\(\{ url, method: 'PUT', status: xhr\.status, ms: performance\.now\(\) - t0, retried: true, \.\.\.extra \}\);/);
   // The stall settles first, so its own abort doesn't read as a cancel.
   assert.match(src, /t = setTimeout\(\(\) => \{ onStall\(\); try \{ xhr\.abort\(\); \} catch \(_\) \{\} \}, ms\);/);
   // uploadVideo waits on readVideoMeta before it sends a byte.

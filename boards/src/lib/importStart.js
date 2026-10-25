@@ -316,6 +316,11 @@ export async function startBulkImport(input, env) {
         watch(false);
         if (was === 'waiting') unhold();
       }
+      // An import stopped on an error: the tray says so, and this records
+      // why, by its code (its message can name a file).
+      if (snap.status === 'failed') {
+        env.report?.(new Error(`Bulk import stopped: ${snap.errorCode || 'other'}`), { kind: 'import', severity: 'error', op: 'bulk' });
+      }
       if (['done', 'cancelled', 'failed'].includes(snap.status)) {
         const failCodes = {};
         for (const f of snap.failed) failCodes[f.code || 'other'] = (failCodes[f.code || 'other'] || 0) + 1;
