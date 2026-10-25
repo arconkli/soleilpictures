@@ -189,7 +189,7 @@ test('a typed link can never become a script URL in an href', async () => {
 
 // ── 0369 + 0370: the outbound breaker ───────────────────────────────────────
 
-const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite', 'file_shared'];
+const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite', 'file_shared', 'team_invite'];
 const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented'];
 
 // Functions whose live (latest, not since dropped) definition matches `re`,
@@ -228,7 +228,7 @@ test('every database email asks the outbound gate first, and only the known trig
 
   const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
   assert.deepEqual([...senders.keys()].sort(), [
-    '_tg_comment_reply_email', '_tg_file_comment_notify', '_tg_file_share_person_email',
+    '_team_invite_email', '_tg_comment_reply_email', '_tg_file_comment_notify', '_tg_file_share_person_email',
     '_tg_mention_notification_email', '_tg_pending_invite_email',
     '_tg_schedule_notification_email', '_tg_share_notification_email', '_tg_workspace_member_email',
   ], 'a new email path must be classified in _outbound_gate and added here on purpose');

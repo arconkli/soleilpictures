@@ -193,6 +193,22 @@ its test owners.
 - [ ] Deploy the template built on the live function plus this hunk, after messaging the session that
   froze it.
 
+**Status 2026-10-25:** the template (`_shared/email/templates.ts` `teamInvite`, and `team_invite` in
+send-transactional-email's USER_TRIGGERED) and 0541 are written and committed, neither deployed nor applied.
+0541 compiled on a local copy of the schema, its proof passed there, and a rolled-back run sent the email
+on insert and answered `too_soon`, `sent`, `closed` and `team_not_member` from resend. Beyond the plan, 0541:
+- re-emits `check_security_invariants` (0421's live body) with `_team_invite_email` on its list, or the daily
+  check would page about a new path that sends email (`securityAudit.test.mjs` names it on purpose);
+- spends the inviter's daily invitation allowance (`_invite_budget_take`, 20 a day, 5 on day one) for every
+  invite, in the trigger, so a list past it refuses the whole `invite_to_team` call with
+  "invite limit reached: …" (hint `invite_limit_reached`, or `sending_on_hold`). The client must show that
+  sentence: `teamCopy.refusalLine` maps neither hint yet;
+- `resend_team_invite` answers `'closed'` for a claimed, revoked or expired invite (an expired one no longer
+  holds a seat, so reviving it could overfill the team); the client's Resend (hidden on a live team) and a
+  `resendTeamInvite` wrapper come once 0541 is applied.
+Order: message the session that froze send-transactional-email, deploy it built on the live function plus
+this hunk (read back byte for byte), then apply 0541.
+
 ## Task 10: proof and the walk-through
 
 - [ ] `tests/team-live.spec.js` (route mocks): setup to Stripe and back, a verify that waits, adding a

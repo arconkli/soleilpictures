@@ -178,7 +178,7 @@ interface Body {
 // hour, something got past the gate, so refuse and page instead of sending.
 // Far above any real hour, far below a blast.
 const USER_TRIGGERED = ["pending_invite", "board_shared", "workspace_invite", "mention_email",
-                        "comment_reply_email", "schedule_update", "invite_accepted", "file_shared", "file_commented"];
+                        "comment_reply_email", "schedule_update", "invite_accepted", "file_shared", "file_commented", "team_invite"];
 const USER_TRIGGERED_HOURLY_CEILING = 200;
 
 async function overHourlyCeiling(template: string): Promise<boolean> {
