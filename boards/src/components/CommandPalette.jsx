@@ -7,6 +7,7 @@ import {
   Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon, ChevronRight,
 } from '../lib/icons.js';
 import { searchEntities, searchDocPages } from '../lib/entitySearch.js';
+import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
 import { logEvent } from '../lib/analytics.js';
@@ -144,6 +145,8 @@ export function CommandPalette({
   const [asyncRows, setAsyncRows] = useState([]);
   // Pages whose WORDS match — searchDocPages over doc_page_index.
   const [pageHits, setPageHits] = useState([]);
+  // `#name`: the tag it names, and everything carrying it.
+  const [tagHits, setTagHits] = useState(null); // { tag, rows } | null
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
   const searchedRef = useRef(false);
@@ -167,9 +170,30 @@ export function CommandPalette({
   // query wins via the cancelled flag. No-op without a workspace (local shell).
   useEffect(() => {
     if (!open) return;
-    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setLoading(false); return; }
+    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setTagHits(null); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
+    // `#name` lists everything carrying the tag it names (the tag page's
+    // items) rather than searching for the text "#name".
+    if (!isPick && q.startsWith('#') && q.length > 1) {
+      const id = setTimeout(async () => {
+        const name = q.slice(1).trim().toLowerCase();
+        const found = await searchEntities({ workspaceId, query: name, limit: 6, kinds: ['tag'] }).catch(() => []);
+        const tag = (found || []).find(t => (t.title || '').toLowerCase() === name) || (found || [])[0] || null;
+        let rows = [];
+        if (tag) {
+          const { data, error } = await supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 40 });
+          if (!error && Array.isArray(data)) rows = data;
+        }
+        if (cancelled) return;
+        setAsyncRows([]);
+        setPageHits([]);
+        setTagHits(tag ? { tag, rows } : null);
+        setLoading(false);
+      }, 200);
+      return () => { cancelled = true; clearTimeout(id); };
+    }
+    setTagHits(null);
     const id = setTimeout(async () => {
       const [rows, pages] = await Promise.all([
         searchEntities({ workspaceId, query: q, limit: 30, kinds: isPick ? ['board'] : undefined }),
@@ -285,6 +309,35 @@ export function CommandPalette({
     const out = [];
     const close = () => onClose?.();
 
+    // `#name`: the tag's page first, then what carries it, opened in place.
+    if (!isPick && tagHits?.tag) {
+      const { tag, rows } = tagHits;
+      const open = (r) => {
+        close();
+        if (r.kind === 'board') onOpenBoard?.(r.board_id || r.id);
+        else if (r.kind === 'group') onOpenBoard?.(r.board_id);
+        else if (r.kind === 'doc') onNavigateRef?.({ kind: 'doc', docCardId: r.card_id, pageId: r.page_id || null });
+        else onNavigateRef?.({ kind: 'card', boardId: r.board_id, cardId: r.card_id });
+      };
+      out.push({
+        id: 'tagged', label: `Tagged ${tag.title || ''}`.trim(),
+        items: [
+          {
+            key: `tag:${tag.id}`, kind: 'tag', accent: tag.meta?.color || tagFallbackColor(tag.title || tag.id),
+            title: `Everything tagged ${tag.title || ''}`.trim(), sub: rows.length ? `${rows.length} shown` : 'Nothing carries it yet',
+            activate: () => { close(); onNavigateRef?.(rowToTarget(tag)); },
+          },
+          ...rows.map(r => ({
+            key: `tagged:${r.id}`, kind: r.kind, icon: r.kind === 'board' || r.kind === 'group' ? LayoutGrid : (KIND_ICON[r.kind] || FileText),
+            title: r.title || r.meta?.fileName || 'Untitled',
+            sub: r.kind === 'board' ? null : (r.board_name || r.body || null),
+            activate: () => open(r),
+          })),
+        ],
+      });
+      return out;
+    }
+
     // Boards-only pick mode: Recent + (matches | all boards). Select = pick.
     if (isPick) {
       const pick = (b) => { close(); onPickBoard?.(b); };
@@ -384,7 +437,7 @@ export function CommandPalette({
     });
 
     return out;
-  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, pageHits, q, onClose, onOpenBoard, onNavigateRef]);
+  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, pageHits, tagHits, q, onClose, onOpenBoard, onNavigateRef]);
 
   const flat = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const flatIndexByKey = useMemo(() => {

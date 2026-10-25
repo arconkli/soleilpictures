@@ -37,7 +37,8 @@ replying to, resolving or deleting a comment needs edit access.
 ## Tags on a range
 
 A [tag](/docs/organize/tags) can apply to a passage rather than the whole
-document. Tagged text is underlined, with dots in the **left margin**.
+document: select the words, right-click and choose **Tag selection…**. Tagged
+text is underlined, with dots in the **left margin**.
 
 This is what lets a script's mention of a location connect to the reference wall
 for that location — the tag's page lists this passage among everything else

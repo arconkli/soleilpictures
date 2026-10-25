@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { coalesce, touchesAppliedTag, touchesTagMention, touchesTagSuggestion, effectiveTypeFilter, suggestionAlreadyApplied } from '../lib/tagSurface.js';
 import { setTagEntityType } from '../lib/tagsApi.js';
-import { tagFallbackColor } from '../lib/tagColor.js';
+import { resolveTagColor } from '../lib/tagColor.js';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
 import { ENTITY_TYPES, entityTypeLabel } from '../lib/entityTypes.js';
@@ -474,7 +474,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     return () => { cancelled = true; };
   }, [allGroups, workspaceId]);
 
-  const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
+  const dot = resolveTagColor(tag);
 
   // Index for "is this card directly tagged" lookup — controls
   // whether the right-click menu offers Remove vs nothing.
@@ -900,6 +900,13 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     }
     return n;
   }, [allCardsFlat, direct.groups, groupCards]);
+  // The header says what is tagged (the sidebar's number) apart from what
+  // comes along inside a tagged cluster or group; one "N items" mixed them.
+  // An empty group is hidden here and not counted by tag_item_counts either.
+  const shownGroups = (direct.groups || []).filter(g => (g.member_count || 0) > 0
+    || (groupCards.get(`${g.board_id}::${g.group_id || g.id}`) || []).length > 0);
+  const taggedCount = (direct.cards?.length || 0) + shownGroups.length + (direct.boards?.length || 0);
+  const insideCount = Math.max(0, shownItemCount - (direct.cards?.length || 0));
 
   // Capture-phase keyboard handler scoped to when the lightbox is
   // open. Escape closes it; ←/→ wrap-around through the image set.
@@ -970,8 +977,9 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             </button>
           ))}
         </div>
-        <span className="tag-detail-count">
-          {shownItemCount} {shownItemCount === 1 ? 'item' : 'items'}
+        <span className="tag-detail-count"
+              title="Tagged: the things carrying this tag, as the sidebar counts them. Inside: what's in the tagged clusters and groups.">
+          {taggedCount} tagged{insideCount > 0 ? ` · ${insideCount} inside` : ''}
         </span>
         <span className="tag-detail-spacer" />
         <button className={`tag-detail-manage-btn ${manageOpen ? 'is-on' : ''}`}
@@ -1236,7 +1244,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             <div className="tag-profile-section-head">Related</div>
             <div className="tag-profile-related-list">
               {related.map(r => {
-                const rdot = r.color || tagFallbackColor(r.slug || r.name);
+                const rdot = resolveTagColor(r);
                 return (
                   <button key={r.tag_id}
                           className="tag-profile-related-row"

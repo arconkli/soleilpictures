@@ -167,19 +167,16 @@ export async function undoTagMerge(mergeId) {
 
 // Workspace-wide application count per tag. Powers the sidebar count
 // badges. RLS scopes the count automatically.
+// How many live things carry each tag (0592): a card that still exists, a
+// cluster not in the Trash, a group with something in it, a document page
+// (its ranges count once) — what the tag page lists as tagged. It used to
+// count raw rows, so a page's ranges and deleted cards inflated it.
 export async function listTagCounts(workspaceId) {
   if (!workspaceId) return new Map();
-  const { data, error } = await supabase
-    .from('entity_links')
-    .select('target_id')
-    .eq('source_workspace', workspaceId)
-    .eq('target_kind', 'tag')
-    .eq('link_kind', 'applied');
+  const { data, error } = await supabase.rpc('tag_item_counts', { p_workspace_id: workspaceId });
   if (error) throw error;
   const counts = new Map();
-  for (const row of (data || [])) {
-    counts.set(row.target_id, (counts.get(row.target_id) || 0) + 1);
-  }
+  for (const row of (data || [])) counts.set(row.tag_id, row.items || 0);
   return counts;
 }
 
@@ -249,6 +246,19 @@ export async function untagCard({ boardId, cardId, tagId }) {
     .eq('link_kind', 'applied');
   if (error) throw error;
   announceTagLinksChanged();
+}
+
+export async function listGroupTags(boardId) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .from('entity_links')
+    .select('source_id, target_id, source')
+    .eq('source_kind', 'group')
+    .eq('target_kind', 'tag')
+    .eq('link_kind', 'applied')
+    .eq('source_board_id', boardId);
+  if (error) throw error;
+  return (data || []).map(r => ({ group_id: r.source_id, tag_id: r.target_id, source: r.source }));
 }
 
 export async function listBoardTags(boardId) {

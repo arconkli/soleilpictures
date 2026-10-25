@@ -2,7 +2,7 @@
 
 > Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
-_Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 2026-10-04_
+_Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 2026-10-25_
 
 `⌘K`, or `/` when you are not typing into something.
 
@@ -14,7 +14,9 @@ _Source: https://clusters.soleilpictures.com/docs/organize/search · Updated 202
 - **Files** — by the name the file was uploaded with, so a photo nobody captioned
   is found as `diner_ext_dusk_04.jpg` (photos and videos uploaded since names
   were kept; audio, PDFs and attachments always had theirs)
-- **Tags**
+- **Tags** — by name. Type `#` and a tag's name, as in `#diner`, to list
+  everything carrying it instead: cards, groups, clusters and document pages,
+  each opened in place
 - **Docs** — by title, and by the words on every page: a match shows the line
   it came from, under **Inside docs**, and opens the document at that page
 

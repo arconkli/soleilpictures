@@ -53,7 +53,10 @@ export const CEILINGS = {
   // the browser can't draw waits for the file's view and shows it, and an
   // editor's cluster asks views for its photos; asking for and waiting on a
   // view load later (fileViewWork).
-  appJs: 689_000,
+  // 2026-10-25: +1 KB for tags where people work: Tag… on a group and on the
+  // cluster, Tag selection… in a document, `#name` in Cmd-K, one tag count,
+  // the workspace AI switch (the retired emergent-theme code paid for part).
+  appJs: 690_000,
   appCss: 21_000,
 };
 

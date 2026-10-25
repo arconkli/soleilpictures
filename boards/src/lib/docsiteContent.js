@@ -29529,7 +29529,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " can apply to a passage rather than the whole document. Tagged text is underlined, with dots in the "
+     "v": " can apply to a passage rather than the whole document: select the words, right-click and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Tag selection…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tag selection…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Tagged text is underlined, with dots in the "
     },
     {
      "t": "strong",
@@ -29843,6 +29857,47 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
+      "v": "A "
+     },
+     {
+      "t": "strong",
+      "v": "[group](/docs/canvas/groups)",
+      "children": [
+       {
+        "t": "link",
+        "v": "group",
+        "href": "/docs/canvas/groups",
+        "children": [
+         {
+          "t": "text",
+          "v": "group"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", as a unit — right-click its label and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag group…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag group…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
       "v": "A whole "
      },
      {
@@ -29864,7 +29919,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — drag a tag from the sidebar onto it."
+      "v": " — right-click an empty part of it and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag this cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag this cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or drag a tag from the sidebar onto it."
      }
     ],
     [
@@ -29899,7 +29968,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", a name the app has noticed can become a tag right where it appears."
+      "v": ", select the words, right-click and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag selection…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag selection…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "; a name the app has noticed can also become a tag right where it appears."
      }
     ]
    ]
@@ -29944,7 +30027,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Open a tag from the sidebar, from a tag chip, or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it."
+     "v": "Open a tag from the sidebar, from a tag chip, or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: \"12 tagged · 40 inside\" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups."
     }
    ]
   },
@@ -30435,7 +30518,15 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " lists workspace tags"
+      "v": " lists workspace tags, grouped by type; the arrow keys walk them and "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " opens one"
      }
     ],
     [
@@ -30458,7 +30549,15 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " searches tags alongside everything else"
+      "v": " finds tags by name, and "
+     },
+     {
+      "t": "code",
+      "v": "#"
+     },
+     {
+      "t": "text",
+      "v": " with a tag's name lists everything carrying it"
      }
     ],
     [
@@ -31161,6 +31260,26 @@ export const DOCS_CONTENT = {
         "v": "Tags"
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": " — by name. Type "
+     },
+     {
+      "t": "code",
+      "v": "#"
+     },
+     {
+      "t": "text",
+      "v": " and a tag's name, as in "
+     },
+     {
+      "t": "code",
+      "v": "#diner"
+     },
+     {
+      "t": "text",
+      "v": ", to list everything carrying it instead: cards, groups, clusters and document pages, each opened in place"
      }
     ],
     [

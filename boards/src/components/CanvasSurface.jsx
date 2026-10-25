@@ -10049,11 +10049,7 @@ export function CanvasSurface({
         items.push({ id: 'group-tag', label: 'Tag group…',
           run: () => {
             const r = { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 };
-            // Reuse the per-card tag picker — group tagging would need
-            // a `board_tags` flow which is its own feature; for now we
-            // surface this as a placeholder so users see it and the
-            // archive popover entry still makes sense.
-            feedback.toast({ type: 'info', message: 'Group tagging is coming — comment for now.' });
+            setTagPicker({ kind: 'group', id: gid, anchorRect: r });
           }});
         items.push({ id: 'group-rename', label: 'Rename group', run: async () => {
           const name = await feedback.prompt({
@@ -10184,6 +10180,9 @@ export function CanvasSurface({
       ...selectSome,
       { header: 'BOARD' },
       clusterInfo,
+      ...(canEdit && !isPublic ? [{ id: 'board-tag', label: 'Tag this cluster…', run: () => {
+        setTagPicker({ kind: 'board', id: board.id, anchorRect: { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 } });
+      } }] : []),
       { id: 'bg', label: 'Background', submenu: [
         { id: 'bg-default', swatch: 'transparent', label: 'Default', run: () => mutators.setBoardBgColor?.(null) },
         { id: 'bg-paper',   swatch: '#f5f2ec', label: 'Paper',   run: () => mutators.setBoardBgColor?.('#f5f2ec') },
@@ -10253,7 +10252,7 @@ export function CanvasSurface({
   };
 
   // ── Tags ──────────────────────────────────────────────────────────────
-  const { tags: wsTags, byCard: tagsByCard, byBoard: tagsByBoard, refresh: refreshTags } =
+  const { tags: wsTags, byCard: tagsByCard, byBoard: tagsByBoard, byGroup: tagsByGroup, refresh: refreshTags } =
     useWorkspaceTags({ workspaceId, boardId: board?.id });
   // Stable fingerprint of the workspace's tag definitions — used as
   // a dep + as a per-card hash component so creating / renaming /
@@ -10264,7 +10263,7 @@ export function CanvasSurface({
     () => (wsTags || []).map(t => `${t.id}:${t.slug || t.name || ''}`).sort().join('|'),
     [wsTags],
   );
-  const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect }
+  const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect } | { kind: 'group'|'board', id, anchorRect }
   const openTagPicker = (cardId, anchorRect) => setTagPicker({ cardId, anchorRect });
   const closeTagPicker = () => setTagPicker(null);
   // Right-click menu for an applied tag chip on a card. Lets users
@@ -10327,6 +10326,63 @@ export function CanvasSurface({
     try {
       const t = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
       await tagCard({ workspaceId, boardId: board.id, cardId, tagId: t.id });
+      refreshTags?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+    }
+  };
+
+  // A group and the cluster itself take the card's path with their own
+  // helpers: apply, or remove with the same "keep it off" and undo that a
+  // card's removal has.
+  const tagTargets = {
+    group: {
+      applied: (id) => tagsByGroup?.get(id) || [],
+      add: (id, tagId) => tagGroup({ workspaceId, boardId: board.id, groupId: id, tagId }),
+      remove: (id, tagId) => untagGroup({ boardId: board.id, groupId: id, tagId }),
+    },
+    board: {
+      applied: () => tagsByBoard.get(board.id) || [],
+      add: (_id, tagId) => tagBoard({ workspaceId, boardId: board.id, tagId }),
+      remove: (_id, tagId) => untagBoard({ boardId: board.id, tagId }),
+    },
+  };
+  const toggleTagOn = async (kind, id, tag) => {
+    const t = tagTargets[kind];
+    if (!t || !workspaceId || !board?.id || !tag) return;
+    const targetId = kind === 'board' ? board.id : id;
+    const applied = t.applied(id).some(x => x.id === tag.id);
+    try {
+      if (!applied) {
+        await t.add(id, tag.id);
+        refreshTags?.();
+        return;
+      }
+      await t.remove(id, tag.id);
+      await dismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id, userId });
+      refreshTags?.();
+      undoToast(feedback, {
+        message: `Removed “${tag.name || 'tag'}”`,
+        onUndo: async () => {
+          try {
+            await t.add(id, tag.id);
+            await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
+            refreshTags?.();
+          } catch (err) {
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+          }
+        },
+      });
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+    }
+  };
+  const createAndApplyTagOn = async (kind, id, name) => {
+    const t = tagTargets[kind];
+    if (!t || !workspaceId || !board?.id) return;
+    try {
+      const tag = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
+      await t.add(id, tag.id);
       refreshTags?.();
     } catch (err) {
       feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
@@ -13043,9 +13099,14 @@ export function CanvasSurface({
           {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
             <span key={t.id}
                   role="button"
+                  tabIndex={0}
                   className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
                   style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
                   title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to see everywhere it's used`}
+                  onKeyDown={(e) => {
+                    // The cluster's own chips are few, so they take the keyboard.
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
+                  }}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.preventDefault();
@@ -14831,17 +14892,23 @@ export function CanvasSurface({
           anchorRect={tagPicker.anchorRect}
           onClose={closeTagPicker}
           tags={wsTags}
-          appliedIds={new Set((tagsByCard.get(tagPicker.cardId) || []).map(t => t.id))}
+          appliedIds={new Set((tagPicker.kind
+            ? tagTargets[tagPicker.kind].applied(tagPicker.id)
+            : (tagsByCard.get(tagPicker.cardId) || [])).map(t => t.id))}
           onToggle={(t) => {
             // TAG_MANUAL_APPLY has been in the event catalog since the tags
             // rework with no emission site anywhere, so hand-tagging — the whole
             // point of this picker — recorded nothing. This is its home.
-            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'picker', tag_id: t?.id }); } catch (_) {}
-            toggleTagOnCard(tagPicker.cardId, t);
+            const kind = tagPicker.kind || 'card';
+            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: kind, via: 'picker', tag_id: t?.id }); } catch (_) {}
+            if (kind === 'card') toggleTagOnCard(tagPicker.cardId, t);
+            else toggleTagOn(kind, tagPicker.id, t);
           }}
           onCreate={(name) => {
-            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'picker_create' }); } catch (_) {}
-            createAndApplyTag(tagPicker.cardId, name);
+            const kind = tagPicker.kind || 'card';
+            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: kind, via: 'picker_create' }); } catch (_) {}
+            if (kind === 'card') createAndApplyTag(tagPicker.cardId, name);
+            else createAndApplyTagOn(kind, tagPicker.id, name);
           }}
         />
       )}

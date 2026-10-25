@@ -12,9 +12,13 @@ everything that does not fit a hierarchy.
 - A **[card](/docs/canvas/cards)** — right-click it and choose **Tag…**. The
   picker suggests as you type, and `Enter` creates a tag that does not exist
   yet.
-- A whole **[cluster](/docs/clusters)** — drag a tag from the sidebar onto it.
+- A **[group](/docs/canvas/groups)**, as a unit — right-click its label and
+  choose **Tag group…**.
+- A whole **[cluster](/docs/clusters)** — right-click an empty part of it and
+  choose **Tag this cluster…**, or drag a tag from the sidebar onto it.
 - A **passage of text** — in a [document](/docs/documents/comments-and-tags),
-  a name the app has noticed can become a tag right where it appears.
+  select the words, right-click and choose **Tag selection…**; a name the app
+  has noticed can also become a tag right where it appears.
 
 An item can carry several tags. A tag is **not a location**. Tagging moves
 nothing.
@@ -24,7 +28,9 @@ nothing.
 Open a tag from the sidebar, from a tag chip, or from its hover card, and you
 get everything carrying it, from anywhere in the workspace — clusters, then
 groups, then cards — and the document pages it is on. A tagged group or
-cluster shows what is inside it.
+cluster shows what is inside it. Its header counts both: "12 tagged · 40
+inside" is twelve things carrying the tag (the number the sidebar shows) and
+forty more inside the tagged clusters and groups.
 
 This is the payoff. "Show me everything about the diner" spans a script scene, a
 reference wall, a group of location photos and a note, and no folder structure
@@ -94,6 +100,8 @@ tag off stays off under the tag it merged into.
 
 ## Finding by tag
 
-- The **sidebar** lists workspace tags
-- **[`⌘K`](/docs/organize/search)** searches tags alongside everything else
+- The **sidebar** lists workspace tags, grouped by type; the arrow keys walk
+  them and `Enter` opens one
+- **[`⌘K`](/docs/organize/search)** finds tags by name, and `#` with a tag's
+  name lists everything carrying it
 - The **tag page** is the full browse
