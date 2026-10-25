@@ -246,3 +246,33 @@ export function classifyHttpFailure(f, hosts = {}) {
     http: { method, svc: r.svc, route: r.route, pg, status, ms },
   };
 }
+
+// ── Live updates ────────────────────────────────────────────────────────────
+
+// What a channel's status says about the channel itself (realtimeGuard.js
+// hands on every CHANNEL_ERROR and TIMED_OUT), or null. A join the server
+// refused, by its reason's code word (Unauthorized, ChannelRateLimitReached…)
+// and never the rest, which quotes the topic; live rows it couldn't match to
+// what was asked; a join nothing answered. A dropped socket, in
+// normalizeChannelError's words, is every channel's at once and rejoins.
+export function channelFailure(status, err) {
+  if (status === 'TIMED_OUT') return 'timed out';
+  const msg = status === 'CHANNEL_ERROR' && typeof err?.message === 'string' ? err.message : '';
+  if (!msg || /^(socket closed|channel error)\b/.test(msg)) return null;
+  if (msg.startsWith('mismatch between server and client bindings')) return 'mismatched';
+  const code = /^([A-Za-z_]{3,40}):/.exec(msg);
+  return code ? `refused (${code[1]})` : 'refused';
+}
+
+// A channel's name cut to its leading words: the rest is ids (a cluster's, a
+// person's, a conversation's) and a random suffix. "comments:<id>:<sfx>" is
+// comments, "autotag-tags-<id>-<sfx>" autotag-tags.
+export function channelLabel(name) {
+  const words = [];
+  for (const part of String(name || '').split(':')[0].split('-')) {
+    // A word, not the first group of an id that happens to be all letters.
+    if (!/^[a-z]{1,24}$/.test(part) || (part.length >= 6 && /^[a-f]+$/.test(part))) break;
+    words.push(part);
+  }
+  return words.join('-') || 'other';
+}

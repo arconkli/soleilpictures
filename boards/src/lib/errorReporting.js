@@ -8,7 +8,8 @@
 //
 // This module is the part every page carries, and it only notices: an error,
 // a failed request (netWatch.js), a picture or script that didn't load, a
-// console.error with an Error in it, an error toast. Each is handed on with
+// console.error with an Error in it, an error toast, a live-updates channel
+// that failed. Each is handed on with
 // what the page knew at that moment and the names of the steps before it
 // (errorCrumbs.js). errorSender.js, loaded on the first one, decides what is
 // noise, builds the rows (0580's shape) and sends them in batches. When that
@@ -131,6 +132,12 @@ export function noteRequest(f) {
     crumb('http', `${f.method} ${f.slow ? 'slow' : f.status}`, f.url);
     hand({ t: 'http', f, m: moment() });
   } catch (_) {}
+}
+
+// A channel that errored or timed out (realtimeGuard.js watchChannels):
+// errorSender says whether it was the channel's own failure.
+export function noteChannel(ch, name, status, err) {
+  try { hand({ t: 'chan', ch, name, status, err, m: moment() }); } catch (_) {}
 }
 
 // Installed once from main.jsx, before anything renders: uncaught errors and

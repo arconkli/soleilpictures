@@ -18,7 +18,6 @@ import { publishNotification } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { isWatchingConversation } from '../lib/threadAttention.js';
-import { reportError } from '../lib/errorReporting.js';
 
 // openConversationId is no longer read: App's copy outlives the panel (it is
 // not cleared on close), so it said "watching" when nobody was (COMMS-03).
@@ -97,10 +96,6 @@ export function useInboxLive({ userId, onOpenConversation, feedback }) {
     ch.subscribe((status, err) => {
       if (status === 'CHANNEL_ERROR' || err) {
         console.warn('[inbox-live] subscribe error', { topic, status, err });
-        // Messages stop arriving live until Phoenix rejoins; a join refused
-        // every time is a policy or a token gone wrong. Its words name the
-        // topic (the person's id), so the status alone.
-        reportError(new Error(`Inbox live updates: ${status}`), { kind: 'realtime', severity: 'warning', op: 'inbox' });
       }
     });
 

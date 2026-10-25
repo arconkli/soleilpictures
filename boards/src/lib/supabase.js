@@ -4,8 +4,8 @@
 // working before the user has provisioned a Supabase project.
 
 import { createClient } from '@supabase/supabase-js';
-import { guardRealtimeConnect } from './realtimeGuard.js';
-import { logClientError } from './errorReporting.js';
+import { guardRealtimeConnect, watchChannels } from './realtimeGuard.js';
+import { logClientError, noteChannel } from './errorReporting.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 // Prefer the modern publishable key; fall back to legacy anon JWT.
@@ -137,6 +137,8 @@ if (supabase) {
     console.warn('[realtime] unavailable — staying offline', err?.message || err);
     try { logClientError(err, { kind: 'realtime-unavailable' }); } catch (_) {}
   });
+  // A channel whose live updates never arrive: errorSender decides which.
+  watchChannels(supabase.realtime, noteChannel);
 }
 
 // ── Realtime wake handling ─────────────────────────────────────────────

@@ -16,7 +16,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   ERROR_CONTEXT_KEYS, ERROR_HTTP_KEYS, errorContext, dedupeKey, crumbNames,
-  routeOf, bodyCode, classifyHttpFailure, scrubUrls,
+  routeOf, bodyCode, classifyHttpFailure, scrubUrls, channelFailure, channelLabel,
 } from './errorCore.js';
 import { isNoise, isBotUA } from './errorNoise.js';
 import { crumb, crumbsSnapshot, __resetCrumbsForTest } from './errorCrumbs.js';
@@ -266,4 +266,40 @@ test('noise is dropped, a real failure is kept', () => {
     assert.equal(isNoise(m, '', chrome), true, m);
   }
   assert.equal(isNoise('x', 'at y (chrome-extension://abc/content.js:1:1)', chrome), true);
+});
+
+test('a channel is named by its leading words, never its ids', () => {
+  const cases = [
+    [`comments:${ID}:k3j2h1`, 'comments'],
+    [`autotag-tags-${ID}-x9y8z7`, 'autotag-tags'],
+    // A uuid whose first group is all letters is an id all the same.
+    ['autotag-tags-deadbeef-aaaa-4bbb-8ccc-123456789abc-x9y8z7', 'autotag-tags'],
+    [`user:${ID}`, 'user'],
+    [`y:${ID}`, 'y'],
+    ['admin:activity', 'admin'],
+    ['doc-page-tags:doc-123:page-1:abc', 'doc-page-tags'],
+    ['profiles-cache:qwerty1', 'profiles-cache'],
+    [ID, 'other'],
+    ['', 'other'],
+    [null, 'other'],
+  ];
+  for (const [name, want] of cases) assert.equal(channelLabel(name), want, String(name));
+});
+
+test('what a status says about the channel itself, and a dropped socket says nothing', () => {
+  const cases = [
+    ['SUBSCRIBED', undefined, null],
+    ['CLOSED', undefined, null],
+    ['TIMED_OUT', undefined, 'timed out'],
+    // normalizeChannelError's words for the socket going: every channel's at once.
+    ['CHANNEL_ERROR', new Error('socket closed: 1006'), null],
+    ['CHANNEL_ERROR', new Error('channel error: transport failure'), null],
+    ['CHANNEL_ERROR', new Error('channel error: connection lost'), null],
+    ['CHANNEL_ERROR', undefined, null],
+    ['CHANNEL_ERROR', new Error('mismatch between server and client bindings for postgres changes'), 'mismatched'],
+    ['CHANNEL_ERROR', new Error(`Unauthorized: You do not have permissions to read from this Channel topic: realtime:user:${ID}`), 'refused (Unauthorized)'],
+    ['CHANNEL_ERROR', new Error('ChannelRateLimitReached: Too many channels'), 'refused (ChannelRateLimitReached)'],
+    ['CHANNEL_ERROR', new Error('Realtime was unable to connect to the project database'), 'refused'],
+  ];
+  for (const [status, err, want] of cases) assert.equal(channelFailure(status, err), want, `${status} ${err?.message || ''}`);
 });

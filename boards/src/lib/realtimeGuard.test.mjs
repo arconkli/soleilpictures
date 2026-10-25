@@ -4,8 +4,15 @@
 // whose constructor throws — exactly what a blocked socket looks like.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { setTimeout as wait } from 'node:timers/promises';   // held open, unlike the unref'd timers below
 import { RealtimeClient } from '@supabase/realtime-js';
-import { guardRealtimeConnect } from './realtimeGuard.js';
+import { guardRealtimeConnect, watchChannels } from './realtimeGuard.js';
+import { channelFailure, channelLabel } from './errorCore.js';
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 // The client arms join/rejoin/disconnect timers (10s+) that would hold this
 // test process open long after the assertions ran. Unref them.
@@ -56,4 +63,69 @@ test('guard is idempotent and tolerates a missing client', () => {
   const once = rt.connect;
   guardRealtimeConnect(rt);
   assert.equal(rt.connect, once);
+});
+
+// A socket that opens and answers every join the way Realtime refuses one.
+class RefusingJoinSocket {
+  constructor() {
+    this.readyState = 0;
+    setTimeout(() => { this.readyState = 1; this.onopen?.(); }, 0);
+  }
+  send(data) {
+    const msg = JSON.parse(data);
+    if (msg.event !== 'phx_join') return;
+    const reason = `Unauthorized: You do not have permissions to read from this Channel topic: ${msg.topic}`;
+    const reply = { topic: msg.topic, event: 'phx_reply', ref: msg.ref, join_ref: msg.join_ref,
+      payload: { status: 'error', response: { reason } } };
+    setTimeout(() => this.onmessage?.({ data: JSON.stringify(reply) }), 0);
+  }
+  close() { this.readyState = 3; this.onclose?.({ code: 1000, reason: '' }); }
+}
+
+const ID = '4f1c2d3e-aaaa-4bbb-8ccc-123456789abc';
+
+test('every channel is watched however it was subscribed, and its subscriber still hears it', async () => {
+  const rt = makeClient();
+  guardRealtimeConnect(rt);
+  const seen = [];
+  watchChannels(rt, (ch, name, status) => seen.push([ch.topic, name, status]));
+  const heard = [];
+  const ch = rt.channel(`comments:${ID}:k3j2h1`).on('broadcast', { event: 'x' }, () => {});
+  assert.equal(ch.subscribe((status) => heard.push(status), 30), ch, 'subscribe still hands back the channel');
+  rt.channel(`tags:${ID}:zz`).subscribe(undefined, 30);   // no callback of its own
+  await wait(120);
+  assert.deepEqual(heard, ['TIMED_OUT']);
+  assert.deepEqual(seen, [
+    [`realtime:comments:${ID}:k3j2h1`, `comments:${ID}:k3j2h1`, 'TIMED_OUT'],
+    [`realtime:tags:${ID}:zz`, `tags:${ID}:zz`, 'TIMED_OUT'],
+  ]);
+  assert.deepEqual(seen.map(([, name, status]) => [channelLabel(name), channelFailure(status)]),
+    [['comments', 'timed out'], ['tags', 'timed out']]);
+  // The same name hands back the same channel, watched once and not twice.
+  assert.equal(rt.channel(`comments:${ID}:k3j2h1`), ch);
+  const subscribeOnce = ch.subscribe;
+  watchChannels(rt, () => {});
+  assert.equal(rt.channel(`comments:${ID}:k3j2h1`).subscribe, subscribeOnce);
+  assert.equal(watchChannels(null), null);
+  for (const c of rt.getChannels()) await rt.removeChannel(c);
+});
+
+test('a join the server refuses reads by its code word, and the subscriber still has the reason', async () => {
+  const rt = new RealtimeClient('wss://example.invalid/realtime/v1', {
+    params: { apikey: 'test-key' }, transport: RefusingJoinSocket, vsn: '1.0.0',
+  });
+  const seen = [];
+  watchChannels(rt, (ch, name, status, err) => seen.push([channelLabel(name), channelFailure(status, err)]));
+  const heard = [];
+  rt.channel(`user:${ID}`, { config: { private: true } }).subscribe((status, err) => heard.push([status, err?.message]));
+  await wait(80);
+  assert.deepEqual(seen, [['user', 'refused (Unauthorized)']]);
+  assert.equal(heard[0][0], 'CHANNEL_ERROR');
+  assert.match(heard[0][1], /^Unauthorized: You do not have permissions/);
+  rt.disconnect();
+});
+
+test('the app\'s client hands every channel on to the error reporting', () => {
+  const src = readFileSync(join(here, 'supabase.js'), 'utf8');
+  assert.match(src, /watchChannels\(supabase\.realtime, noteChannel\);/);
 });

@@ -149,3 +149,22 @@ test('a request the page called off, and one made while offline, are nobody\'s p
   const rows = await sink(page);
   expect(rows.filter((r) => r.kind === 'http' && /qa_slow|qa_offline/.test(r.message))).toEqual([]);
 });
+
+test('a live-updates channel that times out is one row, named by its leading words', async ({ page }) => {
+  await go(page);
+  // The app's own client (a fresh dev server serves one copy of the module).
+  await page.evaluate(async () => {
+    const { supabase } = await import('/src/lib/supabase.js');
+    supabase.channel('qa-live:6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b').subscribe(undefined, 50);
+    supabase.channel('qa-other:6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b:k3j2').subscribe(undefined, 50);
+  });
+  const row = await rowWhere(page, 'a channel that timed out', (r) => r.kind === 'realtime' && r.message === 'Live updates timed out');
+  expect(row.severity).toBe('warning');
+  expect(row.name).toBe('ChannelFailure');
+  expect(row.context.op).toMatch(/^(qa-live|qa-other|[a-z-]+)$/);
+  // Two channels, one problem: whichever timed out first.
+  await page.waitForTimeout(2500);
+  const rows = await sink(page);
+  expect(rows.filter((r) => r.message === 'Live updates timed out')).toHaveLength(1);
+  expect(JSON.stringify(rows.filter((r) => r.kind === 'realtime'))).not.toContain('6f1d2c3b');
+});

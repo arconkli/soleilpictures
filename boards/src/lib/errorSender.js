@@ -2,7 +2,7 @@
 //
 // errorReporting.js notices and hands over; this decides. It drops noise
 // (errorNoise.js), folds repeats, turns a failed request, a file that didn't
-// load or a logged Error into a row (0580's shape), and sends rows to
+// load, a logged Error or a channel's failure into a row (0580's shape), and sends rows to
 // public.client_errors in batches, retrying once when the database is the one
 // failing. A dev build puts rows on window.__errorSink for the specs and never
 // sends them.
@@ -11,7 +11,7 @@
 // this chunk's), so loading it never pulls in a part of the app.
 
 import { isNoise, isBotUA } from './errorNoise.js';
-import { classifyHttpFailure, bodyCode, routeOf, dedupeKey, crumbNames, errorContext, scrubUrls } from './errorCore.js';
+import { classifyHttpFailure, bodyCode, routeOf, dedupeKey, crumbNames, errorContext, scrubUrls, channelFailure, channelLabel } from './errorCore.js';
 import { describeReason } from './describeReason.js';
 import { unwatchedFetch } from './netWatch.js';
 import { eventEnv } from './eventEnv.js';
@@ -149,6 +149,20 @@ export function take(it) {
       const message = `${tag} ${r.svc}/${r.route}${ext && EXTS.has(ext) ? ` .${ext}` : ''} did not load`;
       if (!once(`res|${message}`)) return;
       push({ ...base(m, 'resource', { tag, host: r.svc }), severity: 'warning', name: 'ResourceError', message });
+    } else if (it.t === 'chan') {
+      // A channel's own failure (errorCore.js channelFailure), once a page: a
+      // refusal by the channel's leading words, and a join that timed out as
+      // one problem whichever channel it was (the service, or the way to it,
+      // is the slow one). Not while the page is hidden or offline, nor within
+      // half a minute of coming back from either: those rejoins race the
+      // fresh token and time out as a matter of course.
+      const what = channelFailure(it.status, it.err);
+      if (!what || isBotUA(ua()) || m.vis !== 'visible' || !m.online) return;
+      if ((m.crumbs || []).some((c) => (c.k === 'vis' || c.k === 'net') && c.t > -30_000)) return;
+      const label = channelLabel(it.name);
+      const message = what === 'timed out' ? 'Live updates timed out' : `Live updates ${what}: ${label}`;
+      if (!once(`chan|${message}`)) return;
+      push({ ...base(m, 'realtime', { op: label }), severity: 'warning', name: 'ChannelFailure', message });
     } else if (it.t === 'boot') {
       // Still on a splash BOOT_STUCK_MS after the navigation (errorReporting.js).
       // Not when the tab was hidden or the network went at any point: then it is
