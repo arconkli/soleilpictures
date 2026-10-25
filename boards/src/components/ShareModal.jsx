@@ -394,7 +394,7 @@ export function ShareModal({
         : { type: 'warning', message: 'Link ready — copying failed, use Copy under Link settings.', ttl: 7000 });
       await refreshLinks();
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not create the link — try again. (' + (e.message || e) + ')' });
+      feedback.toast({ type: 'error', code: 'share_link_failed', message: 'Could not create the link — try again. (' + (e.message || e) + ')' });
     } finally {
       setBusyLink(false);
     }
@@ -433,7 +433,7 @@ export function ShareModal({
         const failed = results.filter(r => r.status === 'rejected').length;
         await refreshLinks();
         feedback.toast(failed
-          ? { type: 'error', message: `Could not revoke ${failed} of ${mine.length} — try again.` }
+          ? { type: 'error', code: 'link_revoke_failed', message: `Could not revoke ${failed} of ${mine.length} — try again.` }
           : { type: 'success', message: (mine.length === 1 ? 'Link revoked.' : 'Links revoked.') + othersNote,
               ...(othersNote ? { ttl: 8000 } : {}) });
         if (failed) return;
@@ -491,7 +491,7 @@ export function ShareModal({
       setPublicLinks(arr => arr.filter(l => l.token !== token));
       feedback.toast({ type: 'success', message: 'Link revoked.' });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'link_revoke_failed', message: 'Could not revoke: ' + (e.message || e) });
     }
   };
 
@@ -503,7 +503,7 @@ export function ShareModal({
     try {
       await setPublicLinkSubboards({ token: link.token, include: next });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not update link: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'link_subboards_failed', message: 'Could not update link: ' + (e.message || e) });
       await refreshLinks();
     }
   };
@@ -516,7 +516,7 @@ export function ShareModal({
     try {
       await setPublicLinkIndexing({ token: link.token, allow: next });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not update link: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'link_indexing_failed', message: 'Could not update link: ' + (e.message || e) });
       await refreshLinks();
     }
   };
@@ -583,7 +583,7 @@ export function ShareModal({
     if (result === 'sent' || result === 'already_sent') { setAskState('sent'); return; }
     setAskState(null);
     if (result === 'error') {
-      feedback.toast({ type: 'error', message: 'Could not ask — check your connection and try again.' });
+      feedback.toast({ type: 'error', code: 'editor_ask_failed', message: 'Could not ask — check your connection and try again.' });
       return;
     }
     editorLimit.refresh();   // 'not_full' or 'owner': there is room after all
@@ -766,6 +766,7 @@ export function ShareModal({
     } else if (okCount === 0) {
       feedback.toast({
         type: 'error',
+        code: 'invite_failed',
         message: emails.length === 1
           ? `Invite failed: ${fail[0].reason}`
           : `Failed to invite ${fail.length}: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`,
@@ -794,7 +795,7 @@ export function ShareModal({
       setPendingBoardInvites(arr => arr.filter(x => x.id !== row.id));
       setPendingWorkspaceInvites(arr => arr.filter(x => x.id !== row.id));
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'invite_revoke_failed', message: 'Could not revoke: ' + (e.message || e) });
     }
   };
 
@@ -808,7 +809,7 @@ export function ShareModal({
     } catch (e) {
       const full = editorLimitRefusal(e);
       if (full) { onEditorLimitRefused(full, 'share_role'); return; }
-      feedback.toast({ type: 'error', message: 'Could not change role: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'share_role_failed', message: 'Could not change role: ' + (e.message || e) });
     }
   };
 
@@ -839,12 +840,12 @@ export function ShareModal({
           } catch (e) {
             const full = editorLimitRefusal(e);
             if (full) { onEditorLimitRefused(full, 'restore'); return; }
-            feedback.toast({ type: 'error', message: 'Could not restore access: ' + (e.message || e) });
+            feedback.toast({ type: 'error', code: 'share_restore_failed', message: 'Could not restore access: ' + (e.message || e) });
           }
         },
       });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'share_remove_failed', message: 'Could not remove: ' + (e.message || e) });
     }
   };
 
@@ -867,7 +868,7 @@ export function ShareModal({
         onMembersChanged?.();
         onWorkspacesChanged?.();
       } catch (e) {
-        feedback.toast({ type: 'error', message: 'Could not make them a co-owner: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'coowner_make_failed', message: 'Could not make them a co-owner: ' + (e.message || e) });
       }
       return;
     }
@@ -879,7 +880,7 @@ export function ShareModal({
       onWorkspacesChanged?.();
       onClose?.();   // close modal — the user is no longer the owner; modal switches to read-only
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not transfer: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_transfer_failed', message: 'Could not transfer: ' + (e.message || e) });
     }
   };
 
@@ -898,7 +899,7 @@ export function ShareModal({
       feedback.toast({ type: 'success', message: `Removed ${label}.` });
       onMembersChanged?.();
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'member_remove_failed', message: 'Could not remove: ' + (e.message || e) });
     }
   };
 
@@ -923,7 +924,7 @@ export function ShareModal({
     } catch (e) {
       const full = editorLimitRefusal(e);
       if (full) { onEditorLimitRefused(full, 'member_role'); return; }
-      feedback.toast({ type: 'error', message: 'Could not change their access: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'member_role_failed', message: 'Could not change their access: ' + (e.message || e) });
     }
   };
 
@@ -981,7 +982,7 @@ export function ShareModal({
       if (full) { onEditorLimitRefused(full, 'widen'); return; }
       feedback.toast(/invite limit reached/i.test(msg)
         ? { type: 'warning', message: msg.replace(/^invite limit reached:\s*/i, '') }
-        : { type: 'error', message: 'Could not add them to the workspace: ' + msg });
+        : { type: 'error', code: 'member_widen_failed', message: 'Could not add them to the workspace: ' + msg });
     } finally {
       widening.current.delete(share.user_id);
     }

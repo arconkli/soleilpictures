@@ -432,7 +432,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       try {
         await updateComment(comment.id, patch);
       } catch (err) {
-        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'comment_move_failed', message: 'Move failed: ' + (err.message || err) });
         // Roll back — restore baseRef to the last known prop value so
         // the bubble snaps back rather than appearing committed.
         baseRef.current = {
@@ -480,7 +480,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       });
       setReply('');
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Reply failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_reply_failed', message: 'Reply failed: ' + (err.message || err) });
     } finally {
       setBusy(false);
     }
@@ -494,16 +494,16 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       // logged with the same event so the ratio is visible rather than implied.
       try { logEvent(EV.COMMENT_RESOLVE, { board_id: comment.board_id, resolved: next }); } catch (_) {}
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Update failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_update_failed', message: 'Update failed: ' + (err.message || err) });
     }
   };
   const onHide = async () => {
     try { await updateComment(comment.id, { hidden: true }); }
-    catch (err) { feedback.toast({ type: 'error', message: 'Hide failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_hide_failed', message: 'Hide failed: ' + (err.message || err) }); }
   };
   const onUnhide = async () => {
     try { await updateComment(comment.id, { hidden: false }); }
-    catch (err) { feedback.toast({ type: 'error', message: 'Unhide failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_unhide_failed', message: 'Unhide failed: ' + (err.message || err) }); }
   };
   const onDelete = async () => {
     // House delete convention: no confirm, an Undo toast instead — the row is
@@ -529,11 +529,11 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
         message: 'Comment deleted',
         onUndo: async () => {
           try { await restoreComment(comment.id); } // realtime refetch resurfaces it
-          catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_delete_failed', message: 'Delete failed: ' + (err.message || err) });
     }
   };
 
@@ -643,10 +643,10 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                                message: 'Reply deleted',
                                onUndo: async () => {
                                  try { await restoreComment(r.id); }
-                                 catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+                                 catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
                                },
                              });
-                           } catch (err) { feedback.toast({ type: 'error', message: 'Delete failed' }); }
+                           } catch (err) { feedback.toast({ type: 'error', code: 'comment_delete_failed', message: 'Delete failed' }); }
                          }} />
             );
           })}
@@ -820,11 +820,11 @@ export function CommentArchivePopover({
 
   const onReopen = async (c) => {
     try { await updateComment(c.id, { resolved: false, hidden: false }); }
-    catch (err) { feedback.toast({ type: 'error', message: 'Reopen failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_reopen_failed', message: 'Reopen failed: ' + (err.message || err) }); }
   };
   const onUnhide = async (c) => {
     try { await updateComment(c.id, { hidden: false }); }
-    catch (err) { feedback.toast({ type: 'error', message: 'Unhide failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_unhide_failed', message: 'Unhide failed: ' + (err.message || err) }); }
   };
   const onDeleteRow = async (c) => {
     // ("Permanent" was never true — comments soft-delete with 30-day
@@ -841,11 +841,11 @@ export function CommentArchivePopover({
         message: 'Comment deleted',
         onUndo: async () => {
           try { await restoreComment(c.id); }
-          catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_delete_failed', message: 'Delete failed: ' + (err.message || err) });
     }
   };
 

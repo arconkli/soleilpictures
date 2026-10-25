@@ -11,10 +11,12 @@
 // this chunk's), so loading it never pulls in a part of the app.
 
 import { isNoise, isBotUA } from './errorNoise.js';
-import { classifyHttpFailure, bodyCode, routeOf, dedupeKey, crumbNames, errorContext } from './errorCore.js';
+import { classifyHttpFailure, bodyCode, routeOf, dedupeKey, crumbNames, errorContext, scrubUrls } from './errorCore.js';
+import { describeReason } from './describeReason.js';
 import { unwatchedFetch } from './netWatch.js';
 import { eventEnv } from './eventEnv.js';
 import { getAppSessionId } from './appSession.js';
+import { bootAt } from './bootMarks.js';
 
 const MAX_ROWS = 50;      // one page load's share; 0580 also caps a session at 300 an hour
 const BATCH_MS = 2000;
@@ -83,7 +85,10 @@ function push(row, uncapped) {
 
 function errorRow(error, opts, m) {
   const kind = opts.kind || 'error';
-  const message = String(error?.message || error || '').slice(0, 2000);
+  // A rejection's reason, unpacked into an Error with what it knows.
+  if (kind === 'unhandledrejection') error = describeReason(error);
+  // An address in a message becomes its service and route (errorCore.js).
+  const message = scrubUrls(String(error?.message || error || ''), hosts).slice(0, 2000);
   const stack = typeof error?.stack === 'string' ? error.stack.slice(0, 8000) : null;
   if (error?.name === 'AbortError' || isNoise(message, stack, ua())) return null;
   if (!once(dedupeKey(kind, message, stack))) return null;
@@ -140,6 +145,16 @@ export function take(it) {
       const message = `${tag} ${r.svc}/${r.route}${ext && EXTS.has(ext) ? ` .${ext}` : ''} did not load`;
       if (!once(`res|${message}`)) return;
       push({ ...base(m, 'resource', { tag, host: r.svc }), severity: 'warning', name: 'ResourceError', message });
+    } else if (it.t === 'boot') {
+      // Still on a splash BOOT_STUCK_MS after the navigation (errorReporting.js).
+      // Not when the tab was hidden or the network went at any point: then it is
+      // slow because nobody was looking, or there was nothing to load from.
+      // Nor once a board painted: a splash then is a later step's, not the boot's.
+      if (isBotUA(ua()) || m.vis !== 'visible' || !m.online || bootAt('paint') != null || bootAt('enter') != null) return;
+      if ((m.crumbs || []).some((c) => c.k === 'vis' || c.k === 'net')) return;
+      const step = ['workspace', 'tier', 'shell', 'session'].find((s) => bootAt(s) != null) || 'start';
+      push({ ...base(m, 'stuck', { op: 'boot', phase: step, ms: m.at }), severity: 'error', name: 'Stuck',
+        message: `Boot stuck after ${step}` });
     } else if (it.t === 'perf') {
       if (isBotUA(ua())) return;
       let stack = null;

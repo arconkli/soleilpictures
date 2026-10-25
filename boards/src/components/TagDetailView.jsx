@@ -201,7 +201,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       try { logEvent(EV.TAG_SET_TYPE, { tag_id: tag.id, entity_type: next }); } catch (_) {}
     } catch (err) {
       setEntityType(prev);
-      feedback?.toast?.({ type: 'error', message: 'Could not set type' });
+      feedback?.toast?.({ type: 'error', code: 'tag_type_failed', message: 'Could not set type' });
     }
   };
 
@@ -533,12 +533,12 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             await undismissAutotagSuggestion({ workspaceId: ws, targetKind, targetId: target.id, tagId: tag.id });
             reloadRowsRef.current?.();
           } catch (err) {
-            feedback?.toast?.({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+            feedback?.toast?.({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
           }
         },
       });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Remove failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_remove_failed', message: 'Remove failed: ' + (err.message || err) });
     }
   };
 
@@ -580,7 +580,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       // Optimistic local update — realtime will catch up too.
       setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Accept failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_accept_failed', message: 'Accept failed: ' + (err.message || err) });
     }
   };
 
@@ -597,7 +597,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       if (error) throw error;
       setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Dismiss failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_dismiss_failed', message: 'Dismiss failed: ' + (err.message || err) });
     }
   };
 
@@ -610,7 +610,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       await confirmAppliedTag({ sourceKind, sourceId: target.id, sourceBoardId, tagId: tag.id });
       try { logEvent(EV.TAG_CONFIRM, { tag_id: tag.id, target_kind: sourceKind }); } catch (_) {}
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Confirm failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_confirm_failed', message: 'Confirm failed: ' + (err.message || err) });
     }
   };
 

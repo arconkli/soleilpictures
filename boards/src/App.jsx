@@ -466,7 +466,7 @@ async function restoreBoardsAnnouncing(ids, feedback) {
     const capHit = refused.find((e) => /past your limit/i.test(e?.message || ''));
     feedback?.toast(capHit
       ? { type: 'warning', message: capHit.message }
-      : { type: 'error', message: 'Could not restore that cluster: ' + (refused[0]?.message || 'unknown error') });
+      : { type: 'error', code: 'cluster_restore_failed', message: 'Could not restore that cluster: ' + (refused[0]?.message || 'unknown error') });
   }
   return refused.length === 0;
 }
@@ -839,7 +839,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!pendingSharedOpen) return;
     setPendingSharedOpen(null);
     if (!openBoardAt(pendingSharedOpen)) {
-      feedback.toast({ type: 'error', message: "That cluster isn't available to you any more." });
+      feedback.toast({ type: 'error', code: 'cluster_unavailable', message: "That cluster isn't available to you any more." });
     }
   }, [pendingSharedOpen, openBoardAt, feedback]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
@@ -3207,7 +3207,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await refreshBoards();
       } catch (e) {
         console.error('setBoardBgColor failed', e);
-        feedback.toast({ type: 'error', message: 'Could not set background: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_bg_failed', message: 'Could not set background: ' + (e.message || e) });
       }
     };
 
@@ -3220,7 +3220,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await refreshBoards();
       } catch (e) {
         console.error('setBoardCover failed', e);
-        feedback.toast({ type: 'error', message: 'Could not set cover: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_cover_failed', message: 'Could not set cover: ' + (e.message || e) });
       }
     };
 
@@ -3296,7 +3296,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           dropImageBlob({ ...up, id: cardId, x: clickPos?.x, y: clickPos?.y, fileName: meaningfulFileName(f) });
         } catch (e) {
           console.error(e);
-          feedback.toast({ type: 'error', message: 'Image upload failed: ' + (e.message || e) });
+          feedback.toast({ type: 'error', code: 'image_upload_failed', message: 'Image upload failed: ' + (e.message || e) });
         }
       };
       input.click();
@@ -3309,7 +3309,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const f = input.files?.[0]; if (!f) return;
         // Re-validate by extension too — some OS pickers report empty MIME.
         if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name || '')) {
-          feedback.toast({ type: 'error', message: 'Please choose a PDF file.' });
+          feedback.toast({ type: 'error', code: 'pdf_wrong_type', message: 'Please choose a PDF file.' });
           return;
         }
         const cardId = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -3333,7 +3333,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
         } catch (e) {
           console.error(e);
-          feedback.toast({ type: 'error', message: 'PDF upload failed: ' + (e.message || e) });
+          feedback.toast({ type: 'error', code: 'pdf_upload_failed', message: 'PDF upload failed: ' + (e.message || e) });
           deleteCardsSilent([cardId]);
         }
       };
@@ -3653,7 +3653,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               size_bucket: sizeBucket(it.file?.size),
             });
           }
-          else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+          else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err?.message || err) });
           // Silent rollback: a failed upload is not a user action — it must
           // not leave a Cmd+Z step that resurrects the dead card.
           deleteCardsSilent([id]);
@@ -3722,7 +3722,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (e) {
         console.error('createBoard failed', e);
         logClusterCreateFail(opts.seed ? 'seed' : opts.via, madeId ? 'after_create' : 'create', e);
-        feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_create_failed', message: 'Could not create cluster: ' + (e.message || e) });
       }
       return null;
     };
@@ -3784,7 +3784,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (e) {
         console.error('createBoard (project) failed', e);
         logClusterCreateFail(via, madeId ? 'after_create' : 'create', e);
-        feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_create_failed', message: 'Could not create cluster: ' + (e.message || e) });
       }
       return null;
     };
@@ -4538,12 +4538,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         setSidebarRefresh((n) => n + 1);
         feedback.toast({
           type: 'error',
+          code: 'files_move_partial',
           message: `Moved to ${nameOf(targetId)}, but they’re still in ${nameOf(from)} too.`,
           action: { label: 'Finish', onClick: () => moveFilesHere(targetId, payload, at, { what, kinds }) },
         });
         return false;
       }
-      feedback.toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') });
+      feedback.toast({ type: 'error', code: 'files_move_failed', message: failureMessage(r, copy ? 'copy' : 'move') });
       return false;
     }
     setSidebarRefresh((n) => n + 1);
@@ -4563,7 +4564,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       label: 'Put on board',
       onClick: () => {
         onPutOnBoard(targetId, landed)
-          .catch((e) => feedback.toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' }))
+          .catch((e) => feedback.toast({ type: 'error', code: 'files_put_failed', message: e?.message || 'Those files couldn’t be put on the board.' }))
           .finally(() => setSidebarRefresh((k) => k + 1));
       },
     } : null;
@@ -4578,7 +4579,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             cardIds: (r.pairs || []).map((p) => p.to),
             restore: (r.originals || []).map((o) => ({ ...o, id: (r.pairs || []).find((p) => p.from === o.id)?.to || o.id })),
           });
-        if (!u.ok) feedback.toast({ type: 'error', message: failureMessage(u, 'move') });
+        if (!u.ok) feedback.toast({ type: 'error', code: 'files_move_undo_failed', message: failureMessage(u, 'move') });
         setSidebarRefresh((k) => k + 1);
       },
     });
@@ -4618,13 +4619,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           message: `Renamed to “${name.trim()}”`,
           onUndo: async () => {
             try { await renameBoard(boardId, prevName); await refreshBoards(); }
-            catch (e) { feedback.toast({ type: 'error', message: 'Could not restore the name: ' + (e.message || e) }); }
+            catch (e) { feedback.toast({ type: 'error', code: 'cluster_rename_undo_failed', message: 'Could not restore the name: ' + (e.message || e) }); }
           },
         });
       }
     } catch (e) {
       console.error('renameBoard failed', e);
-      feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_rename_failed', message: 'Could not rename: ' + (e.message || e) });
     }
   };
 
@@ -4645,6 +4646,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const failed = requested.length - ids.length;
       feedback.toast({
         type: 'error',
+        code: 'cluster_delete_failed',
         message: (failed === 1 ? "Couldn't delete the cluster" : `Couldn't delete ${failed} clusters`)
           + (lastError?.message ? ': ' + lastError.message : '.'),
       });
@@ -4765,7 +4767,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       onSwitchWorkspace?.(ws.id);
     } catch (e) {
       console.error('addNewWorkspace failed', e);
-      feedback.toast({ type: 'error', message: 'Could not create workspace: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_create_failed', message: 'Could not create workspace: ' + (e.message || e) });
     }
   };
 
@@ -4808,7 +4810,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({ type: 'success', message: isDelete ? `Deleted "${ws.name}".` : `Left "${ws.name}".` });
     } catch (e) {
       console.error('removeWorkspace failed', e);
-      feedback.toast({ type: 'error', message: (isDelete ? 'Delete' : 'Leave') + ' failed: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_remove_failed', message: (isDelete ? 'Delete' : 'Leave') + ' failed: ' + (e.message || e) });
     }
   };
 
@@ -4851,7 +4853,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Clone a board (and its Y.Doc state) into my personal workspace ───────
   const cloneBoardToPersonal = async (sourceBoardId) => {
     if (!personalWorkspaceId) {
-      feedback.toast({ type: 'error', message: 'No personal workspace.' });
+      feedback.toast({ type: 'error', code: 'personal_ws_missing', message: 'No personal workspace.' });
       return;
     }
     // boardsRef: a cluster made after this board opened is missing from the
@@ -4893,7 +4895,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({ type: 'success', message: 'Copied to your personal workspace.' });
     } catch (e) {
       console.error('cloneBoardToPersonal failed', e);
-      feedback.toast({ type: 'error', message: 'Copy failed: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_copy_failed', message: 'Copy failed: ' + (e.message || e) });
     }
   };
 
@@ -4958,7 +4960,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('createBoardInside failed', e);
       logClusterCreateFail('sidebar_inside', madeId ? 'after_create' : 'create', e);
-      feedback.toast({ type: 'error', message: 'Could not create cluster: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_create_failed', message: 'Could not create cluster: ' + (e.message || e) });
     }
   };
 
@@ -4970,7 +4972,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await refreshBoards();
     } catch (e) {
       console.error('setBoardBgColorById failed', e);
-      feedback.toast({ type: 'error', message: 'Could not set background: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_bg_failed', message: 'Could not set background: ' + (e.message || e) });
     }
   };
 
@@ -5035,13 +5037,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             demoteThumbRetention(src); // the just-uploaded key is now unused
             await refreshBoards();
           } catch (e) {
-            feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });
+            feedback.toast({ type: 'error', code: 'thumb_restore_failed', message: 'Could not restore thumbnail: ' + (e.message || e) });
           }
         },
       });
     } catch (e) {
       console.error('setBoardCustomThumbById failed', e);
-      feedback.toast({ type: 'error', message: 'Could not set thumbnail: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'thumb_set_failed', message: 'Could not set thumbnail: ' + (e.message || e) });
     }
   };
 
@@ -5076,13 +5078,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             relockThumbRetention(prev.thumbKey); // back in service
             await refreshBoards();
           } catch (e) {
-            feedback.toast({ type: 'error', message: 'Could not restore thumbnail: ' + (e.message || e) });
+            feedback.toast({ type: 'error', code: 'thumb_restore_failed', message: 'Could not restore thumbnail: ' + (e.message || e) });
           }
         },
       });
     } catch (e) {
       console.error('resetBoardThumbById failed', e);
-      feedback.toast({ type: 'error', message: 'Could not reset thumbnail: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'thumb_reset_failed', message: 'Could not reset thumbnail: ' + (e.message || e) });
     }
   };
 
@@ -5108,7 +5110,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!target) return;
     const source = boards[clip.boardId];
     if (source && source.workspace_id !== target.workspace_id) {
-      feedback.toast({ type: 'error', message: 'Can only paste within the same workspace.' });
+      feedback.toast({ type: 'error', code: 'cluster_paste_scope', message: 'Can only paste within the same workspace.' });
       return;
     }
     try {
@@ -5166,7 +5168,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({ type: 'success', message: 'Pasted cluster.' });
     } catch (e) {
       console.error('pasteBoardInto failed', e);
-      feedback.toast({ type: 'error', message: 'Paste failed: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_paste_failed', message: 'Paste failed: ' + (e.message || e) });
     }
   };
 
@@ -6522,14 +6524,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         : out.reason === 'not_writer' ? 'You can’t add files to that cluster.'
         : out.reason === 'gone' || out.reason === 'no_access' ? 'This file isn’t shared with you anymore.'
         : 'Couldn’t save a copy. Try again.';
-      feedback.toast({ type: 'error', message: msg });
+      feedback.toast({ type: 'error', code: 'shared_file_save_failed', message: msg });
       return;
     }
     const landed = await appendCards({ boardId: dest.id, cards: [out.card] });
     if (!landed?.ok) {
       log(false, landed?.error || 'append');
       if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit: mt.effectiveCardLimit || DEMO_CARD_LIMIT, rejected: 1, kinds: [out.card.kind] }); return; }
-      feedback.toast({ type: 'error', message: failureMessage(landed, 'save') || 'Couldn’t save a copy. Try again.' });
+      feedback.toast({ type: 'error', code: 'shared_file_save_failed', message: failureMessage(landed, 'save') || 'Couldn’t save a copy. Try again.' });
       return;
     }
     log(true);
@@ -6566,7 +6568,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!landed?.ok) {
       log(false, landed?.error || 'append');
       if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit, rejected: 1, kinds: ['shortcut'] }); return; }
-      feedback.toast({ type: 'error', message: landed?.error === 'forbidden' ? 'You can’t add to that cluster.' : 'Couldn’t add the shortcut. Try again.' });
+      feedback.toast({ type: 'error', code: 'shortcut_add_failed', message: landed?.error === 'forbidden' ? 'You can’t add to that cluster.' : 'Couldn’t add the shortcut. Try again.' });
       return;
     }
     log(true);
@@ -6715,7 +6717,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
     } catch (err) {
       res = null;
-      feedback.toast({ type: 'error', message: 'The folder could not be imported: ' + (err?.message || err), ttl: 8000 });
+      feedback.toast({ type: 'error', code: 'folder_import_failed', message: 'The folder could not be imported: ' + (err?.message || err), ttl: 8000 });
     } finally {
       window.removeEventListener('beforeunload', guard);
       releaseReloadHold();
@@ -6757,7 +6759,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               await refreshBoards();
               logEvent(EV.FOLDER_IMPORT_UNDO, { board_id: targetBoardId, n_clusters: nClusters });
             } catch (e) {
-              feedback.toast({ type: 'error', message: 'Undo failed — the clusters are still in the sidebar: ' + (e?.message || e) });
+              feedback.toast({ type: 'error', code: 'folder_import_undo_failed', message: 'Undo failed — the clusters are still in the sidebar: ' + (e?.message || e) });
             }
           },
         },
@@ -7899,9 +7901,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     (async () => {
       try {
         const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Showcase preview', view: 'canvas', userId: user.id });
-        if (!b?.id) { feedback.toast({ type: 'error', message: 'Showcase preview: could not create the cluster.' }); return; }
+        if (!b?.id) { feedback.toast({ type: 'error', code: 'showcase_create_failed', message: 'Showcase preview: could not create the cluster.' }); return; }
         const res = await supabase.rpc('prepare_showcase', { p_board_id: b.id });
-        if (res.error) { feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (res.error.message || 'RPC error') }); }
+        if (res.error) { feedback.toast({ type: 'error', code: 'showcase_prepare_failed', message: 'Showcase preview failed: ' + (res.error.message || 'RPC error') }); }
         const tpl = res.data;
         if (tpl?.snapshot) {
           // Stamp the cloned cards seed:true + showcase:true (decodeShowcaseCards) so
@@ -7920,7 +7922,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // the image grant. Best-effort: if the party is unreachable, proceed.
           try { await forceResetBoardRoom(b.id); } catch (e) { console.warn('[showcasepreview] room reset failed (continuing)', e); }
         } else {
-          feedback.toast({ type: 'error', message: 'Showcase preview: no content returned (showcase disabled in config?).' });
+          feedback.toast({ type: 'error', code: 'showcase_empty', message: 'Showcase preview: no content returned (showcase disabled in config?).' });
         }
         try { await refreshBoards(); } catch (_) {}
         setStack([b.id]);
@@ -7929,7 +7931,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState({}, '', u.toString()); } catch (_) {}
       } catch (e) {
         console.error('[showcasepreview] failed', e);
-        feedback.toast({ type: 'error', message: 'Showcase preview failed: ' + (e?.message || e) });
+        feedback.toast({ type: 'error', code: 'showcase_failed', message: 'Showcase preview failed: ' + (e?.message || e) });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -8023,7 +8025,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     (async () => {
       try {
         const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Remix', view: 'canvas', userId: user.id });
-        if (!b?.id) { feedback.toast({ type: 'error', message: 'Could not start your copy — try again.' }); return; }
+        if (!b?.id) { feedback.toast({ type: 'error', code: 'remix_create_failed', message: 'Could not start your copy — try again.' }); return; }
         const res = await supabase.rpc('prepare_remix', {
           p_token: src.kind === 'token' ? src.value : null,
           p_slug:  src.kind === 'slug'  ? src.value : null,
@@ -8032,7 +8034,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const tpl = res?.data;
         if (res?.error || !tpl?.snapshot) {
           try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'prepare', reason: String(res?.error?.message || 'no_snapshot').slice(0, 120) }); } catch (_) {}
-          feedback.toast({ type: 'error', message: 'That cluster could not be copied (the link may have expired).' });
+          feedback.toast({ type: 'error', code: 'remix_prepare_failed', message: 'That cluster could not be copied (the link may have expired).' });
           try { await deleteBoard(b.id); } catch (_) {}
           return;
         }
@@ -8054,7 +8056,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (e) {
         console.error('[remix] consume failed', e);
         try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'consume', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
-        feedback.toast({ type: 'error', message: 'Could not finish your copy — try again.' });
+        feedback.toast({ type: 'error', code: 'remix_finish_failed', message: 'Could not finish your copy — try again.' });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -8090,7 +8092,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('[remix] seed failed', e);
       try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
-      feedback.toast({ type: 'error', message: 'Could not finish your copy — try again.' });
+      feedback.toast({ type: 'error', code: 'remix_seed_failed', message: 'Could not finish your copy — try again.' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId, currentYDoc, yb.ready, yb.boardId, yb.cards.length, mainMutators]);
@@ -8670,7 +8672,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             action: { label: 'Manage access', onClick: () => setShareOpen(true) }, ttl: 9000 }
         : { type: 'info', message: url, ttl: 9000 });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not create a share link — try again.' });
+      feedback.toast({ type: 'error', code: 'share_link_failed', message: 'Could not create a share link — try again.' });
     } finally {
       setQuickShareBusy(false);
     }
@@ -9425,6 +9427,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               console.error('[xbm] undo failed', undoErr);
               feedback.toast({
                 type: 'error',
+                code: 'card_xmove_undo_failed',
                 message: 'Undo failed — the pre-move snapshots are still available for recovery. ' + (undoErr.message || undoErr),
                 ttl: 8000,
               });
@@ -9583,7 +9586,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         result = await moveBoardsUnder(movable, targetId, { userId: user?.id || null, sessionId: yb?.sessionId || null });
       } catch (err) {
         console.error('[reparent] move_boards_under failed', err);
-        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'cluster_move_failed', message: 'Move failed: ' + (err.message || err) });
         clearPending(); // un-hide — the move didn't happen, restore the card
         fail(err);
         return;
@@ -9692,7 +9695,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // Stale mirror cards on the target are hidden by the orphan
               // render filter and healed by reconcile-drift on next open.
             } catch (err) {
-              feedback.toast({ type: 'error', message: 'Undo failed: ' + (err.message || err) });
+              feedback.toast({ type: 'error', code: 'cluster_move_undo_failed', message: 'Undo failed: ' + (err.message || err) });
             }
           },
         });
@@ -9922,6 +9925,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!res?.ok) {
         feedback.toast({
           type: 'error',
+          code: 'day_move_failed',
           message: res?.error === 'forbidden'
             ? 'You don’t have permission to move this day.'
             : 'Could not move that day.',
@@ -9948,7 +9952,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
     } catch (e) {
       console.error('setBoardSchedule failed', e);
-      feedback.toast({ type: 'error', message: 'Could not move that day.' });
+      feedback.toast({ type: 'error', code: 'day_move_failed', message: 'Could not move that day.' });
     }
   }, [boards, refreshBoards, feedback]);
 
@@ -10005,7 +10009,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
     } catch (e) {
       console.error('addShootDays failed', e);
-      feedback.toast({ type: 'error', message: 'Could not add those days.' });
+      feedback.toast({ type: 'error', code: 'day_add_failed', message: 'Could not add those days.' });
     }
   }, [boards, workspace?.id, user.id, refreshBoards, feedback]);
 
@@ -11298,7 +11302,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 await renameWorkspace(workspace.id, name);
                 await onWorkspacesChanged?.();
               } catch (e) {
-                feedback.toast({ type: 'error', message: 'Could not rename the workspace: ' + (e.message || e) });
+                feedback.toast({ type: 'error', code: 'workspace_rename_failed', message: 'Could not rename the workspace: ' + (e.message || e) });
               }
             }}
             onOpenBoard={(id, via) => {

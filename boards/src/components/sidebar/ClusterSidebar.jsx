@@ -478,12 +478,13 @@ export function ClusterSidebar({
         files.refresh();
         toast({
           type: 'error',
+          code: 'files_move_partial',
           message: `Moved to ${nameOf(to)}, but they’re still in ${nameOf(from)} too.`,
           action: { label: 'Finish', onClick: () => runMove({ from, to, cardIds, via: 'finish' }) },
         });
         return;
       }
-      toast({ type: 'error', message: failureMessage(r, copy ? 'copy' : 'move') });
+      toast({ type: 'error', code: 'files_move_failed', message: failureMessage(r, copy ? 'copy' : 'move') });
       return;
     }
     files.refresh();
@@ -516,7 +517,7 @@ export function ClusterSidebar({
           .then(() => logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: true }))
           .catch((e) => {
             logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: false });
-            toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' });
+            toast({ type: 'error', code: 'files_put_failed', message: e?.message || 'Those files couldn’t be put on the board.' });
           })
           .finally(() => files.refresh());
       },
@@ -536,7 +537,7 @@ export function ClusterSidebar({
           via: 'undo', copy, n: landed.length, outcome: u.ok ? 'ok' : 'failed',
           error: u.ok ? null : String(u.error || 'unknown').slice(0, 40),
         });
-        if (!u.ok) toast({ type: 'error', message: failureMessage(u, 'move') });
+        if (!u.ok) toast({ type: 'error', code: 'files_move_undo_failed', message: failureMessage(u, 'move') });
         files.refresh();
       },
     });
@@ -747,7 +748,7 @@ export function ClusterSidebar({
       clearSelection();
     } catch (e) {
       logEvent(EV.FILES_PUT, { from: via, n: list.length, ok: false });
-      toast({ type: 'error', message: e?.message || 'Those files couldn’t be put on the board.' });
+      toast({ type: 'error', code: 'files_put_failed', message: e?.message || 'Those files couldn’t be put on the board.' });
     } finally {
       putting.current = false;
       files.refresh();
@@ -773,7 +774,7 @@ export function ClusterSidebar({
       const r = await api.removeCards({ boardId, cardIds: ids });
       if (!r.ok) {
         gone({ n: ids.length, done: 0, outcome: 'failed', live: false, error: String(r.error || 'unknown').slice(0, 40) });
-        toast({ type: 'error', message: failureMessage(r, 'remove') });
+        toast({ type: 'error', code: 'files_remove_failed', message: failureMessage(r, 'remove') });
         continue;
       }
       // Say what the cluster actually let go of: a selection can outlive its
@@ -787,7 +788,7 @@ export function ClusterSidebar({
         onUndo: async () => {
           const u = await api.appendCards({ boardId, cards: r.removed || [] });
           logEvent(EV.FILES_DELETE, { undo: true, ok: !!u.ok });
-          if (!u.ok) toast({ type: 'error', message: failureMessage(u, 'move') });
+          if (!u.ok) toast({ type: 'error', code: 'files_remove_undo_failed', message: failureMessage(u, 'move') });
           files.refresh();
         },
       });

@@ -117,7 +117,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
     } catch (err) {
       console.error('[export] delivery failed', err);
       logEvent(EV.EXPORT_ERROR, { format: ext, surface: 'doc', reason: 'delivery_failed' });
-      feedback.toast({ type: 'error', message: 'Export failed — please try again.' });
+      feedback.toast({ type: 'error', code: 'doc_export_failed', message: 'Export failed — please try again.' });
     }
   };
 
@@ -196,7 +196,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
     } catch (err) {
       console.error('[export] PDF failed', err);
       logEvent(EV.EXPORT_ERROR, { format: 'pdf', surface: 'doc', doc_mode: docMode, reason: 'threw' });
-      feedback.toast({ type: 'error', message: 'Couldn’t export this document — please try again.' });
+      feedback.toast({ type: 'error', code: 'doc_pdf_export_failed', message: 'Couldn’t export this document — please try again.' });
     } finally { setBusy(false); }
   };
 
@@ -238,11 +238,11 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
         // A silent no-op here is indistinguishable from "the file was empty" —
         // the user picked a file and NOTHING happened. Say so.
         console.error('[import] screenplay parse failed', err);
-        feedback.toast({ type: 'error', message: 'Couldn’t read that file — it doesn’t look like Fountain or Final Draft.' });
+        feedback.toast({ type: 'error', code: 'screenplay_read_failed', message: 'Couldn’t read that file — it doesn’t look like Fountain or Final Draft.' });
         return;
       }
       if (!blocks.length && !titlePage) {
-        feedback.toast({ type: 'error', message: 'Nothing importable found in that file.' });
+        feedback.toast({ type: 'error', code: 'import_empty', message: 'Nothing importable found in that file.' });
         return;
       }
       if (editor) {

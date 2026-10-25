@@ -152,12 +152,26 @@ export function routeOf(url, hosts = {}) {
       : shape(parts, 2);
     return { svc: 'party', route };
   }
-  // The Worker's: /api/<area>/<action> (and /api/v1/<resource>/:x), or a
-  // page's or a file's first segment (/c/:x, /assets/:x).
+  // The Worker's: /api/<area>/<action> (and /api/v1/<resource>/:x), a chunk
+  // of the app by its name (assets/AppShell, without the build's hash), or a
+  // page's first segment (/c/:x).
   if ((hosts.app && u.host === hosts.app) || /(?:^|\.)soleilpictures\.com$/.test(u.host)) {
+    const chunk = parts[0] === 'assets' && parts.length === 2 && /^([A-Za-z][A-Za-z0-9_-]{0,60})-[A-Za-z0-9_-]{8}\.(?:js|css)$/.exec(parts[1]);
+    if (chunk) return { svc: 'worker', route: `assets/${chunk[1]}` };
     return { svc: 'worker', route: shape(parts, parts[0] === 'api' ? 3 : 1) };
   }
   return null;
+}
+
+// Every address in a message, as its service and route ('<url>' for anyone
+// else's): "Failed to fetch dynamically imported module: https://…/assets/
+// AppShell-x1.js" keeps saying which chunk, and a link's key, a cluster's
+// name or a search in a query goes no further.
+export function scrubUrls(text, hosts = {}) {
+  return String(text).replace(/\bhttps?:\/\/[^\s"'<>()[\]{}]+/g, (url) => {
+    const r = routeOf(url, hosts);
+    return r ? `${r.svc}/${r.route}` : '<url>';
+  });
 }
 
 // The error code a failed response's body names, if it names one: PostgREST's

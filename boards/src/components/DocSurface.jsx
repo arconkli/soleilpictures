@@ -1263,7 +1263,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // its caret (docExtensions/ImageUpload.js, the path a paste or drop takes).
   const pickImageFromDisk = (editor) => {
     if (!editor) return;
-    if (!workspaceId || !userId) { feedback.toast({ type: 'error', message: 'Sign in to add images.' }); return; }
+    if (!workspaceId || !userId) { feedback.toast({ type: 'error', code: 'image_needs_signin', message: 'Sign in to add images.' }); return; }
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
     input.onchange = () => {

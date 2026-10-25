@@ -100,7 +100,7 @@ export function TrashModal({ open, workspaceId = null, canPurge = false, onClose
       const capHit = /past your limit/i.test(e?.message || '');
       feedback.toast(capHit
         ? { type: 'warning', message: e.message }
-        : { type: 'error', message: 'Restore failed: ' + (e?.message || e) });
+        : { type: 'error', code: 'cluster_restore_failed', message: 'Restore failed: ' + (e?.message || e) });
     } finally {
       setBusyId(null);
     }
@@ -120,7 +120,7 @@ export function TrashModal({ open, workspaceId = null, canPurge = false, onClose
       refreshTrash();
       feedback.toast({ type: 'success', message: 'Permanently deleted.' });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Delete failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_purge_failed', message: 'Delete failed: ' + (e?.message || e) });
     } finally {
       setBusyId(null);
     }

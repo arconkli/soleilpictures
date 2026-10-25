@@ -61,7 +61,7 @@ export function BillingTab({ user }) {
     try {
       await startPortal({ surface: 'settings' });
     } catch (e) {
-      feedback.toast({ type: 'error', message: checkoutErrorMessage(e) });
+      feedback.toast({ type: 'error', code: 'billing_portal_failed', message: checkoutErrorMessage(e) });
       setBusy(false);
     }
   };

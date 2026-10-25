@@ -22,7 +22,7 @@ test('a plain move: the step’s message, once, and nothing trashed', async () =
   assert.equal(out, cause);
   assert.equal(out.createdBoardTrashed, false);
   assert.equal(trash.calls.length, 0);
-  assert.deepEqual(toast.calls, [{ type: 'error', ttl: MOVE_FAIL_TTL, message: 'Move incomplete — try again.' }]);
+  assert.deepEqual(toast.calls, [{ type: 'error', code: 'move_step_failed', ttl: MOVE_FAIL_TTL, message: 'Move incomplete — try again.' }]);
 });
 
 test('a cluster made for the move goes to the trash, and the message names it', async () => {

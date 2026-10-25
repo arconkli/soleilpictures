@@ -118,7 +118,8 @@ export function FeedbackProvider({ children }) {
   // it" toast whose work has finished. Callers that ignore it lose nothing.
   // `code`: a toast that says something failed names the failure, in
   // snake_case. It is how the failure is reported (lib/errorReporting.js),
-  // since the text can quote a name; one without a code is 'uncoded'.
+  // since the text can quote a name; one without a code is 'uncoded', and
+  // lib/errorToastContract.test.mjs fails on any error toast without one.
   const toast = useCallback(({ type = 'info', message, code = null, action = null, actions = null, ttl = 4200, onDismiss = null, group = null, groupMessage = null }) => {
     if (!message) return () => {};
     if (type === 'error' || type === 'warning') reportToast(type, code, group);

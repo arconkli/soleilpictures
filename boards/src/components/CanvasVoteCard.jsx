@@ -111,7 +111,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
       await castVote(vote.id, value);
     } catch (err) {
       setOptimistic(null); // roll back to the prop on failure
-      feedback.toast({ type: 'error', message: 'Vote failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'vote_cast_failed', message: 'Vote failed: ' + (err.message || err) });
     }
   };
 
@@ -124,7 +124,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
     const next = labelDraft.trim();
     if (next === (vote.label || '')) return;
     try { await updateVoteCard(vote.id, { label: next || null }); }
-    catch (err) { feedback.toast({ type: 'error', message: 'Save failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'vote_save_failed', message: 'Save failed: ' + (err.message || err) }); }
   };
 
   // ── Drag-to-reposition (author only) — copied from CanvasCommentBubble.
@@ -221,7 +221,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
       try {
         await updateVoteCard(vote.id, patch);
       } catch (err) {
-        feedback.toast({ type: 'error', message: 'Move failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'vote_move_failed', message: 'Move failed: ' + (err.message || err) });
         baseRef.current = {
           ox: vote.offset_x || 0, oy: vote.offset_y || 0,
           ax: vote.anchor_x || 0, ay: vote.anchor_y || 0,
@@ -244,11 +244,11 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
         message: 'Vote deleted',
         onUndo: async () => {
           try { await restoreVoteCard(vote.id); }
-          catch (err) { feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'vote_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'vote_delete_failed', message: 'Delete failed: ' + (err.message || err) });
     }
   };
 

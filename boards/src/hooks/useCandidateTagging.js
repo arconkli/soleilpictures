@@ -68,7 +68,7 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
       try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: entityType, count: c.count || 0, applied }); } catch (_) {}
       notify?.({ type: 'success', message: `“${c.name}” is now a ${(entityTypeLabel(entityType) || 'tag').toLowerCase()}` });
     } catch (err) {
-      notify?.({ type: 'error', message: 'Could not create tag: ' + (err?.message || err) });
+      notify?.({ type: 'error', code: 'tag_create_failed', message: 'Could not create tag: ' + (err?.message || err) });
     } finally {
       setCandidateBusy(false);
       setCandidatePrompt(null);
@@ -92,7 +92,7 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
     } catch (err) {
       // Unique violation (already dismissed) is fine; surface anything else.
       if (err?.code && err.code !== '23505') {
-        notify?.({ type: 'error', message: 'Could not dismiss: ' + (err?.message || err) });
+        notify?.({ type: 'error', code: 'tag_dismiss_failed', message: 'Could not dismiss: ' + (err?.message || err) });
       }
     } finally {
       try { logEvent(EV.TAG_CANDIDATE_DISMISS, { count: c.count || 0 }); } catch (_) {}

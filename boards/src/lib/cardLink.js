@@ -16,6 +16,6 @@ export async function copyCardLink(cardId, boardId, feedback) {
     await navigator.clipboard.writeText(cardLinkUrl(window.location.href, boardId, cardId));
     feedback?.toast?.({ type: 'success', message: 'Link copied' });
   } catch (_) {
-    feedback?.toast?.({ type: 'error', message: 'Could not copy link' });
+    feedback?.toast?.({ type: 'error', code: 'link_copy_failed', message: 'Could not copy link' });
   }
 }

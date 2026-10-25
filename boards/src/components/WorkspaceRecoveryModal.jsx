@@ -116,7 +116,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
   const runPreview = async (iso = localToIso(targetLocal)) => {
     if (!workspaceId) return;
     if (!iso) {
-      feedback.toast({ type: 'error', message: 'Invalid timestamp' });
+      feedback.toast({ type: 'error', code: 'rewind_bad_time', message: 'Invalid timestamp' });
       return;
     }
     const seq = ++previewSeq.current;
@@ -157,7 +157,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       .filter((r) => selectedIds.has(r.board_id) && r.target_snapshot_id != null)
       .map((r) => ({ board_id: r.board_id, snapshot_id: r.target_snapshot_id }));
     if (targets.length === 0) {
-      feedback.toast({ type: 'error', message: 'No clusters selected for rewind' });
+      feedback.toast({ type: 'error', code: 'rewind_none_selected', message: 'No clusters selected for rewind' });
       return;
     }
     const ok = await feedback.confirm({
@@ -181,7 +181,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       setAlerts(fresh);
     } catch (e) {
       console.error(e);
-      feedback.toast({ type: 'error', message: 'Rewind failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'rewind_failed', message: 'Rewind failed: ' + (e?.message || e) });
     } finally {
       setBusy(false);
     }
@@ -192,7 +192,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       await acknowledgeAlert(alertId);
       setAlerts((prev) => prev.map((a) => a.id === alertId ? { ...a, acknowledged_at: new Date().toISOString() } : a));
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not acknowledge: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'alert_ack_failed', message: 'Could not acknowledge: ' + (e?.message || e) });
     }
   };
 

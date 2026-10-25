@@ -96,7 +96,7 @@ function ScoutSection({ user }) {
       await navigator.clipboard.writeText(code);
       feedback.toast({ type: 'success', message: 'Code copied.' });
     } catch (_) {
-      feedback.toast({ type: 'error', message: 'Couldn’t copy — select the code and copy it manually.' });
+      feedback.toast({ type: 'error', code: 'code_copy_failed', message: 'Couldn’t copy — select the code and copy it manually.' });
     }
   };
 
@@ -251,7 +251,7 @@ function ConnectedApps({ user, feedback }) {
     if (!ok) return;
     const { error } = await supabase.rpc('oauth_connection_revoke', { p_id: row.id });
     if (error) {
-      feedback.toast({ type: 'error', message: 'Could not disconnect that app.' });
+      feedback.toast({ type: 'error', code: 'app_disconnect_failed', message: 'Could not disconnect that app.' });
       return;
     }
     feedback.toast({ type: 'success', message: `Disconnected ${row.client_name}.` });
@@ -339,7 +339,7 @@ function ApiSection({ user }) {
     });
     setMinting(false);
     if (error) {
-      feedback.toast({ type: 'error', message: error.message || 'Could not create that token.' });
+      feedback.toast({ type: 'error', code: 'token_create_failed', message: error.message || 'Could not create that token.' });
       return;
     }
     const row = Array.isArray(data) ? data[0] : data;
@@ -362,7 +362,7 @@ function ApiSection({ user }) {
     if (!ok) return;
     const { error } = await supabase.rpc('api_token_revoke', { p_id: id });
     if (error) {
-      feedback.toast({ type: 'error', message: 'Could not revoke that token.' });
+      feedback.toast({ type: 'error', code: 'token_revoke_failed', message: 'Could not revoke that token.' });
       return;
     }
     feedback.toast({ type: 'success', message: `Revoked ${label}. It stops working immediately.` });
@@ -374,7 +374,7 @@ function ApiSection({ user }) {
       await navigator.clipboard.writeText(text);
       feedback.toast({ type: 'success', message: `${what} copied.` });
     } catch (_) {
-      feedback.toast({ type: 'error', message: `Couldn’t copy — select the ${what.toLowerCase()} and copy it manually.` });
+      feedback.toast({ type: 'error', code: 'value_copy_failed', message: `Couldn’t copy — select the ${what.toLowerCase()} and copy it manually.` });
     }
   };
 

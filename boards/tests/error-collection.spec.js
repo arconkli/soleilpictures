@@ -57,6 +57,11 @@ test('each kind of failure lands as a row, with its trail and none of the conten
     img.src = '/qa-missing.png';
     document.body.append(img);
     console.error('qa console label', new Error('qa console error'));
+    // A rejection whose reason is a PostgrestError's shape: its details (the
+    // refused row) must not come through.
+    Promise.reject({ message: 'permission denied for table cards', code: '42501', details: `Failing row contains (${secret})` });
+    // An address in a message: the chunk's name stays, the link's key goes.
+    setTimeout(() => { throw new Error('Failed to fetch https://clusters.soleilpictures.com/s/AbCdEf123456?x=1'); }, 0);
     window.__soleilToast({ type: 'error', message: `Couldn't save ${secret}`, code: 'qa_toast_failed' });
   }, SECRET);
 
@@ -74,6 +79,13 @@ test('each kind of failure lands as a row, with its trail and none of the conten
   const img = await rowWhere(page, 'a picture that did not load', (r) => r.kind === 'resource');
   expect(img.message).toBe('img worker/:x .png did not load');
   expect(img.severity).toBe('warning');
+
+  const rejected = await rowWhere(page, 'an unhandled rejection', (r) => r.kind === 'unhandledrejection' && /42501/.test(r.message));
+  expect(rejected.message).toBe('Unhandled rejection: permission denied for table cards code=42501');
+  expect(rejected.name).toBe('PostgrestError');
+
+  const scrubbed = await rowWhere(page, 'an address in a message', (r) => r.kind === 'window' && /^Failed to fetch/.test(r.message));
+  expect(scrubbed.message).toBe('Failed to fetch worker/s/:x');
 
   const logged = await rowWhere(page, 'a logged Error', (r) => r.kind === 'console' && r.message === 'qa console error');
   expect(logged.context.op).toBe('qa console label');

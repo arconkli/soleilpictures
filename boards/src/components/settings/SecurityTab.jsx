@@ -62,7 +62,7 @@ export function SecurityTab() {
     try {
       setData(await securityOverview());
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not load security: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'security_load_failed', message: 'Could not load security: ' + (e.message || e) });
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export function SecurityTab() {
       feedback.toast({ type: 'success', message: typeof success === 'function' ? success(result) : success });
       await load();
     } catch (e) {
-      feedback.toast({ type: 'error', message: e.message || String(e) });
+      feedback.toast({ type: 'error', code: 'security_action_failed', message: e.message || String(e) });
     } finally {
       setBusy(false);
     }

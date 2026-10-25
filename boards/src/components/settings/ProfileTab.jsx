@@ -54,7 +54,7 @@ export function ProfileTab({ user, workspaceId, onSaved }) {
         setSaved({ name: n, color: c, avatarUrl: a });
       })
       .catch(() => {
-        feedback.toast({ type: 'error', message: 'Could not load profile.' });
+        feedback.toast({ type: 'error', code: 'profile_load_failed', message: 'Could not load profile.' });
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -104,7 +104,7 @@ export function ProfileTab({ user, workspaceId, onSaved }) {
       // Uploader uses presign-by-workspace because R2 keys are scoped
       // to a workspace for RLS. Without an active workspace we can't
       // ask for an upload URL.
-      feedback.toast({ type: 'error', message: 'Open a workspace before uploading a profile picture.' });
+      feedback.toast({ type: 'error', code: 'avatar_needs_workspace', message: 'Open a workspace before uploading a profile picture.' });
       return;
     }
     setUploadingAvatar(true);
@@ -118,7 +118,7 @@ export function ProfileTab({ user, workspaceId, onSaved }) {
       setAvatarUrl(src || '');
       await commitAvatar(src || '');
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'avatar_upload_failed', message: 'Upload failed: ' + (err.message || err) });
     } finally {
       setUploadingAvatar(false);
     }

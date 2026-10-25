@@ -68,7 +68,7 @@ export function DeleteAccount({ email }) {
     try {
       setImpact(await getDeletionImpact());
     } catch (_) {
-      feedback.toast({ type: 'error', message: 'Could not work out what deleting would affect. Try again in a moment.' });
+      feedback.toast({ type: 'error', code: 'account_impact_failed', message: 'Could not work out what deleting would affect. Try again in a moment.' });
       setOpen(false);
     } finally {
       setLoading(false);
@@ -95,7 +95,7 @@ export function DeleteAccount({ email }) {
       await deleteOwnAccount({ confirmEmail: typed.trim() });
       await signOutAfterDeletion();
     } catch (err) {
-      feedback.toast({ type: 'error', message: err.message || 'Could not delete your account.' });
+      feedback.toast({ type: 'error', code: 'account_delete_failed', message: err.message || 'Could not delete your account.' });
       setBusy(false);
     }
   };

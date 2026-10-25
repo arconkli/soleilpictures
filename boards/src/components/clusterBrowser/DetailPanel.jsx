@@ -214,7 +214,7 @@ export function DetailPanel({
     try {
       await downloadCardAsset(card, item.kind, { surface: 'cluster_browser' });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
     }
   };
   const location = boards[item.boardId]?.name || null;

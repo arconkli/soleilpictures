@@ -77,7 +77,7 @@ export function WorkspaceGeneralTab({
       });
       await setIcon(src);
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'workspace_icon_failed', message: 'Upload failed: ' + (err.message || err) });
     } finally {
       setUploadingIcon(false);
     }

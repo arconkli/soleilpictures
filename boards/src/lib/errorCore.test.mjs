@@ -16,7 +16,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   ERROR_CONTEXT_KEYS, ERROR_HTTP_KEYS, errorContext, dedupeKey, crumbNames,
-  routeOf, bodyCode, classifyHttpFailure,
+  routeOf, bodyCode, classifyHttpFailure, scrubUrls,
 } from './errorCore.js';
 import { isNoise, isBotUA } from './errorNoise.js';
 import { crumb, crumbsSnapshot, __resetCrumbsForTest } from './errorCrumbs.js';
@@ -51,7 +51,10 @@ test('a request is named by its service and its route, never by what is in it', 
     ['/api/og?url=https%3A%2F%2Fexample.com%2Fsecret', 'worker/api/og'],
     ['/c/my-wedding-plans', 'worker/c/:x'],
     ['/share/Xk3jT9qLmN2p', 'worker/share/:x'],
-    ['/assets/index-BJXXWrDl.js', 'worker/assets/:x'],
+    ['/assets/index-BJXXWrDl.js', 'worker/assets/index'],
+    ['/assets/vendor-react-xzG6aVBS.js', 'worker/assets/vendor-react'],
+    ['/assets/FeedbackOverlay-DXqqNEIM.css', 'worker/assets/FeedbackOverlay'],
+    ['/assets/holiday-photo.png', 'worker/assets/:x'],
     ['https://soleilpictures.com/', 'worker//'],
   ];
   for (const [url, want] of cases) assert.equal(route(url), want, url);
@@ -78,6 +81,15 @@ test('a route never keeps a slug, a token, an id or a file name, however plain i
     for (const s of secrets) assert.ok(!r.route.includes(s), `${url} kept "${s}" in ${r.route}`);
     assert.doesNotMatch(r.route, /\d(?<!v\d)/, `${url}: a digit outside v1 is an id: ${r.route}`);
   }
+});
+
+test('an address in a message becomes its service and route', () => {
+  assert.equal(scrubUrls('Failed to fetch dynamically imported module: https://clusters.soleilpictures.com/assets/AppShell-BCWNygQL.js', HOSTS),
+    'Failed to fetch dynamically imported module: worker/assets/AppShell');
+  assert.equal(scrubUrls(`GET ${SB}/rest/v1/boards?name=eq.Wedding%20plans failed`, HOSTS), 'GET rest/boards failed');
+  assert.equal(scrubUrls('HTTP 404 https://clusters.soleilpictures.com/s/AbCdEf123456', HOSTS), 'HTTP 404 worker/s/:x');
+  assert.equal(scrubUrls('blocked (https://example.com/track?u=secret)', HOSTS), 'blocked (<url>)');
+  assert.equal(scrubUrls('no address here', HOSTS), 'no address here');
 });
 
 const fail = (over) => classifyHttpFailure({ method: 'GET', status: 500, ms: 120, online: true, ...over }, HOSTS);

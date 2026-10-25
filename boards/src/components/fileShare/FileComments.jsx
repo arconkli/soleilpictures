@@ -226,19 +226,19 @@ export function FileComments({
 
   const resolve = async (c) => {
     const { error } = await api.resolveFileComment(c.id, !c.resolved);
-    if (error) feedback?.toast?.({ type: 'error', message: friendlyShareError(error) });
+    if (error) feedback?.toast?.({ type: 'error', code: 'file_comment_resolve_failed', message: friendlyShareError(error) });
     load();
   };
 
   const remove = async (c) => {
     const { error } = await api.deleteFileComment(c.id);
-    if (error) { feedback?.toast?.({ type: 'error', message: friendlyShareError(error) }); return; }
+    if (error) { feedback?.toast?.({ type: 'error', code: 'file_comment_delete_failed', message: friendlyShareError(error) }); return; }
     load();
     undoToast(feedback, {
       message: 'Comment deleted',
       onUndo: async () => {
         const r = await api.restoreFileComment(c.id);
-        if (r?.error) feedback?.toast?.({ type: 'error', message: friendlyShareError(r.error) });
+        if (r?.error) feedback?.toast?.({ type: 'error', code: 'file_comment_restore_failed', message: friendlyShareError(r.error) });
         load();
       },
     });

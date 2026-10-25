@@ -227,7 +227,7 @@ export function VersionHistoryModal({
       onRestored?.();
       onClose?.();
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Restore failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'version_restore_failed', message: 'Restore failed: ' + (e?.message || e) });
     } finally {
       setBusy(false);
     }
@@ -257,7 +257,7 @@ export function VersionHistoryModal({
       onRestored?.();
       setMeta(await listBoardMetaHistory(boardId).catch(() => meta));
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Revert failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'version_revert_failed', message: 'Revert failed: ' + (e?.message || e) });
     } finally {
       setBusy(false);
     }

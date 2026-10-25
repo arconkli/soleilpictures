@@ -52,10 +52,10 @@ export async function importDroppedScripts(files, { addScriptCard, pos = null, s
     parsed = mod.parseScriptText(await file.text(), file?.name || '');
   } catch (err) {
     console.error('[drop] screenplay parse failed', err);
-    toast?.({ type: 'error', message: SCRIPT_UNREADABLE });
+    toast?.({ type: 'error', code: 'screenplay_read_failed', message: SCRIPT_UNREADABLE });
     return null;
   }
-  if (mod.isEmptyScript(parsed)) { toast?.({ type: 'error', message: SCRIPT_EMPTY }); return null; }
+  if (mod.isEmptyScript(parsed)) { toast?.({ type: 'error', code: 'import_empty', message: SCRIPT_EMPTY }); return null; }
   const id = addScriptCard?.(pos, { title: parsed.title, script: { titlePage: parsed.titlePage, body: mod.scriptBody(parsed) } });
   if (!id) return null;
   try { logEvent(EV.SCRIPT_IMPORTED, { source, format: parsed.format, blocks: parsed.blocks.length }); } catch (_) {}

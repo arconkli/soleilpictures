@@ -143,7 +143,7 @@ export async function startBulkImport(input, env) {
     if (zips.length && !stopped) unzipped = await readZips(zips, { signal: reader.signal, onProgress: show, limits: env.limits });
   } catch (e) {
     env.drop(key);
-    env.toast({ type: 'error', message: `The ${kind} could not be read: ${e?.message || e}`, ttl: 8000 });
+    env.toast({ type: 'error', code: 'import_read_failed', message: `The ${kind} could not be read: ${e?.message || e}`, ttl: 8000 });
     return { loose: [], key: null };
   }
   // What isn't part of the tree is added the ordinary way: files beside the
@@ -384,7 +384,7 @@ export async function startBulkImport(input, env) {
   } catch (e) {
     turn.free();
     env.drop(key);
-    env.toast({ type: 'error', message: `The import could not start: ${e?.message || e}`, ttl: 8000 });
+    env.toast({ type: 'error', code: 'import_start_failed', message: `The import could not start: ${e?.message || e}`, ttl: 8000 });
     return { loose, key: null };
   }
 }

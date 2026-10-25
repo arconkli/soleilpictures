@@ -49,8 +49,8 @@ test('a refused new chat is explained', () => {
   assert.match(startChatErrorMessage(new TypeError('Failed to fetch')), /Check your connection/);
   assert.equal(startChatErrorMessage(null, { group: true }), "Couldn't create the group — try again.");
   const picker = readFileSync(new URL('../components/NewConversationPicker.jsx', import.meta.url), 'utf8');
-  assert.match(picker, /feedback\.toast\(\{ type: 'error', message: startChatErrorMessage\(e\) \}\)/);
-  assert.match(picker, /feedback\.toast\(\{ type: 'error', message: startChatErrorMessage\(e, \{ group: true \}\) \}\)/);
+  assert.match(picker, /feedback\.toast\(\{ type: 'error', code: 'chat_start_failed', message: startChatErrorMessage\(e\) \}\)/);
+  assert.match(picker, /feedback\.toast\(\{ type: 'error', code: 'group_create_failed', message: startChatErrorMessage\(e, \{ group: true \}\) \}\)/);
 });
 
 test('App passes the role-based answer, with no plan branch left', () => {

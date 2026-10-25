@@ -31,11 +31,11 @@ export function DocStarters({ editor, paperRef, ydoc, scope, pageId, onScreenpla
       let parsed;
       try { parsed = parseScriptText(await f.text(), f.name); } catch (err) {
         console.error('[import] screenplay parse failed', err);
-        feedback.toast({ type: 'error', message: 'Couldn’t read that file — it doesn’t look like Fountain or Final Draft.' });
+        feedback.toast({ type: 'error', code: 'screenplay_read_failed', message: 'Couldn’t read that file — it doesn’t look like Fountain or Final Draft.' });
         return;
       }
       if (isEmptyScript(parsed)) {
-        feedback.toast({ type: 'error', message: 'Nothing importable found in that file.' });
+        feedback.toast({ type: 'error', code: 'import_empty', message: 'Nothing importable found in that file.' });
         return;
       }
       if (getDocMode(ydoc, scope) !== 'screenplay') switchDocMode(ydoc, scope, 'screenplay');

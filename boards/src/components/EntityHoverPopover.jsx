@@ -216,7 +216,7 @@ export function EntityHoverPopover({
       if (error && error.code !== '23505') throw error;
       feedback?.toast?.({ type: 'success', message: okMessage });
     } catch (_) {
-      feedback?.toast?.({ type: 'error', message: 'Could not save that' });
+      feedback?.toast?.({ type: 'error', code: 'term_save_failed', message: 'Could not save that' });
     }
     onClose?.();
   };
@@ -363,7 +363,7 @@ export function EntityHoverPopover({
               await navigator.clipboard.writeText(url);
               feedback?.toast?.({ type: 'success', message: 'Link copied' });
             } catch (_) {
-              feedback?.toast?.({ type: 'error', message: 'Could not copy the link' });
+              feedback?.toast?.({ type: 'error', code: 'link_copy_failed', message: 'Could not copy the link' });
             }
             onClose?.();
           }}

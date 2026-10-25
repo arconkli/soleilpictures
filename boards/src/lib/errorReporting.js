@@ -25,11 +25,8 @@ const PUBLIC_KEY  = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
                  || import.meta.env.VITE_SUPABASE_ANON_KEY;
 const SESSION_KEY = 'soleil_session_id';   // shared with analytics.js → stitch errors to the funnel
 const RELEASE     = import.meta.env.VITE_RELEASE || null;
-
-// describeReason lives in its own module: this file reads import.meta.env at
-// module scope, which makes it unimportable from `node --test`. Re-exported
-// here so `import { describeReason } from './errorReporting.js'` keeps working.
-export { describeReason } from './describeReason.js';
+// A load still on a splash this long after the navigation is stuck.
+const BOOT_STUCK_MS = 45_000;
 
 let cachedUserId = null;
 let sender = null;
@@ -124,7 +121,9 @@ export function postPerfIncident(bucket, context = {}) {
   try { hand({ t: 'perf', bucket, context, m: moment() }); } catch (_) {}
 }
 
-// Installed once from main.jsx, before anything renders.
+// Installed once from main.jsx, before anything renders: uncaught errors and
+// rejections, failed requests, files that didn't load, logged Errors, a boot
+// that never finishes, and the steps before each.
 export function installErrorWatch() {
   if (typeof window === 'undefined') return;
   installNetWatch((f) => {
@@ -135,9 +134,15 @@ export function installErrorWatch() {
   });
   // A file, picture, film or script that failed to load fires `error` on its
   // element, which doesn't bubble: only a capture listener on window hears it.
+  // An uncaught exception arrives here too, on window itself.
   window.addEventListener('error', (e) => {
     if (e.target && e.target.tagName) hand({ t: 'res', el: e.target, m: moment() });
+    else reportError(e.error || new Error(e.message || 'window.onerror'), { kind: 'window' });
   }, true);
+  // A rejection nobody caught. Its reason is often not an Error (a
+  // PostgrestError, a Response, a CloseEvent): errorSender unpacks it
+  // (describeReason.js) rather than this chunk carrying that.
+  window.addEventListener('unhandledrejection', (e) => reportError(e.reason || String(e.reason), { kind: 'unhandledrejection' }));
   // console.error holding an Error: the long tail of failures that are logged
   // and nothing else.
   const logError = console.error;
@@ -158,4 +163,10 @@ export function installErrorWatch() {
     if (sender) sender.flush();
     else sendDirect(waiting.splice(0));
   });
+  // React clears #boot-splash on its first render, and .auth-loading is the
+  // splash every loading step after that shows (AuthGate, TierRouter, App).
+  // The sender says how far the boot got (lib/bootMarks.js).
+  setTimeout(() => {
+    if (document.querySelector('#boot-splash, .auth-loading')) hand({ t: 'boot', m: moment() });
+  }, BOOT_STUCK_MS);
 }
