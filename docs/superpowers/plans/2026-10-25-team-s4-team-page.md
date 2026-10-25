@@ -216,7 +216,7 @@ this hunk (read back byte for byte), then apply 0541.
 
 ## Task 10: proof and the walk-through
 
-- [ ] `tests/team-live.spec.js` (route mocks): setup to Stripe and back, a verify that waits, adding a
+- [x] (team-live.spec.js, stubbed Supabase) `tests/team-live.spec.js` (route mocks): setup to Stripe and back, a verify that waits, adding a
   seat with its price, the portal, an invite, the join card.
 - [ ] Probe G passes on live; the owner's go adds their test account to `teams_open.test_owner_ids`.
 - [ ] The owner's walk-through on preview (S3 Task 5): buy with the trial, add a seat, open the portal,
