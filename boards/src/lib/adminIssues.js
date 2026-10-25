@@ -57,6 +57,7 @@ const KIND_LABELS = {
   upload: 'Upload failed',
   viewer: "Couldn't show a file",
   import: 'Import stopped',
+  page_crash: 'Page crashed',
   warn: 'Warning',
   route: 'Route failed',
   api: 'API failed',

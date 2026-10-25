@@ -2,7 +2,7 @@
 
 > Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
-_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-25_
 
 ## Who can see a board
 
@@ -119,6 +119,11 @@ cluster opened, an upload started, an error shown. Never what was in them.
   its words, which can quote a cluster's or a file's name.
 - A request is recorded by its service and route, never its address, which can
   hold a private link's key or a cluster's name.
+- A page that crashes (it ran out of memory, say) can't say so itself, so the
+  app keeps a note in that tab's session storage of when the page opened and
+  whether it was on screen, and a page that closes normally takes it away. The
+  next page in the tab that finds one records that the page before it crashed,
+  and how long it had been open.
 
 Clusters' own servers record their failures the same way: which route,
 background job or live sync room failed (a room by its cluster's id, never its

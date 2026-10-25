@@ -65,6 +65,7 @@ import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
 import { reportError } from './lib/errorReporting.js';
+import { startPageLife } from './lib/pageLife.js';
 import { bootMark, bootAt, bootDetail, onBootMark } from './lib/bootMarks.js';
 import { afterBoot } from './lib/afterBoot.js';
 import { takeBootRoot, bootPrefetchLanding } from './lib/bootPrefetch.js';
@@ -76,6 +77,14 @@ import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 // Post-signup journey emitter wiring (see TierRouter for the rationale — journey.js
 // stays node-importable so it can't import analytics.js itself). Idempotent.
 setJourneySink({ logEvent, logEventNow });
+// A page that died on screen (out of memory, its renderer gone), noticed by the
+// load after it in the same tab (lib/pageLife.js).
+if (typeof window !== 'undefined') {
+  try {
+    startPageLife({ store: window.sessionStorage, doc: document, win: window,
+      report: (ms) => reportError(new Error('Page died on screen'), { kind: 'page_crash', severity: 'crash', context: { ms } }) });
+  } catch (_) { /* no session storage here: nothing to keep a note in */ }
+}
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
 import { onSoleilInk } from './lib/accentInk.js';
 import { applyWheelModeNow, getWheelMode } from './lib/wheelMode.js';
@@ -1516,6 +1525,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     onBootMark('image', send);
     setTimeout(send, 15_000);
   }, [yb.ready, yb.boardId, yb.cards, yb.paintSource, stack]);
+  // A cluster opened and still not on screen 45 s later, in front of someone
+  // online the whole time, is stuck, whatever held it: the room, the
+  // snapshot, a decode. yPartyKit and yboard say why when they know; this
+  // says that it happened, once an opening. The load's first cluster is the
+  // app not opening (op boot, as a boot stuck on its splash is: 0581 reads it
+  // so); any later one is that cluster.
+  useEffect(() => {
+    if (landingPending || (yb.ready && yb.boardId === currentBoard.id)) return undefined;
+    let away = document.visibilityState !== 'visible' || !navigator.onLine;
+    const leave = () => { away = true; };
+    document.addEventListener('visibilitychange', leave);
+    window.addEventListener('offline', leave);
+    const t = setTimeout(() => {
+      if (away) return;
+      reportError(new Error('Cluster still opening after 45s'), {
+        kind: 'stuck', severity: 'error', op: bootAt('paint') == null ? 'boot' : 'board_open', context: { board_id: currentBoard.id },
+      });
+    }, 45_000);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('visibilitychange', leave);
+      window.removeEventListener('offline', leave);
+    };
+  }, [landingPending, currentBoard.id, yb.ready, yb.boardId]);
   useEffect(() => { warmFirstClicks(); }, []);
 
   // Avatar-click → open DM with a workspace member. Exposed via context.

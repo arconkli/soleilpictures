@@ -168,3 +168,27 @@ test('a live-updates channel that times out is one row, named by its leading wor
   expect(rows.filter((r) => r.message === 'Live updates timed out')).toHaveLength(1);
   expect(JSON.stringify(rows.filter((r) => r.kind === 'realtime'))).not.toContain('6f1d2c3b');
 });
+
+test('a page that died on screen is recorded by the load after it, and a reload is not one', async ({ page }) => {
+  // The note a page leaves when it dies without leaving (lib/pageLife.js): it
+  // opened at 1000 and last looked a minute later, on screen.
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('qa.died')) {
+      sessionStorage.setItem('qa.died', '1');
+      sessionStorage.setItem('soleil.page', '1000 61000 visible');
+    }
+  });
+  await page.goto('/?local=1&reset=1&blank=1');
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  const died = await rowWhere(page, 'a page that died on screen', (r) => r.kind === 'page_crash');
+  expect(died.message).toBe('Page died on screen');
+  expect(died.severity).toBe('crash');
+  expect(died.context).toMatchObject({ ms: 60_000 });
+  // This page keeps its own note now. A reload leaves as pages leave, so the
+  // page after it records nothing.
+  expect(await page.evaluate(() => sessionStorage.getItem('soleil.page'))).toMatch(/^\d+ \d+ visible$/);
+  await page.reload();
+  await expect(page.locator('.rail-brand')).toBeVisible();
+  await page.waitForTimeout(2500);
+  expect((await sink(page)).filter((r) => r.kind === 'page_crash')).toEqual([]);
+});

@@ -45647,6 +45647,12 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": "A request is recorded by its service and route, never its address, which can hold a private link's key or a cluster's name."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A page that crashes (it ran out of memory, say) can't say so itself, so the app keeps a note in that tab's session storage of when the page opened and whether it was on screen, and a page that closes normally takes it away. The next page in the tab that finds one records that the page before it crashed, and how long it had been open."
+     }
     ]
    ]
   },
