@@ -105,3 +105,6 @@ tag off stays off under the tag it merged into.
 - **[`⌘K`](/docs/organize/search)** finds tags by name, and `#` with a tag's
   name lists everything carrying it
 - The **tag page** is the full browse
+
+Scripts and AI assistants read and apply tags the same way, through the
+[Tags API](/docs/api/tags) and the [MCP server](/docs/mcp).

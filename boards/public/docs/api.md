@@ -53,6 +53,10 @@ permissions to drift out of step with app permissions.
 | `PATCH /boards/:id/comments` | Resolve or reopen several threads at once |
 | `PATCH /boards/:id/comments/:commentId` | Resolve or reopen a thread |
 | `DELETE /boards/:id/comments/:commentId` | Delete your own comment — restorable on the canvas |
+| `GET /workspaces/:id/tags` | A workspace's [tags](/docs/api/tags), each with how many things carry it |
+| `GET /tags/:id` | Everything carrying a tag, on every board |
+| `GET /boards/:id/tags` | The tags on a board, and what carries each |
+| `POST /boards/:id/tags` | Put tags on cards or take them off, by name or id |
 | `POST /uploads` | [Upload an image](/docs/api/images), get a key back |
 | `GET /images/:key` | Read an image back |
 | `GET /resolve` | Find an object by a [foreign identifier](/docs/api/metadata) |

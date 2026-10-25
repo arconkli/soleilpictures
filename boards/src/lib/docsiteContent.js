@@ -30644,6 +30644,45 @@ export const DOCS_CONTENT = {
      }
     ]
    ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scripts and AI assistants read and apply tags the same way, through the "
+    },
+    {
+     "t": "link",
+     "v": "Tags API",
+     "href": "/docs/api/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tags API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the "
+    },
+    {
+     "t": "link",
+     "v": "MCP server",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP server"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
   }
  ],
  "/docs/organize/links-and-mentions": [
@@ -47321,6 +47360,77 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "GET /workspaces/:id/tags"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A workspace's "
+      },
+      {
+       "t": "link",
+       "v": "tags",
+       "href": "/docs/api/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tags"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", each with how many things carry it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /tags/:id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everything carrying a tag, on every board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/tags"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The tags on a board, and what carries each"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/tags"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Put tags on cards or take them off, by name or id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "POST /uploads"
       }
      ],
@@ -58577,6 +58687,661 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/api/tags": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A workspace's "
+    },
+    {
+     "t": "link",
+     "v": "tags",
+     "href": "/docs/organize/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "tags"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are read and applied here. Everything runs as you, so the API does with a tag exactly what the app does."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /workspaces/:id/tags",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /workspaces/:id/tags"
+    }
+   ],
+   "id": "get-workspaces-id-tags"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The workspace's tags, by name."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"workspace_id\": \"5b2e…\",\n  \"tags\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"color\": null, \"entity_type\": \"setting\",\n      \"description\": null, \"items\": 14, \"created_at\": \"2026-09-30T18:02:11Z\" }\n  ],\n  \"limit\": 100, \"offset\": 0, \"has_more\": false\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "items"
+    },
+    {
+     "t": "text",
+     "v": " is how many things carry the tag, the number the sidebar shows (null when it can't be counted just then). "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " is the one picked in the app, or null for the colour it gives the tag from its name. "
+    },
+    {
+     "t": "code",
+     "v": "entity_type"
+    },
+    {
+     "t": "text",
+     "v": " is one of "
+    },
+    {
+     "t": "code",
+     "v": "character"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "setting"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "organization"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "concept"
+    },
+    {
+     "t": "text",
+     "v": " (Topic, in the app) and "
+    },
+    {
+     "t": "code",
+     "v": "thing"
+    },
+    {
+     "t": "text",
+     "v": ", or null."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "name"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Just the tag of that name, in any case"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "limit"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tags per page: 100 by default, at most 500"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "offset"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Where the page starts"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /tags/:id",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /tags/:id"
+    }
+   ],
+   "id": "get-tags-id"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everything carrying a tag, on every board in its workspace, the most recently tagged first: the tag's page, as data."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"tag\": { \"id\": \"0c9a…\", \"name\": \"Diner\", \"workspace_id\": \"5b2e…\", \"…\": \"…\" },\n  \"items\": [\n    { \"kind\": \"card\", \"card_kind\": \"image\", \"board_id\": \"9f1c…\", \"board_name\": \"Locations\",\n      \"card_id\": \"c-3\", \"title\": \"Booth, night\", \"excerpt\": null,\n      \"auto\": false, \"tagged_at\": \"2026-10-20T09:14:02Z\", \"url\": \"https://…\" },\n    { \"kind\": \"doc_page\", \"board_id\": \"9f1c…\", \"card_id\": \"d-4\", \"page_id\": \"p-2\",\n      \"title\": \"Opening\", \"excerpt\": \"INT. DINER — NIGHT…\", \"auto\": true, \"…\": \"…\" }\n  ],\n  \"has_more\": false\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each item's "
+    },
+    {
+     "t": "code",
+     "v": "kind"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "card"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " (with "
+    },
+    {
+     "t": "code",
+     "v": "group_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "cards"
+    },
+    {
+     "t": "text",
+     "v": ", how many cards it holds), "
+    },
+    {
+     "t": "code",
+     "v": "board"
+    },
+    {
+     "t": "text",
+     "v": " (a whole cluster), or "
+    },
+    {
+     "t": "code",
+     "v": "doc_page"
+    },
+    {
+     "t": "text",
+     "v": " (a page of a doc, with "
+    },
+    {
+     "t": "code",
+     "v": "card_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "page_id"
+    },
+    {
+     "t": "text",
+     "v": "). "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " marks what was tagged automatically rather than by a person, and "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens it in the app. "
+    },
+    {
+     "t": "code",
+     "v": "limit"
+    },
+    {
+     "t": "text",
+     "v": " takes 100 by default, at most 500."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/tags",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/tags"
+    }
+   ],
+   "id": "get-boards-id-tags"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The tags on one board, and what carries each."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"tags\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"…\": \"…\", \"on_board\": false,\n      \"cards\": [\"c-3\", \"c-7\"], \"groups\": [], \"pages\": [{ \"card_id\": \"d-4\", \"page_id\": \"p-2\" }] }\n  ],\n  \"url\": \"https://…\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "on_board"
+    },
+    {
+     "t": "text",
+     "v": " is true when the board itself carries the tag, and each list is in the order things were tagged. A card deleted from the board keeps its tags in case the delete is undone, and isn't listed; when the board can't be read just then, a "
+    },
+    {
+     "t": "code",
+     "v": "note"
+    },
+    {
+     "t": "text",
+     "v": " says deleted cards may be."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/tags",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/tags"
+    }
+   ],
+   "id": "post-boards-id-tags"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Puts tags on cards of this board and takes tags off them."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"card_ids\": [\"c-3\", \"c-7\"], \"add\": [\"Diner\", \"night exterior\"], \"remove\": [\"0c9a…\"] }"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Required. Up to 200 cards on this board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "add"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tags to put on them, up to 10: names, or ids from the lists above"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "remove"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tags to take off them, up to 10, the same way"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Send "
+    },
+    {
+     "t": "code",
+     "v": "add"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "remove"
+    },
+    {
+     "t": "text",
+     "v": ", or both. A name is matched in any case, and a leading "
+    },
+    {
+     "t": "code",
+     "v": "#"
+    },
+    {
+     "t": "text",
+     "v": " is ignored. Each works as the "
+    },
+    {
+     "t": "strong",
+     "v": "Tag…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tag…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu does:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A name the workspace has no tag for",
+      "children": [
+       {
+        "t": "text",
+        "v": "A name the workspace has no tag for"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " makes the tag, up to 80 characters. As a tag made in the app does, it then also goes on whatever else in the workspace says its name, marked auto."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A deleted tag's name",
+      "children": [
+       {
+        "t": "text",
+        "v": "A deleted tag's name"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " brings that tag back with everything it was on, as recreating it in the app does."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Taking a tag off a card",
+      "children": [
+       {
+        "t": "text",
+        "v": "Taking a tag off a card"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " keeps it off that card for good: automatic tagging never puts it back there. Putting it on again yourself lifts that."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"added\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"…\": \"…\", \"created\": false, \"card_ids\": [\"c-7\"] },\n    { \"id\": \"77d1…\", \"name\": \"night exterior\", \"…\": \"…\", \"created\": true, \"card_ids\": [\"c-3\", \"c-7\"] }\n  ],\n  \"removed\": [{ \"id\": \"3f2b…\", \"name\": \"Day\", \"…\": \"…\", \"card_ids\": [\"c-3\"] }],\n  \"not_found\": { \"card_ids\": [], \"tags\": [] },\n  \"url\": \"https://…\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each tag's "
+    },
+    {
+     "t": "code",
+     "v": "card_ids"
+    },
+    {
+     "t": "text",
+     "v": " are the cards that changed: one that already had the tag, or never had the one taken off, isn't listed, so sending the same call twice changes nothing the second time. "
+    },
+    {
+     "t": "code",
+     "v": "created"
+    },
+    {
+     "t": "text",
+     "v": " marks a new tag and "
+    },
+    {
+     "t": "code",
+     "v": "revived: true"
+    },
+    {
+     "t": "text",
+     "v": " one brought back. An id that isn't a tag of this workspace, or a tag to take off that it doesn't have, is listed in "
+    },
+    {
+     "t": "code",
+     "v": "not_found.tags"
+    },
+    {
+     "t": "text",
+     "v": ", and a card that isn't on the board in "
+    },
+    {
+     "t": "code",
+     "v": "not_found.card_ids"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Who can do what",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can do what"
+    }
+   ],
+   "id": "who-can-do-what"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tags belong to a workspace. Its members read them; anyone who can edit the workspace tags things in it, and anyone else gets "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": ". Someone a board is shared with sees no tags. A board you can't open, or none of the cards on it, answers "
+    },
+    {
+     "t": "code",
+     "v": "404"
+    },
+    {
+     "t": "text",
+     "v": ". Tagging reads the board to find its cards: when it can't be read just then, nothing is written and the answer is "
+    },
+    {
+     "t": "code",
+     "v": "503"
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "room_unavailable"
+    },
+    {
+     "t": "text",
+     "v": ", so try again."
+    }
+   ]
+  }
+ ],
  "/docs/api/images": [
   {
    "type": "para",
@@ -64854,6 +65619,71 @@ export const DOCS_CONTENT = {
        "v": " threads, those inside its docs and notes with the text they are on"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_tags"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "workspace_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "board_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "tag?"
+      },
+      {
+       "t": "text",
+       "v": " (a name or an id), "
+      },
+      {
+       "t": "code",
+       "v": "limit?"
+      },
+      {
+       "t": "text",
+       "v": " (up to 500) — a workspace's "
+      },
+      {
+       "t": "link",
+       "v": "tags",
+       "href": "/docs/api/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tags"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", the tags on one board, or with "
+      },
+      {
+       "t": "code",
+       "v": "tag"
+      },
+      {
+       "t": "text",
+       "v": " everything carrying it"
+      }
+     ]
     ]
    ]
   },
@@ -65291,6 +66121,63 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "; lists any refused, with why"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "tag_cards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 200), "
+      },
+      {
+       "t": "code",
+       "v": "add[]?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "remove[]?"
+      },
+      {
+       "t": "text",
+       "v": " (tag names or ids, up to 10 each) — put "
+      },
+      {
+       "t": "link",
+       "v": "tags",
+       "href": "/docs/api/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tags"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on cards or take them off, as the Tag menu does; a new name makes the tag"
       }
      ]
     ],

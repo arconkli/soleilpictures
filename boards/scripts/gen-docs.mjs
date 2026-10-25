@@ -80,6 +80,7 @@ import { GALLERY } from '../src/lib/gallery.js';
 import { DOC_READ } from '../src/lib/docMarkdown.js';
 import { DOC_WRITE } from '../src/lib/docWrite.js';
 import { COMMENTS } from '../src/lib/apiComments.js';
+import { TAGS } from '../src/lib/apiTags.js';
 import { TOOLS as MCP_TOOLS, FETCH_MAX_CHARS } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
@@ -560,6 +561,12 @@ export const FACTS = {
   commentQuoteMax: String(COMMENTS.maxQuote),
   commentAnchorMax: String(COMMENTS.maxAnchor),
   commentRestoreDays: commentRestore[1],
+  // Tags over the API (lib/apiTags.js).
+  tagCardsMax: String(TAGS.maxCards),
+  tagNamesMax: String(TAGS.maxNames),
+  tagNameMax: String(TAGS.maxName),
+  tagItemsDefault: String(TAGS.defaultItems),
+  tagItemsMax: String(TAGS.maxItems),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

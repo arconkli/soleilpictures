@@ -3610,6 +3610,62 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/api/tags",
+    "title": "Tags API — List Tags and Tag Cards — Soleil Clusters",
+    "metaDescription": "List a Soleil Clusters workspace's tags over REST, see everything carrying one, and put tags on cards or take them off, by name or by id.",
+    "h1": "Tags API",
+    "answer": "GET /workspaces/:id/tags lists a workspace's tags, each with how many things carry it, and GET /tags/:id lists everything carrying one tag, on every board. GET /boards/:id/tags shows the tags on one board, and POST /boards/:id/tags puts tags on its cards or takes them off, by name or by id, exactly as the Tag menu in the app does.",
+    "section": "developers",
+    "order": 4.7,
+    "updated": "2026-10-25",
+    "navLabel": "Tags",
+    "headings": [
+      {
+        "id": "get-workspaces-id-tags",
+        "text": "GET /workspaces/:id/tags"
+      },
+      {
+        "id": "get-tags-id",
+        "text": "GET /tags/:id"
+      },
+      {
+        "id": "get-boards-id-tags",
+        "text": "GET /boards/:id/tags"
+      },
+      {
+        "id": "post-boards-id-tags",
+        "text": "POST /boards/:id/tags"
+      },
+      {
+        "id": "who-can-do-what",
+        "text": "Who can do what"
+      }
+    ],
+    "related": [
+      "/docs/organize/tags",
+      "/docs/api/cards",
+      "/docs/mcp"
+    ],
+    "faq": [
+      {
+        "q": "Does tagging a card by a new name make the tag?",
+        "a": "Yes, as typing a new name into the app's Tag menu does. The new tag then also goes on whatever else in the workspace says its name, marked auto, as a tag made in the app does."
+      },
+      {
+        "q": "Will automatic tagging put back a tag I removed?",
+        "a": "No. Taking a tag off a card over the API keeps it off that card for good, as removing it in the app does. Putting it back on yourself lifts that."
+      },
+      {
+        "q": "Who can tag things over the API?",
+        "a": "Tags belong to a workspace. Its members can read them, and anyone who can edit the workspace can tag things in it, as in the app. Someone a board is shared with sees no tags."
+      },
+      {
+        "q": "Can an AI assistant tag cards?",
+        "a": "Yes. The MCP server's list_tags and tag_cards tools are these endpoints, so an assistant can see how a workspace is tagged and tag the cards it is asked to."
+      }
+    ]
+  },
+  {
     "path": "/docs/api/images",
     "title": "Uploading Images via the API — Soleil Clusters",
     "metaDescription": "Upload an image to Soleil Clusters in one POST, or files of any size with multipart. Endpoints, limits, storage quota, and listing images back.",

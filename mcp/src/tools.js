@@ -73,6 +73,19 @@ const qs = (params) => {
   return s ? `?${s}` : '';
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The workspace a call means when it names none: the account's only one. With
+// more than one, the refusal lists them, so the next call can name one.
+async function onlyWorkspace(api) {
+  const { workspaces = [] } = await api('/workspaces');
+  if (workspaces.length === 1) return workspaces[0].id;
+  if (!workspaces.length) throw new ApiError('this account has no workspace', { status: 404, code: 'not_found' });
+  throw new ApiError(`this account has ${workspaces.length} workspaces: pass workspace_id, one of `
+    + workspaces.map((w) => `${w.id} (${clip(w.name || 'Untitled', 60)})`).join(', '),
+  { status: 400, code: 'bad_request' });
+}
+
 // Long card text is shortened by default so one call cannot fill a model's
 // context. `full` is the escape hatch, and the truncation says so in-band
 // rather than silently cutting.
@@ -549,6 +562,45 @@ export const TOOLS = [
       has_more: { type: 'boolean' },
     }),
     call: (a, { api }) => api(`/boards/${a.board_id}/comments${qs({ status: a.status, limit: a.limit, cursor: a.cursor })}`),
+  },
+  {
+    name: 'list_tags',
+    title: 'List tags',
+    description: 'Lists tags, the labels people put on cards, groups, boards and doc pages across a workspace. '
+      + 'With tag (a name or an id): everything carrying that tag, on every board, with links, newest '
+      + 'first. With board_id alone: the tags on that board and which cards, groups and doc pages carry '
+      + 'each. Otherwise: the workspace\'s tags, each with how many things carry it. tag_cards puts tags '
+      + 'on cards and takes them off.',
+    annotations: READS,
+    inputSchema: schema({
+      workspace_id: uuid('The workspace; left out, the only one you have (or the board\'s, with board_id)'),
+      board_id: uuid('A board: its tags, or with tag, the workspace to look the name up in'),
+      tag: str('A tag\'s name or id: list everything carrying it'),
+      // TAGS.maxItems (lib/apiTags.js); a test keeps the two equal.
+      limit: num('How many to list; default 100, max 500', { minimum: 1, maximum: 500 }),
+    }),
+    outputSchema: looseObject({
+      workspace_id: { type: 'string' },
+      board_id: { type: 'string' },
+      tag: looseObject({ id: { type: 'string' }, name: { type: 'string' } }),
+      tags: { type: 'array', items: looseObject({ id: { type: 'string' }, name: { type: 'string' } }) },
+      items: { type: 'array', items: looseObject({ kind: { type: 'string' }, url: { type: 'string' } }) },
+      has_more: { type: 'boolean' },
+    }),
+    call: async (a, { api }) => {
+      const { limit } = a;
+      if (a.board_id && !a.tag) return api(`/boards/${a.board_id}/tags`);
+      if (a.tag && UUID_RE.test(a.tag.trim())) return api(`/tags/${a.tag.trim().toLowerCase()}${qs({ limit })}`);
+      const workspaceId = a.workspace_id
+        || (a.board_id ? (await api(`/boards/${a.board_id}`)).board?.workspace_id : await onlyWorkspace(api));
+      if (!a.tag) return api(`/workspaces/${workspaceId}/tags${qs({ limit })}`);
+      const { tags } = await api(`/workspaces/${workspaceId}/tags${qs({ name: a.tag })}`);
+      if (!tags?.length) {
+        throw new ApiError(`no tag named "${a.tag}" in that workspace: list_tags without tag lists them`,
+          { status: 404, code: 'not_found' });
+      }
+      return api(`/tags/${tags[0].id}${qs({ limit })}`);
+    },
   },
   {
     name: 'list_images',
@@ -1104,6 +1156,46 @@ export const TOOLS = [
     // refusal of one says why without failing the rest.
     call: (a, { api }) => api(`/boards/${a.board_id}/comments`, {
       method: 'PATCH', body: { comment_ids: a.comment_ids, resolved: a.resolved !== false },
+    }),
+  },
+  {
+    name: 'tag_cards',
+    title: 'Tag cards',
+    description: 'Puts tags on cards of one board and takes tags off them, as the Tag menu in the app does. '
+      + 'A tag is named, or given by its id from list_tags. A name the workspace has no tag for becomes a '
+      + 'new tag, which then also tags whatever else in the workspace mentions it; a deleted tag\'s name '
+      + 'brings that tag back. A tag taken off a card stays off: automatic tagging never puts it back. '
+      + 'The answer lists, per tag, the cards that changed, and any card or tag not found. Tag only what '
+      + 'the person asked for.',
+    // Not destructive: a tag taken off goes back on with this same call, which
+    // lifts the "keep it off" too, so there is nothing to confirm first.
+    annotations: EDITS,
+    inputSchema: schema({
+      board_id: uuid('The board the cards are on'),
+      card_ids: {
+        type: 'array',
+        description: 'The cards (ids from read_board)',
+        minItems: 1,
+        // TAGS.maxCards (lib/apiTags.js); a test keeps the two equal.
+        maxItems: 200,
+        items: str('A card id'),
+      },
+      // TAGS.maxNames (lib/apiTags.js); a test keeps the two equal.
+      add: { type: 'array', description: 'Tags to put on them: names or tag ids', maxItems: 10, items: str('A tag') },
+      remove: { type: 'array', description: 'Tags to take off them: names or tag ids', maxItems: 10, items: str('A tag') },
+    }, ['board_id', 'card_ids']),
+    outputSchema: looseObject({
+      board_id: { type: 'string' },
+      added: { type: 'array', items: looseObject({ name: { type: 'string' }, card_ids: { type: 'array', items: { type: 'string' } } }) },
+      removed: { type: 'array', items: looseObject({ name: { type: 'string' }, card_ids: { type: 'array', items: { type: 'string' } } }) },
+      not_found: looseObject({
+        card_ids: { type: 'array', items: { type: 'string' } },
+        tags: { type: 'array', items: { type: 'string' } },
+      }),
+      url: { type: 'string' },
+    }),
+    call: (a, { api }) => api(`/boards/${a.board_id}/tags`, {
+      method: 'POST', body: { card_ids: a.card_ids, add: a.add, remove: a.remove },
     }),
   },
   {

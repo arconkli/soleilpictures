@@ -55,6 +55,10 @@ import {
 import { addCommentThread, addCommentReply, resolveComment, deleteCommentThread } from './lib/docState.js';
 import { commentReplyKey } from './lib/commentKeys.js';
 import { findQuote, markQuote, unmarkThread } from './lib/docCommentAnchor.js';
+import {
+  TAGS, TAG_FIELDS, readTagRequest, matchTags, isDeadTag, publicTag, boardTags, taggedItem,
+  cleanTagName, tagSlug,
+} from './lib/apiTags.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
@@ -792,6 +796,73 @@ async function commentAuthor(env, token, userId) {
   return docAuthor({ profile: profiles?.[0] || null, email: users?.[0]?.email || null, userId });
 }
 
+// ── Tags ─────────────────────────────────────────────────────────────────────
+
+// What is on a board now, by id: its cards and its groups, from its document,
+// which is the truth (a card past its owner's cap has no card_index row, and a
+// deleted card keeps its tag links so that undoing the delete brings them
+// back). `loaded: false` when the document couldn't be read.
+async function boardContents(env, token, boardId) {
+  return withBoardCards(env, boardId, token, ({ cards, doc, loaded }) => ({
+    loaded,
+    cards: new Set(cards.map((c) => String(c.id))),
+    groups: new Set(doc.getMap('groups').keys()),
+  }));
+}
+
+// Every row a select matches, a page at a time: the database answers one
+// request with at most a thousand rows, and says nothing when it stops there.
+// `query` names an order, so the pages don't overlap.
+async function selectAll(env, token, table, query, { page = 1000, max = 20_000 } = {}) {
+  const out = [];
+  for (let offset = 0; offset < max; offset += page) {
+    const rows = await userSelect(env, token, table, `${query}&limit=${page}&offset=${offset}`);
+    out.push(...rows);
+    if (rows.length < page) break;
+  }
+  return out;
+}
+
+// A write refused because the row is already there (unique_violation). The
+// curated error keeps the database's own answer in its detail.
+const isDuplicate = (e) => /"code":"23505"/.test(String(e?.detail || ''));
+
+const TAG_ROW = `${TAG_FIELDS},slug,status,deleted_at`;
+
+// The workspace's tags that `asked` names, by id or by name, deleted ones
+// included: a deleted tag's name brings it back rather than making another
+// (lib/tagsApi.js ensureTag).
+async function findWorkspaceTags(env, token, workspaceId, asked) {
+  const ids = asked.filter((t) => t.id).map((t) => t.id);
+  const slugs = asked.filter((t) => t.slug).map((t) => t.slug);
+  const [byId, bySlug] = await Promise.all([
+    ids.length ? userSelect(env, token, 'tags',
+      `workspace_id=eq.${workspaceId}&id=in.(${ids.join(',')})&select=${TAG_ROW}`) : [],
+    slugs.length ? userSelect(env, token, 'tags',
+      `workspace_id=eq.${workspaceId}&slug=in.${encodeURIComponent(pgInList(slugs))}&select=${TAG_ROW}`) : [],
+  ]);
+  return [...byId, ...bySlug];
+}
+
+// A new tag, as the app's Tag… picker makes one (ensureTag): the name as
+// given, kind 'user', no colour (the app gives it one from its name). One made
+// meanwhile by someone else is found instead.
+async function makeTag(env, token, workspaceId, userId, tag) {
+  try {
+    const [row] = await userInsert(env, token, 'tags', [{
+      workspace_id: workspaceId, name: tag.name, color: null, kind: 'user', created_by: userId,
+    }]);
+    return { row, created: true };
+  } catch (e) {
+    if (!isDuplicate(e)) throw e;
+    const [row] = await findWorkspaceTags(env, token, workspaceId, [tag]);
+    if (!row) {
+      throw fail(409, 'conflict', `a tag named "${tag.name}" was being made at the same moment: try again`);
+    }
+    return { row, created: false };
+  }
+}
+
 function pageParams(url) {
   const rawLimit = Number(url.searchParams.get('limit'));
   const rawOffset = Number(url.searchParams.get('offset'));
@@ -1009,7 +1080,9 @@ export async function handleApiRoute(url, request, env, ctx) {
       err.cause = e;
       throw err;
     });
-    res = await dispatch(url, request, env, { auth, token, trace });
+    res = await dispatch(url, request, env, {
+      auth, token, trace, waitUntil: ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null,
+    });
   } catch (e) {
     // EVERY error leaves through normalizeApiError. Returning `e.message`
     // directly is what put the raw PostgREST envelope — table name, SQLSTATE
@@ -1120,7 +1193,7 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
   const trace = { route: target.pathname.replace(/^\/api\/v1/, '') || '/', target: null };
   let res;
   try {
-    res = await dispatch(target, req, env, { auth, token, trace });
+    res = await dispatch(target, req, env, { auth, token, trace, waitUntil: ctx?.waitUntil || null });
   } catch (e) {
     // dispatch THROWS its refusals and lets a database failure through raw;
     // handleApiRoute curates both on the way out of a REST call, and this is
@@ -1206,6 +1279,8 @@ async function dispatch(url, request, env, ctx) {
       endpoints: [
         'GET    /me',
         'GET    /workspaces',
+        'GET    /workspaces/:id/tags?name=&limit=&offset=  — its tags, each with how many things carry it',
+        'GET    /tags/:id?limit=            — everything carrying a tag, across the workspace',
         'GET    /service-accounts?workspace=',
         'POST   /service-accounts',
         'DELETE /service-accounts/:id',
@@ -1247,6 +1322,8 @@ async function dispatch(url, request, env, ctx) {
         'PATCH  /boards/:id/comments/:commentId  {"resolved":true|false}',
         'DELETE /boards/:id/comments/:commentId  — your own; restorable, except a thread inside a doc',
         'POST   /boards/:id/comments/:commentId/restore',
+        'GET    /boards/:id/tags            — the tags on this board, and what carries each',
+        'POST   /boards/:id/tags            {"card_ids":[…],"add":[…],"remove":[…]}  — tags on cards, by name or id',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
@@ -1293,6 +1370,40 @@ async function dispatch(url, request, env, ctx) {
         remaining: auth.rate ? Math.max(0, auth.rate.limit - auth.rate.used) : null,
         reset: auth.rate?.reset ?? null,
       },
+    });
+  }
+
+  // ── Tags ───────────────────────────────────────────────────────────────────
+  //
+  // The app's tags (lib/apiTags.js): a workspace's tags, everything one tag is
+  // on, and, under /boards/:id/tags, a board's tags and tagging its cards. All
+  // as the person, so the tables' own policies decide; as in the app, a
+  // workspace's tags are its members'.
+
+  // GET /workspaces/:id/tags?name=&limit=&offset= — the workspace's tags, each
+  // with how many things carry it (tag_item_counts, 0592); name finds one.
+  if (head === 'workspaces' && id && sub === 'tags' && !subId) {
+    trace.route = '/workspaces/:id/tags';
+    if (method !== 'GET') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+    if (!isUuid(id)) throw fail(400, 'bad_request', 'workspace id must be a uuid');
+    trace.target = id;
+    const named = url.searchParams.has('name') ? cleanTagName(url.searchParams.get('name')) : undefined;
+    if (named === null) throw fail(400, 'bad_request', 'name must be a tag\'s name');
+    const member = await userRpc(env, token, 'is_workspace_member', { ws: id }).catch(() => false);
+    if (member !== true) throw fail(404, 'not_found', 'no workspace of yours has that id');
+    const { limit, offset } = pageParams(url);
+    const [rows, counts] = await Promise.all([
+      userSelect(env, token, 'tags', `workspace_id=eq.${id}&status=neq.deleted&deleted_at=is.null`
+        + (named ? `&slug=in.${encodeURIComponent(pgInList([tagSlug(named)]))}` : '')
+        + `&select=${TAG_FIELDS}&order=name.asc,id.asc&limit=${limit + 1}&offset=${offset}`),
+      userRpc(env, token, 'tag_item_counts', { p_workspace_id: id }).catch(() => null),
+    ]);
+    const items = new Map((counts || []).map((c) => [c.tag_id, c.items]));
+    const page = paginate(rows || [], limit, offset);
+    return json({
+      workspace_id: id,
+      tags: page.items.map((t) => publicTag(t, counts ? items.get(t.id) ?? 0 : null)),
+      limit, offset, has_more: page.has_more,
     });
   }
 
@@ -2093,6 +2204,33 @@ async function dispatch(url, request, env, ctx) {
           ? { 'content-disposition': contentDisposition(row.original_name) }
           : {}),
       },
+    });
+  }
+
+  // GET /tags/:id?limit= — a tag, and everything carrying it across its
+  // workspace's clusters, the most recently tagged first (get_things_tagged,
+  // 0590, the tag page's own read). The tag is the workspace's: someone
+  // outside it gets a 404, as the tags table answers them nothing.
+  if (head === 'tags') {
+    trace.route = '/tags/:id';
+    if (!id || sub) throw fail(404, 'not_found', 'unknown endpoint');
+    if (method !== 'GET') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+    if (!isUuid(id)) throw fail(400, 'bad_request', 'tag id must be a uuid');
+    trace.target = id;
+    const [tag] = await userSelect(env, token, 'tags',
+      `id=eq.${id}&status=neq.deleted&deleted_at=is.null&select=${TAG_FIELDS},workspace_id`);
+    if (!tag) throw fail(404, 'not_found', 'no tag in a workspace of yours has that id');
+    const raw = Number(url.searchParams.get('limit'));
+    const limit = Math.max(1, Math.min(Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : TAGS.defaultItems,
+      TAGS.maxItems));
+    // The function stops after p_limit applications and then drops any whose
+    // thing is gone (a deleted card keeps its link), so it is asked for twice
+    // the page: "more" is then wrong only where most of a tag's things are gone.
+    const rows = (await userRpc(env, token, 'get_things_tagged', { p_tag_id: id, p_limit: limit * 2 + 1 })) || [];
+    return json({
+      tag: { ...publicTag(tag), workspace_id: tag.workspace_id },
+      items: rows.slice(0, limit).map((r) => taggedItem(r, url.origin)),
+      has_more: rows.length > limit,
     });
   }
 
@@ -3737,6 +3875,144 @@ async function dispatch(url, request, env, ctx) {
     }
 
     throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+  }
+
+  // /boards/:id/tags — the tags on this board's cards, groups and doc pages
+  // (GET), and putting tags on its cards or taking them off (POST), each as
+  // the app's Tag… picker does it (lib/apiTags.js): a name the workspace lacks
+  // becomes a tag, which then applies itself wherever its name appears
+  // (backfill_tag_applications, as ensureTag runs it); a deleted tag's name
+  // brings that tag back; taking a tag off a card keeps it off for good
+  // (autotag_ignored, the 0590 guard), and putting it on again lifts that.
+  if (sub === 'tags') {
+    trace.route = '/boards/:id/tags';
+    if (parts.length > 3) throw fail(404, 'not_found', 'unknown endpoint');
+    if (method === 'GET') {
+      const board = await boardForUser(env, token, id);
+      if (!board) throw fail(404, 'not_found', 'board not found');
+      const [links, onBoard] = await Promise.all([
+        selectAll(env, token, 'entity_links', `source_board_id=eq.${id}&target_kind=eq.tag&link_kind=eq.applied`
+          + '&select=source_kind,source_id,source_page_id,target_id&order=created_at.asc,id.asc'),
+        boardContents(env, token, id),
+      ]);
+      const tagIds = [...new Set(links.map((l) => l.target_id))];
+      const tags = [];
+      for (let i = 0; i < tagIds.length; i += 100) {
+        tags.push(...await userSelect(env, token, 'tags', `id=in.(${tagIds.slice(i, i + 100).join(',')})`
+          + `&status=neq.deleted&deleted_at=is.null&select=${TAG_FIELDS}`));
+      }
+      return json({
+        board_id: id,
+        tags: boardTags(links, tags, id, onBoard.loaded ? onBoard : null),
+        ...(onBoard.loaded ? {} : { note: 'the board could not be read just now, so cards deleted since may be listed' }),
+        url: boardUrl(url.origin, id),
+      });
+    }
+    if (method !== 'POST') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+
+    const asked = readTagRequest(body);
+    if (asked.problem) throw fail(400, 'bad_request', asked.problem);
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    const ws = board.workspace_id;
+    const [canTag, onBoard, rows] = await Promise.all([
+      userRpc(env, token, 'can_write_workspace', { ws }).catch(() => false),
+      boardContents(env, token, id),
+      findWorkspaceTags(env, token, ws, [...asked.add, ...asked.remove]),
+    ]);
+    if (canTag !== true) {
+      throw fail(403, 'forbidden', 'only someone who can edit this board\'s workspace tags things in it, as in the app');
+    }
+    if (!onBoard.loaded) {
+      throw fail(503, 'room_unavailable', 'the board could not be read to find the cards; nothing was written — try again');
+    }
+    const cardIds = asked.cardIds.filter((c) => onBoard.cards.has(c));
+    if (!cardIds.length) throw fail(404, 'not_found', 'none of those cards is on this board');
+    const live = (t) => t.row && !isDeadTag(t.row);
+    // One entry per tag: a tag named once and also given by its id is one tag.
+    const once = (list) => list.filter((t, i) => !t.row || list.findIndex((u) => u.row?.id === t.row.id) === i);
+    const askedAdd = matchTags(asked.add, rows);
+    const add = once(askedAdd.filter((t) => t.row || !t.id));
+    const remove = matchTags(asked.remove, rows);
+    const notFoundTags = [
+      ...askedAdd.filter((t) => t.id && !t.row),
+      ...remove.filter((t) => !live(t)),
+    ].map((t) => t.name);
+    const both = add.find((t) => t.row && remove.some((r) => live(r) && r.row.id === t.row.id));
+    if (both) throw fail(400, 'bad_request', `${both.name} is both added and removed: leave it out of one`);
+    const takeOff = once(remove.filter(live));
+
+    // The tags to add: made where the workspace has none of the name, brought
+    // back where it has a deleted one.
+    await Promise.all(add.map(async (t) => {
+      if (!t.row) Object.assign(t, await makeTag(env, token, ws, auth.userId, t));
+      else if (isDeadTag(t.row)) {
+        await userRpc(env, token, 'restore_tag', { p_tag_id: t.row.id });
+        t.row = { ...t.row, status: 'active', deleted_at: null };
+        t.revived = true;
+      }
+    }));
+
+    // Which of the cards carry which of the tags now.
+    const tagIds = [...add, ...takeOff].map((t) => t.row.id);
+    const cardList = encodeURIComponent(pgInList(cardIds));
+    const carried = new Set(tagIds.length ? (await selectAll(env, token, 'entity_links',
+      `source_kind=eq.card&source_board_id=eq.${id}&target_kind=eq.tag&link_kind=eq.applied`
+      + `&target_id=in.(${tagIds.join(',')})&source_id=in.${cardList}&select=source_id,target_id&order=id.asc`))
+      .map((l) => `${l.target_id}|${l.source_id}`) : []);
+
+    // Off: the applications go, whoever made them, and each pair is kept off.
+    const removed = takeOff.map((t) => ({ tag: t, cards: cardIds.filter((c) => carried.has(`${t.row.id}|${c}`)) }));
+    if (removed.some((r) => r.cards.length)) {
+      await userDelete(env, token, 'entity_links', `source_kind=eq.card&source_board_id=eq.${id}`
+        + `&target_kind=eq.tag&link_kind=eq.applied&target_id=in.(${takeOff.map((t) => t.row.id).join(',')})`
+        + `&source_id=in.${cardList}`);
+      await userInsert(env, token, 'autotag_ignored', removed.flatMap((r) => r.cards.map((c) => ({
+        workspace_id: ws, target_kind: 'card', target_id: c, tag_id: r.tag.row.id, ignored_by: auth.userId,
+      }))), { returning: 'minimal', onConflict: 'workspace_id,target_kind,target_id,tag_id' });
+    }
+
+    // On: an application for each pair not already there, as the person's
+    // own (source 'user'), and any earlier "keep it off" lifted.
+    const added = add.map((t) => ({ tag: t, cards: cardIds.filter((c) => !carried.has(`${t.row.id}|${c}`)) }));
+    const links = added.flatMap((a) => a.cards.map((c) => ({
+      source_kind: 'card', source_id: c, source_workspace: ws, source_board_id: id,
+      target_kind: 'tag', target_id: a.tag.row.id, link_kind: 'applied', source: 'user',
+    })));
+    if (links.length) {
+      try {
+        await userInsert(env, token, 'entity_links', links, { returning: 'minimal' });
+      } catch (e) {
+        // Someone put one of them on meanwhile: the rest, one at a time.
+        if (!isDuplicate(e)) throw e;
+        await mapWithConcurrency(links, 8, (l) => userInsert(env, token, 'entity_links', [l], { returning: 'minimal' })
+          .catch((err) => { if (!isDuplicate(err)) throw err; }));
+      }
+    }
+    if (add.length) {
+      await userDelete(env, token, 'autotag_ignored', `workspace_id=eq.${ws}&target_kind=eq.card`
+        + `&tag_id=in.(${add.map((t) => t.row.id).join(',')})&target_id=in.${cardList}`);
+    }
+
+    // A new tag then finds the rest of what it names across the workspace, as
+    // one made in the app does (ensureTag), once this call's own are written.
+    for (const t of add.filter((x) => x.created)) {
+      const spread = userRpc(env, token, 'backfill_tag_applications', { p_tag_id: t.row.id, p_workspace_id: ws })
+        .catch(() => {});
+      if (ctx.waitUntil) ctx.waitUntil(spread);
+      else await spread;
+    }
+
+    return json({
+      board_id: id,
+      added: added.map((a) => ({
+        ...publicTag(a.tag.row), created: Boolean(a.tag.created), ...(a.tag.revived ? { revived: true } : {}),
+        card_ids: a.cards,
+      })),
+      removed: removed.map((r) => ({ ...publicTag(r.tag.row), card_ids: r.cards })),
+      not_found: { card_ids: asked.cardIds.filter((c) => !onBoard.cards.has(c)), tags: notFoundTags },
+      url: boardUrl(url.origin, id),
+    });
   }
 
   if (sub !== 'cards') throw fail(404, 'not_found', 'unknown endpoint');
