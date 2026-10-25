@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-25",
+    "anchor": "2026-10-25",
+    "title": "A new look for toolbars, and every video plays",
+    "summary": "Every toolbar looks and works the same way, picking several cards brings up a bar for them, and every video, sound file and photo now plays or shows in every browser.",
+    "headings": []
+  },
+  {
     "date": "2026-10-24",
     "anchor": "2026-10-24",
     "title": "A new look for documents",

@@ -10763,13 +10763,58 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-10-24
+Updated: 2026-10-25
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-10-25 — A new look for toolbars, and every video plays
+
+Every toolbar looks and works the same way, picking several cards brings up a bar for them, and every video, sound file and photo now plays or shows in every browser.
+
+### Toolbars
+
+- Every toolbar now looks and works the same way: glass under each bar, a gold
+  tint and ring on whatever is on, one tooltip that shows the shortcut's keys,
+  and icons where text symbols used to be. This covers the rail, the zoom, the
+  note and drawing bars, the controls along the top, right-click menus, and
+  the bars on pictures, PDFs, films and the sketch pad.
+- On a computer, picking two or more cards brings up a bar along the bottom
+  of the board: **Tidy up**, **Align**, **Group**, **New cluster from N
+  cards**, **Move N cards to…**, **⋯** and **Delete**. See
+  [selection](/docs/canvas#selection).
+- Under a finger, every bar's buttons are finger-sized.
+
+### Video, sound and photos
+
+- Every video and audio file plays in every browser. A file your browser
+  can't play, such as ProRes, HEVC, MKV, AVI or WMV, gets a copy that plays,
+  made once and used by the card, Quick look, the review player and shared
+  links. While it's being made, the player says so. See
+  [video and audio](/docs/files/video-and-audio).
+- Photos some browsers can't show, such as HEIC and HEIF from a phone, TIFF,
+  JPEG XL, OpenEXR and JPEG 2000, now show in every browser: on the card, in
+  Files, in Quick look and in the lightbox. The view keeps no camera, software
+  or location details. See [images](/docs/canvas/images).
+- **Download** still gives you the original file, and the copies never count
+  toward your storage.
+
+### Also
+
+- **Referenced by** no longer reads "No references yet." for some documents
+  that other cards do link to.
+- When an AI assistant or a script edits a card through the API or MCP, the
+  card changes in place: a document open in someone's editor keeps working,
+  comments keep their place in the text, and other people's edits to the card
+  aren't lost.
+- MCP tools check what they're sent before they run, and a refusal says what
+  to fix: the field that was meant, the choices a field takes, or when to try
+  again. Results come back as compact JSON, the same data in fewer tokens.
+  The [MCP page](/docs/mcp) says how many boards and cards each batch tool
+  takes.
 
 ## 2026-10-24 — A new look for documents
 

@@ -5,8 +5,16 @@
     <link>https://clusters.soleilpictures.com/changelog</link>
     <description>Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.</description>
     <language>en</language>
-    <lastBuildDate>Sat, 24 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Sun, 25 Oct 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://clusters.soleilpictures.com/changelog.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>A new look for toolbars, and every video plays</title>
+      <link>https://clusters.soleilpictures.com/changelog#2026-10-25</link>
+      <guid isPermaLink="false">clusters-changelog-2026-10-25</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 GMT</pubDate>
+      <description>Every toolbar looks and works the same way, picking several cards brings up a bar for them, and every video, sound file and photo now plays or shows in every browser.</description>
+      <content:encoded><![CDATA[<h3>Toolbars</h3><ul><li>Every toolbar now looks and works the same way: glass under each bar, a gold tint and ring on whatever is on, one tooltip that shows the shortcut&#39;s keys, and icons where text symbols used to be. This covers the rail, the zoom, the note and drawing bars, the controls along the top, right-click menus, and the bars on pictures, PDFs, films and the sketch pad.</li><li>On a computer, picking two or more cards brings up a bar along the bottom of the board: <b>Tidy up</b>, <b>Align</b>, <b>Group</b>, <b>New cluster from N cards</b>, <b>Move N cards to…</b>, <b>⋯</b> and <b>Delete</b>. See <a href="https://clusters.soleilpictures.com/docs/canvas#selection">selection</a>.</li><li>Under a finger, every bar&#39;s buttons are finger-sized.</li></ul><h3>Video, sound and photos</h3><ul><li>Every video and audio file plays in every browser. A file your browser can&#39;t play, such as ProRes, HEVC, MKV, AVI or WMV, gets a copy that plays, made once and used by the card, Quick look, the review player and shared links. While it&#39;s being made, the player says so. See <a href="https://clusters.soleilpictures.com/docs/files/video-and-audio">video and audio</a>.</li><li>Photos some browsers can&#39;t show, such as HEIC and HEIF from a phone, TIFF, JPEG XL, OpenEXR and JPEG 2000, now show in every browser: on the card, in Files, in Quick look and in the lightbox. The view keeps no camera, software or location details. See <a href="https://clusters.soleilpictures.com/docs/canvas/images">images</a>.</li><li><b>Download</b> still gives you the original file, and the copies never count toward your storage.</li></ul><h3>Also</h3><ul><li><b>Referenced by</b> no longer reads &quot;No references yet.&quot; for some documents that other cards do link to.</li><li>When an AI assistant or a script edits a card through the API or MCP, the card changes in place: a document open in someone&#39;s editor keeps working, comments keep their place in the text, and other people&#39;s edits to the card aren&#39;t lost.</li><li>MCP tools check what they&#39;re sent before they run, and a refusal says what to fix: the field that was meant, the choices a field takes, or when to try again. Results come back as compact JSON, the same data in fewer tokens. The <a href="https://clusters.soleilpictures.com/docs/mcp">MCP page</a> says how many boards and cards each batch tool takes.</li></ul>]]></content:encoded>
+    </item>
     <item>
       <title>A new look for documents</title>
       <link>https://clusters.soleilpictures.com/changelog#2026-10-24</link>

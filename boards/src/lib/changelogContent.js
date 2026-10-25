@@ -2,6 +2,294 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-25": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Toolbars",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Toolbars"
+    }
+   ],
+   "id": "2026-10-25-toolbars"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Every toolbar now looks and works the same way: glass under each bar, a gold tint and ring on whatever is on, one tooltip that shows the shortcut's keys, and icons where text symbols used to be. This covers the rail, the zoom, the note and drawing bars, the controls along the top, right-click menus, and the bars on pictures, PDFs, films and the sketch pad."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a computer, picking two or more cards brings up a bar along the bottom of the board: "
+     },
+     {
+      "t": "strong",
+      "v": "Tidy up",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tidy up"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Align",
+      "children": [
+       {
+        "t": "text",
+        "v": "Align"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Group",
+      "children": [
+       {
+        "t": "text",
+        "v": "Group"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster from N cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster from N cards"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Move N cards to…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move N cards to…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "selection",
+      "href": "/docs/canvas#selection",
+      "children": [
+       {
+        "t": "text",
+        "v": "selection"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Under a finger, every bar's buttons are finger-sized."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Video, sound and photos",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Video, sound and photos"
+    }
+   ],
+   "id": "2026-10-25-video-sound-and-photos"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Every video and audio file plays in every browser. A file your browser can't play, such as ProRes, HEVC, MKV, AVI or WMV, gets a copy that plays, made once and used by the card, Quick look, the review player and shared links. While it's being made, the player says so. See "
+     },
+     {
+      "t": "link",
+      "v": "video and audio",
+      "href": "/docs/files/video-and-audio",
+      "children": [
+       {
+        "t": "text",
+        "v": "video and audio"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Photos some browsers can't show, such as HEIC and HEIF from a phone, TIFF, JPEG XL, OpenEXR and JPEG 2000, now show in every browser: on the card, in Files, in Quick look and in the lightbox. The view keeps no camera, software or location details. See "
+     },
+     {
+      "t": "link",
+      "v": "images",
+      "href": "/docs/canvas/images",
+      "children": [
+       {
+        "t": "text",
+        "v": "images"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Download",
+      "children": [
+       {
+        "t": "text",
+        "v": "Download"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " still gives you the original file, and the copies never count toward your storage."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Also",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Also"
+    }
+   ],
+   "id": "2026-10-25-also"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Referenced by",
+      "children": [
+       {
+        "t": "text",
+        "v": "Referenced by"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " no longer reads \"No references yet.\" for some documents that other cards do link to."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "When an AI assistant or a script edits a card through the API or MCP, the card changes in place: a document open in someone's editor keeps working, comments keep their place in the text, and other people's edits to the card aren't lost."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "MCP tools check what they're sent before they run, and a refusal says what to fix: the field that was meant, the choices a field takes, or when to try again. Results come back as compact JSON, the same data in fewer tokens. The "
+     },
+     {
+      "t": "link",
+      "v": "MCP page",
+      "href": "/docs/mcp",
+      "children": [
+       {
+        "t": "text",
+        "v": "MCP page"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " says how many boards and cards each batch tool takes."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-24": [
   {
    "type": "heading",
