@@ -54,6 +54,10 @@ const KIND_LABELS = {
   'dom-mutated': 'Page altered',
   'realtime-unavailable': 'Realtime down',
   warn: 'Warning',
+  route: 'Route failed',
+  api: 'API failed',
+  job: 'Background job',
+  degraded: 'Served without data',
 };
 
 export function kindLabel(kind) {

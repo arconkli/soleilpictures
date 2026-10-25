@@ -45655,6 +45655,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Clusters' own servers record their failures the same way: which route or background job failed and what kind of answer it got, never what was sent to it, and with no account or browser attached."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Records are deleted after 90 days. What stays after that is when each kind of problem was first and last seen, with nobody attached."
     }
    ]

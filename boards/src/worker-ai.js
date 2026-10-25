@@ -26,6 +26,7 @@
 
 import { parseJsonArrayLoose, runWorkersAiChat } from './worker-llm.js';
 import { verifyUserToken } from './lib/workerAuth.js';
+import { answeredWith } from './lib/workerErrors.js';
 
 const MODEL = '@cf/meta/llama-3.2-3b-instruct';
 const MAX_CANDIDATES = 60;     // matches get_candidate_names p_limit
@@ -145,6 +146,7 @@ export async function handleAiRoute(url, request, env) {
   try {
     if (url.pathname === '/api/ai/candidates') return await handleClassifyCandidates(request, env, token);
   } catch (e) {
+    answeredWith(request, e);
     return json({ error: e?.message || String(e) }, 500);
   }
   return json({ error: 'not found' }, 404);

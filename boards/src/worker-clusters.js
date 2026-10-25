@@ -35,6 +35,7 @@ import { canCopyCard, liveCardForCopy } from './lib/filesDrag.js';
 import { canStore, positionUnplaced } from './lib/placement.js';
 import { unlinkGridForCopy, relinkGrid } from './lib/gridState.js';
 import { layoutDrop } from './lib/layoutEngine.js';
+import { answeredWith } from './lib/workerErrors.js';
 
 export const LIMITS = Object.freeze({
   BODY_BYTES: 2_000_000,
@@ -394,6 +395,7 @@ export async function handleClustersRoute(url, request, env, deps = DEFAULT_DEPS
     }
     if (e?.status) return json({ ok: false, error: e.code, message: e.message }, e.status);
     console.warn('[clusters] route failed', url.pathname, e?.message || e);
+    answeredWith(request, e);
     // Not "nothing was changed": an unexpected failure can come after a write.
     return json({ ok: false, error: 'server_error', message: 'something went wrong' }, 500);
   }

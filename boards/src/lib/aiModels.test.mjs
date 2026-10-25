@@ -360,8 +360,9 @@ test('the crons run the watch every morning and the digest on Sundays', () => {
     assert.ok(at > 0, cron);
     return worker.slice(at, worker.indexOf('} else', at + 1));
   };
-  assert.match(branch('0 4 * * *'), /ctx\.waitUntil\(runAiModelWatch\(env\)\);/);
-  assert.match(branch('0 6 * * 1'), /ctx\.waitUntil\(runAiModelDigest\(env\)\);/);
+  // Watched (serverErrors.js): a failure that escapes either is recorded.
+  assert.match(branch('0 4 * * *'), /ctx\.waitUntil\(watch\('ai_watch', runAiModelWatch\(env\)\)\);/);
+  assert.match(branch('0 6 * * 1'), /ctx\.waitUntil\(watch\('ai_digest', runAiModelDigest\(env\)\)\);/);
   const crons = JSON.parse(read('../../wrangler.toml').match(/^crons = (\[.*\])$/m)[1]);
   assert.ok(crons.includes('0 4 * * *') && crons.includes('0 6 * * 1'));
 });

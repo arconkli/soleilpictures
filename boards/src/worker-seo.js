@@ -25,6 +25,7 @@ import { SEO_LANDING_LISTED } from './lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from './lib/seoListicleIndex.js';
 import { DOCS_PATHS } from './lib/docsiteIndex.js';
 import { parseJsonLoose, responseText } from './worker-llm.js';
+import { answeredWith, jobFailed } from './lib/workerErrors.js';
 
 // Cloudflare Workers AI (free in-worker tier — no API key/credits). The vision
 // model captions images for alt text; the text model drafts SEO copy. Both run
@@ -162,7 +163,7 @@ export async function handleSeoRoute(url, request, env) {
   // client ever sent was answered 400 'valid board_id required' and swallowed
   // by the best-effort caller: the route had never once reached its handler.
   if (url.pathname === '/api/seo/indexnow') {
-    try { return await handleIndexNow(env, body); } catch (e) { return json({ error: e?.message || String(e) }, 500); }
+    try { return await handleIndexNow(env, body); } catch (e) { answeredWith(request, e); return json({ error: e?.message || String(e) }, 500); }
   }
 
   if (!env.AI) return json({ error: 'Workers AI (env.AI) binding not configured on the Worker' }, 500);
@@ -174,6 +175,7 @@ export async function handleSeoRoute(url, request, env) {
     if (url.pathname === '/api/seo/draft') return await handleSeoDraft(env, boardId);
     if (url.pathname === '/api/seo/alt') return await handleSeoAlt(env, boardId);
   } catch (e) {
+    answeredWith(request, e);
     return json({ error: e?.message || String(e) }, 500);
   }
   return json({ error: 'not found' }, 404);
@@ -312,6 +314,7 @@ export async function runIndexNowForBuild(env, build, getEntries) {
     console.log(`[indexnow] build ${sha}: ${changed.length} URL(s), ${row.ok ? 'ok' : 'failed'} ${row.status ?? row.error ?? ''}`);
   } catch (e) {
     console.error('[indexnow] build ping failed:', e?.message || e);
+    await jobFailed(env, 'indexnow', e);
   }
 }
 

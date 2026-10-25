@@ -138,6 +138,10 @@ cluster opened, an upload started, an error shown. Never what was in them.
 - A request is recorded by its service and route, never its address, which can
   hold a private link's key or a cluster's name.
 
+Clusters' own servers record their failures the same way: which route or
+background job failed and what kind of answer it got, never what was sent to
+it, and with no account or browser attached.
+
 Records are deleted after {{fact:clientErrorRetentionDays}} days. What stays
 after that is when each kind of problem was first and last seen, with nobody
 attached.

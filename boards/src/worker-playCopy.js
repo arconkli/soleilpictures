@@ -39,6 +39,7 @@ import { scoutRpc, scoutSelect, scoutDelete } from './lib/scoutDb.js';
 import { copyKeys, copyKeyFor, mediaKindOfKey, extOfKey, isCopyKey } from './lib/playCopy.js';
 import { viewKeys, viewKindOfKey, isViewKey } from './lib/fileView.js';
 import { makeRateLimiter } from './lib/webImageSave.js';
+import { answeredWith, jobFailed } from './lib/workerErrors.js';
 
 // `<workspace uuid>/<path>`: the shape every original's key has, and nothing
 // PostgREST's in-list quoting or a URL could trip on.
@@ -156,6 +157,7 @@ export async function tickPlayCopies(env, deps = {}) {
     return due;
   } catch (err) {
     console.warn('[play-copy] tick failed', String(err?.message || err).slice(0, 160));
+    await jobFailed(env, 'play_copies', err, 'tick');
     return 0;
   }
 }
@@ -210,6 +212,7 @@ export async function handlePlayCopyRoute(url, request, env, ctx = null, deps = 
     return await finish(request, env, d);
   } catch (err) {
     console.warn('[play-copy]', route, String(err?.message || err).slice(0, 200));
+    answeredWith(request, err);
     return json({ error: 'failed' }, 500);
   }
 }

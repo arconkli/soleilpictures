@@ -94,6 +94,12 @@ const STATUS_NAMES = {
   413: 'too large', 415: 'unsupported type', 422: 'unprocessable', 429: 'rate limited',
   500: 'server error', 502: 'bad gateway', 503: 'unavailable', 504: 'gateway timeout',
 };
+// A failed request in words: the database's code by its name, else the
+// status's. serverErrors.js says the servers' failures the same way.
+export function failureWords(status, pg) {
+  return (pg && PG_NAMES[pg]) || STATUS_NAMES[status] || (status >= 500 ? 'server error' : 'refused');
+}
+
 // Our own telemetry. Its failures are never reported, or one bad network
 // would report itself forever.
 const OWN_ROUTES = new Set(['client_errors', 'analytics_events', 'error_beacon']);
@@ -228,8 +234,7 @@ export function classifyHttpFailure(f, hosts = {}) {
   else if ([401, 409, 413, 429].includes(status) || ['PGRST301', 'PGRST303', '23505'].includes(pg)) severity = 'warning';
   else if (status >= 400) severity = OURS_WHEN_REFUSED.has(r.svc) ? 'error' : 'warning';
   else return null;
-  const why = f.slow ? 'slow' : lost ? 'session lost'
-    : (pg && PG_NAMES[pg]) || STATUS_NAMES[status] || (status >= 500 ? 'server error' : 'refused');
+  const why = f.slow ? 'slow' : lost ? 'session lost' : failureWords(status, pg);
   const ms = Math.round(Number(f.ms) || 0);
   return {
     severity,

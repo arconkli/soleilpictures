@@ -25,6 +25,7 @@
 
 import { scoutSelect, scoutInsert, scoutPatch, scoutRpc } from './scoutDb.js';
 import { publicHttpsUrlProblem } from './safeUrl.js';
+import { jobFailed } from './workerErrors.js';
 
 // The database, injectable. Not for ceremony: fan-out and retry are the parts
 // where a mistake is a silent non-delivery or an infinite retry, and both are
@@ -368,12 +369,14 @@ async function deliverRows(env, due, { fetchImpl = fetch, db = REAL_DB } = {}) {
 // minute cron, and opportunistically after an API write so an API-driven event
 // leaves in milliseconds rather than waiting for the next tick.
 export async function runWebhooks(env, opts = {}) {
-  const fan = await fanOutEvents(env, opts).catch((e) => {
+  const fan = await fanOutEvents(env, opts).catch(async (e) => {
     console.error('[webhooks] fan-out failed', e?.message);
+    await jobFailed(env, 'webhooks', e, 'fan_out');
     return { events: 0, deliveries: 0 };
   });
-  const sent = await deliverDue(env, opts).catch((e) => {
+  const sent = await deliverDue(env, opts).catch(async (e) => {
     console.error('[webhooks] delivery failed', e?.message);
+    await jobFailed(env, 'webhooks', e, 'delivery');
     return { attempted: 0, delivered: 0, failed: 0 };
   });
   return { ...fan, ...sent };

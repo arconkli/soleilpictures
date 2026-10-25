@@ -103,6 +103,10 @@ import { PARTY_HOST } from './lib/partyHost.js';
 import { OLD_PARTY_HOST, OLD_PARTY_GONE_AFTER } from './lib/partyDefaults.js';
 import { partyFetch } from './lib/partyFetch.js';
 import { edgeContext, edgeContextMeta } from './lib/edgeContext.js';
+import { isOurFailure } from './lib/serverErrors.js';
+import {
+  reportWorkerError as report, watchWorkerJob, jobFailed, answeredWith, answerOf,
+} from './lib/workerErrors.js';
 
 // ── Per-route SEO metadata ──────────────────────────────────────────────
 // The SPA serves ONE index.html for every path (single-page-application
@@ -576,16 +580,25 @@ function injectFileShareMeta(res, meta, token) {
   return rw.transform(res);
 }
 
+// A 5xx about someone else's server, which fetch() does not record: a link
+// preview whose page failed or timed out, a picture saved from a site that
+// didn't answer (502, worker-media.js). The person sees that one link fail;
+// nothing in it is ours to fix.
+function theirFailure(pathname, status) {
+  return pathname === '/api/og' || (status === 502 && pathname.startsWith('/api/media/'));
+}
+
 const worker = {
   // `ctx` is here for /api/v1's audit log: api_log_request runs in
   // ctx.waitUntil so recording a write is never what makes a request slow, and
   // never what fails one.
   //
-  // The real handler is handleFetch below. This wrapper exists so security
-  // headers are applied at ONE place: handleFetch has dozens of return points
-  // across the SPA shell, the crawlable-HTML injectors, OG images and every
-  // /api surface, and adding them per-return would guarantee that the next
-  // route added is the one that forgets.
+  // The routes are in route() below, and handleFetch records what they fail
+  // with. This wrapper exists so security headers are applied at ONE place:
+  // route() has dozens of return points across the SPA shell, the
+  // crawlable-HTML injectors, OG images and every /api surface, and adding
+  // them per-return would guarantee that the next route added is the one that
+  // forgets.
   // Named reference, not `this`: the Workers runtime may invoke the exported
   // fetch detached from the module object, which would make `this` undefined.
   async fetch(request, env, ctx) {
@@ -594,7 +607,26 @@ const worker = {
     return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, hostname, pathname, edgeContextMeta(request.cf));
   },
 
+  // Every route answers its own failures, so each 5xx is recorded here, once,
+  // on its way out, with what was thrown when a guard caught it (answeredWith).
   async handleFetch(request, env, ctx) {
+    let res;
+    try {
+      res = await worker.route(request, env, ctx);
+    } catch (e) {
+      // Past every route's own guard: the visitor still gets Cloudflare's error
+      // page and the Workers log its exception, as before. The row is waited
+      // for, since nothing promises a waitUntil outlives a thrown handler.
+      await report(env, ctx, { kind: 'route', error: e, request, status: 500, phase: 'tail' });
+      throw e;
+    }
+    if (res.status >= 500 && !theirFailure(new URL(request.url).pathname, res.status)) {
+      report(env, ctx, { kind: 'route', request, status: res.status, ...answerOf(request) });
+    }
+    return res;
+  },
+
+  async route(request, env, ctx) {
     const url = new URL(request.url);
 
     // ── Retired pages 301 to their replacement. This runs BEFORE normalization
@@ -771,6 +803,7 @@ const worker = {
       // Logged-out one-click unsubscribe for lifecycle email (migration 0173).
       if (url.pathname === '/api/unsubscribe') return await handleUnsubscribe(request, url, env);
     } catch (e) {
+      answeredWith(request, e);
       return json({ error: e?.message || String(e) }, 500);
     }
 
@@ -780,24 +813,32 @@ const worker = {
     // GET or HEAD: crawlers probe with HEAD, and a HEAD response must carry
     // the same status + headers (404s, x-robots-tag) as its GET twin.
     const isPageReq = request.method === 'GET' || request.method === 'HEAD';
+    // Each of these reads fails to null, and the page goes out without it. A
+    // failure that is ours (a timeout, the database or the network failing) is
+    // recorded as the page being served without it; the database's answer (a
+    // revoked link, an unpublished board) is not a failure.
+    const failOpen = (what) => (e) => {
+      if (isOurFailure(e)) report(env, ctx, { kind: 'degraded', what, error: e, request });
+      return null;
+    };
     const shareMatch = isPageReq ? url.pathname.match(SHARE_PATH_RE) : null;
     const shareMetaPromise = shareMatch
-      ? fetchShareMeta(env, shareMatch[1], url.searchParams.get('b')).catch(() => null)
+      ? fetchShareMeta(env, shareMatch[1], url.searchParams.get('b')).catch(failOpen('share_meta'))
       : null;
 
     const fileShareMatch = isPageReq ? url.pathname.match(FILE_SHARE_PATH_RE) : null;
     const fileShareMetaPromise = fileShareMatch
-      ? anonRpc(env, 'get_file_share', { p_token: fileShareMatch[1] }).catch(() => null)
+      ? anonRpc(env, 'get_file_share', { p_token: fileShareMatch[1] }).catch(failOpen('file_share'))
       : null;
 
     // Same overlap trick for /c/<slug> marketing pages + the /explore index:
     // kick the Supabase RPCs off before the asset fetch. All fail to null →
     // /c falls back to default homepage meta (never noindex), /explore to empty.
     const pubMatch = isPageReq ? url.pathname.match(PUBLIC_BOARD_PATH_RE) : null;
-    const pubMetaPromise = pubMatch ? fetchPublicBoardMeta(env, pubMatch[1]).catch(() => null) : null;
-    const pubContentPromise = pubMatch ? fetchPublicBoardContent(env, pubMatch[1]).catch(() => null) : null;
-    const pubPagePromise = pubMatch ? fetchPublicBoardPage(env, pubMatch[1]).catch(() => null) : null;
-    const pubRelatedPromise = pubMatch ? fetchRelatedPublicBoards(env, pubMatch[1]).catch(() => null) : null;
+    const pubMetaPromise = pubMatch ? fetchPublicBoardMeta(env, pubMatch[1]).catch(failOpen('public_board_meta')) : null;
+    const pubContentPromise = pubMatch ? fetchPublicBoardContent(env, pubMatch[1]).catch(failOpen('public_board_content')) : null;
+    const pubPagePromise = pubMatch ? fetchPublicBoardPage(env, pubMatch[1]).catch(failOpen('public_board_page')) : null;
+    const pubRelatedPromise = pubMatch ? fetchRelatedPublicBoards(env, pubMatch[1]).catch(failOpen('related_boards')) : null;
     // The template store's community half. Fetched for the store front (so the
     // server-rendered catalogue matches the one React renders) and for a single
     // published item's page. .catch AT CREATION, not at await — an unawaited
@@ -806,14 +847,14 @@ const worker = {
     const storeOpen = templateStoreOpenOn(url.hostname);
     const tplStoreMatch = isPageReq && storeOpen && /^\/templates\/?$/i.test(url.pathname);
     const tplStorePromise = tplStoreMatch
-      ? anonRpc(env, 'list_public_grid_layouts', { p_limit: 120 }, 1500).catch(() => null)
+      ? anonRpc(env, 'list_public_grid_layouts', { p_limit: 120 }, 1500).catch(failOpen('template_store'))
       : null;
     const tplPubMatch = isPageReq && storeOpen ? publicTemplateSlug(url.pathname) : null;
     const tplPubPromise = tplPubMatch
-      ? anonRpc(env, 'get_public_grid_layout', { p_slug: tplPubMatch }, 1500).catch(() => null)
+      ? anonRpc(env, 'get_public_grid_layout', { p_slug: tplPubMatch }, 1500).catch(failOpen('template_page'))
       : null;
     const exploreMatch = isPageReq ? url.pathname.match(EXPLORE_PATH_RE) : null;
-    const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(() => null) : null;
+    const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(failOpen('explore_list')) : null;
 
     // Page URLs (no extension, not /assets/*): strip conditional headers before
     // asking ASSETS, so it always returns a full 200 document instead of a 304.
@@ -1049,45 +1090,48 @@ const worker = {
     //
     // event.cron lets us distinguish which schedule fired this invocation.
     const which = event?.cron || '';
+    // Every job is watched: a failure that escapes it is recorded (and still
+    // fails it). The jobs record what they catch themselves (jobFailed).
+    const watch = (job, p) => watchWorkerJob(env, ctx, job, p);
     if (which === '* * * * *') {
       // Webhook drain. Every minute because an outbox is only as timely as its
       // slowest path, and the slow path here is a change made IN THE APP —
       // API-driven events already leave immediately via waitUntil in
       // worker-api.js. Costs one indexed probe when nothing is pending.
-      ctx.waitUntil(runWebhooks(env, { limit: 200 }));
+      ctx.waitUntil(watch('webhooks', runWebhooks(env, { limit: 200 })));
       // The converter (worker-playCopy.js): wake it while copies wait, so a
       // lost wake or a machine that stopped mid-job costs a minute, not a copy.
       // One indexed count when the queue is empty.
-      ctx.waitUntil(tickPlayCopies(env));
+      ctx.waitUntil(watch('play_copies', tickPlayCopies(env)));
     } else if (which === '15 * * * *') {
-      ctx.waitUntil(runCompactionJob1(env));
+      ctx.waitUntil(watch('compaction', runCompactionJob1(env)));
       // IndexNow (0480): the first tick on a build production has not pinged
       // for tells Bing and Yandex which sitemap pages changed; every later tick
       // is one indexed read that finds the ping already made.
-      ctx.waitUntil(runIndexNowForBuild(env, { sha: BUILD_SHA, date: BUILD_DATE }, () => sitemapUrls(env)));
+      ctx.waitUntil(watch('indexnow', runIndexNowForBuild(env, { sha: BUILD_SHA, date: BUILD_DATE }, () => sitemapUrls(env))));
     } else if (which === '0 4 * * *') {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
       // then the history-aware orphan sweep. Sequential so R2 ops don't spike.
-      ctx.waitUntil(runImageSizeBackfill(env).then(() => runR2Sweep(env)));
+      ctx.waitUntil(watch('r2_sweep', runImageSizeBackfill(env).then(() => runR2Sweep(env))));
       // The Workers AI model watch (worker-aiwatch.js): pages when a model the
       // app calls is announced for retirement, leaves the catalog, or stops
       // answering. Separate from the sweep; it touches no R2.
-      ctx.waitUntil(runAiModelWatch(env));
+      ctx.waitUntil(watch('ai_watch', runAiModelWatch(env)));
     } else if (which === '0 6 * * 1') {
       // Sundays 06:00 UTC: Cloudflare counts day-of-week 1 as Sunday, and every
       // run since 2026-09-06 has landed on one. The AEO retrieval probe (0296). Weekly
       // because retrieval moves on the timescale of index refreshes; daily
       // would mostly sample answer-to-answer variance. No-ops without
       // OPENAI_API_KEY.
-      ctx.waitUntil(runAeoRetrievalProbe(env));
+      ctx.waitUntil(watch('aeo_probe', runAeoRetrievalProbe(env)));
       // ...and one email listing the week's new Workers AI models, if any.
-      ctx.waitUntil(runAiModelDigest(env));
+      ctx.waitUntil(watch('ai_digest', runAiModelDigest(env)));
     } else if (which === '45 * * * *') {
       // Hourly at :45 — copy new R2 objects into the locked backup bucket, so
       // the images (which the database dump only holds POINTERS to) have a
       // second, immutable copy. No-ops until env.IMAGES_BACKUP is bound; see the
       // activation note in wrangler.toml.
-      ctx.waitUntil(runR2Mirror(env));
+      ctx.waitUntil(watch('r2_mirror', runR2Mirror(env)));
     } else {
       // An edited wrangler.toml schedule must never silently reroute into the
       // destructive sweep — unknown crons are a loud no-op.
@@ -1144,6 +1188,7 @@ async function runR2Sweep(env) {
       await rpc(env, 'record_r2_sweep_audit', { p_run_id: runId, p_rows: rows });
     } catch (e) {
       console.error(`[r2-sweep] run=${runId} audit insert failed; aborting sweep`, e);
+      await jobFailed(env, 'r2_sweep', e, 'audit');
       return;
     }
 
@@ -1190,7 +1235,7 @@ async function runR2Sweep(env) {
 
     if (deletedIds.length > 0) {
       try { await rpc(env, 'mark_image_rows_swept', { p_ids: deletedIds }); }
-      catch (e) { console.warn('[r2-sweep] mark_swept rpc failed', e); }
+      catch (e) { console.warn('[r2-sweep] mark_swept rpc failed', e); await jobFailed(env, 'r2_sweep', e, 'mark_swept'); }
     }
     // A swept video or audio file's playable copies (0660), or a photo's views
     // (0661), go with it. Its row is only marked, so nothing cascades:
@@ -1198,15 +1243,18 @@ async function runR2Sweep(env) {
     // drains.
     if (sweptMedia.length > 0) {
       try { await forgetPlayCopies(env, sweptMedia); }
-      catch (e) { console.warn('[r2-sweep] forgetPlayCopies failed', e); }
+      catch (e) { console.warn('[r2-sweep] forgetPlayCopies failed', e); await jobFailed(env, 'r2_sweep', e, 'play_copies'); }
     }
 
     console.log(
       `[r2-sweep] run=${runId} mode=${mode} candidates=${rows.length} kept=${kept} would-delete=${toDelete} deleted=${deleted} errors=${errors.length} took=${Date.now() - startedAt}ms`,
       errors.length > 0 ? { firstError: errors[0] } : '',
     );
+    // Without R2's words: they can name the key, a person's id and file name.
+    if (errors.length > 0) await jobFailed(env, 'r2_sweep', new Error('R2 deletes failed'), 'delete');
   } catch (e) {
     console.error('[r2-sweep] failed', e);
+    await jobFailed(env, 'r2_sweep', e);
   }
 
   // Second pass: keys whose images row no longer exists at all.
@@ -1260,15 +1308,17 @@ async function runR2TombstoneSweep(env, dryRun, mode) {
 
     if (sweptPaths.length > 0) {
       try { await rpc(env, 'mark_r2_tombstones_swept', { p_paths: sweptPaths }); }
-      catch (e) { console.warn('[r2-tombstone] mark_swept rpc failed', e); }
+      catch (e) { console.warn('[r2-tombstone] mark_swept rpc failed', e); await jobFailed(env, 'r2_tombstone', e, 'mark_swept'); }
     }
 
     console.log(
       `[r2-tombstone] mode=${mode} candidates=${rows.length} kept=${kept} would-delete=${wouldDelete} deleted=${deleted} errors=${errors.length} took=${Date.now() - startedAt}ms`,
       errors.length > 0 ? { firstError: errors[0] } : '',
     );
+    if (errors.length > 0) await jobFailed(env, 'r2_tombstone', new Error('R2 deletes failed'), 'delete');
   } catch (e) {
     console.error('[r2-tombstone] failed', e);
+    await jobFailed(env, 'r2_tombstone', e);
   }
 }
 
@@ -3345,6 +3395,7 @@ async function runImageSizeBackfill(env, { cap = 5000 } = {}) {
       r = await backfillImageSizesOnce(env, 200);
     } catch (e) {
       console.log(`[size-backfill] batch failed: ${e?.message || e}`);
+      await jobFailed(env, 'size_backfill', e);
       break;
     }
     rounds++;
@@ -3475,6 +3526,7 @@ async function runR2Mirror(env) {
     }
   } catch (e) {
     console.error('[r2-mirror] images pass failed', String(e?.message || e));
+    await jobFailed(env, 'r2_mirror', e, 'images');
   }
 
   // 2. Compacted op batches — one immutable key each. Skipped when the images
@@ -3495,6 +3547,7 @@ async function runR2Mirror(env) {
       }
     } catch (e) {
       console.error('[r2-mirror] batches pass failed', String(e?.message || e));
+      await jobFailed(env, 'r2_mirror', e, 'batches');
     }
   }
 
@@ -3512,7 +3565,9 @@ async function runR2Mirror(env) {
     }), { httpMetadata: { contentType: 'application/json' } });
   } catch (e) {
     console.error('[r2-mirror] failed to persist watermark', String(e?.message || e));
+    await jobFailed(env, 'r2_mirror', e, 'watermark');
   }
+  if (stats.error > 0) await jobFailed(env, 'r2_mirror', new Error('R2 copies failed'), 'copy');
 
   console.log(
     `[r2-mirror] rows=${stats.rows} copied=${stats.copied} existed=${stats.exists} missing=${stats.missing} errors=${stats.error} ` +

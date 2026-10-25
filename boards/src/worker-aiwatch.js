@@ -9,6 +9,7 @@ import {
   AI_MODELS, CHANGELOG_FEED, WATCHED_TASKS, alertFor, canaryProblem, canaryRequest,
   digestAlert, modelProblems, newModels, retiringFromFeed, watchAlert,
 } from './lib/aiModels.js';
+import { jobFailed } from './lib/workerErrors.js';
 
 const DAY = 86_400_000;
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -79,6 +80,7 @@ async function raise(env, alert) {
     return (await res.json()) != null;
   } catch (e) {
     console.error('[ai-watch] could not raise', alert.key, '-', alert.title, '-', e?.message || e);
+    await jobFailed(env, 'ai_watch', e, 'raise');
     return false;
   }
 }
@@ -111,6 +113,7 @@ export async function runAiModelWatch(env, { models = AI_MODELS, wait = pause, n
     return { catalog: catalog?.length ?? null, posts: feed?.posts ?? null, canaries, problems, alerts, sent };
   } catch (e) {
     console.error('[ai-watch] failed:', e?.message || e);
+    await jobFailed(env, 'ai_watch', e);
     await raise(env, watchAlert('run', e));
     return null;
   }
@@ -130,6 +133,7 @@ export async function runAiModelDigest(env, { now = Date.now() } = {}) {
   } catch (e) {
     // The daily watch already pages when the catalog can't be read.
     console.error('[ai-watch] digest failed:', e?.message || e);
+    await jobFailed(env, 'ai_digest', e);
     return null;
   }
 }

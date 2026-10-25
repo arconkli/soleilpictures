@@ -61,6 +61,7 @@ import {
   AFTER_WRITE_DRAIN,
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
+import { answeredWith, reportWorkerError } from './lib/workerErrors.js';
 import { ApiError, apiErrorFrom } from './lib/mcpTools.js';
 import {
   arrange, rearrange, LAYOUTS, DEFAULT_LAYOUT, isLayout,
@@ -915,6 +916,8 @@ export async function handleApiRoute(url, request, env, ctx) {
     const { status, code, message } = normalizeApiError(e);
     if (status >= 500) {
       console.error('[api]', request.method, url.pathname, e?.message, e?.detail || e?.cause?.message || '');
+      // worker.fetch records the 5xx at the door, with this.
+      answeredWith(request, e, { kind: 'api', code });
     }
     res = json({ error: message, code }, status);
   }
@@ -1023,6 +1026,9 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
     const { status, code, message } = normalizeApiError(e);
     if (status >= 500) {
       console.error('[mcp→api]', method, target.pathname, e?.message, e?.detail || e?.cause?.message || '');
+      // A tool's failure leaves /mcp as the tool's answer, not as a 5xx, so
+      // the door never sees it: recorded here.
+      reportWorkerError(env, ctx, { kind: 'api', error: e, request: req, status, code, op: 'mcp' });
     }
     throw new ApiError(message, {
       status,
