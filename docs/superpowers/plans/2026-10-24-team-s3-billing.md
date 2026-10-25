@@ -198,7 +198,9 @@ checkout complete (twice), the mirror guard, entitlement, trim and the seat outb
 - [ ] Create the live Stripe objects with the Stripe MCP: the product "Clusters Team", and the prices
   `team_seat_monthly` ($15) and `team_seat_annual` ($144), per unit, recurring.
 - [ ] Set the secrets `STRIPE_PRODUCT_TEAM`, `STRIPE_PRICE_TEAM_MONTHLY` and `STRIPE_PRICE_TEAM_ANNUAL`.
-- [ ] Apply 0538 in parts, then verify the bodies by md5 and run probe F.
+- [x] Apply 0538 in parts, then verify the bodies by md5 and run probe F. Done 2026-10-25: eight
+  records, 17 bodies md5-matched, probe F 9/9 on live (rolled back; F5 builds its lapsed team
+  fresh, since the MCP refuses a script with a delete in it).
 - [ ] Deploy `team-billing`, `team-billing-cron`, `stripe-webhook`, `verify-checkout-session`,
   `create-checkout-session`, `billing-reconcile-cron` and `storage-addon` (everything that imports
   `activateCore` or `activate.ts`).

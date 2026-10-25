@@ -1,6 +1,8 @@
 -- 0538: Teams, part 10 — billing (S3).
 --
--- STATUS: written 2026-10-24. NOT APPLIED until the owner says go.
+-- STATUS: APPLIED 2026-10-25 on the owner's go, as eight records
+-- (teams_billing_part1..7, teams_billing_part8_proof): every body md5-matched
+-- this file and probe F passed on the live database, rolled back.
 --
 -- A team pays for itself through Stripe (plan
 -- docs/superpowers/plans/2026-10-24-team-s3-billing.md). The edge functions
