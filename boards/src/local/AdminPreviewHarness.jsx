@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import '../pages/admin/admin.css';
 import { supabase } from '../lib/supabase.js';
 import { installAdminPreviewMocks } from './adminFixtures.js';
+import { installIssuesFixtures } from './adminIssuesFixtures.js';
 import { UniverseView } from '../pages/admin/AdminUniverseTab.jsx';
 import { AdminCommandCenter } from '../pages/admin/AdminCommandCenter.jsx';
 import { makeSyntheticDataSource } from './universeQaData.js';
@@ -131,6 +132,8 @@ function installAiChannelFixtures(client) {
   };
 }
 if (MOCKS_OK) installAiChannelFixtures(supabase);
+// Admin, Errors (the Issues view): its own file, layered the same way.
+if (MOCKS_OK) installIssuesFixtures(supabase);
 
 function readQaNodeTarget() {
   try {
