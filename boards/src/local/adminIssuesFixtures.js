@@ -321,6 +321,25 @@ function clickFriction(params) {
   };
 }
 
+// What one person ran into: the first three problems, as theirs.
+function userErrors(params) {
+  const mine = GROUPS.slice(0, 3);
+  const recent = mine.map((g, i) => ({
+    id: 72000 + i, at: ago((i + 1) * 3 * HOUR), kind: g.kind, severity: g.severity, name: null,
+    message: g.message, path: g.path, release: g.last_release, env: 'prod',
+    session_id: i === 2 ? null : sid(600 + i), fingerprint: g.fingerprint, context: null,
+  }));
+  return {
+    days: Math.max(1, Math.min(Number(params?.p_days) || 30, 90)),
+    n: 6, sessions: 2,
+    groups: mine.map((g, i) => ({
+      fingerprint: g.fingerprint, kind: g.kind, severity: g.severity, source: g.source, message: g.message,
+      n: 3 - i, first_at: ago((i + 2) * DAY), last_at: recent[i].at, status: g.status,
+    })),
+    recent,
+  };
+}
+
 function setStatus(params) {
   const g = GROUPS.find((x) => x.fingerprint === params?.p_fingerprint);
   if (!g) return { error: { message: 'no such problem', code: 'P0002' } };
@@ -340,6 +359,7 @@ const ISSUE_FIXTURES = {
   admin_error_session_trail: (p) => ({ data: sessionTrail(p) }),
   admin_failure_events: (p) => ({ data: failureEvents(p) }),
   admin_click_friction: (p) => ({ data: clickFriction(p) }),
+  admin_user_errors: (p) => ({ data: userErrors(p) }),
   admin_set_error_group_status: setStatus,
 };
 
