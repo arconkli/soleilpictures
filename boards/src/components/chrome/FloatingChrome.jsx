@@ -16,7 +16,7 @@
 // Held: App renders it only with the files sidebar and never on a phone, which
 // keeps its bar.
 //
-// In the toolbar look (held: lib/looks.js) the islands wear the bars' glass
+// In the toolbar look (lib/looks.js) the islands wear the bars' glass
 // (styles/toolbarLook.css), their icons are drawn regular, and ⋯ is the look's
 // menu (ChromeMoreA.jsx, a chunk of its own). They keep their place and size.
 

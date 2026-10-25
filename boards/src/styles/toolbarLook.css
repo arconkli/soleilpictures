@@ -1,7 +1,7 @@
 /* The toolbar look on the bars the app already has (the owner's pick
    "A · Islands", 2026-10-21): each keeps its markup and wears the language
    here, scoped to <html data-tb="a"> (lib/appHost.js toolbarLookAllowed), so
-   nothing changes while the look is held. Loaded by main.jsx only under the
+   where the look is off nothing changes. Loaded by main.jsx only under the
    look. The parts (tokens, glass, buttons, menus, the tooltip) are
    components/toolbar/toolbar.css's; this file says where each bar wears them.
    One section a bar. */

@@ -7694,6 +7694,113 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a computer, two or more picked get a bar along the bottom of the canvas: how many, "
+    },
+    {
+     "t": "strong",
+     "v": "Tidy up",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tidy up"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Align",
+     "children": [
+      {
+       "t": "text",
+       "v": "Align"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (with Distribute), "
+    },
+    {
+     "t": "strong",
+     "v": "Group",
+     "children": [
+      {
+       "t": "text",
+       "v": "Group"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "New cluster from N cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster from N cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Move N cards to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move N cards to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for the rest of the right-click menu, and "
+    },
+    {
+     "t": "strong",
+     "v": "Delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Each does what the right-click menu does with the same selection."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Drawing",
@@ -11964,6 +12071,29 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone the toolbar's row keeps the colour, the label and delete, and "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " holds the rest; a tablet's keeps the heads in the row as well."
+    }
    ]
   },
   {

@@ -1,5 +1,5 @@
 // The tool rail in the toolbar look (the owner's pick "A · Islands",
-// 2026-10-21, mockup A-add), held to a dev opt-in (lib/appHost.js
+// 2026-10-21, mockup A-add), shipped 2026-10-25 (lib/appHost.js
 // toolbarLookAllowed): its tooltips are the look's one tooltip (glass, the
 // words, the key in a cap, on the right); the + menu says Draw's key in a cap;
 // the + with its menu open is open, not on (gold is for the tool that's on);

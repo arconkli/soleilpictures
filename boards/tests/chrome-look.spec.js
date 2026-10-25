@@ -1,5 +1,5 @@
 // The top islands and the comments toggle in the toolbar look (the owner's
-// pick "A · Islands", the top of mockup A-select), held to a dev opt-in
+// pick "A · Islands", the top of mockup A-select), shipped 2026-10-25
 // (lib/appHost.js): FloatingChrome's islands wear the bars' glass, with 28px
 // buttons, regular icons, hairlines between the groups and the glass tooltip
 // with the shortcut's keys; ⋯ is the look's menu (ChromeMoreA.jsx); the

@@ -1,5 +1,5 @@
 // The right-click menus in the toolbar look (the owner's pick "A · Islands"),
-// held to a dev opt-in (lib/appHost.js): a card's menu and the canvas's wear
+// shipped 2026-10-25 (lib/appHost.js): a card's menu and the canvas's wear
 // the look's menu, its glass at the tooltip's 94% since they open over
 // photos, rows of words at 13px, and a shortcut a cap per key, which the row
 // says to a screen reader in aria-keyshortcuts rather than in its name

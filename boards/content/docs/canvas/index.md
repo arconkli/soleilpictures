@@ -5,7 +5,7 @@ h1: The canvas
 navLabel: Overview
 section: canvas
 order: 0
-updated: 2026-10-21
+updated: 2026-10-25
 answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 faq:
   - q: How big is the canvas?
@@ -109,6 +109,12 @@ See [touch on the canvas](/docs/account/mobile#touch-on-the-canvas).
 With several cards selected you can move them as one, align them, delete them
 together, or press `⌘G` to make them a [group](/docs/canvas/groups) — which is a
 selection that persists, gets a name, and can be commented on as a unit.
+
+On a computer, two or more picked get a bar along the bottom of the canvas:
+how many, **Tidy up** and **Align** (with Distribute), **Group**, **New
+cluster from N cards** and **Move N cards to…**, then **⋯** for the rest of the
+right-click menu, and **Delete**. Each does what the right-click menu does with
+the same selection.
 
 ## Drawing
 

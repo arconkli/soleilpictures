@@ -1,7 +1,7 @@
 // A picked arrow's bar by what it does, in either of its looks: today's
 // popover (components/ArrowPopover.jsx), and the toolbar look's
-// (lib/appHost.js toolbarLookAllowed; on dev the opt-in
-// soleil.dev.toolbarLook = '1'; components/toolbar/CanvasBarsA.jsx
+// (lib/appHost.js toolbarLookAllowed; on everywhere, and on dev unless
+// soleil.dev.toolbarLook = '0'; components/toolbar/CanvasBarsA.jsx
 // PickedArrowBarA), which carries the same controls by the same names, a
 // phone's heads in ⋯ (tests/arrow-picked-look.spec.js). A spec that reaches a
 // control through these passes with the look on and off.

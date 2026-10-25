@@ -44,9 +44,9 @@ import { IconWeightContext } from './Icon.jsx';
 import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
 import { openableUrl } from '../lib/openableUrl.js';
 
-// The doc look's side panel, footer and one row of tools (held;
-// components/doc/DocFrameA.jsx): lazy, so the doc as it is never downloads
-// the look.
+// The doc look's side panel, footer and one row of tools
+// (components/doc/DocFrameA.jsx): lazy, so today's editor (on dev, the hold
+// set to '0') never downloads the look.
 const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
 const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
 const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));

@@ -388,7 +388,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-10-21",
+    "updated": "2026-10-25",
     "navLabel": "Overview",
     "headings": [
       {
@@ -700,7 +700,7 @@ export const DOCS_PAGES = [
     "answer": "Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.",
     "section": "canvas",
     "order": 5,
-    "updated": "2026-10-24",
+    "updated": "2026-10-25",
     "navLabel": "Arrows",
     "headings": [
       {

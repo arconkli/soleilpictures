@@ -18,10 +18,9 @@ import { toolbarLookAllowed, docLookAllowed } from './lib/appHost.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
-// The toolbar look (held to the preview and a dev opt-in) and the doc
-// editor's look (on everywhere; on dev a hold set to '0' shows today's):
-// marked on <html> once, before anything renders, so the CSS and lib/looks.js
-// agree from the first frame.
+// The toolbar look and the doc editor's look (on everywhere; on dev a hold
+// set to '0' shows today's): marked on <html> once, before anything renders,
+// so the CSS and lib/looks.js agree from the first frame.
 if (typeof document !== 'undefined') {
   if (toolbarLookAllowed()) document.documentElement.dataset.tb = 'a';
   if (docLookAllowed()) document.documentElement.dataset.docLook = 'a';

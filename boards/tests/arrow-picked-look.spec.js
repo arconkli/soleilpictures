@@ -1,5 +1,5 @@
 // A picked arrow's bar in the toolbar look (the owner's pick "A · Islands";
-// components/toolbar/CanvasBarsA.jsx PickedArrowBarA), held to a dev opt-in
+// components/toolbar/CanvasBarsA.jsx PickedArrowBarA), shipped 2026-10-25
 // (lib/appHost.js toolbarLookAllowed): over the arrow's middle, as today's
 // popover sits, in the look's glass: its colour as a chip with its menu, its
 // width, its heads, its path and its dashes, what's on in the look's tint and

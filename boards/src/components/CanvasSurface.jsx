@@ -73,8 +73,8 @@ const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'))
 // at its first open and stays mounted from then on (lib/lazyPanel.jsx).
 const SketchPadOverlay = lazyPanel(() => import('./SketchPadOverlay.jsx').then(m => ({ default: m.SketchPadOverlay })));
 const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then(m => ({ default: m.GridTemplatePanel })));
-// The selection's bar in the toolbar look (held: lib/looks.js), a chunk
-// today's look never fetches.
+// The selection's bar in the toolbar look (lib/looks.js), a chunk today's
+// bars (on dev, the hold set to '0') never fetch.
 const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
 

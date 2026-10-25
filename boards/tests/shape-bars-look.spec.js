@@ -1,5 +1,5 @@
 // The shape, line and arrow bars in the toolbar look (the owner's pick
-// "A · Islands", mockup A-parts), held to a dev opt-in (lib/appHost.js
+// "A · Islands", mockup A-parts), shipped 2026-10-25 (lib/appHost.js
 // toolbarLookAllowed; components/toolbar/CanvasBarsA.jsx): the shape as a
 // menu of shapes, its stroke and fill as colour chips with their menus, the
 // width between − and +, the line style as a menu; a line's colour, width,

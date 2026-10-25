@@ -1,5 +1,5 @@
 // The bars over pictures, PDFs and clips in the toolbar look (the owner's
-// pick "A · Islands"), held to a dev opt-in (lib/appHost.js): an image card's
+// pick "A · Islands"), shipped 2026-10-25 (lib/appHost.js): an image card's
 // actions are the look's island over the picture, with its icons and glass
 // tooltip; the PDF viewer's page and zoom are small islands of the look's
 // icons, with the keys in their tooltips; the film's "on" is the look's gold
