@@ -24,13 +24,13 @@
 //     "env": { "SOLEIL_API_TOKEN": "sk_live_…" }
 //   }
 //
-// Mint the token in Clusters under Settings → API. A read-only token is the
+// Mint the token in Clusters under Settings → Connections. A read-only token is the
 // right default; add write only if the model should change things, and delete
 // only if it should remove them.
 
 import { open, stat } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
-import { TOOLS } from './tools.js';
+import { TOOLS, apiErrorFrom } from './tools.js';
 import { handleMcpMessage, ERR } from './server.js';
 import { idempotencyKey } from './idempotency.js';
 import { login, tokenSource, clearCredentials, credentialsPath } from './auth.js';
@@ -57,7 +57,7 @@ if (subcommand === 'logout') {
   const had = await clearCredentials();
   console.log(had
     ? `Signed out. Removed ${credentialsPath()}.\n`
-      + 'The connection itself is still listed under Settings → API → Connected apps; '
+      + 'The connection itself is still listed under Settings → Connections → Connected apps; '
       + 'disconnect it there to revoke it for good.'
     : 'Nothing stored — you were not signed in.');
   process.exit(0);
@@ -75,7 +75,7 @@ if (!(await TOKENS.get())) {
   // Fail here rather than on the first tool call. A server that starts and then
   // errors on every request looks like the API is down.
   console.error('Not signed in. Run `npx soleil-clusters-mcp login`, '
-    + 'or set SOLEIL_API_TOKEN to a token from Settings → API.');
+    + 'or set SOLEIL_API_TOKEN to a token from Settings → Connections.');
   process.exit(1);
 }
 
@@ -112,7 +112,7 @@ async function api(path, { method = 'GET', body, rawBody, raw = false, headers, 
   const token = await TOKENS.get();
   if (!token) {
     throw new Error('Not signed in to Soleil Clusters. Run `npx soleil-clusters-mcp login`, '
-      + 'or set SOLEIL_API_TOKEN to a token from Settings → API.');
+      + 'or set SOLEIL_API_TOKEN to a token from Settings → Connections.');
   }
   let res = await send(token);
   if (res.status === 401) {
@@ -122,8 +122,7 @@ async function api(path, { method = 'GET', body, rawBody, raw = false, headers, 
     if (next) res = await send(next);
   }
 
-  if (raw) {
-    if (!res.ok) throw new Error(await errorMessage(res, method, path));
+  if (raw && res.ok) {
     return {
       bytes: Buffer.from(await res.arrayBuffer()),
       contentType: res.headers.get('content-type') || 'application/octet-stream',
@@ -131,39 +130,15 @@ async function api(path, { method = 'GET', body, rawBody, raw = false, headers, 
     };
   }
 
+  // A refusal becomes the same ApiError the hosted server raises, and the
+  // shared describeApiError (tools.js) words it — the code in brackets, advice
+  // for a missing scope, the per-token limit and Retry-After for a 429 — so a
+  // model reads one sentence for one refusal on either transport.
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch (_) { /* non-JSON error page */ }
-  if (!res.ok) throw new Error(await errorMessage(res, method, path, data));
+  if (!res.ok) throw apiErrorFrom(res.status, data, res.headers);
   return data;
-}
-
-// Surface the API's own message: it is written for a person, and a model
-// relaying it verbatim is more useful than one inventing a reason. Two cases
-// get a sentence of their own, because the raw answer tells a model nothing it
-// can act on.
-async function errorMessage(res, method, path, parsed) {
-  let data = parsed;
-  if (data === undefined) {
-    try { data = JSON.parse(await res.text()); } catch (_) { data = null; }
-  }
-  if (data?.code === 'insufficient_scope') {
-    return `${data.error}. This token has: ${(data.scopes || []).join(', ') || 'nothing'}. `
-      + 'Mint a new token in Clusters under Settings → API to change that — it cannot be widened from here.';
-  }
-  if (res.status === 429) {
-    // The ceiling is per token and configurable, so the number comes from the
-    // response rather than being hard-coded here — it used to say "1000/hour"
-    // to service accounts whose limit was ten times that.
-    const limit = res.headers.get('x-ratelimit-limit');
-    const retry = res.headers.get('retry-after');
-    return `Rate limited by Clusters${limit ? ` (${limit} requests/hour for this token)` : ''}.`
-      + `${retry ? ` Retry in ${retry}s.` : ' Wait a little and retry.'}`;
-  }
-  // The machine-readable code goes back too. A model that only ever sees
-  // English cannot branch on anything.
-  const code = data?.code ? ` [${data.code}]` : '';
-  return `${data?.error || `${method} ${path} failed (${res.status})`}${code}`;
 }
 
 // ── Local file upload: the one thing only this transport can do ──────────────

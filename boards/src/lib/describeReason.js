@@ -42,11 +42,12 @@ export function describeReason(reason, prefix = 'Unhandled rejection') {
       msg = reason.message || String(reason);
     } else if (typeof reason.message === 'string') {
       // PostgrestError and friends: message plus whichever diagnostics exist.
+      // Never `details`: Postgres puts the refused row in it ("Failing row
+      // contains (…)"), which is what someone made.
       name = reason.name || (reason.code ? 'PostgrestError' : 'UnhandledRejection');
       const bits = [reason.message];
       if (reason.code !== undefined) bits.push(`code=${reason.code}`);
       if (reason.status !== undefined) bits.push(`status=${reason.status}`);
-      if (reason.details) bits.push(`details=${reason.details}`);
       if (reason.hint) bits.push(`hint=${reason.hint}`);
       msg = bits.join(' ');
     } else {

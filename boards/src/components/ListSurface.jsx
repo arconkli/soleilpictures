@@ -1905,7 +1905,7 @@ export function ListSurface({
     try {
       await downloadCardAsset(it.card, it.kind, { surface: 'list' });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
     }
   }, [feedback]);
 
@@ -1940,7 +1940,7 @@ export function ListSurface({
       }
     } catch (err) {
       if (err?.code === 'zip_too_large') {
-        feedback?.toast?.({ type: 'error', message: err.message });
+        feedback?.toast?.({ type: 'error', code: 'zip_too_large', message: err.message });
       } else if (err instanceof AssetFetchError && err.unreachable) {
         // R2 returns no CORS header on an error response, so the browser
         // cannot tell us whether the signature died or this origin is simply
@@ -1949,10 +1949,11 @@ export function ListSurface({
         const origin = (typeof window !== 'undefined' && window.location?.origin) || 'this address';
         feedback?.toast?.({
           type: 'error',
+          code: 'zip_storage_blocked',
           message: `Storage would not hand those files back to ${origin}. Downloading one at a time still works.`,
         });
       } else {
-        feedback?.toast?.({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+        feedback?.toast?.({ type: 'error', code: 'zip_download_failed', message: 'Download failed: ' + (err?.message || err) });
       }
     } finally {
       setZipping(false);

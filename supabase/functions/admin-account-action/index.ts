@@ -32,6 +32,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import { mirrorRow } from "../_shared/activate.ts";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -107,7 +108,7 @@ async function resyncSubscription(admin: Admin, userId: string) {
   return { ok: true, status: sub.status, monthly_amount_cents: mirror.monthly_amount_cents, discount: mirror.discount };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("admin-account-action", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -153,10 +154,10 @@ Deno.serve(async (req) => {
           banned_by: callerId,
           banned_reason: (body.reason || "").trim() || null,
         }).eq("user_id", body.user_id);
-        if (upd.error) return json({ error: upd.error.message }, 500);
+        if (upd.error) return failedWith(json({ error: upd.error.message }, 500), upd.error, { what: "update profiles" });
         // Native ban: blocks sign-in + token refresh server-side (~100 years).
         const ban = await admin.auth.admin.updateUserById(body.user_id, { ban_duration: "876000h" });
-        if (ban.error) return json({ error: `banned in app, but auth ban failed: ${ban.error.message}` }, 500);
+        if (ban.error) return failedWith(json({ error: `banned in app, but auth ban failed: ${ban.error.message}` }, 500), ban.error, { what: "auth ban" });
         return json({ ok: true, action: "ban", subscription_canceled: r.canceled }, 200);
       }
 
@@ -164,9 +165,9 @@ Deno.serve(async (req) => {
         const upd = await admin.from("profiles").update({
           banned_at: null, banned_by: null, banned_reason: null,
         }).eq("user_id", body.user_id);
-        if (upd.error) return json({ error: upd.error.message }, 500);
+        if (upd.error) return failedWith(json({ error: upd.error.message }, 500), upd.error, { what: "update profiles" });
         const unban = await admin.auth.admin.updateUserById(body.user_id, { ban_duration: "none" });
-        if (unban.error) return json({ error: `unbanned in app, but auth unban failed: ${unban.error.message}` }, 500);
+        if (unban.error) return failedWith(json({ error: `unbanned in app, but auth unban failed: ${unban.error.message}` }, 500), unban.error, { what: "auth unban" });
         return json({ ok: true, action: "unban" }, 200);
       }
 
@@ -178,20 +179,26 @@ Deno.serve(async (req) => {
         // it, large uploads refused, the card cap gone. Workspaces nobody can
         // inherit go with the account, as prepare_account_deletion does.
         const prep = await admin.rpc("prepare_admin_account_deletion", { p_user_id: body.user_id });
-        if (prep.error) return json({ error: `could not hand over their workspaces: ${prep.error.message}` }, 500);
+        if (prep.error) return failedWith(json({ error: `could not hand over their workspaces: ${prep.error.message}` }, 500), prep.error, { what: "rpc prepare_admin_account_deletion" });
         const leftover = await admin.from("workspaces").delete().eq("created_by", body.user_id);
-        if (leftover.error) return json({ error: `could not remove their workspaces: ${leftover.error.message}` }, 500);
+        if (leftover.error) return failedWith(json({ error: `could not remove their workspaces: ${leftover.error.message}` }, 500), leftover.error, { what: "delete workspaces" });
         // GDPR erasure: anonymize the user's analytics events + client error logs
         // (drop user_id + session_id, scrub props PII) BEFORE deleting the auth
         // user. After deletion the FKs only SET-NULL user_id, leaving rows
         // correlatable by session_id, so this must run while user_id is set.
         // Best-effort: log but don't strand the deletion on a transient failure.
         const anon = await admin.rpc("anonymize_user_analytics", { p_user_id: body.user_id });
-        if (anon.error) console.error("[admin-account-action] anonymize_user_analytics failed", anon.error.message);
+        if (anon.error) {
+          console.error("[admin-account-action] anonymize_user_analytics failed", anon.error.message);
+          void reportEdgeError("admin-account-action", { what: "rpc anonymize_user_analytics", error: anon.error });
+        }
         const anonErr = await admin.rpc("anonymize_user_client_errors", { p_user_id: body.user_id });
-        if (anonErr.error) console.error("[admin-account-action] anonymize_user_client_errors failed", anonErr.error.message);
+        if (anonErr.error) {
+          console.error("[admin-account-action] anonymize_user_client_errors failed", anonErr.error.message);
+          void reportEdgeError("admin-account-action", { what: "rpc anonymize_user_client_errors", error: anonErr.error });
+        }
         const del = await admin.auth.admin.deleteUser(body.user_id);
-        if (del.error) return json({ error: del.error.message }, 500);
+        if (del.error) return failedWith(json({ error: del.error.message }, 500), del.error, { what: "auth deleteUser" });
         return json({ ok: true, action: "delete", subscription_canceled: r.canceled, workspaces: prep.data ?? null, analytics_anonymized: anon.data ?? null, errors_anonymized: anonErr.data ?? null }, 200);
       }
 
@@ -205,9 +212,9 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     console.error("[admin-account-action] error", e);
-    return json({ error: String((e as Error)?.message ?? e) }, 500);
+    return failedWith(json({ error: String((e as Error)?.message ?? e) }, 500), e);
   }
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

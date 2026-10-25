@@ -22,6 +22,8 @@ import { UniverseParty } from "./universe";
 import { DocParty } from "./doc";
 import { UploadParty } from "./upload";
 import { authBoard, authWorkspace, bannedAmong, canWriteBoard, docRoomAccess } from "./auth";
+import { bindReports, doorClosed, doorOpened, reportParty } from "./report";
+import { answeredWith, answerOf } from "../src/lib/serverErrors.js";
 import type { Env } from "./env";
 
 export { BoardParty, WorkspaceParty, UniverseParty, DocParty };
@@ -152,27 +154,50 @@ async function beforeRequest(req: Request, lobby: Lobby): Promise<Request | Resp
   return notFound();
 }
 
+// The Worker's answer: health, an upload, or a room.
+async function answer(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  if (url.pathname === "/" || url.pathname === "/health") {
+    return new Response("ok\n", { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
+  }
+
+  const upload = url.pathname.match(/^\/parties\/upload\/([^/]+)/);
+  if (upload) {
+    return new UploadParty({ id: upload[1], env: env as unknown as Record<string, unknown> }).onRequest(request);
+  }
+
+  try {
+    const res = await routePartykitRequest(request, env as unknown as Record<string, unknown>, {
+      onBeforeConnect: (req: Request, lobby: Lobby) => beforeConnect(req, lobby, env),
+      onBeforeRequest: (req: Request, lobby: Lobby) => beforeRequest(req, lobby),
+    });
+    return res ?? notFound();
+  } catch (e) {
+    console.error("[party] routing failed", e);
+    answeredWith(request, e);
+    return new Response("Party unavailable", { status: 503 });
+  }
+}
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname === "/" || url.pathname === "/health") {
-      return new Response("ok\n", { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
-    }
-
-    const upload = url.pathname.match(/^\/parties\/upload\/([^/]+)/);
-    if (upload) {
-      return new UploadParty({ id: upload[1], env: env as unknown as Record<string, unknown> }).onRequest(request);
-    }
-
+  // Every 5xx this Worker answers, an upload's, a room's or its own, is
+  // recorded here, once (report.ts), with what was thrown when a guard caught
+  // it; and anything thrown past them, before Cloudflare's error page goes out
+  // as it did before.
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    bindReports(env);
+    doorOpened();
+    let res: Response;
     try {
-      const res = await routePartykitRequest(request, env as unknown as Record<string, unknown>, {
-        onBeforeConnect: (req: Request, lobby: Lobby) => beforeConnect(req, lobby, env),
-        onBeforeRequest: (req: Request, lobby: Lobby) => beforeRequest(req, lobby),
-      });
-      return res ?? notFound();
+      res = await answer(request, env);
     } catch (e) {
-      console.error("[party] routing failed", e);
-      return new Response("Party unavailable", { status: 503 });
+      await reportParty({ kind: "route", error: e, request, status: 500, phase: "tail" }, ctx);
+      throw e;
+    } finally {
+      // What the access checks recorded on the way (report.ts).
+      doorClosed(ctx);
     }
+    if (res.status >= 500) void reportParty({ kind: "route", request, status: res.status, ...answerOf(request) }, ctx);
+    return res;
   },
 };

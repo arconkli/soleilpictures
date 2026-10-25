@@ -33,6 +33,7 @@ import {
   subscriptionEventAction,
 } from "../_shared/activateCore.mjs";
 import { emitCapi } from "../_shared/meta-capi.ts";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 import { isTeamObject } from "../_shared/teamBillingCore.mjs";
 import {
   completeTeamCheckout,
@@ -48,7 +49,7 @@ const APP_URL         = Deno.env.get("APP_URL") || "";
 
 const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient() });
 
-Deno.serve(async (req) => {
+Deno.serve(reported("stripe-webhook", async (req) => {
   if (req.method !== "POST") return new Response("POST only", { status: 405 });
 
   const signature = req.headers.get("stripe-signature");
@@ -59,6 +60,12 @@ Deno.serve(async (req) => {
   try {
     event = await stripe.webhooks.constructEventAsync(raw, signature, WEBHOOK_SECRET);
   } catch (err) {
+    // Every event refused at once is a signing secret that no longer
+    // matches Stripe's, and payments stop: one of ours. A header not in
+    // Stripe's shape is somebody else's request: a warning, which no rule
+    // counts.
+    const stripeShaped = /(?:^|,)t=\d+(?:,|$)/.test(signature) && /(?:^|,)v1=[0-9a-f]{64}(?:,|$)/.test(signature);
+    void reportEdgeError("stripe-webhook", { what: "signature verification", error: err, request: req, status: 400, severity: stripeShaped ? "error" : "warning" });
     return new Response(`signature verification failed: ${(err as Error).message}`, { status: 400 });
   }
 
@@ -81,10 +88,12 @@ Deno.serve(async (req) => {
         console.log("[stripe-webhook] replay/retry of", event.id, event.type);
       } else {
         console.warn("[stripe-webhook] event log insert failed", logged.error.message);
+        void reportEdgeError("stripe-webhook", { what: "insert stripe_webhook_events", error: logged.error, severity: "warning" });
       }
     }
   } catch (e) {
     console.warn("[stripe-webhook] event log insert threw", (e as Error)?.message || String(e));
+    void reportEdgeError("stripe-webhook", { what: "insert stripe_webhook_events", error: e, severity: "warning" });
   }
 
   try {
@@ -125,14 +134,14 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     console.error("[stripe-webhook] handler error", event.type, e);
-    return new Response("handler error", { status: 500 });
+    return failedWith(new Response("handler error", { status: 500 }), e, { what: `handle ${event.type}` });
   }
 
   return new Response(JSON.stringify({ received: true }), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
-});
+}));
 
 // A team's checkout: the team is made (or a lapsed one edits again) once the
 // subscription is active or trialing; one that can't be made is canceled and
@@ -158,6 +167,8 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
   const userId = await resolveUserId(admin, customerId, metaUid, email);
   if (!userId) {
     console.warn("[stripe] checkout.session.completed: no user", { customerId, email });
+    // Paid, and no account to give it to.
+    void reportEdgeError("stripe-webhook", { what: "checkout completed", error: new Error("no account matched the checkout") });
     return;
   }
 
@@ -264,10 +275,14 @@ async function onCheckoutCompleted(admin: ReturnType<typeof createClient>, sessi
         },
         path: "/stripe-webhook",
       });
-      if (ins.error) console.warn("[stripe-webhook] subscription_started insert failed", ins.error.message);
+      if (ins.error) {
+        console.warn("[stripe-webhook] subscription_started insert failed", ins.error.message);
+        void reportEdgeError("stripe-webhook", { what: "insert analytics_events", error: ins.error, severity: "warning" });
+      }
     }
   } catch (e) {
     console.warn("[stripe-webhook] subscription_started insert threw", (e as Error)?.message || String(e));
+    void reportEdgeError("stripe-webhook", { what: "insert analytics_events", error: e, severity: "warning" });
   }
 
   // Surface DB failures as a 500 AFTER the CAPI emit so Stripe retries the
@@ -346,9 +361,11 @@ async function recordDiscountRedemption(
     // which is expected and correct, not an error.
     if (ins.error && ins.error.code !== "23505") {
       console.error("[stripe] discount_redemptions insert failed", ins.error);
+      void reportEdgeError("stripe-webhook", { what: "insert discount_redemptions", error: ins.error, severity: "warning" });
     }
   } catch (e) {
     console.error("[stripe] recordDiscountRedemption threw", e);
+    void reportEdgeError("stripe-webhook", { what: "insert discount_redemptions", error: e, severity: "warning" });
   }
 }
 
@@ -413,7 +430,10 @@ async function onSubscriptionUpdated(admin: ReturnType<typeof createClient>, sub
         .update({ creator_trial_started_at: new Date().toISOString() })
         .eq("user_id", userId)
         .is("creator_trial_started_at", null);
-      if (stamp.error) console.warn("[stripe] creator_trial_started_at stamp failed", stamp.error.message);
+      if (stamp.error) {
+        console.warn("[stripe] creator_trial_started_at stamp failed", stamp.error.message);
+        void reportEdgeError("stripe-webhook", { what: "update profiles (trial started)", error: stamp.error, severity: "warning" });
+      }
     }
   } else if (shouldDemote(full, { cfg })) {
     // Not entitled any more (activateCore): unpaid, paused, a past_due Stripe
@@ -464,6 +484,7 @@ async function onChargeTrouble(
     teamOrgId = await orgForCustomer(admin, customerId);
   } catch (e) {
     console.warn("[stripe] team lookup for charge trouble failed", (e as Error)?.message || String(e));
+    void reportEdgeError("stripe-webhook", { what: "team lookup for a refund or dispute", error: e, severity: "warning" });
   }
 
   const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
@@ -503,9 +524,13 @@ async function onChargeTrouble(
       },
       path: "/stripe-webhook",
     });
-    if (ins.error) console.warn("[stripe-webhook] billing_flag insert failed", ins.error.message);
+    if (ins.error) {
+      console.warn("[stripe-webhook] billing_flag insert failed", ins.error.message);
+      void reportEdgeError("stripe-webhook", { what: "insert billing_flag", error: ins.error, severity: "warning" });
+    }
   } catch (e) {
     console.warn("[stripe-webhook] billing_flag insert threw", (e as Error)?.message || String(e));
+    void reportEdgeError("stripe-webhook", { what: "insert billing_flag", error: e, severity: "warning" });
   }
 }
 

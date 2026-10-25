@@ -211,6 +211,7 @@ export function createImportJob({
   let status = 'idle';
   let waitingReason = null;
   let error = null;
+  let errorCode = null;            // importFailCode(): what it was, never whose
   let stopFlag = null;              // 'pause' | 'cancel'
   let busy = false;
   let current = null;
@@ -282,7 +283,7 @@ export function createImportJob({
     const queuedBytes = sumBytes(queue) + sumBytes(open);
     const leftBytes = queuedBytes - open.reduce((s, it) => s + (inflight.get(it.file.relPath) || 0), 0);
     return {
-      id: jobId, title, status, waitingReason, error,
+      id: jobId, title, status, waitingReason, error, errorCode,
       totals: { ...totals },
       landed: { ...done },
       sentBytes: sent(),
@@ -566,6 +567,7 @@ export function createImportJob({
     stopFlag = stopFlag || 'fail';   // the batch in hand starts nothing new
     status = 'failed';
     error = messageOf(e);
+    errorCode = importFailCode(e);
     current = null;
     emit();
     try { await flush(); } catch (_) { /* the ledger catches up on resume */ }
@@ -638,6 +640,7 @@ export function createImportJob({
       if (status !== 'paused' && status !== 'failed') return;
       stopFlag = null;
       error = null;
+      errorCode = null;
       await loop();
     }),
     // The plan or the drive grew: fill again from where the import stopped.

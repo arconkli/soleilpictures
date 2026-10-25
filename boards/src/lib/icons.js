@@ -138,6 +138,7 @@ export {
   ChartPie,
   ArrowsClockwise,
   ArrowsLeftRight,
+  ArrowsHorizontal,
   Clock,
   Triangle,
   Circle,

@@ -2,7 +2,7 @@
 
 > Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
-_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-25_
 
 ## Who can see a board
 
@@ -102,9 +102,37 @@ hashes, never as the address itself, along with the country.
 
 ## Error reporting
 
-Errors are recorded first-party, in Clusters' own infrastructure, to fix
-crashes. There is no Google Analytics and no third-party error monitoring
-service in the app.
+When something goes wrong, Clusters records it first-party, in its own
+infrastructure, so it can be fixed. There is no Google Analytics and no
+third-party error monitoring service in the app.
+
+A record says what failed and where: the error the app ran into, or which of
+Clusters' services a request went to and what kind of answer came back; the
+page it happened on; the version of Clusters; your browser; and whether you
+were online. If you are signed in, it is tied to your account so a problem can
+be followed through a visit, and it is anonymised if you delete your account.
+
+It also lists the last few steps before the failure, by their names only: a
+cluster opened, an upload started, an error shown. Never what was in them.
+
+- An error message shown to you is recorded by a code that names it, never by
+  its words, which can quote a cluster's or a file's name.
+- A request is recorded by its service and route, never its address, which can
+  hold a private link's key or a cluster's name.
+- A page that crashes (it ran out of memory, say) can't say so itself, so the
+  app keeps a note in that tab's session storage of when the page opened and
+  whether it was on screen, and a page that closes normally takes it away. The
+  next page in the tab that finds one records that the page before it crashed,
+  and how long it had been open.
+
+Clusters' own servers record their failures the same way: which route,
+background job or live sync room failed (a room by its cluster's id, never its
+name) and what kind of answer it got, never what was sent to it, and with no
+account or browser attached.
+
+Records are deleted after 90 days. What stays
+after that is when each kind of problem was first and last seen, with nobody
+attached.
 
 ## What the app records as you use it
 

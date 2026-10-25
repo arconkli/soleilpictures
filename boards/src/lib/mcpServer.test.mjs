@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './mcpTools.js';
+import { TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest, apiErrorFrom } from './mcpTools.js';
 import {
   handleMcpMessage, handleMcpRequest, headerProblem, decodeHeaderValue,
   SUPPORTED_PROTOCOL_VERSIONS, META, ERR,
@@ -24,6 +24,7 @@ import {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../../..');
+const BOARD_ID = '3f2a6c1e-8b4d-4e7a-9c1f-2d5e8a7b6c4d';
 
 // ── one registry, two copies ─────────────────────────────────────────────────
 
@@ -108,12 +109,22 @@ test('the npm package ships the same PROTOCOL the Worker serves', () => {
   // fails at connection time with nothing useful to read.
   const source = readFileSync(resolve(REPO, 'boards/src/lib/mcpServer.js'), 'utf8');
   const copy = readFileSync(resolve(REPO, 'mcp/src/server.js'), 'utf8');
-  const expected = source.replace("from './mcpTools.js'", "from './tools.js'");
+  const expected = source
+    .replace("from './mcpTools.js'", "from './tools.js'")
+    .replace("from './mcpValidate.js'", "from './validate.js'");
   assert.equal(copy.replace(STRIP_BANNER, ''), expected,
     'mcp/src/server.js is stale — run `npm run sync` in mcp/.');
-  // The one permitted edit must actually have applied; if the import is ever
+  // The permitted edits must actually have applied; if an import is ever
   // renamed, the copy would silently ship a broken specifier.
   assert.match(copy, /from '\.\/tools\.js'/);
+  assert.match(copy, /from '\.\/validate\.js'/);
+});
+
+test('the npm package holds calls to the same argument rules the Worker does', () => {
+  const source = readFileSync(resolve(REPO, 'boards/src/lib/mcpValidate.js'), 'utf8');
+  const copy = readFileSync(resolve(REPO, 'mcp/src/validate.js'), 'utf8');
+  assert.equal(copy.replace(STRIP_BANNER, ''), source,
+    'mcp/src/validate.js is stale — run `npm run sync` in mcp/.');
 });
 
 // ── the shape of a tool ──────────────────────────────────────────────────────
@@ -266,7 +277,7 @@ test('a tool that FAILS is a successful call with isError, not an RPC error', as
   // broke, while isError plus the API's own sentence tells it what to do.
   const failing = { api: async () => { throw new Error('this token cannot delete'); } };
   const { body } = await handleMcpMessage(
-    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'delete_board', arguments: { board_id: 'x' } } },
+    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'delete_board', arguments: { board_id: BOARD_ID } } },
     failing);
   assert.equal(body.error, undefined);
   assert.equal(body.result.isError, true);
@@ -409,7 +420,7 @@ test('tools still run, and still report their own failures as content', async ()
   const failing = { api: async () => { throw new Error('this token cannot delete'); } };
   const bad = await handleMcpMessage({
     jsonrpc: '2.0', id: 2, method: 'tools/call',
-    params: { name: 'delete_board', arguments: { board_id: 'x' }, _meta: meta() },
+    params: { name: 'delete_board', arguments: { board_id: BOARD_ID }, _meta: meta() },
   }, failing);
   assert.equal(bad.body.error, undefined);
   assert.equal(bad.body.result.isError, true);
@@ -536,4 +547,81 @@ test('one tool throwing does not take down the rest of a batch', async () => {
   ]), flaky);
   assert.equal(out.body[0].result.isError, true);
   assert.equal(out.body[1].result.isError, undefined);
+});
+
+// ── what a model is told when a call goes wrong ──────────────────────────────
+
+test('bad arguments are a tool error naming the path, and the API is never called', async () => {
+  let called = false;
+  const watch = { api: async () => { called = true; return {}; } };
+  const { body } = await handleMcpMessage({
+    jsonrpc: '2.0', id: 1, method: 'tools/call',
+    params: { name: 'read_board', arguments: { boardId: BOARD_ID } },
+  }, watch);
+  assert.equal(body.error, undefined, 'a model self-corrects from isError; an RPC error tells it nothing');
+  assert.equal(body.result.isError, true);
+  assert.match(body.result.content[0].text, /^Error: Invalid arguments for read_board:\n- boardId is not an argument here — did you mean board_id\?/);
+  assert.equal(called, false);
+});
+
+test('the tool receives its arguments as checked, not as sent', async () => {
+  let seen = null;
+  const watch = { api: async (path) => { seen = path; return { cards: [] }; } };
+  await handleMcpMessage({
+    jsonrpc: '2.0', id: 1, method: 'tools/call',
+    params: { name: 'read_board', arguments: { board_id: BOARD_ID, limit: '25', source: null } },
+  }, watch);
+  assert.equal(seen, `/boards/${BOARD_ID}/cards?limit=25`);
+});
+
+test('an API refusal reaches the model with its code and advice, on either transport', async () => {
+  const refusing = {
+    api: async () => {
+      throw apiErrorFrom(403, {
+        error: 'this token cannot delete', code: 'insufficient_scope', scopes: ['read', 'write'],
+      });
+    },
+  };
+  const { body } = await handleMcpMessage({
+    jsonrpc: '2.0', id: 1, method: 'tools/call',
+    params: { name: 'delete_board', arguments: { board_id: BOARD_ID } },
+  }, refusing);
+  assert.equal(body.result.isError, true);
+  assert.match(body.result.content[0].text, /This connection may: read, write\..*\[insufficient_scope\]$/s);
+});
+
+test('a bug inside a tool is reported without its internals', async () => {
+  const broken = { api: async () => { throw new TypeError("Cannot read properties of undefined (reading 'token_hash')"); } };
+  const errors = [];
+  const original = console.error;
+  console.error = (...a) => errors.push(a);
+  try {
+    const { body } = await handleMcpMessage({
+      jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'whoami', arguments: {} },
+    }, broken);
+    assert.equal(body.result.isError, true);
+    assert.doesNotMatch(body.result.content[0].text, /token_hash|undefined/);
+    assert.match(body.result.content[0].text, /\[internal_error\]$/);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(errors.length, 1, 'and logged whole, so it can be found');
+});
+
+test('a failure outside any tool answers with a reference, never the exception', async () => {
+  const errors = [];
+  const original = console.error;
+  console.error = (...a) => errors.push(a);
+  try {
+    // A context whose tools list is not a list: handleMcpMessage itself throws.
+    const out = await handleMcpRequest(post({
+      jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'whoami', arguments: {} },
+    }), { tools: { find: () => { throw new Error('relation "api_tokens" does not exist'); } } });
+    assert.equal(out.body.error.code, ERR.INTERNAL);
+    assert.match(out.body.error.message, /^internal error \(ref [0-9a-f]{8}\)$/);
+    assert.doesNotMatch(JSON.stringify(out.body), /api_tokens/);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(errors.length, 1);
 });

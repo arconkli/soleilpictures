@@ -949,6 +949,31 @@ RPCS.admin_api_overview = {
   first_call_at: tsISO(60 * 24 * 22),
   last_call_at: tsISO(6),
 };
+// admin_mcp_funnel(p_days, p_exclude_internal): where a connection stops
+// (0700). People per step by redirect host, then the latest apps one by one —
+// one of each story: a finished connection, one that never wrote, one
+// cancelled, one that registered and was never opened, a disabled one.
+RPCS.admin_mcp_funnel = {
+  days: 30,
+  since: tsISO(60 * 24 * 30),
+  signed_out_arrivals: 9,
+  server_grants: 7,
+  hosts: [
+    { host: 'claude.ai', registered: 6, viewed: 5, new_accounts: 2, allowed: 4, denied: 1, errors: 0, token: 4, called: 3, wrote: 2, tool_calls: 214, writes: 61 },
+    { host: 'chatgpt.com', registered: 3, viewed: 2, new_accounts: 1, allowed: 1, denied: 0, errors: 1, token: 1, called: 1, wrote: 0, tool_calls: 12, writes: 0 },
+    { host: 'loopback', registered: 11, viewed: 2, new_accounts: 0, allowed: 2, denied: 0, errors: 0, token: 2, called: 2, wrote: 1, tool_calls: 88, writes: 20 },
+    { host: 'cursor:', registered: 2, viewed: 1, new_accounts: 0, allowed: 1, denied: 0, errors: 0, token: 1, called: 1, wrote: 1, tool_calls: 31, writes: 9 },
+    { host: 'agents.example.dev', registered: 14, viewed: 0, new_accounts: 0, allowed: 0, denied: 0, errors: 3, token: 0, called: 0, wrote: 0, tool_calls: 0, writes: 0 },
+  ],
+  recent: [
+    { client_id: 'fx-c1', client_name: 'Claude', kind: 'dcr', host: 'claude.ai', registered_at: tsISO(60 * 5), disabled: false, viewed_at: tsISO(60 * 5 - 2), allowed_at: tsISO(60 * 5 - 3), denied_at: null, token_at: tsISO(60 * 5 - 3), first_call_at: tsISO(60 * 5 - 4), first_write_at: tsISO(60 * 5 - 9), tool_calls: 46, writes: 14, people: 1 },
+    { client_id: 'fx-c2', client_name: 'ChatGPT', kind: 'dcr', host: 'chatgpt.com', registered_at: tsISO(60 * 26), disabled: false, viewed_at: tsISO(60 * 26 - 1), allowed_at: tsISO(60 * 26 - 2), denied_at: null, token_at: tsISO(60 * 26 - 2), first_call_at: tsISO(60 * 26 - 3), first_write_at: null, tool_calls: 12, writes: 0, people: 1 },
+    { client_id: 'fx-c3', client_name: 'Claude Code', kind: 'dcr', host: 'loopback', registered_at: tsISO(60 * 49), disabled: false, viewed_at: tsISO(60 * 49 - 1), allowed_at: tsISO(60 * 49 - 1), denied_at: null, token_at: tsISO(60 * 49 - 1), first_call_at: tsISO(60 * 49 - 2), first_write_at: tsISO(60 * 48), tool_calls: 88, writes: 20, people: 1 },
+    { client_id: 'fx-c4', client_name: 'Claude', kind: 'dcr', host: 'claude.ai', registered_at: tsISO(60 * 73), disabled: false, viewed_at: tsISO(60 * 73 - 1), allowed_at: null, denied_at: tsISO(60 * 73 - 1), token_at: null, first_call_at: null, first_write_at: null, tool_calls: 0, writes: 0, people: 1 },
+    { client_id: 'fx-c5', client_name: 'agent-runner', kind: 'dcr', host: 'agents.example.dev', registered_at: tsISO(60 * 97), disabled: false, viewed_at: null, allowed_at: null, denied_at: null, token_at: null, first_call_at: null, first_write_at: null, tool_calls: 0, writes: 0, people: 0 },
+    { client_id: 'fx-c6', client_name: 'mcp-probe', kind: 'dcr', host: 'agents.example.dev', registered_at: tsISO(60 * 120), disabled: true, viewed_at: null, allowed_at: null, denied_at: null, token_at: null, first_call_at: null, first_write_at: null, tool_calls: 0, writes: 0, people: 0 },
+  ],
+};
 // admin_lifetime_totals(p_exclude_internal, p_verified_only): what exists now,
 // under the toolbar's toggles (0460). The harness has one population, as with
 // admin_weekly_series, so a toggle re-issues the call over the same numbers.

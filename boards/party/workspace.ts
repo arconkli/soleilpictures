@@ -27,6 +27,7 @@
 import { Server, type Connection, type ConnectionContext } from "partyserver";
 import type { Env } from "./env";
 import { workspaceAccessAmong } from "./auth";
+import { bindReports, reportParty } from "./report";
 import { heldElsewhere, isFresh, rosterFrom, shouldAnnounce } from "../src/lib/workspaceRoster.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
 
@@ -51,6 +52,11 @@ const ACCESS_CHECK_MS = 60_000;
 
 export class WorkspaceParty extends Server<Env> {
   static options = { hibernate: true };
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    bindReports(env);
+  }
 
   private presenceOf(conn: Connection): Presence {
     return (conn.state as Presence | null) ?? { sid: "" };
@@ -83,6 +89,7 @@ export class WorkspaceParty extends Server<Env> {
     } catch (e) {
       this.pruneArmed = false;
       console.warn(`[workspace ${this.name}] could not arm the stale sweep`, e);
+      void reportParty({ kind: "room", what: "workspace sweep alarm", error: e }, this.ctx);
     }
   }
 

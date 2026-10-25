@@ -1,5 +1,5 @@
 // The selection's bar in the toolbar look (the owner's pick "A · Islands",
-// mockup A-select), held to a dev opt-in (lib/appHost.js toolbarLookAllowed;
+// mockup A-select), shipped 2026-10-25 (lib/appHost.js toolbarLookAllowed;
 // components/toolbar/SelectionBarA.jsx): two or more cards picked on a desktop
 // canvas get, on the bottom row, what right-clicking one of them offers, each
 // control the card menu's own item: Tidy up, Align (and Distribute), Group, New

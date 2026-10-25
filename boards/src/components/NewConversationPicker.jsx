@@ -123,7 +123,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
     } catch (e) {
       console.warn('[NewConversationPicker] start DM failed', e);
       // Say why; the button just re-enabled before (COMMS-25).
-      feedback.toast({ type: 'error', message: startChatErrorMessage(e) });
+      feedback.toast({ type: 'error', code: 'chat_start_failed', message: startChatErrorMessage(e) });
       setBusy(false);
     }
   };
@@ -141,7 +141,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
       onClose?.();
     } catch (e) {
       console.warn('[NewConversationPicker] create group failed', e);
-      feedback.toast({ type: 'error', message: startChatErrorMessage(e, { group: true }) });
+      feedback.toast({ type: 'error', code: 'group_create_failed', message: startChatErrorMessage(e, { group: true }) });
       setBusy(false);
     }
   };

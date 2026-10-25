@@ -16,6 +16,7 @@
 
 import { supabase } from './supabase.js';
 import { setErrorUser } from './errorReporting.js';
+import { crumb } from './errorCrumbs.js';
 import { getDeviceInfo } from './device.js';
 import { isAnyQaMode } from './localMode.js';
 import { isCaptureActive } from './captureState.js';
@@ -755,6 +756,8 @@ function flushBeacon() {
 // Unchanged signature — now enqueues. Never throws into the UI.
 export function logEvent(name, props = {}) {
   if (!supabase || !name) return;
+  // The step's name, for the next error's trail (errorCrumbs.js). Never props.
+  crumb('ev', name);
   // Noting work here rather than at each mutation site means the day's
   // work/presence distinction stays correct as events are added, instead of
   // depending on someone remembering a second call. WORK_EVENTS is the
@@ -780,6 +783,7 @@ export function logEventOnce(key, name, props = {}) {
 // survives the navigation even though we don't await it.
 export function logEventNow(name, props = {}) {
   if (!supabase || !name) return;
+  crumb('ev', name);
   try { if (isWorkEvent(name, props)) noteWorkOp(); } catch (_) {}
   try { enqueue(buildRow(name, props)); } catch (_) {}
   try { noteEvent(ensureSummary(), name, props); } catch (_) {}

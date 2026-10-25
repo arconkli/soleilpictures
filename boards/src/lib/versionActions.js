@@ -42,22 +42,22 @@ export async function addVersionFromFile(env, cardId, file) {
   const { mutators, feedback, userId, getCard, ctx = {} } = env;
   const card = getCard(cardId);
   const refusal = versionRefusal(card, file, ctx);
-  if (refusal) { feedback?.toast?.({ type: 'error', message: refusal }); return null; }
+  if (refusal) { feedback?.toast?.({ type: 'error', code: 'version_refused', message: refusal }); return null; }
   let fields;
   try {
     fields = await uploadVersion(file, card, ctx);
   } catch (err) {
-    feedback?.toast?.({ type: 'error', message: `Couldn’t upload the new version: ${err?.message || err}` });
+    feedback?.toast?.({ type: 'error', code: 'version_upload_failed', message: `Couldn’t upload the new version: ${err?.message || err}` });
     return null;
   }
   // The card as it is NOW — it may have changed while the file uploaded.
   const live = getCard(cardId);
-  if (!live) { feedback?.toast?.({ type: 'error', message: 'The card was deleted while its new version uploaded.' }); return null; }
+  if (!live) { feedback?.toast?.({ type: 'error', code: 'version_card_deleted', message: 'The card was deleted while its new version uploaded.' }); return null; }
   const { _top, ...entryFields } = fields;
   const pruned = pruneDeletedPatch(live);
   const base = pruned ? { ...live, ...pruned } : live;
   const r = addVersionPatch(base, entryFields, { by: userId || null });
-  if (!r) { feedback?.toast?.({ type: 'error', message: versionRefusal(live, file, ctx) || 'Couldn’t add the version.' }); return null; }
+  if (!r) { feedback?.toast?.({ type: 'error', code: 'version_add_failed', message: versionRefusal(live, file, ctx) || 'Couldn’t add the version.' }); return null; }
   const patch = { ...r.patch, ...(_top || {}) };
   const step = commit(mutators, cardId, patch);
   const um = mutators?.undoManager;
@@ -102,7 +102,7 @@ export function deleteVersion(env, cardId, versionId) {
   const card = getCard(cardId);
   const v = liveVersions(card).find((x) => x.id === versionId);
   const patch = card && deleteVersionPatch(card, versionId);
-  if (!patch) { feedback?.toast?.({ type: 'error', message: 'A file keeps at least one version.' }); return; }
+  if (!patch) { feedback?.toast?.({ type: 'error', code: 'version_keep_one', message: 'A file keeps at least one version.' }); return; }
   const step = commit(mutators, cardId, patch);
   undoToast(feedback, {
     message: `Deleted ${versionLabel(v)} — it’s under Recently deleted in Info for 30 days`,

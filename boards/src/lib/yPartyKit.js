@@ -41,9 +41,16 @@ import { PARTY_HOST } from './partyHost.js';
 import { socketLooksDead } from './partyKeepalive.js';
 import { parkWhileHidden, parkWhileIdle } from './partyPark.js';
 import { pageBusy } from './buildWatch.js';
+import { logClientError } from './errorReporting.js';
 
 const KEEPALIVE_MS = 15_000;
 const MESSAGE_AWARENESS = 1;
+// Live sync that can't get through, reported once per board opened, as kind
+// 'sync': connecting for STUCK_MS while the page is online and on screen, or
+// connecting and dropping STORM_CONNECTS times inside STORM_MS.
+const STUCK_MS = 20_000;
+const STORM_CONNECTS = 5;
+const STORM_MS = 120_000;
 
 async function freshAccessToken() {
   try {
@@ -211,13 +218,48 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     ws.addEventListener('message', onTextFrame);
   };
 
+  const reportSync = (message, op, context) => {
+    try { logClientError(new Error(message), { kind: 'sync', severity: 'error', op, context: { board_id: boardId, ...context } }); } catch (_) {}
+  };
+  // downSince: when this outage's first attempt began (0 while connected).
+  // Hidden or offline time doesn't count; parking is on purpose and ends it.
+  let downSince = 0;
+  let stuckTimer = null;
+  let stuckReported = false;
+  let connects = [];
+  let stormReported = false;
+  const armStuck = () => {
+    clearTimeout(stuckTimer);
+    stuckTimer = setTimeout(() => {
+      if (destroyed || accessEnded || stuckReported || provider.wsconnected || !downSince) return;
+      if (parking.isParked()) { downSince = 0; return; }
+      if (document.visibilityState !== 'visible' || navigator.onLine === false) {
+        downSince = performance.now();
+        armStuck();
+        return;
+      }
+      stuckReported = true;
+      reportSync('Live sync stuck connecting', 'connect_stuck', { ms: performance.now() - downSince });
+    }, STUCK_MS);
+  };
+
   let connectStartedAt = performance.now();
   provider.on('status', ({ status }) => {
     console.log('[partykit] board', boardId, status);
     if (status === 'connecting') {
       connectStartedAt = performance.now();   // re-anchor per attempt
       wireResetListener();
+      if (!downSince) { downSince = connectStartedAt; armStuck(); }
     } else if (status === 'connected') {
+      downSince = 0;
+      clearTimeout(stuckTimer);
+      const now = performance.now();
+      connects = connects.filter((t) => now - t < STORM_MS);
+      connects.push(now);
+      if (connects.length >= STORM_CONNECTS && !stormReported) {
+        stormReported = true;
+        reportSync('Live sync reconnecting over and over', 'reconnect_storm', { attempt: connects.length });
+      }
       wireResetListener();
       if (perf.isEnabled()) {
         const ms = performance.now() - connectStartedAt;
@@ -287,6 +329,13 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
         };
         const timer = setTimeout(() => {
           try { provider.off('sync', onSync); } catch (_) {}
+          if (!destroyed && navigator.onLine !== false) {
+            try {
+              logClientError(new Error('Board did not sync in time'), {
+                kind: 'sync', severity: 'warning', op: 'when_synced', context: { board_id: boardId, ms: timeoutMs },
+              });
+            } catch (_) {}
+          }
           resolve(false);
         }, timeoutMs);
         provider.on('sync', onSync);
@@ -295,6 +344,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     destroy() {
       destroyed = true;
       clearInterval(keepalive);
+      clearTimeout(stuckTimer);
       parking.dispose();
       try { ydoc.off('update', onRemoteUpdate); } catch (_) {}
       try { awareness.off('change', onAwarenessChange); } catch (_) {}

@@ -49,7 +49,9 @@ const VERSION_FIELDS = {
   file: ['fileName', 'sizeBytes', 'mime', 'ext'],
 };
 // Derived per-file data that must be recomputed after a switch, not carried.
-const CLEAR_ON_SWITCH = { audio: ['peaks', 'analyzed'], image: [], video: [], pdf: [], file: [] };
+// playSrc is the file's playable copy (lib/playCopy.js); each version has its
+// own, which the editors' backfill writes back once it's made.
+const CLEAR_ON_SWITCH = { audio: ['peaks', 'analyzed', 'playSrc'], image: [], video: ['playSrc'], pdf: [], file: [] };
 
 export function canVersion(card) {
   return !!card && Object.prototype.hasOwnProperty.call(FILE_FIELD, card.kind) && !card.pending && !card.locked;

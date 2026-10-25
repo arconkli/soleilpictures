@@ -1,5 +1,5 @@
 // The canvas's zoom in the toolbar look (the owner's pick "A · Islands",
-// 2026-10-21, mockup A-add), held to a dev opt-in (lib/appHost.js
+// 2026-10-21, mockup A-add), shipped 2026-10-25 (lib/appHost.js
 // toolbarLookAllowed): − and + are icons, not the glyphs; the slider's track
 // fills up to its knob as the zoom moves; the readout is still the button that
 // puts it back to 100%; and the tooltips say each key. Today's zoom keeps its

@@ -45,6 +45,7 @@ import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boa
 import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
 import { BoardBridge } from "./bridge";
+import { bindReports, reportParty } from "./report";
 
 const ALARM_MS = 60_000;
 const IDLE_WATCH_MS = 15 * 60_000;
@@ -90,11 +91,18 @@ export class BoardParty extends YServer<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    bindReports(env);
     // Before anything is applied to it — see the header.
     this.document.gc = false;
   }
 
   private get supabaseUrl() { return this.env.SUPABASE_URL || DEFAULT_SUPABASE_URL; }
+
+  // A failure in this room's own machinery, recorded (report.ts) by what
+  // failed and the board's id.
+  private problem(what: string, error: unknown, kind = "room") {
+    void reportParty({ kind, what, error, boardId: this.name }, this.ctx);
+  }
 
   async onStart() {
     this.local = new RoomLog(this.ctx.storage as any);
@@ -106,6 +114,7 @@ export class BoardParty extends YServer<Env> {
       getDoc: () => this.document,
       fenceUntil,
       onRestore: () => { void this.resetRoom("restore marker"); },
+      report: (kind: string, info: Record<string, unknown>) => { void reportParty({ kind, ...info }, this.ctx); },
     });
 
     // onLoad runs inside this; YServer then wires the broadcast and the
@@ -118,6 +127,7 @@ export class BoardParty extends YServer<Env> {
         if (!this.local.append(update) || this.local.pending > MAX_PENDING_UPDATES) this.compactLocal();
       } catch (e) {
         console.error(`[board ${this.name}] local log append failed`, e);
+        this.problem("local log append", e);
       }
     });
     this.compactLocal();
@@ -147,6 +157,7 @@ export class BoardParty extends YServer<Env> {
         applied++;
       } catch (e) {
         console.error(`[board ${this.name}] a locally stored update did not apply`, e);
+        this.problem("local update apply", e, "room_load");
       }
     }
     this.localHeldContent = applied > 0;
@@ -169,6 +180,7 @@ export class BoardParty extends YServer<Env> {
       this.local.compact(Y.encodeStateAsUpdate(this.document));
     } catch (e) {
       console.error(`[board ${this.name}] local compaction failed`, e);
+      this.problem("local compaction", e);
     }
   }
 
@@ -205,6 +217,7 @@ export class BoardParty extends YServer<Env> {
         });
       } catch (e) {
         console.warn(`[board ${this.name}] opLog install failed`, e);
+        this.problem("op log install", e, "op_log");
       }
     }
     await this.armAlarm();
@@ -228,6 +241,7 @@ export class BoardParty extends YServer<Env> {
       }
     } catch (e) {
       console.warn(`[board ${this.name}] could not arm the alarm`, e);
+      this.problem("alarm", e);
     }
   }
 
@@ -299,12 +313,13 @@ export class BoardParty extends YServer<Env> {
       this.broadcast(JSON.stringify({ type: "soleil-board-reset", boardId: this.name, ts: Date.now() }));
     } catch (e) {
       console.error(`[board ${this.name}] reset broadcast failed`, e);
+      this.problem("reset broadcast", e);
     }
     // Shared docs' rooms start over from the restored board (a new generation).
     try { await this.bridge?.closeAll(4012, "reset"); } catch (_) { /* they rebuild on their own */ }
     await sleep(150);
     try { this.local.wipe(); } catch (_) { /* deleteAll below */ }
-    try { await this.ctx.storage.deleteAll(); } catch (e) { console.error(`[board ${this.name}] deleteAll failed`, e); }
+    try { await this.ctx.storage.deleteAll(); } catch (e) { console.error(`[board ${this.name}] deleteAll failed`, e); this.problem("reset storage", e); }
     try { await this.ctx.storage.deleteAlarm(); } catch (_) { /* none set */ }
     try { await this.ctx.storage.put(FENCE_KEY, Date.now() + RESET_FENCE_MS); } catch (_) { /* fence is best effort */ }
     let kicked = 0;

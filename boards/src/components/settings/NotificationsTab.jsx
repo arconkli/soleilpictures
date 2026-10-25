@@ -24,7 +24,7 @@ export function NotificationsTab({ user }) {
         .maybeSingle();
       if (cancelled) return;
       if (error) {
-        feedback.toast({ type: 'error', message: 'Could not load preferences: ' + (error.message || error) });
+        feedback.toast({ type: 'error', code: 'prefs_load_failed', message: 'Could not load preferences: ' + (error.message || error) });
       }
       setPrefs(data?.notification_prefs || {});
       setLoading(false);

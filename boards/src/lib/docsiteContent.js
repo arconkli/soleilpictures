@@ -7694,6 +7694,113 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a computer, two or more picked get a bar along the bottom of the canvas: how many, "
+    },
+    {
+     "t": "strong",
+     "v": "Tidy up",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tidy up"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Align",
+     "children": [
+      {
+       "t": "text",
+       "v": "Align"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (with Distribute), "
+    },
+    {
+     "t": "strong",
+     "v": "Group",
+     "children": [
+      {
+       "t": "text",
+       "v": "Group"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "New cluster from N cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster from N cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Move N cards to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move N cards to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for the rest of the right-click menu, and "
+    },
+    {
+     "t": "strong",
+     "v": "Delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Each does what the right-click menu does with the same selection."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Drawing",
@@ -9724,7 +9831,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all."
+     "v": "Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000. Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " always gives the original, and the picture never counts toward your storage."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. These photos arrive as images even when the browser reports no file type at all."
     }
    ]
   },
@@ -11881,7 +12011,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Thin through heavy"
+       "v": "Thin, medium or thick"
       }
      ]
     ],
@@ -11895,7 +12025,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Which ends carry a head, and its shape"
+       "v": "No heads, one at the end, or one at each end"
       }
      ]
     ],
@@ -11923,7 +12053,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "How much the path bends"
+       "v": "Curved or straight"
       }
      ]
     ],
@@ -11941,6 +12071,29 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone the toolbar's row keeps the colour, the label and delete, and "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " holds the rest; a tablet's keeps the heads in the row as well."
+    }
    ]
   },
   {
@@ -14744,7 +14897,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Image (incl. HEIC/HEIF)"
+       "v": "Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000)"
       }
      ],
      [
@@ -14765,7 +14918,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " with adjustments"
+       "v": " with adjustments, shown in every browser"
       }
      ]
     ],
@@ -17223,7 +17376,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file the browser can't decode — ProRes outside Safari, for instance — says so, rather than showing a black frame, and offers the download."
+     "v": "A file the browser can't decode, ProRes outside Safari for instance, plays from a copy Clusters makes of it. While the copy is being made the player says so, and plays it when it's ready. See "
+    },
+    {
+     "t": "link",
+     "v": "Formats",
+     "href": "#formats",
+     "children": [
+      {
+       "t": "text",
+       "v": "Formats"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -18010,7 +18178,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC, an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound."
+     "v": "Any video or audio file plays. H.264 in an MP4 or MOV plays in every browser as it is, and so do MP3, AAC, FLAC and WAV. Browsers differ on the rest: Chrome shows ProRes as sound with no picture and won't open AVI, WMV or MPEG files, Safari won't open MKV, and Firefox doesn't play HEVC, which is what an iPhone records."
     }
    ]
   },
@@ -18019,7 +18187,62 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A video your browser can't decode still uploads and becomes a video card: it says it can't be played here, and offers the download. A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video."
+     "v": "For those, Clusters makes a "
+    },
+    {
+     "t": "strong",
+     "v": "playable copy",
+     "children": [
+      {
+       "t": "text",
+       "v": "playable copy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": H.264 video with AAC sound in an MP4, or AAC for sound alone, at up to 1920 pixels on its long side. It is made once, on a converter Clusters runs, when the file is uploaded or first opened, and from then on every player uses it: the card, Quick look, the review player and a shared link. A short clip takes seconds and a long one a few minutes; the player says it is making the copy while it does. HDR footage is brought to ordinary colour for the copy."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The copy is for watching. "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " always gives the original, byte for byte, and the copy never counts toward your storage. When the file itself is deleted for good, its copy goes with it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file over 4 hours or 20 GB gets no copy: it plays where your browser can play the original, and downloads everywhere. So does a file the converter can't read, and the player says it can't be played."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video."
     }
    ]
   },
@@ -18073,7 +18296,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The review player plays the file as it is. It does not manage colour or show HDR, it can't play sound while you scrub, and backward play steps through frames rather than running smoothly. Compared versions line up by time from their first frame, so two cuts with different heads won't match frame for frame."
+     "v": "The review player plays the file as it is, or its playable copy when your browser can't play the file, at the copy's size. It does not manage colour or show HDR, it can't play sound while you scrub, and backward play steps through frames rather than running smoothly. Compared versions line up by time from their first frame, so two cuts with different heads won't match frame for frame."
     }
    ]
   },
@@ -45517,7 +45740,67 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Errors are recorded first-party, in Clusters' own infrastructure, to fix crashes. There is no Google Analytics and no third-party error monitoring service in the app."
+     "v": "When something goes wrong, Clusters records it first-party, in its own infrastructure, so it can be fixed. There is no Google Analytics and no third-party error monitoring service in the app."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A record says what failed and where: the error the app ran into, or which of Clusters' services a request went to and what kind of answer came back; the page it happened on; the version of Clusters; your browser; and whether you were online. If you are signed in, it is tied to your account so a problem can be followed through a visit, and it is anonymised if you delete your account."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It also lists the last few steps before the failure, by their names only: a cluster opened, an upload started, an error shown. Never what was in them."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "An error message shown to you is recorded by a code that names it, never by its words, which can quote a cluster's or a file's name."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A request is recorded by its service and route, never its address, which can hold a private link's key or a cluster's name."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A page that crashes (it ran out of memory, say) can't say so itself, so the app keeps a note in that tab's session storage of when the page opened and whether it was on screen, and a page that closes normally takes it away. The next page in the tab that finds one records that the page before it crashed, and how long it had been open."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters' own servers record their failures the same way: which route, background job or live sync room failed (a room by its cluster's id, never its name) and what kind of answer it got, never what was sent to it, and with no account or browser attached."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Records are deleted after 90 days. What stays after that is when each kind of problem was first and last seen, with nobody attached."
     }
    ]
   },
@@ -59680,7 +59963,93 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and the API's own sentence in the content, because a model that reads \"this token cannot delete\" can correct itself, while one that gets a transport error only learns that something broke."
+     "v": " and the API's own sentence in the content, because a model that reads \"this token cannot delete\" can correct itself, while one that gets a transport error only learns that something broke. The sentence ends with the API's "
+    },
+    {
+     "t": "link",
+     "v": "error code",
+     "href": "/docs/api/errors",
+     "children": [
+      {
+       "t": "text",
+       "v": "error code"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in brackets, "
+    },
+    {
+     "t": "code",
+     "v": "[insufficient_scope]"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "[limit_reached]"
+    },
+    {
+     "t": "text",
+     "v": ", so an agent can branch on more than the wording, and both servers word the same refusal the same way."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Arguments are checked against the tool's input schema before anything runs. A call that does not fit comes back the same way, as "
+    },
+    {
+     "t": "code",
+     "v": "isError: true"
+    },
+    {
+     "t": "text",
+     "v": ", naming each problem by its path:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "text",
+   "code": "Invalid arguments for add_cards:\n- cards[1].kind must be one of note, image, link, doc, video, audio, pdf, file (got \"text\")\n- boardId is not an argument here — did you mean board_id?"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Some near misses are read the way they were meant rather than refused: "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " for an optional argument means \"not given\", a number or "
+    },
+    {
+     "t": "code",
+     "v": "true"
+    },
+    {
+     "t": "text",
+     "v": "/"
+    },
+    {
+     "t": "code",
+     "v": "false"
+    },
+    {
+     "t": "text",
+     "v": " sent as text is read as one, a list sent as JSON text is parsed, and an enum value in the wrong case is matched."
     }
    ]
   },
@@ -60433,7 +60802,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " — up to 500, "
       },
       {
        "t": "code",
@@ -60735,7 +61104,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " — up to 500, "
       },
       {
        "t": "code",
@@ -60831,7 +61200,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — many at once"
+       "v": " — up to 1000 at once, each an "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " and the fields to set"
       }
      ]
     ],
@@ -61004,6 +61381,10 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "card_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 1000"
       }
      ]
     ],

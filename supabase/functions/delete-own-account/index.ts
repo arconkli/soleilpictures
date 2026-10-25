@@ -29,6 +29,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -88,7 +89,7 @@ async function cancelStripeSub(admin: Admin, userId: string): Promise<boolean> {
   return true;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("delete-own-account", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -135,7 +136,7 @@ Deno.serve(async (req) => {
 
     // 1. Hand over / clear out. Transactional inside Postgres.
     const prep = await admin.rpc("prepare_account_deletion", { p_user_id: userId });
-    if (prep.error) return json({ error: `could not prepare deletion: ${prep.error.message}` }, 500);
+    if (prep.error) return failedWith(json({ error: `could not prepare deletion: ${prep.error.message}` }, 500), prep.error, { what: "rpc prepare_account_deletion" });
 
     // 2. Stop the billing.
     let canceled = false;
@@ -145,18 +146,24 @@ Deno.serve(async (req) => {
       // Deleting the account while a subscription keeps charging is the one
       // outcome worth refusing over — the workspaces are already handled and
       // this is retryable, whereas a deleted auth user is not.
-      return json({ error: `could not cancel your subscription: ${(e as Error).message}` }, 502);
+      return failedWith(json({ error: `could not cancel your subscription: ${(e as Error).message}` }, 502), e, { what: "stripe subscriptions.cancel" });
     }
 
     // 3. GDPR erasure of the behavioural trail, BEFORE the FKs null out.
     const anon = await admin.rpc("anonymize_user_analytics", { p_user_id: userId });
-    if (anon.error) console.error("[delete-own-account] anonymize_user_analytics", anon.error.message);
+    if (anon.error) {
+      console.error("[delete-own-account] anonymize_user_analytics", anon.error.message);
+      void reportEdgeError("delete-own-account", { what: "rpc anonymize_user_analytics", error: anon.error });
+    }
     const anonErr = await admin.rpc("anonymize_user_client_errors", { p_user_id: userId });
-    if (anonErr.error) console.error("[delete-own-account] anonymize_user_client_errors", anonErr.error.message);
+    if (anonErr.error) {
+      console.error("[delete-own-account] anonymize_user_client_errors", anonErr.error.message);
+      void reportEdgeError("delete-own-account", { what: "rpc anonymize_user_client_errors", error: anonErr.error });
+    }
 
     // 4. The account itself.
     const del = await admin.auth.admin.deleteUser(userId);
-    if (del.error) return json({ error: `could not delete the account: ${del.error.message}` }, 500);
+    if (del.error) return failedWith(json({ error: `could not delete the account: ${del.error.message}` }, 500), del.error, { what: "auth deleteUser" });
 
     return json({
       ok: true,
@@ -168,6 +175,6 @@ Deno.serve(async (req) => {
     }, 200);
   } catch (e) {
     console.error("[delete-own-account]", e);
-    return json({ error: (e as Error)?.message || "unexpected error" }, 500);
+    return failedWith(json({ error: (e as Error)?.message || "unexpected error" }, 500), e);
   }
-});
+}));

@@ -20,6 +20,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -87,7 +88,7 @@ function evaluate(kind: Expectation["kind"], expected: string, status: number, b
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("seo-health", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -105,7 +106,7 @@ Deno.serve(async (req) => {
     .select("id, url, check_name, kind, expected, enabled, user_agent")
     .eq("enabled", true)
     .order("id");
-  if (error) return json({ error: `expectations: ${error.message}` }, 500);
+  if (error) return failedWith(json({ error: `expectations: ${error.message}` }, 500), error, { what: "select seo_health_expectations" });
   const list = (expectations || []) as Expectation[];
   if (!list.length) return json({ ok: true, note: "no enabled expectations" }, 200);
 
@@ -165,8 +166,8 @@ Deno.serve(async (req) => {
     p_source: "edge:seo-health",
     p_results: results,
   });
-  if (recErr) return json({ error: `record: ${recErr.message}`, results }, 500);
+  if (recErr) return failedWith(json({ error: `record: ${recErr.message}`, results }, 500), recErr, { what: "rpc record_seo_health" });
 
   const failed = results.filter((r) => !r.ok).length;
   return json({ ok: failed === 0, run_id: runId, checks: results.length, failed }, 200);
-});
+}));

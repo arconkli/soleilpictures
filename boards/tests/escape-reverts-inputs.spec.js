@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { arrowBar, arrowLabel, pickArrowHead } from './helpers/arrowBar.js';
 import { sizeField } from './helpers/noteBar.js';
 
 // NOTES-11: Escape in the size box, the line's width/angle fields and the
@@ -56,9 +57,9 @@ test('Escape in the arrow label field leaves the label alone', async ({ page }) 
   await drag(page, 380, 300, 640, 300);
   await expect(page.locator('.arrow-g')).toHaveCount(1);
   await selectArrow(page);
-  const pop = page.locator('.arrow-popover');
-  await expect(pop).toBeVisible();
-  const label = pop.locator('.ap-label-input');
+  // Its bar and its label in either look (helpers/arrowBar.js).
+  await expect(arrowBar(page)).toBeVisible();
+  const label = arrowLabel(page);
   await label.click();
   await label.fill('foo');
   await page.keyboard.press('Escape');
@@ -72,7 +73,7 @@ test('Escape in a line\'s angle and width fields reverts them', async ({ page })
   await page.keyboard.press('a');
   await drag(page, 380, 300, 640, 300);
   await selectArrow(page);
-  await page.locator('.arrow-popover [title="No arrowheads"]').click();
+  await pickArrowHead(page, 'No arrowheads');
   const angle = page.locator('.tob-angle-input');
   await expect(angle).toBeVisible();
   const before = await angle.inputValue();

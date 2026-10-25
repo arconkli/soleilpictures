@@ -611,7 +611,7 @@ export function MessageThread({
         console.warn('send failed', e);
         markSendState(opId, 'failed');
         logEvent(EV.MSG_SEND, { ok: false, attempt: tries.n, ms: Date.now() - tries.at, code: errorCode(e), ...sendShape(row) });
-        feedback.toast({ type: 'error', message: "Message didn't send — it's kept in the thread with a Retry button." });
+        feedback.toast({ type: 'error', code: 'message_send_failed', message: "Message didn't send — it's kept in the thread with a Retry button." });
         return;
       }
     }
@@ -672,7 +672,7 @@ export function MessageThread({
       console.warn('delete failed', e);
       rollback(opId);
       logEvent(EV.MSG_ACTION, { action: 'delete', ok: false, code: errorCode(e) });
-      feedback.toast({ type: 'error', message: 'Could not delete the message — try again.' });
+      feedback.toast({ type: 'error', code: 'message_delete_failed', message: 'Could not delete the message — try again.' });
       return;
     }
     settle(opId);
@@ -693,7 +693,7 @@ export function MessageThread({
         catch (e) {
           rollback(back);
           logEvent(EV.MSG_ACTION, { action: 'undo_delete', ok: false, code: errorCode(e) });
-          feedback.toast({ type: 'error', message: 'Could not restore the message — try again.' });
+          feedback.toast({ type: 'error', code: 'message_restore_failed', message: 'Could not restore the message — try again.' });
         }
       },
     });
@@ -708,7 +708,7 @@ export function MessageThread({
       console.warn('edit failed', e);
       rollback(opId);
       logEvent(EV.MSG_ACTION, { action: 'edit', ok: false, code: errorCode(e) });
-      feedback.toast({ type: 'error', message: 'Could not save your edit — try again.' });
+      feedback.toast({ type: 'error', code: 'message_edit_failed', message: 'Could not save your edit — try again.' });
       return false;
     }
     settle(opId);
@@ -729,7 +729,7 @@ export function MessageThread({
     } catch (e) {
       rollback(opId);
       logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
-      feedback.toast({ type: 'error', message: "Couldn't save your reaction — try again." });
+      feedback.toast({ type: 'error', code: 'message_react_failed', message: "Couldn't save your reaction — try again." });
     }
   }, [conversationId, userId, patchLocal, settle, rollback, feedback]);
 
@@ -764,7 +764,7 @@ export function MessageThread({
     } catch (e) {
       console.warn('pin failed', e);
       rollback(opId);
-      feedback.toast({ type: 'error', message: msg.is_pinned ? "Couldn't unpin the message — try again." : "Couldn't pin the message — try again." });
+      feedback.toast({ type: 'error', code: 'message_pin_failed', message: msg.is_pinned ? "Couldn't unpin the message — try again." : "Couldn't pin the message — try again." });
       logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
     }
   }, [conversationId, patchLocal, settle, rollback, feedback]);
@@ -778,7 +778,7 @@ export function MessageThread({
       feedback.toast({ type: 'success', message: 'Link copied' });
     } catch (_) {
       logEvent(EV.MSG_ACTION, { action: 'copy_link', ok: false });
-      feedback.toast({ type: 'error', message: "Couldn't copy the link — your browser blocked the clipboard." });
+      feedback.toast({ type: 'error', code: 'link_copy_failed', message: "Couldn't copy the link — your browser blocked the clipboard." });
     }
   }, [feedback]);
 
@@ -812,7 +812,7 @@ export function MessageThread({
       feedback.toast({ type: 'success', message: 'Copied' });
     } catch (_) {
       logEvent(EV.MSG_ACTION, { action: 'copy_text', ok: false });
-      feedback.toast({ type: 'error', message: "Couldn't copy — your browser blocked the clipboard." });
+      feedback.toast({ type: 'error', code: 'text_copy_failed', message: "Couldn't copy — your browser blocked the clipboard." });
     }
   }, [feedback]);
   const requestEdit = useCallback((msg) => {
@@ -900,7 +900,7 @@ export function MessageThread({
       onChanged?.();
     } catch (e) {
       console.warn('rename failed', e);
-      feedback.toast({ type: 'error', message: 'Could not rename the conversation — try again.' });
+      feedback.toast({ type: 'error', code: 'chat_rename_failed', message: 'Could not rename the conversation — try again.' });
     }
   };
 
@@ -919,7 +919,7 @@ export function MessageThread({
     const convId = conversationId;
     const left = await leaveConversation({ conversationId: convId, userId });
     if (!left) {
-      feedback.toast({ type: 'error', message: 'Could not leave the conversation — try again.' });
+      feedback.toast({ type: 'error', code: 'chat_leave_failed', message: 'Could not leave the conversation — try again.' });
       return;
     }
     onChanged?.();
@@ -928,7 +928,7 @@ export function MessageThread({
       message: 'You left the conversation',
       onUndo: async () => {
         const back = await rejoinConversation({ conversationId: convId, userId });
-        if (!back) { feedback.toast({ type: 'error', message: "Couldn't bring the conversation back — try again." }); return; }
+        if (!back) { feedback.toast({ type: 'error', code: 'chat_rejoin_failed', message: "Couldn't bring the conversation back — try again." }); return; }
         onChanged?.();
       },
     });
@@ -1511,7 +1511,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
       onAdded?.();
     } catch (e) {
       console.warn('add participants failed', e);
-      feedback.toast({ type: 'error', message: 'Could not add people — try again.' });
+      feedback.toast({ type: 'error', code: 'chat_add_failed', message: 'Could not add people — try again.' });
     } finally {
       setBusy(false);
     }

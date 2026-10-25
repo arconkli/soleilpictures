@@ -18,6 +18,8 @@
 
 // Everything under this host counts as us. The apex is included because a
 // citation of the marketing site is still retrieval of the brand.
+import { jobFailed } from './lib/workerErrors.js';
+
 const OUR_HOSTS = ['clusters.soleilpictures.com', 'soleilpictures.com'];
 
 const OPENAI_URL = 'https://api.openai.com/v1/responses';
@@ -123,6 +125,7 @@ export async function runAeoRetrievalProbe(env) {
     questions = await qRes.json();
   } catch (err) {
     console.error('[aeo-probe] could not load questions:', err?.message || err);
+    await jobFailed(env, 'aeo_probe', err, 'questions');
     return;
   }
   if (!questions.length) {
@@ -167,6 +170,7 @@ export async function runAeoRetrievalProbe(env) {
     if (!res.ok) throw new Error(`record ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
   } catch (err) {
     console.error('[aeo-probe] could not record run:', err?.message || err);
+    await jobFailed(env, 'aeo_probe', err, 'record');
     return;
   }
 

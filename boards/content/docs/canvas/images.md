@@ -5,7 +5,7 @@ h1: Images and photo editing
 navLabel: Images
 section: canvas
 order: 2
-updated: 2026-10-21
+updated: 2026-10-24
 answer: Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 faq:
   - q: Do adjustments change my original file?
@@ -13,7 +13,9 @@ faq:
   - q: Why does an image look blurry for a moment?
     a: Images load in tiers — a tiny blurred placeholder first, then a preview, then full resolution. On a board with hundreds of images this is what keeps it usable.
   - q: Does it handle photos straight off an iPhone?
-    a: Yes, including HEIC and HEIF, even when the browser reports no file type at all.
+    a: Yes. HEIC and HEIF show in every browser, not only Safari, even when the browser reports no file type at all.
+  - q: Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?
+    a: Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file.
 related:
   - /docs/canvas/cards
   - /docs/files
@@ -45,8 +47,19 @@ Give a card a caption and the caption is what Files shows; the download
 still uses the file's own name. A pasted image has no real name (browsers call
 every one `image.png`), so it is not given one.
 
-HEIC and HEIF from an iPhone are handled, including the awkward case where the
-browser reports no MIME type at all.
+Photos in formats some browsers can't draw still show in every browser: HEIC
+and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000.
+Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For
+these, Clusters makes a picture every browser can show, up to
+{{fact:viewEdge}} pixels on its long side. It is made once, on a converter
+Clusters runs, when the photo is uploaded or first opened, and from then on the
+card, Files, Quick look and the lightbox show it. **Download** always gives the
+original, and the picture never counts toward your storage.
+
+A file over {{fact:viewMaxSize}} or {{fact:viewMaxMegapixels}} megapixels gets
+no picture: it shows where your browser can draw it, and downloads everywhere.
+These photos arrive as images even when the browser reports no file type at
+all.
 
 To swap in a new take of an image, drop the new file onto it, or choose
 **Edit → Upload new version…**. The old one is kept as an earlier

@@ -220,7 +220,7 @@ export function FilmReview({
                       autoPlay={mountSession.autoPlay}
                       initialFrame={mountSession.frame} initialTime={mountSession.time}
                       initialRange={mountSession.range} initialLooping={mountSession.looping}
-                      src={a.src} poster={a.poster} media={a.media} title={title}
+                      src={a.src} playSrc={card?.playSrc} poster={a.poster} media={a.media} title={title}
                       label={many ? versionLabel(v) : ''}
                       compareSrc={b?.src || null} compareMedia={b?.media || null} compareLabel={cmp ? versionLabel(cmp) : ''}
                       markers={markers} ghostMarkers={ghostMarkers} overlay={overlay} overlayLive={overlayLive}

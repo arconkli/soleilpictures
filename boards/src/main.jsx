@@ -10,8 +10,7 @@ import { initCapacitor } from './lib/capacitorInit.js';
 import { preloadRecentGoogleFonts } from './lib/googleFonts.js';
 import { getRecentFonts } from './lib/customFonts.js';
 import { captureFbclid, installSpaPageViews, loadPixelLater } from './lib/metaPixel.js';
-import { logClientError } from './lib/errorReporting.js';
-import { describeReason } from './lib/describeReason.js';
+import { logClientError, installErrorWatch } from './lib/errorReporting.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload, isCssPreloadError, reloadedRecently } from './lib/lazyWithReload.js';
 import { installDomMutationGuard } from './lib/domMutationGuard.js';
@@ -19,10 +18,9 @@ import { toolbarLookAllowed, docLookAllowed } from './lib/appHost.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
-// The toolbar look (held to the preview and a dev opt-in) and the doc
-// editor's look (on everywhere; on dev a hold set to '0' shows today's):
-// marked on <html> once, before anything renders, so the CSS and lib/looks.js
-// agree from the first frame.
+// The toolbar look and the doc editor's look (on everywhere; on dev a hold
+// set to '0' shows today's): marked on <html> once, before anything renders,
+// so the CSS and lib/looks.js agree from the first frame.
 if (typeof document !== 'undefined') {
   if (toolbarLookAllowed()) document.documentElement.dataset.tb = 'a';
   if (docLookAllowed()) document.documentElement.dataset.docLook = 'a';
@@ -68,13 +66,10 @@ const FileSharePage = lazyWithReload(() => import('./components/fileShare/FileSh
 // rejections into our own client_errors table (see lib/errorReporting.js).
 // fire-and-forget keepalive beacon, no SDK — safe on the landing critical path.
 if (typeof window !== 'undefined') {
-  window.addEventListener('error', (e) =>
-    logClientError(e?.error || new Error(e?.message || 'window.onerror'), { kind: 'window' }));
-  // describeReason keeps the real Error (and its stack) when there is one, and
-  // otherwise unpacks the shape — Supabase PostgrestError, fetch Response,
-  // socket CloseEvent — instead of stringifying it to "[object Object]".
-  window.addEventListener('unhandledrejection', (e) =>
-    logClientError(describeReason(e?.reason), { kind: 'unhandledrejection' }));
+  // Uncaught errors and rejections, failed requests, files that didn't load,
+  // logged Errors, a boot that never finishes, and the steps before each.
+  // First, so the first request supabase-js makes is watched.
+  installErrorWatch();
 
   // Google Translate / extensions rewrite React-owned text nodes; the next
   // commit's removeChild/insertBefore then throws and takes a page or canvas

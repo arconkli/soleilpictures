@@ -1,7 +1,7 @@
 /* The toolbar look on the bars the app already has (the owner's pick
    "A · Islands", 2026-10-21): each keeps its markup and wears the language
    here, scoped to <html data-tb="a"> (lib/appHost.js toolbarLookAllowed), so
-   nothing changes while the look is held. Loaded by main.jsx only under the
+   where the look is off nothing changes. Loaded by main.jsx only under the
    look. The parts (tokens, glass, buttons, menus, the tooltip) are
    components/toolbar/toolbar.css's; this file says where each bar wears them.
    One section a bar. */
@@ -467,7 +467,7 @@
   font-variant-numeric: tabular-nums;
 }
 .tl-menu.db-menu { min-width: 260px; }
-.tl-menu.sb-more, .tl-menu.ln-more { min-width: 220px; }
+.tl-menu.sb-more, .tl-menu.ln-more, .tl-menu.pa-more { min-width: 220px; }
 
 
 /* ── The selection's bar (mockup A-select; components/toolbar/
@@ -503,6 +503,33 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 }
 @media (prefers-reduced-motion: reduce) {
   :root[data-tb='a'] .tl-bar.sel-a { animation: none; }
+}
+
+/* ── A picked arrow's bar (components/toolbar/CanvasBarsA.jsx
+   PickedArrowBarA): over the arrow's middle, where today's popover sits (its
+   place is set inline, ArrowPopover.jsx useArrowPopover), in the bars'
+   glass. ── */
+:root[data-tb='a'] .tl-bar.pa-a {
+  position: fixed;
+  z-index: 999999;
+  user-select: none;
+  animation: ctx-menu-in var(--dur-fast, .12s) var(--ease, ease-out);
+}
+/* Its label: words, not a number. */
+:root[data-tb='a'] .pa-a input.pa-label {
+  width: 128px;
+  padding: 0 8px;
+  text-align: left;
+  font-variant-numeric: normal;
+}
+:root[data-tb='a'] .pa-a input.pa-label::placeholder { color: var(--ink-3); }
+/* Under a finger, the bars' fields: 16px type, or a phone zooms into it, at
+   a finger's height. */
+@media (hover: none) and (pointer: coarse) {
+  :root[data-tb='a'] .pa-a input.pa-label { height: 40px; font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-tb='a'] .tl-bar.pa-a { animation: none; }
 }
 
 /* ── The top islands (FloatingChrome.jsx; the top of mockup A-select): the

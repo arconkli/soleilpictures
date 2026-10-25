@@ -4,8 +4,8 @@
 // working before the user has provisioned a Supabase project.
 
 import { createClient } from '@supabase/supabase-js';
-import { guardRealtimeConnect } from './realtimeGuard.js';
-import { logClientError } from './errorReporting.js';
+import { guardRealtimeConnect, watchChannels } from './realtimeGuard.js';
+import { logClientError, noteChannel } from './errorReporting.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 // Prefer the modern publishable key; fall back to legacy anon JWT.
@@ -76,6 +76,10 @@ function makeNamespacedStorage(suffix) {
 
 export let supabase = (url && publicKey)
   ? createClient(url, publicKey, {
+      // supabase-js keeps the fetch it is given; this one looks the global up
+      // on each call, so lib/netWatch.js, installed after this module runs,
+      // sees every query, RPC, auth call and upload.
+      global: { fetch: (...a) => fetch(...a) },
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -133,6 +137,8 @@ if (supabase) {
     console.warn('[realtime] unavailable — staying offline', err?.message || err);
     try { logClientError(err, { kind: 'realtime-unavailable' }); } catch (_) {}
   });
+  // A channel whose live updates never arrive: errorSender decides which.
+  watchChannels(supabase.realtime, noteChannel);
 }
 
 // ── Realtime wake handling ─────────────────────────────────────────────

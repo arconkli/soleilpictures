@@ -1,5 +1,5 @@
 // The draw bar in the toolbar look (the owner's pick "A · Islands", mockup
-// A-draw), held to a dev opt-in (lib/appHost.js toolbarLookAllowed;
+// A-draw), shipped 2026-10-25 (lib/appHost.js toolbarLookAllowed;
 // components/toolbar/CanvasBarsA.jsx): undo, the three modes, the four
 // brushes, the colours, the widths and Canvas, each by name, in the room the
 // rail and the zoom leave it; the eraser keeps only its sizes and the lasso

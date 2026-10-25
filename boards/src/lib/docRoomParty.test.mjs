@@ -100,13 +100,14 @@ test('review: the /recheck preflight is answered in the Worker', () => {
 // 2026-10-19: a view room built in the minute after a deploy closed "gone"
 // twice and stayed dead; the same room worked an hour later.
 test('only "no such share" or "no such card" is gone; not being able to ask is tried again', () => {
-  assert.match(doc, /if \(!res\.ok\) \{\s+console\.warn\(`\[doc\] \$\{name\} answered \$\{res\.status\}`\);\s+return FAILED;/);
-  assert.match(doc, /\} catch \(e\) \{\s+console\.warn\(`\[doc\] \$\{name\} failed`, e\);\s+return FAILED;/);
+  // Each is recorded on the way (report.ts), and still only tried again.
+  assert.match(doc, /if \(!res\.ok\) \{\s+console\.warn\(`\[doc\] \$\{name\} answered \$\{res\.status\}`\);\s+void reportParty\([^\n]*\);\s+return FAILED;/);
+  assert.match(doc, /\} catch \(e\) \{\s+console\.warn\(`\[doc\] \$\{name\} failed`, e\);\s+void reportParty\([^\n]*\);\s+return FAILED;/);
   assert.match(doc, /if \(t === FAILED\) \{ this\.dead = \{ code: CLOSE\.UNAVAILABLE, reason: "unavailable" \}; return; \}/);
   // The bridge's 410 is gone; a 404 (a board room still on older code) is not.
   assert.match(doc, /if \(res\.status === 410\) \{\s+console\.warn\(`\[doc \$\{this\.name\}\] the board has no card/);
   assert.doesNotMatch(doc, /res\.status === 404/);
-  assert.match(doc, /if \(!res\.ok\) \{\s+console\.warn\(`\[doc \$\{this\.name\}\] the board answered \$\{res\.status\} to subscribe`\);\s+this\.dead = \{ code: CLOSE\.UNAVAILABLE/);
+  assert.match(doc, /if \(!res\.ok\) \{\s+console\.warn\(`\[doc \$\{this\.name\}\] the board answered \$\{res\.status\} to subscribe`\);\s+this\.problem\(null, callFailed\("bridge subscribe", res\)\);\s+this\.dead = \{ code: CLOSE\.UNAVAILABLE/);
   // A failed recheck closes no one.
   assert.match(doc, /const r = asked === FAILED \? null : asked;/);
 });

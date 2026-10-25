@@ -1,11 +1,10 @@
 // looks.test.mjs — the toolbar look and the doc editor's look (the owner's
-// picks of 2026-10-21) each have one switch, held (open on the preview,
-// opt-in on dev) until the release that ships the look, then on everywhere,
-// with a dev opt-out for the specs that still pin today's look (the doc
-// look's shipped 2026-10-24); main.jsx alone reads the switches and marks
-// <html>, and markup asks lib/looks.js, which reads the marks. Plus the two
-// helpers every bar in the new look uses: a shortcut's keys as caps, and a
-// control's tooltip.
+// picks of 2026-10-21) each have one switch, on everywhere since they shipped
+// (the doc look's 2026-10-24, the toolbar look's 2026-10-25), with a dev
+// opt-out for the specs that still pin today's look; main.jsx alone reads
+// the switches and marks <html>, and markup asks lib/looks.js, which reads
+// the marks. Plus the two helpers every bar in the new look uses: a
+// shortcut's keys as caps, and a control's tooltip.
 //
 //   node --test src/lib/looks.test.mjs
 import { test } from 'node:test';
@@ -19,23 +18,16 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
-for (const [fn, flag, key, shipped] of [
-  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook', false],
-  ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook', true],
+for (const [fn, flag, key] of [
+  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook'],
+  ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook'],
 ]) {
-  test(shipped ? `${fn} is on everywhere, and on dev unless the hold says '0'`
-    : `${fn} is open on the preview, closed on production, and opt-in on dev`, () => {
+  test(`${fn} is on everywhere, and on dev unless the hold says '0'`, () => {
     const body = holdBody(fn);
-    if (shipped) {
-      assert.match(body, /^\s*if \(!import\.meta\.env\.DEV\) return true;\n/);
-      // A storage that throws (a private window) leaves it on as well.
-      assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) !== '0'; \\} catch \\(_\\) \\{ return true; \\}`));
-      assert.doesNotMatch(body, /onPreviewHost|return false/);
-    } else {
-      // On the preview, where the owner tries it, ahead of everything else.
-      assert.match(body, /^\s*if \(onPreviewHost\(\)\) return true;\n\s*if \(!import\.meta\.env\.DEV\) return false;/);
-      assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) === '1'`));
-    }
+    assert.match(body, /^\s*if \(!import\.meta\.env\.DEV\) return true;\n/);
+    // A storage that throws (a private window) leaves it on as well.
+    assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) !== '0'; \\} catch \\(_\\) \\{ return true; \\}`));
+    assert.doesNotMatch(body, /onPreviewHost|return false/);
     assert.match(read('lib/appHost.js'), new RegExp(`^\\s*${key}: ${fn},$`, 'm'));
   });
 }
@@ -48,8 +40,8 @@ test('main.jsx marks <html> from the switches, before anything renders', () => {
 });
 
 // The bars the app already has wear the toolbar look from styles/toolbarLook.css,
-// a file of its own that only the look loads: never in the entry's CSS, so the
-// held look costs today's look nothing.
+// a file of its own that only the look loads: never in the entry's CSS, so a
+// session in today's look (on dev, the hold set to '0') loads none of it.
 test('main.jsx alone loads toolbarLook.css, and only under the look', () => {
   const main = read('main.jsx');
   assert.match(main, /if \(toolbarLookAllowed\(\)\) import\('\.\/styles\/toolbarLook\.css'\)/);

@@ -1,9 +1,9 @@
 // The note bar's controls by what they do, in either of its looks: today's,
-// and the toolbar look's (lib/appHost.js toolbarLookAllowed; on dev the opt-in
-// soleil.dev.toolbarLook = '1'; components/toolbar/NoteBarA.jsx), which
-// carries the same controls under its own names and in its own places
-// (tests/note-bar-look.spec.js). A spec that reaches a control through these
-// passes with the look on and off.
+// and the toolbar look's (lib/appHost.js toolbarLookAllowed; on everywhere,
+// and on dev unless soleil.dev.toolbarLook = '0';
+// components/toolbar/NoteBarA.jsx), which carries the same controls under its
+// own names and in its own places (tests/note-bar-look.spec.js). A spec that
+// reaches a control through these passes with the look on and off.
 
 // Holds a spec to today's bars: one of today's controls whose counterpart in
 // the look has a spec of its own (named where this is called). Call it before

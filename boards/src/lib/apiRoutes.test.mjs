@@ -205,11 +205,42 @@ test('a read-only token can initialize, list tools and run a read tool over /mcp
 test('a read-only token still cannot WRITE through an MCP tool', async () => {
   scopes = ['read'];
   const add = await mcp('tools/call', {
-    name: 'add_cards', arguments: { board_id: 'b1', cards: [{ kind: 'note', body: 'x' }] },
+    name: 'add_cards', arguments: { board_id: B1, cards: [{ kind: 'note', body: 'x' }] },
   });
   assert.equal(add.status, 200);
   assert.equal(add.body.result.isError, true);
   assert.match(add.body.result.content[0].text, /cannot write/);
+  // and is told what it may do and how to get more, as the npm server says it
+  assert.match(add.body.result.content[0].text, /This connection may: read\..*\[insufficient_scope\]$/s);
+});
+
+// A tool reaches the database through the same dispatcher a REST call does,
+// but used to skip the curation on the way back: a card-index refusal reached
+// the model as scoutDb's own string, table name and envelope included.
+test('a database refusal inside an MCP tool reaches the model curated, never raw', async () => {
+  putBoard(B1, []);
+  on('POST', 'card_index', () => reply({
+    code: 'P0001', message: 'Demo accounts are limited to 50 cards — upgrade for more', details: null, hint: null,
+  }, 400));
+  const add = await mcp('tools/call', {
+    name: 'add_cards', arguments: { board_id: B1, cards: [{ kind: 'note', body: 'x' }] },
+  });
+  assert.equal(add.body.result.isError, true);
+  const text = add.body.result.content[0].text;
+  assert.match(text, /limited to 50 cards.*\[limit_reached\]$/);
+  assert.doesNotMatch(text, /card_index|P0001|"code"/);
+});
+
+test('an unexpected database failure inside a tool says nothing about the database', async () => {
+  putBoard(B1, []);
+  on('POST', 'card_index', () => reply({
+    code: '42P01', message: 'relation "public.card_index_v2" does not exist',
+  }, 404));
+  const add = await mcp('tools/call', {
+    name: 'add_cards', arguments: { board_id: B1, cards: [{ kind: 'note', body: 'x' }] },
+  });
+  assert.equal(add.body.result.isError, true);
+  assert.doesNotMatch(add.body.result.content[0].text, /card_index|relation|42P01/);
 });
 
 test('a read-only token is still refused a REST write', async () => {

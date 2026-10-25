@@ -115,7 +115,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     downloadingRef.current = true;
     try {
       const ok = await downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust });
-      if (!ok) feedback?.toast?.({ type: 'error', message: 'Couldn’t download this image. Try again.' });
+      if (!ok) feedback?.toast?.({ type: 'error', code: 'image_download_failed', message: 'Couldn’t download this image. Try again.' });
     } finally {
       downloadingRef.current = false;
     }

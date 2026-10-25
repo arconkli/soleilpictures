@@ -1,5 +1,5 @@
 // The shape, line and arrow bars in the toolbar look (the owner's pick
-// "A · Islands", mockup A-parts), held to a dev opt-in (lib/appHost.js
+// "A · Islands", mockup A-parts), shipped 2026-10-25 (lib/appHost.js
 // toolbarLookAllowed; components/toolbar/CanvasBarsA.jsx): the shape as a
 // menu of shapes, its stroke and fill as colour chips with their menus, the
 // width between − and +, the line style as a menu; a line's colour, width,
@@ -9,6 +9,7 @@
 //
 // On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
+import { pickArrowHead } from './helpers/arrowBar.js';
 
 const look = (page, on) => page.addInitScript((v) => {
   try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
@@ -66,7 +67,7 @@ async function aLine(page) {
     button: 0, pointerId: 1, isPrimary: true, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
   });
   await page.mouse.up();
-  await page.locator('.arrow-popover [title="No arrowheads"]').click();
+  await pickArrowHead(page, 'No arrowheads');
   await expect(bar(page, 'Line')).toBeVisible();
 }
 

@@ -168,7 +168,7 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
       // downloadImage resolves false rather than throwing; say so instead of
       // leaving the click to do nothing (audit MEDIA-15).
       const ok = await downloadImage({ src, title: downloadName || title, adjust });
-      if (!ok) feedback?.toast?.({ type: 'error', message: 'Couldn’t download this image. Try again.' });
+      if (!ok) feedback?.toast?.({ type: 'error', code: 'image_download_failed', message: 'Couldn’t download this image. Try again.' });
     }
     finally { setDownloading(false); }
   };

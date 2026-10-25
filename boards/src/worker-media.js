@@ -52,6 +52,7 @@ import { userSelect, userRpc, userInsert } from './lib/apiAuth.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
 import { fetchFollowingSafely, ogTargetProblem, UnsafeFetchError } from './lib/safeUrl.js';
 import { sniffImageType, imageDimensions } from './lib/imageDims.js';
+import { answeredWith } from './lib/workerErrors.js';
 import {
   WEB_IMAGE, SAVEABLE_TYPES, SaveError, webImageUrlProblem, nameFromImageUrl,
   readCapped, makeRateLimiter, makeByteBudget, declaredLength, reservationFor,
@@ -109,6 +110,7 @@ export async function handleMediaRoute(url, request, env, deps = {}) {
     if (err instanceof UnsafeFetchError) return json({ error: 'unsafe_url' }, 422);
     const timedOut = err?.name === 'TimeoutError' || err?.name === 'AbortError';
     console.warn('[media] save failed', hostOf(sourceUrl), timedOut ? 'timeout' : String(err?.message || err).slice(0, 120));
+    if (!timedOut) answeredWith(request, err);
     return json({ error: timedOut ? 'source_unavailable' : 'save_failed' }, timedOut ? 502 : 500);
   }
 }

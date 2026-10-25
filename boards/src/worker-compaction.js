@@ -12,6 +12,7 @@
 // Invoked from the Cloudflare Worker's scheduled handler.
 
 import * as Y from 'yjs';
+import { jobFailed } from './lib/workerErrors.js';
 
 const HOT_BUFFER_HOURS = 2;             // matches history_rework_config default
 const MAX_BUCKETS_PER_RUN = 50;         // per worker invocation
@@ -177,6 +178,7 @@ export async function runCompactionJob1(env) {
   try { buckets = await fetchCandidates(env); }
   catch (e) {
     console.error('[compaction] candidate fetch failed', e);
+    await jobFailed(env, 'compaction', e, 'candidates');
     return;
   }
   if (buckets.length === 0) {
@@ -204,4 +206,5 @@ export async function runCompactionJob1(env) {
     `[compaction] mode=${mode} buckets=${buckets.length} committed=${committed} dry-reported=${dryReported} failed=${failed} took=${Date.now() - startedAt}ms`,
     errors.length > 0 ? { firstError: errors[0] } : '',
   );
+  if (errors.length > 0) await jobFailed(env, 'compaction', new Error(errors[0].error), 'bucket');
 }

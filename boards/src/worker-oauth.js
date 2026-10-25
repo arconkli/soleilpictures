@@ -64,6 +64,27 @@ const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(b
 const oauthError = (error, description, status = 400) =>
   json({ error, error_description: description }, status);
 
+// A refused grant, said safely. scoutRpc throws "rpc oauth_code_redeem 400:
+// {…PostgREST envelope…}", and that whole string used to go out as the
+// error_description. Our own RAISEs (22023: "a PKCE code_verifier of 43-128
+// characters is required") are written for the client's developer and pass
+// through; anything else stays in the log. And a database that did not answer
+// is not a bad grant: invalid_grant makes a client throw the connection away
+// and send the person through sign-in again, so an outage answers 503, which
+// clients retry.
+function grantRefusal(e, fallback) {
+  let body = null;
+  try { body = JSON.parse(e?.body || ''); } catch { /* not PostgREST */ }
+  if (body?.code === '22023' && typeof body.message === 'string') {
+    return oauthError('invalid_grant', body.message);
+  }
+  if (!e?.status || e.status >= 500) {
+    console.error('[oauth] token endpoint', e?.message);
+    return oauthError('temporarily_unavailable', 'try again in a moment', 503);
+  }
+  return oauthError('invalid_grant', fallback);
+}
+
 async function sha256Hex(input) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -465,7 +486,7 @@ export async function handleOAuthRoute(url, request, env) {
         });
         issued = Array.isArray(rows) ? rows[0] : rows;
       } catch (e) {
-        return oauthError('invalid_grant', e?.message || 'that authorization code is not valid');
+        return grantRefusal(e, 'that authorization code is not valid');
       }
       if (!issued) return oauthError('invalid_grant', 'that authorization code is not valid');
 
@@ -491,7 +512,7 @@ export async function handleOAuthRoute(url, request, env) {
         });
         issued = Array.isArray(rows) ? rows[0] : rows;
       } catch (e) {
-        return oauthError('invalid_grant', e?.message || 'that refresh token is not valid');
+        return grantRefusal(e, 'that refresh token is not valid');
       }
       if (!issued) return oauthError('invalid_grant', 'that refresh token is not valid');
 

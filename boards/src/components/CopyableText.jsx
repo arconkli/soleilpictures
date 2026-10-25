@@ -25,7 +25,7 @@ export function CopyableText({ value, display, className = '', title }) {
       feedback.toast({ type: 'success', message: 'Copied' });
       window.setTimeout(() => setCopied(false), 1200);
     } catch {
-      feedback.toast({ type: 'error', message: 'Copy failed' });
+      feedback.toast({ type: 'error', code: 'text_copy_failed', message: 'Copy failed' });
     }
   };
 

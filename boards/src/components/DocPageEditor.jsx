@@ -1328,12 +1328,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                                         tagId: info.tagId, sourceAnchor: info.sourceAnchor, source: 'user',
                                       });
                                     } catch (err) {
-                                      feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+                                      feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
                                     }
                                   },
                                 });
                               } catch (err) {
-                                feedback.toast({ type: 'error', message: 'Remove tag failed: ' + (err.message || err) });
+                                feedback.toast({ type: 'error', code: 'tag_remove_failed', message: 'Remove tag failed: ' + (err.message || err) });
                               }
                             } : null} />
       )}
@@ -1443,12 +1443,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                       tagId: removedTagId, sourceAnchor: anchor, source: 'user',
                     });
                   } catch (err) {
-                    feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+                    feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
                   }
                 },
               });
             } catch (err) {
-              feedback.toast({ type: 'error', message: 'Remove tag failed: ' + (err.message || err) });
+              feedback.toast({ type: 'error', code: 'tag_remove_failed', message: 'Remove tag failed: ' + (err.message || err) });
             }
           } : null}
           onMouseEnter={cancelHoverTimers}

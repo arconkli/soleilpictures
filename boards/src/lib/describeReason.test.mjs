@@ -29,14 +29,14 @@ test('an Error subclass is not rewrapped', () => {
 
 // ── the shapes that used to stringify to [object Object] ───────────────
 
-test('a Supabase PostgrestError keeps code, details and hint', () => {
+test('a Supabase PostgrestError keeps code and hint, never details (the refused row)', () => {
   const out = describeReason({
-    message: 'permission denied for table boards',
-    code: '42501', details: 'RLS', hint: 'check policy',
+    message: 'new row for relation "cards" violates check constraint "cards_kind_check"',
+    code: '23514', details: 'Failing row contains (Wedding plans, …).', hint: 'check policy',
   });
-  assert.match(out.message, /permission denied for table boards/);
-  assert.match(out.message, /code=42501/);
-  assert.match(out.message, /details=RLS/);
+  assert.match(out.message, /violates check constraint/);
+  assert.match(out.message, /code=23514/);
+  assert.doesNotMatch(out.message, /details|Failing row|Wedding/);
   assert.match(out.message, /hint=check policy/);
   assert.equal(out.name, 'PostgrestError');
   assert.doesNotMatch(out.message, /\[object Object\]/);

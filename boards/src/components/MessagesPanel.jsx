@@ -183,7 +183,7 @@ export function MessagesPanel({
     }
     const done = await leaveConversation({ conversationId: convId, userId });
     if (!done) {
-      feedback.toast({ type: 'error', message: isGroup ? "Couldn't leave the conversation — try again." : "Couldn't hide the conversation — try again." });
+      feedback.toast({ type: 'error', code: 'chat_leave_failed', message: isGroup ? "Couldn't leave the conversation — try again." : "Couldn't hide the conversation — try again." });
       return;
     }
     onRefreshRequested?.();
@@ -191,7 +191,7 @@ export function MessagesPanel({
       message: isGroup ? 'You left the conversation' : 'Conversation hidden',
       onUndo: async () => {
         const back = await rejoinConversation({ conversationId: convId, userId });
-        if (!back) { feedback.toast({ type: 'error', message: "Couldn't bring the conversation back — try again." }); return; }
+        if (!back) { feedback.toast({ type: 'error', code: 'chat_rejoin_failed', message: "Couldn't bring the conversation back — try again." }); return; }
         onRefreshRequested?.();
       },
     });

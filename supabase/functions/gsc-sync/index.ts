@@ -61,6 +61,8 @@
 // ~110 URLs, so a manual run on top of the cron is safe. The readonly scope
 // covers urlInspection.index.inspect, and a Restricted user may inspect.
 
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const CRON_SECRET = Deno.env.get('CRON_SECRET') || '';
@@ -327,7 +329,7 @@ async function runInspect(token: string): Promise<Record<string, unknown>> {
   };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("gsc-sync", async (req) => {
   // Cron/server only: x-cron-secret (pg_cron) OR the service-role key as bearer.
   const cronHeader = req.headers.get('x-cron-secret') || '';
   const auth = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -361,6 +363,7 @@ Deno.serve(async (req) => {
           console.log('[gsc-sync inspect]', JSON.stringify(await runInspect(await getAccessToken(JSON.parse(SA_JSON)))));
         } catch (e) {
           console.error('[gsc-sync inspect] failed:', String((e as Error)?.message || e));
+          void reportEdgeError("gsc-sync", { what: "inspect", error: e });
         }
       })(),
     );
@@ -523,6 +526,6 @@ Deno.serve(async (req) => {
       { headers: { 'content-type': 'application/json' } },
     );
   } catch (e) {
-    return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), { status: 500 });
+    return failedWith(new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), { status: 500 }), e);
   }
-});
+}));

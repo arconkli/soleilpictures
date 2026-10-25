@@ -55,6 +55,8 @@ import { AwsClient } from "aws4fetch";
 import { getServerByName } from "partyserver";
 import { bridgeHeaders } from "./bridge";
 import type { Env } from "./env";
+import { callFailed } from "./report";
+import { answeredWith } from "../src/lib/serverErrors.js";
 import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
 import { bundleRefusalStatus } from "../src/lib/bundleRefusal.js";
 import {
@@ -404,6 +406,8 @@ export class UploadParty {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
+      // Why, for index.ts's door, when this answers a 5xx (report.ts).
+      answeredWith(req, callFailed("rpc get_share_bundle", rpcRes, msg));
       // A Supabase outage says nothing about the link: pass it through so the
       // viewer offers a Retry instead of "expired or revoked" (MEDIA-03). But
       // the RPC's own refusal ALSO arrives as a 500 (P0002), so the body
@@ -453,6 +457,7 @@ export class UploadParty {
         return Response.json({ status: "auth_expired" }, { headers: cors });
       }
       const msg = await rpcRes.text().catch(() => "");
+      answeredWith(req, callFailed("rpc get_file_share", rpcRes, msg));
       const status = bundleRefusalStatus(rpcRes.status, msg);
       if (status === 404) return Response.json({ status: "gone" }, { headers: cors });
       return new Response("File link temporarily unavailable", { status, headers: cors });
@@ -512,6 +517,7 @@ export class UploadParty {
     if (!rpcRes.ok) {
       if (rpcRes.status === 401 && userBearer) return reply({ status: "auth_expired" });
       const msg = await rpcRes.text().catch(() => "");
+      answeredWith(req, callFailed("rpc get_file_share", rpcRes, msg));
       if (bundleRefusalStatus(rpcRes.status, msg) === 404) return reply({ status: "gone" });
       return reply({ status: "unavailable" }, 503);
     }
@@ -600,6 +606,7 @@ export class UploadParty {
     });
     if (!rpcRes.ok) {
       if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { headers: cors });
+      answeredWith(req, callFailed("rpc get_file_share_posters", rpcRes, await rpcRes.text().catch(() => "")));
       return new Response("Thumbnails temporarily unavailable", { status: 503, headers: cors });
     }
     // The caller's answer says which rows have a poster: true (since 0426), or
@@ -678,6 +685,7 @@ export class UploadParty {
     });
     if (!rpcRes.ok) {
       if (rpcRes.status === 401) return Response.json({ status: "auth_expired" }, { status: 401, headers: cors });
+      answeredWith(req, callFailed("rpc get_file_share", rpcRes, await rpcRes.text().catch(() => "")));
       return new Response("Saving is temporarily unavailable", { status: 503, headers: cors });
     }
     const result: any = await this.withKeys(await rpcRes.json().catch(() => null), token);
@@ -725,6 +733,7 @@ export class UploadParty {
 
     // 4. The bytes.
     if (!(await this.copyObject(r2, env, srcKey, dstKey, plan, contentType))) {
+      answeredWith(req, new Error("R2 copy failed"));
       return new Response("Could not copy the file", { status: 502, headers: cors });
     }
     let posterKey: string | null = null;
@@ -750,6 +759,7 @@ export class UploadParty {
     });
     if (!ins.ok) {
       // No images row: the object is an orphan the R2 sweep reclaims.
+      answeredWith(req, callFailed("insert images", ins, await ins.text().catch(() => "")));
       return new Response("Could not finish saving the file", { status: 503, headers: cors });
     }
     const card = savedCard(result, { cardId, srcKey: dstKey, posterKey });
@@ -828,6 +838,7 @@ export class UploadParty {
     });
     if (!rpcRes.ok) {
       const msg = await rpcRes.text().catch(() => "");
+      answeredWith(req, callFailed("rpc get_public_board_bundle", rpcRes, msg));
       // Same as /share-bundle: an outage is not "no such board" (MEDIA-03),
       // and the RPC's own refusal is (lib/bundleRefusal.js).
       const status = bundleRefusalStatus(rpcRes.status, msg);
@@ -1222,7 +1233,10 @@ export class UploadParty {
     const key = `${workspaceId}/${crypto.randomUUID()}.${ext}`;
     const r2 = this.mkR2Client(env);
     const uploadId = await this.createMultipart(r2, env, key, contentType);
-    if (!uploadId) return new Response("Failed to start upload", { status: 502, headers: corsHeaders(origin) });
+    if (!uploadId) {
+      answeredWith(req, new Error("R2 multipart create failed"));
+      return new Response("Failed to start upload", { status: 502, headers: corsHeaders(origin) });
+    }
     // The declared total is the upload intent (0387); /mpu/complete holds R2's
     // count of the finished object to it.
     const recorded = await supabaseRpc("record_upload_intent", {

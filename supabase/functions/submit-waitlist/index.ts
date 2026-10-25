@@ -13,6 +13,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { emitCapi, clientIpFromHeaders, gpcFrom } from "../_shared/meta-capi.ts";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -35,8 +36,14 @@ async function sendEmail(template: string, to: string, data: Record<string, unkn
       headers: { "authorization": `Bearer ${SEND_EMAIL_SECRET}`, "content-type": "application/json" },
       body: JSON.stringify({ template, to, data }),
     });
-    if (!res.ok) console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
-  } catch (e) { console.warn(`send-transactional-email ${template} -> ${to} threw`, e); }
+    if (!res.ok) {
+      console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
+      void reportEdgeError("submit-waitlist", { what: `send ${template}`, error: new Error(`send-transactional-email answered ${res.status}`) });
+    }
+  } catch (e) {
+    console.warn(`send-transactional-email ${template} -> ${to} threw`, e);
+    void reportEdgeError("submit-waitlist", { what: `send ${template}`, error: e });
+  }
 }
 
 const cors = {
@@ -114,7 +121,7 @@ function computeScheduledAcceptAt(timezone: string | null): Date {
   return utcForTzClockTime(localParts.year, localParts.month, localParts.day, hour, minute, tz);
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("submit-waitlist", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -148,7 +155,7 @@ Deno.serve(async (req) => {
   // Caller must be on tier='waitlist' — paid/demo/admin users have no
   // business submitting a waitlist form.
   const prof = await admin.from("profiles").select("tier").eq("user_id", userId).maybeSingle();
-  if (prof.error) return json({ error: prof.error.message }, 500);
+  if (prof.error) return failedWith(json({ error: prof.error.message }, 500), prof.error, { what: "select profiles" });
   if (prof.data?.tier && prof.data.tier !== "waitlist") {
     return json({ error: `already ${prof.data.tier}`, tier: prof.data.tier }, 409);
   }
@@ -157,7 +164,7 @@ Deno.serve(async (req) => {
     .select("scheduled_accept_at, status")
     .eq("email", email)
     .maybeSingle();
-  if (existing.error && existing.error.code !== "PGRST116") return json({ error: existing.error.message }, 500);
+  if (existing.error && existing.error.code !== "PGRST116") return failedWith(json({ error: existing.error.message }, 500), existing.error, { what: "select waitlist_entries" });
   if (existing.data && existing.data.status === "pending") {
     return json({ ok: true, status: "on_waitlist", scheduled_accept_at: existing.data.scheduled_accept_at }, 200);
   }
@@ -173,7 +180,7 @@ Deno.serve(async (req) => {
       accepted_at: null,
       rejected_at: null,
     }, { onConflict: "email" });
-  if (upsert.error) return json({ error: upsert.error.message }, 500);
+  if (upsert.error) return failedWith(json({ error: upsert.error.message }, 500), upsert.error, { what: "upsert waitlist_entries" });
 
   // Meta CAPI Lead — only on a genuine new queue (the already-pending branch
   // above returns before this, so a resubmit never re-fires). Keyed lead:<uid>
@@ -198,7 +205,7 @@ Deno.serve(async (req) => {
   await sendEmail("waitlist_submitted", email);
 
   return json({ ok: true, status: "queued", scheduled_accept_at: scheduledAcceptAt.toISOString() }, 200);
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

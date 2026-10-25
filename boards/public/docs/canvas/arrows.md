@@ -2,7 +2,7 @@
 
 > Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/arrows · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas/arrows · Updated 2026-10-25_
 
 Arrows are for showing relationships: this shot follows that one, this reference
 informed that frame, this note explains that image.
@@ -36,11 +36,14 @@ Select an arrow and an inline toolbar appears:
 | Control | Options |
 |---|---|
 | Colour | Full [picker](/docs/canvas/palettes-and-color), presets, board palette swatches |
-| Thickness | Thin through heavy |
-| Head style | Which ends carry a head, and its shape |
+| Thickness | Thin, medium or thick |
+| Head style | No heads, one at the end, or one at each end |
 | Line | Solid or dashed |
-| Curve | How much the path bends |
+| Curve | Curved or straight |
 | Label | Text carried on the arrow itself |
+
+On a phone the toolbar's row keeps the colour, the label and delete, and **⋯**
+holds the rest; a tablet's keeps the heads in the row as well.
 
 A label rides the arrow, so it moves with the connection instead of drifting
 away from it. Good for "then", "cut to", "same location".

@@ -187,7 +187,7 @@ function tell(e, { place, after, feedback, copy, now }) {
           const ok = await copy(offer);
           feedback.toast(ok
             ? { type: 'success', message: 'Copied — paste it anywhere.' }
-            : { type: 'error', message: 'Couldn’t copy it — this browser didn’t allow it.' });
+            : { type: 'error', code: 'text_copy_failed', message: 'Couldn’t copy it — this browser didn’t allow it.' });
         },
       } : null,
     });

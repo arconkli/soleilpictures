@@ -42,7 +42,18 @@ export const CEILINGS = {
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
-  appJs: 685_000,
+  // 2026-10-24: +1.0 KB for DOMPurify 3.4.17, the security patch for
+  // GHSA-cg2g-xh64-v4q7 and GHSA-c6gr-qvv4-5v3f (about +0.5 KB brotli; notes
+  // sanitize as they render, so it stays in the closure).
+  // 2026-10-24: +2 KB for playable copies (lib/playCopy.js). Every video and
+  // audio card plays the copy its card names and notices a file its browser
+  // can't play; finding, asking for and waiting on a copy load later
+  // (playCopyWork).
+  // 2026-10-24: +1 KB for photo views (lib/fileView.js). A picture whose file
+  // the browser can't draw waits for the file's view and shows it, and an
+  // editor's cluster asks views for its photos; asking for and waiting on a
+  // view load later (fileViewWork).
+  appJs: 689_000,
   appCss: 21_000,
 };
 
@@ -73,6 +84,12 @@ export const LAZY_IN_APP = [
   'ChromeMoreA',
   // DocSurface.jsx: the doc look's frame, its bars, side panel and footer
   'DocFrameA',
+  // usePlayCopy.js, usePlayCopyBackfill.js: finding, asking for and waiting on
+  // a playable copy, and writing it onto cards
+  'playCopyWork',
+  // R2Image.jsx, useFileViewBackfill.js: asking for and waiting on a photo's
+  // view, and writing it onto cards
+  'fileViewWork',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

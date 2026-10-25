@@ -496,3 +496,15 @@ test('one import\'s rows carry its run and, once it has one, the server job\'s i
   assert.equal(done.fail_codes, undefined, 'nothing failed, so no codes');
   assert.deepEqual(rows.filter(([, p]) => p.phase === 'tray').map(([, p]) => [p.action, p.status]), [['close', 'done']]);
 });
+
+test('an import that stops on an error records why, by its code and never its words', async () => {
+  const server = fakeServer();
+  server.deps.appendCards = async () => { throw Object.assign(new Error('refused "a.jpg"'), { status: 403 }); };
+  const { env, store } = fakeEnv({ server });
+  const reports = [];
+  env.report = (e, opts) => reports.push([e.message, opts]);
+  const out = await drop(env);
+  await until(() => store.get(out.key)?.snap?.status === 'failed');
+  assert.equal(store.get(out.key).snap.errorCode, 'http_403');
+  assert.deepEqual(reports, [['Bulk import stopped: http_403', { kind: 'import', severity: 'error', op: 'bulk' }]]);
+});

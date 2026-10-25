@@ -18,17 +18,18 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { Webhook } from "npm:svix@1.99.1";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL   = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WEBHOOK_SECRET = Deno.env.get("RESEND_WEBHOOK_SECRET") || "";
 
-Deno.serve(async (req) => {
+Deno.serve(reported("resend-webhook", async (req) => {
   if (req.method !== "POST") return new Response("POST only", { status: 405 });
 
   if (!WEBHOOK_SECRET) {
     console.error("resend-webhook: RESEND_WEBHOOK_SECRET not set");
-    return new Response("service not configured", { status: 500 });
+    return failedWith(new Response("service not configured", { status: 500 }), new Error("RESEND_WEBHOOK_SECRET is not set"), { what: "config" });
   }
 
   const raw           = await req.text();
@@ -50,6 +51,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.warn("resend-webhook: signature verification failed", (err as Error)?.message);
+    void reportEdgeError("resend-webhook", { what: "signature verification", error: err, request: req, severity: "warning" });
     return new Response("invalid signature", { status: 400 });
   }
 
@@ -71,15 +73,15 @@ Deno.serve(async (req) => {
     // svix-id, so a retry after a partial failure is safe).
     if (error) {
       console.error("resend-webhook: ingest_email_event failed", error.message);
-      return new Response("ingest failed", { status: 500 });
+      return failedWith(new Response("ingest failed", { status: 500 }), error, { what: "rpc ingest_email_event" });
     }
   } catch (e) {
     console.error("resend-webhook: ingest threw", (e as Error)?.message || String(e));
-    return new Response("ingest error", { status: 500 });
+    return failedWith(new Response("ingest error", { status: 500 }), e, { what: "rpc ingest_email_event" });
   }
 
   return new Response(JSON.stringify({ received: true }), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
-});
+}));

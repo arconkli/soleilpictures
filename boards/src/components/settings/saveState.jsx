@@ -56,7 +56,7 @@ export function useSettingsSaveState() {
       // connection's.
       feedback.toast(err?.userMessage
         ? { type: 'warning', message: err.userMessage, ttl: 9000 }
-        : { type: 'error', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
+        : { type: 'error', code: 'settings_save_failed', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
       return false;
     } finally {
       pending.current = Math.max(0, pending.current - 1);

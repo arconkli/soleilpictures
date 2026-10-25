@@ -72,6 +72,8 @@ import { CLUSTER_FILE_CEILING } from '../src/lib/importPlan.js';
 import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
+import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
+import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
@@ -299,6 +301,14 @@ if (!originRetention) {
   throw new Error('gen-docs: the request-origin retention was not found — update the extractor');
 }
 
+// How long an error record is kept (purge_old_client_errors, scheduled by
+// migration 0108 with the days it is called with).
+const errorRetention = latestSqlDefining('purge_old_client_errors')
+  ?.match(/\$\$\s*select public\.purge_old_client_errors\((\d+)\);\s*\$\$/);
+if (!errorRetention) {
+  throw new Error('gen-docs: the error-record retention was not found — update the extractor');
+}
+
 // How much text automatic tagging may send for embedding per account per day
 // (tags_embed_budget_take, migration 0381).
 const embedBudget = latestSqlDefining('tags_embed_budget_take')
@@ -390,6 +400,18 @@ export const FACTS = {
   // a silent, unexplainable difference between two cards on the same board.
   audioWaveformCap: `${AUDIO_ANALYZE_MAX_BYTES / MB} MB`,
   audioWaveformMinutes: `${AUDIO_ANALYZE_MAX_SECONDS / 60} minutes`,
+  // The converter's ceilings (lib/playCopy.js): past these a video or audio
+  // file gets no playable copy and plays only where the browser can play the
+  // original. The edge is the copy's long side, which is all it is ever made at.
+  playCopyMaxHours: String(PLAY_COPY_MAX_SECONDS / 3600),
+  playCopyMaxSize: `${PLAY_COPY_MAX_BYTES / (1024 * MB)} GB`,
+  playCopyMaxEdge: String(PLAY_COPY_MAX_EDGE),
+  // The same converter's ceilings for photos (lib/fileView.js): past these a
+  // photo gets no view and shows only where the browser can draw it. The edge
+  // is the view's long side.
+  viewEdge: String(VIEW_EDGE),
+  viewMaxSize: `${VIEW_MAX_BYTES / (1024 * MB)} GB`,
+  viewMaxMegapixels: String(VIEW_MAX_PIXELS / 1_000_000),
   // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
   // archive is assembled in the tab, and past these the tab is the thing that
   // fails. Stated so "why did my 600-file selection refuse" has an answer.
@@ -446,6 +468,8 @@ export const FACTS = {
   workspaceLinksNewPerDay: wsLink.newPerDay,
   // Days a request's hashed network and browser are kept (0378).
   requestOriginRetentionDays: originRetention[1],
+  // Days an error record is kept before the nightly purge deletes it (0108).
+  clientErrorRetentionDays: errorRetention[1],
   // Characters of text automatic tagging reads per account per day (0381).
   embedCharsPerDay: Number(embedBudget[1]).toLocaleString('en-US'),
   maxCardsPerCall: String(api.maxCardsPerCall),

@@ -19,19 +19,25 @@ const here = dirname(fileURLToPath(import.meta.url));
 // like a client bug, but a PROTOCOL that differs between them fails at
 // connection time with nothing useful to read. Both transports negotiate
 // versions, validate `_meta` and shape results from this one file.
+// The argument checker rides along: the protocol handler holds every call to
+// its tool's schema with it, so a copy without it would not even load.
 const FILES = [
   { from: 'boards/src/lib/mcpTools.js', to: 'src/tools.js' },
   { from: 'boards/src/lib/mcpServer.js', to: 'src/server.js' },
+  { from: 'boards/src/lib/mcpValidate.js', to: 'src/validate.js' },
 ];
+
+// The only edit: inside this package the siblings drop their `mcp` prefix.
+// Asserted by a test, so a rename cannot silently break the copy.
+const renameImports = (source) => source
+  .replace("from './mcpTools.js'", "from './tools.js'")
+  .replace("from './mcpValidate.js'", "from './validate.js'");
 
 for (const { from, to } of FILES) {
   const banner = `// GENERATED — do not edit. Source: ${from}\n`
     + '// Regenerate with `npm run sync` in mcp/.\n\n';
   const target = resolve(here, '..', to);
-  // The only edit: inside this package the registry is a sibling named
-  // tools.js. Asserted by a test, so a rename cannot silently break the copy.
-  const body = readFileSync(resolve(here, '../..', from), 'utf8')
-    .replace("from './mcpTools.js'", "from './tools.js'");
+  const body = renameImports(readFileSync(resolve(here, '../..', from), 'utf8'));
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, banner + body);
   console.log(`✓ mcp/${to} synced from ${from}`);

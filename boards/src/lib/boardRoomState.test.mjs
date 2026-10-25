@@ -422,3 +422,88 @@ test('a browser saving exactly the room\'s document costs one read and no write'
   doc.current.getMap('cards').set('b', '2');
   assert.equal(await s.flush(), true);
 });
+
+// ── What the room reports (party/report.ts records it) ──────────────────────
+
+const reports = () => {
+  const seen = [];
+  return { seen, report: (kind, info) => seen.push({ kind, ...info }) };
+};
+
+test('saves that keep failing are reported once, at the third, and a save ends the streak', async () => {
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc = { current: new Y.Doc({ gc: false }) };
+  const r = reports();
+  const s = room(table, fakeTimers(), doc, { report: r.report });
+  await s.loadInto(doc.current);
+  doc.current.getMap('cards').set('b', '2');
+  table.failNext(3);
+  for (let i = 0; i < 3; i++) assert.equal(await s.flush(), false);
+  assert.equal(r.seen.length, 1);
+  // The browser's kind: 0581's saves rule counts it, the board for the person.
+  assert.equal(r.seen[0].kind, 'save');
+  assert.equal(r.seen[0].op, 'room_flush');
+  assert.equal(r.seen[0].boardId, BOARD);
+  assert.equal(r.seen[0].attempt, 3);
+  // What serverErrors.js reads: the call, its status, the body for its code.
+  assert.match(r.seen[0].error.message, /^write board_state 503: /);
+  table.failNext(1);
+  assert.equal(await s.flush(), false);
+  assert.equal(r.seen.length, 1, 'one report per streak');
+  assert.equal(await s.flush(), true);
+  doc.current.getMap('cards').set('c', '3');
+  table.failNext(3);
+  for (let i = 0; i < 3; i++) await s.flush();
+  assert.equal(r.seen.length, 2, 'a new streak is reported again');
+});
+
+test('a board left unsaved past two minutes is reported once, from the alarm', async () => {
+  let t = Date.parse('2026-10-24T10:00:00.000Z');
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc = { current: new Y.Doc({ gc: false }) };
+  const r = reports();
+  const s = room(table, fakeTimers(), doc, { report: r.report, clock: () => t });
+  await s.loadInto(doc.current);
+  doc.current.getMap('cards').set('b', '2');
+  const unsaved = () => r.seen.filter((x) => x.what === 'board unsaved');
+  table.failNext(1);
+  await s.flush();
+  t += 60_000; table.failNext(1); await s.retryIfDirty();
+  assert.equal(unsaved().length, 0);
+  t += 61_000; table.failNext(1); await s.retryIfDirty();
+  assert.equal(unsaved().length, 1);
+  assert.equal(unsaved()[0].kind, 'save');
+  assert.equal(unsaved()[0].op, 'room_flush');
+  assert.ok(unsaved()[0].ms >= 120_000);
+  t += 60_000; table.failNext(1); await s.retryIfDirty();
+  assert.equal(unsaved().length, 1, 'once per streak');
+  // Saved at last: the next streak starts its own clock.
+  await s.retryIfDirty();
+  assert.equal(s.dirty, false);
+  assert.equal(s.dirtySince, null);
+});
+
+test('a board that cannot be read when its room starts is reported, and a reporter that throws stops nothing', async () => {
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc = { current: new Y.Doc({ gc: false }) };
+  const r = reports();
+  const s = room(table, fakeTimers(), doc, { report: r.report });
+  table.failNext(1);
+  assert.equal(await s.loadInto(doc.current), false);
+  assert.equal(r.seen.length, 1);
+  assert.equal(r.seen[0].kind, 'room_load');
+  assert.match(r.seen[0].error.message, /^read board_state 503: /);
+
+  const t2 = fakeTable();
+  t2.blind(BOARD, docWith({ a: '1' }));
+  const d2 = { current: new Y.Doc({ gc: false }) };
+  const s2 = room(t2, fakeTimers(), d2, { report: () => { throw new Error('the reporter broke'); } });
+  await s2.loadInto(d2.current);
+  d2.current.getMap('cards').set('b', '2');
+  t2.failNext(3);
+  for (let i = 0; i < 3; i++) assert.equal(await s2.flush(), false);
+  assert.equal(await s2.flush(), true);
+});

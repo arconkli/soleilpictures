@@ -307,39 +307,66 @@ test.describe('admin segment filter (ADMIN-14)', () => {
 });
 
 test.describe('admin Errors tab (ADMIN-15)', () => {
-  const G = (message, kind, extra = {}) => ({
-    message, kind, occurrences: 5, sessions: 2, users: 1, first_seen: new Date().toISOString(),
-    last_seen: new Date().toISOString(), sample_stack: `${message}\n    at somewhere (x.js:1:1)`, ...extra,
+  // The Issues view (0582): problems by fingerprint, each opening its detail.
+  const G = (fingerprint, message, extra = {}) => ({
+    fingerprint, message, kind: 'window', source: 'client', severity: 'error', path: '/b/:id',
+    first_seen: new Date().toISOString(), last_at: new Date().toISOString(), status: 'open',
+    n: 5, people: 2, users: 1, all_time: 5, breaking: false, is_new: false, returned: false,
+    spark: Array(14).fill(1), ...extra,
+  });
+  const LIST = (groups) => ({
+    data: { days: 7, totals: { problems: groups.length }, kinds: [], breaking: [], alerts: [], groups },
+    error: null,
+  });
+  const DETAIL = (message) => ({
+    data: {
+      days: 7, group: {}, totals: { n: 5, people: 2, users: 1 }, trend: [], releases: [], browsers: [],
+      paths: [], envs: { prod: 5 }, context: {},
+      occurrences: [{ id: 1, at: new Date().toISOString(), kind: 'window', severity: 'error', message,
+        stack: `${message}\n    at somewhere (x.js:1:1)`, breadcrumbs: [] }],
+    },
+    error: null,
   });
 
-  test('an open stack stays with its group when a group above it goes away', async ({ page }) => {
+  test('an open stack stays with its problem when a problem above it goes away', async ({ page }) => {
     await openAdmin(page, { tab: 'users' });
     await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
-    const all = [G('First error', 'window'), G('Second error', 'window'), G('Third error', 'react')];
-    await patchRpc(page, {
-      admin_error_summary: { data: all, error: null },
-      admin_recent_errors: { data: [], error: null },
-    });
+    const all = [G('fp1', 'First error'), G('fp2', 'Second error'), G('fp3', 'Third error')];
+    await patchRpc(page, { admin_error_groups: LIST(all), admin_error_group: DETAIL('Third error') });
     await switchTab(page, 'Errors');
-    await page.locator('tr.admin-error-grouprow', { hasText: 'Third error' }).click();
+    await page.locator('tr.admin-error-grouprow', { hasText: 'Third error' }).locator('.iss-problem-msg').click();
+    await page.getByRole('button', { name: 'Stack', exact: true }).click();
     await expect(page.locator('pre.admin-error-stack', { hasText: 'Third error' })).toBeVisible();
 
-    // What muting the first group does to Active mode: it leaves the list.
-    await patchRpc(page, { admin_error_summary: { data: all.slice(1), error: null }, admin_recent_errors: { data: [], error: null } });
+    // What muting the first problem does to the Open list: it leaves it.
+    await patchRpc(page, { admin_error_groups: LIST(all.slice(1)), admin_error_group: DETAIL('Third error') });
     await page.getByRole('button', { name: 'Refresh' }).first().click();
     await expect(page.locator('tr.admin-error-grouprow', { hasText: 'First error' })).toHaveCount(0);
     await expect(page.locator('pre.admin-error-stack', { hasText: 'Third error' })).toBeVisible();
   });
 
-  test('when everything is muted, Active mode says so instead of rendering nothing', async ({ page }) => {
+  test('when nothing is open, the list says so instead of rendering nothing', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
+    await patchRpc(page, { admin_error_groups: LIST([]) });
+    await switchTab(page, 'Errors');
+    await expect(page.getByText('No problems here')).toBeVisible();
+    await expect(page.getByText('Nothing open in the last 7 days.')).toBeVisible();
+  });
+
+  test('muting a problem offers Undo, and Undo reopens it', async ({ page }) => {
     await openAdmin(page, { tab: 'users' });
     await expect(page.getByRole('tab', { name: /^users$/i })).toHaveAttribute('aria-selected', 'true');
     await patchRpc(page, {
-      admin_error_summary: { data: [G('Muted one', 'window', { muted: true })], error: null },
-      admin_recent_errors: { data: [], error: null },
+      admin_error_groups: LIST([G('fp1', 'First error')]),
+      admin_set_error_group_status: { data: { fingerprint: 'fp1' }, error: null },
     });
     await switchTab(page, 'Errors');
-    await expect(page.getByText('Nothing unmuted')).toBeVisible();
+    await page.locator('tr.admin-error-grouprow', { hasText: 'First error' }).getByRole('button', { name: 'Mute', exact: true }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => window.__patchedRpc
+      .filter(([n]) => n === 'admin_set_error_group_status').map(([, p]) => p)))
+      .toEqual([{ p_fingerprint: 'fp1', p_status: 'muted' }, { p_fingerprint: 'fp1', p_status: 'open' }]);
   });
 });
 

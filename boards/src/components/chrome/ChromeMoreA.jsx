@@ -6,8 +6,7 @@ import { MoreHorizontal } from '../../lib/icons.js';
 // menu (components/toolbar/Menu.jsx), portaled, under the button and lined up
 // with its right edge, with the menu's keys (↓ ↑, Home, End, a letter;
 // Escape gives the focus back to ⋯). A chunk of its own, warmed when the
-// islands mount: the look's menu and its CSS stay out of every open while the
-// look is held.
+// islands mount.
 //
 // items: [{ id, label, icon?, keys?, run } | { sep: true }], as MoreMenu's.
 // focus: true when the stand-in this replaces went with the keyboard on it

@@ -25,6 +25,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -79,7 +80,7 @@ async function notifyPartyKitReset(boardId: string, userToken: string) {
   return result;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("workspace-rewind", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
 
@@ -138,7 +139,7 @@ Deno.serve(async (req) => {
       p_target_ts: body.target_ts,
     });
     if (preview.error) {
-      return Response.json({ ok: false, error: "preview failed: " + preview.error.message }, { status: 500, headers: corsHeaders });
+      return failedWith(Response.json({ ok: false, error: "preview failed: " + preview.error.message }, { status: 500, headers: corsHeaders }), preview.error, { what: "rpc workspace_rewind_preview" });
     }
     return Response.json({ ok: true, rows: preview.data }, { status: 200, headers: corsHeaders });
   }
@@ -156,7 +157,7 @@ Deno.serve(async (req) => {
       p_client_request_id: client_request_id,
     });
     if (rpcResult.error) {
-      return Response.json({ ok: false, error: "rewind failed: " + rpcResult.error.message }, { status: 500, headers: corsHeaders });
+      return failedWith(Response.json({ ok: false, error: "rewind failed: " + rpcResult.error.message }, { status: 500, headers: corsHeaders }), rpcResult.error, { what: "rpc perform_workspace_rewind" });
     }
     // Fan out PartyKit reset notifications in parallel.
     const partyResults = await Promise.all(
@@ -169,4 +170,4 @@ Deno.serve(async (req) => {
   }
 
   return Response.json({ ok: false, error: "unknown action; use preview or rewind" }, { status: 400, headers: corsHeaders });
-});
+}));

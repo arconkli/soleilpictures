@@ -49,7 +49,7 @@ the callback on a loopback port, and stores the credential in
 after that. `npx soleil-clusters-mcp logout` removes it.
 
 Prefer a token? `SOLEIL_API_TOKEN` still works and takes precedence — mint one
-under **Settings → API**. `SOLEIL_API_BASE` overrides the host.
+under **Settings → Connections**. `SOLEIL_API_BASE` overrides the host.
 
 ## What it can do
 
@@ -71,7 +71,7 @@ Three scopes: `read`, `write`, `delete`. **Deleting is separate from writing on
 purpose**, so an agent can be allowed to build without being allowed to destroy.
 `login` asks for `read write` and never for `delete`.
 
-Whatever you connect is listed under **Settings → API → Connected apps**, with
+Whatever you connect is listed under **Settings → Connections → Connected apps**, with
 what it has done and a button to disconnect it.
 
 ## Development

@@ -31,6 +31,7 @@
 
 import { parseJsonLoose, runWorkersAiChat } from './worker-llm.js';
 import { verifyUser } from './lib/workerAuth.js';
+import { answeredWith } from './lib/workerErrors.js';
 
 // Models. Doc-page word verdicts + cluster naming run on Workers AI (env.AI)
 // with the SAME prompts the OpenAI models had. The cascade already distrusts
@@ -67,6 +68,7 @@ export async function handleTagsRoute(url, request, env) {
 
     return json({ error: 'not found' }, 404);
   } catch (e) {
+    answeredWith(request, e);
     const timedOut = e?.name === 'TimeoutError' || e?.name === 'AbortError';
     return json({ error: timedOut ? 'upstream timeout' : 'internal error' }, timedOut ? 504 : 500);
   }

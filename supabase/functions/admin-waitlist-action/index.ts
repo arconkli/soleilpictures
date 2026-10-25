@@ -19,6 +19,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -38,8 +39,14 @@ async function sendEmail(template: string, to: string, data: Record<string, unkn
       headers: { "authorization": `Bearer ${SEND_EMAIL_SECRET}`, "content-type": "application/json" },
       body: JSON.stringify({ template, to, data }),
     });
-    if (!res.ok) console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
-  } catch (e) { console.warn(`send-transactional-email ${template} -> ${to} threw`, e); }
+    if (!res.ok) {
+      console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
+      void reportEdgeError("admin-waitlist-action", { what: `send ${template}`, error: new Error(`send-transactional-email answered ${res.status}`) });
+    }
+  } catch (e) {
+    console.warn(`send-transactional-email ${template} -> ${to} threw`, e);
+    void reportEdgeError("admin-waitlist-action", { what: `send ${template}`, error: e });
+  }
 }
 
 const cors = {
@@ -56,7 +63,7 @@ interface Body {
   scheduled_at?: string;  // absolute ISO timestamp; takes priority over `days`
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("admin-waitlist-action", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -100,7 +107,7 @@ Deno.serve(async (req) => {
       await sendEmail("waitlist_accepted", entry.data.email);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return json({ error: msg }, 500);
+      return failedWith(json({ error: msg }, 500), e, { what: "accept" });
     }
     return json({ ok: true, action: "accepted" }, 200);
   }
@@ -112,7 +119,7 @@ Deno.serve(async (req) => {
       rejected_at: new Date().toISOString(),
       reviewed_by: u.data.user.id,
     }).eq("id", body.entry_id);
-    if (upd.error) return json({ error: upd.error.message }, 500);
+    if (upd.error) return failedWith(json({ error: upd.error.message }, 500), upd.error, { what: "update waitlist_entries" });
     return json({ ok: true, action: "rejected" }, 200);
   }
 
@@ -137,12 +144,12 @@ Deno.serve(async (req) => {
       scheduled_accept_at: newAt,
       reviewed_by: u.data.user.id,
     }).eq("id", body.entry_id);
-    if (upd.error) return json({ error: upd.error.message }, 500);
+    if (upd.error) return failedWith(json({ error: upd.error.message }, 500), upd.error, { what: "update waitlist_entries" });
     return json({ ok: true, action: "rescheduled", scheduled_accept_at: newAt }, 200);
   }
 
   return json({ error: "unknown action" }, 400);
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

@@ -25,7 +25,7 @@ export async function failMove({
     try { await trash(createdBoardId); trashed = true; } catch (_) { /* it stays, and the step's message says why */ }
   }
   try {
-    toast?.({ type: 'error', ttl: MOVE_FAIL_TTL, message: trashed ? madeClusterFailMessage(createdBoardName) : message });
+    toast?.({ type: 'error', code: 'move_step_failed', ttl: MOVE_FAIL_TTL, message: trashed ? madeClusterFailMessage(createdBoardName) : message });
   } catch (_) {}
   const out = err instanceof Error ? err : new Error(String(err ?? 'move failed'));
   out.createdBoardTrashed = trashed;

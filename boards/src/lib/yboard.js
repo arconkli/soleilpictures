@@ -410,6 +410,13 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     } catch (_) {}
   };
 
+  // A save that failed, as kind 'save': saves failing for three people in half
+  // an hour is one of the few things that emails the owner (0581). `code` is
+  // the database's (57014, 42501) when it answered at all.
+  const reportSaveFailure = (e, op) => {
+    try { logClientError(e, { kind: 'save', severity: 'error', op, context: { board_id: boardId, code: e?.code } }); } catch (_) {}
+  };
+
   // Write any not-yet-drafted local edits to the localStorage draft now.
   // Returns the version of the newest draft this handle wrote.
   const writeDraftNow = () => {
@@ -490,6 +497,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       }
       catch (e) {
         console.error('saveBoardSnapshot failed', e);
+        reportSaveFailure(e, 'board_snapshot');
         if (pendingLocal) emitSaveState('error');
       }
     }, SNAP_DEBOUNCE_MS);
@@ -750,6 +758,8 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     if (snapTimer) {
       clearTimeout(snapTimer);
       snapTimer = null;
+      // quiet: the page is going away and the browser may cancel this; the
+      // draft written above is what holds the edit.
       saveBoardSnapshot(boardId, ydoc).catch(() => {});
     }
   };
@@ -763,7 +773,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     if (snapTimer) {
       clearTimeout(snapTimer);
       snapTimer = null;
-      saveBoardSnapshot(boardId, ydoc).catch(() => {});
+      saveBoardSnapshot(boardId, ydoc).catch((e) => reportSaveFailure(e, 'board_snapshot_flush'));
     }
   };
 
@@ -798,7 +808,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
             invalidateBoardPreview(boardId);
             invalidatePrefetch(`board:${boardId}`);
           })
-          .catch(() => {});
+          .catch((e) => reportSaveFailure(e, 'board_snapshot_close'));
       } else {
         // Nothing of ours to save (a viewer, or a writer who only watched).
         // The prefetch cache may still hold board_state from before the peer

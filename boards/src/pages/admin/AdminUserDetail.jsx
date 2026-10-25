@@ -27,6 +27,7 @@ import { AdminUserRowMenu } from './AdminUserRowMenu.jsx';
 import { Avatar, SourceBadge, PresenceDot, LastWorked, DetailSection, Timeline } from './AdminUserDetailParts.jsx';
 import { OutreachSection } from './AdminOutreachSection.jsx';
 import { AdminUserJourneys } from './AdminUserJourneys.jsx';
+import { AdminUserProblems } from './AdminUserProblems.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 
@@ -546,6 +547,7 @@ export function AdminUserDetail({
               otherwise you open one person's sessions and every subsequent
               click silently fetches twenty thousand events. */}
           <AdminUserJourneys key={row.user_id} userId={row.user_id} />
+          <AdminUserProblems key={`p:${row.user_id}`} userId={row.user_id} />
           <IntegrationsSection api={api} />
           <BillingSection billing={detail?.billing} />
           <GrantsSection grants={detail?.grants} />

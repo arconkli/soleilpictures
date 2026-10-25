@@ -44,6 +44,7 @@ import { PlayGlyph, PauseGlyph, FrameBack, FrameFwd, AspectThumb } from './glyph
 import './filmFacade.css';
 import './film.css';
 import { useFilmClock } from './useFilmClock.js';
+import { usePlayCopy } from '../../hooks/usePlayCopy.js';
 import { Icon } from '../Icon.jsx';
 import { Spinner } from '../Spinner.jsx';
 import { SpeakerHigh, SpeakerSlash, ArrowsOutSimple } from '../../lib/icons.js';
@@ -132,13 +133,18 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   // on the /f/ page, 'shared_file' when that file opens inside the app;
   // otherwise the face says it (card, quicklook, review).
   surface = null,
+  // The card's playable copy (lib/playCopy.js), played instead of the original
+  // when it is that original's. Without one, a clip this browser can't play
+  // finds or asks for one (hooks/usePlayCopy.js). Download stays the original.
+  playSrc = null,
 }, ref) {
   const full = mode === 'full';
   const compact = mode === 'compact';
   const preview = mode === 'preview';
   const prefs = useMemo(() => readPrefs(), []);
   const [retryNonce, setRetryNonce] = useState(0);
-  const { url, error: signError } = useResolvedMedia(src, retryNonce);
+  const pc = usePlayCopy({ src, playSrc });
+  const { url, error: signError } = useResolvedMedia(pc.source, retryNonce);
   const posterUrl = useResolvedUrl(poster);
   const { url: compareUrl } = useResolvedMedia(compareSrc);
   // Compare turned off while B is on show: B stays loaded until A takes over.
@@ -198,6 +204,9 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   const [buffering, setBuffering] = useState(false);
   const [failure, setFailure] = useState(null);
   const [idle, setIdle] = useState(false);
+  // A failure the copy can fix goes to it first; the copy, when it comes, starts clean.
+  useEffect(() => { if (failure) pc.failed(failure.reason); }, [failure]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setFailure(null); }, [pc.source]);
   const [frameState, setFrameState] = useState(0);
   const [shuttleView, setShuttleView] = useState({ dir: 0, rate: 1 });
   const [tip, setTip] = useState(null);
@@ -1259,19 +1268,21 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
-  const loading = !url && !signError;
+  const loading = (!url && !signError) || pc.busy;
   const guideDef = GUIDES.find((g) => g.id === guide);
   const hasAudio = !(media?.probed && !media?.audio);
   const shuttleLabel = shuttleView.dir && !(shuttleView.dir > 0 && shuttleView.rate === 1) ? shuttleText(shuttleView) : null;
   const hudView = hudT ? { text: hudT.text, id: hudT.id } : (hudP ? { text: hudP, id: 'p', persist: true }
     : (buffering && !compact ? { text: hudText('buffering'), id: 'b', persist: true } : null));
-  const err = failure || (signError ? { title: 'Couldn’t load the video', body: 'The link to the file couldn’t be made. Check your connection and try again.', retry: true } : null);
+  const err = (failure && !pc.handles(failure.reason) ? failure : null)
+    || (signError ? { title: 'Couldn’t load the video', body: 'The link to the file couldn’t be made. Check your connection and try again.', retry: true } : null);
+  const preparing = pc.preparing && !err;
 
   const ctl = {
     full, preview, compact, keyboard, playing, muted, volume, hasAudio, userRate, shuttleLabel, range, looping,
     guide, guideDef, frames, fps: fpsEff, provisional, vfr: !!media?.vfr, effMode, lengthText, showRemaining, tcEdit, tcInvalid,
     isFull, canFull, compareOn: !!compareUrl, side, label: label || 'A', compareLabel: compareLabel || 'B', tcRef, menuId: menu?.id,
-    disabled: !!err || loading,
+    disabled: !!err || loading || preparing,
     toggle, step, markIn, markOut, clearRange, toggleLoop, toggleMute, setVolume, toggleFull, flip,
     setShowRemaining, setTcEdit: editTc, closeTc, commitTc, format,
     openSpeed: (el) => openMenu('speed', el, { align: 'center' }),
@@ -1324,7 +1335,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
                  preload="metadata" playsInline muted aria-label={compareLabel || 'Other version'} />
         )}
         {loading && posterUrl && <img className="film-poster" src={posterUrl} alt="" />}
-        {(loading || (buffering && !compact)) && !err && <span className="film-spinner"><Spinner size={compact ? 20 : 28} tone="on-dark" label={loading ? 'Loading video' : 'Buffering'} /></span>}
+        {(loading || (buffering && !compact)) && !err && !preparing && <span className="film-spinner"><Spinner size={compact ? 20 : 28} tone="on-dark" label={loading ? 'Loading video' : 'Buffering'} /></span>}
         {!compact && guideDef && guideDef.id !== 'off' && picture.w > 0 && <FramingGuide guide={guideDef} picture={picture} />}
         {!compact && (guideOpts.thirds || guideOpts.cross) && picture.w > 0 && <GuideExtras opts={guideOpts} picture={picture} />}
         {!compact && overlay && picture.w > 0 && (
@@ -1340,6 +1351,18 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
         )}
         {!compact && <FilmHud hud={hudView} picture={picture.w ? picture : null} />}
         {flash && <span key={flash.id} className="film-flash" aria-hidden="true">{flash.kind === 'pause' ? <PauseGlyph size={30} /> : <PlayGlyph size={30} />}</span>}
+        {preparing && (
+          <div className="film-error film-preparing" role="status">
+            <Spinner size={compact ? 18 : 24} tone="on-dark" label="Making a playable copy" />
+            <strong>{compact ? 'Making a playable copy' : 'Making a version this browser can play'}</strong>
+            {!compact && <span>It takes a minute or two for most clips, and it happens once: it plays here when it’s ready, for everyone. Download still gives you the original.</span>}
+            {!compact && onDownload && (
+              <div className="film-error-actions">
+                <button type="button" className="film-pill" onClick={onDownload}>Download</button>
+              </div>
+            )}
+          </div>
+        )}
         {err && (
           <div className="film-error" role="alert">
             <strong>{err.title}</strong>
@@ -1355,7 +1378,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
         )}
         {isFull && title && <div className="film-fs-title">{title}</div>}
         {help && <ShortcutSheet onClose={() => setHelp(false)} />}
-        {compact && !err && <CompactCentre playing={playing} onToggle={() => { const w = isRunning(); toggle(); if (!w) touch(); }} />}
+        {compact && !err && !preparing && <CompactCentre playing={playing} onToggle={() => { const w = isRunning(); toggle(); if (!w) touch(); }} />}
       </div>
       {compact ? (
         <CompactBar ctl={ctl} timeline={timeline} />

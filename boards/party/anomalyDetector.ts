@@ -30,6 +30,8 @@
 // and that's a follow-up.
 
 
+import { callFailed, reportParty } from "./report";
+
 interface DetectorOpts {
   boardId: string;
   workspaceId: string;
@@ -188,8 +190,11 @@ async function postAlert(opts: DetectorOpts, payload: Record<string, any>) {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.warn(`[anomaly ${opts.boardId}] alert insert ${res.status}: ${text.slice(0, 200)}`);
+      // A mass delete nobody was told about.
+      void reportParty({ kind: "alert", error: callFailed("insert workspace_anomaly_alerts", res, text), boardId: opts.boardId });
     }
   } catch (e: any) {
     console.warn(`[anomaly ${opts.boardId}] alert post threw: ${e?.message || e}`);
+    void reportParty({ kind: "alert", error: callFailed("insert workspace_anomaly_alerts", null, "", e), boardId: opts.boardId });
   }
 }

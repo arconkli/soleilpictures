@@ -40,8 +40,9 @@ import { CornersOut, NotePencil, PanelRight } from '../lib/icons.js';
 // AppShell idle-prefetches it for signed-in users so the skeleton is rarely
 // seen; public viewers pay the fetch only when they actually open a doc.
 const DocSurface = lazyWithReload(() => import('./DocSurface.jsx').then(m => ({ default: m.DocSurface })));
-// The doc look's header (lib/looks.js docLook(), held): lazy too, so the doc as
-// it is never downloads the look (components/doc/DocFrameA.jsx).
+// The doc look's header (lib/looks.js docLook()): lazy too, so today's editor
+// (on dev, the hold set to '0') never downloads the look
+// (components/doc/DocFrameA.jsx).
 const DocHeadA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocHeadA })));
 
 const DEFAULT_SIDE_RATIO = 0.5;
@@ -148,7 +149,7 @@ export function RichDocCard({
     () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id, boardId: hostBoardId || null } : null),
     [cardYMap, card.id, hostBoardId],
   );
-  // The doc look (lib/looks.js, held): its closed card (mockup S-card) and how
+  // The doc look (lib/looks.js): its closed card (mockup S-card) and how
   // a new doc starts (S-open).
   const look = docLook();
   // New docs no longer auto-open their full editor — autoFocus now means

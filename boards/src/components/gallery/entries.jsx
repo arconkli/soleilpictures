@@ -243,7 +243,7 @@ export const RENDERERS = {
   'toast-reveal-docs': reveal('docs'),
   'toast-reveal-palette': reveal('palette'),
   'toast-success': (f) => f.toast({ type: 'success', ttl: 60000, message: 'Saved.' }),
-  'toast-error': (f) => f.toast({ type: 'error', ttl: 60000, message: "That didn't save — check your connection and try again." }),
+  'toast-error': (f) => f.toast({ type: 'error', code: 'gallery_sample_error', ttl: 60000, message: "That didn't save — check your connection and try again." }),
   'toast-info': (f) => f.toast({ ttl: 60000, message: 'Rendering the preview at full size.' }),
   'toast-undo': (f) => f.toast({ ttl: 60000, message: 'Cluster deleted.', action: { label: 'Undo', onClick: NOOP } }),
   'dialog-confirm': (f) => f.confirm({ title: 'Leave this workspace?', message: 'You will lose access to every cluster in it.', confirmLabel: 'Leave' }),

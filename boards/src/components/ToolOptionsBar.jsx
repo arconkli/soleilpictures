@@ -84,10 +84,11 @@ function useNoteBarA(on) {
   return on ? Bar : null;
 }
 // The draw, shape, line and arrow bars in the look are another chunk
-// (components/toolbar/CanvasBarsA.jsx), fetched the same way.
+// (components/toolbar/CanvasBarsA.jsx), fetched the same way; a picked
+// arrow's bar is in it too (CanvasSurface).
 let canvasBarsA = null;
 const loadCanvasBarsA = () => import('./toolbar/CanvasBarsA.jsx').then((m) => (canvasBarsA = m));
-function useCanvasBarsA(on) {
+export function useCanvasBarsA(on) {
   const [bars, setBars] = useState(() => canvasBarsA);
   useEffect(() => {
     if (!on || bars) return undefined;

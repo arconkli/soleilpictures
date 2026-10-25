@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import { IconWeightContext } from '../Icon.jsx';
-import { Btn, Group, Swatch } from './Toolbar.jsx';
-import { MenuButton, MenuHead, MenuItem, MenuSep } from './Menu.jsx';
+import { useArrowPopover } from '../ArrowPopover.jsx';
+import { Btn, Group, Swatch, Toolbar } from './Toolbar.jsx';
+import { MenuButton, MenuHead, MenuItem, MenuSep, useMenu } from './Menu.jsx';
 import { Chip, ColourRows, colourChoices, inkBg } from './Colours.jsx';
 import { useIslandFit } from './useIslandFit.js';
 import { useBreakpoint } from '../../hooks/useBreakpoint.js';
@@ -9,10 +11,11 @@ import { addRecentColor } from '../../lib/recentColors.js';
 import { BrushPreview, BRUSH_LABELS, BRUSH_ORDER } from '../BrushPreview.jsx';
 import { DEFAULT_BRUSH } from '../../lib/strokeModel.js';
 import { DASH_STYLES, SHAPES } from '../../lib/shapeOptions.js';
+import { ARROW_COLOR_KEYS, ARROW_COLOR_TOKENS, arrowColor, arrowHeadStyle, isCustomArrowColor } from '../../lib/arrowGeometry.js';
 import { DRAW_THICKNESS, FILL_COLORS, LineAngleInput, LinePxInput, STROKE_COLORS } from '../ToolOptionsBar.jsx';
 import {
-  ArrowRight, Circle, CornersOut, DiamondShape, Eraser, HandPointing, Hexagon, Lasso, LineSegment, Minus,
-  MoreHorizontal, PenNib, Plus, Square, Star, Triangle, Undo,
+  ArrowRight, ArrowsHorizontal, Circle, CornersOut, DiamondShape, Eraser, HandPointing, Hexagon, Lasso, LineSegment,
+  Minus, MoreHorizontal, PenNib, Plus, Square, Star, Trash2, Triangle, Undo,
 } from '../../lib/icons.js';
 
 // The canvas's tool bars in the toolbar look (the owner's pick "A · Islands",
@@ -26,6 +29,7 @@ import {
 //   shape    ▢ Rect ⌄ | ◯ ■ | − 2 + | Solid ⌄      (a phone: ▢ Rect ⌄ | ◯ ■ | ⋯)
 //   line     ◯ | − 2 + | Solid ⌄ | 0 °             (a phone: ◯ | − 2 + | ⋯)
 //   arrow    Curved Straight | Solid Dashed
+//   picked   ● | ═ ═ ═ | — → ↔ | ⌒ ╱ | ┄ | Label… | 🗑   (an arrow, PickedArrowBarA)
 //
 // A desktop window too narrow for a row folds it a step at a time
 // (useIslandFit): the draw bar's brushes into a menu, then its colours, then
@@ -443,5 +447,150 @@ export function ArrowBarA({ barRef, onKeyDown, options, setOptions }) {
         <Btn text="Dashed" toggle on={!!options.dashed} onClick={() => set({ dashed: true })} />
       </Group>
     </Island>
+  );
+}
+
+// A picked arrow's bar (one with heads, or a connector between cards; a free
+// line with none is LineBarA's), over the arrow's middle where today's
+// popover sits (ArrowPopover.jsx useArrowPopover: its place, Escape, its
+// label field), in the look's glass rather than the bottom row's:
+//
+//   desktop  ● | ═ ═ ═ | — → ↔ | ⌒ ╱ | ┄ | Label… | 🗑
+//   iPad     ● | — → ↔ | Label… | ⋯ | 🗑    (⋯: the width, the path, the style)
+//   phone    ● | Label… | ⋯ | 🗑           (⋯: the heads as well)
+//
+// Its colours are the arrow's own (lib/arrowGeometry.js: ink and five more,
+// or one from the picker), not a bar's hex swatches.
+const ARROW_WIDTHS = [['thin', 'Thin', 2], ['medium', 'Medium', 3], ['thick', 'Thick', 4.5]];
+const WIDTH_ICONS = Object.fromEntries(ARROW_WIDTHS.map(([id, , w]) => [id, function ArrowWidthIcon() { return <WidthFace w={w} />; }]));
+const ARROW_HEADS = [
+  ['none', 'No arrowheads', Minus, { head: 'none', bidir: false }],
+  ['single', 'Single arrowhead', ArrowRight, { head: 'single', bidir: false }],
+  ['double', 'Double arrowhead', ArrowsHorizontal, { head: 'double', bidir: true }],
+];
+const pathIcon = (d) => function PathIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+};
+// A path as one corner to the other, so Straight's face isn't the heads'
+// "no heads" line.
+const ARROW_PATHS = [[false, 'Curved', pathIcon('M4 19 Q6.7 6 20 5')], [true, 'Straight', pathIcon('M4 19 L20 5')]];
+const ARROW_DASHES = [[false, 'Solid', DASH_ICONS.solid], [true, 'Dashed', DASH_ICONS.dashed]];
+
+function ArrowColourRows({ token, custom, onPick, onCustom }) {
+  const menu = useMenu();
+  return (
+    <>
+      <MenuHead>Arrow color</MenuHead>
+      <div className="tl-swrow" role="group" aria-label="Arrow color">
+        {ARROW_COLOR_KEYS.map((k) => (
+          <Swatch key={k} color={ARROW_COLOR_TOKENS[k]} label={`Color ${k}`} role="menuitemradio" aria-checked={token === k}
+                  aria-pressed={undefined} tabIndex={-1} on={token === k}
+                  onClick={() => { onPick(k); menu?.close('select'); }} />
+        ))}
+        {custom ? (
+          <Swatch color={custom} label={`Color ${custom}`} role="menuitemradio" aria-checked aria-pressed={undefined}
+                  tabIndex={-1} on onClick={() => menu?.close('select')} />
+        ) : null}
+        <Swatch add icon={Plus} label="Custom color" role="menuitem" tabIndex={-1}
+                onClick={() => { menu?.close('select'); onCustom(); }} />
+      </div>
+    </>
+  );
+}
+
+export function PickedArrowBarA({ arrow, arrowIndex, midPoint, canvasToViewport, onChange, onDelete, onClose, onOpenColorPicker }) {
+  const barRef = useRef(null);
+  const input = useInput();
+  const { pos, labelProps } = useArrowPopover({ arrow, arrowIndex, midPoint, canvasToViewport, onChange, onClose, popRef: barRef });
+  if (!arrow) return null;
+  const custom = isCustomArrowColor(arrow.color) ? arrow.color : null;
+  const token = custom ? null : (arrow.color || 'ink');
+  const width = arrow.thickness || 'thin';
+  const head = arrowHeadStyle(arrow);
+  const straight = !!arrow.straight;
+  const dashed = !!arrow.dashed;
+  const set = (patch) => onChange?.(patch);
+  const setHead = (id) => set(ARROW_HEADS.find((h) => h[0] === id)[3]);
+
+  // A set to pick one of, in the row (toggles, as the arrow tool's bar's
+  // pairs are: a radio would keep the arrow keys from the bar) or as one of
+  // ⋯'s rows, picked in place, so a phone's menu fits above the bar.
+  const radios = (label, rows, now, onPick) => (
+    <Group key={label} label={label}>
+      {rows.map(([id, name, icon]) => (
+        <Btn key={String(id)} icon={icon} label={name} toggle on={now === id} onClick={() => onPick(id)} />
+      ))}
+    </Group>
+  );
+  const menuRadios = (label, name, rows, now, onPick) => (
+    <div key={label} className="tl-mrow" role="group" aria-label={name}>
+      <span className="tl-mrow-l">{label}</span>
+      <span className="tl-seg">
+        {rows.map(([id, rowName, icon]) => (
+          <Btn key={String(id)} icon={icon} label={rowName} role="menuitemradio" aria-checked={now === id} tabIndex={-1}
+               on={now === id} onClick={() => onPick(id)} />
+        ))}
+      </span>
+    </div>
+  );
+  const widthRows = ARROW_WIDTHS.map(([id, name]) => [id, name, WIDTH_ICONS[id]]);
+
+  const colour = (
+    <Group key="colour">
+      <MenuButton label="Arrow color" menuLabel="Arrow color" side="above"
+                  face={<span className="tl-chip is-ring" style={{ '--chip': arrowColor(arrow.color) }} aria-hidden="true" />}
+                  menuClassName={`${MENU} pa-colour-menu`} scrim>
+        <ArrowColourRows token={token} custom={custom} onPick={(k) => set({ color: k })}
+                         onCustom={() => onOpenColorPicker?.(arrow.color)} />
+      </MenuButton>
+    </Group>
+  );
+  const heads = radios('Arrow heads', ARROW_HEADS, head, setHead);
+  const label = (
+    <Group key="label">
+      <input type="text" className="tl-field pa-label ap-label-input" placeholder="Label…" {...labelProps} />
+    </Group>
+  );
+  const del = <Group key="delete"><Btn icon={Trash2} label="Delete arrow" onClick={() => onDelete?.()} /></Group>;
+
+  let groups;
+  if (input === 'desktop') {
+    groups = [
+      colour,
+      radios('Width', widthRows, width, (t) => set({ thickness: t })),
+      heads,
+      radios('Path', ARROW_PATHS, straight, (s) => set({ straight: s })),
+      <Group key="dash"><Btn icon={DASH_ICONS.dashed} label="Dashed" toggle on={dashed} onClick={() => set({ dashed: !dashed })} /></Group>,
+      label,
+      del,
+    ];
+  } else {
+    const phone = input === 'phone';
+    groups = [
+      colour,
+      phone ? null : heads,
+      label,
+      <Group key="more">
+        <MenuButton label="More arrow options" menuLabel="More arrow options" icon={MoreHorizontal} side="above" align="end"
+                    menuClassName={`${MENU} pa-more`} scrim>
+          {phone ? menuRadios('Heads', 'Arrow heads', ARROW_HEADS, head, setHead) : null}
+          {menuRadios('Width', 'Width', widthRows, width, (t) => set({ thickness: t }))}
+          {menuRadios('Path', 'Path', ARROW_PATHS, straight, (s) => set({ straight: s }))}
+          {menuRadios('Style', 'Style', ARROW_DASHES, dashed, (d) => set({ dashed: d }))}
+        </MenuButton>
+      </Group>,
+      del,
+    ];
+  }
+  return (
+    <Toolbar label="Selected arrow" barRef={barRef} className={`pa-a is-${input === 'desktop' ? 'desk' : input}`}
+             style={{ left: pos.x, top: pos.y }}
+             onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
+      {groups}
+    </Toolbar>
   );
 }

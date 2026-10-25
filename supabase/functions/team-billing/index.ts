@@ -38,6 +38,7 @@ import {
   teamPriceMatches,
 } from "../_shared/teamBillingCore.mjs";
 import { completeTeamCheckout, syncTeam, teamBillingReady, teamFlag } from "../_shared/teamBilling.ts";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -65,7 +66,7 @@ const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient
 type Body = Record<string, unknown>;
 type PgError = { code?: string; message?: string; hint?: string; details?: string };
 
-Deno.serve(async (req) => {
+Deno.serve(reported("team-billing", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -101,12 +102,12 @@ Deno.serve(async (req) => {
     if (e instanceof Stripe.errors.StripeIdempotencyError) return json({ error: "retry" }, 409);
     if (e instanceof Stripe.errors.StripeError) {
       console.error("[team-billing] stripe error", e.type, e.code, e.message);
-      return json({ error: "stripe_error", code: e.code ?? null }, 502);
+      return failedWith(json({ error: "stripe_error", code: e.code ?? null }, 502), e);
     }
     console.error("[team-billing] error", e);
-    return json({ error: "server_error" }, 500);
+    return failedWith(json({ error: "server_error" }, 500), e);
   }
-});
+}));
 
 type Client = ReturnType<typeof createClient>;
 
@@ -132,7 +133,7 @@ async function checkout(userClient: Client, admin: Client, user: { id: string; e
   const price = priceId ? await stripe.prices.retrieve(priceId) : null;
   if (!teamPriceMatches(price, ck.plan)) {
     await teamFlag(admin, user.id, { kind: "team_price_mismatch", plan: ck.plan, price_id: priceId }, "/team-billing");
-    return json({ error: "price_mismatch" }, 503);
+    return failedWith(json({ error: "price_mismatch" }, 503), new Error("the Team price does not match the page"), { what: "team price" });
   }
 
   // The team's own customer: the one this checkout's team (or an abandoned
@@ -309,7 +310,7 @@ function refusal(e: PgError) {
     return json({ error: e.hint || "refused", message: e.message ?? null, detail: e.details ?? null }, 409);
   }
   console.error("[team-billing] database error", e.code, e.message);
-  return json({ error: "server_error" }, 500);
+  return failedWith(json({ error: "server_error" }, 500), e);
 }
 
 function returnOrigin(asked: unknown): string {

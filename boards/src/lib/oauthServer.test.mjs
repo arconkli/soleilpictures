@@ -16,7 +16,7 @@ import {
   authorizationServerMetadata, protectedResourceMetadata,
 } from '../worker-oauth.js';
 import { mcpTraceName } from './mcpServer.js';
-import { consentError, consentRequestProblem } from './oauthConsentCopy.js';
+import { consentError, consentRequestProblem, consentRequestFault } from './oauthConsentCopy.js';
 
 const ORIGIN = 'https://clusters.soleilpictures.com';
 
@@ -202,4 +202,18 @@ test('a malformed authorize link is caught before any network call', () => {
     assert.ok(consentRequestProblem(bad), 'must be refused');
     assert.match(consentRequestProblem(bad).body, /nothing has been shared/i);
   }
+});
+
+test('the connect funnel names which part of a malformed link was wrong', () => {
+  // The person sees one sentence for all of these; the error event says which,
+  // so a broken integration can be found from the funnel.
+  const ok = { clientId: 'c', redirectUri: 'https://e/cb', responseType: 'code',
+    codeChallenge: 'x'.repeat(43), challengeMethod: 'S256' };
+  assert.equal(consentRequestFault(ok), null);
+  assert.equal(consentRequestFault({ ...ok, challengeMethod: '' }), null);
+  assert.equal(consentRequestFault({ ...ok, clientId: '' }), 'no_client_id');
+  assert.equal(consentRequestFault({ ...ok, redirectUri: '' }), 'no_redirect_uri');
+  assert.equal(consentRequestFault({ ...ok, responseType: 'token' }), 'response_type');
+  assert.equal(consentRequestFault({ ...ok, codeChallenge: '' }), 'no_pkce');
+  assert.equal(consentRequestFault({ ...ok, challengeMethod: 'plain' }), 'pkce_method');
 });

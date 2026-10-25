@@ -61,6 +61,8 @@ import {
   AFTER_WRITE_DRAIN,
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
+import { answeredWith, reportWorkerError } from './lib/workerErrors.js';
+import { ApiError, apiErrorFrom } from './lib/mcpTools.js';
 import {
   arrange, rearrange, LAYOUTS, DEFAULT_LAYOUT, isLayout,
 } from './lib/layoutEngine.js';
@@ -914,6 +916,8 @@ export async function handleApiRoute(url, request, env, ctx) {
     const { status, code, message } = normalizeApiError(e);
     if (status >= 500) {
       console.error('[api]', request.method, url.pathname, e?.message, e?.detail || e?.cause?.message || '');
+      // worker.fetch records the 5xx at the door, with this.
+      answeredWith(request, e, { kind: 'api', code });
     }
     res = json({ error: message, code }, status);
   }
@@ -1011,10 +1015,37 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
 
   const req = new Request(target, { method, headers, body });
   const trace = { route: target.pathname.replace(/^\/api\/v1/, '') || '/', target: null };
-  const res = await dispatch(target, req, env, { auth, token, trace });
+  let res;
+  try {
+    res = await dispatch(target, req, env, { auth, token, trace });
+  } catch (e) {
+    // dispatch THROWS its refusals and lets a database failure through raw;
+    // handleApiRoute curates both on the way out of a REST call, and this is
+    // the same door for a tool. Without it a tool relayed scoutDb's envelope —
+    // table name, SQLSTATE and all — straight into a model's context.
+    const { status, code, message } = normalizeApiError(e);
+    if (status >= 500) {
+      console.error('[mcp→api]', method, target.pathname, e?.message, e?.detail || e?.cause?.message || '');
+      // A tool's failure leaves /mcp as the tool's answer, not as a 5xx, so
+      // the door never sees it: recorded here.
+      reportWorkerError(env, ctx, { kind: 'api', error: e, request: req, status, code, op: 'mcp' });
+    }
+    throw new ApiError(message, {
+      status,
+      code,
+      ...(code === 'insufficient_scope'
+        ? { requiredScope: scopeFor(method, target.pathname), scopes: auth.scopes }
+        : {}),
+    });
+  }
 
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
+    throw apiErrorFrom(res.status, data, res.headers);
+  }
   if (opts.raw) {
-    if (!res.ok) throw new Error(await describeInternalFailure(res));
     return {
       bytes: new Uint8Array(await res.arrayBuffer()),
       contentType: res.headers.get('content-type') || 'application/octet-stream',
@@ -1022,18 +1053,7 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
     };
   }
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(data?.error || `request failed (${res.status})`);
-  return data;
-}
-
-async function describeInternalFailure(res) {
-  const text = await res.text().catch(() => '');
-  try {
-    return JSON.parse(text)?.error || `request failed (${res.status})`;
-  } catch {
-    return `request failed (${res.status})`;
-  }
+  return text ? JSON.parse(text) : null;
 }
 
 async function dispatch(url, request, env, ctx) {

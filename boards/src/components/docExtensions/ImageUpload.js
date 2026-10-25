@@ -232,7 +232,7 @@ export function uploadImageIntoDoc(editor, file, { pos = null, workspaceId, user
         paint(rec);
       } else if (editor.isDestroyed) {
         release();
-        toast?.({ type: 'error', message: `Couldn't upload ${rec.name}. ${reason(e)}` });
+        toast?.({ type: 'error', code: 'image_upload_failed', message: `Couldn't upload ${rec.name}. ${reason(e)}` });
       }
       return;
     }

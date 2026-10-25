@@ -71,7 +71,9 @@ test.describe('Fix 2 — TipTap editor RangeErrors', () => {
 
 test.describe('Fix 3 — error noise filter', () => {
   test('isNoise drops extension/reader-mode signatures but keeps real fetch failures', () => {
-    const s = read('src/lib/errorReporting.js');
+    // The filter moved out of the entry with the rest of the deciding
+    // (errorSender.js, 0580); errorCore.test.mjs runs it.
+    const s = read('src/lib/errorNoise.js');
     expect(s).toMatch(/Object Not Found Matching Id/);
     expect(s).toContain('__firefox__');
     expect(s).toContain('window\\.ethereum');

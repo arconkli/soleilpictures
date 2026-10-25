@@ -51,7 +51,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
       try { setSub(await getMyExploreSubmission(board.id)); } catch (_) {}
     } catch (e) {
       const msg = e?.message || String(e);
-      feedback.toast({ type: 'error', message: /3 images/.test(msg) ? 'Add at least 3 images before publishing to Explore.' : ('Could not submit: ' + msg) });
+      feedback.toast({ type: 'error', code: 'explore_submit_failed', message: /3 images/.test(msg) ? 'Add at least 3 images before publishing to Explore.' : ('Could not submit: ' + msg) });
     } finally {
       setBusy(false);
     }
@@ -84,7 +84,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
           : 'This cluster isn’t on Explore.',
       });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not update Explore: ' + (e?.message || String(e)) });
+      feedback.toast({ type: 'error', code: 'explore_update_failed', message: 'Could not update Explore: ' + (e?.message || String(e)) });
     } finally {
       // Re-read either way: on failure the state may have moved under us.
       try { setSub((await getMyExploreSubmission(board.id)) || null); } catch (_) {}

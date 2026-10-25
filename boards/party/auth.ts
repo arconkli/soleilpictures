@@ -13,6 +13,9 @@
 // not on each message — once a connection is open, the user is trusted
 // for that session).
 
+import { callFailed, reportParty } from "./report";
+import { isOurFailure } from "../src/lib/serverErrors.js";
+
 const SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co";
 
 // Anon key — public, safe to embed. Used as the apikey header so PostgREST
@@ -25,6 +28,25 @@ export interface AuthCheckResult {
   email?: string;
   workspaceId?: string;
   reason?: string;
+}
+
+// A check that could not be made fails as each one below says: closed for a
+// connection (refused, or let in read-only), open for a suspension or a
+// recheck, so a lookup error never drops everyone's socket. Either way it is
+// recorded (report.ts) when the failure is ours, since someone may have been
+// turned away, or joined read-only, or kept a socket they should have lost:
+// never a token refused (the person's session ran out), or the database's own
+// answer (serverErrors.js isOurFailure). The body is read only for the code it
+// names.
+async function checkFailed(what: string, res: Response | null, thrown?: unknown) {
+  if (res?.status === 401) return;
+  const error = callFailed(what, res, res ? await res.text().catch(() => "") : "", thrown);
+  if (isOurFailure(error)) void reportParty({ kind: "access_check", error });
+}
+// The service role's reads, and the anon key's, are never refused for a
+// reason of anyone's own.
+async function serviceCheckFailed(what: string, res: Response | null, thrown?: unknown) {
+  void reportParty({ kind: "access_check", error: callFailed(what, res, res ? await res.text().catch(() => "") : "", thrown) });
 }
 
 // ── Single-flight, short-TTL auth cache ──────────────────────────────────────
@@ -105,9 +127,10 @@ async function supabaseGet(path: string, accessToken: string): Promise<any[] | n
       // indefinitely; fail the auth check instead and let the client retry.
       signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) { await checkFailed(`select ${path.split("?")[0]}`, res); return null; }
     return res.json();
-  } catch (_) {
+  } catch (e) {
+    await checkFailed(`select ${path.split("?")[0]}`, null, e);
     return null;
   }
 }
@@ -185,10 +208,10 @@ async function canWriteBoardUncached(
       body: JSON.stringify({ p_board_id: boardId }),
       signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) return false;
+    if (!res.ok) { await checkFailed("rpc can_write_board", res); return false; }
     const v = await res.json();
     return v === true;
-  } catch (_) { return false; }
+  } catch (e) { await checkFailed("rpc can_write_board", null, e); return false; }
 }
 
 // Which of these users are banned (audit AC-2, 2026-10-06). A ban deletes the
@@ -209,9 +232,9 @@ export async function bannedAmong(serviceKey: string | undefined, userIds: strin
         signal: AbortSignal.timeout(8_000),
       },
     );
-    if (!res.ok) return out;
+    if (!res.ok) { await serviceCheckFailed("select profiles", res); return out; }
     for (const row of (await res.json()) as Array<{ user_id: string }>) out.add(row.user_id);
-  } catch (_) { /* fail open */ }
+  } catch (e) { await serviceCheckFailed("select profiles", null, e); /* fail open */ }
   return out;
 }
 
@@ -240,11 +263,11 @@ export async function accessAmong(
       body: JSON.stringify({ p_board: boardId, p_users: ids }),
       signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) return out;
+    if (!res.ok) { await serviceCheckFailed("rpc party_board_access", res); return out; }
     for (const row of (await res.json()) as Array<{ user_id: string; can_read: boolean; can_write: boolean }>) {
       out.set(row.user_id, { canRead: row.can_read === true, canWrite: row.can_write === true });
     }
-  } catch (_) { /* fail open */ }
+  } catch (e) { await serviceCheckFailed("rpc party_board_access", null, e); /* fail open */ }
   return out;
 }
 
@@ -272,11 +295,11 @@ export async function workspaceAccessAmong(
       body: JSON.stringify({ p_workspace: workspaceId, p_users: ids }),
       signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) return out;
+    if (!res.ok) { await serviceCheckFailed("rpc party_workspace_access", res); return out; }
     for (const row of (await res.json()) as Array<{ user_id: string; can_open: boolean }>) {
       out.set(row.user_id, row.can_open === true);
     }
-  } catch (_) { /* fail open */ }
+  } catch (e) { await serviceCheckFailed("rpc party_workspace_access", null, e); /* fail open */ }
   return out;
 }
 
@@ -347,9 +370,10 @@ async function canOpenWorkspace(workspaceId: string, accessToken: string): Promi
       signal: AbortSignal.timeout(8_000),
     });
     if (res.status === 404) return "missing";
-    if (!res.ok) return "error";
+    if (!res.ok) { await checkFailed("rpc can_open_workspace", res); return "error"; }
     return (await res.json()) === true;
-  } catch (_) {
+  } catch (e) {
+    await checkFailed("rpc can_open_workspace", null, e);
     return "error";
   }
 }
@@ -372,9 +396,10 @@ export async function docRoomAccess(accessToken: string, room: string, share: st
       signal: AbortSignal.timeout(8_000),
     });
     if (res.status === 401 && accessToken) return { status: "auth_expired" };
-    if (!res.ok) return null;
+    if (!res.ok) { await (accessToken ? checkFailed : serviceCheckFailed)("rpc doc_room_access", res); return null; }
     return await res.json();
-  } catch (_) {
+  } catch (e) {
+    await checkFailed("rpc doc_room_access", null, e);
     return null;
   }
 }

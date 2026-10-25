@@ -1,5 +1,5 @@
 // The sketch pad's bar in the toolbar look (the owner's pick "A · Islands"),
-// held to a dev opt-in (lib/appHost.js): the tools are the look's icons, the
+// shipped 2026-10-25 (lib/appHost.js): the tools are the look's icons, the
 // canvas draw bar's, at 32px, with the look's glass tooltip; what's on (the
 // tool, the brush, the layer you draw on) is the look's gold tint and ring
 // rather than a gold border, and a screen reader hears which tool is on; the

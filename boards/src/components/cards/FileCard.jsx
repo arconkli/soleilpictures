@@ -113,7 +113,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
       await downloadCardAsset({ fileSrc, fileName, mime, sizeBytes, ext: e, title }, 'file',
                               { surface: 'file_card' });
     } catch (err) {
-      feedback?.toast({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+      feedback?.toast({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
     } finally {
       setBusy(false);
     }

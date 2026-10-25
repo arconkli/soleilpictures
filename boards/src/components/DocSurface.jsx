@@ -44,9 +44,9 @@ import { IconWeightContext } from './Icon.jsx';
 import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
 import { openableUrl } from '../lib/openableUrl.js';
 
-// The doc look's side panel, footer and one row of tools (held;
-// components/doc/DocFrameA.jsx): lazy, so the doc as it is never downloads
-// the look.
+// The doc look's side panel, footer and one row of tools
+// (components/doc/DocFrameA.jsx): lazy, so today's editor (on dev, the hold
+// set to '0') never downloads the look.
 const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
 const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
 const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
@@ -1263,7 +1263,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // its caret (docExtensions/ImageUpload.js, the path a paste or drop takes).
   const pickImageFromDisk = (editor) => {
     if (!editor) return;
-    if (!workspaceId || !userId) { feedback.toast({ type: 'error', message: 'Sign in to add images.' }); return; }
+    if (!workspaceId || !userId) { feedback.toast({ type: 'error', code: 'image_needs_signin', message: 'Sign in to add images.' }); return; }
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
     input.onchange = () => {

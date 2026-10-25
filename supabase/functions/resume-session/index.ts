@@ -28,6 +28,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -49,7 +50,7 @@ function json(payload: unknown, status: number): Response {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("resume-session", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
   const { data, error } = await admin.rpc("lifecycle_redeem_resume_token", { p_token: token });
   if (error) {
     console.warn("redeem failed", error.message);
-    return json({ error: "server_error" }, 500);
+    return failedWith(json({ error: "server_error" }, 500), error, { what: "rpc lifecycle_redeem_resume_token" });
   }
   const row = Array.isArray(data) ? data[0] : data;
   if (!row?.email) return json({ error: "invalid_or_expired" }, 401);
@@ -85,7 +86,7 @@ Deno.serve(async (req) => {
     console.warn("generateLink failed", linkErr?.message);
     // The resume token is already spent at this point. Say so plainly rather
     // than implying a retry will work — the CTA falls back to normal sign-in.
-    return json({ error: "server_error" }, 500);
+    return failedWith(json({ error: "server_error" }, 500), linkErr ?? new Error("no link was made"), { what: "auth generateLink" });
   }
 
   return json({
@@ -93,4 +94,4 @@ Deno.serve(async (req) => {
     tokenHash: link.properties.hashed_token,
     emailType: row.email_type ?? null,
   }, 200);
-});
+}));

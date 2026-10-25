@@ -6,6 +6,8 @@ import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { Spinner } from './Spinner.jsx';
 import { resolveSrc } from '../lib/r2.js';
+import { knownCopy } from '../lib/playCopy.js';
+import { usePlayCopy } from '../hooks/usePlayCopy.js';
 import { buildImgStyle } from '../lib/imageAdjust.js';
 import * as audioBus from '../lib/audioBus.js';
 import { EditableText } from './EditableText.jsx';
@@ -812,7 +814,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
                      pending = false, uploadProgress = null, mediaJson = null, onExpand = null,
-                     cardId = null, selected = false, tapToPlay = false }) {
+                     cardId = null, selected = false, tapToPlay = false, playSrc = null }) {
   // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
   const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
   // Same fix as ImageCard: don't auto-open the title row on paste; it
@@ -836,6 +838,16 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
     });
     return () => { cancelled = true; };
   }, [src]);
+  // A clip that plays itself plays its copy when it has one (lib/playCopy.js):
+  // the plain element has no player to find one for it.
+  const autoplayCopy = autoplay ? knownCopy(src, playSrc) : null;
+  const [autoplayUrl, setAutoplayUrl] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!autoplayCopy) { setAutoplayUrl(null); return undefined; }
+    resolveSrc(autoplayCopy).then(u => { if (!cancelled) setAutoplayUrl(u || null); });
+    return () => { cancelled = true; };
+  }, [autoplayCopy]);
   // Resolve the first-frame poster (r2:<key>) so the card shows a real frame
   // before playback + while the video streams in.
   const [posterUrl, setPosterUrl] = useState(null);
@@ -986,13 +998,13 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
         {resolvedUrl && !autoplay && live
           ? (
             <Suspense fallback={facade}>
-              <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} poster={poster} media={media} title={title || ''} onExpand={onExpand}
+              <FilmPlayer ref={playerRef} key={src} mode="compact" src={src} playSrc={playSrc} poster={poster} media={media} title={title || ''} onExpand={onExpand}
                           clickGate={clickGate} autoPlay={playOnMount} initialTime={syncTime}
                           probe={() => probeCardVideo({ kind: 'video', src })} />
             </Suspense>
           )
           : resolvedUrl && autoplay
-          ? <video ref={videoRef} className="vc-video" src={resolvedUrl}
+          ? <video ref={videoRef} className="vc-video" src={autoplayUrl || resolvedUrl}
                    {...(posterUrl ? { poster: posterUrl } : {})}
                    {...(loop ? { loop: true } : {})}
                    muted controls preload="metadata" playsInline />
@@ -2019,7 +2031,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
                             loop = false, cardId = null, audioSource = 'canvas',
                             onUpdate, autoFocus = false,
                             coverPickAt = 0, editTitleAt = 0,
-                            onPickCover = null, onDownload = null }) {
+                            onPickCover = null, onDownload = null, playSrc = null }) {
   const audioElRef = useRef(null);
   const rootRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -2075,17 +2087,27 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     };
   }, [coverDropMode]);
 
+  // A file this browser can't play (AIFF outside Safari, WMA, AMR…) plays its
+  // copy (lib/playCopy.js): the card's own, or one found or asked for when the
+  // original fails (hooks/usePlayCopy.js). Download stays the original.
+  const pc = usePlayCopy({ src, playSrc });
+  const pcFailedRef = useRef(pc.failed);
+  pcFailedRef.current = pc.failed;
+  const [audioFailed, setAudioFailed] = useState(false);
+  const audioSrc = pc.source;
+
   // Resolve audio src → signed URL.
   useEffect(() => {
     let cancelled = false;
-    if (!src) { setResolvedUrl(null); return; }
-    resolveSrc(src).then(u => {
+    setAudioFailed(false);
+    if (!audioSrc) { setResolvedUrl(null); return; }
+    resolveSrc(audioSrc).then(u => {
       if (cancelled) return;
       setResolvedUrl(u);
-      if (!u) console.warn('[AudioCard] no signed URL for', src);
+      if (!u) console.warn('[AudioCard] no signed URL for', audioSrc);
     });
     return () => { cancelled = true; };
-  }, [src]);
+  }, [audioSrc]);
 
   // Resolve cover → signed URL.
   useEffect(() => {
@@ -2118,11 +2140,13 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     };
     const onTime = () => setPosition(audio.currentTime || 0);
     const onMeta = () => setDecodedDuration(audio.duration || decodedDuration || 0);
+    const onError = () => { setAudioFailed(true); pcFailedRef.current('decode'); };
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('loadedmetadata', onMeta);
+    audio.addEventListener('error', onError);
     return () => {
       audioBus.release(stop);
       audio.removeEventListener('play', onPlay);
@@ -2130,6 +2154,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('timeupdate', onTime);
       audio.removeEventListener('loadedmetadata', onMeta);
+      audio.removeEventListener('error', onError);
     };
   }, [cardId, audioSource]);
 
@@ -2235,9 +2260,11 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     </button>
   );
 
-  const timeDisplay = (
-    <span className="ac-time">{formatTime(position)} <span className="ac-time-sep">/</span> {formatTime(dur)}</span>
-  );
+  const status = pc.preparing ? 'Making a playable copy…'
+    : (audioFailed && !pc.handles('decode') ? 'Can’t play here: download it' : null);
+  const timeDisplay = status
+    ? <span className="ac-time" role="status">{status}</span>
+    : <span className="ac-time">{formatTime(position)} <span className="ac-time-sep">/</span> {formatTime(dur)}</span>;
 
   // Tempo · key · format. Seeded from the filename at upload (loopMeta.js) and
   // editable in place, because a pack whose names carry nothing still has to

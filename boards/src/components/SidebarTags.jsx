@@ -122,7 +122,7 @@ export function SidebarTags({
       }
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Adopt failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_adopt_failed', message: 'Adopt failed: ' + (err.message || err) });
     } finally {
       setAdopting('');
       document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
@@ -138,7 +138,7 @@ export function SidebarTags({
       });
       if (error && error.code !== '23505') throw error;
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Dismiss failed' });
+      feedback.toast({ type: 'error', code: 'tag_dismiss_failed', message: 'Dismiss failed' });
     } finally {
       try { logEvent(EV.TAG_CANDIDATE_DISMISS, { via: 'sidebar' }); } catch (_) {}
       document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
@@ -215,7 +215,7 @@ export function SidebarTags({
       await ensureTag({ workspaceId, name: cleaned, kind: 'user', createdBy: userId });
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Tag create failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_create_failed', message: 'Tag create failed: ' + (err.message || err) });
     }
   };
 
@@ -237,7 +237,7 @@ export function SidebarTags({
       onWorkspaceTagsChanged?.();
     } catch (err) {
       if (!isDuplicateTagName(err)) {
-        feedback.toast({ type: 'error', message: 'Rename failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'tag_rename_failed', message: 'Rename failed: ' + (err.message || err) });
         return;
       }
       // Names are unique per workspace, case-insensitively — and a deleted
@@ -248,6 +248,7 @@ export function SidebarTags({
       if (!existing) {
         feedback.toast({
           type: 'error',
+          code: 'tag_name_taken',
           message: `A tag you deleted recently is still called “${clean}” (deleted tags are kept for 30 days so they can be restored). Pick another name.`,
         });
         return;
@@ -275,7 +276,7 @@ export function SidebarTags({
       await recolorTag(colorPickerFor.tag.id, color);
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Recolor failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_recolor_failed', message: 'Recolor failed: ' + (err.message || err) });
     }
   };
   const startMerge = (tag) => {
@@ -319,12 +320,12 @@ export function SidebarTags({
             await undoTagMerge(mergeId);
             onWorkspaceTagsChanged?.();
           } catch (err) {
-            feedback.toast({ type: 'error', message: 'Undo failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_merge_undo_failed', message: 'Undo failed: ' + (err.message || err) });
           }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Merge failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_merge_failed', message: 'Merge failed: ' + (err.message || err) });
     }
   };
 
@@ -350,12 +351,12 @@ export function SidebarTags({
             await restoreTag(tag.id);
             onWorkspaceTagsChanged?.();
           } catch (err) {
-            feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
           }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_delete_failed', message: 'Delete failed: ' + (err.message || err) });
     }
   };
 
@@ -369,7 +370,7 @@ export function SidebarTags({
       try { logEvent(EV.TAG_SET_TYPE, { tag_id: tag.id, entity_type: next }); } catch (_) {}
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Could not set type' });
+      feedback.toast({ type: 'error', code: 'tag_type_failed', message: 'Could not set type' });
     }
   };
 

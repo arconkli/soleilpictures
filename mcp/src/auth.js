@@ -358,7 +358,7 @@ export async function login(base, { scope = 'read write' } = {}) {
 
     out(`Signed in. Scopes: ${token.scope || scope}`);
     out(`Stored in ${CREDENTIALS}`);
-    out('Disconnect at any time under Settings → API → Connected apps.');
+    out('Disconnect at any time under Settings → Connections → Connected apps.');
   } finally {
     // listen() succeeded, so this must be closed on every path — including a
     // registration failure, or the process hangs on an open handle.

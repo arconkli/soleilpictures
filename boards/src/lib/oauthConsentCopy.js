@@ -69,10 +69,18 @@ export function consentError(code, description) {
 // Problems decidable from the URL alone, before any network call. Same
 // principle: name the thing that is wrong without quoting a parameter name at
 // someone who has never heard of OAuth.
-export function consentRequestProblem({ clientId, redirectUri, responseType, codeChallenge, challengeMethod }) {
-  if (!clientId || !redirectUri) return BY_CODE.invalid_request;
-  if (responseType !== 'code') return BY_CODE.invalid_request;
-  if (!codeChallenge) return BY_CODE.invalid_request;
-  if (challengeMethod && challengeMethod !== 'S256') return BY_CODE.invalid_request;
+export function consentRequestProblem(request) {
+  return consentRequestFault(request) ? BY_CODE.invalid_request : null;
+}
+
+// The same judgement as a short code, for the connect funnel's error event:
+// the person sees one sentence for all of these, but which part of the link was
+// wrong is how a broken integration gets found.
+export function consentRequestFault({ clientId, redirectUri, responseType, codeChallenge, challengeMethod }) {
+  if (!clientId) return 'no_client_id';
+  if (!redirectUri) return 'no_redirect_uri';
+  if (responseType !== 'code') return 'response_type';
+  if (!codeChallenge) return 'no_pkce';
+  if (challengeMethod && challengeMethod !== 'S256') return 'pkce_method';
   return null;
 }

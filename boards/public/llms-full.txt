@@ -579,7 +579,7 @@ A: Files, and screenplays. Everything else is a rebuild — which is why this pa
 ========================================================================
 # The canvas
 URL: https://clusters.soleilpictures.com/docs/canvas
-Updated: 2026-10-21
+Updated: 2026-10-25
 
 A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
 
@@ -644,6 +644,8 @@ Click to select. Shift-click to add. Drag on empty canvas to marquee.
 With a finger, touch and hold empty canvas until the ring under it fills, then drag the box. A finger has no Shift, so holding and letting go opens the canvas menu with Select…: until Done, each tap adds a card or takes it out. See touch on the canvas.
 
 With several cards selected you can move them as one, align them, delete them together, or press ⌘G to make them a group — which is a selection that persists, gets a name, and can be commented on as a unit.
+
+On a computer, two or more picked get a bar along the bottom of the canvas: how many, Tidy up and Align (with Distribute), Group, New cluster from N cards and Move N cards to…, then ⋯ for the rest of the right-click menu, and Delete. Each does what the right-click menu does with the same selection.
 
 Drawing
 
@@ -792,7 +794,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-21
+Updated: 2026-10-24
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -810,7 +812,9 @@ Uploads go straight to storage from your browser. Large batches run a few at a t
 
 Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in Files and comes back out of Download under it. Give a card a caption and the caption is what Files shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one image.png), so it is not given one.
 
-HEIC and HEIF from an iPhone are handled, including the awkward case where the browser reports no MIME type at all.
+Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000. Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. Download always gives the original, and the picture never counts toward your storage.
+
+A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. These photos arrive as images even when the browser reports no file type at all.
 
 To swap in a new take of an image, drop the new file onto it, or choose Edit → Upload new version…. The old one is kept as an earlier version, so you can go back to it from Info.
 
@@ -873,7 +877,10 @@ Q: Why does an image look blurry for a moment?
 A: Images load in tiers — a tiny blurred placeholder first, then a preview, then full resolution. On a board with hundreds of images this is what keeps it usable.
 
 Q: Does it handle photos straight off an iPhone?
-A: Yes, including HEIC and HEIF, even when the browser reports no file type at all.
+A: Yes. HEIC and HEIF show in every browser, not only Safari, even when the browser reports no file type at all.
+
+Q: Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?
+A: Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file.
 
 
 ========================================================================
@@ -1062,7 +1069,7 @@ A: Yes. Switch the draw tool to Lasso and circle them. A stroke is taken when mo
 ========================================================================
 # Arrows
 URL: https://clusters.soleilpictures.com/docs/canvas/arrows
-Updated: 2026-08-08
+Updated: 2026-10-25
 
 Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.
 
@@ -1092,11 +1099,13 @@ Select an arrow and an inline toolbar appears:
 
 Control | Options
 Colour | Full picker, presets, board palette swatches
-Thickness | Thin through heavy
-Head style | Which ends carry a head, and its shape
+Thickness | Thin, medium or thick
+Head style | No heads, one at the end, or one at each end
 Line | Solid or dashed
-Curve | How much the path bends
+Curve | Curved or straight
 Label | Text carried on the arrow itself
+
+On a phone the toolbar's row keeps the colour, the label and delete, and ⋯ holds the rest; a tablet's keeps the heads in the row as well.
 
 A label rides the arrow, so it moves with the connection instead of drifting away from it. Good for "then", "cut to", "same location".
 
@@ -1492,7 +1501,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-21
+Updated: 2026-10-24
 
 Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
@@ -1501,7 +1510,7 @@ Drag a file onto the canvas. The type is detected and the right kind of card is 
 What each type becomes
 
 You drop | You get
-Image (incl. HEIC/HEIF) | An image card with adjustments
+Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000) | An image card with adjustments, shown in every browser
 Video | An inline player
 Audio | A waveform player with cover art
 PDF | A page-one thumbnail opening into a full viewer
@@ -1658,9 +1667,9 @@ A: Not automatically. Export the pages you want from your PDF tool and drop them
 ========================================================================
 # Video and audio
 URL: https://clusters.soleilpictures.com/docs/files/video-and-audio
-Updated: 2026-10-22
+Updated: 2026-10-24
 
-Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
+Video and audio files become playable cards on the canvas, in any format. One your browser can't play, such as ProRes, MKV or AIFF, plays from a copy Clusters makes, and Download gives the original. Audio cards draw a real waveform decoded from the file, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts, and the only limit is your drive.
 
 Both play in place on the canvas — the clip is a card among the reference stills it belongs with, which is what a video reference board is. A video also opens in a full review player when you need to look at it frame by frame.
 
@@ -1696,7 +1705,7 @@ Esc closes it. ? lists every key, and so does Player.
 
 In Quick look a clip plays with lighter controls over its bottom edge: play, frame steps (, and .), J/K/L, mute (M), the scrubber with its preview, and Open in player. K pauses there; Space closes Quick look as it does for any file, and ← and → still move between files.
 
-A file the browser can't decode — ProRes outside Safari, for instance — says so, rather than showing a black frame, and offers the download.
+A file the browser can't decode, ProRes outside Safari for instance, plays from a copy Clusters makes of it. While the copy is being made the player says so, and plays it when it's ready. See Formats.
 
 Autoplay and looping
 
@@ -1766,9 +1775,15 @@ Cards that were uploaded before waveforms existed get theirs filled in quietly i
 
 Formats
 
-Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC, an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound.
+Any video or audio file plays. H.264 in an MP4 or MOV plays in every browser as it is, and so do MP3, AAC, FLAC and WAV. Browsers differ on the rest: Chrome shows ProRes as sound with no picture and won't open AVI, WMV or MPEG files, Safari won't open MKV, and Firefox doesn't play HEVC, which is what an iPhone records.
 
-A video your browser can't decode still uploads and becomes a video card: it says it can't be played here, and offers the download. A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video.
+For those, Clusters makes a playable copy: H.264 video with AAC sound in an MP4, or AAC for sound alone, at up to 1920 pixels on its long side. It is made once, on a converter Clusters runs, when the file is uploaded or first opened, and from then on every player uses it: the card, Quick look, the review player and a shared link. A short clip takes seconds and a long one a few minutes; the player says it is making the copy while it does. HDR footage is brought to ordinary colour for the copy.
+
+The copy is for watching. Download always gives the original, byte for byte, and the copy never counts toward your storage. When the file itself is deleted for good, its copy goes with it.
+
+A file over 4 hours or 20 GB gets no copy: it plays where your browser can play the original, and downloads everywhere. So does a file the converter can't read, and the player says it can't be played.
+
+A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video.
 
 What this is not
 
@@ -1776,7 +1791,7 @@ Clusters plays media. It does not edit it: no trimming, no cutting, no adjusting
 
 The photo adjustments available on image cards have no video equivalent.
 
-The review player plays the file as it is. It does not manage colour or show HDR, it can't play sound while you scrub, and backward play steps through frames rather than running smoothly. Compared versions line up by time from their first frame, so two cuts with different heads won't match frame for frame.
+The review player plays the file as it is, or its playable copy when your browser can't play the file, at the copy's size. It does not manage colour or show HDR, it can't play sound while you scrub, and backward play steps through frames rather than running smoothly. Compared versions line up by time from their first frame, so two cuts with different heads won't match frame for frame.
 
 Storage
 
@@ -1794,7 +1809,7 @@ Q: Can a video loop like a GIF?
 A: Yes. Right-click the card for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen.
 
 Q: What formats work?
-A: Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere, and MP3 or WAV for sound. A video your browser can't decode still becomes a video card, which says so and offers the download.
+A: Any video or audio file. H.264 in an MP4 or MOV, MP3 and WAV play as they are. A file some browser can't play, such as ProRes, HEVC, MKV, AVI, WMV or AIFF, gets a copy that every browser can, and plays from that. Download always gives you the original.
 
 
 ========================================================================
@@ -4391,7 +4406,7 @@ A: Nothing that matters is removed, but dense surfaces like long documents are m
 ========================================================================
 # Data and privacy
 URL: https://clusters.soleilpictures.com/docs/account/data-and-privacy
-Updated: 2026-10-20
+Updated: 2026-10-25
 
 Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
@@ -4460,7 +4475,19 @@ If an account is held or banned for abuse, a summary of where it connected from,
 
 Error reporting
 
-Errors are recorded first-party, in Clusters' own infrastructure, to fix crashes. There is no Google Analytics and no third-party error monitoring service in the app.
+When something goes wrong, Clusters records it first-party, in its own infrastructure, so it can be fixed. There is no Google Analytics and no third-party error monitoring service in the app.
+
+A record says what failed and where: the error the app ran into, or which of Clusters' services a request went to and what kind of answer came back; the page it happened on; the version of Clusters; your browser; and whether you were online. If you are signed in, it is tied to your account so a problem can be followed through a visit, and it is anonymised if you delete your account.
+
+It also lists the last few steps before the failure, by their names only: a cluster opened, an upload started, an error shown. Never what was in them.
+
+An error message shown to you is recorded by a code that names it, never by its words, which can quote a cluster's or a file's name.
+A request is recorded by its service and route, never its address, which can hold a private link's key or a cluster's name.
+A page that crashes (it ran out of memory, say) can't say so itself, so the app keeps a note in that tab's session storage of when the page opened and whether it was on screen, and a page that closes normally takes it away. The next page in the tab that finds one records that the page before it crashed, and how long it had been open.
+
+Clusters' own servers record their failures the same way: which route, background job or live sync room failed (a room by its cluster's id, never its name) and what kind of answer it got, never what was sent to it, and with no account or browser attached.
+
+Records are deleted after 90 days. What stays after that is when each kind of problem was first and last seen, with nobody attached.
 
 What the app records as you use it
 
@@ -6333,7 +6360,15 @@ Code | Means | HTTP
 -32021 | The request needs a capability the client did not declare | 400
 -32022 | Unsupported protocol version — the answer lists the supported ones | 400
 
-A tool that runs and fails is not an error here. It returns a normal result with isError: true and the API's own sentence in the content, because a model that reads "this token cannot delete" can correct itself, while one that gets a transport error only learns that something broke.
+A tool that runs and fails is not an error here. It returns a normal result with isError: true and the API's own sentence in the content, because a model that reads "this token cannot delete" can correct itself, while one that gets a transport error only learns that something broke. The sentence ends with the API's error code in brackets, [insufficient_scope] or [limit_reached], so an agent can branch on more than the wording, and both servers word the same refusal the same way.
+
+Arguments are checked against the tool's input schema before anything runs. A call that does not fit comes back the same way, as isError: true, naming each problem by its path:
+
+Invalid arguments for add_cards:
+- cards[1].kind must be one of note, image, link, doc, video, audio, pdf, file (got "text")
+- boardId is not an argument here — did you mean board_id?
+
+Some near misses are read the way they were meant rather than refused: null for an optional argument means "not given", a number or true/false sent as text is read as one, a list sent as JSON text is parsed, and an enum value in the wrong case is matched.
 
 Choosing scopes for an agent
 
@@ -6375,7 +6410,7 @@ Writing
 
 Tool | Input
 create_board | name, workspace_id?, parent_board_id?, identifiers?, props?
-create_boards | boards[], on_conflict? — build a structure in one call; each entry takes the same fields as create_board
+create_boards | boards[] — up to 500, on_conflict? — build a structure in one call; each entry takes the same fields as create_board
 add_cards | board_id, cards[] — up to 1000, on_conflict?
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
@@ -6383,9 +6418,9 @@ import_urls | board_id, urls[], titles?, dry_run? — bring reference in from th
 arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
 create_group | board_id, name, color?, shape? — say a set of cards is one thing
 rename_board | board_id, name?, view?, parent_board_id?
-move_boards | board_ids[], parent_board_id
+move_boards | board_ids[] — up to 500, parent_board_id
 update_card | board_id, card_id, plus any field add_cards takes — group_id (empty to ungroup), z, rotation, section_header, and any of the eight kinds
-update_cards | board_id, cards[] — many at once
+update_cards | board_id, cards[] — up to 1000 at once, each an id and the fields to set
 move_cards | from_board_id, to_board_id, card_ids[]
 set_metadata | board_id, card_id?, identifiers?, props?
 restore_board | board_id
@@ -6394,7 +6429,7 @@ Deleting — requires the delete scope
 
 Tool | Input
 delete_card | board_id, card_id
-delete_cards | board_id, card_ids[]
+delete_cards | board_id, card_ids[] — up to 1000
 delete_board | board_id
 
 Card kind is audio, doc, file, image, link, note, pdf, video, defaulting to note.
@@ -10728,13 +10763,58 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-10-24
+Updated: 2026-10-25
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-10-25 — A new look for toolbars, and every video plays
+
+Every toolbar looks and works the same way, picking several cards brings up a bar for them, and every video, sound file and photo now plays or shows in every browser.
+
+### Toolbars
+
+- Every toolbar now looks and works the same way: glass under each bar, a gold
+  tint and ring on whatever is on, one tooltip that shows the shortcut's keys,
+  and icons where text symbols used to be. This covers the rail, the zoom, the
+  note and drawing bars, the controls along the top, right-click menus, and
+  the bars on pictures, PDFs, films and the sketch pad.
+- On a computer, picking two or more cards brings up a bar along the bottom
+  of the board: **Tidy up**, **Align**, **Group**, **New cluster from N
+  cards**, **Move N cards to…**, **⋯** and **Delete**. See
+  [selection](/docs/canvas#selection).
+- Under a finger, every bar's buttons are finger-sized.
+
+### Video, sound and photos
+
+- Every video and audio file plays in every browser. A file your browser
+  can't play, such as ProRes, HEVC, MKV, AVI or WMV, gets a copy that plays,
+  made once and used by the card, Quick look, the review player and shared
+  links. While it's being made, the player says so. See
+  [video and audio](/docs/files/video-and-audio).
+- Photos some browsers can't show, such as HEIC and HEIF from a phone, TIFF,
+  JPEG XL, OpenEXR and JPEG 2000, now show in every browser: on the card, in
+  Files, in Quick look and in the lightbox. The view keeps no camera, software
+  or location details. See [images](/docs/canvas/images).
+- **Download** still gives you the original file, and the copies never count
+  toward your storage.
+
+### Also
+
+- **Referenced by** no longer reads "No references yet." for some documents
+  that other cards do link to.
+- When an AI assistant or a script edits a card through the API or MCP, the
+  card changes in place: a document open in someone's editor keeps working,
+  comments keep their place in the text, and other people's edits to the card
+  aren't lost.
+- MCP tools check what they're sent before they run, and a refusal says what
+  to fix: the field that was meant, the choices a field takes, or when to try
+  again. Results come back as compact JSON, the same data in fewer tokens.
+  The [MCP page](/docs/mcp) says how many boards and cards each batch tool
+  takes.
 
 ## 2026-10-24 — A new look for documents
 

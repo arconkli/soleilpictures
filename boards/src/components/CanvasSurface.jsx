@@ -73,8 +73,8 @@ const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'))
 // at its first open and stays mounted from then on (lib/lazyPanel.jsx).
 const SketchPadOverlay = lazyPanel(() => import('./SketchPadOverlay.jsx').then(m => ({ default: m.SketchPadOverlay })));
 const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then(m => ({ default: m.GridTemplatePanel })));
-// The selection's bar in the toolbar look (held: lib/looks.js), a chunk
-// today's look never fetches.
+// The selection's bar in the toolbar look (lib/looks.js), a chunk today's
+// bars (on dev, the hold set to '0') never fetch.
 const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
 
@@ -86,7 +86,7 @@ import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { EditableText } from './EditableText.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
-import { ToolOptionsBar } from './ToolOptionsBar.jsx';
+import { ToolOptionsBar, useCanvasBarsA } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
@@ -3294,7 +3294,7 @@ export function CanvasSurface({
     }
     const res = mutators.applyGridLayout?.(templateTargetIdRef.current, row.tree, row.hints || null);
     if (!res) {
-      feedback.toast({ type: 'error', message: 'Could not apply that template.' });
+      feedback.toast({ type: 'error', code: 'template_apply_failed', message: 'Could not apply that template.' });
       return;
     }
     const um = mutators.undoManager;
@@ -3340,7 +3340,7 @@ export function CanvasSurface({
     const layout = card.templateId ? gridTemplates?.[card.templateId]?.layout : card.layout;
     const textStyle = card.templateId ? gridTemplates?.[card.templateId]?.textStyle : card.textStyle;
     const clean = sanitizeLayout(layout);
-    if (!clean) { feedback.toast({ type: 'error', message: 'That grid has no layout to save.' }); return; }
+    if (!clean) { feedback.toast({ type: 'error', code: 'template_no_layout', message: 'That grid has no layout to save.' }); return; }
     // The card's own proportions ride along, so a grid you built as a storyboard
     // comes back as one. Read here rather than at submit for the same reason the
     // layout is: the selection can change while the dialog is up.
@@ -3352,7 +3352,7 @@ export function CanvasSurface({
     setSaveTplLayout(null);
     if (!pending || !userId) return;
     const body = bodyFromGrid(pending.layout, pending.textStyle, hints, pending.size);
-    if (!body) { feedback.toast({ type: 'error', message: 'Could not read that grid.' }); return; }
+    if (!body) { feedback.toast({ type: 'error', code: 'template_read_failed', message: 'Could not read that grid.' }); return; }
     try {
       const row = await saveGridLayout({ name: name.slice(0, 80), body, scope: 'user', userId });
       const labelled = (hints || []).filter((h) => h.trim()).length;
@@ -3384,7 +3384,7 @@ export function CanvasSurface({
           : `Saved “${name}” to your templates.`,
       });
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not save that template.' });
+      feedback.toast({ type: 'error', code: 'template_save_failed', message: 'Could not save that template.' });
     }
   };
 
@@ -3400,7 +3400,7 @@ export function CanvasSurface({
         });
         if (!next || !next.trim() || next.trim() === row.name) return;
         try { await renameGridLayout(row.id, next.trim().slice(0, 80)); await reloadGridLayouts(); }
-        catch (e) { feedback.toast({ type: 'error', message: 'Could not rename: ' + (e.message || e) }); }
+        catch (e) { feedback.toast({ type: 'error', code: 'template_rename_failed', message: 'Could not rename: ' + (e.message || e) }); }
       },
     });
     if (isMine) {
@@ -3413,7 +3413,7 @@ export function CanvasSurface({
             await setGridLayoutScope(row.id, toWorkspace ? 'workspace' : 'user', workspaceId);
             await reloadGridLayouts();
             feedback.toast({ message: toWorkspace ? 'Shared with your workspace.' : 'Now private to you.' });
-          } catch (e) { feedback.toast({ type: 'error', message: 'Could not change sharing: ' + (e.message || e) }); }
+          } catch (e) { feedback.toast({ type: 'error', code: 'template_share_failed', message: 'Could not change sharing: ' + (e.message || e) }); }
         },
       });
       acts.push({
@@ -3427,7 +3427,7 @@ export function CanvasSurface({
             // fallback rather than a silent failure.
             try { await navigator.clipboard.writeText(url); feedback.toast({ message: 'Share link copied.' }); }
             catch (_) { feedback.toast({ message: url, ttl: 12000 }); }
-          } catch (e) { feedback.toast({ type: 'error', message: 'Could not create a link: ' + (e.message || e) }); }
+          } catch (e) { feedback.toast({ type: 'error', code: 'template_link_failed', message: 'Could not create a link: ' + (e.message || e) }); }
         },
       });
     }
@@ -3443,7 +3443,7 @@ export function CanvasSurface({
             await unpublishGridLayout(row.id);
             await reloadGridLayouts();
             feedback.toast({ message: 'Removed from the store.' });
-          } catch (e) { feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) }); }
+          } catch (e) { feedback.toast({ type: 'error', code: 'template_remove_failed', message: 'Could not remove: ' + (e.message || e) }); }
         },
       } : {
         id: 'publish',
@@ -3473,7 +3473,7 @@ export function CanvasSurface({
           } catch (e) {
             // The 2-cell quality gate raises 22023 with a human-readable
             // message; surfacing it verbatim beats inventing a vaguer one.
-            feedback.toast({ type: 'error', message: e.message || 'Could not publish.' });
+            feedback.toast({ type: 'error', code: 'template_publish_failed', message: e.message || 'Could not publish.' });
           }
         },
       });
@@ -3493,10 +3493,10 @@ export function CanvasSurface({
             message: `“${row.name}” deleted`,
             onUndo: async () => {
               try { await restoreGridLayout(row.id); await reloadGridLayouts(); }
-              catch (e) { feedback.toast({ type: 'error', message: 'Could not restore: ' + (e.message || e) }); }
+              catch (e) { feedback.toast({ type: 'error', code: 'template_restore_failed', message: 'Could not restore: ' + (e.message || e) }); }
             },
           });
-        } catch (e) { feedback.toast({ type: 'error', message: 'Could not delete: ' + (e.message || e) }); }
+        } catch (e) { feedback.toast({ type: 'error', code: 'template_delete_failed', message: 'Could not delete: ' + (e.message || e) }); }
       },
     });
     return acts;
@@ -4167,6 +4167,7 @@ export function CanvasSurface({
       };
       feedback.toast({
         type: 'error',
+        code: 'file_upload_failed',
         ttl: TTL,
         message: 'Upload failed: ' + (err?.message || err),
         group: 'upload-failed',
@@ -4207,7 +4208,7 @@ export function CanvasSurface({
         const dims = await readImageDims(file);
         onDropFileImage?.({ publicUrl: dims.url, width: dims.width, height: dims.height, x: cx, y: cy });
       } catch (err) {
-        feedback.toast({ type: 'error', message: 'Image failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'image_load_failed', message: 'Image failed: ' + (err.message || err) });
       }
       return;
     }
@@ -4915,7 +4916,7 @@ export function CanvasSurface({
           await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, rect);
         } catch (err) {
           console.error(err);
-          feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+          feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err.message || err) });
         }
       }
     }
@@ -5134,7 +5135,7 @@ export function CanvasSurface({
       if (target && target.h < 150) patch.h = 150;
       mutators.updateCard?.(cardId, patch);
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Cover upload failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'cover_upload_failed', message: 'Cover upload failed: ' + (err.message || err) });
     }
   }, [workspaceId, board?.id, userId, mutators, cards, feedback]);
 
@@ -5161,7 +5162,7 @@ export function CanvasSurface({
     try {
       await downloadCardAsset(card, kind, { surface: isPublic ? 'public_canvas' : 'canvas' });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Download failed: ' + (err?.message || err) });
+      feedback.toast({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
     } finally {
       if (--busy.n === 0) {
         clearTimeout(busy.timer);
@@ -6176,7 +6177,7 @@ export function CanvasSurface({
           dispatchIngestOne({ file, route: c.route, kind: c.kind }, pos.x, pos.y)
             .catch((err) => {
               console.error(err);
-              feedback.toast({ type: 'error', message: 'Upload failed: ' + (err?.message || err) });
+              feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err?.message || err) });
             });
           return;
         }
@@ -6588,7 +6589,7 @@ export function CanvasSurface({
     try {
       const imgEl = e.target?.closest?.('.ic-imgwrap')?.querySelector('img');
       if (!imgEl) {
-        feedback.toast({ type: 'error', message: 'Could not find the image element.' });
+        feedback.toast({ type: 'error', code: 'eyedrop_no_image', message: 'Could not find the image element.' });
         setEyedropFor(null);
         return;
       }
@@ -6632,6 +6633,7 @@ export function CanvasSurface({
         } catch (sampleErr) {
           feedback.toast({
             type: 'error',
+            code: 'eyedrop_cors_failed',
             message: 'In-image sampling needs CORS on the image bucket. Use “Eyedrop color (anywhere on screen)” instead.',
           });
           return;
@@ -6640,6 +6642,7 @@ export function CanvasSurface({
       if (!hex) {
         feedback.toast({
           type: 'error',
+          code: 'eyedrop_read_failed',
           message: taintedFallbackUsed
             ? 'Image bucket missing CORS headers — try “Eyedrop color (anywhere on screen)”.'
             : 'Could not read pixel.',
@@ -6651,7 +6654,7 @@ export function CanvasSurface({
       feedback.toast({ type: 'success', message: `Added ${hex} to palette.` });
     } catch (err) {
       console.error('eyedrop sample failed', err);
-      feedback.toast({ type: 'error', message: 'Sample failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'eyedrop_sample_failed', message: 'Sample failed: ' + (err.message || err) });
     } finally {
       setEyedropFor(null);
     }
@@ -6846,20 +6849,21 @@ export function CanvasSurface({
             await bulletproofRestore(board.id, b64);
             feedback.toast({
               type: 'error',
+              code: 'move_loss_restored',
               message: `Move aborted — this cluster lost ${actualDelta} cards instead of ${expectedDelta}. Restored automatically.`,
               ttl: 12000,
             });
           } else {
             // (The removed time-travel tool used to be named here; a
             // pre-drag board_versions snapshot exists server-side.)
-            feedback.toast({ type: 'error', message: 'The move caused unexpected state loss. A safety snapshot was saved — contact support to restore it.' });
+            feedback.toast({ type: 'error', code: 'move_loss_snapshot', message: 'The move caused unexpected state loss. A safety snapshot was saved — contact support to restore it.' });
           }
         } else {
-          feedback.toast({ type: 'error', message: 'The move caused unexpected state loss; manual recovery needed.' });
+          feedback.toast({ type: 'error', code: 'move_loss_manual', message: 'The move caused unexpected state loss; manual recovery needed.' });
         }
       } catch (rbErr) {
         console.error('[drag-into-board] rollback failed', rbErr);
-        feedback.toast({ type: 'error', message: 'Rollback failed: ' + (rbErr.message || rbErr) });
+        feedback.toast({ type: 'error', code: 'move_rollback_failed', message: 'Rollback failed: ' + (rbErr.message || rbErr) });
       }
       return;
     }
@@ -8464,7 +8468,7 @@ export function CanvasSurface({
           openItems.push({ id: 'open', label: 'Open link', run: () => {
             const href = openableUrl(c.link || c.source);
             if (href) window.open(href, '_blank', 'noopener');
-            else feedback.toast({ type: 'error', message: "That link can't be opened." });
+            else feedback.toast({ type: 'error', code: 'link_open_failed', message: "That link can't be opened." });
           }});
         } else if (c.kind === 'shortcut' && c.shareToken && !isPublic) {
           openItems.push({ id: 'open', label: 'Open', run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
@@ -8621,7 +8625,7 @@ export function CanvasSurface({
                 // brings its own or clears the old one (null drops the key).
                 mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null, pending: false, fileName: payload.fileName || null });
               } catch (err) {
-                feedback.toast({ type: 'error', message: 'Upload failed: ' + (err.message || err) });
+                feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err.message || err) });
               }
             };
             input.click();
@@ -8710,7 +8714,7 @@ export function CanvasSurface({
           const v = await feedback.prompt({ title: 'Generate a matrix', label: 'Columns × Rows', placeholder: '6 x 3', defaultValue: '3 x 2', confirmLabel: 'Generate' });
           if (!v) return;
           const mt = String(v).match(/(\d+)\s*[x×,]\s*(\d+)/i);
-          if (!mt) { feedback.toast({ type: 'error', message: 'Enter dimensions like 6 x 3.' }); return; }
+          if (!mt) { feedback.toast({ type: 'error', code: 'matrix_size_invalid', message: 'Enter dimensions like 6 x 3.' }); return; }
           mutators.bulkGenerateGrids?.(c.id, parseInt(mt[1], 10), parseInt(mt[2], 10));
         }});
         if (c.seqId) {
@@ -8770,7 +8774,7 @@ export function CanvasSurface({
             // Browser EyeDropper API. Falls back to a friendly toast where
             // unsupported (Firefox, Safari < 17.4 currently).
             if (typeof window === 'undefined' || !window.EyeDropper) {
-              feedback.toast({ type: 'error', message: 'Eyedropper not supported in this browser yet.' });
+              feedback.toast({ type: 'error', code: 'eyedrop_unsupported', message: 'Eyedropper not supported in this browser yet.' });
               return;
             }
             try {
@@ -8811,7 +8815,7 @@ export function CanvasSurface({
           openItems.push({ id: 'open', label: 'Open link', run: () => {
             const href = openableUrl(c.link || c.source);
             if (href) window.open(href, '_blank', 'noopener');
-            else feedback.toast({ type: 'error', message: "That link can't be opened." });
+            else feedback.toast({ type: 'error', code: 'link_open_failed', message: "That link can't be opened." });
           }});
         }
       } else if (c.kind === 'audio') {
@@ -9111,6 +9115,10 @@ export function CanvasSurface({
     del: () => selBarNow.current?.del(),
   }));
   useEffect(() => { if (toolbarLook()) SelectionBarA.warm?.(); }, []);
+  // A picked arrow's bar in the toolbar look is the look's own
+  // (components/toolbar/CanvasBarsA.jsx PickedArrowBarA, in the bars' lazy
+  // chunk, fetched as an arrow is picked); today's look keeps ArrowPopover.
+  const arrowBarA = useCanvasBarsA(toolbarLook() && selectedArrows.size === 1)?.PickedArrowBarA || null;
 
   // ── Background pointer + context ──────────────────────────────────────────
   // New-card pop-in: ids appearing after the first render get .is-new for
@@ -10202,10 +10210,10 @@ export function CanvasSurface({
             // <svg> is in the DOM before we read it.
             await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
             const svg = exportSvgRef.current?.querySelector?.('svg');
-            if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
+            if (!svg) { feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' }); return; }
             await exportBoardAsPng(svg, board?.name || 'board');
           }
-          catch (err) { feedback.toast({ type: 'error', message: 'Export failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'png_export_failed', message: 'Export failed: ' + (err.message || err) }); }
           finally { setExportSvgMounted(false); }
         }},
         { id: 'export-pdf', label: 'PDF (Save from Print)', run: async () => {
@@ -10213,10 +10221,10 @@ export function CanvasSurface({
           try {
             await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
             const svg = exportSvgRef.current?.querySelector?.('svg');
-            if (!svg) { feedback.toast({ type: 'error', message: 'Nothing to export.' }); return; }
+            if (!svg) { feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' }); return; }
             exportBoardAsPdf(svg, board?.name || 'board');
           }
-          catch (err) { feedback.toast({ type: 'error', message: 'Export failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'pdf_export_failed', message: 'Export failed: ' + (err.message || err) }); }
           finally { setExportSvgMounted(false); }
         }},
       ]},
@@ -10305,12 +10313,12 @@ export function CanvasSurface({
             await undismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id });
             refreshTags?.();
           } catch (err) {
-            feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
           }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
     }
   };
   const createAndApplyTag = async (cardId, name) => {
@@ -10320,7 +10328,7 @@ export function CanvasSurface({
       await tagCard({ workspaceId, boardId: board.id, cardId, tagId: t.id });
       refreshTags?.();
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
     }
   };
 
@@ -10539,7 +10547,7 @@ export function CanvasSurface({
     try {
       await addVoteCard({ workspaceId, boardId: board.id, author: userId, anchor, label: null });
     } catch (err) {
-      feedback.toast({ type: 'error', message: 'Add vote failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'vote_add_failed', message: 'Add vote failed: ' + (err.message || err) });
     }
   };
   const promptComment = (anchor) => {
@@ -10603,7 +10611,7 @@ export function CanvasSurface({
     } catch (err) {
       // The draft stays open with its text so a retry is one press; clearing
       // it here (in a finally) threw away what was typed (SHARE-11).
-      feedback.toast({ type: 'error', message: 'Comment failed: ' + (err.message || err) + ' — your text is still there.' });
+      feedback.toast({ type: 'error', code: 'comment_post_failed', message: 'Comment failed: ' + (err.message || err) + ' — your text is still there.' });
     }
   };
   // Helper: compute a comment's canvas-space rect for collision-avoidance.
@@ -10956,7 +10964,7 @@ export function CanvasSurface({
         const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
       }
-    } catch (e) { feedback.toast({ type: 'error', message: 'Upload failed: ' + (e.message || e) }); }
+    } catch (e) { feedback.toast({ type: 'error', code: 'cell_upload_failed', message: 'Upload failed: ' + (e.message || e) }); }
     finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
   }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill, resolveCellWriteKey, canAttemptFiles]);
   // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL
@@ -11242,7 +11250,7 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title}
+    else if (c.kind === 'video')     inner = <VideoCard src={c.src} playSrc={c.playSrc} poster={c.poster} title={c.title}
                                                         pending={!!c.pending} uploadProgress={uploadProgressById[c.id] ?? null}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
@@ -11250,7 +11258,7 @@ export function CanvasSurface({
                                                         mediaJson={c.media ? JSON.stringify(c.media) : null}
                                                         cardId={c.id} selected={isSelected} tapToPlay={!canEdit || isPublic}
                                                         onExpand={!isPublic && board?.id ? (st) => openPlayer({ boardId: board.id, cardId: c.id, time: st?.time ?? null, playing: !!st?.playing }) : null} />;
-    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
+    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} playSrc={c.playSrc} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
                                                         bpm={c.bpm} musicalKey={c.musicalKey} ext={c.ext} mime={c.mime}
                                                         onUpdate={onUpdate} autoFocus={af}
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}
@@ -11579,7 +11587,7 @@ export function CanvasSurface({
         src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
       } catch (err) { console.error('[files-move-here] open failed', err); }
       if (!src) {
-        feedback.toast({ type: 'error', message: 'Could not read that cluster — nothing was moved. Try again in a moment.' });
+        feedback.toast({ type: 'error', code: 'files_move_open_failed', message: 'Could not read that cluster — nothing was moved. Try again in a moment.' });
         return;
       }
     }
@@ -11605,7 +11613,7 @@ export function CanvasSurface({
         await src.commit(idMap);
       } catch (err) {
         console.error('[files-move-here] source update failed — copies kept', err);
-        feedback.toast({ type: 'error', ttl: 9000, message: 'Moved here, but the originals could not be removed from their cluster — they are in both places for now.' });
+        feedback.toast({ type: 'error', code: 'files_move_cleanup_failed', ttl: 9000, message: 'Moved here, but the originals could not be removed from their cluster — they are in both places for now.' });
         return;
       }
       repointComments(sourceBoardId, targetId, idMap);
@@ -11641,7 +11649,7 @@ export function CanvasSurface({
         src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
       } catch (err) { console.error('[files-copy-here] open failed', err); }
       if (!src) {
-        feedback.toast({ type: 'error', message: 'Could not read that cluster — nothing was copied. Try again in a moment.' });
+        feedback.toast({ type: 'error', code: 'files_copy_open_failed', message: 'Could not read that cluster — nothing was copied. Try again in a moment.' });
         return;
       }
     }
@@ -11731,7 +11739,7 @@ export function CanvasSurface({
       try {
         await returnToCluster(sourceBoardId, back, originals, arrowsBack);
       } catch (err) {
-        feedback.toast({ type: 'error', message: 'Undo failed — the cards stay here. ' + (err?.message || err) });
+        feedback.toast({ type: 'error', code: 'files_return_failed', message: 'Undo failed — the cards stay here. ' + (err?.message || err) });
         return;
       }
     }
@@ -11959,10 +11967,10 @@ export function CanvasSurface({
             if (droppedCard) {
               if (droppedCard.kind === 'board') {
                 tagBoard({ workspaceId, boardId: droppedCard.id, tagId: ref.id, source: 'user' })
-                  .catch(err => feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) }));
+                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
               } else {
                 tagCard({ workspaceId, boardId: board.id, cardId: droppedCard.id, tagId: ref.id, source: 'user' })
-                  .catch(err => feedback.toast({ type: 'error', message: 'Tag failed: ' + (err.message || err) }));
+                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
               }
             } else {
               feedback.toast({ type: 'info', message: 'Drop a tag onto a card or cluster to apply it.' });
@@ -13985,8 +13993,11 @@ export function CanvasSurface({
           : arrowObstacleRects.filter(r => !excludeSet.has(r.id));
         const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight, bend: a.bend }, obstacles });
         if (!built) return null;
+        // The look's bar waits for its chunk (only the first pick does).
+        const Bar = toolbarLook() ? arrowBarA : ArrowPopover;
+        if (!Bar) return null;
         return (
-          <ArrowPopover
+          <Bar
             arrow={a}
             arrowIndex={idx}
             midPoint={built.midPoint}
@@ -14844,7 +14855,7 @@ export function CanvasSurface({
                         });
                         refreshTags?.();
                       } catch (err) {
-                        feedback.toast({ type: 'error', message: 'Confirm failed: ' + (err.message || err) });
+                        feedback.toast({ type: 'error', code: 'tag_confirm_failed', message: 'Confirm failed: ' + (err.message || err) });
                       }
                     }}>
               Confirm tag
@@ -14885,12 +14896,12 @@ export function CanvasSurface({
                             await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
                             refreshTags?.();
                           } catch (err) {
-                            feedback.toast({ type: 'error', message: 'Restore failed: ' + (err.message || err) });
+                            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
                           }
                         },
                       });
                     } catch (err) {
-                      feedback.toast({ type: 'error', message: 'Remove failed: ' + (err.message || err) });
+                      feedback.toast({ type: 'error', code: 'tag_remove_failed', message: 'Remove failed: ' + (err.message || err) });
                     }
                   }}>
             Remove tag

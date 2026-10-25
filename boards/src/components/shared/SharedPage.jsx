@@ -77,7 +77,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     try { logEvent(EV.SHARED_FILE_HIDE, { hidden: true }); } catch (_) {}
     if (error) {
       setHidden((s) => { const n = new Set(s); n.delete(item.token); return n; });
-      toast({ type: 'error', message: 'Couldn’t remove it. Try again.' });
+      toast({ type: 'error', code: 'shared_file_hide_failed', message: 'Couldn’t remove it. Try again.' });
       return;
     }
     toast({
@@ -103,7 +103,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     const { data, error } = await api.stopFileShare(row.board_id, row.card_id);
     if (error || !data) {
       setStopped((s) => { const n = new Set(s); n.delete(row.token); return n; });
-      toast({ type: 'error', message: 'Couldn’t stop sharing. Try again.' });
+      toast({ type: 'error', code: 'file_share_stop_failed', message: 'Couldn’t stop sharing. Try again.' });
       return;
     }
     notifyFileShareChanged({ boardId: row.board_id, cardId: row.card_id });
@@ -121,7 +121,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
             setStopped((s) => { const n = new Set(s); n.delete(row.token); return n; });
             notifyFileShareChanged({ boardId: row.board_id, cardId: row.card_id });
           } else {
-            toast({ type: 'error', message: 'Couldn’t undo that. Share it again from the file.' });
+            toast({ type: 'error', code: 'file_share_undo_failed', message: 'Couldn’t undo that. Share it again from the file.' });
           }
         },
       },
@@ -136,7 +136,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
         message: row.link_access === 'none' ? 'Link copied. Only people added can open it.' : 'Link copied',
       });
     } catch (_) {
-      toast({ type: 'error', message: 'Couldn’t copy the link.' });
+      toast({ type: 'error', code: 'link_copy_failed', message: 'Couldn’t copy the link.' });
     }
   };
 

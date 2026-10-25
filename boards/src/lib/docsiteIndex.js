@@ -388,7 +388,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-10-21",
+    "updated": "2026-10-25",
     "navLabel": "Overview",
     "headings": [
       {
@@ -512,7 +512,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-10-21",
+    "updated": "2026-10-24",
     "navLabel": "Images",
     "headings": [
       {
@@ -564,7 +564,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does it handle photos straight off an iPhone?",
-        "a": "Yes, including HEIC and HEIF, even when the browser reports no file type at all."
+        "a": "Yes. HEIC and HEIF show in every browser, not only Safari, even when the browser reports no file type at all."
+      },
+      {
+        "q": "Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?",
+        "a": "Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file."
       }
     ]
   },
@@ -696,7 +700,7 @@ export const DOCS_PAGES = [
     "answer": "Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.",
     "section": "canvas",
     "order": 5,
-    "updated": "2026-08-08",
+    "updated": "2026-10-25",
     "navLabel": "Arrows",
     "headings": [
       {
@@ -1067,7 +1071,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-21",
+    "updated": "2026-10-24",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1196,10 +1200,10 @@ export const DOCS_PAGES = [
     "title": "Video and Audio — Soleil Clusters",
     "metaDescription": "Video and audio play inline on the canvas. Video steps frame by frame in a review player; audio draws a real waveform with cover art.",
     "h1": "Video and audio",
-    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.",
+    "answer": "Video and audio files become playable cards on the canvas, in any format. One your browser can't play, such as ProRes, MKV or AIFF, plays from a copy Clusters makes, and Download gives the original. Audio cards draw a real waveform decoded from the file, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts, and the only limit is your drive.",
     "section": "files",
     "order": 2,
-    "updated": "2026-10-22",
+    "updated": "2026-10-24",
     "navLabel": "Video and audio",
     "headings": [
       {
@@ -1243,7 +1247,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What formats work?",
-        "a": "Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere, and MP3 or WAV for sound. A video your browser can't decode still becomes a video card, which says so and offers the download."
+        "a": "Any video or audio file. H.264 in an MP4 or MOV, MP3 and WAV play as they are. A file some browser can't play, such as ProRes, HEVC, MKV, AVI, WMV or AIFF, gets a copy that every browser can, and plays from that. Download always gives you the original."
       }
     ]
   },
@@ -2942,7 +2946,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-10-20",
+    "updated": "2026-10-25",
     "navLabel": "Data and privacy",
     "headings": [
       {

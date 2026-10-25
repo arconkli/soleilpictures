@@ -71,7 +71,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       ]);
       setMembers(m); setDirectory(d); setPending(p);
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not load members: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'members_load_failed', message: 'Could not load members: ' + (e.message || e) });
     } finally {
       setLoading(false);
     }
@@ -126,7 +126,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       editorLimit.refresh();
       await onWorkspacesChanged?.();
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not remove: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'member_remove_failed', message: 'Could not remove: ' + (e.message || e) });
     }
   };
 
@@ -151,7 +151,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       await load();
       await onWorkspacesChanged?.();
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not transfer: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_transfer_failed', message: 'Could not transfer: ' + (e.message || e) });
     }
   };
 
@@ -170,7 +170,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       setPending(arr => arr.filter(x => x.id !== row.id));
       editorLimit.refresh();
     } catch (e) {
-      feedback.toast({ type: 'error', message: 'Could not revoke: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'invite_revoke_failed', message: 'Could not revoke: ' + (e.message || e) });
     }
   };
 
@@ -192,7 +192,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
     } catch (e) {
       const full = editorLimitRefusal(e);
       if (full) { feedback.toast({ type: 'warning', message: refused(full, 'workspace_invite'), ttl: 9000 }); return; }
-      feedback.toast({ type: 'error', message: 'Could not invite: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'invite_failed', message: 'Could not invite: ' + (e.message || e) });
     }
   };
 
