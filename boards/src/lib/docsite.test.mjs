@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DOCS_PAGES, DOCS_SECTIONS, DOCS_PATHS, getDocsPage, isDocsPath } from './docsiteIndex.js';
 import { DOCS_CONTENT } from './docsiteContent.js';
-import { DOCS_HTML } from './docsiteCrawlable.js';
+import { docsHtmlAsset, docsHtmlFrom } from './docsiteHtml.js';
 import * as SURFACE_MODULE from '../../scripts/lib/publicSurface.mjs';
 import { publicSurface, surfaceJson } from '../../scripts/lib/publicSurface.mjs';
 import { blocksToText, blockLinks } from '../../scripts/lib/markdown.mjs';
@@ -45,6 +45,15 @@ import { PRICING, FREE_STORAGE_LABEL, CREATOR_STORAGE_LABEL, TRIAL_STORAGE_LABEL
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '../..');
 const surface = publicSurface();
+
+// Every page's crawlable HTML, read as the Worker reads it: the page's own file
+// in the assets (public/docs-html, lib/docsiteHtml.js). Undefined for a page
+// whose file is missing or names another page.
+const docsHtmlOf = (path) => {
+  const file = resolve(BOARDS, 'public', docsHtmlAsset(path).slice(1));
+  return (existsSync(file) && docsHtmlFrom(readFileSync(file, 'utf8'), path)) || undefined;
+};
+const DOCS_HTML = Object.fromEntries(DOCS_PAGES.map((p) => [p.path, docsHtmlOf(p.path)]));
 
 // A page held off production — the template store, lib/templatePaths.js — is a
 // 404 there, so none of the "every page is linked / mirrored / indexed" tests
@@ -442,15 +451,21 @@ test('LINKS: related[] entries are real and never self-referential', () => {
 
 test('WEIGHT: worker-imported docs artifacts stay within budget', () => {
   // The Worker already carries ~370KB of registries (worker.js + seoLanding +
-  // seoListicles). Docs prose is fine on top of that, but it should not grow
-  // unnoticed — if this trips, switch the Worker to fetching the pre-rendered
-  // fragment from env.ASSETS instead of importing it.
-  const bytes = (f) => readFileSync(resolve(HERE, f), 'utf8').length;
-  const total = bytes('docsiteCrawlable.js') + bytes('docsiteIndex.js');
-  const BUDGET = 900_000;
+  // seoListicles). Of the docs it imports only the light index (meta, the
+  // sitemap): each page's prose is a file in the assets, read when that page
+  // is served (lib/docsiteHtml.js). That was this test's remedy once the
+  // bundled HTML reached its 900KB budget (2026-10-25). The index still grows
+  // with every page, so it keeps a budget of its own: if this trips, look at
+  // what the index carries before raising it.
+  const total = readFileSync(resolve(HERE, 'docsiteIndex.js'), 'utf8').length;
+  const BUDGET = 300_000;
   assert.ok(total < BUDGET,
-    `worker docs artifacts are ${(total / 1000).toFixed(0)}KB, budget ${BUDGET / 1000}KB. ` +
-    `Move the crawlable HTML to an env.ASSETS fetch rather than raising this.`);
+    `the docs index the Worker imports is ${(total / 1000).toFixed(0)}KB, budget ${BUDGET / 1000}KB. ` +
+    `Move what only React needs out of it rather than raising this.`);
+  // And no page's prose rides in the bundle again.
+  const worker = readFileSync(resolve(BOARDS, 'src/worker.js'), 'utf8');
+  assert.doesNotMatch(worker, /from\s+['"][^'"]*docsite(?:Content|Crawlable)/,
+    'the Worker imports docs prose; read it from the assets (readDocsHtml)');
 });
 
 // ── Marketing markdown mirrors ──────────────────────────────────────────────

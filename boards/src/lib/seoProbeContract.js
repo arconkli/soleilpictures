@@ -43,7 +43,7 @@ export const PROBE_ORIGIN = 'https://clusters.soleilpictures.com';
 // `source` names the artifact the Worker actually serves for that URL:
 //   { kind: 'changelog' }            CHANGELOG_HTML, injected into #seo-fallback
 //   { kind: 'listicle', path }       buildListicleCrawlableHtml(getListicleSpec(path))
-//   { kind: 'docs', path }           DOCS_HTML[path]
+//   { kind: 'docs', path }           the page's crawlable HTML, public/docs-html (docsiteHtml.js)
 //   { kind: 'pricing' }              buildPricingCrawlableHtml(), injected into
 //                                    #seo-fallback on /pricing (0350's rows 78 and 80)
 //   { kind: 'file',  path }          a committed file under boards/ served as-is

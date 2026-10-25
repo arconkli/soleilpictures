@@ -62,13 +62,14 @@ import { publicTemplateSlug, TEMPLATE_STORE_HELD, isTemplateStorePath, templateS
 import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
-// Public documentation (/docs/*). Two GENERATED modules, both built from
-// content/docs/**.md by scripts/gen-docs.mjs: the light index for meta and the
-// sitemap, and the pre-rendered crawlable HTML. The Worker deliberately does
-// NOT import the block AST (lib/docsiteContent.js) — React renders from that,
-// and pulling it in here would double the prose in this bundle for no gain.
+// Public documentation (/docs/*), GENERATED from content/docs/**.md by
+// scripts/gen-docs.mjs: the light index for meta and the sitemap is imported,
+// and each page's pre-rendered crawlable HTML is a file in the assets, read
+// when that page is served (readDocsHtml). The Worker deliberately does NOT
+// import the block AST (lib/docsiteContent.js) — React renders from that, and
+// pulling it in here would double the prose in this bundle for no gain.
 import { DOCS_PAGES, getDocsPage, isDocsPath } from './lib/docsiteIndex.js';
-import { DOCS_HTML } from './lib/docsiteCrawlable.js';
+import { docsHtmlAsset, docsHtmlFrom } from './lib/docsiteHtml.js';
 import { CHANGELOG_ENTRIES, CHANGELOG_LATEST, CHANGELOG_META, isChangelogPath } from './lib/changelogIndex.js';
 import { CHANGELOG_HTML } from './lib/changelogCrawlable.js';
 // /c/<slug> editorial article: shared model + renderer (imported by BOTH this
@@ -857,6 +858,11 @@ const worker = {
       : null;
     const exploreMatch = isPageReq ? url.pathname.match(EXPLORE_PATH_RE) : null;
     const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(failOpen('explore_list')) : null;
+    // A docs page's crawlable body, read from its own file in the assets
+    // beside the shell (never rejects; '' when missing). A HEAD has no body.
+    const docsPage = isPageReq ? getDocsPage(url.pathname) : null;
+    const docsHtmlPromise = docsPage && request.method === 'GET'
+      ? readDocsHtml(env, ctx, request, docsPage) : null;
 
     // Page URLs (no extension, not /assets/*): strip conditional headers before
     // asking ASSETS, so it always returns a full 200 document instead of a 304.
@@ -1005,8 +1011,7 @@ const worker = {
     // (/docs/api/cards.md) are real files in dist/ and were already served by
     // env.ASSETS long before we get here.
     if (isPageReq && contentType.includes('text/html') && isDocsPath(url.pathname)) {
-      const docsPage = getDocsPage(url.pathname);
-      if (docsPage) return withRevalidate(injectDocs(res, docsPage));
+      if (docsPage) return withRevalidate(injectDocs(res, docsPage, (await docsHtmlPromise) || ''));
       return notFoundResponse(res, 'Page not found — Soleil Clusters docs');
     }
 
@@ -1970,7 +1975,9 @@ function injectPublicTemplate(res, pub) {
 //
 // One shared OG card per section, not per page: 50-odd near-identical cards
 // would be churn in public/og/ for no meaningful difference in a link preview.
-function injectDocs(res, page) {
+//
+// The body comes from readDocsHtml: the page's own file in the assets.
+function injectDocs(res, page, html) {
   const canonical = `${SITE_ORIGIN}${page.path}`;
   const og = `${SITE_ORIGIN}/og/docs-${page.section}.png?v=${page.updated}`;
   const desc = page.metaDescription;
@@ -1986,7 +1993,7 @@ function injectDocs(res, page) {
     .on('meta[name="twitter:description"]', new SetContent(desc))
     .on('meta[name="twitter:image"]',       new SetContent(og))
     .on('link[rel="canonical"]',            new SetHref(canonical))
-    .on('main#seo-fallback',                new SetInnerHtml(DOCS_HTML[page.path] || ''))
+    .on('main#seo-fallback',                new SetInnerHtml(html))
     .on('head', new AppendHead(
       '<script type="application/ld+json">'
       + jsonLdSafe(buildDocsJsonLd(page, canonical)) + '</script>'
@@ -1996,6 +2003,24 @@ function injectDocs(res, page) {
       + `<link rel="alternate" type="text/markdown" href="${escapeHtml(page.path)}.md">`
     ))
     .transform(res);
+}
+
+// A docs page's crawlable body: the escaped HTML gen-docs writes to the page's
+// own file in the assets (lib/docsiteHtml.js), read here rather than bundled.
+// A page served without it keeps its meta and JSON-LD, but a crawler that runs
+// no script reads it as empty, so a miss is recorded.
+async function readDocsHtml(env, ctx, request, page) {
+  let error;
+  try {
+    const r = await env.ASSETS.fetch(new Request(new URL(docsHtmlAsset(page.path), request.url)));
+    const html = r.ok ? docsHtmlFrom(await r.text(), page.path) : null;
+    if (html != null) return html;
+    error = new Error(`no crawlable html for ${page.path} in the assets (${r.status})`);
+  } catch (e) {
+    error = e;
+  }
+  report(env, ctx, { kind: 'degraded', what: 'docs_html', error, request });
+  return '';
 }
 
 // TechArticle + BreadcrumbList (+ FAQPage where the page has one). TechArticle

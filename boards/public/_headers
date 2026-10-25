@@ -58,6 +58,12 @@ https://:worker.:subdomain.workers.dev/*
 /docs/*.md
   Cache-Control: public, max-age=300, s-maxage=3600
   Access-Control-Allow-Origin: *
+# The crawlable body of each /docs page (scripts/gen-docs.mjs), which the
+# Worker reads from here and puts inside that page's <main id="seo-fallback">.
+# Not pages: nothing links here, and an engine that found one must not index
+# it as a second copy of the page.
+/docs-html/*
+  X-Robots-Tag: noindex
 /llms.txt
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=300, s-maxage=3600

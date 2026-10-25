@@ -63,7 +63,7 @@ code enforcing it.
 |---|---|
 | `src/lib/docsiteIndex.js` | Worker meta, sitemap, React nav, tests |
 | `src/lib/docsiteContent.js` | The code-split React page only |
-| `src/lib/docsiteCrawlable.js` | The Worker's `<main id="seo-fallback">` injection |
+| `public/docs-html/**.json` | The Worker's `<main id="seo-fallback">` injection, one file per page read from the assets (`src/lib/docsiteHtml.js`), so the Worker bundles no docs prose |
 | `public/docs/**.md` | Raw Markdown for AI agents and `curl` |
 | `public/llms.txt`, `llms-full.txt` | AI agents |
 

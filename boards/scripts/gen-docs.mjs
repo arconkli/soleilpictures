@@ -7,12 +7,14 @@
 //
 //   src/lib/docsiteIndex.js      light nav/meta — Worker, React, sitemap, tests
 //   src/lib/docsiteContent.js    block AST      — the code-split React page
-//   src/lib/docsiteCrawlable.js  escaped HTML   — the Worker's <main> injection
+//   public/docs-html/**.json     escaped HTML   — the Worker's <main> injection
 //   public/docs/**.md            raw markdown   — AI agents, curl
 //   public/llms.txt + -full.txt  corpus index   — AI agents
 //
-// The Worker gets pre-rendered HTML instead of the AST so its bundle carries
-// prose and nothing else; React gets the AST so it can render real components.
+// The Worker gets pre-rendered HTML instead of the AST, one file per page that
+// it reads from the assets when it serves that page (lib/docsiteHtml.js), so
+// its bundle carries no prose at all; React gets the AST so it can render real
+// components.
 // Both derive from one parse, which is what makes server-rendered and hydrated
 // text identical — the anti-cloaking property the whole registry design exists
 // to protect (see the header of src/lib/seoLanding.js).
@@ -40,6 +42,7 @@ import {
   layoutAlgorithms as layoutAlgorithmList,
 } from './lib/publicSurface.mjs';
 
+import { docsHtmlAsset, docsHtmlFile } from '../src/lib/docsiteHtml.js';
 import { SEO_LANDING_PAGES, SEO_LANDING_LISTED } from '../src/lib/seoLanding.js';
 // The template store hold: while it is on, nothing here publishes the store —
 // no .md mirror, no llms.txt section — and any copy already on disk is removed.
@@ -1464,11 +1467,21 @@ export function isDocsPath(pathname) {
     BANNER('content/docs/**/*.md')
     + `\nexport const DOCS_CONTENT = ${JSON.stringify(Object.fromEntries(pages.map((p) => [p.path, p.blocks])), null, 1)};\n`);
 
-  // 3. Pre-escaped HTML — the Worker only. Keeps its bundle at prose weight
-  //    instead of prose + AST scaffolding.
-  write(resolve(BOARDS, 'src/lib/docsiteCrawlable.js'),
-    BANNER('content/docs/**/*.md')
-    + `\nexport const DOCS_HTML = ${JSON.stringify(Object.fromEntries(pages.map((p) => [p.path, crawlableHtml(p)])), null, 1)};\n`);
+  // 3. Pre-escaped HTML — the Worker only, one file per page in the assets,
+  //    read when that page is served (lib/docsiteHtml.js). A file no page
+  //    writes any more is removed, so a renamed page leaves nothing behind.
+  const pubHtml = resolve(BOARDS, 'public/docs-html');
+  const htmlFiles = new Set();
+  for (const p of pages) {
+    const file = resolve(BOARDS, 'public', docsHtmlAsset(p.path).slice(1));
+    htmlFiles.add(file);
+    write(file, docsHtmlFile(p.path, crawlableHtml(p)));
+  }
+  const filesIn = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [])
+    .flatMap((e) => (e.isDirectory() ? filesIn(join(dir, e.name)) : [join(dir, e.name)]));
+  for (const f of filesIn(pubHtml)) if (!htmlFiles.has(f)) unwrite(f);
+  // Where they were bundled into the Worker until 2026-10-25.
+  unwrite(resolve(BOARDS, 'src/lib/docsiteCrawlable.js'));
 
   // 4. Raw markdown mirrors at /docs/<path>.md. Fetchable with curl, quotable
   //    by an agent, and identical to what the page renders.
