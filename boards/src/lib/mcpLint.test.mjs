@@ -1,0 +1,148 @@
+// mcpLint.test.mjs — the MCP tool list, held to what a model needs to pick the
+// right tool and call it correctly the first time.
+//
+//   node --test src/lib/mcpLint.test.mjs
+//
+// A model chooses tools by reading their names, titles, hints and
+// descriptions, and calls them by reading their input schemas. None of that
+// is checked by running the tools, so it drifts: a description that names a
+// tool which was renamed, a read tool whose hints say it writes (hosts then
+// ask the person to approve every read), an array parameter with no word on
+// what goes in it, a schema keyword one host's validator rejects. Directory
+// review checks the same things. This is the cheap, static half of the
+// conformance tests; nothing here calls a model.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO } from './mcpTools.js';
+
+const HINTS = ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'];
+
+// A read tool says so in its name. 0700 admin_mcp_funnel counts writes with
+// the same pattern (mcpFunnelMigration.test.mjs holds the SQL to it).
+const READ_NAME = /^(whoami|search|fetch|resolve_identifier|board_tree|(list|get|read|view|show|export)_[a-z_]+)$/;
+
+// A word in a description that looks like a tool name: a verb, an underscore,
+// more. Field names (board_id, dry_run, has_more) don't start with a verb.
+const TOOL_LIKE = /\b((?:list|get|read|view|show|export|create|add|update|move|delete|restore|rename|set|upload|import|arrange|tag|write|share|resolve)_[a-z_]+)\b/g;
+
+// The JSON Schema every host we serve accepts. No $ref/$defs (several hosts
+// don't resolve them), no combinators (ChatGPT's and Gemini's tool schemas
+// reject or flatten them), no conditionals.
+const KEYWORDS = new Set([
+  'type', 'properties', 'required', 'items', 'enum', 'const', 'description', 'title', 'default',
+  'examples', 'minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'pattern',
+  'format', 'additionalProperties',
+]);
+const FORMATS = new Set(['uuid', 'uri', 'date-time', 'date', 'email']);
+
+// Tools that still answer without an outputSchema, so their structured result
+// is undeclared. P2 (tools 3.0) gives every tool one; this list only shrinks —
+// a new tool can't join it, and a tool that gains a schema must leave it.
+const PENDING_OUTPUT_SCHEMA = new Set([
+  'list_workspaces', 'search', 'list_boards', 'board_tree', 'get_board', 'list_deleted_boards',
+  'resolve_identifier', 'read_board', 'view_image', 'list_images', 'list_groups', 'create_group',
+  'export_board', 'get_metadata', 'list_audit', 'create_boards', 'add_cards', 'upload_image',
+  'rename_board', 'move_boards', 'update_card', 'update_cards', 'move_cards', 'set_metadata',
+  'restore_board', 'delete_card', 'delete_cards', 'delete_board', 'upload_file',
+]);
+
+const names = new Set(TOOLS.map((t) => t.name));
+
+test('names are short, plain and unique', () => {
+  assert.ok(TOOLS.length > 20, `found ${TOOLS.length} tools; the registry import is wrong`);
+  assert.equal(names.size, TOOLS.length, 'two tools share a name');
+  for (const t of TOOLS) assert.match(t.name, /^[a-z][a-z_]{1,63}$/, `${t.name}: [a-z_], at most 64`);
+  assert.ok(HOSTED_TOOLS.every((t) => !t.local), 'a local-only tool is hosted');
+});
+
+test('every tool has a title and all four hints, and the hints agree', () => {
+  for (const t of TOOLS) {
+    assert.ok(typeof t.title === 'string' && t.title.length >= 3 && t.title.length <= 60,
+      `${t.name}: a title of 3–60 characters`);
+    assert.ok(!/\.$/.test(t.title), `${t.name}: a title is a label, not a sentence`);
+    const a = t.annotations || {};
+    for (const h of HINTS) assert.equal(typeof a[h], 'boolean', `${t.name}: ${h} must be explicit`);
+    if (a.readOnlyHint) {
+      assert.equal(a.destructiveHint, false, `${t.name}: a read cannot be destructive`);
+      assert.equal(a.idempotentHint, true, `${t.name}: a read is idempotent`);
+    }
+    if (t.name.startsWith('delete_')) {
+      assert.equal(a.destructiveHint, true, `${t.name}: deleting is destructive`);
+      assert.equal(a.readOnlyHint, false, `${t.name}: deleting is not a read`);
+    }
+    assert.equal(READ_NAME.test(t.name), a.readOnlyHint,
+      `${t.name}: readOnlyHint is ${a.readOnlyHint}, but its name ${READ_NAME.test(t.name) ? 'reads' : 'writes'}`);
+  }
+});
+
+test('descriptions are long enough to choose by and name only real tools', () => {
+  for (const t of TOOLS) {
+    const d = t.description || '';
+    assert.ok(d.length >= 80 && d.length <= 1200, `${t.name}: description is ${d.length} characters (80–1200)`);
+    for (const [, word] of d.matchAll(TOOL_LIKE)) {
+      assert.ok(names.has(word), `${t.name}'s description names ${word}, which is not a tool`);
+    }
+  }
+});
+
+function walk(schema, where, visit) {
+  if (!schema || typeof schema !== 'object') return;
+  visit(schema, where);
+  for (const [k, v] of Object.entries(schema.properties || {})) walk(v, `${where}.${k}`, visit);
+  if (schema.items) walk(schema.items, `${where}[]`, visit);
+  if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+    walk(schema.additionalProperties, `${where}{}`, visit);
+  }
+}
+
+test('input schemas use only what every host accepts, and say what each field is', () => {
+  for (const t of TOOLS) {
+    const s = t.inputSchema;
+    assert.equal(s?.type, 'object', `${t.name}: inputSchema is an object`);
+    for (const r of s.required || []) {
+      assert.ok(r in (s.properties || {}), `${t.name}: requires ${r}, which it does not define`);
+    }
+    for (const [k, v] of Object.entries(s.properties || {})) {
+      assert.ok(typeof v.description === 'string' && v.description.length > 0,
+        `${t.name}.${k}: say what goes in it`);
+    }
+    walk(s, t.name, (node, where) => {
+      for (const k of Object.keys(node)) {
+        if (where !== t.name || k !== '$schema') assert.ok(KEYWORDS.has(k), `${where}: "${k}" is not a keyword every host accepts`);
+      }
+      if (node.format) assert.ok(FORMATS.has(node.format), `${where}: format "${node.format}"`);
+      if (node.enum) assert.ok(Array.isArray(node.enum) && node.enum.length > 0, `${where}: an empty enum`);
+    });
+  }
+});
+
+test('the tools without a declared result only ever get fewer', () => {
+  for (const t of TOOLS) {
+    if (!t.outputSchema) {
+      assert.ok(PENDING_OUTPUT_SCHEMA.has(t.name), `${t.name}: a new tool declares its outputSchema`);
+    } else {
+      assert.equal(t.outputSchema.type, 'object', `${t.name}: structuredContent is an object`);
+      assert.ok(!PENDING_OUTPUT_SCHEMA.has(t.name), `${t.name} has an outputSchema now: take it off PENDING_OUTPUT_SCHEMA`);
+    }
+  }
+  for (const n of PENDING_OUTPUT_SCHEMA) assert.ok(names.has(n), `PENDING_OUTPUT_SCHEMA names ${n}, which is gone`);
+});
+
+test('prompts are named and described', () => {
+  for (const p of PROMPTS) {
+    assert.match(p.name, /^[a-z][a-z_]{1,63}$/, `prompt ${p.name}`);
+    assert.ok((p.description || '').length >= 20, `prompt ${p.name}: describe it`);
+    for (const a of p.arguments || []) {
+      assert.match(a.name, /^[a-z][a-z_]*$/, `prompt ${p.name}: argument ${a.name}`);
+      assert.ok((a.description || '').length > 0, `prompt ${p.name}.${a.name}: describe it`);
+    }
+  }
+});
+
+test('the server introduces itself with a version and absolute icons', () => {
+  assert.equal(SERVER_INFO.name, 'soleil-clusters');
+  assert.match(SERVER_INFO.version, /^\d+\.\d+\.\d+$/);
+  assert.ok(SERVER_INFO.title);
+  for (const i of SERVER_INFO.icons || []) assert.match(i.src, /^https:\/\//, 'the stdio copy has no origin');
+});

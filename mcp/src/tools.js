@@ -111,7 +111,8 @@ export const TOOLS = [
   {
     name: 'list_workspaces',
     title: 'List workspaces',
-    description: 'List the Soleil Clusters workspaces this account can see.',
+    description: 'List the Soleil Clusters workspaces this account can see, with each one\'s id and name. '
+      + 'Pass a workspace id to list_boards, search or create_board to work inside one workspace.',
     annotations: READS,
     inputSchema: schema({}),
     call: (_a, { api }) => api('/workspaces'),
@@ -190,7 +191,8 @@ export const TOOLS = [
   {
     name: 'list_deleted_boards',
     title: 'List deleted boards',
-    description: 'Boards that were deleted but are still recoverable. Pair with restore_board.',
+    description: 'Boards that were deleted and can still be recovered, in one workspace or in all of them. '
+      + 'Pass a board\'s id to restore_board to bring it back with its cards.',
     annotations: READS,
     inputSchema: schema({
       workspace_id: uuid('Restrict to one workspace'),
@@ -467,6 +469,7 @@ export const TOOLS = [
       on_conflict: str('Set to "identifier" to update rather than duplicate', { enum: ['identifier'] }),
       boards: {
         type: 'array',
+        description: 'The boards to create, 1 to 500',
         minItems: 1,
         maxItems: 500,
         items: schema({
@@ -494,6 +497,7 @@ export const TOOLS = [
       on_conflict: str('Set to "identifier" to update rather than duplicate', { enum: ['identifier'] }),
       cards: {
         type: 'array',
+        description: 'The cards to add, 1 to 1000',
         minItems: 1,
         maxItems: 1000,
         items: schema({
@@ -579,7 +583,7 @@ export const TOOLS = [
       + 'than failing the whole batch.',
     annotations: EDITS,
     inputSchema: schema({
-      board_ids: { type: 'array', minItems: 1, maxItems: 500, items: { type: 'string' } },
+      board_ids: { type: 'array', description: 'The boards to move, 1 to 500', minItems: 1, maxItems: 500, items: { type: 'string' } },
       parent_board_id: { type: ['string', 'null'], description: 'null moves them to the top level' },
     }, ['board_ids']),
     call: (a, { api }) => api('/boards/move', { method: 'POST', body: a }),
@@ -638,6 +642,7 @@ export const TOOLS = [
       board_id: uuid('The board'),
       cards: {
         type: 'array',
+        description: 'The cards to change, 1 to 1000: each an id and the fields to set',
         minItems: 1,
         maxItems: 1000,
         items: looseObject({ id: str('The card to change') }),
@@ -655,7 +660,7 @@ export const TOOLS = [
     inputSchema: schema({
       from_board_id: uuid('Where the cards are now'),
       to_board_id: uuid('Where they should go'),
-      card_ids: { type: 'array', minItems: 1, items: { type: 'string' } },
+      card_ids: { type: 'array', description: 'The cards to move', minItems: 1, items: { type: 'string' } },
     }, ['from_board_id', 'to_board_id', 'card_ids']),
     call: (a, { api }) => api(`/boards/${a.from_board_id}/cards/move`,
       { method: 'POST', body: { to_board_id: a.to_board_id, card_ids: a.card_ids } }),
@@ -682,7 +687,8 @@ export const TOOLS = [
   {
     name: 'restore_board',
     title: 'Restore a deleted board',
-    description: 'Puts a deleted board back. Find candidates with list_deleted_boards.',
+    description: 'Puts a deleted board back, with its cards. If the board it lived under is still deleted, '
+      + 'it comes back under the nearest one that is not. Find candidates with list_deleted_boards.',
     annotations: EDITS,
     inputSchema: schema({ board_id: uuid('The board') }, ['board_id']),
     call: (a, { api }) => api(`/boards/${a.board_id}/restore`, { method: 'POST', body: {} }),
@@ -719,7 +725,7 @@ export const TOOLS = [
     annotations: DESTROYS,
     inputSchema: schema({
       board_id: uuid('The board'),
-      card_ids: { type: 'array', minItems: 1, maxItems: 1000, items: { type: 'string' } },
+      card_ids: { type: 'array', description: 'The cards to delete, 1 to 1000', minItems: 1, maxItems: 1000, items: { type: 'string' } },
     }, ['board_id', 'card_ids']),
     call: (a, { api }) => api(`/boards/${a.board_id}/cards`,
       { method: 'DELETE', body: { card_ids: a.card_ids } }),
