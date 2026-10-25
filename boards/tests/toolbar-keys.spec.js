@@ -9,6 +9,7 @@
 // the words to their bar, and Esc the way back to the caret.
 import { expect, test } from '@playwright/test';
 import { todaysLook } from './helpers/docFrame.js';
+import { pickArrowHead } from './helpers/arrowBar.js';
 import { colourList, inToolbarLook } from './helpers/noteBar.js';
 
 // Tab stops inside a bar: what Tab can land on, outside a menu of its own.
@@ -455,7 +456,7 @@ test('a line\'s bar names its parts, and walking through its fields writes nothi
     clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
   });
   await page.mouse.up();
-  await page.locator('.arrow-popover [title="No arrowheads"]').click();
+  await pickArrowHead(page, 'No arrowheads');
   const bar = page.locator('.tob');
   await expect(bar).toHaveAttribute('aria-label', 'Line');
   const look = await inToolbarLook(page);

@@ -696,7 +696,7 @@ export const DOCS_PAGES = [
     "answer": "Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.",
     "section": "canvas",
     "order": 5,
-    "updated": "2026-08-08",
+    "updated": "2026-10-24",
     "navLabel": "Arrows",
     "headings": [
       {

@@ -5,7 +5,7 @@ h1: Arrows
 navLabel: Arrows
 section: canvas
 order: 5
-updated: 2026-08-08
+updated: 2026-10-24
 answer: Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.
 faq:
   - q: Do arrows stay attached when I move a card?
@@ -52,10 +52,10 @@ Select an arrow and an inline toolbar appears:
 | Control | Options |
 |---|---|
 | Colour | Full [picker](/docs/canvas/palettes-and-color), presets, board palette swatches |
-| Thickness | Thin through heavy |
-| Head style | Which ends carry a head, and its shape |
+| Thickness | Thin, medium or thick |
+| Head style | No heads, one at the end, or one at each end |
 | Line | Solid or dashed |
-| Curve | How much the path bends |
+| Curve | Curved or straight |
 | Label | Text carried on the arrow itself |
 
 A label rides the arrow, so it moves with the connection instead of drifting

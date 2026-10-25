@@ -11881,7 +11881,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Thin through heavy"
+       "v": "Thin, medium or thick"
       }
      ]
     ],
@@ -11895,7 +11895,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Which ends carry a head, and its shape"
+       "v": "No heads, one at the end, or one at each end"
       }
      ]
     ],
@@ -11923,7 +11923,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "How much the path bends"
+       "v": "Curved or straight"
       }
      ]
     ],

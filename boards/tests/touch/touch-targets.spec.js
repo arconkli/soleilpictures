@@ -13,6 +13,7 @@
 // ALLOW (or its page's `allow`) with the reason; a failure prints every offender.
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { arrowBar, pickArrowHead } from '../helpers/arrowBar.js';
 
 const tapOn = async (page, sel) => {
   const el = page.locator(sel).first();
@@ -66,7 +67,7 @@ async function pickDocImage(page) {
   return true;
 }
 // An arrow drawn across the middle of an empty board, then picked: its
-// popover is up.
+// popover is up, or the look's bar (helpers/arrowBar.js).
 async function pickAnArrow(page) {
   await page.keyboard.press('a');
   const b = await page.locator('.canvas-wrap').boundingBox();
@@ -85,7 +86,7 @@ async function pickAnArrow(page) {
     clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
   });
   await page.mouse.up();
-  await page.locator('.arrow-popover').waitFor();
+  await arrowBar(page).waitFor();
 }
 
 const CLIP = readFileSync(new URL('../fixtures/media/frames-vp9.mp4', import.meta.url)).toString('base64');
@@ -273,13 +274,13 @@ const PAGES = [
       await page.locator('.tob').waitFor();
       return true;
     }, scope: '.tob' },
-  { name: 'an arrow picked', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
+  { name: 'an arrow picked', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TODAYS_BARS,
     open: async (page) => { await pickAnArrow(page); return true; }, scope: '.arrow-popover',
     dense: () => '.arrow-popover button, .arrow-popover input' },
   { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TODAYS_BARS,
     open: async (page) => {
       await pickAnArrow(page);
-      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await pickArrowHead(page, 'No arrowheads');
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return true;
     }, scope: '.tob' },
@@ -306,17 +307,29 @@ const PAGES = [
       await page.locator('.tob').waitFor();
       return true;
     }, scope: '.tob' },
+  // A picked arrow's (PickedArrowBarA), finger sized where it is, and its ⋯.
+  { name: 'an arrow picked look', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+    open: async (page) => { await pickAnArrow(page); return true; }, scope: '.tl-bar.pa-a' },
+  { name: 'an arrow picked look more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+    open: async (page) => {
+      await pickAnArrow(page);
+      const more = arrowBar(page).getByRole('button', { name: 'More arrow options' });
+      if (!(await more.count())) return false;
+      await more.tap();
+      await page.locator('.pa-more').waitFor();
+      return true;
+    }, scope: '.pa-more' },
   { name: 'line bar look', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
     open: async (page) => {
       await pickAnArrow(page);
-      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await pickArrowHead(page, 'No arrowheads');
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return true;
     }, scope: '.tob' },
   { name: 'line bar look more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
     open: async (page) => {
       await pickAnArrow(page);
-      await page.locator('.arrow-popover [title="No arrowheads"]').click();
+      await pickArrowHead(page, 'No arrowheads');
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return barMenu(page, 'More line options', '.ln-more');
     }, scope: '.ln-more' },

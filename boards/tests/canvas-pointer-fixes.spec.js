@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { arrowBar, arrowHeadPicked, pickArrowHead } from './helpers/arrowBar.js';
 import { TOKEN, routeShareBundle, routeAnalytics } from './helpers/share-fixture.js';
 
 // Canvas pointer gestures and menus: small regressions, one test each.
@@ -287,13 +288,14 @@ test('a card-to-card connector set to No arrowheads keeps its editor', async ({ 
     clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
   });
   await page.mouse.up();
-  const pop = page.locator('.arrow-popover');
+  // Its bar in either look (helpers/arrowBar.js).
+  const pop = arrowBar(page);
   await expect(pop).toBeVisible();
-  await pop.locator('[title="No arrowheads"]').click();
+  await pickArrowHead(page, 'No arrowheads');
   // Still editable: the popover stays, and the heads can come back.
   await expect(pop).toBeVisible();
-  await pop.locator('[title="Single arrowhead"]').click();
-  await expect(pop.locator('[title="Single arrowhead"]')).toHaveAttribute('aria-checked', 'true');
+  await pickArrowHead(page, 'Single arrowhead');
+  await expect.poll(() => arrowHeadPicked(page, 'Single arrowhead')).toBe(true);
 });
 
 async function zoomIntoCentre(page, notches = 12) {

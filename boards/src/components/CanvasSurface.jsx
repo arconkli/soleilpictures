@@ -86,7 +86,7 @@ import { PresenceStack } from './PresenceStack.jsx';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { EditableText } from './EditableText.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
-import { ToolOptionsBar } from './ToolOptionsBar.jsx';
+import { ToolOptionsBar, useCanvasBarsA } from './ToolOptionsBar.jsx';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
@@ -9115,6 +9115,10 @@ export function CanvasSurface({
     del: () => selBarNow.current?.del(),
   }));
   useEffect(() => { if (toolbarLook()) SelectionBarA.warm?.(); }, []);
+  // A picked arrow's bar in the toolbar look is the look's own
+  // (components/toolbar/CanvasBarsA.jsx PickedArrowBarA, in the bars' lazy
+  // chunk, fetched as an arrow is picked); today's look keeps ArrowPopover.
+  const arrowBarA = useCanvasBarsA(toolbarLook() && selectedArrows.size === 1)?.PickedArrowBarA || null;
 
   // ── Background pointer + context ──────────────────────────────────────────
   // New-card pop-in: ids appearing after the first render get .is-new for
@@ -13989,8 +13993,11 @@ export function CanvasSurface({
           : arrowObstacleRects.filter(r => !excludeSet.has(r.id));
         const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight, bend: a.bend }, obstacles });
         if (!built) return null;
+        // The look's bar waits for its chunk (only the first pick does).
+        const Bar = toolbarLook() ? arrowBarA : ArrowPopover;
+        if (!Bar) return null;
         return (
-          <ArrowPopover
+          <Bar
             arrow={a}
             arrowIndex={idx}
             midPoint={built.midPoint}

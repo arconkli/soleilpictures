@@ -9,6 +9,7 @@
 //
 // On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
+import { pickArrowHead } from './helpers/arrowBar.js';
 
 const look = (page, on) => page.addInitScript((v) => {
   try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
@@ -66,7 +67,7 @@ async function aLine(page) {
     button: 0, pointerId: 1, isPrimary: true, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
   });
   await page.mouse.up();
-  await page.locator('.arrow-popover [title="No arrowheads"]').click();
+  await pickArrowHead(page, 'No arrowheads');
   await expect(bar(page, 'Line')).toBeVisible();
 }
 
