@@ -935,6 +935,14 @@ export async function moveCardsBetweenBoards(env, {
 // caller must have established that first — /api/v1 does it by calling
 // can_write_board as the user before reaching any of this.
 
+// Apply one card's patch in place. A card whose value is not a Y.Map (a legacy
+// plain object) cannot be written key by key, so that one is rebuilt whole.
+function writeCard(cards, card, fields) {
+  const ym = cards.get(String(card.id));
+  if (ym && typeof ym.set === 'function' && typeof ym.get === 'function') writeCardFields(ym, fields);
+  else cards.set(String(card.id), cardToYMap(card));
+}
+
 // Patch one card's fields. Returns the updated card, or null if it is gone.
 // Patch MANY cards with one board open.
 //
@@ -947,14 +955,6 @@ export async function moveCardsBetweenBoards(env, {
 // with a null wherever the card did not exist.
 // requireLive (the sidebar's routes): refuse before writing unless the room is
 // live, and write board_state and card_index only once it confirms the change.
-// Apply one card's patch in place. A card whose value is not a Y.Map (a legacy
-// plain object) cannot be written key by key, so that one is rebuilt whole.
-function writeCard(cards, card, fields) {
-  const ym = cards.get(String(card.id));
-  if (ym && typeof ym.set === 'function' && typeof ym.get === 'function') writeCardFields(ym, fields);
-  else cards.set(String(card.id), cardToYMap(card));
-}
-
 export async function updateCardsOnBoard(env, {
   boardId, workspaceId, userId, accessToken, patches, requireLive = false,
 }) {
