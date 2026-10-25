@@ -37,7 +37,12 @@ const REPORT = args.includes('--report');
 // them as the speed work lands; never raise one to make a change fit without
 // saying why in the commit.
 export const CEILINGS = {
-  entryJs: 165_000,
+  // 2026-10-25: +0.5 KB for the Team plan's links (?teamjoin=, ?teaminvite=;
+  // held by teamsAllowed). The sign-in page only checks the address and the
+  // stash; capturing, claiming, the card and the note load later
+  // (components/TeamJoinCard.jsx). Most of the growth is that import's list
+  // of chunks to preload.
+  entryJs: 165_500,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only

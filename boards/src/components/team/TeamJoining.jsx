@@ -80,7 +80,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
   };
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText('https://' + joinUrl(link.token)); } catch (_) {}
+    try { await navigator.clipboard.writeText(`${live ? window.location.protocol : 'https:'}//${joinUrl(link.token, live ? window.location.host : undefined)}`); } catch (_) {}
     onToast(live ? 'Link copied.' : 'Link copied. Preview: it opens nothing yet.');
   };
 
@@ -171,7 +171,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
           <button type="button" className="tp-sw" role="switch" aria-checked={link.on} aria-label="Team link" onClick={() => setLink(!link.on)} />
         </div>
         <div className={`tp-row${link.on ? '' : ' is-off'}`}>
-          <span className="tp-copybox"><Icon as={LinkSimple} size={13} weight="regular" />{joinUrl(link.token)}</span>
+          <span className="tp-copybox"><Icon as={LinkSimple} size={13} weight="regular" />{joinUrl(link.token, live ? window.location.host : undefined)}</span>
           <button type="button" className="tp-btn tp-btn-sm" disabled={!link.on} onClick={copy}>
             <Icon as={Copy} size={12} weight="regular" />Copy
           </button>

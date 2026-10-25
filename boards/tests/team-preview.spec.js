@@ -79,7 +79,7 @@ test('as the owner, Seats & billing: seats, the monthly limit and the when-full 
 test('as the owner, Joining: the team link, the verified domain, and Send invites adds two to People', async ({ page }) => {
   const sheet = await mountPage(page);
   await tab(sheet, /Joining/).click();
-  await expect(sheet).toContainText('clusters.soleilpictures.com/join/nl-7f3k2q');
+  await expect(sheet).toContainText('clusters.soleilpictures.com/?teamjoin=nl-7f3k2q');
   await expect(sheet.locator('.tp-dom', { hasText: 'northlight.studio' })).toContainText('Verified');
   await sheet.locator('textarea.tp-ta').fill('a@x.co, b@x.co');
   await sheet.getByRole('button', { name: 'Send invites' }).click();

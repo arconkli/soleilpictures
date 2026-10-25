@@ -6180,6 +6180,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       open: (tab) => setTeamOpenWanted(tab),
     })).catch((e) => console.warn('team return', e));
   }, [teamReturn, myTeamsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The Team plan's joins that happen at boot (lib/teamBoot.js): the note a
+  // team link left, an email invite waiting from ?teaminvite=, invites to
+  // this address and a company domain that admits it.
+  useEffect(() => {
+    if (!teamsAllowed() || !user?.id) return;
+    import('./lib/teamBoot.js').then(({ runTeamBoot }) => runTeamBoot({
+      userId: user.id, email: user.email || '',
+      toast: (message) => feedback.toast({ type: 'info', message }),
+      onChanged: () => {
+        try { window.dispatchEvent(new Event('soleil:teams-changed')); } catch (_) {}
+        onWorkspacesChanged?.();
+      },
+    })).catch((e) => console.warn('team boot', e));
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Open the page once the team is in the list (after a checkout it arrives
   // with the reload).
   useEffect(() => {

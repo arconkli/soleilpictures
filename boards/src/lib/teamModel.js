@@ -220,8 +220,9 @@ export function dateLabel(ms) {
   return new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-export function joinUrl(token) {
-  return `clusters.soleilpictures.com/join/${token}`;
+// The link AuthGate captures (lib/teamLinks.js); a live team on preview passes its own host.
+export function joinUrl(token, host = 'clusters.soleilpictures.com') {
+  return `${host}/?teamjoin=${token}`;
 }
 
 // ── The test team's answers to clicks (look only) ───────────────────────

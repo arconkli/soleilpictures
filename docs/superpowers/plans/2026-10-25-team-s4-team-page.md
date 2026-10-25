@@ -162,17 +162,16 @@ its test owners.
 
 ## Task 7: joining
 
-- [ ] `joinUrl(token)` becomes `${origin}/?teamjoin=${token}`. AuthGate captures `?teamjoin=` and
-  `?teaminvite=` like `?wsjoin=`; after sign-in, `peek_team_link` names the team on a join card
-  (WorkspaceJoinCard's look), and Join calls `claim_team_link`; an email invite calls
-  `accept_team_invite` (a session that can't prove the inbox is asked to sign in with the code).
-- [ ] After every sign-in, `claim_my_team_invites()` once.
-- [ ] The domain ask: `my_team_offers()` at boot; one dialog, "Northlight Films uses your company's
-  email. Join the team?", answered with `answer_team_offer`. **Mockup first** (one artifact; the
-  owner picks), in the small-things look. An offer in `auto` mode (an account made after the domain
-  was verified) joins without asking and says so in a toast.
-- [ ] A member without a seat asks for edit from a team workspace (`ask_team_for_edit`); admins see it
-  in People (Task 4).
+- [x] `joinUrl(token, host)` is `${host}/?teamjoin=${token}` (a live team on preview shows its own host). AuthGate
+  sees `?teamjoin=` / `?teaminvite=` and hands them to a lazy module (`components/TeamJoinCard.jsx`: capture into
+  the stash like `?wsjoin=`, the sign-in note, the signed-in card, the claim after a sign-in by the form); the
+  entry keeps only the address and stash checks. The card asks; signing in from the link's sign-in page is the
+  yes. An email invite is accepted by App at boot (`lib/teamBoot.js`; the email's "Join the team" is the yes).
+- [x] At boot, once per tab session: `claim_my_team_invites()`, then `my_team_offers()`, whose `auto` offers
+  join with a toast naming the company domain. Every outcome is one toast (`teamCopy.js`).
+- [ ] The domain ask for `ask` offers: the mockup is on the Team canvas (A dialog, B corner note, C menu row);
+  built once the owner picks.
+- [ ] A member without a seat asks for edit from a team workspace (`ask_team_for_edit`): needs a mockup.
 
 ## Task 8: team workspaces
 

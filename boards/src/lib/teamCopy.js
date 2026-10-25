@@ -113,3 +113,52 @@ function trialMs(v) {
   const n = Date.parse(v);
   return Number.isNaN(n) ? Date.now() : n;
 }
+
+// ── Joining a team by its link or an invite ─────────────────────────────
+
+// What a join answered, as one line; null for a status with nothing to say.
+export function teamJoinLine(status, teamName, role) {
+  const name = teamName || 'the team';
+  switch (status) {
+    case 'joined':
+      return role === 'viewer'
+        ? `You joined ${name} as a viewer. Its workspaces are in your workspace menu.`
+        : `You’re in ${name}. Its workspaces are in your workspace menu.`;
+    case 'requested': return `You’re in ${name} as a viewer for now. We asked its admins for a seat for you.`;
+    case 'already': return `You’re already in ${name}.`;
+    case 'off':
+    case 'not_found': return 'That team link no longer works. Ask the team for a new one.';
+    case 'removed': return `This link can’t add you back to ${name}. Ask one of its admins to invite you.`;
+    case 'revoked': return 'That team invite was withdrawn. Ask the team for a new one.';
+    case 'expired': return 'That team invite has expired. Ask the team for a new one.';
+    default: return null;
+  }
+}
+
+// A company's team that admitted this account by its email domain.
+export function teamDomainJoinLine(teamName, domain) {
+  const name = teamName || 'the team';
+  return domain
+    ? `You joined ${name}, your company’s team, because you signed up with a ${domain} email. Its workspaces are in your workspace menu.`
+    : `You joined ${name}, your company’s team. Its workspaces are in your workspace menu.`;
+}
+
+// Why accept_team_invite refused.
+export function teamInviteRefusalLine(err) {
+  if (err && err.hint === 'team_inbox_unproven') {
+    return 'To join that team, sign in again with a code sent to the address the invite went to.';
+  }
+  if (err && err.code === '42501' && /different email/i.test(String(err.message || ''))) {
+    return 'That team invite went to a different email address. Sign out, then sign in with that address to join.';
+  }
+  if (err && err.code === 'P0002') return 'That team invite no longer works. Ask the team for a new one.';
+  return DEFAULT_LINE;
+}
+
+// claim_my_team_invites joined this many teams.
+export function teamInvitesClaimedLine(n) {
+  if (!(n >= 1)) return null;
+  return n === 1
+    ? 'You joined a team you were invited to. Its workspaces are in your workspace menu.'
+    : `You joined ${n} teams you were invited to. Their workspaces are in your workspace menu.`;
+}
