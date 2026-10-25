@@ -3307,7 +3307,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.",
     "section": "developers",
     "order": 3,
-    "updated": "2026-10-24",
+    "updated": "2026-10-25",
     "navLabel": "OAuth",
     "headings": [
       {
@@ -3337,6 +3337,10 @@ export const DOCS_PAGES = [
       {
         "id": "what-a-token-can-reach",
         "text": "What a token can reach"
+      },
+      {
+        "id": "limits",
+        "text": "Limits"
       },
       {
         "id": "errors",

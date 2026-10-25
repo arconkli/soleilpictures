@@ -37,6 +37,29 @@ async function sha256Hex(input) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// The database's refusals, remembered in this isolate by token hash, so a
+// client retrying in a loop is not refused by a round trip every time: a token
+// past its window until the reset that window names (at most ten minutes on),
+// and a token that is unknown, revoked or expired for a minute. The answers are
+// the database's own, word for word, so a client cannot tell the two apart;
+// only the work behind them is saved.
+const REFUSED_TTL_MS = 60_000;
+const OVER_WINDOW_MAX_MS = 10 * 60_000;
+const _refused = new Map();   // token hash → { until, answer }
+
+function rememberRefusal(hash, answer, until) {
+  if (_refused.size > 5000) _refused.clear();
+  _refused.set(hash, { until, answer });
+}
+
+function refusalFor(hash) {
+  const hit = _refused.get(hash);
+  if (!hit) return null;
+  if (hit.until > Date.now()) return { ...hit.answer };
+  _refused.delete(hash);
+  return null;
+}
+
 // Resolve `Authorization: Bearer sk_live_…` to { userId, tokenId, scopes }.
 //
 // api_token_resolve does authentication, expiry, revocation, last_used and the
@@ -52,9 +75,13 @@ export async function resolveApiToken(request, env) {
     return { ok: false, status: 401, error: 'invalid token' };
   }
 
+  const hash = await sha256Hex(presented);
+  const known = refusalFor(hash);
+  if (known) return known;
+
   let rows;
   try {
-    rows = await scoutRpc(env, 'api_token_resolve', { p_token_hash: await sha256Hex(presented) });
+    rows = await scoutRpc(env, 'api_token_resolve', { p_token_hash: hash });
   } catch (_) {
     return { ok: false, status: 502, error: 'could not verify that token' };
   }
@@ -70,13 +97,20 @@ export async function resolveApiToken(request, env) {
   };
 
   if (row.reason === 'rate_limited') {
-    return { ok: false, status: 429, code: 'rate_limited', rate,
+    const answer = { ok: false, status: 429, code: 'rate_limited', rate,
       error: 'rate limit exceeded — try again shortly' };
+    const reset = Date.parse(rate.reset || '');
+    if (Number.isFinite(reset)) {
+      rememberRefusal(hash, answer, Math.min(reset, Date.now() + OVER_WINDOW_MAX_MS));
+    }
+    return answer;
   }
   // unknown / revoked / expired all answer the same way. Distinguishing them
   // tells someone holding a stolen token which of their guesses was once real.
   if (!row.user_id) {
-    return { ok: false, status: 401, code: 'invalid_token', rate, error: 'invalid token' };
+    const answer = { ok: false, status: 401, code: 'invalid_token', rate, error: 'invalid token' };
+    rememberRefusal(hash, answer, Date.now() + REFUSED_TTL_MS);
+    return answer;
   }
 
   return {

@@ -5,7 +5,7 @@ h1: Connecting an app (OAuth)
 navLabel: OAuth
 section: developers
 order: 3
-updated: 2026-10-24
+updated: 2026-10-25
 answer: Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last {{fact:oauthAccessTtl}} with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.
 faq:
   - q: Do I need to register an application first?
@@ -249,6 +249,21 @@ own database session, under ordinary row-level security, by the same code path
 a personal access token uses. There is no separate permission model to get
 wrong: if they cannot see a cluster, neither can anything they connect.
 
+## Limits
+
+Each is counted per address:
+
+| | |
+|---|---|
+| `POST /oauth/register` | {{fact:oauthRegisterPerMinute}} a minute, and {{fact:oauthRegistrationsPerHour}} new clients an hour (a metadata document read for the first time counts as one) |
+| `POST /oauth/token` and `/oauth/revoke` | {{fact:oauthTokenPerMinute}} a minute between them |
+| Reading a metadata document from its host | {{fact:oauthLookupPerMinute}} a minute |
+
+Past one, the answer is `429` with `temporarily_unavailable`, and a
+`retry-after` in seconds on the per-minute ones. Those are kept in each
+Cloudflare location, so they are approximate: they are there to stop a loop,
+and a client that refreshes when its token runs out never meets them.
+
 ## Errors
 
 Failures use the OAuth shape, so a client can branch on them:
@@ -265,7 +280,7 @@ Failures use the OAuth shape, so a client can branch on them:
 | `invalid_redirect_uri` | Registration was refused — see the shape rules above |
 | `invalid_target` | The `resource` named is not served here |
 | `unsupported_grant_type` | Only `authorization_code` and `refresh_token` exist |
-| `temporarily_unavailable` | `503` (or `429` when one address looks up too many new clients). We, or your metadata document's host, did not answer. Retry; it is never a reason to throw a connection away |
+| `temporarily_unavailable` | `503` when we, or your metadata document's host, did not answer; `429` when an address goes past one of the [limits](#limits). Retry, after `retry-after` when there is one; it is never a reason to throw a connection away |
 
 A bad `redirect_uri` is **never** redirected to. If the URI is not one the
 client registered, the person sees an error page and nothing is sent anywhere —
@@ -281,4 +296,4 @@ curl -X POST {{fact:siteOrigin}}/oauth/revoke -d token=rt_… -d client_id=solei
 Always answers `200`, even for a token that was never valid, per
 [RFC 7009](https://datatracker.ietf.org/doc/html/rfc7009). Saying "no such
 token" would turn the endpoint into a way to test whether a stolen string is
-live.
+live. (A `429` says only that the address went past its [limit](#limits).)

@@ -32,7 +32,8 @@
 import { userRpc } from './lib/apiAuth.js';
 import { scoutRpc } from './lib/scoutDb.js';
 import { publicHttpsUrlProblem, fetchFollowingSafely, UnsafeFetchError } from './lib/safeUrl.js';
-import { readCapped, makeRateLimiter } from './lib/webImageSave.js';
+import { readCapped } from './lib/webImageSave.js';
+import { makeEdgeLimiter } from './lib/edgeLimits.js';
 import {
   MAX_REDIRECT_URIS, METADATA_MAX_BYTES, METADATA_TIMEOUT_MS,
   redirectUriProblem, isMetadataClientId, clientKind, clientHost,
@@ -72,8 +73,11 @@ const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(b
 // OAuth errors have a defined shape (RFC 6749 §5.2) and clients branch on
 // `error`. A prose message under some other key is not something they can act
 // on, so every failure out of this file uses it.
-const oauthError = (error, description, status = 400) =>
-  json({ error, error_description: description }, status);
+const oauthError = (error, description, status = 400, headers = {}) =>
+  json({ error, error_description: description }, status, headers);
+
+// Retry-After for an answer that knows how long to wait (a limit's refusal).
+const retryAfter = (r) => (r?.retryAfter ? { 'retry-after': String(r.retryAfter) } : {});
 
 // A refused grant, said safely. scoutRpc throws "rpc oauth_code_redeem 400:
 // {…PostgREST envelope…}", and that whole string used to go out as the
@@ -199,8 +203,9 @@ async function getClient(env, clientId, { refresh = false, ip = null } = {}) {
   const expires = Date.parse(row?.metadata_expires_at || '');
   if (row && expires > Date.now()) return { client: row };
 
-  if (!metadataFetchAllow(ip || 'unknown')) {
-    return { error: 'temporarily_unavailable', detail: 'too many client lookups from this address — try again in a minute', status: 429 };
+  const gate = await lookupAllow(env, ip);
+  if (!gate.ok) {
+    return { error: 'temporarily_unavailable', detail: 'too many client lookups from this address — try again in a minute', status: 429, retryAfter: gate.retryAfter };
   }
   const got = await fetchClientMetadata(clientId);
   if (got.problem) {
@@ -239,9 +244,9 @@ async function getClient(env, clientId, { refresh = false, ip = null } = {}) {
 const METADATA_GRACE_MS = 24 * 3600 * 1000;
 
 // Each lookup fetches a URL somebody typed, so an address gets a handful a
-// minute. Per isolate: it bounds a loop, not a determined crowd, and the per
+// minute, counted across the location's isolates (lib/edgeLimits.js); the per
 // address registration limit in oauth_client_upsert_cimd is the durable one.
-const metadataFetchAllow = makeRateLimiter({ perMinute: 10 });
+const lookupAllow = makeEdgeLimiter('OAUTH_LOOKUP');
 
 // Fetch and check a metadata document: { meta, ttl } or { problem, transient }.
 // `problem` completes "the client metadata document at <url> …"; `transient`
@@ -320,6 +325,16 @@ async function authenticateClient(env, params, request) {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
+// Requests per address at the endpoints that reach the database before anyone
+// has proven anything (lib/edgeLimits.js). A refusal is a 429 with
+// Retry-After, worded temporarily_unavailable: no OAuth error names a rate
+// limit, and that one is already retried.
+const registerAllow = makeEdgeLimiter('OAUTH_REGISTER');
+const tokenAllow = makeEdgeLimiter('OAUTH_TOKEN');
+const tooMany = (gate, what) => oauthError('temporarily_unavailable',
+  `too many ${what} from this address — try again in ${gate.retryAfter} seconds`,
+  429, retryAfter(gate));
+
 export function isOAuthRoute(pathname) {
   return pathname.startsWith('/oauth/')
     || pathname === '/.well-known/oauth-authorization-server'
@@ -360,6 +375,8 @@ export async function handleOAuthRoute(url, request, env) {
     if (request.method !== 'POST') {
       return oauthError('invalid_request', 'POST client metadata to register', 405);
     }
+    const gate = await registerAllow(env, clientIp(request));
+    if (!gate.ok) return tooMany(gate, 'registrations');
     let meta;
     try { meta = await request.json(); } catch { meta = null; }
     if (!meta || typeof meta !== 'object') {
@@ -412,8 +429,11 @@ export async function handleOAuthRoute(url, request, env) {
       });
       row = Array.isArray(rows) ? rows[0] : rows;
     } catch (e) {
-      if (/too many client registrations/i.test(e?.message || '')) {
-        return oauthError('invalid_client_metadata', e.message, 429);
+      // 0701's count of new clients per address an hour, in its own words:
+      // e.message is scoutRpc's whole envelope, SQLSTATE and all.
+      if (/too many client registrations/i.test(e?.body || e?.message || '')) {
+        return oauthError('temporarily_unavailable',
+          'too many new clients from this address — try again later', 429);
       }
       return oauthError('server_error', 'could not register that client', 500);
     }
@@ -444,7 +464,7 @@ export async function handleOAuthRoute(url, request, env) {
     const redirectUri = url.searchParams.get('redirect_uri') || '';
     const found = await getClient(env, clientId, { refresh: true, ip: clientIp(request) });
     if (found.error) {
-      return oauthError(found.error, found.detail, found.status || 404);
+      return oauthError(found.error, found.detail, found.status || 404, retryAfter(found));
     }
     const row = found.client;
     return json({
@@ -506,7 +526,7 @@ export async function handleOAuthRoute(url, request, env) {
     // just the row.
     if (isMetadataClientId(clientId)) {
       const found = await getClient(env, clientId, { refresh: true, ip: clientIp(request) });
-      if (found.error) return oauthError(found.error, found.detail, found.status || 400);
+      if (found.error) return oauthError(found.error, found.detail, found.status || 400, retryAfter(found));
     }
 
     const code = `ac_${randomHex(32)}`;
@@ -571,6 +591,8 @@ export async function handleOAuthRoute(url, request, env) {
     if (request.method !== 'POST') {
       return oauthError('invalid_request', 'POST form-encoded parameters', 405);
     }
+    const gate = await tokenAllow(env, clientIp(request));
+    if (!gate.ok) return tooMany(gate, 'token requests');
     const params = await readForm(request);
     if (!params) return oauthError('invalid_request', 'could not read the request body');
 
@@ -655,11 +677,13 @@ export async function handleOAuthRoute(url, request, env) {
   //
   // Always answers 200, even for a token that was never valid. Saying "no such
   // token" turns this endpoint into an oracle for checking whether a stolen
-  // string is live.
+  // string is live. It shares /oauth/token's limit per address.
   if (pathname === '/oauth/revoke') {
     if (request.method !== 'POST') {
       return oauthError('invalid_request', 'POST form-encoded parameters', 405);
     }
+    const gate = await tokenAllow(env, clientIp(request));
+    if (!gate.ok) return tooMany(gate, 'token requests');
     const params = await readForm(request);
     if (!params) return oauthError('invalid_request', 'could not read the request body');
     const authed = await authenticateClient(env, params, request);

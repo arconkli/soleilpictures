@@ -52610,6 +52610,129 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
+   "id": "limits"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each is counted per address:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /oauth/register"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10 a minute, and 20 new clients an hour (a metadata document read for the first time counts as one)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /oauth/token"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "/oauth/revoke"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "120 a minute between them"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Reading a metadata document from its host"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10 a minute"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Past one, the answer is "
+    },
+    {
+     "t": "code",
+     "v": "429"
+    },
+    {
+     "t": "text",
+     "v": " with "
+    },
+    {
+     "t": "code",
+     "v": "temporarily_unavailable"
+    },
+    {
+     "t": "text",
+     "v": ", and a "
+    },
+    {
+     "t": "code",
+     "v": "retry-after"
+    },
+    {
+     "t": "text",
+     "v": " in seconds on the per-minute ones. Those are kept in each Cloudflare location, so they are approximate: they are there to stop a loop, and a client that refreshes when its token runs out never meets them."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Errors",
    "inline": [
     {
@@ -52788,7 +52911,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " (or "
+       "v": " when we, or your metadata document's host, did not answer; "
       },
       {
        "t": "code",
@@ -52796,7 +52919,30 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " when one address looks up too many new clients). We, or your metadata document's host, did not answer. Retry; it is never a reason to throw a connection away"
+       "v": " when an address goes past one of the "
+      },
+      {
+       "t": "link",
+       "v": "limits",
+       "href": "#limits",
+       "children": [
+        {
+         "t": "text",
+         "v": "limits"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ". Retry, after "
+      },
+      {
+       "t": "code",
+       "v": "retry-after"
+      },
+      {
+       "t": "text",
+       "v": " when there is one; it is never a reason to throw a connection away"
       }
      ]
     ]
@@ -52878,7 +53024,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Saying \"no such token\" would turn the endpoint into a way to test whether a stolen string is live."
+     "v": ". Saying \"no such token\" would turn the endpoint into a way to test whether a stolen string is live. (A "
+    },
+    {
+     "t": "code",
+     "v": "429"
+    },
+    {
+     "t": "text",
+     "v": " says only that the address went past its "
+    },
+    {
+     "t": "link",
+     "v": "limit",
+     "href": "#limits",
+     "children": [
+      {
+       "t": "text",
+       "v": "limit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ".)"
     }
    ]
   }

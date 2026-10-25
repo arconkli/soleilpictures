@@ -418,6 +418,17 @@ export function apiFacts() {
   };
   const connections = oauthSqlPick(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/, 'connection cap');
 
+  // New clients per address an hour: oauth_client_register (0224) counts the
+  // rows an address created, and a metadata document's first sight (0701)
+  // counts against the same number. Two copies of one rule, held equal here.
+  const registerSql = read('supabase/migrations/0224_oauth_authorization_server.sql');
+  const registrations = registerSql.match(/where created_ip = p_ip and created_at > now\(\) - interval '1 hour'\s*\) >= (\d+) then/);
+  if (!registrations) throw new Error('publicSurface: registration cap not found in 0224_oauth_authorization_server.sql');
+  const firstSights = oauthSqlPick(/c\.created_ip = p_ip and c\.created_at > now\(\) - interval '1 hour'\) >= (\d+) then/, 'first-sight cap');
+  if (firstSights !== Number(registrations[1])) {
+    throw new Error(`publicSurface: 0224 allows ${registrations[1]} registrations an hour but 0701 counts ${firstSights} — the docs state one number`);
+  }
+
   // A metadata document's limits live beside the code that enforces them.
   const clientsSrc = read('boards/src/lib/oauthClients.js');
   const clientsPick = (re, what) => {
@@ -463,6 +474,7 @@ export function apiFacts() {
     oauthMetadataCacheMinMinutes: clientsPick(/export const METADATA_CACHE_MIN_SECONDS = (\d+)/, 'METADATA_CACHE_MIN_SECONDS') / 60,
     oauthMetadataCacheMaxHours: clientsPick(/export const METADATA_CACHE_MAX_SECONDS = (\d+)/, 'METADATA_CACHE_MAX_SECONDS') / 3600,
     maxConnectedApps: connections,
+    oauthRegistrationsPerHour: firstSights,
   };
 }
 

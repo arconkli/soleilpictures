@@ -72,6 +72,7 @@ import { CLUSTER_FILE_CEILING } from '../src/lib/importPlan.js';
 import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
+import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
@@ -170,6 +171,14 @@ if (!addonMax || Number(addonMax[1]) !== STORAGE_ADDON_MAX_BLOCKS) {
   throw new Error(`gen-docs: STORAGE_ADDON_MAX_BLOCKS ${STORAGE_ADDON_MAX_BLOCKS} does not match the maximum in the migration defining _storage_addon_max_blocks`);
 }
 const api = apiFacts();
+
+// An edge limit the docs state "a minute" (lib/edgeLimits.js): its period has
+// to be one, or the sentence is wrong.
+const perMinute = (name) => {
+  const { limit, period } = EDGE_LIMITS[name];
+  if (period !== 60) throw new Error(`gen-docs: ${name} counts per ${period} seconds; the docs say a minute`);
+  return String(limit);
+};
 
 // The invite limits (migration 0358 and anything later that redefines the
 // function): read from the LATEST migration that defines _invite_budget_take,
@@ -495,6 +504,12 @@ export const FACTS = {
   oauthMetadataMaxSize: `${api.oauthMetadataMaxKb} KB`,
   oauthMetadataCacheMin: `${api.oauthMetadataCacheMinMinutes} minutes`,
   oauthMetadataCacheMax: `${api.oauthMetadataCacheMaxHours} hours`,
+  // Requests per address a minute at the OAuth endpoints (lib/edgeLimits.js),
+  // and new clients per address an hour (0224; 0701 counts documents with it).
+  oauthRegisterPerMinute: perMinute('OAUTH_REGISTER'),
+  oauthTokenPerMinute: perMinute('OAUTH_TOKEN'),
+  oauthLookupPerMinute: perMinute('OAUTH_LOOKUP'),
+  oauthRegistrationsPerHour: String(api.oauthRegistrationsPerHour),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

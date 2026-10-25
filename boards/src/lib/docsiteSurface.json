@@ -317,7 +317,8 @@
     "oauthMetadataMaxKb": 5,
     "oauthMetadataCacheMinMinutes": 5,
     "oauthMetadataCacheMaxHours": 24,
-    "maxConnectedApps": 20
+    "maxConnectedApps": 20,
+    "oauthRegistrationsPerHour": 20
   },
   "settingsTabs": [
     {

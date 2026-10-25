@@ -5209,7 +5209,7 @@ A: Usually. DELETE is a soft delete and POST /boards/:id/restore puts it back, w
 ========================================================================
 # Connecting an app (OAuth)
 URL: https://clusters.soleilpictures.com/docs/api/oauth
-Updated: 2026-10-24
+Updated: 2026-10-25
 
 Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.
 
@@ -5357,6 +5357,17 @@ What a token can reach
 
 Exactly what the person can reach. An OAuth access token is resolved to their own database session, under ordinary row-level security, by the same code path a personal access token uses. There is no separate permission model to get wrong: if they cannot see a cluster, neither can anything they connect.
 
+Limits
+
+Each is counted per address:
+
+ | 
+POST /oauth/register | 10 a minute, and 20 new clients an hour (a metadata document read for the first time counts as one)
+POST /oauth/token and /oauth/revoke | 120 a minute between them
+Reading a metadata document from its host | 10 a minute
+
+Past one, the answer is 429 with temporarily_unavailable, and a retry-after in seconds on the per-minute ones. Those are kept in each Cloudflare location, so they are approximate: they are there to stop a loop, and a client that refreshes when its token runs out never meets them.
+
 Errors
 
 Failures use the OAuth shape, so a client can branch on them:
@@ -5370,7 +5381,7 @@ invalid_request | A required parameter is missing or malformed
 invalid_redirect_uri | Registration was refused — see the shape rules above
 invalid_target | The resource named is not served here
 unsupported_grant_type | Only authorization_code and refresh_token exist
-temporarily_unavailable | 503 (or 429 when one address looks up too many new clients). We, or your metadata document's host, did not answer. Retry; it is never a reason to throw a connection away
+temporarily_unavailable | 503 when we, or your metadata document's host, did not answer; 429 when an address goes past one of the limits. Retry, after retry-after when there is one; it is never a reason to throw a connection away
 
 A bad redirect_uri is never redirected to. If the URI is not one the client registered, the person sees an error page and nothing is sent anywhere — bouncing an error to an unverified address is the open redirect the check exists to prevent.
 
@@ -5378,7 +5389,7 @@ Revoking
 
 curl -X POST https://clusters.soleilpictures.com/oauth/revoke -d token=rt_… -d client_id=soleil_a1b2…
 
-Always answers 200, even for a token that was never valid, per RFC 7009. Saying "no such token" would turn the endpoint into a way to test whether a stolen string is live.
+Always answers 200, even for a token that was never valid, per RFC 7009. Saying "no such token" would turn the endpoint into a way to test whether a stolen string is live. (A 429 says only that the address went past its limit.)
 
 ## Frequently asked questions
 
