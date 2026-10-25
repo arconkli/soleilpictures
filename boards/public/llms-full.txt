@@ -2773,9 +2773,9 @@ A: Fountain is plain text — it opens anywhere, diffs cleanly in version contro
 ========================================================================
 # Comments, tags and backlinks in documents
 URL: https://clusters.soleilpictures.com/docs/documents/comments-and-tags
-Updated: 2026-10-24
+Updated: 2026-10-25
 
-Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
+Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
 Documents carry annotation in the margins, so the text stays clean and the apparatus stays visible.
 
@@ -2797,17 +2797,19 @@ Tags on a range
 
 A tag can apply to a passage rather than the whole document. Tagged text is underlined, with dots in the left margin.
 
-This is what lets a script's mention of a location connect to the reference wall for that location — the tag's detail view will list this passage among everything else carrying it.
+This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it.
+
+Words that clearly refer to one of your tags are underlined on their own, marked auto, in prose and in screenplay blocks alike. Right-click one to remove it, which keeps that tag off the page. A tag you put on a word follows the word as you edit around it, and stays on the page if the word goes.
 
 Suggested entities
 
 As you write, names that look like entities — characters, locations, organizations — are detected and offered in the margin with a tick and a cross.
 
-Nothing is applied until you accept it. A suggestion is a suggestion; the document is not silently tagged behind you.
+Nothing is applied until you accept it. A suggested name is a suggestion; it does not become a tag behind you.
 
 Accepting one creates or links the entity, so the next occurrence anywhere is recognised automatically.
 
-The detector is on by default and can be switched off in settings if you would rather work without it.
+Names are found without AI. With the workspace's AI suggestions on, the AI also guesses what kind of name each one is; with them off (Settings → Workspace), that guess is left out and no text is sent.
 
 Links and mentions
 
@@ -2835,35 +2837,30 @@ A: It follows the text. Comments anchor to the range, not to a character offset,
 Q: What are the dots in the margins?
 A: Right margin is comments. Left margin is tags and suggested entities. Click one to open it.
 
-Q: Can I turn off the entity suggestions?
-A: Yes. The AI tagger is on by default and can be switched off in settings. Suggestions never apply themselves — nothing is tagged until you accept it.
+Q: Can I turn off the AI in documents?
+A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. The automatic underlines stop and no text goes to a model. Suggested names still appear, without the AI's guess at what kind of name each is, and nothing becomes a tag until you accept it.
 
 
 ========================================================================
 # Tags and entities
 URL: https://clusters.soleilpictures.com/docs/organize/tags
-Updated: 2026-10-07
+Updated: 2026-10-25
 
-A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.
+A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.
 
 Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you everything that does not fit a hierarchy.
 
 Tagging
 
-Right-click almost anything → tag. You can tag:
+A card — right-click it and choose Tag…. The picker suggests as you type, and Enter creates a tag that does not exist yet.
+A whole cluster — drag a tag from the sidebar onto it.
+A passage of text — in a document, a name the app has noticed can become a tag right where it appears.
 
-A card
-A group — as a unit, not card by card
-A whole cluster
-A passage of text in a document
+An item can carry several tags. A tag is not a location. Tagging moves nothing.
 
-The picker suggests as you type, and Enter creates a tag that does not exist yet. Multi-select is supported — most things carry more than one.
+The tag page
 
-A tag is not a location. Tagging moves nothing.
-
-The tag detail view
-
-Open a tag from the sidebar and you get everything carrying it, from anywhere in the workspace, arranged hierarchically — boards, then groups, then cards.
+Open a tag from the sidebar, from a tag chip, or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it.
 
 This is the payoff. "Show me everything about the diner" spans a script scene, a reference wall, a group of location photos and a note, and no folder structure could have anticipated that grouping.
 
@@ -2875,33 +2872,24 @@ Type | For
 Character | People in the work
 Setting | Locations
 Organization | Companies, departments, crews
-Concept | Themes, ideas, looks
+Topic | Themes, ideas, looks
 Thing | Objects, props, assets
 
-Typed tags get an appropriate colour and drive the hover previews and backlinks in links and mentions.
+The type shows on a tag's hover card and its page, the sidebar groups tags by it, and it drives the hover previews and backlinks in links and mentions.
 
 Automatic tagging
 
-Automatic tagging works from text — card titles, notes, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none.
+Automatic tagging works from text — card titles, notes, documents, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none.
 
-A close match is applied, marked auto. Make a Diner tag, and a note about the diner can pick it up on its own.
-A looser match is only suggested. It waits on the tag until you accept or dismiss it.
+An exact name match is applied, marked auto. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called "Diner stills". Creating a tag applies it straight away to what already says its name.
+In documents, clear mentions are underlined, marked auto: the AI underlines words that clearly refer to one of your tags, even when they are not its exact name.
+Anything looser is only suggested. The AI compares what a card says with your tags, and a close one waits on the tag's page until you accept or dismiss it.
 
-It reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day.
+The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day.
 
-Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again.
+The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no card or document text goes to a model: there are no suggestions or underlines, and exact-name matches and the tags you add work as before.
 
-Emergent themes
-
-Beyond individual suggestions, the app looks for clusters of related content and proposes a name for the theme it found — material that clearly belongs together but that nobody had a word for yet.
-
-Accepting one creates the tag and applies it to the group that suggested it.
-
-Propagation and backfill
-
-Creating a tag offers to apply it to existing content that matches, so a tag created late is not empty.
-
-A tag applied to a group propagates to what is in it, and in documents a tag on a paragraph can cascade to related passages.
+Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page.
 
 Removing, deleting and merging — all reversible
 
@@ -2909,13 +2897,13 @@ Removing a tag from one item shows an undo toast; undoing also lifts the "don't 
 
 Deleting a tag removes it everywhere, but softly: the tag and every one of its applications stay recoverable for 30 days — from the undo toast, or by recreating a tag with the same name, which revives the old one intact.
 
-Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns.
+Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns. Anything you had taken the merged tag off stays off under the tag it merged into.
 
 Finding by tag
 
 The sidebar lists workspace tags
 ⌘K searches tags alongside everything else
-The tag detail view is the full hierarchical browse
+The tag page is the full browse
 
 ## Frequently asked questions
 
@@ -2923,10 +2911,13 @@ Q: Do tags move things?
 A: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
 
 Q: Does Clusters tag things without asking?
-A: Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, press Manage and filter to Auto, then right-click any item to confirm or remove the tag — removing it also keeps that tag off that item for good. Looser matches are only suggested. It reads text, not what an image shows.
+A: Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested. Remove an automatic tag and it stays off that item for good.
 
 Q: What is an entity type?
-A: A tag can be typed as a character, setting, organization, concept or thing. Typed tags get an appropriate colour and behaviour, and are what make hover previews and backlinks useful.
+A: A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it.
+
+Q: Can I turn the AI off?
+A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no text goes to a model. Tags you add, and exact-name matches, still work.
 
 
 ========================================================================

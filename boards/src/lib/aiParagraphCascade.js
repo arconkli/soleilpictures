@@ -37,7 +37,23 @@ function buildApplyKey(pageId, pHash, tagId, startOffset, length) {
   return `${pageId}|${pHash}|${tagId}|${startOffset}|${length}`;
 }
 
-export async function runParagraphCascade({
+// One run per page at a time. Overlapping runs (a slow /apply under a fresh
+// edit) used to embed and /apply the same paragraphs twice, because the
+// verdict cache only fills after the await.
+const pagesInFlight = new Set();
+
+export async function runParagraphCascade(args) {
+  const pageId = args?.pageId;
+  if (!pageId || pagesInFlight.has(pageId)) return { applied: 0, busy: true };
+  pagesInFlight.add(pageId);
+  try {
+    return await runParagraphCascadeOnce(args);
+  } finally {
+    pagesInFlight.delete(pageId);
+  }
+}
+
+async function runParagraphCascadeOnce({
   workspaceId,
   docCardId,
   boardId,
@@ -107,17 +123,20 @@ export async function runParagraphCascade({
   const paraEmbeddingByHash = new Map();
   if (needCalls.length > 0) {
     try {
-      const r = await embedCards(needCalls.map(c => ({ id: c.p.pHash, text: c.p.text })));
+      const r = await embedCards(needCalls.map(c => ({ id: c.p.pHash, text: c.p.text })), { workspaceId });
       for (const e of (r?.embeddings || [])) {
         if (e?.id && Array.isArray(e.vector)) paraEmbeddingByHash.set(e.id, e.vector);
       }
     } catch (e) {
-      console.warn('[paragraph-cascade] embed pre-filter failed; falling back to full tag list', e?.message || e);
+      console.warn('[paragraph-cascade] embed pre-filter failed; skipping those paragraphs', e?.message || e);
     }
   }
+  // null = no embedding (the embed failed or was refused): skip the paragraph
+  // this run, uncached, so the next edit tries again. Sending it every tag
+  // instead was the misfire the prefilter exists to stop.
   const candidatesForParagraph = (pHash) => {
     const emb = paraEmbeddingByHash.get(pHash);
-    if (!emb) return candidateTags; // no embedding → don't filter
+    if (!emb) return null;
     const out = [];
     for (const t of candidateTags) {
       const cent = tagCentroids.get(t.id)?.vector;
@@ -141,17 +160,18 @@ export async function runParagraphCascade({
       const filteredByHash = new Map();
       for (const c of slice) filteredByHash.set(c.p.pHash, candidatesForParagraph(c.p.pHash));
       const cards = slice
+        .filter(c => filteredByHash.get(c.p.pHash))
         .map(c => ({
           id: c.p.pHash,
           text: c.p.text,
-          candidate_tags: filteredByHash.get(c.p.pHash) || candidateTags,
+          candidate_tags: filteredByHash.get(c.p.pHash),
         }))
         .filter(card => card.candidate_tags.length > 0);
       // For paragraphs whose entire candidate list was filtered out,
       // still cache empty verdicts so we don't refetch next save.
       for (const c of slice) {
-        const cands = filteredByHash.get(c.p.pHash) || candidateTags;
-        if (cands.length === 0) {
+        const cands = filteredByHash.get(c.p.pHash);
+        if (cands && cands.length === 0) {
           for (const t of candidateTags) {
             paragraphVerdictCache.set(`${c.p.pHash}::${t.id}`, []);
           }
@@ -160,8 +180,11 @@ export async function runParagraphCascade({
       if (cards.length === 0) continue;
       let verdicts = [];
       try {
-        const resp = await applyCards(cards);
-        verdicts = resp?.verdicts || [];
+        const resp = await applyCards(cards, { workspaceId });
+        // null is a failed call (budget, 5xx, cooldown), not "no tags":
+        // write no cache, so the next edit asks again.
+        if (!resp) continue;
+        verdicts = resp.verdicts || [];
         // Inspect the model's raw output so we can see when it's
         // returning low everywhere vs returning empty-words on a
         // high/medium (the latter would mean the prompt fix didn't
@@ -172,7 +195,9 @@ export async function runParagraphCascade({
         continue;
       }
       const byCardId = new Map(verdicts.map(v => [v.card_id, v]));
+      const sent = new Set(cards.map(card => card.id));
       for (const c of slice) {
+        if (!sent.has(c.p.pHash)) continue;
         const v = byCardId.get(c.p.pHash);
         // Default to "no tags" if the model didn't return a verdict.
         const tags = v?.tags || [];
@@ -345,8 +370,23 @@ async function wipePageRangeRows({ docCardId, pageId }) {
 
 // Fetch workspace tags. tag_centroids is a nice-to-have for caching;
 // fall back to the raw tags table when centroids aren't there yet.
-export async function loadWorkspaceTagCentroids(workspaceId) {
-  if (!supabase || !workspaceId) return new Map();
+// Centroids barely change between edits, and each one is 1024 floats: the
+// cascade re-read all of them 2s after every pause in typing. Kept a minute.
+const CENTROID_TTL_MS = 60_000;
+const centroidCache = new Map(); // workspaceId → { at, promise }
+
+export function loadWorkspaceTagCentroids(workspaceId) {
+  if (!supabase || !workspaceId) return Promise.resolve(new Map());
+  const hit = centroidCache.get(workspaceId);
+  if (hit && Date.now() - hit.at < CENTROID_TTL_MS) return hit.promise;
+  const promise = readWorkspaceTagCentroids(workspaceId);
+  centroidCache.set(workspaceId, { at: Date.now(), promise });
+  // An empty answer may be a failed read: don't keep it.
+  promise.then((m) => { if (!m?.size) centroidCache.delete(workspaceId); }, () => centroidCache.delete(workspaceId));
+  return promise;
+}
+
+async function readWorkspaceTagCentroids(workspaceId) {
   // Tags + their AI descriptions + their embedding centroids (when
   // present). The centroid is what we use to filter unrelated tags
   // out of the apply-call candidate list — tags whose centroid is
@@ -400,7 +440,23 @@ export async function reconcilePageRanges({ docCardId, pageId, paragraphs, nameO
       .eq('link_kind', 'applied')
       .not('source_anchor', 'is', null);
     if (error) throw error;
-    const plan = planRangeReconcile(rows || [], paragraphs, nameOf);
+    // Without a name lookup (the AI-off path), fetch the names of just the
+    // tags whose orphaned ranges carry no text of their own.
+    let lookup = nameOf;
+    if (!lookup) {
+      const live = new Set(paragraphs.map((p) => p.pHash));
+      const need = [...new Set((rows || [])
+        .filter((r) => r.source_anchor?.pHash && !live.has(r.source_anchor.pHash)
+          && !AUTO_RANGE_SOURCES.includes(r.source) && !r.source_anchor.text)
+        .map((r) => r.target_id))];
+      const names = new Map();
+      if (need.length) {
+        const { data: tags } = await supabase.from('tags').select('id, name').in('id', need);
+        for (const t of tags || []) names.set(t.id, t.name);
+      }
+      lookup = (tagId) => names.get(tagId) || '';
+    }
+    const plan = planRangeReconcile(rows || [], paragraphs, lookup);
     if (plan.drop.length) {
       const { error: e } = await supabase.from('entity_links').delete()
         .in('id', plan.drop)

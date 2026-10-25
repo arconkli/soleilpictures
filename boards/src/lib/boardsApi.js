@@ -112,6 +112,31 @@ export async function renameWorkspace(workspaceId, name) {
   if (error) throw error;
 }
 
+// The workspace's AI switch (workspaces.ai_tagger_enabled): off, no card or
+// doc text goes to a model (hooks/useWorkspaceAiEnabled.js). Members read it;
+// the owner and co-owners change it (0591's column grant, the update policy).
+export async function getWorkspaceAiEnabled(workspaceId) {
+  if (!workspaceId) return true;
+  const { data, error } = await supabase
+    .from('workspaces')
+    .select('ai_tagger_enabled')
+    .eq('id', workspaceId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.ai_tagger_enabled !== false;
+}
+
+export async function setWorkspaceAiEnabled(workspaceId, enabled) {
+  const { data, error } = await supabase
+    .from('workspaces')
+    .update({ ai_tagger_enabled: !!enabled })
+    .eq('id', workspaceId)
+    .select('id');
+  if (error) throw error;
+  // RLS hides a row you can't update: zero rows is a refusal, not a save.
+  if (!data?.length) throw new Error('Only the owner or a co-owner can change this.');
+}
+
 // Read the workspace settings jsonb. Returns {} when none set.
 // Members can read; the SELECT policy already covers it.
 export async function getWorkspaceSettings(workspaceId) {

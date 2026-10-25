@@ -211,6 +211,7 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
+import { embedTextForLiveCard } from '../lib/embedText.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading, stashLateUpload, takeLateUploads } from '../lib/abandonedUploads.js';
@@ -10443,7 +10444,11 @@ export function CanvasSurface({
       if (autoTaggedHashRef.current.get(cardKey) === hash) continue;
       autoTaggedHashRef.current.set(cardKey, hash);
       try {
-        const suggestions = await s.autotagSuggest(text, { kind: 'card', id: c.id });
+        // embedText: what the card's embedding is built from (lib/embedText.js),
+        // never this boosted scoring text, which only the TF-IDF engine uses.
+        const suggestions = await s.autotagSuggest(text, {
+          kind: 'card', id: c.id, cardKind: c.kind || null, embedText: embedTextForLiveCard(c),
+        });
         for (const sg of suggestions) {
           if (sg.score < HIGH) continue;
           if (knownIds.has(sg.tagId) || !s.liveTagIds.has(sg.tagId)) continue;
@@ -10467,6 +10472,8 @@ export function CanvasSurface({
   // round-trip when content changes).
   useEffect(() => {
     if (!autotagReady || !workspaceId || !board?.id) return;
+    // A viewer or a share link can't save a suggestion; don't spend on one.
+    if (!canEdit || isPublic) return;
     if (autotagPendingRef.current) return; // already scheduled
     if (autotagInFlightRef.current) return; // currently scoring
     autotagPendingRef.current = true;

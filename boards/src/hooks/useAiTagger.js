@@ -35,11 +35,12 @@ import {
   SUGGEST_DIST,
 } from '../lib/clusterMath.js';
 import { logDecision, recordCall, isDebug } from '../lib/aiTaggerLog.js';
-import { runWorkspaceDiscovery } from '../lib/aiDiscovery.js';
 import { backfillTagAgainstWorkspace } from '../lib/aiBackfill.js';
 import { warmupWorkspaceEmbeddings } from '../lib/aiWarmup.js';
 import { propagateTagToGroups } from '../lib/aiGroupPropagation.js';
 import { TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
+import { readWorkspaceAiEnabled, AI_SETTING_CHANGED } from './useWorkspaceAiEnabled.js';
+import { clientEmbedsKind } from '../lib/embedText.js';
 
 // Round 19: mount-time work (warmup, centroid seeding) gets pushed to
 // idle so it can't compete with the boot/paint window. Same pattern
@@ -112,6 +113,11 @@ function stripHtml(s) {
 //
 // Triggered (debounced) on every apply/unapply of this tag. Idempotent and
 // safe to call when no cards are embedded yet — bails silently.
+// Who a centroid learns from: a person's tags ('user') and the word-match
+// triggers' ('auto'). Learning from its own embedding applies made the
+// silent band re-confirm what it had already applied.
+const CENTROID_SOURCES = ['user', 'auto'];
+
 async function recomputeCentroidFromMembers(tagId, workspaceId, centroidsRef, cardEmbeddingCacheRef) {
   if (!supabase || !tagId || !workspaceId) return;
   // 1. Get all cards currently tagged with this tag.
@@ -121,7 +127,8 @@ async function recomputeCentroidFromMembers(tagId, workspaceId, centroidsRef, ca
     .eq('source_workspace', workspaceId)
     .eq('target_kind', 'tag')
     .eq('target_id', tagId)
-    .eq('link_kind', 'applied');
+    .eq('link_kind', 'applied')
+    .in('source', CENTROID_SOURCES);
   if (linksErr) {
     console.warn('[ai-tagger] recompute centroid: links query failed', linksErr.message);
     return;
@@ -175,20 +182,16 @@ async function recomputeCentroidFromMembers(tagId, workspaceId, centroidsRef, ca
   }
 }
 
-export function useAiTagger(workspaceId) {
+// canWrite: false for a view-only member. Their embeddings and suggestions
+// can't be saved (RLS), so the hook never starts for them instead of
+// spending model calls on writes that fail.
+export function useAiTagger(workspaceId, { canWrite = true } = {}) {
   const [ready, setReady] = useState(false);
   // Tag rows for the workspace. Refreshed on init + tag-realtime change.
   const tagsRef = useRef([]); // [{id, name, slug, color}]
   // tagId -> centroid (plain number[]). In-memory only; persisted to
   // tag_centroids table for cold-start performance.
   const centroidsRef = useRef(new Map());
-  // Centroids of LIVE tags only, for workspace discovery. centroidsRef keeps
-  // a deleted tag's centroid (a restore would otherwise re-seed it from the
-  // name and overwrite the learned one), so discovery gets a filtered view.
-  const liveCentroids = () => {
-    const live = new Set(tagsRef.current.map(t => t.id));
-    return new Map([...centroidsRef.current].filter(([id]) => live.has(id)));
-  };
   // tag-name embedding promise dedup — multiple suggestTags calls in flight
   // shouldn't each kick off the same embed call for an uncentroided tag.
   const centroidPromisesRef = useRef(new Map());
@@ -207,12 +210,34 @@ export function useAiTagger(workspaceId) {
   // tagId → setTimeout handle. Debounced centroid recomputation per tag
   // — repeated apply/unapply in a quick burst settles into one recompute.
   const centroidDebounceRef = useRef(new Map());
-  // Workspace-wide discovery is debounced too — a burst of orphan-card
-  // edits should produce one discovery pass, not one per edit.
-  const discoveryDebounceRef = useRef(null);
   // Track which new tags have been backfilled this session so the
   // tags-realtime listener doesn't re-fire for tags we just created.
   const backfilledTagsRef = useRef(new Set());
+
+  // The owner can turn AI suggestions off or on while the workspace is open;
+  // hydrate again when they do.
+  const [aiEpoch, setAiEpoch] = useState(0);
+  useEffect(() => {
+    const onChange = (e) => {
+      if (!e?.detail?.workspaceId || e.detail.workspaceId === workspaceId) setAiEpoch((n) => n + 1);
+    };
+    document.addEventListener(AI_SETTING_CHANGED, onChange);
+    return () => document.removeEventListener(AI_SETTING_CHANGED, onChange);
+  }, [workspaceId]);
+
+  // Embed the workspace's cards once per session, when idle, and only once
+  // the workspace has a tag to compare them with.
+  const warmupStartedRef = useRef(false);
+  const startWarmup = () => {
+    if (warmupStartedRef.current || !workspaceId) return;
+    warmupStartedRef.current = true;
+    const forWorkspace = workspaceId;
+    _scheduleWhenIdle(() => {
+      if (!warmupStartedRef.current || forWorkspace !== workspaceId) return;
+      warmupWorkspaceEmbeddings({ workspaceId: forWorkspace, embeddingCache: cardEmbeddingCacheRef.current })
+        .catch(err => console.warn('[ai-warmup] failed', err?.message || err));
+    });
+  };
 
   // Load tags + any persisted centroids + currently-applied tag links on
   // workspace change. Also check the workspace-level ai_tagger_enabled
@@ -220,18 +245,17 @@ export function useAiTagger(workspaceId) {
   // reasons), the hook stays in the not-ready state and never sends
   // card content to the tagging models (Workers AI) for this workspace.
   useEffect(() => {
-    if (!workspaceId || !supabase) { setReady(false); return; }
+    if (!workspaceId || !supabase || !canWrite) { setReady(false); return; }
     let cancelled = false;
     setReady(false);
+    warmupStartedRef.current = false;
     async function load() {
-      // Per-workspace AI opt-out check. If disabled, short-circuit.
-      const { data: ws } = await supabase.from('workspaces')
-        .select('ai_tagger_enabled')
-        .eq('id', workspaceId)
-        .maybeSingle();
+      // The workspace's AI switch (and this browser's opt-out): off means
+      // the hook never becomes ready and no card text goes to a model.
+      const aiOn = await readWorkspaceAiEnabled(workspaceId);
       if (cancelled) return;
-      if (ws && ws.ai_tagger_enabled === false) {
-        if (isDebug()) console.log('[ai-tagger] disabled for workspace', workspaceId);
+      if (!aiOn) {
+        if (isDebug()) console.log('[ai-tagger] AI off for workspace', workspaceId);
         return; // never sets ready=true; suggestTags returns [] forever
       }
       const [tagsResp, centroidsResp, appliedResp] = await Promise.all([
@@ -267,47 +291,15 @@ export function useAiTagger(workspaceId) {
       }
       setReady(true);
 
-      // Warm up embeddings + run discovery in the background after the
-      // hook is ready. Idempotent — embeds only cards that don't already
-      // have a matching content_hash row. After warmup, if we have ≥3
-      // cards and few/no tags, kick off discovery immediately so the
-      // user sees suggested tags appear without having to edit anything.
-      //
-      // Round 19+20: defer the warmup launch until idle time AND while
-      // the user isn't actively interacting. The 502s from /api/tags/
-      // embed used to compete with the boot/paint window AND with pan/
-      // zoom. With _scheduleWhenIdle the work waits both for an idle
-      // slot AND for the user to pause.
-      _scheduleWhenIdle(() => {
-        if (cancelled) return;
-        (async () => {
-          const result = await warmupWorkspaceEmbeddings({
-            workspaceId,
-            embeddingCache: cardEmbeddingCacheRef.current,
-          });
-          if (cancelled) return;
-          const totalEmbeddings = (result?.embedded || 0) + (result?.alreadyHad || 0);
-          // Trigger discovery if we have enough cards. The lock at the DB
-          // level keeps multiple connected clients from doubling up.
-          if (totalEmbeddings >= 3) {
-            if (isDebug()) console.log(`[ai-tagger] kicking off discovery against ${totalEmbeddings} cards`);
-            // Wrap discovery in another idle/interaction gate so it
-            // doesn't crunch 159×159 cosine math mid-pan.
-            _scheduleWhenIdle(() => {
-              if (cancelled) return;
-              runWorkspaceDiscovery({
-                workspaceId,
-                tagCentroids: liveCentroids(),
-                embeddingCache: cardEmbeddingCacheRef.current,
-              }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
-            });
-          }
-        })().catch(err => console.warn('[ai-warmup] failed', err?.message || err));
-      });
+      // Embeddings only serve suggestions for tags that exist, so a
+      // workspace with no tag embeds nothing; its first tag starts the
+      // warmup (the tags listener below). Discovery, which embedded every
+      // workspace to name clusters no screen showed, is gone.
+      if (tagsRef.current.length > 0) startWarmup();
     }
     load().catch(err => console.warn('[ai-tagger] hydrate failed', err));
     return () => { cancelled = true; };
-  }, [workspaceId]);
+  }, [workspaceId, canWrite, aiEpoch]);
 
   // Schedule a debounced centroid recompute for a tag. Runs ~1.5s after
   // the last apply/unapply for that tag so a burst of changes coalesces.
@@ -479,7 +471,7 @@ export function useAiTagger(workspaceId) {
       console.warn('[ai-tagger] card_embeddings lookup failed', e?.message || e);
     }
     // Tier 3: network embed + persist
-    const result = await embedOne(cardId, text);
+    const result = await embedOne(cardId, text, { workspaceId });
     if (!result?.vector) return null;
     cardEmbeddingCacheRef.current.set(cardId, { hash, vector: result.vector });
     // Fire-and-forget upsert. If this fails (RLS, missing workspace_id, etc.)
@@ -514,6 +506,7 @@ export function useAiTagger(workspaceId) {
               .select('id, name, slug, color, description')
               .eq('workspace_id', workspaceId).or(LIVE_TAGS);
             tagsRef.current = data || [];
+            startWarmup();
             // Seed centroid from name (lazy fallback) then kick off backfill.
             const centroid = await ensureCentroidFn.current?.(tag);
             if (centroid && !backfilledTagsRef.current.has(tag.id)) {
@@ -582,7 +575,7 @@ export function useAiTagger(workspaceId) {
       const desc = (tag.description || '').trim();
       const text = desc ? `${name}\n${desc}` : name;
       if (!text) return null;
-      const result = await embedOne(tag.id, text);
+      const result = await embedOne(tag.id, text, { workspaceId });
       if (!result?.vector) return null;
       const vec = result.vector;
       centroidsRef.current.set(tag.id, vec);
@@ -611,28 +604,19 @@ export function useAiTagger(workspaceId) {
   // ensureCentroid without re-binding on every render.
   ensureCentroidFn.current = ensureCentroid;
 
-  // Debounced workspace-wide discovery pass. Triggered after a card-edit
-  // suggestTags finds the card has no high-confidence matches (orphan)
-  // — repeat orphans during a burst of edits collapse to one pass.
-  const scheduleDiscovery = useCallback(() => {
-    if (!workspaceId) return;
-    if (discoveryDebounceRef.current) clearTimeout(discoveryDebounceRef.current);
-    discoveryDebounceRef.current = setTimeout(() => {
-      discoveryDebounceRef.current = null;
-      runWorkspaceDiscovery({
-        workspaceId,
-        tagCentroids: liveCentroids(),
-        embeddingCache: cardEmbeddingCacheRef.current,
-      }).catch(err => console.warn('[ai-discovery] run failed', err?.message || err));
-    }, 4000);
-  }, [workspaceId]);
-
   const suggestTags = useCallback(async (content, target) => {
     if (!ready || !workspaceId || !supabase) return [];
     // Strip HTML before doing anything else — feeding span/style markup to
     // the embedding model wastes tokens and adds noise.
     const text = stripHtml(content);
     if (!text) return [];
+    // A card is embedded from its canonical text (lib/embedText.js), never
+    // the board/group-boosted scoring text, so every writer of its
+    // card_embeddings row agrees. Images and videos are the server's: it
+    // embeds them with their descriptions.
+    if (target?.kind === 'card' && target.cardKind && !clientEmbedsKind(target.cardKind)) return [];
+    const embedSource = target?.kind === 'card' && typeof target.embedText === 'string' ? target.embedText : text;
+    if (!embedSource) return [];
     const tags = tagsRef.current;
     if (!tags.length) return [];
 
@@ -647,7 +631,7 @@ export function useAiTagger(workspaceId) {
     //    every render, which was leak #2 in the kill-the-bill audit.
     let queryVec, embedMs, embedUsage;
     if (target?.kind === 'card' && target?.id) {
-      const r = await getOrFetchCardEmbedding(target.id, text);
+      const r = await getOrFetchCardEmbedding(target.id, embedSource);
       if (!r?.vector) return [];
       queryVec = r.vector;
       embedMs = r.ms || 0;
@@ -661,7 +645,7 @@ export function useAiTagger(workspaceId) {
         embedMs = 0;
         embedUsage = null;
       } else {
-        const r = await embedOne(target?.id || 'q', text);
+        const r = await embedOne(target?.id || 'q', text, { workspaceId });
         if (!r?.vector) return [];
         queryVec = r.vector;
         embedMs = r.ms;
@@ -703,7 +687,14 @@ export function useAiTagger(workspaceId) {
     //    including dismissed tombstones — the user's "don't suggest again"
     //    choice sticks forever. A tag the target already carries is left
     //    out, or the inbox offers to add what is already there.
-    const suggestable = candidates.filter(c => c.distance < SUGGEST_DIST);
+    // Nothing is applied from an embedding any more: the close band (it
+    // mostly re-confirmed tags already there, since centroids learn from
+    // their own members) joins the suggestions.
+    const tagById = new Map(tags.map(t => [t.id, t]));
+    const near = silentApply
+      .map(s => ({ tag: tagById.get(s.tag_id), distance: s.distance }))
+      .filter(c => c.tag);
+    const suggestable = [...near, ...candidates.filter(c => c.distance < SUGGEST_DIST)];
     const toInbox = suggestable.filter(c => !alreadyApplied.has(c.tag.id));
     if (toInbox.length > 0 && target?.kind && target?.id) {
       const rows = toInbox.map(c => ({
@@ -738,31 +729,16 @@ export function useAiTagger(workspaceId) {
       applyUsage: null,
     });
 
-    // 6. Convert to the legacy suggestion shape so existing consumers
-    //    (CanvasSurface auto-apply gate, sidebar suggested-tags chips)
-    //    keep working without changes. silentApply → 1.0 (auto-apply),
-    //    middle-band suggestions → 0.4 (chip-only, persistent home is
-    //    the tag_suggestions inbox).
+    // 6. The legacy suggestion shape. Every score is below the canvas's
+    //    auto-apply bar (0.5): suggestions show, nothing is applied.
     const out = [];
-    for (const s of silentApply) {
-      if (alreadyApplied.has(s.tag_id)) continue;
-      out.push({ tagId: s.tag_id, score: 1.0, reason: 'embedding-near' });
-    }
     for (const c of suggestable) {
       if (alreadyApplied.has(c.tag.id)) continue;
-      out.push({ tagId: c.tag.id, score: 0.4, reason: 'cosine-suggest' });
-    }
-
-    // 7. If this card got no high-confidence applies, it's a discovery
-    //    candidate — schedule a workspace-wide cluster pass. Debounced
-    //    so a burst of orphan edits collapses to one pass.
-    if (target?.kind === 'card') {
-      const gotHigh = out.some(s => s.score >= 1.0);
-      if (!gotHigh) scheduleDiscovery();
+      out.push({ tagId: c.tag.id, score: 0.4, reason: c.distance < SILENT_APPLY_DIST ? 'embedding-near' : 'cosine-suggest' });
     }
 
     return out;
-  }, [ready, workspaceId, ensureCentroid, scheduleDiscovery]);
+  }, [ready, workspaceId, ensureCentroid]);
 
   return { ready, suggestTags };
 }

@@ -294,7 +294,7 @@ import { ProjectsHome } from './components/ProjectsHome.jsx';
 import { ClustersHome } from './components/home/ClustersHome.jsx';
 import { useHomeRail, loadClusterPhotos } from './hooks/useHomeRail.js';
 import { useClusterStars } from './hooks/useClusterStars.js';
-import { canManageWorkspace } from './lib/workspaceRoles.js';
+import { canManageWorkspace, canWriteWorkspace } from './lib/workspaceRoles.js';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -5398,7 +5398,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // doesn't waste resources.
   const aiTaggerEnabled = isAiTaggerEnabled();
   const legacy = useAutotagWorker(aiTaggerEnabled ? null : workspace.id);
-  const ai = useAiTagger(aiTaggerEnabled ? workspace.id : null);
+  const ai = useAiTagger(aiTaggerEnabled ? workspace.id : null, {
+    canWrite: canWriteWorkspace(workspaceRole || (workspace.created_by === user?.id ? 'owner' : workspace._myRole)),
+  });
   const { suggestTags: autotagSuggest, ready: autotagReady } = aiTaggerEnabled ? ai : legacy;
 
   // Track which doc-card overlay (if any) is currently open + its active

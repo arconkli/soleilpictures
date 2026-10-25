@@ -64,7 +64,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Organize and find
 
-- [Tags and entities](https://clusters.soleilpictures.com/docs/organize/tags): Tag anything in Soleil Clusters — cards, groups, boards and passages of text. Entity types, automatic tagging, AI suggestions and emergent themes.
+- [Tags and entities](https://clusters.soleilpictures.com/docs/organize/tags): Tag cards, clusters and passages in Soleil Clusters, type tags as entities, and see everything carrying a tag on one page. The AI only suggests.
 - [Links and mentions](https://clusters.soleilpictures.com/docs/organize/links-and-mentions): Mention any board, document, card, tag or person with @ in Soleil Clusters. Automatic link detection, hover previews, backlinks and deep links.
 - [Search and the command palette](https://clusters.soleilpictures.com/docs/organize/search): Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.
 

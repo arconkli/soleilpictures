@@ -11517,37 +11517,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   color: var(--ink-1);
 }
 
-/* Tag chips — used on card right-click menus and inline on group labels. */
-.tag-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: color-mix(in oklab, var(--tag-c, #4f8df8) 14%, transparent);
-  color: var(--ink-1);
-  padding: 2px 7px;
-  border-radius: 999px;
-  font: 600 10.5px/1.3 var(--font-sans);
-  letter-spacing: -0.005em;
-  cursor: default;
-}
-.tag-chip-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--tag-c, #4f8df8);
-}
-.tag-chip.is-auto, .tag-chip.is-ai {
-  /* Keep the tinted fill (the canonical look) and signal auto/ai with a
-     dashed border — same recipe as .card-tag-chip / .ctx-tag-chip. */
-  border: 1px dashed color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
-}
-.tag-chip-x {
-  background: transparent; border: 0;
-  color: inherit;
-  font-size: 13px;
-  line-height: 1;
-  padding: 0 2px;
-  cursor: pointer;
-  opacity: .6;
-}
-.tag-chip-x:hover { opacity: 1; }
-
 /* Shared tag color-dot for list rows (EntityPicker, etc.). Carries the
    tag color via --tag-c so the value lives in CSS, not inline styles. */
 .tag-dot {
@@ -11574,30 +11543,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .sb-tag-filter-input:focus {
   border-color: color-mix(in oklab, var(--soleil) 55%, var(--line-2));
 }
-
-.tag-disambig {
-  display: inline-flex; align-items: center; gap: 8px;
-  /* A question, not a selection: neutral at rest (gold is for active/focus). */
-  background: color-mix(in oklab, var(--ink-0) 6%, transparent);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  padding: 4px 8px;
-  font: 500 11px/1.3 var(--font-sans);
-  color: var(--ink-1);
-}
-.tag-disambig-yes, .tag-disambig-no {
-  background: transparent; border: 0;
-  font: 600 10px/1 var(--font-display);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  padding: 4px 6px;
-}
-.tag-disambig-yes { color: var(--ink-0); }
-.tag-disambig-no { color: var(--ink-3); }
-.tag-disambig-yes:hover,
-.tag-disambig-yes:focus-visible { color: var(--soleil); }
-.tag-disambig-no:hover { color: var(--ink-1); }
 
 /* ──────────────────────────── Video card ────────────────────────────────── */
 

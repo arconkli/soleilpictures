@@ -4,6 +4,14 @@
 
 import { contentHash } from './clusterMath.js';
 
+// The blocks a tag range can sit in: prose paragraphs and screenplay blocks
+// (action, dialogue…), which are plain text blocks too. Screenplay docs used
+// to get no tints, though they're where the names are.
+export function isTaggableBlock(node) {
+  const n = node?.type?.name;
+  return n === 'paragraph' || n === 'screenplayBlock';
+}
+
 // Worked out once per paragraph node and remembered: an edit leaves every
 // paragraph it didn't touch the same node, so after a keystroke the readers
 // below hash one paragraph between them, not the whole doc each.
@@ -24,7 +32,7 @@ export function paragraphHash(node) {
 export function paragraphStarts(doc) {
   const starts = new Map();
   doc.descendants((node, pos) => {
-    if (node.type?.name !== 'paragraph') return true;
+    if (!isTaggableBlock(node)) return true;
     const h = paragraphHash(node);
     if (h != null && !starts.has(h)) starts.set(h, { from: pos + 1, node });
     return false;

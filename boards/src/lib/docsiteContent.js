@@ -29552,7 +29552,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "This is what lets a script's mention of a location connect to the reference wall for that location — the tag's detail view will list this passage among everything else carrying it."
+     "v": "This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Words that clearly refer to one of your tags are underlined on their own, marked "
+    },
+    {
+     "t": "em",
+     "v": "auto",
+     "children": [
+      {
+       "t": "text",
+       "v": "auto"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", in prose and in screenplay blocks alike. Right-click one to remove it, which keeps that tag off the page. A tag you put on a word follows the word as you edit around it, and stays on the page if the word goes."
     }
    ]
   },
@@ -29592,7 +29615,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " A suggestion is a suggestion; the document is not silently tagged behind you."
+     "v": " A suggested name is a suggestion; it does not become a tag behind you."
     }
    ]
   },
@@ -29610,7 +29633,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The detector is on by default and can be switched off in settings if you would rather work without it."
+     "v": "Names are found without AI. With the workspace's AI suggestions on, the AI also guesses what kind of name each one is; with them off (Settings → Workspace), that guess is left out and no text is sent."
     }
    ]
   },
@@ -29765,15 +29788,6 @@ export const DOCS_CONTENT = {
    "id": "tagging"
   },
   {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Right-click almost anything → tag. You can tag:"
-    }
-   ]
-  },
-  {
    "type": "list",
    "ordered": false,
    "items": [
@@ -29798,33 +29812,32 @@ export const DOCS_CONTENT = {
         ]
        }
       ]
-     }
-    ],
-    [
+     },
      {
       "t": "text",
-      "v": "A "
+      "v": " — right-click it and choose "
      },
      {
       "t": "strong",
-      "v": "[group](/docs/canvas/groups)",
+      "v": "Tag…",
       "children": [
        {
-        "t": "link",
-        "v": "group",
-        "href": "/docs/canvas/groups",
-        "children": [
-         {
-          "t": "text",
-          "v": "group"
-         }
-        ]
+        "t": "text",
+        "v": "Tag…"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — as a unit, not card by card"
+      "v": ". The picker suggests as you type, and "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " creates a tag that does not exist yet."
      }
     ],
     [
@@ -29848,6 +29861,10 @@ export const DOCS_CONTENT = {
         ]
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": " — drag a tag from the sidebar onto it."
      }
     ],
     [
@@ -29867,7 +29884,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " in a "
+      "v": " — in a "
      },
      {
       "t": "link",
@@ -29879,6 +29896,10 @@ export const DOCS_CONTENT = {
         "v": "document"
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": ", a name the app has noticed can become a tag right where it appears."
      }
     ]
    ]
@@ -29888,24 +29909,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The picker suggests as you type, and "
-    },
-    {
-     "t": "code",
-     "v": "Enter"
-    },
-    {
-     "t": "text",
-     "v": " creates a tag that does not exist yet. Multi-select is supported — most things carry more than one."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A tag is "
+     "v": "An item can carry several tags. A tag is "
     },
     {
      "t": "strong",
@@ -29926,21 +29930,21 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "The tag detail view",
+   "text": "The tag page",
    "inline": [
     {
      "t": "text",
-     "v": "The tag detail view"
+     "v": "The tag page"
     }
    ],
-   "id": "the-tag-detail-view"
+   "id": "the-tag-page"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Open a tag from the sidebar and you get everything carrying it, from anywhere in the workspace, arranged hierarchically — boards, then groups, then cards."
+     "v": "Open a tag from the sidebar, from a tag chip, or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it."
     }
    ]
   },
@@ -30055,11 +30059,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Concept",
+       "v": "Topic",
        "children": [
         {
          "t": "text",
-         "v": "Concept"
+         "v": "Topic"
         }
        ]
       }
@@ -30098,7 +30102,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Typed tags get an appropriate colour and drive the hover previews and backlinks in "
+     "v": "The type shows on a tag's hover card and its page, the sidebar groups tags by it, and it drives the hover previews and backlinks in "
     },
     {
      "t": "link",
@@ -30148,7 +30152,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — card titles, notes, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none."
+     "v": " — card titles, notes, documents, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none."
     }
    ]
   },
@@ -30159,11 +30163,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "A close match is applied",
+      "v": "An exact name match is applied",
       "children": [
        {
         "t": "text",
-        "v": "A close match is applied"
+        "v": "An exact name match is applied"
        }
       ]
      },
@@ -30183,23 +30187,53 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ". Make a Diner tag, and a note about the diner can pick it up on its own."
+      "v": ". Make a Diner tag, and a note that mentions the diner picks it up, as does a group called \"Diner stills\". Creating a tag applies it straight away to what already says its name."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "A looser match is only suggested.",
+      "v": "In documents, clear mentions are underlined",
       "children": [
        {
         "t": "text",
-        "v": "A looser match is only suggested."
+        "v": "In documents, clear mentions are underlined"
        }
       ]
      },
      {
       "t": "text",
-      "v": " It waits on the tag until you accept or dismiss it."
+      "v": ", marked "
+     },
+     {
+      "t": "em",
+      "v": "auto",
+      "children": [
+       {
+        "t": "text",
+        "v": "auto"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the AI underlines words that clearly refer to one of your tags, even when they are not its exact name."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Anything looser is only suggested.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Anything looser is only suggested."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " The AI compares what a card says with your tags, and a close one waits on the tag's page until you accept or dismiss it."
      }
     ]
    ]
@@ -30209,7 +30243,44 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "It reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day."
+     "v": "The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The owner or a co-owner can turn "
+    },
+    {
+     "t": "strong",
+     "v": "AI suggestions",
+     "children": [
+      {
+       "t": "text",
+       "v": "AI suggestions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " off in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Then no card or document text goes to a model: there are no suggestions or underlines, and exact-name matches and the tags you add work as before."
     }
    ]
   },
@@ -30274,82 +30345,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — removing also keeps that tag off that item for good, so it is never applied there again."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Emergent themes",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Emergent themes"
-    }
-   ],
-   "id": "emergent-themes"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Beyond individual suggestions, the app looks for clusters of related content and proposes a name for the theme it found — material that clearly belongs together but that nobody had a word for yet."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Accepting one creates the tag and applies it to the group that suggested it."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Propagation and backfill",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Propagation and backfill"
-    }
-   ],
-   "id": "propagation-and-backfill"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Creating a tag offers to apply it to existing content that matches, so a tag created late is not empty."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A tag applied to a "
-    },
-    {
-     "t": "link",
-     "v": "group",
-     "href": "/docs/canvas/groups",
-     "children": [
-      {
-       "t": "text",
-       "v": "group"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " propagates to what is in it, and in documents a tag on a paragraph can cascade to related passages."
+     "v": " — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page."
     }
    ]
   },
@@ -30402,7 +30398,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns."
+     "v": "Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns. Anything you had taken the merged tag off stays off under the tag it merged into."
     }
    ]
   },
@@ -30472,17 +30468,17 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "tag detail view",
+      "v": "tag page",
       "children": [
        {
         "t": "text",
-        "v": "tag detail view"
+        "v": "tag page"
        }
       ]
      },
      {
       "t": "text",
-      "v": " is the full hierarchical browse"
+      "v": " is the full browse"
      }
     ]
    ]

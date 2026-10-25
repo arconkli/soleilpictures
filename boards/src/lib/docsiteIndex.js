@@ -1850,10 +1850,10 @@ export const DOCS_PAGES = [
     "title": "Document Comments, Tags and Backlinks — Soleil Clusters",
     "metaDescription": "Comment on a text range in a Soleil Clusters document, tag passages, confirm suggested entities from the margin, and see everywhere a document is referenced.",
     "h1": "Comments, tags and backlinks in documents",
-    "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
+    "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
     "section": "documents",
     "order": 3,
-    "updated": "2026-10-24",
+    "updated": "2026-10-25",
     "navLabel": "Comments and tags",
     "headings": [
       {
@@ -1900,20 +1900,20 @@ export const DOCS_PAGES = [
         "a": "Right margin is comments. Left margin is tags and suggested entities. Click one to open it."
       },
       {
-        "q": "Can I turn off the entity suggestions?",
-        "a": "Yes. The AI tagger is on by default and can be switched off in settings. Suggestions never apply themselves — nothing is tagged until you accept it."
+        "q": "Can I turn off the AI in documents?",
+        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. The automatic underlines stop and no text goes to a model. Suggested names still appear, without the AI's guess at what kind of name each is, and nothing becomes a tag until you accept it."
       }
     ]
   },
   {
     "path": "/docs/organize/tags",
     "title": "Tags and Entities — Soleil Clusters",
-    "metaDescription": "Tag anything in Soleil Clusters — cards, groups, boards and passages of text. Entity types, automatic tagging, AI suggestions and emergent themes.",
+    "metaDescription": "Tag cards, clusters and passages in Soleil Clusters, type tags as entities, and see everything carrying a tag on one page. The AI only suggests.",
     "h1": "Tags and entities",
-    "answer": "A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.",
+    "answer": "A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.",
     "section": "organize",
     "order": 0,
-    "updated": "2026-10-07",
+    "updated": "2026-10-25",
     "navLabel": "Tags",
     "headings": [
       {
@@ -1921,8 +1921,8 @@ export const DOCS_PAGES = [
         "text": "Tagging"
       },
       {
-        "id": "the-tag-detail-view",
-        "text": "The tag detail view"
+        "id": "the-tag-page",
+        "text": "The tag page"
       },
       {
         "id": "entity-types",
@@ -1931,14 +1931,6 @@ export const DOCS_PAGES = [
       {
         "id": "automatic-tagging",
         "text": "Automatic tagging"
-      },
-      {
-        "id": "emergent-themes",
-        "text": "Emergent themes"
-      },
-      {
-        "id": "propagation-and-backfill",
-        "text": "Propagation and backfill"
       },
       {
         "id": "removing-deleting-and-merging-all-reversible",
@@ -1961,11 +1953,15 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does Clusters tag things without asking?",
-        "a": "Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, press Manage and filter to Auto, then right-click any item to confirm or remove the tag — removing it also keeps that tag off that item for good. Looser matches are only suggested. It reads text, not what an image shows."
+        "a": "Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested. Remove an automatic tag and it stays off that item for good."
       },
       {
         "q": "What is an entity type?",
-        "a": "A tag can be typed as a character, setting, organization, concept or thing. Typed tags get an appropriate colour and behaviour, and are what make hover previews and backlinks useful."
+        "a": "A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it."
+      },
+      {
+        "q": "Can I turn the AI off?",
+        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no text goes to a model. Tags you add, and exact-name matches, still work."
       }
     ]
   },

@@ -33,8 +33,8 @@ export const AI_MODELS = [
   },
   {
     id: '@cf/meta/llama-3.2-3b-instruct', kind: 'chat',
-    uses: 'cluster names (/api/tags/cluster-name) and tag-candidate typing (/api/ai/candidates)',
-    files: ['boards/src/worker-ai.js', 'boards/src/worker-tags.js'],
+    uses: 'tag-candidate typing (/api/ai/candidates)',
+    files: ['boards/src/worker-ai.js'],
   },
   {
     id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', kind: 'chat',

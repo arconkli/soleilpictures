@@ -37,7 +37,8 @@ import { makeTagRangePlugin, TAG_RANGE_KEY } from './docExtensions/TagRangePlugi
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
-import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
+import { runParagraphCascade, loadWorkspaceTagCentroids, reconcilePageRanges } from '../lib/aiParagraphCascade.js';
+import { useWorkspaceAiEnabled } from '../hooks/useWorkspaceAiEnabled.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
 import { rangeBoxes } from '../lib/paragraphHash.js';
@@ -266,7 +267,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       if (!(length > 0)) return null;
       const $from = ed.state.doc.resolve(from);
       let depth = $from.depth;
-      while (depth > 0 && $from.node(depth).type.name !== 'paragraph') depth--;
+      while (depth > 0 && !['paragraph', 'screenplayBlock'].includes($from.node(depth).type.name)) depth--;
       if (depth === 0) return null;
       const paraStart = $from.start(depth);
       const raw = $from.node(depth).textContent || '';
@@ -1052,13 +1053,28 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // before it can fire (the cascade would never run).
   const scopeDocCardId = scope?.docCardId || null;
   const scopeBoardId   = scope?.boardId   || null;
+  // May this doc's text go to a model? The workspace's AI switch, and only
+  // for someone who can edit it (a viewer's or a share link's results can't
+  // be saved).
+  const aiEnabled = useWorkspaceAiEnabled(workspaceId);
+  const docWritable = editable && !isPublic;
+  const aiCallsAllowedRef = useRef(false);
+  aiCallsAllowedRef.current = aiEnabled === true && docWritable;
+  const docWritableRef = useRef(docWritable);
+  docWritableRef.current = docWritable;
   useEffect(() => {
     if (!editor || !workspaceId) return;
     if (!scopeDocCardId || !activePageId) return;
+    if (!docWritable) return;
     let timer = null;
     const fire = async () => {
       try {
         const paragraphs = extractParagraphTags(editor.state.doc);
+        if (aiEnabled !== true) {
+          // No model calls. A person's range tags still follow their words.
+          await reconcilePageRanges({ docCardId: scopeDocCardId, pageId: activePageId, paragraphs });
+          return;
+        }
         if (paragraphs.length === 0) return;
         const centroids = await loadWorkspaceTagCentroids(workspaceId);
         if (centroids.size === 0) return;
@@ -1084,7 +1100,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       if (timer) clearTimeout(timer);
       editor.off('update', onUpdate);
     };
-  }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId]);
+  }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId, aiEnabled, docWritable]);
 
   // Observe links Y.Map and debounce-call updateBacklinks (2s inactivity).
   // Skipped for root doc — those have no docCardId to anchor backlinks.
@@ -1138,6 +1154,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         // the doc only re-calls /apply when the surrounding text changes.
         const trie = nameIndexRef.current;
         if (!trie?.findMatches) return;
+        // A viewer's or a share link's mention rows can't be saved.
+        if (!docWritableRef.current) return;
 
         // Step 1: collect mentions per page; partition cached vs uncached.
         const perPage = [];                  // [{ pageId, mentions, uncached }]
@@ -1168,13 +1186,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           }
         }
 
-        // Step 2: fetch missing verdicts in chunks of 16 (worker cap).
-        if (uncachedToFetch.length > 0) {
+        // Step 2: fetch missing verdicts in chunks of 16 (worker cap). With
+        // the workspace's AI off nothing is asked: unverdicted mentions stay
+        // mentions.
+        if (uncachedToFetch.length > 0 && aiCallsAllowedRef.current) {
           for (let i = 0; i < uncachedToFetch.length; i += 16) {
             const slice = uncachedToFetch.slice(i, i + 16);
             try {
-              const resp = await applyCards(slice.map(({ _key, ...c }) => c));
-              const verdicts = resp?.verdicts || [];
+              const resp = await applyCards(slice.map(({ _key, ...c }) => c), { workspaceId });
+              // null is a failed call (budget, 5xx, cooldown), not a verdict:
+              // leave the slice uncached so the next sync asks again.
+              if (!resp) continue;
+              const verdicts = resp.verdicts || [];
               const byId = new Map(slice.map(s => [s.id, s._key]));
               for (const v of verdicts) {
                 const key = byId.get(v.card_id);
@@ -1195,29 +1218,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             }
           }
         }
-
-        // Tier 1-3 paragraph cascade — runs on the active page only
-        // (other pages aren't in this editor instance). Scoped to the
-        // workspace's existing tag centroids.
-        try {
-          if (editorRef.current && activePageId) {
-            const paragraphs = extractParagraphTags(editorRef.current.state.doc);
-            if (paragraphs.length > 0) {
-              const centroids = await loadWorkspaceTagCentroids(workspaceId);
-              if (centroids.size > 0) {
-                await runParagraphCascade({
-                  workspaceId,
-                  docCardId,
-                  boardId: (scope && scope.boardId) || null,
-                  pageId: activePageId,
-                  paragraphs,
-                  tagCentroids: centroids,
-                  trie,
-                });
-              }
-            }
-          }
-        } catch (e) { console.warn('paragraph-cascade', e?.message || e); }
 
         // Step 3: per-page, bucket by verdict and persist.
         for (const { pageId, mentions } of perPage) {

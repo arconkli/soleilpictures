@@ -976,7 +976,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         <span className="tag-detail-spacer" />
         <button className={`tag-detail-manage-btn ${manageOpen ? 'is-on' : ''}`}
                 onClick={() => setManageOpen(o => !o)}
-                title="Description, source filter, pending suggestions">
+                title="Source filter and pending suggestions">
           Manage
           {pendingSuggestions.length > 0 && (
             <span className="tag-detail-manage-badge">{pendingSuggestions.length}</span>
