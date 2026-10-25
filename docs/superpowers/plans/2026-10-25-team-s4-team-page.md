@@ -128,16 +128,16 @@ its test owners.
 
 ## Task 4: the page, real
 
-- [ ] The components take `onAction`. TeamPage builds it from `teamReducer` for a sample team and from
+- [x] The components take `onAction`. TeamPage builds it from `teamReducer` for a sample team and from
   `useTeam().act` for a real one.
-- [ ] Every "Preview:" toast on a real team becomes its action: rename; close (confirm, then the
+- [x] Every "Preview:" toast on a real team becomes its action: rename; close (confirm, then the
   workspaces go home); leave; the card, invoices and plan changes open the portal; approve and keep
   viewer; roles (a price line first when it buys a seat); resend and revoke an invite; remove; add seats
   (`seats_preview`'s amount today, then `seats_add` with its `proration_date` and a request id);
   remove a seat; the when-full rule and its monthly limit; invite by email; the link on, off, its role,
   a new one; domains add, on, off, remove, and "Check now"; the seat perk. Add storage stays hidden on
   a real team (S3b).
-- [ ] Refusals read their hint; view-only teams show the Unpaid board's banner.
+- [x] Refusals read their hint; view-only teams show the Unpaid board's banner.
 
 ## Task 5: getting there
 
