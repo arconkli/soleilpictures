@@ -203,6 +203,11 @@ checkout complete (twice), the mirror guard, entitlement, trim and the seat outb
   fresh, since the MCP refuses a script with a delete in it).
 - [ ] Deploy `team-billing`, `team-billing-cron`, `stripe-webhook`, `verify-checkout-session`,
   `create-checkout-session`, `billing-reconcile-cron` and `storage-addon` (everything that imports
-  `activateCore` or `activate.ts`).
+  `activateCore` or `activate.ts`). Five done 2026-10-25, each built on the live code plus
+  only S3's hunks (main's files, byte for byte) and read back: team-billing-cron v1, storage-addon v8,
+  create-checkout-session v37, verify-checkout-session v27, stripe-webhook v37. Left: team-billing,
+  with the price; and billing-reconcile-cron, frozen by another session, which can follow later: it
+  only re-reads the subscription on a person's own `subscriptions` row, which never holds a team's.
 - [ ] A live walk-through by the owner as a test owner: buy (trial, no charge), add a seat, open the
-  portal, cancel, see the team go view-only.
+  portal, cancel, see the team go view-only. It runs through S4's setup and /team, wired to
+  `team-billing` (until then both are sample-data previews).
