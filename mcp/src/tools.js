@@ -840,3 +840,78 @@ export const toolManifest = (t) => ({
   ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
   annotations: t.annotations,
 });
+
+// ── Failures ─────────────────────────────────────────────────────────────────
+
+// A refused API call, raised the same way by both transports: the hosted server
+// builds it from the dispatcher's answer (worker-api.js internalCall), the
+// stdio one from the HTTP response (mcp/src/index.js). Before this the two
+// disagreed — the stdio server added the error code and advice, the hosted one
+// passed the bare sentence, or for a database failure the database's own
+// envelope — so the same refusal read differently depending on how a model was
+// connected.
+export class ApiError extends Error {
+  constructor(message, {
+    status = 0, code = '', requiredScope = null, scopes = null, retryAfter = null, limit = null,
+  } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.requiredScope = requiredScope;
+    this.scopes = scopes;
+    this.retryAfter = retryAfter;
+    this.limit = limit;
+  }
+}
+
+// From a failed response: its JSON body ({ error, code, required_scope, scopes })
+// and, for a rate limit, the headers that say when to come back.
+export function apiErrorFrom(status, body, headers) {
+  const header = (n) => (headers && typeof headers.get === 'function' ? headers.get(n) : null);
+  const retry = Number(header('retry-after'));
+  const limit = Number(header('x-ratelimit-limit'));
+  return new ApiError(
+    (typeof body?.error === 'string' && body.error) || `request failed (${status})`,
+    {
+      status,
+      code: (typeof body?.code === 'string' && body.code) || (status === 429 ? 'rate_limited' : ''),
+      requiredScope: body?.required_scope || null,
+      scopes: Array.isArray(body?.scopes) ? body.scopes : null,
+      retryAfter: Number.isFinite(retry) && retry > 0 ? retry : null,
+      limit: Number.isFinite(limit) && limit > 0 ? limit : null,
+    },
+  );
+}
+
+// The sentence a model reads when a call fails.
+//
+// The API's own sentence is written for a person and goes through, with its
+// stable code so a model can branch on more than English. Two refusals get
+// advice, because the bare answer names no way forward. Anything that is
+// neither an ApiError nor a refusal a tool raised on purpose is a bug or a
+// dropped connection, and its message — a TypeError's, a database envelope —
+// belongs in the log, not in a model's context.
+export function describeApiError(e) {
+  if (e instanceof ApiError || e?.name === 'ApiError') {
+    if (e.code === 'insufficient_scope') {
+      return `${e.message}. This connection may: ${(e.scopes || []).join(', ') || 'nothing'}. `
+        + 'To allow more, connect again and approve that permission, or use a token that has it '
+        + '(Settings → Connections); it cannot be widened from here. [insufficient_scope]';
+    }
+    if (e.status === 429 || e.code === 'rate_limited') {
+      return `Rate limited by Clusters${e.limit ? ` (${e.limit} requests an hour for this token)` : ''}.`
+        + `${e.retryAfter ? ` Retry in ${e.retryAfter}s.` : ' Wait a little and retry.'} [rate_limited]`;
+    }
+    return e.code ? `${e.message} [${e.code}]` : e.message;
+  }
+  if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+    return 'Clusters took too long to answer. Try again in a moment. [timeout]';
+  }
+  if (e && Object.getPrototypeOf(e) === Error.prototype && e.message) return e.message;
+  if (e instanceof TypeError && /fetch failed|network|ECONN|ENOTFOUND|EAI_AGAIN/i.test(e.message || '')) {
+    return 'Could not reach Clusters. Check the connection and try again. [network]';
+  }
+  return 'Something went wrong inside Clusters. Try again; if it keeps happening, tell the person — '
+    + 'a different call will not fix it. [internal_error]';
+}

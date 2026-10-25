@@ -29,7 +29,10 @@
 // /api/v1 govern this identically. There is no second credential and no second
 // permission model, which is the only way the two cannot drift apart.
 
-import { HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './tools.js';
+import {
+  HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest, ApiError, describeApiError,
+} from './tools.js';
+import { checkArgs, argsProblemText } from './validate.js';
 
 // Newest first: this is the list handed to a client in an
 // UnsupportedProtocolVersionError, and it is the order it should prefer.
@@ -229,14 +232,27 @@ const toolFailure = (message) => ({
   isError: true,
 });
 
-async function callTool(tools, name, args, ctx) {
+// A JSON-RPC answer for a failure nobody planned. The message used to be the
+// exception's own — on the hosted server that could be a database envelope or a
+// TypeError naming our internals — so it is a reference into the log instead.
+function internalFailure(id, e) {
+  const ref = crypto.randomUUID().slice(0, 8);
+  console.error('[mcp] internal error', ref, e);
+  return err(id, ERR.INTERNAL, `internal error (ref ${ref})`);
+}
+
+async function callTool(tools, name, rawArgs, ctx) {
   const tool = tools.find((t) => t.name === name);
   if (!tool) return { unknown: true };
+  // Held to the tool's own schema first, so a misspelt key or a name where an
+  // id belongs comes back as a sentence the model can act on — lib/mcpValidate.js.
+  const { args, problems } = checkArgs(tool.inputSchema, rawArgs);
+  if (problems.length) return toolFailure(argsProblemText(tool.name, problems));
   // The transport may want a per-call context — the stdio server derives an
   // idempotency key from the tool name and its arguments.
-  const callCtx = typeof ctx?.forTool === 'function' ? ctx.forTool(tool, args || {}) : ctx;
+  const callCtx = typeof ctx?.forTool === 'function' ? ctx.forTool(tool, args) : ctx;
   try {
-    const out = await tool.call(args || {}, callCtx);
+    const out = await tool.call(args, callCtx);
     if (tool.image) {
       // view_image returns bytes. An image block is the entire point of the
       // tool — a base64 string in a text block is not something a model can see.
@@ -271,7 +287,12 @@ async function callTool(tools, name, args, ctx) {
       ...(tool.outputSchema && out && typeof out === 'object' ? { structuredContent: out } : {}),
     };
   } catch (e) {
-    return toolFailure(e?.message || String(e));
+    // A refusal the API or the tool meant is the model's to read. Anything
+    // else is ours to find, so it is logged whole and described only vaguely.
+    if (!(e instanceof ApiError) && Object.getPrototypeOf(e || {}) !== Error.prototype) {
+      console.error('[mcp] tool failed', name, e);
+    }
+    return toolFailure(describeApiError(e));
   }
 }
 
@@ -482,7 +503,7 @@ export async function handleMcpRequest(request, ctx, parsedBody) {
     const out = [];
     for (const msg of payload) {
       const res = await handleMcpMessage(msg, ctx)
-        .catch((e) => err(msg?.id, ERR.INTERNAL, e.message));
+        .catch((e) => internalFailure(msg?.id, e));
       if (res.body) out.push(res.body);
     }
     // A batch of only notifications gets 202 with no body, per the transport.
@@ -498,5 +519,5 @@ export async function handleMcpRequest(request, ctx, parsedBody) {
   }
 
   return handleMcpMessage(payload, ctx)
-    .catch((e) => err(payload?.id, ERR.INTERNAL, e.message));
+    .catch((e) => internalFailure(payload?.id, e));
 }

@@ -161,7 +161,25 @@ These are JSON-RPC error codes, distinct from the REST API's
 A tool that *runs* and fails is not an error here. It returns a normal result
 with `isError: true` and the API's own sentence in the content, because a model
 that reads "this token cannot delete" can correct itself, while one that gets a
-transport error only learns that something broke.
+transport error only learns that something broke. The sentence ends with the
+API's [error code](/docs/api/errors) in brackets, `[insufficient_scope]` or
+`[limit_reached]`, so an agent can branch on more than the wording, and both
+servers word the same refusal the same way.
+
+Arguments are checked against the tool's input schema before anything runs. A
+call that does not fit comes back the same way, as `isError: true`, naming each
+problem by its path:
+
+```text
+Invalid arguments for add_cards:
+- cards[1].kind must be one of note, image, link, doc, video, audio, pdf, file (got "text")
+- boardId is not an argument here — did you mean board_id?
+```
+
+Some near misses are read the way they were meant rather than refused: `null`
+for an optional argument means "not given", a number or `true`/`false` sent as
+text is read as one, a list sent as JSON text is parsed, and an enum value in
+the wrong case is matched.
 
 ## Choosing scopes for an agent
 
