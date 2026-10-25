@@ -788,6 +788,9 @@ function deliveryOutcome(id, o) {
 // read-only token still cannot run add_cards or delete_board.
 export function scopeFor(method, pathname) {
   if (/^\/api\/v1\/mcp\/?$/.test(pathname)) return 'read';
+  // Taking a public link back undoes a write and destroys nothing anyone made:
+  // whoever may publish a board may unpublish it.
+  if (method === 'DELETE' && /^\/api\/v1\/boards\/[^/]+\/share-link\/?$/.test(pathname)) return 'write';
   return method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : 'write';
 }
 
@@ -1133,6 +1136,9 @@ async function dispatch(url, request, env, ctx) {
         'GET    /boards/:id',
         'GET    /boards/:id/export?format=json|omc',
         'GET    /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=',
+        'GET    /boards/:id/share-link',
+        'POST   /boards/:id/share-link      {"include_subboards":false}  — the view-only link, made once',
+        'DELETE /boards/:id/share-link      — revokes the view links you may revoke',
         'POST   /boards/:id/import          {"items":[{"url":…}]}  — re-runnable',
         'POST   /boards/:id/arrange         {"layout":"justified|masonry|grid|row|column"}',
         'GET    /boards/:id/groups',
@@ -2966,6 +2972,90 @@ async function dispatch(url, request, env, ctx) {
       })),
       count: cards.length,
     });
+  }
+
+  // /boards/:id/share-link — the board's view-only link: anyone with it opens
+  // the board without signing in, and nobody can change anything through it.
+  //
+  // POST hands back a live link rather than making another, as the Share
+  // panel's one-tap copy does (lib/boardsApi.js ensurePublicLink), so asking
+  // twice never piles up tokens; one is made only when none fits. Without
+  // include_subboards any live link will do; with it, only one of that scope.
+  // A link made here shows the one board unless include_subboards is true —
+  // the narrower choice, since an agent may be the one asking. DELETE revokes
+  // every live view link the caller may revoke and says how many others stay.
+  // Invite links (kind 'invite') grant access when claimed and are never
+  // touched here. The token only ever travels in a response body: in a path or
+  // a query string it would land in api_request_log.
+  if (sub === 'share-link') {
+    trace.route = '/boards/:id/share-link';
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    const now = Date.now();
+    const isLive = (l) => (l.kind || 'view') === 'view' && !l.revoked_at
+      && (!l.expires_at || Date.parse(l.expires_at) > now);
+    const shape = (l) => ({
+      url: `${url.origin}/share/${l.token}`,
+      include_subboards: !!l.include_subboards,
+      expires_at: l.expires_at ?? null,
+      created_at: l.created_at ?? null,
+      created_by_you: l.created_by === auth.userId,
+    });
+    // Answers for whoever may manage the board's links — an owner, a co-owner
+    // or an editor — newest first, and refuses anyone else (42501 → 403).
+    const liveLinks = async () =>
+      ((await userRpc(env, token, 'list_public_links', { p_board_id: id })) || []).filter(isLive);
+
+    if (method === 'GET') {
+      return json({ board_id: id, links: (await liveLinks()).map(shape) });
+    }
+
+    if (method === 'POST') {
+      const want = body?.include_subboards;
+      if (want !== undefined && typeof want !== 'boolean') {
+        throw fail(400, 'bad_request', 'include_subboards must be true or false');
+      }
+      const live = await liveLinks();
+      const existing = want === undefined ? live[0] : live.find((l) => !!l.include_subboards === want);
+      if (existing) return json({ board_id: id, created: false, link: shape(existing) });
+      const minted = await userRpc(env, token, 'create_public_link', {
+        p_board_id: id, p_expires_at: null, p_include_subboards: want === true,
+      });
+      if (typeof minted !== 'string' || !isUuid(minted)) {
+        throw fail(502, 'upstream_error', 'the link was not made — try again');
+      }
+      return json({
+        board_id: id,
+        created: true,
+        link: shape({ token: minted, include_subboards: want === true, expires_at: null,
+          created_at: new Date(now).toISOString(), created_by: auth.userId }),
+      }, 201);
+    }
+
+    if (method === 'DELETE') {
+      let revoked = 0;
+      let stillShared = 0;
+      for (const l of await liveLinks()) {
+        try {
+          await userRpc(env, token, 'revoke_public_link', { p_token: l.token });
+          revoked += 1;
+        } catch (e) {
+          // An editor may revoke only the links they made; the rest stay live
+          // until their maker or an owner revokes them, and the answer says so.
+          if (normalizeApiError(e).status !== 403) throw e;
+          stillShared += 1;
+        }
+      }
+      return json({
+        board_id: id,
+        revoked,
+        still_shared: stillShared,
+        ...(stillShared ? { message: `${stillShared} link${stillShared === 1 ? '' : 's'} made by someone else `
+          + `${stillShared === 1 ? 'stays' : 'stay'} live until they, or an owner of the workspace, revoke ` + (stillShared === 1 ? 'it' : 'them') } : {}),
+      });
+    }
+
+    throw fail(405, 'method_not_allowed', `${method} is not supported here`);
   }
 
   // GET /boards/:id/gallery — the board's pictures in the order a person reads

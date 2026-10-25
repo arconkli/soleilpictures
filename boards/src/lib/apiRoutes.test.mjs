@@ -867,3 +867,128 @@ test('view_board over /mcp answers in words and pictures, for a read-only token'
     assert.equal(wrong.body.result.isError, true, 'more than four card_ids is refused before the call');
   });
 });
+
+// ── /boards/:id/share-link, share_board and unshare_board ───────────────────
+
+const T1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const T2 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const T3 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+
+// public_share_links in memory, answered as list_public_links / create_public_link /
+// revoke_public_link answer: newest first, and 42501 for a link this caller may
+// not revoke.
+function fakeLinks(rows = []) {
+  const links = rows.map((r) => ({ kind: 'view', revoked_at: null, expires_at: null,
+    include_subboards: false, created_by: 'u1', created_at: '2026-10-01T00:00:00+00:00', ...r }));
+  const made = [];
+  on('POST', 'rpc/list_public_links', () => reply(links.filter((l) => l.board_id === undefined || l.board_id === B1)));
+  on('POST', 'rpc/create_public_link', (c) => {
+    const token = [T3, T2, T1][made.length] || T1;
+    made.push(c.body);
+    links.unshift({ token, kind: 'view', revoked_at: null, expires_at: c.body.p_expires_at,
+      include_subboards: c.body.p_include_subboards, created_by: 'u1', created_at: '2026-10-25T00:00:00+00:00' });
+    return reply(token);
+  });
+  on('POST', 'rpc/revoke_public_link', (c) => {
+    const l = links.find((x) => x.token === c.body.p_token);
+    if (l.created_by !== 'u1') return reply({ code: '42501', message: 'you can only manage links you created' }, 403);
+    l.revoked_at = '2026-10-25T00:00:00+00:00';
+    return reply(null);
+  });
+  return { links, made };
+}
+
+test('share-link makes a view link once, then hands the same one back', async () => {
+  putBoard(B1, []);
+  const { made } = fakeLinks();
+  const first = await api('POST', `/boards/${B1}/share-link`, {});
+  assert.equal(first.status, 201, JSON.stringify(first.body));
+  assert.equal(first.body.created, true);
+  assert.equal(first.body.link.url, `https://clusters.test/share/${T3}`);
+  assert.equal(first.body.link.include_subboards, false, 'a new link shows just the one board');
+  assert.deepEqual(made, [{ p_board_id: B1, p_expires_at: null, p_include_subboards: false }]);
+
+  const again = await api('POST', `/boards/${B1}/share-link`, {});
+  assert.equal(again.status, 200);
+  assert.equal(again.body.created, false);
+  assert.equal(again.body.link.url, first.body.link.url);
+  assert.equal(made.length, 1, 'asking twice never piles up tokens');
+
+  // The token travels only in a response body: never in a path or query the
+  // request log could keep.
+  assert.ok(calls.every((c) => !c.path.includes(T3) && !String(c.query).includes(T3)));
+});
+
+test('share-link reuses a link of the scope asked for, and only live view links count', async () => {
+  putBoard(B1, []);
+  const { made } = fakeLinks([
+    { token: T1, include_subboards: true },
+    { token: T2, kind: 'invite' },
+  ]);
+  // Asked for nothing in particular: the board's live link, whichever kind.
+  const any = await api('POST', `/boards/${B1}/share-link`);
+  assert.equal(any.body.link.url, `https://clusters.test/share/${T1}`);
+  assert.equal(any.body.link.include_subboards, true);
+  // Asked for just the board: the wide link does not fit, the invite never does.
+  const narrow = await api('POST', `/boards/${B1}/share-link`, { include_subboards: false });
+  assert.equal(narrow.status, 201);
+  assert.deepEqual(made.map((m) => m.p_include_subboards), [false]);
+
+  const listed = await api('GET', `/boards/${B1}/share-link`);
+  assert.deepEqual(listed.body.links.map((l) => [l.url.slice(-36), l.include_subboards, l.created_by_you]),
+    [[T3, false, true], [T1, true, true]]);
+});
+
+test('revoked and expired links are not handed out', async () => {
+  putBoard(B1, []);
+  const { made } = fakeLinks([
+    { token: T1, revoked_at: '2026-10-02T00:00:00+00:00' },
+    { token: T2, expires_at: '2026-01-01T00:00:00+00:00' },
+  ]);
+  const res = await api('POST', `/boards/${B1}/share-link`, {});
+  assert.equal(res.status, 201);
+  assert.equal(made.length, 1);
+  assert.deepEqual((await api('GET', `/boards/${B1}/share-link`)).body.links.map((l) => l.url.slice(-36)), [T3]);
+});
+
+test('share-link refuses a bad scope, a board it cannot see and a read-only token', async () => {
+  putBoard(B1, []);
+  fakeLinks();
+  assert.equal((await api('POST', `/boards/${B1}/share-link`, { include_subboards: 'yes' })).status, 400);
+  assert.equal((await api('POST', `/boards/${B2}/share-link`, {})).status, 404);
+  scopes = ['read'];
+  const ro = await api('POST', `/boards/${B1}/share-link`, {});
+  assert.equal(ro.status, 403);
+  assert.equal(ro.body.code, 'insufficient_scope');
+});
+
+test('unsharing revokes the links this caller may, needs only write, and counts the rest', async () => {
+  putBoard(B1, []);
+  const { links } = fakeLinks([
+    { token: T1 },
+    { token: T2, created_by: 'someone-else' },
+    { token: T3, kind: 'invite' },
+  ]);
+  scopes = ['read', 'write'];
+  const res = await api('DELETE', `/boards/${B1}/share-link`);
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.revoked, 1);
+  assert.equal(res.body.still_shared, 1);
+  assert.equal(res.body.message, '1 link made by someone else stays live until they, or an owner of the workspace, revoke it');
+  assert.ok(links.find((l) => l.token === T1).revoked_at);
+  assert.equal(links.find((l) => l.token === T3).revoked_at, null, 'an invite is never touched');
+});
+
+test('share_board and unshare_board over /mcp', async () => {
+  putBoard(B1, []);
+  fakeLinks();
+  const shared = await mcp('tools/call', { name: 'share_board', arguments: { board_id: B1 } });
+  const r = shared.body.result;
+  assert.ok(!r.isError, JSON.stringify(r));
+  assert.equal(r.structuredContent.link.url, `https://clusters.test/share/${T3}`);
+  assert.equal(r.structuredContent.created, true);
+
+  const un = await mcp('tools/call', { name: 'unshare_board', arguments: { board_id: B1 } });
+  assert.ok(!un.body.result.isError, JSON.stringify(un.body.result));
+  assert.equal(un.body.result.structuredContent.revoked, 1);
+});

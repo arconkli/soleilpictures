@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-21
+updated: 2026-10-25
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -95,6 +95,12 @@ breadcrumbs. With it off, the link shows exactly one board.
 The same disclosure lists every link currently live on the cluster, with what
 each one grants, how many people have joined through it, when it expires, and
 buttons to copy or **revoke** it.
+
+An AI assistant you have [connected](/docs/mcp) can do the same two things
+with `share_board` and `unshare_board`: hand back the cluster's view link, or
+revoke it. It gets the link that already exists when there is one, and a link it
+makes shows just that one board unless it asks for the nested ones too. Scripts
+use [the same endpoint](/docs/api/boards#sharing-by-link-boards-id-share-link).
 
 > **Note:** By default a shared board tells search engines not to index it. It
 > is reachable by anyone with the URL, but it will not turn up in a search

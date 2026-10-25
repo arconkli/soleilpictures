@@ -2,7 +2,7 @@
 
 > Two ways in. For your own scripts, create a personal access token under Settings then Connections and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
 
-_Source: https://clusters.soleilpictures.com/docs/api/authentication · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/api/authentication · Updated 2026-10-25_
 
 ## Which one do you want
 
@@ -67,11 +67,13 @@ Three: `delete` · `read` · `write`.
 | `write` | Creating and changing — `POST`, `PATCH` |
 | `delete` | Removing — `DELETE` |
 
-`POST /api/v1/mcp` is the one exception to "the method decides": it is the
+Two exceptions to "the method decides". `POST /api/v1/mcp` is the
 [MCP](/docs/mcp) transport, and every message on it is a `POST`, so any token
 may open it. Each tool is then held to the scope its own call would need — a
 `read`-only token can connect and run the read tools, and is refused
-`add_cards` or `delete_board` with the same `insufficient_scope` sentence.
+`add_cards` or `delete_board` with the same `insufficient_scope` sentence. And
+[`DELETE /boards/:id/share-link`](/docs/api/boards#sharing-by-link-boards-id-share-link)
+needs only `write`: whoever may publish a board's link may take it back.
 
 **Deleting is deliberately separate from writing.** "Can add cards to my
 moodboard" and "can destroy my moodboard" are different levels of trust to hand

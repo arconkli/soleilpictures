@@ -33102,6 +33102,61 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An AI assistant you have "
+    },
+    {
+     "t": "link",
+     "v": "connected",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "connected"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can do the same two things with "
+    },
+    {
+     "t": "code",
+     "v": "share_board"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "unshare_board"
+    },
+    {
+     "t": "text",
+     "v": ": hand back the cluster's view link, or revoke it. It gets the link that already exists when there is one, and a link it makes shows just that one board unless it asks for the nested ones too. Scripts use "
+    },
+    {
+     "t": "link",
+     "v": "the same endpoint",
+     "href": "/docs/api/boards#sharing-by-link-boards-id-share-link",
+     "children": [
+      {
+       "t": "text",
+       "v": "the same endpoint"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "callout",
    "variant": "note",
    "inline": [
@@ -49143,12 +49198,16 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "Two exceptions to \"the method decides\". "
+    },
+    {
      "t": "code",
      "v": "POST /api/v1/mcp"
     },
     {
      "t": "text",
-     "v": " is the one exception to \"the method decides\": it is the "
+     "v": " is the "
     },
     {
      "t": "link",
@@ -49203,7 +49262,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sentence."
+     "v": " sentence. And "
+    },
+    {
+     "t": "link",
+     "v": "`DELETE /boards/:id/share-link`",
+     "href": "/docs/api/boards#sharing-by-link-boards-id-share-link",
+     "children": [
+      {
+       "t": "code",
+       "v": "DELETE /boards/:id/share-link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " needs only "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": ": whoever may publish a board's link may take it back."
     }
    ]
   },
@@ -51351,6 +51433,202 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " with a message naming the number it would reach. Free some room or upgrade, then retry. Nothing is lost in the meantime — the 30-day trash window is the only clock running."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Sharing by link — /boards/:id/share-link",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing by link — "
+    },
+    {
+     "t": "code",
+     "v": "/boards/:id/share-link"
+    }
+   ],
+   "id": "sharing-by-link-boards-id-share-link"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A board's "
+    },
+    {
+     "t": "link",
+     "v": "view-only link",
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "view-only link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": anyone with it opens the board without signing in, and nobody can change anything through it."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/boards/$BOARD/share-link\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" -d '{}'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"…\",\n  \"created\": true,\n  \"link\": { \"url\": \"https://clusters.soleilpictures.com/share/…\", \"include_subboards\": false,\n            \"expires_at\": null, \"created_at\": \"…\", \"created_by_you\": true }\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Call"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Returns a live view link the board already has, "
+      },
+      {
+       "t": "code",
+       "v": "200"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "\"created\": false"
+      },
+      {
+       "t": "text",
+       "v": "; makes one only when none fits, "
+      },
+      {
+       "t": "code",
+       "v": "201"
+      },
+      {
+       "t": "text",
+       "v": ". With "
+      },
+      {
+       "t": "code",
+       "v": "include_subboards"
+      },
+      {
+       "t": "text",
+       "v": ", only a link of that kind fits. A link made here shows just this board unless "
+      },
+      {
+       "t": "code",
+       "v": "include_subboards"
+      },
+      {
+       "t": "text",
+       "v": " is "
+      },
+      {
+       "t": "code",
+       "v": "true"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The board's live view links, newest first"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Revokes every live view link you may revoke. "
+      },
+      {
+       "t": "code",
+       "v": "still_shared"
+      },
+      {
+       "t": "text",
+       "v": " counts the links someone else made, which stay live until they or an owner of the workspace revoke them"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Asking twice never makes a second link, so a retry is safe. Invite links, which grant editing once someone signs in, are never returned or revoked here. Only someone who may manage the board's links (an owner, a co-owner or an editor) gets an answer; anyone else gets "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "DELETE"
+    },
+    {
+     "t": "text",
+     "v": " here needs only the "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": " scope: taking a link back undoes a write and destroys nothing anyone made."
     }
    ]
   },
@@ -62321,6 +62599,65 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "board_id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "share_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "include_subboards?"
+      },
+      {
+       "t": "text",
+       "v": " — the board's "
+      },
+      {
+       "t": "link",
+       "v": "view-only link",
+       "href": "/docs/collaborate/sharing",
+       "children": [
+        {
+         "t": "text",
+         "v": "view-only link"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", made only when it has none; call it only when the person asks to share"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "unshare_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — revokes the board's view-only links this account may revoke"
       }
      ]
     ]

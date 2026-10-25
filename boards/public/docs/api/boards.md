@@ -2,7 +2,7 @@
 
 > Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.
 
-_Source: https://clusters.soleilpictures.com/docs/api/boards · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/docs/api/boards · Updated 2026-10-25_
 
 A board is what the interface calls a [cluster](/docs/concepts). Same object,
 two words.
@@ -267,6 +267,37 @@ since, putting the cluster back would take the account over its limit, and the
 call answers `402 limit_reached` with a message naming the number it would
 reach. Free some room or upgrade, then retry. Nothing is lost in the meantime —
 the 30-day trash window is the only clock running.
+
+## Sharing by link — `/boards/:id/share-link`
+
+A board's [view-only link](/docs/collaborate/sharing): anyone with it opens the
+board without signing in, and nobody can change anything through it.
+
+```sh
+curl -X POST "$SOLEIL_API/boards/$BOARD/share-link" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" -d '{}'
+```
+
+```json
+{
+  "board_id": "…",
+  "created": true,
+  "link": { "url": "https://clusters.soleilpictures.com/share/…", "include_subboards": false,
+            "expires_at": null, "created_at": "…", "created_by_you": true }
+}
+```
+
+| Call | Does |
+|---|---|
+| `POST` | Returns a live view link the board already has, `200` and `"created": false`; makes one only when none fits, `201`. With `include_subboards`, only a link of that kind fits. A link made here shows just this board unless `include_subboards` is `true` |
+| `GET` | The board's live view links, newest first |
+| `DELETE` | Revokes every live view link you may revoke. `still_shared` counts the links someone else made, which stay live until they or an owner of the workspace revoke them |
+
+Asking twice never makes a second link, so a retry is safe. Invite links, which
+grant editing once someone signs in, are never returned or revoked here. Only
+someone who may manage the board's links (an owner, a co-owner or an editor)
+gets an answer; anyone else gets `403`. `DELETE` here needs only the `write`
+scope: taking a link back undoes a write and destroys nothing anyone made.
 
 ## Worked example
 

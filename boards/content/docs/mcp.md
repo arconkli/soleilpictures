@@ -5,7 +5,7 @@ h1: MCP server
 navLabel: MCP
 section: developers
 order: 10
-updated: 2026-10-20
+updated: 2026-10-25
 answer: Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 faq:
   - q: Do I have to install anything?
@@ -244,6 +244,8 @@ quietly failing.
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
 | `set_metadata` | `board_id`, `card_id?`, `identifiers?`, `props?` |
 | `restore_board` | `board_id` |
+| `share_board` | `board_id`, `include_subboards?` — the board's [view-only link](/docs/collaborate/sharing), made only when it has none; call it only when the person asks to share |
+| `unshare_board` | `board_id` — revokes the board's view-only links this account may revoke |
 
 **Deleting** — requires the `delete` scope
 

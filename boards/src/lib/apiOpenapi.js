@@ -840,6 +840,29 @@ export function openapiDocument(origin) {
           ],
         }),
       },
+      '/boards/{id}/share-link': {
+        get: op('listShareLinks', 'The board\'s live view-only links', { parameters: [boardIdParam] }),
+        post: op('shareBoard', 'The board\'s view-only link, made only when none fits', {
+          description: 'Returns a live view link when the board has one (of the scope asked for, '
+            + 'when include_subboards is given), and makes one otherwise (201). Anyone with the '
+            + 'link opens the board without signing in and can change nothing through it.',
+          parameters: [boardIdParam],
+          requestBody: {
+            ...jsonBody({
+              include_subboards: {
+                type: 'boolean',
+                description: 'Also open the boards nested inside it. A new link without it shows just this board.',
+              },
+            }),
+            required: false,
+          },
+        }),
+        delete: op('unshareBoard', 'Revoke the view links you may revoke', {
+          description: 'Needs only the write scope: taking a link back undoes a write. Links someone '
+            + 'else made stay live unless you own the workspace; still_shared counts them.',
+          parameters: [boardIdParam],
+        }),
+      },
       '/resolve': {
         get: op('resolveIdentifier', 'Find an object by a foreign identifier', {
           parameters: [

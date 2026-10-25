@@ -3127,7 +3127,7 @@ A: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-10-21
+Updated: 2026-10-25
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
@@ -3168,6 +3168,8 @@ Allow indexing | Whether search engines may index it — off by default
 With sub-clusters included, viewers navigate into nested boards with breadcrumbs. With it off, the link shows exactly one board.
 
 The same disclosure lists every link currently live on the cluster, with what each one grants, how many people have joined through it, when it expires, and buttons to copy or revoke it.
+
+An AI assistant you have connected can do the same two things with share_board and unshare_board: hand back the cluster's view link, or revoke it. It gets the link that already exists when there is one, and a link it makes shows just that one board unless it asks for the nested ones too. Scripts use the same endpoint.
 
 By default a shared board tells search engines not to index it. It is reachable by anyone with the URL, but it will not turn up in a search unless you allow indexing or publish it to Explore. Allowing indexing opens up once an account is 72 hours old.
 
@@ -4871,7 +4873,7 @@ A: Two requests. POST the bytes to /uploads to get an image_key, then create a c
 ========================================================================
 # Authentication
 URL: https://clusters.soleilpictures.com/docs/api/authentication
-Updated: 2026-10-07
+Updated: 2026-10-25
 
 Two ways in. For your own scripts, create a personal access token under Settings then Connections and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
 
@@ -4915,7 +4917,7 @@ read | Every GET
 write | Creating and changing — POST, PATCH
 delete | Removing — DELETE
 
-POST /api/v1/mcp is the one exception to "the method decides": it is the MCP transport, and every message on it is a POST, so any token may open it. Each tool is then held to the scope its own call would need — a read-only token can connect and run the read tools, and is refused add_cards or delete_board with the same insufficient_scope sentence.
+Two exceptions to "the method decides". POST /api/v1/mcp is the MCP transport, and every message on it is a POST, so any token may open it. Each tool is then held to the scope its own call would need — a read-only token can connect and run the read tools, and is refused add_cards or delete_board with the same insufficient_scope sentence. And DELETE /boards/:id/share-link needs only write: whoever may publish a board's link may take it back.
 
 Deleting is deliberately separate from writing. "Can add cards to my moodboard" and "can destroy my moodboard" are different levels of trust to hand out, and the distinction matters most when the caller is a language model driving MCP tools.
 
@@ -4997,7 +4999,7 @@ A: Up to 20 active at once. Revoked ones do not count.
 ========================================================================
 # Boards API
 URL: https://clusters.soleilpictures.com/docs/api/boards
-Updated: 2026-10-20
+Updated: 2026-10-25
 
 Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.
 
@@ -5174,6 +5176,27 @@ Puts a soft-deleted board back. Find deleted boards with GET /boards?deleted=1.
 Restoring a board that is already live is a no-op, so a retry is safe.
 
 This call can be refused. A deleted cluster stops counting against the card limit the moment it is deleted, so the room it held is immediately usable. The other side of that is that a restore has to fit: if the space has been used since, putting the cluster back would take the account over its limit, and the call answers 402 limit_reached with a message naming the number it would reach. Free some room or upgrade, then retry. Nothing is lost in the meantime — the 30-day trash window is the only clock running.
+
+Sharing by link — /boards/:id/share-link
+
+A board's view-only link: anyone with it opens the board without signing in, and nobody can change anything through it.
+
+curl -X POST "$SOLEIL_API/boards/$BOARD/share-link" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" -d '{}'
+
+{
+  "board_id": "…",
+  "created": true,
+  "link": { "url": "https://clusters.soleilpictures.com/share/…", "include_subboards": false,
+            "expires_at": null, "created_at": "…", "created_by_you": true }
+}
+
+Call | Does
+POST | Returns a live view link the board already has, 200 and "created": false; makes one only when none fits, 201. With include_subboards, only a link of that kind fits. A link made here shows just this board unless include_subboards is true
+GET | The board's live view links, newest first
+DELETE | Revokes every live view link you may revoke. still_shared counts the links someone else made, which stay live until they or an owner of the workspace revoke them
+
+Asking twice never makes a second link, so a retry is safe. Invite links, which grant editing once someone signs in, are never returned or revoked here. Only someone who may manage the board's links (an owner, a co-owner or an editor) gets an answer; anyone else gets 403. DELETE here needs only the write scope: taking a link back undoes a write and destroys nothing anyone made.
 
 Worked example
 
@@ -6341,7 +6364,7 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 ========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
-Updated: 2026-10-20
+Updated: 2026-10-25
 
 Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
@@ -6490,6 +6513,8 @@ update_cards | board_id, cards[] — up to 1000 at once, each an id and the fiel
 move_cards | from_board_id, to_board_id, card_ids[]
 set_metadata | board_id, card_id?, identifiers?, props?
 restore_board | board_id
+share_board | board_id, include_subboards? — the board's view-only link, made only when it has none; call it only when the person asks to share
+unshare_board | board_id — revokes the board's view-only links this account may revoke
 
 Deleting — requires the delete scope
 

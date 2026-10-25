@@ -167,7 +167,10 @@ test('every tool declares all four annotations', () => {
 
 test('anything that deletes is marked destructive, and nothing else is', () => {
   const destructive = TOOLS.filter((t) => t.annotations.destructiveHint).map((t) => t.name).sort();
-  assert.deepEqual(destructive, ['delete_board', 'delete_card', 'delete_cards']);
+  // unshare_board deletes nothing anyone made, but a revoked link never opens
+  // again for anyone holding it: irreversible for other people, so a client
+  // should ask first.
+  assert.deepEqual(destructive, ['delete_board', 'delete_card', 'delete_cards', 'unshare_board']);
   // And a read-only tool must not also claim to write.
   for (const t of TOOLS) {
     if (t.annotations.readOnlyHint) {
@@ -182,7 +185,7 @@ test('every read tool is marked read-only', () => {
   // click through confirmations.
   const reads = ['whoami', 'search', 'read_board', 'list_boards', 'board_tree',
     'get_board', 'view_image', 'list_images', 'export_board', 'resolve_identifier',
-    'list_audit', 'get_metadata', 'list_workspaces', 'list_deleted_boards'];
+    'list_audit', 'get_metadata', 'list_workspaces', 'list_deleted_boards', 'view_board'];
   for (const name of reads) {
     const t = TOOLS.find((x) => x.name === name);
     assert.ok(t, `${name} is missing from the registry`);

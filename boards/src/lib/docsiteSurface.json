@@ -5,6 +5,7 @@
     "DELETE /boards/:id/cards {\"card_ids\":[…]} — bulk",
     "DELETE /boards/:id/cards/:cardId",
     "DELETE /boards/:id/groups/:groupId — ungroups, never deletes cards",
+    "DELETE /boards/:id/share-link — revokes the view links you may revoke",
     "DELETE /service-accounts/:id",
     "DELETE /service-accounts/:id/tokens/:tokenId",
     "DELETE /webhooks/:id",
@@ -14,6 +15,7 @@
     "GET /boards/:id/export?format=json|omc",
     "GET /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=",
     "GET /boards/:id/groups",
+    "GET /boards/:id/share-link",
     "GET /boards/tree?root=&workspace=&depth=",
     "GET /boards?workspace=&parent=&deleted=&since=&cursor=&include=&limit=&offset=",
     "GET /images/:key?variant=preview",
@@ -39,6 +41,7 @@
     "POST /boards/:id/groups",
     "POST /boards/:id/import {\"items\":[{\"url\":…}]} — re-runnable",
     "POST /boards/:id/restore",
+    "POST /boards/:id/share-link {\"include_subboards\":false} — the view-only link, made once",
     "POST /boards/move",
     "POST /mcp — Model Context Protocol, for AI agents",
     "POST /service-accounts",
@@ -160,6 +163,14 @@
     {
       "name": "set_metadata",
       "schema": "1232151219e0"
+    },
+    {
+      "name": "share_board",
+      "schema": "4446c48628d4"
+    },
+    {
+      "name": "unshare_board",
+      "schema": "f96ed34d3b0c"
     },
     {
       "name": "update_card",

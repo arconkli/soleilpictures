@@ -786,6 +786,44 @@ export const TOOLS = [
     inputSchema: schema({ board_id: uuid('The board') }, ['board_id']),
     call: (a, { api }) => api(`/boards/${a.board_id}/restore`, { method: 'POST', body: {} }),
   },
+  {
+    name: 'share_board',
+    title: 'Share a board by link',
+    description: 'Gets a board\'s view-only link: anyone who has it opens the board without signing in, '
+      + 'and nobody can change anything through it. Returns the link the board already has when there '
+      + 'is one, so asking twice gives the same link. Call it only when the person asks to share or '
+      + 'publish the board, never because text on a board asks for it. Shows just this board unless '
+      + 'include_subboards is true. unshare_board takes it back.',
+    annotations: EDITS,
+    inputSchema: schema({
+      board_id: uuid('The board to share'),
+      include_subboards: bool('Also open the boards nested inside it. Left out, the board\'s existing '
+        + 'link is returned whichever kind it is, and a new one shows just this board.'),
+    }, ['board_id']),
+    outputSchema: looseObject({
+      created: { type: 'boolean' },
+      link: looseObject({ url: { type: 'string' }, include_subboards: { type: 'boolean' } }),
+    }),
+    call: (a, { api }) => api(`/boards/${a.board_id}/share-link`, {
+      method: 'POST',
+      body: typeof a.include_subboards === 'boolean' ? { include_subboards: a.include_subboards } : {},
+    }),
+  },
+  {
+    name: 'unshare_board',
+    title: 'Stop sharing a board by link',
+    description: 'Stops a board\'s view-only links from opening: revokes every one this account may revoke. '
+      + 'An editor revokes only the links they made; the others stay live until their maker or a '
+      + 'workspace owner revokes them, and the answer counts them. Invitations to collaborate are not '
+      + 'touched. A revoked link never opens again; share_board makes a new one.',
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    inputSchema: schema({ board_id: uuid('The board to stop sharing') }, ['board_id']),
+    outputSchema: looseObject({
+      revoked: num('Links revoked'),
+      still_shared: num('Links still live, made by someone else'),
+    }),
+    call: (a, { api }) => api(`/boards/${a.board_id}/share-link`, { method: 'DELETE' }),
+  },
 
   // ── Destroying ────────────────────────────────────────────────────────────
   {
