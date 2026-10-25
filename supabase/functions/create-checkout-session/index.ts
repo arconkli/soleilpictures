@@ -22,6 +22,7 @@ import Stripe from "npm:stripe@17.7.0";
 import { clientIpFromHeaders, emitCapi, gpcFrom } from "../_shared/meta-capi.ts";
 import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer, promoCodesAllowedForPlan } from "../_shared/activateCore.mjs";
 import { CREATOR_TRIAL_DAYS, creatorTrialEligibility, customerHasTrialed } from "../_shared/trialCore.mjs";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -53,7 +54,7 @@ const cors = {
 
 const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient() });
 
-Deno.serve(async (req) => {
+Deno.serve(reported("create-checkout-session", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -361,9 +362,9 @@ Deno.serve(async (req) => {
     return json({ ok: true, url: session.url }, 200);
   } catch (e) {
     console.error("[create-checkout-session] error", e);
-    return json({ error: String((e as Error)?.message ?? e) }, 500);
+    return failedWith(json({ error: String((e as Error)?.message ?? e) }, 500), e);
   }
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

@@ -15,6 +15,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import * as Y from "npm:yjs@13.6.30";
 import { liveKeysFromDoc } from "../_shared/liveKeys.mjs";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -30,7 +31,7 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("storage-liveness", async (req) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   const cronHeader = req.headers.get("x-cron-secret") || "";
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
   const { data: due, error } = await admin.rpc("storage_liveness_due", { p_limit: MAX_BOARDS, p_max_chars: MAX_CHARS });
   if (error) {
     console.error("storage-liveness: storage_liveness_due failed", error.message);
-    return json({ ok: false, error: "due_failed" }, 500);
+    return failedWith(json({ ok: false, error: "due_failed" }, 500), error, { what: "rpc storage_liveness_due" });
   }
 
   let recorded = 0, undecodable = 0, failed = 0;
@@ -58,6 +59,7 @@ Deno.serve(async (req) => {
     } catch (e) {
       undecodable++;
       console.warn("storage-liveness: could not decode", row.board_id, String(e));
+      void reportEdgeError("storage-liveness", { what: "decode a board", error: e, severity: "warning" });
     }
     const { error: recErr } = await admin.rpc("storage_liveness_record", {
       p_board_id: row.board_id,
@@ -67,10 +69,11 @@ Deno.serve(async (req) => {
     if (recErr) {
       failed++;
       console.error("storage-liveness: record failed", row.board_id, recErr.message);
+      void reportEdgeError("storage-liveness", { what: "rpc storage_liveness_record", error: recErr });
     } else {
       recorded++;
     }
   }
 
   return json({ ok: failed === 0, due: (due || []).length, recorded, undecodable, failed });
-});
+}));

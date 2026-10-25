@@ -7,6 +7,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -28,7 +29,7 @@ const cors = {
 
 const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient() });
 
-Deno.serve(async (req) => {
+Deno.serve(reported("create-portal-session", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
       .select("stripe_customer_id")
       .eq("user_id", u.data.user.id)
       .maybeSingle();
-    if (sub.error) return json({ error: sub.error.message }, 500);
+    if (sub.error) return failedWith(json({ error: sub.error.message }, 500), sub.error, { what: "select subscriptions" });
     if (!sub.data?.stripe_customer_id) return json({ error: "no subscription found" }, 404);
 
     let session: Stripe.BillingPortal.Session;
@@ -74,9 +75,9 @@ Deno.serve(async (req) => {
     return json({ ok: true, url: session.url }, 200);
   } catch (e) {
     console.error("[create-portal-session] error", e);
-    return json({ error: String((e as Error)?.message ?? e) }, 500);
+    return failedWith(json({ error: String((e as Error)?.message ?? e) }, 500), e);
   }
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import { activateUserFromSubscription } from "../_shared/activate.ts";
 import { emitCapi, gpcFrom } from "../_shared/meta-capi.ts";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -36,7 +37,7 @@ const cors = {
 
 const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient() });
 
-Deno.serve(async (req) => {
+Deno.serve(reported("verify-checkout-session", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -69,6 +70,11 @@ Deno.serve(async (req) => {
     try {
       session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
     } catch (e) {
+      // A session id nobody made is the caller's; anything else is ours.
+      void reportEdgeError("verify-checkout-session", {
+        what: "stripe checkout.sessions.retrieve", error: e, request: req,
+        ...((e as { code?: string })?.code === "resource_missing" ? { severity: "warning" } : {}),
+      });
       return json({ activated: false, reason: `stripe retrieve failed: ${(e as Error).message}` }, 200);
     }
 
@@ -162,7 +168,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return json({
+    const answer = json({
       activated: result.activated,
       reason: result.reason ?? null,
       plan: result.plan ?? null,
@@ -174,11 +180,16 @@ Deno.serve(async (req) => {
       // answers — 200 so the client shows the reason instead of retrying; 500
       // stays reserved for real failures (DB write errors) worth a retry.
     }, result.activated || result.soft ? 200 : 500);
+    // A real failure (the database refused a write): by its first words,
+    // which name the write, never the row.
+    return result.activated || result.soft
+      ? answer
+      : failedWith(answer, new Error(String(result.reason || "failed").split(":")[0]), { what: "activate" });
   } catch (e) {
     console.error("[verify-checkout-session] error", e);
-    return json({ error: String((e as Error)?.message ?? e) }, 500);
+    return failedWith(json({ error: String((e as Error)?.message ?? e) }, 500), e);
   }
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

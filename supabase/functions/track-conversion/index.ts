@@ -16,6 +16,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { emitCapi, clientIpFromHeaders, gpcFrom } from "../_shared/meta-capi.ts";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,7 +41,7 @@ const cors = {
   "access-control-max-age":       "86400",
 };
 
-Deno.serve(async (req) => {
+Deno.serve(reported("track-conversion", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -73,7 +74,7 @@ Deno.serve(async (req) => {
     if (eventName === "Lead") {
       const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
       const { data: adRow, error: adErr } = await admin.from("ad_signups").select("user_id").eq("user_id", userId).maybeSingle();
-      if (adErr) return json({ error: "membership lookup failed" }, 500);   // surface real DB errors, don't silently drop the Lead
+      if (adErr) return failedWith(json({ error: "membership lookup failed" }, 500), adErr, { what: "select ad_signups" });   // surface real DB errors, don't silently drop the Lead
       if (!adRow) return json({ ok: true, skipped: "not_ad_cohort" }, 200);
       eventId = `lead:${userId}`;
     } else {
@@ -99,9 +100,9 @@ Deno.serve(async (req) => {
     return json({ ok: true }, 200);
   } catch (e) {
     console.error("[track-conversion] error", e);
-    return json({ error: String((e as Error)?.message ?? e) }, 500);
+    return failedWith(json({ error: String((e as Error)?.message ?? e) }, 500), e);
   }
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

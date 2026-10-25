@@ -25,6 +25,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import { trialEndingSoon, trimDue } from "../_shared/teamBillingCore.mjs";
 import { completeTeamCheckout, mirrorTeamSubscription, syncTeam, teamBillingReady } from "../_shared/teamBilling.ts";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,7 +41,7 @@ const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient
 
 type Admin = ReturnType<typeof createClient>;
 
-Deno.serve(async (req) => {
+Deno.serve(reported("team-billing-cron", async (req) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   const cronHeader = req.headers.get("x-cron-secret") || "";
@@ -63,9 +64,9 @@ Deno.serve(async (req) => {
     return json(await sweep(admin), 200);
   } catch (e) {
     console.error("[team-billing-cron] error", e);
-    return json({ error: String((e as Error)?.message ?? e) }, 500);
+    return failedWith(json({ error: String((e as Error)?.message ?? e) }, 500), e);
   }
-});
+}));
 
 async function sweep(admin: Admin) {
   const startedAt = Date.now();
@@ -82,6 +83,7 @@ async function sweep(admin: Admin) {
       if (r.action !== "none") notes.push({ org_id: orgId, why, action: r.action, seats: r.seats });
     } catch (e) {
       notes.push({ org_id: orgId, why, error: String((e as Error)?.message ?? e) });
+      void reportEdgeError("team-billing-cron", { what: "sync a team", error: e });
     }
   };
 
@@ -100,8 +102,10 @@ async function sweep(admin: Admin) {
       const out = await completeTeamCheckout(admin, stripe, { checkoutId: c.id as string, sessionId: s.id, subscriptionId: subId });
       if (out.ok) completed++;
       notes.push({ checkout: c.id, ok: out.ok, error: out.error ?? null, undone: out.undone ?? false });
+      if (!out.ok) void reportEdgeError("team-billing-cron", { what: "complete a team checkout", error: new Error(String(out.error || "failed")) });
     } catch (e) {
       notes.push({ checkout: c.id, error: String((e as Error)?.message ?? e) });
+      void reportEdgeError("team-billing-cron", { what: "complete a team checkout", error: e });
     }
   }
 
@@ -144,6 +148,7 @@ async function sweep(admin: Admin) {
       }
     } catch (e) {
       notes.push({ org_id: orgId, error: String((e as Error)?.message ?? e) });
+      void reportEdgeError("team-billing-cron", { what: "re-read a team", error: e });
     }
   }
 

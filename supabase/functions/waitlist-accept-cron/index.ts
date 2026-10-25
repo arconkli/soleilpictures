@@ -20,6 +20,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -34,8 +35,14 @@ async function sendEmail(template: string, to: string, data: Record<string, unkn
       headers: { "authorization": `Bearer ${SEND_EMAIL_SECRET}`, "content-type": "application/json" },
       body: JSON.stringify({ template, to, data }),
     });
-    if (!res.ok) console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
-  } catch (e) { console.warn(`send-transactional-email ${template} -> ${to} threw`, e); }
+    if (!res.ok) {
+      console.warn(`send-transactional-email ${template} -> ${to} failed: ${res.status}`);
+      void reportEdgeError("waitlist-accept-cron", { what: `send ${template}`, error: new Error(`send-transactional-email answered ${res.status}`) });
+    }
+  } catch (e) {
+    console.warn(`send-transactional-email ${template} -> ${to} threw`, e);
+    void reportEdgeError("waitlist-accept-cron", { what: `send ${template}`, error: e });
+  }
 }
 
 const cors = {
@@ -44,7 +51,7 @@ const cors = {
   "access-control-allow-headers": "content-type, authorization",
 };
 
-Deno.serve(async (req) => {
+Deno.serve(reported("waitlist-accept-cron", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -62,7 +69,7 @@ Deno.serve(async (req) => {
     .eq("status", "pending")
     .lte("scheduled_accept_at", new Date().toISOString())
     .limit(50);
-  if (due.error) return json({ error: due.error.message }, 500);
+  if (due.error) return failedWith(json({ error: due.error.message }, 500), due.error, { what: "select waitlist_entries" });
 
   const results: Array<{ email: string; ok: boolean; reason?: string }> = [];
   for (const row of due.data || []) {
@@ -72,10 +79,11 @@ Deno.serve(async (req) => {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       results.push({ email: row.email, ok: false, reason: msg });
+      void reportEdgeError("waitlist-accept-cron", { what: "accept one", error: e });
     }
   }
   return json({ ok: true, processed: results.length, results }, 200);
-});
+}));
 
 async function acceptOne(admin: ReturnType<typeof createClient>, entryId: string, email: string) {
   // User already exists (auth.users row was created when they OTP-verified

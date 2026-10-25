@@ -31,6 +31,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import { billingConfig, mirrorRow } from "../_shared/activate.ts";
+import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
 import { subscriptionItems } from "../_shared/activateCore.mjs";
 import {
   STORAGE_ADDON_CURRENCY,
@@ -65,7 +66,7 @@ const cors = {
 
 const stripe = new Stripe(STRIPE_KEY, { httpClient: Stripe.createFetchHttpClient() });
 
-Deno.serve(async (req) => {
+Deno.serve(reported("storage-addon", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST")    return json({ error: "POST only" }, 405);
 
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
 
     const cfg = billingConfig();
     const configured = Boolean(cfg.storageProduct && cfg.storagePrices.monthly && cfg.storagePrices.annual);
-    if (!configured) return json({ error: "not_configured" }, 503);
+    if (!configured) return failedWith(json({ error: "not_configured" }, 503), new Error("the storage add-on's prices are not set"), { what: "billing config" });
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
@@ -195,7 +196,10 @@ Deno.serve(async (req) => {
     const attempt = await admin.from("analytics_events").insert({
       user_id: userId, event: "storage_addon_attempt", props: { from: current, to: target }, path: "/storage-addon",
     });
-    if (attempt.error) console.warn("[storage-addon] attempt insert failed", attempt.error.message);
+    if (attempt.error) {
+      console.warn("[storage-addon] attempt insert failed", attempt.error.message);
+      void reportEdgeError("storage-addon", { what: "insert analytics_events", error: attempt.error, severity: "warning" });
+    }
 
     const updated = await stripe.subscriptions.update(subId!, {
       items: changeItems,
@@ -226,23 +230,27 @@ Deno.serve(async (req) => {
       const up = await admin.from("subscriptions")
         .update(mirrorRow(fresh, { userId, customerId, observedAt }))
         .eq("user_id", userId).eq("stripe_subscription_id", subId!);
-      if (up.error) console.warn("[storage-addon] mirror write failed", up.error.message);
+      if (up.error) {
+        console.warn("[storage-addon] mirror write failed", up.error.message);
+        void reportEdgeError("storage-addon", { what: "update subscriptions", error: up.error, severity: "warning" });
+      }
       const quotaQ = await admin.rpc("_storage_quota_bytes", { p_owner: userId });
       if (!quotaQ.error) quotaBytes = quotaQ.data;
     } catch (e) {
       console.warn("[storage-addon] post-update bookkeeping failed", (e as Error)?.message || String(e));
+      void reportEdgeError("storage-addon", { what: "after the change", error: e, severity: "warning" });
     }
     return json({ ok: true, blocks: blocksNow, quota_bytes: quotaBytes, charged: increase ? Math.max(0, amount) : 0 }, 200);
   } catch (e) {
     if (e instanceof Stripe.errors.StripeIdempotencyError) return json({ error: "retry" }, 409);
     if (e instanceof Stripe.errors.StripeError) {
       console.error("[storage-addon] stripe error", e.type, e.code, e.message);
-      return json({ error: "stripe_error", code: e.code ?? null }, 502);
+      return failedWith(json({ error: "stripe_error", code: e.code ?? null }, 502), e);
     }
     console.error("[storage-addon] error", e);
-    return json({ error: "server_error" }, 500);
+    return failedWith(json({ error: "server_error" }, 500), e);
   }
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {

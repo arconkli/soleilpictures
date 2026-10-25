@@ -25,6 +25,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
+import { failedWith, reported } from "../_shared/reportError.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -72,7 +73,7 @@ interface Body {
   image_data_url?: string;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(reported("send-feedback", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
@@ -140,9 +141,9 @@ Deno.serve(async (req) => {
     user_agent: body.user_agent ? String(body.user_agent).slice(0, 512): null,
     image_data_url: imageDataUrl,
   });
-  if (ins.error) return json({ error: ins.error.message }, 500);
+  if (ins.error) return failedWith(json({ error: ins.error.message }, 500), ins.error, { what: "insert feedback" });
   return json({ ok: true }, 200);
-});
+}));
 
 function json(payload: unknown, status: number): Response {
   return new Response(JSON.stringify(payload), {
