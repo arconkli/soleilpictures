@@ -30,6 +30,7 @@ import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareO
 import { FilmPlayer } from '../film/FilmPlayer.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
+import { usePlayCopy } from '../../hooks/usePlayCopy.js';
 import './filesPage.css';
 
 // A signed URL for a stored file (r2:…), or the URL itself.
@@ -46,8 +47,12 @@ function useResolved(src) {
 }
 
 // <video> / <audio> that takes its turn on the shared audio bus.
-function Media({ kind, src, poster, title }) {
-  const url = useResolved(src);
+function Media({ kind, src, poster, title, playSrc = null }) {
+  // A file this browser can't play plays its copy (hooks/usePlayCopy.js).
+  const pc = usePlayCopy({ src, playSrc });
+  const pcFailedRef = useRef(pc.failed);
+  pcFailedRef.current = pc.failed;
+  const url = useResolved(pc.source);
   const posterUrl = useResolved(poster);
   const ref = useRef(null);
   useEffect(() => {
@@ -56,18 +61,22 @@ function Media({ kind, src, poster, title }) {
     const stop = () => { try { el.pause(); } catch (_) {} };
     const onPlay = () => audioBus.claim(stop, { source: 'quicklook' });
     const onDone = () => audioBus.release(stop);
+    const onError = () => pcFailedRef.current('decode');
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onDone);
     el.addEventListener('ended', onDone);
+    el.addEventListener('error', onError);
     return () => {
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onDone);
       el.removeEventListener('ended', onDone);
+      el.removeEventListener('error', onError);
       stop();
       audioBus.release(stop);
     };
   }, [url]);
-  if (!url) return <div className="ql-wait" aria-label="Loading" />;
+  if (pc.preparing) return <p className="ql-audio-status" role="status">Making a version this browser can play…</p>;
+  if (!url || pc.busy) return <div className="ql-wait" aria-label="Loading" />;
   if (kind === 'video') {
     return <video ref={ref} className="ql-video" src={url} poster={posterUrl || undefined} controls autoPlay playsInline aria-label={title} />;
   }
@@ -89,7 +98,7 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
     return (
       <div className="ql-media ql-film">
         <FilmPlayer ref={playerRef} mode="preview" keyboard="preview" modalHandle={modalHandle}
-                    src={card.src} poster={card.poster} media={card.media || null} title={name} autoPlay
+                    src={card.src} playSrc={card.playSrc} poster={card.poster} media={card.media || null} title={name} autoPlay
                     onOpenPlayer={canOpen ? open : null}
                     probe={() => probeCardVideo(card)} />
       </div>
@@ -99,7 +108,7 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
     return (
       <div className="ql-media ql-audio">
         <div className="ql-audio-art"><CardPreview item={item} size="tile" px={480} /></div>
-        <Media kind="audio" src={card.src} title={name} />
+        <Media kind="audio" src={card.src} playSrc={card.playSrc} title={name} />
       </div>
     );
   }

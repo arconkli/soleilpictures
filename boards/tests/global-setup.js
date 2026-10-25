@@ -30,7 +30,7 @@ const LAZY_MODULES = [
   'auth/PricingPage.jsx', 'components/team/TeamPlanCard.jsx', 'components/team/TeamSetup.jsx', 'auth/PricingSuccess.jsx', 'auth/WelcomePage.jsx', 'auth/WaitlistConfirm.jsx',
   'components/film/FilmPlayer.jsx', 'components/cards/ScheduleCard.jsx', 'components/SketchPadOverlay.jsx',
   'components/GridTemplatePanel.jsx', 'components/SaveTemplateDialog.jsx', 'components/clusterBrowser/DetailPanel.jsx',
-  'components/doc/DocFrameA.jsx',
+  'components/doc/DocFrameA.jsx', 'lib/playCopyWork.js',
 ].map((p) => `/src/${p}`);
 
 export default async function globalSetup(config) {

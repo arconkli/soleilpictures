@@ -26,6 +26,10 @@ enabled = true
 [vars]
 SUPABASE_URL = "https://ehlhlmbpwwalmeisvmdp.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVobGhsbWJwd3dhbG1laXN2bWRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NzYxNTIsImV4cCI6MjA5MzM1MjE1Mn0.gEySom06_L90FXAuTAz2S9rbQk-WNk6K3aReb2EwH1Y"
+# The converter that makes playable copies of video and audio (media/, on Fly;
+# worker-playCopy.js). Woken here; it authenticates back with MEDIA_BOX_SECRET,
+# set via `wrangler secret put`. Until that secret exists nothing is woken.
+MEDIA_BOX_URL = "https://soleil-media.fly.dev"
 
 [assets]
 directory = "./dist"

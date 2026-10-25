@@ -157,6 +157,7 @@ import { forgetThumbnailAttempt } from './hooks/useThumbnailBackfill.js';
 import { useVideoPosterBackfill } from './hooks/useVideoPosterBackfill.js';
 import { useAudioPeaksBackfill } from './hooks/useAudioPeaksBackfill.js';
 import { usePdfThumbBackfill } from './hooks/usePdfThumbBackfill.js';
+import { usePlayCopyBackfill } from './hooks/usePlayCopyBackfill.js';
 import { useConversationList } from './hooks/useConversationList.js';
 import { useUnreadTotal } from './hooks/useUnreadTotal.js';
 import { useTitleBadge } from './hooks/useTitleBadge.js';
@@ -10087,6 +10088,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // render failed, or it came from a message, the API or Scout) shows the PDF
   // glyph until a writer opens its cluster, and this draws page 1 then.
   usePdfThumbBackfill({
+    cards: currentCards, canEdit: canEditCurrent,
+    workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
+    updateCardSilent: mainMutators.updateCardMeta,
+  });
+
+  // And for video and audio some browser can't play: each copy the converter
+  // finishes is written onto its card, so every player finds it, and a file
+  // never asked about is asked about (lib/playCopy.js).
+  usePlayCopyBackfill({
     cards: currentCards, canEdit: canEditCurrent,
     workspaceId: workspace?.id, boardId: currentId, userId: user?.id,
     updateCardSilent: mainMutators.updateCardMeta,

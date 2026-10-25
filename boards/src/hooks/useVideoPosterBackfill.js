@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { resolveSrc } from '../lib/r2.js';
 import { captureVideoPoster, uploadImage } from '../lib/uploads.js';
+import { knownCopy } from '../lib/playCopy.js';
 
 // One-shot, best-effort backfill: give EXISTING video cards a first-frame
 // poster so old clips get real previews in the list/gallery (and on the card).
@@ -50,7 +51,9 @@ export function useVideoPosterBackfill({
         attempted.current.add(c.id);
         let done = false;
         try {
-          const url = await resolveSrc(c.src);
+          // The playable copy when there is one (lib/playCopy.js): smaller,
+          // and a frame this browser can actually draw.
+          const url = await resolveSrc(knownCopy(c.src, c.playSrc) || c.src);
           if (!url || cancelled()) continue;
           const res = await fetch(url);
           if (!res.ok || cancelled()) continue;

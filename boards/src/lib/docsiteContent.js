@@ -17223,7 +17223,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file the browser can't decode — ProRes outside Safari, for instance — says so, rather than showing a black frame, and offers the download."
+     "v": "A file the browser can't decode, ProRes outside Safari for instance, plays from a copy Clusters makes of it. While the copy is being made the player says so, and plays it when it's ready. See "
+    },
+    {
+     "t": "link",
+     "v": "Formats",
+     "href": "#formats",
+     "children": [
+      {
+       "t": "text",
+       "v": "Formats"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -18010,7 +18025,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC, an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound."
+     "v": "Any video or audio file plays. H.264 in an MP4 or MOV plays in every browser as it is, and so do MP3, AAC, FLAC and WAV. Browsers differ on the rest: Chrome shows ProRes as sound with no picture and won't open AVI, WMV or MPEG files, Safari won't open MKV, and Firefox doesn't play HEVC, which is what an iPhone records."
     }
    ]
   },
@@ -18019,7 +18034,62 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A video your browser can't decode still uploads and becomes a video card: it says it can't be played here, and offers the download. A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video."
+     "v": "For those, Clusters makes a "
+    },
+    {
+     "t": "strong",
+     "v": "playable copy",
+     "children": [
+      {
+       "t": "text",
+       "v": "playable copy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": H.264 video with AAC sound in an MP4, or AAC for sound alone, at up to 1920 pixels on its long side. It is made once, on a converter Clusters runs, when the file is uploaded or first opened, and from then on every player uses it: the card, Quick look, the review player and a shared link. A short clip takes seconds and a long one a few minutes; the player says it is making the copy while it does. HDR footage is brought to ordinary colour for the copy."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The copy is for watching. "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " always gives the original, byte for byte, and the copy never counts toward your storage. When the file itself is deleted for good, its copy goes with it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file over 4 hours or 20 GB gets no copy: it plays where your browser can play the original, and downloads everywhere. So does a file the converter can't read, and the player says it can't be played."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A clip that arrives without a file type, as some systems send a .mov or .mkv, is still a video."
     }
    ]
   },
@@ -18073,7 +18143,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The review player plays the file as it is. It does not manage colour or show HDR, it can't play sound while you scrub, and backward play steps through frames rather than running smoothly. Compared versions line up by time from their first frame, so two cuts with different heads won't match frame for frame."
+     "v": "The review player plays the file as it is, or its playable copy when your browser can't play the file, at the copy's size. It does not manage colour or show HDR, it can't play sound while you scrub, and backward play steps through frames rather than running smoothly. Compared versions line up by time from their first frame, so two cuts with different heads won't match frame for frame."
     }
    ]
   },

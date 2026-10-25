@@ -1,0 +1,36 @@
+app = "soleil-media"
+primary_region = "iad"
+
+[build]
+
+[env]
+  PORT = "8080"
+
+# Scale to zero, by hand. Fly's own auto-stop is OFF because a long encode has
+# no inbound traffic: the proxy would see an idle machine and stop it mid-job.
+# Instead the process exits 0 after IDLE_EXIT_MS (5 minutes) with no work, the
+# on-failure restart policy leaves a clean exit stopped, and the Worker's next
+# POST /wake auto-starts the machine (auto_start_machines).
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[[restart]]
+  policy = "on-failure"
+
+# Fly holds a new organisation to 2 shared cores a machine (no performance
+# machines) until billing@fly.io lifts it. Then performance-4x with 8gb: a long
+# encode on shared cores runs into Fly's throttling and takes many times as long.
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "4gb"

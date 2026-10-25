@@ -72,6 +72,7 @@ import { CLUSTER_FILE_CEILING } from '../src/lib/importPlan.js';
 import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
+import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
@@ -390,6 +391,12 @@ export const FACTS = {
   // a silent, unexplainable difference between two cards on the same board.
   audioWaveformCap: `${AUDIO_ANALYZE_MAX_BYTES / MB} MB`,
   audioWaveformMinutes: `${AUDIO_ANALYZE_MAX_SECONDS / 60} minutes`,
+  // The converter's ceilings (lib/playCopy.js): past these a video or audio
+  // file gets no playable copy and plays only where the browser can play the
+  // original. The edge is the copy's long side, which is all it is ever made at.
+  playCopyMaxHours: String(PLAY_COPY_MAX_SECONDS / 3600),
+  playCopyMaxSize: `${PLAY_COPY_MAX_BYTES / (1024 * MB)} GB`,
+  playCopyMaxEdge: String(PLAY_COPY_MAX_EDGE),
   // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
   // archive is assembled in the tab, and past these the tab is the thing that
   // fails. Stated so "why did my 600-file selection refuse" has an answer.

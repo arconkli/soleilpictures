@@ -23,6 +23,8 @@ import { handleClustersRoute } from './worker-clusters.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
+import { handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies } from './worker-playCopy.js';
+import { mediaKindOfKey } from './lib/playCopy.js';
 import { handleApiRoute } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
@@ -707,6 +709,9 @@ const worker = {
       if (url.pathname.startsWith('/api/clusters/')) return await handleClustersRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
+      // A copy of a video or audio file that every browser can play: asked for
+      // by members, made by the converter on Fly (worker-playCopy.js).
+      if (url.pathname.startsWith('/api/media/copy/')) return await handlePlayCopyRoute(url, request, env, ctx);
       // A web image dragged onto a canvas, kept as a copy (worker-media.js).
       if (url.pathname.startsWith('/api/media/')) return await handleMediaRoute(url, request, env);
       // The public API. Authenticated by a personal access token, which is
@@ -1049,6 +1054,10 @@ const worker = {
       // API-driven events already leave immediately via waitUntil in
       // worker-api.js. Costs one indexed probe when nothing is pending.
       ctx.waitUntil(runWebhooks(env, { limit: 200 }));
+      // The converter (worker-playCopy.js): wake it while copies wait, so a
+      // lost wake or a machine that stopped mid-job costs a minute, not a copy.
+      // One indexed count when the queue is empty.
+      ctx.waitUntil(tickPlayCopies(env));
     } else if (which === '15 * * * *') {
       ctx.waitUntil(runCompactionJob1(env));
       // IndexNow (0480): the first tick on a build production has not pinged
@@ -1138,6 +1147,7 @@ async function runR2Sweep(env) {
     }
 
     const deletedIds = [];
+    const sweptMedia = [];
     for (const row of rows) {
       if (row.decision === 'keep') {
         kept++;
@@ -1162,12 +1172,14 @@ async function runR2Sweep(env) {
         const keys = [row.storage_path, row.preview_path, row.preview_sm_path].filter(Boolean);
         if (keys.length) await env.IMAGES.delete(keys);
         deletedIds.push(row.id);
+        if (mediaKindOfKey(row.storage_path)) sweptMedia.push(row.storage_path);
         deleted += keys.length;
       } catch (e) {
         const msg = String(e?.message || e);
         if (msg.includes('NoSuchKey') || msg.includes('404')) {
           // R2 object already gone — still close the loop in Postgres.
           deletedIds.push(row.id);
+          if (mediaKindOfKey(row.storage_path)) sweptMedia.push(row.storage_path);
           deleted++;
         } else {
           errors.push({ id: row.id, storage_path: row.storage_path, error: msg });
@@ -1178,6 +1190,13 @@ async function runR2Sweep(env) {
     if (deletedIds.length > 0) {
       try { await rpc(env, 'mark_image_rows_swept', { p_ids: deletedIds }); }
       catch (e) { console.warn('[r2-sweep] mark_swept rpc failed', e); }
+    }
+    // A swept video or audio file's playable copies (0660) go with it. Its row
+    // is only marked, so nothing cascades: forgetPlayCopies deletes the copies'
+    // rows, whose tombstones the pass below drains.
+    if (sweptMedia.length > 0) {
+      try { await forgetPlayCopies(env, sweptMedia); }
+      catch (e) { console.warn('[r2-sweep] forgetPlayCopies failed', e); }
     }
 
     console.log(

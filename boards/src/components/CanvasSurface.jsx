@@ -11242,7 +11242,7 @@ export function CanvasSurface({
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
-    else if (c.kind === 'video')     inner = <VideoCard src={c.src} poster={c.poster} title={c.title}
+    else if (c.kind === 'video')     inner = <VideoCard src={c.src} playSrc={c.playSrc} poster={c.poster} title={c.title}
                                                         pending={!!c.pending} uploadProgress={uploadProgressById[c.id] ?? null}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
@@ -11250,7 +11250,7 @@ export function CanvasSurface({
                                                         mediaJson={c.media ? JSON.stringify(c.media) : null}
                                                         cardId={c.id} selected={isSelected} tapToPlay={!canEdit || isPublic}
                                                         onExpand={!isPublic && board?.id ? (st) => openPlayer({ boardId: board.id, cardId: c.id, time: st?.time ?? null, playing: !!st?.playing }) : null} />;
-    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
+    else if (c.kind === 'audio')     inner = <AudioCard src={c.src} playSrc={c.playSrc} title={c.title} duration={c.duration} cover={c.cover} peaks={c.peaks}
                                                         bpm={c.bpm} musicalKey={c.musicalKey} ext={c.ext} mime={c.mime}
                                                         onUpdate={onUpdate} autoFocus={af}
                                                         coverPickAt={editFieldSignal.id === c.id && editFieldSignal.field === 'audioCover' ? editFieldSignal.n : 0}

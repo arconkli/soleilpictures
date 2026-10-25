@@ -45,7 +45,11 @@ export const CEILINGS = {
   // 2026-10-24: +1.0 KB for DOMPurify 3.4.17, the security patch for
   // GHSA-cg2g-xh64-v4q7 and GHSA-c6gr-qvv4-5v3f (about +0.5 KB brotli; notes
   // sanitize as they render, so it stays in the closure).
-  appJs: 686_000,
+  // 2026-10-24: +2 KB for playable copies (lib/playCopy.js). Every video and
+  // audio card plays the copy its card names and notices a file its browser
+  // can't play; finding, asking for and waiting on a copy load later
+  // (playCopyWork).
+  appJs: 688_000,
   appCss: 21_000,
 };
 
@@ -76,6 +80,9 @@ export const LAZY_IN_APP = [
   'ChromeMoreA',
   // DocSurface.jsx: the doc look's frame, its bars, side panel and footer
   'DocFrameA',
+  // usePlayCopy.js, usePlayCopyBackfill.js: finding, asking for and waiting on
+  // a playable copy, and writing it onto cards
+  'playCopyWork',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

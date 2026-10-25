@@ -5,8 +5,8 @@ h1: Video and audio
 navLabel: Video and audio
 section: files
 order: 2
-updated: 2026-10-22
-answer: Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.
+updated: 2026-10-24
+answer: Video and audio files become playable cards on the canvas, in any format. One your browser can't play, such as ProRes, MKV or AIFF, plays from a copy Clusters makes, and Download gives the original. Audio cards draw a real waveform decoded from the file, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts, and the only limit is your drive.
 faq:
   - q: Why does starting one audio card stop another?
     a: Deliberate. Boards commonly hold a dozen takes, and having several play over each other is never what someone wanted. Playback is exclusive across the board.
@@ -15,7 +15,7 @@ faq:
   - q: Can a video loop like a GIF?
     a: Yes. Right-click the card for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen.
   - q: What formats work?
-    a: Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere, and MP3 or WAV for sound. A video your browser can't decode still becomes a video card, which says so and offers the download.
+    a: Any video or audio file. H.264 in an MP4 or MOV, MP3 and WAV play as they are. A file some browser can't play, such as ProRes, HEVC, MKV, AVI, WMV or AIFF, gets a copy that every browser can, and plays from that. Download always gives you the original.
 related:
   - /docs/files
   - /docs/canvas/cards
@@ -106,8 +106,9 @@ controls over its bottom edge: play, frame steps (`,` and `.`), J/K/L, mute
 `Space` closes Quick look as it does for any file, and `←` and `→` still move
 between files.
 
-A file the browser can't decode — ProRes outside Safari, for instance — says
-so, rather than showing a black frame, and offers the download.
+A file the browser can't decode, ProRes outside Safari for instance, plays from
+a copy Clusters makes of it. While the copy is being made the player says so,
+and plays it when it's ready. See [Formats](#formats).
 
 ### Autoplay and looping
 
@@ -223,13 +224,31 @@ in the background, a couple at a time, while you have the cluster open.
 
 ## Formats
 
-Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere. HEVC,
-an iPhone's default, plays in Safari and in Chrome on most Macs and PCs; ProRes
-plays in Safari on a Mac. MP3 and WAV are the reliable choices for sound.
+Any video or audio file plays. H.264 in an MP4 or MOV plays in every browser as
+it is, and so do MP3, AAC, FLAC and WAV. Browsers differ on the rest: Chrome
+shows ProRes as sound with no picture and won't open AVI, WMV or MPEG files,
+Safari won't open MKV, and Firefox doesn't play HEVC, which is what an iPhone
+records.
 
-A video your browser can't decode still uploads and becomes a video card: it
-says it can't be played here, and offers the download. A clip that arrives
-without a file type, as some systems send a .mov or .mkv, is still a video.
+For those, Clusters makes a **playable copy**: H.264 video with AAC sound in an
+MP4, or AAC for sound alone, at up to {{fact:playCopyMaxEdge}} pixels on its
+long side. It is made once, on a converter Clusters runs, when the file is
+uploaded or first opened, and from then on every player uses it: the card,
+Quick look, the review player and a shared link. A short clip takes seconds and
+a long one a few minutes; the player says it is making the copy while it does.
+HDR footage is brought to ordinary colour for the copy.
+
+The copy is for watching. **Download** always gives the original, byte for byte,
+and the copy never counts toward your storage. When the file itself is deleted
+for good, its copy goes with it.
+
+A file over {{fact:playCopyMaxHours}} hours or {{fact:playCopyMaxSize}} gets no
+copy: it plays where your browser can play the original, and downloads
+everywhere. So does a file the converter can't read, and the player says it
+can't be played.
+
+A clip that arrives without a file type, as some systems send a .mov or .mkv, is
+still a video.
 
 ## What this is not
 
@@ -240,8 +259,9 @@ people to see.
 The [photo adjustments](/docs/canvas/images) available on image cards have no
 video equivalent.
 
-The review player plays the file as it is. It does not manage colour or show
-HDR, it can't play sound while you scrub, and backward play steps through
+The review player plays the file as it is, or its playable copy when your
+browser can't play the file, at the copy's size. It does not manage colour or
+show HDR, it can't play sound while you scrub, and backward play steps through
 frames rather than running smoothly. Compared versions line up by time from
 their first frame, so two cuts with different heads won't match frame for frame.
 

@@ -1196,10 +1196,10 @@ export const DOCS_PAGES = [
     "title": "Video and Audio — Soleil Clusters",
     "metaDescription": "Video and audio play inline on the canvas. Video steps frame by frame in a review player; audio draws a real waveform with cover art.",
     "h1": "Video and audio",
-    "answer": "Video and audio files become playable cards on the canvas. Audio cards draw a real waveform decoded from the file itself, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts automatically, and the only limit is your drive.",
+    "answer": "Video and audio files become playable cards on the canvas, in any format. One your browser can't play, such as ProRes, MKV or AIFF, plays from a copy Clusters makes, and Download gives the original. Audio cards draw a real waveform decoded from the file, and only one plays at a time so a board full of takes never becomes a wall of noise. There is no size or length limit on any plan; large files upload in parts, and the only limit is your drive.",
     "section": "files",
     "order": 2,
-    "updated": "2026-10-22",
+    "updated": "2026-10-24",
     "navLabel": "Video and audio",
     "headings": [
       {
@@ -1243,7 +1243,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What formats work?",
-        "a": "Whatever your browser can play. H.264 in an MP4 or MOV plays everywhere, and MP3 or WAV for sound. A video your browser can't decode still becomes a video card, which says so and offers the download."
+        "a": "Any video or audio file. H.264 in an MP4 or MOV, MP3 and WAV play as they are. A file some browser can't play, such as ProRes, HEVC, MKV, AVI, WMV or AIFF, gets a copy that every browser can, and plays from that. Download always gives you the original."
       }
     ]
   },

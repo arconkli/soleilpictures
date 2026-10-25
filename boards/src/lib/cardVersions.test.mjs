@@ -119,6 +119,10 @@ test('adding a version shows it, keeps the old, and clears what the old one had'
   const a = apply({ id: 'a', kind: 'audio', src: 'r2:A1', peaks: 'xyz', analyzed: 1 }, addVersionPatch({ id: 'a', kind: 'audio', src: 'r2:A1', peaks: 'xyz', analyzed: 1 }, { src: 'r2:A2' }).patch);
   assert.equal(a.peaks, null);
   assert.equal(a.analyzed, null);
+  // …and both kinds drop the old file's playable copy.
+  const v = { id: 'v', kind: 'video', src: 'r2:V1', playSrc: 'r2:previews/V1.play.mp4' };
+  assert.equal(apply(v, addVersionPatch(v, { src: 'r2:V2' }).patch).playSrc, null);
+  assert.equal(apply({ ...a, playSrc: 'r2:x' }, setCurrentPatch(a, currentOf(a).id)).playSrc, null);
 });
 
 test('delete keeps the version for a while; the last one can\'t go; restore and prune', () => {

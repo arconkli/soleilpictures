@@ -26,7 +26,7 @@ export const DOC_LABELS = {
 const privacy = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: 'October 20, 2026',
+  updated: 'October 24, 2026',
   intro:
     "This Privacy Policy explains how Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") collects, uses, and shares information when you use Soleil Clusters (the \"Service\"), available at clusters.soleilpictures.com. By using the Service, you agree to this Policy.",
   sections: [
@@ -85,6 +85,7 @@ const privacy = {
             'Stripe — payment processing and subscription billing.',
             'Resend — sending transactional, lifecycle, and product emails.',
             'Cloudflare — hosting, content delivery, media storage, and privacy-focused web analytics.',
+            'Fly.io — converting uploaded video and audio into versions every browser can play.',
             'Meta Platforms (Facebook and Instagram) — advertising measurement and optimization through the Meta Pixel and Conversions API.',
             'Realtime collaboration infrastructure — to power live, multi-user editing and presence.',
           ],
