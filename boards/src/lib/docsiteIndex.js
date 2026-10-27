@@ -101,7 +101,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
+        "a": "Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and up to 10 people who edit, free. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
       },
       {
         "q": "What is a cluster?",
@@ -122,7 +122,7 @@ export const DOCS_PAGES = [
     "title": "Getting Started with Soleil Clusters",
     "metaDescription": "Sign in, make your first cluster, get images onto the canvas and share it. A five-minute walkthrough of Soleil Clusters from empty account to shareable board.",
     "h1": "Getting started",
-    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.",
+    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and up to 10 people who edit.",
     "section": "start",
     "order": 1,
     "updated": "2026-10-21",
@@ -2080,9 +2080,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/collaborate",
     "title": "Collaborating — Soleil Clusters",
-    "metaDescription": "Invite editors and viewers to Soleil Clusters boards. Collaboration is free on every plan — editors do not need to pay, and the owner's quota is what counts.",
+    "metaDescription": "Invite editors and viewers to Soleil Clusters boards. Up to 10 people edit free on Free and Creator, viewers are unlimited, and the owner's quota counts.",
     "h1": "Collaborating",
-    "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
+    "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to 10 people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
     "updated": "2026-10-17",
@@ -2095,6 +2095,10 @@ export const DOCS_PAGES = [
       {
         "id": "whose-quota",
         "text": "Whose quota"
+      },
+      {
+        "id": "up-to-10-people-who-edit",
+        "text": "Up to 10 people who edit"
       },
       {
         "id": "inviting",
@@ -2121,7 +2125,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Do collaborators need to pay?",
-        "a": "No. Editors and viewers are free on every plan, and there is no seat limit. Whoever owns the cluster pays for what it holds."
+        "a": "No. On Free and Creator, up to 10 people can edit and anyone can view, and none of them pays. Whoever owns the cluster pays for what it holds. A group with more than 10 people who edit uses [Team](/docs/account/team), priced per seat."
       },
       {
         "q": "Whose card allowance do collaborator uploads use?",
@@ -2679,10 +2683,10 @@ export const DOCS_PAGES = [
     "title": "Plans and Pricing — Soleil Clusters",
     "metaDescription": "Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
+    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.",
     "section": "account",
     "order": 1,
-    "updated": "2026-10-21",
+    "updated": "2026-10-27",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2738,11 +2742,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards."
+        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on every plan; there is no per-file limit at all. Clusters are free — they cost none of your cards — and people are the same on Free and Creator: up to 10 who edit, and as many as you like who view."
       },
       {
         "q": "Do collaborators need to pay?",
-        "a": "No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges."
+        "a": "No. On Free and Creator, up to 10 people can edit at no cost to them, and anyone can view; more than that is what [Team](/docs/account/team) is for. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges."
       },
       {
         "q": "If someone on my team upgrades, does my workspace get the higher limits?",
@@ -2767,6 +2771,86 @@ export const DOCS_PAGES = [
       {
         "q": "What happens to my work if I cancel, or my trial ends?",
         "a": "Nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them."
+      }
+    ]
+  },
+  {
+    "path": "/docs/account/team",
+    "title": "Team — Soleil Clusters",
+    "metaDescription": "Team is the plan for groups where more than 10 people edit — $25 a seat a month, 1TB of shared drive per seat, admins, and work the team owns.",
+    "h1": "Team",
+    "answer": "Team is for groups where more than 10 people edit. Everyone who can edit holds a seat, at $25 a month or $240 a year; viewers are free. Seats are shared across the team's workspaces, each seat adds 1TB to one shared drive, and the team owns its workspaces, with admins to run it. It starts with a 14-day trial.",
+    "section": "account",
+    "order": 1.5,
+    "updated": "2026-10-27",
+    "navLabel": "Team",
+    "headings": [
+      {
+        "id": "what-a-seat-is",
+        "text": "What a seat is"
+      },
+      {
+        "id": "starting-a-team",
+        "text": "Starting a team"
+      },
+      {
+        "id": "more-than-100-seats-single-sign-on-or-invoices",
+        "text": "More than 100 seats, single sign-on or invoices"
+      },
+      {
+        "id": "people",
+        "text": "People"
+      },
+      {
+        "id": "joining",
+        "text": "Joining"
+      },
+      {
+        "id": "when-seats-run-out",
+        "text": "When seats run out"
+      },
+      {
+        "id": "your-own-workspaces",
+        "text": "Your own workspaces"
+      },
+      {
+        "id": "payments",
+        "text": "Payments"
+      },
+      {
+        "id": "closing-a-team",
+        "text": "Closing a team"
+      }
+    ],
+    "related": [
+      "/docs/account/plans",
+      "/docs/collaborate",
+      "/docs/collaborate/sharing"
+    ],
+    "faq": [
+      {
+        "q": "Who needs a seat?",
+        "a": "Everyone who can edit in the team's workspaces — the owner, admins, members, and anyone from outside the team you let edit. Viewers never need one."
+      },
+      {
+        "q": "How many seats can a team have?",
+        "a": "From 3 to 100, bought and changed on the team's page. For more than 100, single sign-on, or invoices and purchase orders, use Talk to us on the pricing page."
+      },
+      {
+        "q": "What happens when every seat is taken?",
+        "a": "The admins decide. By default, someone new joins as a viewer and the admins are asked, and can add a seat for them. Or seats can be added automatically, with an optional limit on how many a month."
+      },
+      {
+        "q": "What if a payment fails?",
+        "a": "The team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only — everything still opens — until the team is paid again."
+      },
+      {
+        "q": "Does joining a team change my own workspaces?",
+        "a": "No. The team never sees, opens or bills them. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive; if you leave, they go back to your own plan and nothing is removed."
+      },
+      {
+        "q": "Do we need Team to work together?",
+        "a": "Not until more than 10 people edit. Free and Creator include up to 10 people who can edit, at no extra cost, and as many viewers as you like."
       }
     ]
   },

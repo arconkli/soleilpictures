@@ -135,7 +135,9 @@ assert(
 // the SALE rule below fired on the word "seat" in a denial. The pairing works:
 // the strip going stale is exactly what the second assertion is here to make
 // noisy rather than silent — so widen the match, never delete the rule.
-const scopeSold = scopeLine.replace(/[,.]?\s*(?:and\s+)?there are no per-seat charges\.?/i, '');
+// Widened again with the 10-editor limit, whose list ends "…, anyone who views,
+// and no per-seat charges."
+const scopeSold = scopeLine.replace(/[,.]?\s*(?:and\s+)?(?:there are\s+)?no per-seat charges\.?/i, '');
 assert(
   !/\bfree\b|\bseats?\b|\binvite (?:them|people) free\b/i.test(scopeSold),
   'the workspace benefit does not sell free collaboration or seat count — both are free on every tier',

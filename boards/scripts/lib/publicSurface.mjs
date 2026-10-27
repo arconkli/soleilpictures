@@ -258,6 +258,28 @@ export function publicRoutes() {
   };
 }
 
+// ── Team routes ─────────────────────────────────────────────────────────────
+// The Team plan's own addresses are in the signed-in app, where the router
+// branches above never look: the setup at /team/new (TierRouter) and the team's
+// page at /team, with what Stripe and the Customer Portal add on the way back
+// (lib/teamReturn.js). The pricing page's Team card and docs/account/team send
+// people to them, so moving one is a docs change. Branches are captured
+// verbatim, as the router's are.
+export function teamRoutes() {
+  const tf = 'boards/src/auth/TierRouter.jsx';
+  const setup = [...read(tf).matchAll(/^\s*if \((path === '\/team.*?)\) return\b/gm)].map((m) => m[1]);
+  expect(setup, 1, 'TierRouter team branches', tf);
+  const rf = 'boards/src/lib/teamReturn.js';
+  const ret = read(rf);
+  const page = [...new Set([...ret.matchAll(/pathname !== '(\/team\/?)'/g)].map((m) => m[1].replace(/\/$/, '')))];
+  expect(page, 1, 'team page paths', rf);
+  const params = [...new Set([...ret.matchAll(/params\.get\('([a-z_]+)'\)/g)].map((m) => m[1]))];
+  expect(params, 2, 'team return params', rf);
+  const kinds = [...new Set([...ret.matchAll(/kind: '([a-z]+)'/g)].map((m) => m[1]))];
+  expect(kinds, 3, 'team return kinds', rf);
+  return { setup: setup.sort(), page: page.sort(), params: params.sort(), kinds: kinds.sort() };
+}
+
 // ── Token scopes ────────────────────────────────────────────────────────────
 // The DB check constraint is the real definition — the Worker's scope gate can
 // only ever enforce a subset of it, so this is the honest source.
@@ -520,6 +542,7 @@ export function publicSurface() {
     powerRevealKeys: powerRevealKeys(),
     shortcutSections: shortcutSections(),
     publicRoutes: publicRoutes(),
+    teamRoutes: teamRoutes(),
   };
 }
 

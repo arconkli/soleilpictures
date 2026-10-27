@@ -44,6 +44,7 @@ export function PricingPage() {
   const teamCard = useTeamPricingCard({
     on: teamPricingAllowed() || (teamPreviewAvailable() && !!readTeamPreview()),
     plan,
+    surface: 'page',
     onStart: (seats) => window.location.assign(teamStartHref({ seats, billing: plan })),
   });
   // Back from Stripe restores the page with the CTA still busy.

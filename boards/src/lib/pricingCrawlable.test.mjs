@@ -16,6 +16,9 @@ import {
 import {
   PLAN_NAME, PRICING, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, CREATOR_BENEFITS, DEMO_FEATURES,
 } from './billingCopy.js';
+import { EDITOR_LIMIT } from './editorLimit.js';
+import { TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_PRICE, teamHeroLine } from './teamModel.js';
+import { teamCardCopy, teamBenefits, teamComparison } from './teamPricingCopy.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '../..');
@@ -24,11 +27,16 @@ const html = buildPricingCrawlableHtml();
 const md = pricingMarkdown();
 // Compare against what a reader sees, not the escaping: an apostrophe in an FAQ
 // answer is &#39; in the HTML and a naive includes() would call it missing.
+// Bold is inline (no space where it ends: "**3TB**, and"); every other tag breaks.
 const text = html
+  .replace(/<\/?(?:b|a)(?:\s[^>]*)?>/g, '')
   .replace(/<[^>]+>/g, ' ')
   .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
   .replace(/\s+/g, ' ');
 const plain = (s) => String(s).replace(/\*\*/g, '');
+// The Team card's words, as TeamPlanCard draws them.
+const TEAM = teamCardCopy(EDITOR_LIMIT);
+const TEAM_SECTION = /<section id="team">[\s\S]*?<\/section>/;
 
 test('the crawlable body carries everything the React page renders', () => {
   const must = [
@@ -42,6 +50,12 @@ test('the crawlable body carries everything the React page renders', () => {
     ...CREATOR_BENEFITS.flatMap((b) => [b.title, plain(b.body)]),
     ...PLAN_COMPARISON.flatMap((r) => [r.label, r.demo, r.creator]),
     ...PRICING_FAQ.flatMap((f) => [f.q, f.a]),
+    // Team: the hero's sentence, the card, Talk to us and the table's column.
+    teamHeroLine(EDITOR_LIMIT),
+    TEAM.name, TEAM.tag, TEAM.sub, TEAM.cta, TEAM.note, TEAM.talk, TEAM.talkLink,
+    `${TEAM.monthly.price} ${TEAM.monthly.unit}`, `${TEAM.annual.price} ${TEAM.annual.unit}`,
+    ...teamBenefits(EDITOR_LIMIT).flatMap((b) => [b.title, plain(b.body)]),
+    ...teamComparison(EDITOR_LIMIT).flatMap((r) => [r.label, r.demo, r.creator, r.team]),
   ];
   const missing = must.filter((s) => !text.includes(plain(s)));
   assert.deepEqual(missing, [], 'the server-rendered /pricing body dropped copy the React page shows');
@@ -69,6 +83,7 @@ test('the React page renders everything the crawlable body says', () => {
     'PRICING_PAGE.paidHeading', 'PRICING_PAGE.paidBody', 'PLAN_COMPARISON', 'PRICING_PAGE.workspaceNote',
     'PRICING_FAQ', 'PRICING_PAGE.closing', 'PRICING_PAGE.closingSub',
     'CreatorPriceRow', 'PlanToggle',
+    'teamCard.heroLine', 'TeamPlanCard', 'TeamTalkLine', 'TeamCompareTable',
   ];
   // Whole identifiers only: 'PRICING_PAGE.closing' is a prefix of
   // 'PRICING_PAGE.closingSub', and a substring match let the closing heading
@@ -76,6 +91,17 @@ test('the React page renders everything the crawlable body says', () => {
   const uses = (id) => new RegExp(`${id.replace(/\./g, '\\.')}(?![A-Za-z0-9_])`).test(view);
   const missing = drawnFrom.filter((id) => !uses(id));
   assert.deepEqual(missing, [], 'the crawlable /pricing body says things the React page does not render');
+  // The Team card draws every line of its section, Talk to us and the table's
+  // Team column from the same copy.
+  const card = readFileSync(resolve(BOARDS, 'src/components/team/TeamPlanCard.jsx'), 'utf8')
+    .split('\n').filter((l) => !/^\s*(\/\/|\{?\/\*|\*|import\b)/.test(l)).join('\n');
+  const cardUses = (id) => new RegExp(`${id.replace(/\./g, '\\.')}(?![A-Za-z0-9_])`).test(card);
+  const cardMissing = ['c.name', 'c.tag', 'c.sub', 'c.monthly', 'c.annual', 'price.price', 'price.unit', 'teamBenefits',
+    'c.cta', 'c.note', 'c.talk', 'c.talkLink', 'teamComparison', 'r.team'].filter((id) => !cardUses(id));
+  assert.deepEqual(cardMissing, [], 'the Team section says things the Team card does not render');
+  // …and the card is there for every visitor: its hold is lifted.
+  const host = readFileSync(resolve(BOARDS, 'src/lib/appHost.js'), 'utf8');
+  assert.match(host, /export function teamPricingAllowed\(\) \{\n  return true;\n\}/);
   // The prices the body states come through the shared price row and toggle.
   for (const id of ['SAVINGS_PCT_LABEL', 'planPerMonth', 'planBilling']) {
     assert.ok(bits.includes(id), `PricingBits no longer renders ${id}`);
@@ -93,28 +119,45 @@ test('the React page renders everything the crawlable body says', () => {
   const at = (s) => text.indexOf(plain(s));
   assert.ok(at(PRICING_PAGE.freeCardSub) < at(PRICING_ANSWER) && at(PRICING_ANSWER) < at(PRICING_PAGE.paidHeading),
     'the crawlable body moved the answer relative to the plans or the table');
+  // Team comes after Creator, Talk to us after Team, both before the answer.
+  assert.ok(at(PRICING_PAGE.paidCardSub) < at(TEAM.tag) && at(TEAM.tag) < at(TEAM.talk) && at(TEAM.talk) < at(PRICING_ANSWER),
+    'the crawlable body moved the Team card or Talk to us');
+  const tag = (name) => view.indexOf(`<${name}`);
+  assert.ok(tag('TeamPlanCard') > view.indexOf('creatorCta.label') && tag('TeamPlanCard') < tag('TeamTalkLine')
+    && tag('TeamTalkLine') < view.search(/\{PRICING_ANSWER\}/),
+    'the React page moved the Team card or Talk to us — move pricingCrawlable with it');
   const inView = (id) => view.search(new RegExp(`\\{${id.replace(/\./g, '\\.')}\\}`));
   assert.ok(inView('PRICING_PAGE.freeCardSub') > 0 && inView('PRICING_PAGE.freeCardSub') < inView('PRICING_ANSWER')
     && inView('PRICING_ANSWER') < inView('PRICING_PAGE.paidHeading'),
     'the React page moved the answer relative to the plans or the table — move pricingCrawlable with it');
 });
 
-test('the twin and the body state both prices and the workspace scope', () => {
+test('the twin and the body state every price and the workspace scope', () => {
   for (const out of [text, md]) {
     assert.ok(out.includes(PRICING.monthly.billedLabel) && out.includes(PRICING.annual.billedLabel),
       'both the monthly and the annual price must be stated');
+    assert.ok(out.includes(`${TEAM.monthly.price} ${TEAM.monthly.unit}`) && out.includes(`${TEAM.annual.price} ${TEAM.annual.unit}`),
+      'both of Team\'s seat prices must be stated');
     assert.match(out, /no per-seat charges/, 'the one competitive fact — no per-seat charges — must be stated');
   }
   assert.ok(md.length >= 1000, `pricing.md is ${md.length} bytes; the mirror floor is 1000`);
   assert.ok(text.includes(PRICING_ANSWER), 'the liftable answer sentence must be in the body');
 });
 
-test('the trial is never offered here — it is in-product only', () => {
-  // Owner decision (billingCopy PRICING_PAGE header): the trial goes to an
-  // account with a real body of work. A signed-out reader has none.
-  for (const out of [text, md, JSON.stringify(buildPricingJsonLd())]) {
-    assert.doesNotMatch(out, /\btrial\b|free for \d+ days|\d+ days free/i);
+test('Creator\'s trial is never offered here; Team\'s is the Team card\'s own', () => {
+  // Owner decision (billingCopy PRICING_PAGE header): Creator's trial goes to
+  // an account with a real body of work, and a signed-out reader has none.
+  // Team's trial is how a team starts (a card is needed), so the Team section,
+  // and nothing else, offers it.
+  const TRIAL = /\btrial\b|free for \d+ days|\d+ days free/i;
+  const htmlOutside = html.replace(TEAM_SECTION, '');
+  const mdOutside = md.replace(/\n## Team — [\s\S]*?(?=\n## )/, '\n');
+  assert.notEqual(htmlOutside, html, 'the body has no Team section');
+  assert.notEqual(mdOutside, md, 'pricing.md has no Team section');
+  for (const out of [htmlOutside, mdOutside, JSON.stringify(buildPricingJsonLd())]) {
+    assert.doesNotMatch(out, TRIAL);
   }
+  assert.ok(html.match(TEAM_SECTION)[0].includes(TEAM.note), 'the Team section offers its trial');
 });
 
 test('the JSON-LD prices come from billingCopy and assert nothing it cannot back', () => {
@@ -122,9 +165,18 @@ test('the JSON-LD prices come from billingCopy and assert nothing it cannot back
   const graph = ld['@graph'];
   const app = graph.find((n) => n['@type'] === 'SoftwareApplication');
   assert.ok(app, 'expected a SoftwareApplication node');
-  const prices = app.offers.map((o) => o.price).sort((a, b) => Number(a) - Number(b));
-  assert.deepEqual(prices, ['0', String(PRICING.monthly.billed), String(PRICING.annual.billed)]);
+  const byNumber = (a, b) => Number(a) - Number(b);
+  const prices = app.offers.map((o) => o.price).sort(byNumber);
+  assert.deepEqual(prices, ['0', PRICING.monthly.billed, PRICING.annual.billed, TEAM_SEAT_PRICE.month, TEAM_SEAT_PRICE.year]
+    .map(String).sort(byNumber));
   for (const o of app.offers) assert.equal(o.priceCurrency, 'USD');
+  // Team's are per seat, for the seats a team buys on its own.
+  const seat = app.offers.filter((o) => o.eligibleQuantity);
+  assert.equal(seat.length, 2);
+  for (const o of seat) {
+    assert.deepEqual([o.eligibleQuantity.minValue, o.eligibleQuantity.maxValue], [TEAM_SEAT_MIN, TEAM_SEAT_MAX]);
+    assert.equal(o.priceSpecification.referenceQuantity.unitText, 'seat');
+  }
   const faq = graph.find((n) => n['@type'] === 'FAQPage');
   assert.equal(faq.mainEntity.length, PRICING_FAQ.length);
   const s = JSON.stringify(ld);
@@ -136,8 +188,10 @@ test('the JSON-LD prices come from billingCopy and assert nothing it cannot back
 
 test('pricingModel is the same data the React page imports', () => {
   const m = pricingModel();
-  assert.equal(m.comparison.rows.length, PLAN_COMPARISON.length);
+  assert.equal(m.comparison.rows.length, teamComparison(EDITOR_LIMIT).length);
+  assert.ok(m.comparison.rows.length > PLAN_COMPARISON.length);
   assert.equal(m.creator.benefits.length, CREATOR_BENEFITS.length);
+  assert.equal(m.team.benefits.length, teamBenefits(EDITOR_LIMIT).length);
   assert.equal(m.free.features.length, DEMO_FEATURES.length);
   // PricingPageView must keep drawing from these same exports, or "parity by
   // construction" is a claim about a page that no longer reads them.

@@ -75,6 +75,8 @@ export const EV = Object.freeze({
   PRICING_SIGNOUT:         'pricing_signout',
   PRICING_ABANDON:         'pricing_abandon',             // modal closed w/o checkout {header,plan,surface}
   PRICING_DWELL:           'pricing_dwell',               // {ms,surface}
+  PRICING_TEAM_START:      'pricing_team_start',          // {surface,plan,seats} (must-land) — the Team card's "Start a Team trial"; signed out, the seats and billing are kept through sign-in (lib/teamStart.js)
+  PRICING_TEAM_TALK:       'pricing_team_talk',           // {surface} — the Team card's "Talk to us"
   CHECKOUT_OPEN:           'checkout_open',               // {plan,surface,header,via,trial} (must-land) — header/via added so the four surfaces the conversion deck keys on them (cap wall, file/size gate, upgrade pill, Settings) stop falling through to 'Other in-app'
   CHECKOUT_ERROR:          'checkout_error',              // {plan,surface,header,via,trial,kind:'auth'|'already'|'no_subscription'|'trial'|'preview'|'config'|'network'|'generic',reason,message} — `reason` is the SERVER's trial refusal (already_trialed|too_early|cards_unknown|not_demo|tier_unreadable): already_trialed is the anti-abuse sweep working, too_early means our cached count was stale and we offered something we shouldn't have. Opposite problems, previously identical rows — kind separates a misconfigured price/URL (ours, permanent) from an outage or a dead session; before it every unmapped failure read as "try again"
   BILLING_PORTAL_OPEN:     'billing_portal_open',         // {surface,via?} (must-land)
@@ -483,7 +485,16 @@ export const EV = Object.freeze({
   WORKSPACE_LINK_CLAIM_RESULT:'workspace_link_claim_result', // a claim's outcome, every branch {status:'joined'|'member'|'dead'|'error', at:'signup'|'card', reason} (must-land)
   WORKSPACE_LINK_CLAIMED:  'workspace_link_claimed',      // SERVER: claim_workspace_invite_link let someone in {workspace_id, role, status}
   EDITOR_LIMIT_VIEWER_FALLBACK: 'editor_limit_viewer_fallback', // SERVER: an edit link let someone in as a viewer because the account had 10 people who can edit {via:'collab_link'|'workspace_link', upgrade, workspace_id, board_id}
-  // The Team plan (held: teamsAllowed). Written by SQL (_team_event, 0532-0534); ids and counts only, never a token or an address.
+  // The Team plan. The setup and its return, from the app; then the server's
+  // own, written by SQL (_team_event, 0532-0534). Ids and counts only, never a
+  // token or an address.
+  TEAM_SETUP_OPEN:         'team_setup_open',             // /team/new opened to make a real team {seats, billing} (as the link carried them; seats null when it carried none)
+  TEAM_CHECKOUT_START:     'team_checkout_start',         // (must-land) "Continue to payment" got a Stripe checkout {seats, plan, workspaces}
+  TEAM_CHECKOUT_FAILED:    'team_checkout_failed',        // start_team_checkout said no, or team-billing failed {error} (a failure by name, so the admin Issues view counts it)
+  TEAM_READY:              'team_ready',                  // back from Stripe, the checkout verified {created, kind}
+  TEAM_TALK_VIEW:          'team_talk_view',              // /pricing/talk-to-us opened (TalkToUsPage)
+  TEAM_TALK_SENT:          'team_talk_sent',              // Talk to us kept a request {already, needs, editors, signed_in}; never the name, email or company
+  TEAM_TALK_FAILED:        'team_talk_failed',            // Talk to us didn't send {error:'invalid'|'busy'|'network'} (a failure by name, so the admin Issues view counts it)
   TEAM_CREATED:            'team_created',                // SERVER: a paid or trialing checkout made a team {org_id, seats, plan, trial, workspaces, skipped}
   TEAM_RENEWED:            'team_renewed',                // SERVER: a lapsed team paid again {org_id, seats, plan}
   TEAM_JOINED:             'team_joined',                 // SERVER: someone became a team member (invite, link, domain offer) {org_id, ...}

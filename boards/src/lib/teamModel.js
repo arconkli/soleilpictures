@@ -36,6 +36,9 @@ export const TEAM_SEAT_MIN = 3;
 // Self-serve stops here; past it, Talk to us (start_team_checkout, 0538).
 export const TEAM_SEAT_MAX = 100;
 export const TEAM_SEAT_PRICE = Object.freeze({ month: 25, year: 240 });
+// Every team starts with a trial (team-billing's TEAM_TRIAL_DAYS, which
+// teamBillingCore.test pins to this).
+export const TEAM_TRIAL_DAYS = 14;
 export const TEAM_STORAGE_BLOCK_MONTHLY = 25;
 export const TEAM_STORAGE_PER_SEAT = 1e12;
 export const TEAM_STORAGE_FLOOR = 1e12;

@@ -11,7 +11,7 @@ import { Icon } from '../Icon.jsx';
 import { BenefitGrid } from '../PricingBits.jsx';
 import { Plus, Minus } from '../../lib/icons.js';
 import { money, TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_PRICE } from '../../lib/teamModel.js';
-import { teamBenefits, teamComparison } from '../../lib/teamPricingCopy.js';
+import { teamBenefits, teamComparison, teamCardCopy } from '../../lib/teamPricingCopy.js';
 import { PLAN_NAME } from '../../lib/billingCopy.js';
 
 // Creator's glyphs where the benefit is Creator's (cards, drive), the rest in kind.
@@ -26,21 +26,22 @@ const TEAM_BENEFIT_ICON = {
 
 export default function TeamPlanCard({ plan = 'monthly', seats, setSeats, onStart, editorLimit }) {
   const yearly = plan === 'annual';
-  const each = yearly ? TEAM_SEAT_PRICE.year / 12 : TEAM_SEAT_PRICE.month;
   const sum = yearly ? `${money(TEAM_SEAT_PRICE.year * seats)}/yr` : `${money(TEAM_SEAT_PRICE.month * seats)}/mo`;
   const set = (n) => setSeats(Math.max(TEAM_SEAT_MIN, Math.min(TEAM_SEAT_MAX, n)));
+  const c = teamCardCopy(editorLimit);
+  const price = yearly ? c.annual : c.monthly;
 
   return (
     <article className="pp-plan pp-plan-team">
       <div className="pp-plan-head">
-        <div className="pp-plan-name">Team</div>
-        <span className="pp-team-tag">More than 10 editors</span>
+        <div className="pp-plan-name">{c.name}</div>
+        <span className="pp-team-tag">{c.tag}</span>
       </div>
       <div className="pp-plan-price">
-        {money(each)}
-        <span className="pp-plan-unit">{yearly ? 'a seat /mo, billed yearly' : 'a seat /mo'}</span>
+        {price.price}
+        <span className="pp-plan-unit">{price.unit}</span>
       </div>
-      <p className="pp-plan-sub t-meta">{TEAM_SEAT_MIN} seats or more. Viewers never use a seat.</p>
+      <p className="pp-plan-sub t-meta">{c.sub}</p>
 
       <div className="pp-seatpick">
         <span className="pp-seatpick-k">Seats</span>
@@ -59,9 +60,21 @@ export default function TeamPlanCard({ plan = 'monthly', seats, setSeats, onStar
       <BenefitGrid benefits={teamBenefits(editorLimit)} icons={TEAM_BENEFIT_ICON} marked={false}
                    className="pricing-benefits pp-plan-benefits pp-team-benefits" />
 
-      <button type="button" className="pricing-cta pricing-cta-secondary pp-plan-cta" onClick={onStart}>Start a Team trial</button>
-      <p className="pp-team-note">14 days free · card needed</p>
+      <button type="button" className="pricing-cta pricing-cta-secondary pp-plan-cta" onClick={onStart}>{c.cta}</button>
+      <p className="pp-team-note">{c.note}</p>
     </article>
+  );
+}
+
+// "Talk to us" under the cards, for what the self-serve plan doesn't do: a
+// link to its own page (TalkToUsPage, /pricing/talk-to-us).
+export function TeamTalkLine({ editorLimit, onTalk }) {
+  const c = teamCardCopy(editorLimit);
+  return (
+    <p className="pp-talk">
+      {c.talk}{' '}
+      <a className="pp-talk-link" href={c.talkHref} onClick={onTalk}>{c.talkLink}</a>
+    </p>
   );
 }
 

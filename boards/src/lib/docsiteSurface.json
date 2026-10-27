@@ -441,7 +441,8 @@
       "/legal/cookies",
       "/legal/privacy",
       "/legal/terms",
-      "/pricing"
+      "/pricing",
+      "/pricing/talk-to-us"
     ],
     "landing": [
       "/scout",
@@ -506,7 +507,26 @@
       "seoLandingMatch = /^\\/(?:tools\\/|vs\\/|use-cases(?:\\/|$)|templates(?:\\/|$))/i.test(PATH)",
       "seoListicleMatch = /^\\/best\\//i.test(PATH)",
       "shareMatch = PATH.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i)",
+      "talkToUsMatch = /^\\/pricing\\/talk-to-us\\/?$/i.test(PATH)",
       "templateShareMatch = PATH.match(/^\\/t\\/([0-9a-f-]{36})\\/?$/i)"
+    ]
+  },
+  "teamRoutes": {
+    "setup": [
+      "path === '/team/new' && teamsAllowed()"
+    ],
+    "page": [
+      "/team"
+    ],
+    "params": [
+      "billing",
+      "checkout"
+    ],
+    "kinds": [
+      "billing",
+      "canceled",
+      "checkout",
+      "open"
     ]
   }
 }

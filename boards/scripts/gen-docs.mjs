@@ -68,6 +68,9 @@ import { AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_PDF_CAP } from
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
+import { EDITOR_LIMIT } from '../src/lib/editorLimit.js';
+import { TEAM_SEAT_MAX } from '../src/lib/teamModel.js';
+import { TEAM_MIN_SEATS, TEAM_SEAT_UNIT_AMOUNT, TEAM_TRIAL_DAYS } from '../../supabase/functions/_shared/teamBillingCore.mjs';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
 import { IMPORT_LIMITS, LOW_MEMORY_INFLATE_BYTES } from '../src/lib/importTree.js';
@@ -372,6 +375,28 @@ if (!freeQuota || bytesLabel(Number(freeQuota[1])) !== FREE_STORAGE_LABEL) {
   throw new Error(`gen-docs: FREE_STORAGE_LABEL '${FREE_STORAGE_LABEL}' does not match the free quota in the migration defining _storage_quota_free_bytes`);
 }
 
+// The Team plan and the 10-editor limit, each from the code that enforces it:
+// _editor_limit (0520, which editorLimitMigration.test pins to EDITOR_LIMIT);
+// team-billing's seat prices, minimum and trial (teamBillingCore.mjs, which
+// teamBillingCore.test pins to teamModel); the self-serve ceiling
+// (organizations.seat_ceiling's default, 0522, which teamModel mirrors); the
+// drive each seat adds (_team_storage_seat_bytes, 0539); the grace before an
+// unpaid team goes view-only (_team_grace_days, 0538); and the seat perk
+// (_seat_perk_storage_bytes, 0537).
+const editorLimitSql = latestDefinition('_editor_limit')?.body.match(/select\s+(\d+);/);
+const teamSeatCeiling = latestSqlMatching(/seat_ceiling\s+integer not null default \d+/)
+  ?.match(/seat_ceiling\s+integer not null default (\d+)/);
+const teamSeatBytes = latestDefinition('_team_storage_seat_bytes')?.body.match(/select\s+(\d+)::bigint/);
+const teamGraceDays = latestDefinition('_team_grace_days')?.body.match(/select\s+(\d+);/);
+const seatPerkBytes = latestDefinition('_seat_perk_storage_bytes')?.body.match(/select\s+(\d+)::bigint/);
+if (!editorLimitSql || !teamSeatCeiling || !teamSeatBytes || !teamGraceDays || !seatPerkBytes) {
+  throw new Error('gen-docs: the Team plan rules were not found — update the extractor');
+}
+if (Number(editorLimitSql[1]) !== EDITOR_LIMIT || Number(teamSeatCeiling[1]) !== TEAM_SEAT_MAX
+    || TEAM_SEAT_UNIT_AMOUNT.month % 100 || TEAM_SEAT_UNIT_AMOUNT.year % 100) {
+  throw new Error('gen-docs: the Team plan numbers disagree with the code that enforces them');
+}
+
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // How long a message stays editable by its author (the app enforces it).
@@ -502,6 +527,16 @@ export const FACTS = {
   // What a referral pays the inviter and how often (0377, 0416), what the
   // friend gets on joining (0163, 0371), the storage each side gets (0416),
   // and the edit-link window for counting as a referral (claim_collab_link).
+  // The Team plan and the 10-editor limit (see the extractor above FACTS).
+  editorLimit: editorLimitSql[1],
+  teamSeatMonthly: `$${TEAM_SEAT_UNIT_AMOUNT.month / 100}`,
+  teamSeatAnnual: `$${TEAM_SEAT_UNIT_AMOUNT.year / 100}`,
+  teamSeatMin: String(TEAM_MIN_SEATS),
+  teamSeatMax: teamSeatCeiling[1],
+  teamStoragePerSeat: bytesLabel(Number(teamSeatBytes[1])),
+  teamTrialDays: String(TEAM_TRIAL_DAYS),
+  teamGraceDays: teamGraceDays[1],
+  teamSeatPerkStorage: bytesLabel(Number(seatPerkBytes[1])),
   referralRewardCards: referralCards[1],
   referralRewardsPer30Days: referralPer30[1],
   referralFriendCards: friendCards[0],

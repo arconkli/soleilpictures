@@ -129,12 +129,23 @@ export const FEATURE_EVENTS = Object.freeze({
     failure: [EV.EDITOR_LIMIT_REFUSED],
   },
 
-  // The Team plan: S2a is server only (the server logs team_created,
-  // team_joined, team_seat_viewer_fallback, team_closed).
-  teams: { unmeasured: 'S2a server only; S4 instruments the page' },
-  // The Team card on both pricing pages (auth/useTeamPricingCard.js).
+  // The Team plan: the setup, its checkout and the return from Stripe. The
+  // server also logs team_created, team_joined, team_seat_viewer_fallback and
+  // team_closed.
+  teams: {
+    exposure: [EV.TEAM_SETUP_OPEN],
+    action: [EV.TEAM_CHECKOUT_START],
+    outcome: [EV.TEAM_READY],
+    failure: [EV.TEAM_CHECKOUT_FAILED],
+  },
+  // The Team card on both pricing pages (auth/useTeamPricingCard.js): every
+  // pricing view shows it since the launch. Talk to us is its own page
+  // (auth/TalkToUsPage.jsx), whose request is kept or isn't.
   teamPricing: {
-    unmeasured: 'The Team card on /pricing records nothing yet. Before it opens: the card seen, Start a Team trial pressed, and Talk to us sent.',
+    exposure: [EV.PRICING_VIEW, EV.TEAM_TALK_VIEW],
+    action: [EV.PRICING_TEAM_START, EV.PRICING_TEAM_TALK],
+    outcome: [EV.PRICING_TEAM_START, EV.TEAM_TALK_SENT],
+    failure: [EV.TEAM_TALK_FAILED],
   },
 
   // Shipped without a hold.

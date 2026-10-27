@@ -6638,22 +6638,37 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Invite the team. "
+      "v": "Invite the team. Up to 10 people "
      },
      {
       "t": "link",
-      "v": "Editors are free",
+      "v": "edit free",
       "href": "/docs/collaborate",
       "children": [
        {
         "t": "text",
-        "v": "Editors are free"
+        "v": "edit free"
        }
       ]
      },
      {
       "t": "text",
-      "v": ", so there is no seat maths."
+      "v": " on Free and Creator, so there is no seat maths; a bigger team moves to "
+     },
+     {
+      "t": "link",
+      "v": "Team",
+      "href": "/docs/account/team",
+      "children": [
+       {
+        "t": "text",
+        "v": "Team"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ]
    ]
@@ -15407,7 +15422,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters, collaborators and editing are not limited on any plan."
+     "v": " are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters and editing are not limited on any plan, and up to 10 people can edit on Free and Creator alike."
     }
    ]
   },
@@ -32127,7 +32142,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Collaboration is deliberately not a paid feature. Inviting people is how boards become useful, and charging per seat would make the product worse at the thing it is for."
+     "v": "Collaboration is free on Free and Creator: up to 10 people can edit across everything an account owns, and anyone can view. Inviting people is how boards become useful. A group with more than 10 people who edit uses "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is priced per seat."
     }
    ]
   },
@@ -32386,6 +32416,114 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". This is what makes free editors workable: the person who owns the work pays for it, and inviting help costs nothing extra."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Up to 10 people who edit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 10 people who edit"
+    }
+   ],
+   "id": "up-to-10-people-who-edit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On Free and Creator, an account can have up to 10 people who can edit, counted once each across every workspace it owns: the owner, co-owners, editors, and invites to edit that haven't been answered yet. Viewers never count."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When an account is full:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Can edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is greyed out in the share panel, and people can still be invited to view."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Someone who opens a link to edit joins as a viewer and is told why, and the owner hears about it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Anyone but the owner can ask the owner for a place."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The owner sees everyone who holds a place in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → Members",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Members"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and can make someone a viewer or cancel an invite to free one."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If an account ends up with more than 10 — a workspace handed over to it, for example — everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer. Groups that need more use "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -42385,7 +42523,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two plans. The difference between them is deliberately small and deliberately honest — two enforced limits, listed below, and nothing else. The "
+     "v": "Three plans. Free and Creator differ deliberately little and deliberately honestly — two enforced limits, listed below, and nothing else. "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is for a group with more than 10 people who edit, and is priced per seat. The "
     },
     {
      "t": "link",
@@ -42400,7 +42553,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " puts the two side by side, and its plain-Markdown twin is at "
+     "v": " puts the three side by side, and its plain-Markdown twin is at "
     },
     {
      "t": "link",
@@ -42517,7 +42670,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Free collaboration — invite editors to any cluster"
+      "v": "Free collaboration — up to 10 people who edit"
      }
     ]
    ]
@@ -42654,7 +42807,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — everyone you invite builds at your limits, and there are no per-seat charges."
+      "v": " — everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges."
      }
     ]
    ]
@@ -42887,7 +43040,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite whoever you like, and they build at your limits without a plan of their own. There are no per-seat charges on any plan."
+     "v": ", never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite up to 10 people to edit, and as many as you like to view, and they build at your limits without a plan of their own. There are no per-seat charges on Free or Creator. A group with more than 10 people who edit uses "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is priced per seat."
     }
    ]
   },
@@ -43479,6 +43647,534 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  }
+ ],
+ "/docs/account/team": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Free and Creator include up to 10 people who can edit across everything an account owns, and any number of viewers. Team is for the groups that need more than that: a team owns its workspaces and pays for them per seat, and admins look after its people, seats and joining."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What a seat is",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a seat is"
+    }
+   ],
+   "id": "what-a-seat-is"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everyone who can edit in the team's workspaces holds a seat: the owner, admins, members, and anyone from outside the team you let edit. An invite to edit holds one until it is answered. Viewers are free and unlimited."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Seats are $25 a month each, or $240 a year. They are shared across all the team's workspaces, so one person editing in five of them is one seat. Each seat adds 1TB to the team's drive, which everyone in the team shares, and the cards are unlimited."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A team has between 3 and 100 seats. Seats nobody uses are let go at renewal, never below 3."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Starting a team",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Starting a team"
+    }
+   ],
+   "id": "starting-a-team"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Choose the number of seats on the "
+    },
+    {
+     "t": "link",
+     "v": "pricing page",
+     "href": "/pricing",
+     "children": [
+      {
+       "t": "text",
+       "v": "pricing page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and press "
+    },
+    {
+     "t": "strong",
+     "v": "Start a Team trial",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start a Team trial"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; signed in, the same setup is at "
+    },
+    {
+     "t": "code",
+     "v": "/team/new"
+    },
+    {
+     "t": "text",
+     "v": ". Name the team and pick which of your own workspaces move into it; the rest stay yours. Seats start at the number those workspaces need."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The trial lasts 14 days. A card is needed to start it and nothing is charged until it ends. During the trial the team's drive holds 100GB; the full drive comes with the first payment."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you already pay for Creator, it keeps billing on its own. Once your work has moved into the team, cancel it in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Plan & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Plan & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "More than 100 seats, single sign-on or invoices",
+   "inline": [
+    {
+     "t": "text",
+     "v": "More than 100 seats, single sign-on or invoices"
+    }
+   ],
+   "id": "more-than-100-seats-single-sign-on-or-invoices"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "link",
+     "v": "Talk to us",
+     "href": "/pricing/talk-to-us",
+     "children": [
+      {
+       "t": "text",
+       "v": "Talk to us"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", the link under the pricing page's cards, is a short form: what your team needs, and a work email to write back to. You don't need an account to send one."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "People",
+   "inline": [
+    {
+     "t": "text",
+     "v": "People"
+    }
+   ],
+   "id": "people"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The team's page, at "
+    },
+    {
+     "t": "code",
+     "v": "/team"
+    },
+    {
+     "t": "text",
+     "v": ", has three tabs: "
+    },
+    {
+     "t": "strong",
+     "v": "People",
+     "children": [
+      {
+       "t": "text",
+       "v": "People"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Seats & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Seats & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Joining",
+     "children": [
+      {
+       "t": "text",
+       "v": "Joining"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "The owner",
+      "children": [
+       {
+        "t": "text",
+        "v": "The owner"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " can do everything, and is the only one who changes the card, the plan or closes the team."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Admins",
+      "children": [
+       {
+        "t": "text",
+        "v": "Admins"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " add seats (the price is shown first), manage people, joining and what happens when seats run out."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Members",
+      "children": [
+       {
+        "t": "text",
+        "v": "Members"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " hold a seat and can make new workspaces for the team."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Viewers",
+      "children": [
+       {
+        "t": "text",
+        "v": "Viewers"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " can open and comment, and need no seat."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everyone in the team sees everyone's name. Only the owner and admins see email addresses."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Team workspaces are open to the whole team by default. An admin can make one private; the owner and admins can still open a private workspace, so work can always be handed over."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Joining",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Joining"
+    }
+   ],
+   "id": "joining"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Admins choose how people join, and can use any of these together:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Email invites",
+      "children": [
+       {
+        "t": "text",
+        "v": "Email invites"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": paste a list of addresses."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A team link",
+      "children": [
+       {
+        "t": "text",
+        "v": "A team link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": anyone with it can join."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Your company's email domain",
+      "children": [
+       {
+        "t": "text",
+        "v": "Your company's email domain"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": prove you own it with a DNS record, and people who sign up with an address there can join. Free email providers can't be used. People who already have an account with that domain are asked once, the next time they sign in; admins never see who has one."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "When seats run out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When seats run out"
+    }
+   ],
+   "id": "when-seats-run-out"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Admins pick one:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Ask first",
+      "children": [
+       {
+        "t": "text",
+        "v": "Ask first"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (the default): someone new joins as a viewer and the admins are asked, and can add a seat for them."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Add seats automatically",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add seats automatically"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", with an optional limit on how many can be added in a month."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Your own workspaces",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your own workspaces"
+    }
+   ],
+   "id": "your-own-workspaces"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The team never sees, opens or bills your own workspaces. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive (admins can turn this off for the team). If you leave the team, your own workspaces go back to your own plan and nothing in them is removed."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Payments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Payments"
+    }
+   ],
+   "id": "payments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If a payment fails, the team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only: everything still opens, and paying again turns editing back on."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Closing a team",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Closing a team"
+    }
+   ],
+   "id": "closing-a-team"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The owner can close the team. Its workspaces move to the owner's own account, and everyone keeps the access they had. If that leaves the owner's account with more than 10 people who can edit, everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer."
     }
    ]
   }

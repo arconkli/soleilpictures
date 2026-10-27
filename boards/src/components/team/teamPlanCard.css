@@ -33,7 +33,6 @@
   text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; cursor: pointer;
 }
 .pp-talk-link:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
-.pp-talk-note { margin: -8px 0 18px; text-align: center; font: 400 12px/1.4 var(--font-sans); color: var(--ink-3); }
 
 @media (max-width: 760px) {
   .pp-plans.is-three { grid-template-columns: 1fr; }

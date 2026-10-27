@@ -29,7 +29,7 @@ function bodyIn(file, fn) {
 }
 
 test('0541 is one transaction that proves its own grants, with no DROP', () => {
-  assert.match(sql, /STATUS: written 2026-10-25, not applied\./);
+  assert.match(sql, /STATUS: APPLIED 2026-10-27 on the owner's go, as three parts/);
   assert.match(sql, /^begin;$/m);
   assert.match(sql, /set local lock_timeout = '3s';/);
   assert.match(sql, /commit;\s*$/);

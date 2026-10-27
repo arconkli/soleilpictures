@@ -9,7 +9,7 @@ updated: 2026-10-21
 answer: Soleil Clusters is an infinite-canvas creative workspace for film, photo, design and brand teams. You collect references, storyboards, shot lists and scripts onto shared boards called clusters, and you can read and write all of it from your own code through the REST API or an MCP server.
 faq:
   - q: Is Soleil Clusters free?
-    a: Yes. The free Demo plan gives you {{fact:demoCardLimit}} cards — clusters themselves are free — and unlimited collaborators. Creator removes the card limit and gives you a {{fact:creatorStorage}} drive instead of {{fact:freeStorage}} — every plan takes any file at any size.
+    a: Yes. The free Demo plan gives you {{fact:demoCardLimit}} cards — clusters themselves are free — and up to {{fact:editorLimit}} people who edit, free. Creator removes the card limit and gives you a {{fact:creatorStorage}} drive instead of {{fact:freeStorage}} — every plan takes any file at any size.
   - q: What is a cluster?
     a: A cluster is a board. The interface says "cluster" everywhere; the API and database call the same object a board. They are the same thing, and the two words are used interchangeably in these docs where the API is involved.
   - q: Can AI agents use Soleil Clusters?

@@ -9,6 +9,8 @@ import { verifyWithRetry } from './teamReturn.js';
 import { verifyTeamCheckout } from './teamBillingApi.js';
 import { refusalLine } from './teamCopy.js';
 import { teamsAllowed } from './appHost.js';
+import { logEvent } from './analytics.js';
+import { EV } from './analyticsEvents.js';
 
 const urlTo = (path) => { try { window.history.replaceState({}, '', path); } catch (_) {} };
 
@@ -21,6 +23,7 @@ export async function runTeamReturn(ret, deps) {
     try { answer = await verifyWithRetry(verifyTeamCheckout, ret.sessionId); }
     catch (_) { answer = { ok: false, error: 'network' }; }
     if (answer?.ok) {
+      logEvent(EV.TEAM_READY, { created: !!answer.created, kind: answer.kind || null });
       urlTo('/team');
       deps.reloadTeams();
       deps.refreshWorkspaces();

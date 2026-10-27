@@ -4,6 +4,8 @@ import { routeAnalytics } from './helpers/share-fixture.js';
 const byName = (rows, name) => rows.filter((r) => r.event === name);
 import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL } from '../src/lib/billingCopy.js';
+import { EDITOR_LIMIT } from '../src/lib/editorLimit.js';
+import { teamComparison } from '../src/lib/teamPricingCopy.js';
 
 // Pricing / upgrade / billing flow specs.
 //
@@ -57,14 +59,16 @@ test('pricing page states the price high, leads with the free action, and shows 
   // accident; it moved onto the card that makes it.
   await expect(page.locator('.pp-plan-free')).toContainText(`${DEMO_CARD_LIMIT} cards`);
 
-  // Both plans, side by side, without scrolling. This is what a pricing page
+  // Every plan, side by side, without scrolling. This is what a pricing page
   // is and what this one did not have: free was a prose section, Creator was a
   // table, and the only buy surface was a 460px box alone on an empty screen
-  // 2,300px down. If a future edit puts either plan below the fold at a
-  // laptop viewport, that regression is this assertion's whole subject.
-  await expect(page.locator('.pp-plan')).toHaveCount(2);
+  // 2,300px down. If a future edit puts a plan below the fold at a laptop
+  // viewport, that regression is this assertion's whole subject. Team is the
+  // third since its launch.
+  await expect(page.locator('.pp-plan')).toHaveCount(3);
   await expect(page.locator('.pp-plan-free')).toBeInViewport();
   await expect(page.locator('.pp-plan-creator')).toBeInViewport();
+  await expect(page.locator('.pp-plan-team')).toBeInViewport();
 
   // Real product, not a feature list: a published board in a browser frame.
   const frame = page.locator('.seo-frame');
@@ -77,13 +81,13 @@ test('pricing page states the price high, leads with the free action, and shows 
   // promises, not that it goes to a /c/ slug.
   await expect(frame.locator('a.seo-frame-shot')).toHaveAttribute('href', /^\/(share|c)\//);
 
-  // The two differences that are actually enforced in code — the card cap
-  // trigger and the owner's drive (authorize_upload) — as a comparison rather
-  // than abstract bullets. File type (0367) and file size (0413) stopped being
-  // differences: every plan takes any file at any size, so neither may
-  // reappear as a row.
+  // The two differences between Free and Creator that are actually enforced
+  // in code — the card cap trigger and the owner's drive (authorize_upload) —
+  // as a comparison rather than abstract bullets, and the lines Team adds.
+  // File type (0367) and file size (0413) stopped being differences: every
+  // plan takes any file at any size, so neither may reappear as a row.
   const table = page.locator('.seo-compare');
-  await expect(table.locator('tbody tr')).toHaveCount(2);
+  await expect(table.locator('tbody tr')).toHaveCount(teamComparison(EDITOR_LIMIT).length);
   await expect(table).toContainText('Unlimited');
   await expect(table).toContainText(FREE_STORAGE_LABEL);
   await expect(table).toContainText(CREATOR_STORAGE_LABEL);
@@ -135,8 +139,10 @@ test('pricing page states the price high, leads with the free action, and shows 
   // must not appear in the free plan's feature list as something sold.
   await expect(free).not.toContainText('audio');
 
-  // The trial is never offered here, signed in or out. Standing decision.
-  await expect(page.getByText(/days free|free for 14 days/i)).toHaveCount(0);
+  // Creator's trial is never offered here, signed in or out. Standing
+  // decision. Team's is the Team card's own: it is how a team starts.
+  await expect(page.getByText(/days free|free for 14 days/i)).toHaveCount(1);
+  await expect(page.locator('.pp-plan-team').getByText(/days free/i)).toHaveCount(1);
 });
 
 test('both plans AND both buttons are on the first screen of a small laptop', async ({ page }) => {
@@ -394,9 +400,24 @@ test('the signed-OUT page leads with the free action, because it cannot sell', a
   // And the closing band repeats the free action, not the paid one.
   await expect(page.locator('.seo-cta-band').getByRole('button', { name: 'Start free' })).toBeVisible();
 
-  // The trial is in-product only. A signed-out visitor has built nothing and
-  // could not be eligible anyway, but the page must not imply otherwise.
-  await expect(page.getByText(/days free|free for 14 days|free trial/i)).toHaveCount(0);
+  // Creator's trial is in-product only. A signed-out visitor has built nothing
+  // and could not be eligible anyway, but the page must not imply otherwise.
+  // Team's trial is the Team card's own (its note and its drive line), so the
+  // card is the one place the words may appear.
+  const trialWords = /days free|free for 14 days|free trial/i;
+  const team = page.locator('.pp-plan-team');
+  await expect(team).toBeVisible();
+  const outside = await page.locator('body').evaluate((body, src) => {
+    const re = new RegExp(src, 'i');
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    const hits = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (re.test(n.textContent) && !n.parentElement.closest('.pp-plan-team')) hits.push(n.textContent.trim());
+    }
+    return hits;
+  }, trialWords.source);
+  expect(outside).toEqual([]);
+  await expect(team.getByText(trialWords)).toHaveCount(2);
 });
 
 test('checkout success without a session_id shows a recovery card (no dead-end)', async ({ page }) => {

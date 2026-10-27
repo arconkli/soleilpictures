@@ -1,14 +1,12 @@
 // team-pricing-start.spec.js — the Team card on the signed-out /pricing and the
-// way through sign-in to the setup (lib/teamStart.js). The card follows
-// teamPricingAllowed(): on dev it is opt-in (soleil.dev.teamPricing = '1'), so
-// the other pricing specs keep reading production's two cards.
+// way through sign-in to the setup (lib/teamStart.js). The card is on
+// everywhere since the Team launch (teamPricingAllowed).
 import { test, expect } from '@playwright/test';
 import { bootSignedIn } from './helpers/signedInStub.js';
 
 const KEY = 'soleil.boards.pending.team.start';
 
 test('signed out: the third card; Start keeps the seats and billing through sign-in, which says so', async ({ page }) => {
-  await page.addInitScript(() => { try { localStorage.setItem('soleil.dev.teamPricing', '1'); } catch (_) {} });
   await page.goto('/pricing');
   const card = page.locator('.pp-plan-team');
   await expect(card).toBeVisible();
@@ -25,7 +23,6 @@ test('signed out: the third card; Start keeps the seats and billing through sign
 });
 
 test('signed out: Start free drops a kept Team start', async ({ page }) => {
-  await page.addInitScript(() => { try { localStorage.setItem('soleil.dev.teamPricing', '1'); } catch (_) {} });
   await page.goto('/pricing');
   await expect(page.locator('.pp-plan-team')).toBeVisible();
   await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ seats: 8, billing: 'monthly', at: Date.now() })), KEY);

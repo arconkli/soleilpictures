@@ -1,15 +1,15 @@
 ---
 title: Collaborating — Soleil Clusters
-metaDescription: Invite editors and viewers to Soleil Clusters boards. Collaboration is free on every plan — editors do not need to pay, and the owner's quota is what counts.
+metaDescription: Invite editors and viewers to Soleil Clusters boards. Up to {{fact:editorLimit}} people edit free on Free and Creator, viewers are unlimited, and the owner's quota counts.
 h1: Collaborating
 navLabel: Overview
 section: collaborate
 order: 0
 updated: 2026-10-17
-answer: Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
+answer: Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to {{fact:editorLimit}} people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.
 faq:
   - q: Do collaborators need to pay?
-    a: No. Editors and viewers are free on every plan, and there is no seat limit. Whoever owns the cluster pays for what it holds.
+    a: No. On Free and Creator, up to {{fact:editorLimit}} people can edit and anyone can view, and none of them pays. Whoever owns the cluster pays for what it holds. A group with more than {{fact:editorLimit}} people who edit uses [Team](/docs/account/team), priced per seat.
   - q: Whose card allowance do collaborator uploads use?
     a: The owner's. If you add cards to someone else's cluster, they count against their limit, not yours.
   - q: Can a viewer comment?
@@ -20,9 +20,10 @@ related:
   - /docs/account/plans
 ---
 
-Collaboration is deliberately not a paid feature. Inviting people is how boards
-become useful, and charging per seat would make the product worse at the thing
-it is for.
+Collaboration is free on Free and Creator: up to {{fact:editorLimit}} people can
+edit across everything an account owns, and anyone can view. Inviting people is
+how boards become useful. A group with more than {{fact:editorLimit}} people who
+edit uses [Team](/docs/account/team), which is priced per seat.
 
 ## Roles
 
@@ -46,6 +47,28 @@ Cards added to someone else's cluster count against their
 [card allowance](/docs/canvas/cards); files uploaded there use their
 [storage](/docs/files). This is what makes free editors workable: the person who
 owns the work pays for it, and inviting help costs nothing extra.
+
+## Up to {{fact:editorLimit}} people who edit
+
+On Free and Creator, an account can have up to {{fact:editorLimit}} people who
+can edit, counted once each across every workspace it owns: the owner,
+co-owners, editors, and invites to edit that haven't been answered yet. Viewers
+never count.
+
+When an account is full:
+
+- **Can edit** is greyed out in the share panel, and people can still be
+  invited to view.
+- Someone who opens a link to edit joins as a viewer and is told why, and the
+  owner hears about it.
+- Anyone but the owner can ask the owner for a place.
+- The owner sees everyone who holds a place in **Settings → Members**, and can
+  make someone a viewer or cancel an invite to free one.
+
+If an account ends up with more than {{fact:editorLimit}} — a workspace handed
+over to it, for example — everyone keeps editing, and nobody new can be made an
+editor until it is back at {{fact:editorLimit}} or fewer. Groups that need more
+use [Team](/docs/account/team).
 
 ## Inviting
 

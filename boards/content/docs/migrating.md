@@ -145,7 +145,7 @@ Roundups of what else is out there, with pricing checked at the date shown:
    becomes a cluster, with a nested one for each folder inside it.
 3. Give things names — names are what [search](/docs/organize/search) works on.
 4. Nest sub-clusters where the old tool had folders.
-5. Invite the team. [Editors are free](/docs/collaborate), so there is no seat maths.
+5. Invite the team. Up to {{fact:editorLimit}} people [edit free](/docs/collaborate) on Free and Creator, so there is no seat maths; a bigger team moves to [Team](/docs/account/team).
 
 Archives are usually not worth moving. Leave them where they are and start with
 work that is live.

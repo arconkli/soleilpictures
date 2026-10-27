@@ -9,11 +9,40 @@
 // its first payment, _org_storage_quota_bytes 0537). The editor limit is
 // passed in (editorLimit.js EDITOR_LIMIT): importing it here would split the
 // app, as teamModel.js's teamHeroLine says.
-import { TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_STORAGE_PER_SEAT, SEAT_PERK_STORAGE, sizeLabel } from './teamModel.js';
+import {
+  TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_PRICE, TEAM_TRIAL_DAYS, TEAM_STORAGE_PER_SEAT, SEAT_PERK_STORAGE, money, sizeLabel,
+} from './teamModel.js';
 import { PLAN_COMPARISON, TRIAL_STORAGE_LABEL } from './billingCopy.js';
 
 // The page writes sizes as billingCopy does ('1TB'); the team model adds a space.
 const size = (bytes) => sizeLabel(bytes).replace(' ', '');
+
+// "Talk to us" is a page of its own (TalkToUsPage, direction C of the Team
+// canvas): routed in main.jsx, its title and description in the Worker's
+// ROUTE_META, which reads them from here.
+export const TEAM_TALK_PATH = '/pricing/talk-to-us';
+export const TEAM_TALK_META = Object.freeze({
+  title: 'Talk to us — Soleil Clusters',
+  description: `Single sign-on, invoices and purchase orders, or more than ${TEAM_SEAT_MAX} seats on Soleil Clusters Team: tell us what your team needs, and we’ll write back.`,
+});
+
+// The card's own lines and the Talk to us line under the cards. The crawlable
+// /pricing (pricingCrawlable.js) prints the same ones.
+export function teamCardCopy(editorLimit) {
+  return {
+    name: 'Team',
+    tag: `More than ${editorLimit} editors`,
+    sub: `${TEAM_SEAT_MIN} seats or more. Viewers never use a seat.`,
+    // The price under each billing choice of the page's toggle.
+    monthly: { price: money(TEAM_SEAT_PRICE.month), unit: 'a seat /mo' },
+    annual: { price: money(TEAM_SEAT_PRICE.year / 12), unit: 'a seat /mo, billed yearly' },
+    cta: 'Start a Team trial',
+    note: `${TEAM_TRIAL_DAYS} days free · card needed`,
+    talk: `Need SSO, invoices or more than ${TEAM_SEAT_MAX} seats?`,
+    talkLink: 'Talk to us',
+    talkHref: TEAM_TALK_PATH,
+  };
+}
 
 export function teamBenefits(editorLimit) {
   return [

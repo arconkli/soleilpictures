@@ -294,6 +294,12 @@ test('COVERAGE: every machine-readable error code is documented', () => {
   assert.deepEqual(missing, [], `error codes absent from /docs/api/errors: ${missing.join(', ')}`);
 });
 
+test('COVERAGE: the Team plan\'s pages are on its docs page', () => {
+  const paths = [...surface.teamRoutes.setup.map((b) => b.match(/'([^']+)'/)[1]), ...surface.teamRoutes.page];
+  const missing = paths.filter((p) => !mentionedOn('/docs/account/team', p));
+  assert.deepEqual(missing, [], `Team routes absent from /docs/account/team: ${missing.join(', ')}`);
+});
+
 test('COVERAGE: every Settings tab is documented', () => {
   const missing = surface.settingsTabs.filter((t) => !mentions(t.label));
   assert.deepEqual(missing.map((t) => t.label), [], 'undocumented Settings tabs');

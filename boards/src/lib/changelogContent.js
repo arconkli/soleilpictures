@@ -6,6 +6,537 @@ export const CHANGELOG_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
+   "text": "Team",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Team"
+    }
+   ],
+   "id": "2026-10-27-team"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Team",
+      "children": [
+       {
+        "t": "text",
+        "v": "Team"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is a new plan for groups with more than 10 people who edit. A team owns its workspaces and pays for them per seat: $25 a seat a month, or $240 a year, from 3 seats. Each seat adds 1TB to the drive the team shares, and the cards are unlimited."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Viewers are free and never use a seat."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Admins look after people, seats and joining: email invites, a team link, or anyone from your company's verified email domain."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Start from the "
+     },
+     {
+      "t": "link",
+      "v": "pricing page",
+      "href": "/pricing",
+      "children": [
+       {
+        "t": "text",
+        "v": "pricing page"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". The first 14 days are free, and a card is needed to start. See "
+     },
+     {
+      "t": "link",
+      "v": "Team",
+      "href": "/docs/account/team",
+      "children": [
+       {
+        "t": "text",
+        "v": "Team"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Free and Creator",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Free and Creator"
+    }
+   ],
+   "id": "2026-10-27-free-and-creator"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Up to 10 people can edit across everything an account owns, and anyone can view. When an account is full, an edit link lets the next person in as a viewer and tells the owner. An account that already has more keeps everyone editing, and adds no one new until it is back at"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "See "
+     },
+     {
+      "t": "link",
+      "v": "collaborate",
+      "href": "/docs/collaborate",
+      "children": [
+       {
+        "t": "text",
+        "v": "collaborate"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Documents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Documents"
+    }
+   ],
+   "id": "2026-10-27-documents"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument and RTF files show their first page on their card, with the page count where other files show their size (\"12 slides\", \"1 page\"). A spreadsheet shows its first sheet from the top left. See "
+     },
+     {
+      "t": "link",
+      "v": "files",
+      "href": "/docs/files",
+      "children": [
+       {
+        "t": "text",
+        "v": "files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " pages through a document, Visio and Publisher files included, and says \"Making a preview…\" while the pages are being made."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A deck lands on the board at a slide's shape and any other document at a page's, so its card barely moves when its page arrives."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Camera raws and Photoshop files",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Camera raws and Photoshop files"
+    }
+   ],
+   "id": "2026-10-27-camera-raws-and-photoshop-files"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Camera raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the others) and Photoshop files (.psd and .psb) are pictures now: they land as image cards and show wherever pictures do. One already on a board as a file card turns into its picture. "
+     },
+     {
+      "t": "strong",
+      "v": "Download",
+      "children": [
+       {
+        "t": "text",
+        "v": "Download"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " still gives you the original. See "
+     },
+     {
+      "t": "link",
+      "v": "images",
+      "href": "/docs/canvas/images",
+      "children": [
+       {
+        "t": "text",
+        "v": "images"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Tags",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tags"
+    }
+   ],
+   "id": "2026-10-27-tags"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Tag chips show under their cards. Since May they had been hidden inside the card."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Click a tag chip, on a card, a group or the cluster's own strip, and the cluster lights up that tag's cards where they are while everything else fades. "
+     },
+     {
+      "t": "code",
+      "v": "Esc"
+     },
+     {
+      "t": "text",
+      "v": ", or the same chip again, ends it. See "
+     },
+     {
+      "t": "link",
+      "v": "tags",
+      "href": "/docs/organize/tags",
+      "children": [
+       {
+        "t": "text",
+        "v": "tags"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Suggested tags show on their card with a sparkle: ✓ keeps one, × stops it being suggested there again."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Select several cards and press "
+     },
+     {
+      "t": "strong",
+      "v": "Tag",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the selection bar to put a tag on all of them, or take it off, with one undo."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Tag…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " works on a group and on the cluster itself (right-click the empty board). In a document, select words and right-click for "
+     },
+     {
+      "t": "strong",
+      "v": "Tag selection…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag selection…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". In "
+     },
+     {
+      "t": "code",
+      "v": "⌘K"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "#name"
+     },
+     {
+      "t": "text",
+      "v": " lists everything with that tag."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A tag you take off stays off. Saving a link in a document or editing a paragraph no longer deletes its tags."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone, each tag in the sidebar has a "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " with Rename, Recolor, Merge into…, Type and Delete, and pressing and holding an item on a tag's page offers Remove, and Confirm for one added automatically."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Settings → Workspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Workspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " has an "
+     },
+     {
+      "t": "strong",
+      "v": "AI suggestions",
+      "children": [
+       {
+        "t": "text",
+        "v": "AI suggestions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " switch for owners and co-owners. When it's off, no card or document text goes to an AI model."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "ChatGPT, Claude and the API",
+   "inline": [
+    {
+     "t": "text",
+     "v": "ChatGPT, Claude and the API"
+    }
+   ],
+   "id": "2026-10-27-chatgpt-claude-and-the-api"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "ChatGPT and Claude can connect on your account's first day."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The MCP server has fewer tools, each doing more, and an old tool's name answers with its new one. Every answer starts with a line in plain words and the link to give you. See "
+     },
+     {
+      "t": "link",
+      "v": "MCP",
+      "href": "/docs/mcp",
+      "children": [
+       {
+        "t": "text",
+        "v": "MCP"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Through the API and MCP, an assistant can read a document or a whole board as text, look at a board's pictures, write documents, read and post comments, resolve and reopen threads (in documents too), work with tags, and share a board by link. See "
+     },
+     {
+      "t": "link",
+      "v": "the API",
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "the API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Webhooks fire for comments and for tags, and "
+     },
+     {
+      "t": "code",
+      "v": "card.moved"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "image.created"
+     },
+     {
+      "t": "text",
+      "v": ", which never fired, now do. See "
+     },
+     {
+      "t": "link",
+      "v": "webhooks",
+      "href": "/docs/api/webhooks",
+      "children": [
+       {
+        "t": "text",
+        "v": "webhooks"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
    "text": "Sharing",
    "inline": [
     {
@@ -97,6 +628,26 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": ", and where the browser won't copy, the link is shown selected so you can copy it yourself."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A document shared on its own link looks the way it does in its cluster. Someone who can edit gets its bar, with "
+     },
+     {
+      "t": "strong",
+      "v": "Comments",
+      "children": [
+       {
+        "t": "text",
+        "v": "Comments"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " as a side panel where they can reply, resolve and reopen. On a phone, Comments is a sheet over the document."
+     }
     ]
    ]
   },
@@ -116,6 +667,51 @@ export const CHANGELOG_CONTENT = {
    "type": "list",
    "ordered": false,
    "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Tidy up",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tidy up"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " no longer piles cards on top of each other, and "
+     },
+     {
+      "t": "strong",
+      "v": "Align",
+      "children": [
+       {
+        "t": "text",
+        "v": "Align"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " lines a big selection up instead of stacking it. See "
+     },
+     {
+      "t": "link",
+      "v": "snapping and alignment",
+      "href": "/docs/canvas/snapping-and-alignment",
+      "children": [
+       {
+        "t": "text",
+        "v": "snapping and alignment"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
     [
      {
       "t": "text",

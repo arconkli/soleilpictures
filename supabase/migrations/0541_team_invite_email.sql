@@ -1,9 +1,10 @@
 -- 0541: Teams, part 12 — the team invite email (S4).
 --
--- STATUS: written 2026-10-25, not applied. Apply only once
--- send-transactional-email renders 'team_invite' (deployed and read back):
--- before that the function refuses the template, and every invite's email
--- would fail there.
+-- STATUS: APPLIED 2026-10-27 on the owner's go, as three parts
+-- (team_invite_email_0541_part1..3), once send-transactional-email v46
+-- rendered 'team_invite': before that the function refused the template, and
+-- every invite's email would have failed there. Both re-emitted bodies were
+-- the live ones first (read back byte for byte), and the proof block passed.
 --
 -- What it adds (plan docs/superpowers/plans/2026-10-25-team-s4-team-page.md,
 -- Task 9):

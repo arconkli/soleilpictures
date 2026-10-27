@@ -1,12 +1,13 @@
 # Collaborating
 
-> Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
+> Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to 10 people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
 _Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-10-17_
 
-Collaboration is deliberately not a paid feature. Inviting people is how boards
-become useful, and charging per seat would make the product worse at the thing
-it is for.
+Collaboration is free on Free and Creator: up to 10 people can
+edit across everything an account owns, and anyone can view. Inviting people is
+how boards become useful. A group with more than 10 people who
+edit uses [Team](/docs/account/team), which is priced per seat.
 
 ## Roles
 
@@ -30,6 +31,28 @@ Cards added to someone else's cluster count against their
 [card allowance](/docs/canvas/cards); files uploaded there use their
 [storage](/docs/files). This is what makes free editors workable: the person who
 owns the work pays for it, and inviting help costs nothing extra.
+
+## Up to 10 people who edit
+
+On Free and Creator, an account can have up to 10 people who
+can edit, counted once each across every workspace it owns: the owner,
+co-owners, editors, and invites to edit that haven't been answered yet. Viewers
+never count.
+
+When an account is full:
+
+- **Can edit** is greyed out in the share panel, and people can still be
+  invited to view.
+- Someone who opens a link to edit joins as a viewer and is told why, and the
+  owner hears about it.
+- Anyone but the owner can ask the owner for a place.
+- The owner sees everyone who holds a place in **Settings → Members**, and can
+  make someone a viewer or cancel an invite to free one.
+
+If an account ends up with more than 10 — a workspace handed
+over to it, for example — everyone keeps editing, and nobody new can be made an
+editor until it is back at 10 or fewer. Groups that need more
+use [Team](/docs/account/team).
 
 ## Inviting
 

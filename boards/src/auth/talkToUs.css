@@ -1,0 +1,58 @@
+/* /pricing/talk-to-us (TalkToUsPage.jsx): direction C of the Team canvas, the
+   form on one card under the public top bar, on the pricing page's ground
+   (pp-shell). Gold only where something is chosen or focused. */
+
+.tt-shell .tt-main { width: 100%; max-width: 592px; margin: 0 auto; padding: 40px 16px 64px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; }
+.tt-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; border-radius: 4px; font: 500 12px/1 var(--font-sans); color: var(--ink-2); text-decoration: none; }
+.tt-back:hover { color: var(--ink-0); }
+
+.tt-card { display: grid; gap: 16px; margin: 0; padding: 28px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-1); }
+.tt-head { display: flex; flex-direction: column; gap: 6px; }
+.tt-h { margin: 0; font: 600 22px/1.25 var(--font-sans); color: var(--ink-0); }
+.tt-h:focus { outline: none; }
+.tt-sub { margin: 0; font: 400 13px/1.5 var(--font-sans); color: var(--ink-2); }
+
+.tt-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+.tt-fld { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.tt-wide { grid-column: 1 / -1; }
+.tt-label { padding: 0; font: 600 11.5px/1.3 var(--font-sans); color: var(--ink-1); }
+.tt-label small { margin-left: 4px; font: 400 11.5px/1.3 var(--font-sans); color: var(--ink-3); }
+.tt-in { box-sizing: border-box; width: 100%; min-width: 0; height: 34px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg-2); color: var(--ink-0); font: 400 13px/1.2 var(--font-sans); }
+textarea.tt-in { height: auto; min-height: 74px; padding: 9px 11px; line-height: 1.45; resize: vertical; }
+.tt-in:focus { outline: none; border-color: rgba(255, 165, 0, .6); box-shadow: 0 0 0 3px var(--soleil-soft); }
+.tt-in[aria-invalid="true"] { border-color: var(--danger); }
+.tt-err { margin: 0; font: 500 11.5px/1.35 var(--font-sans); color: var(--msg-warn); }
+
+.tt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tt-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg-2); color: var(--ink-1); font: 500 12px/1 var(--font-sans); cursor: pointer; }
+.tt-chip:hover { border-color: var(--line-3); }
+.tt-chip.is-on { border-color: rgba(255, 165, 0, .45); background: var(--soleil-soft); color: var(--ink-0); }
+.tt-chip.is-on svg { color: var(--soleil); }
+
+.tt-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tt-foot-end { justify-content: flex-end; padding-top: 4px; }
+.tt-note { flex: 1; min-width: 180px; font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); }
+.tt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; height: 32px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--bg-2); color: var(--ink-1); font: 500 12.5px/1 var(--font-sans); white-space: nowrap; text-decoration: none; cursor: pointer; }
+.tt-btn-ink { border-color: var(--ink-0); background: var(--ink-0); color: var(--bg-0); font-weight: 600; }
+.tt-btn:disabled { opacity: .6; cursor: default; }
+.tt-chip:focus-visible, .tt-btn:focus-visible, .tt-back:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.tt-error { margin: 0; font: 400 12.5px/1.45 var(--font-sans); color: var(--ink-1); }
+.tt-error b { color: var(--msg-warn); font-weight: 600; }
+
+.tt-done { gap: 14px; }
+.tt-done-ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-0); }
+
+@media (max-width: 600px) {
+  .tt-shell .tt-main { padding-top: 20px; }
+  .tt-card { padding: 20px; }
+  .tt-fields { grid-template-columns: 1fr; }
+}
+
+/* A finger gets 44px, and 16px text so a phone doesn't zoom into the box. */
+@media (pointer: coarse) {
+  .tt-in { height: 44px; font-size: 16px; }
+  textarea.tt-in { min-height: 96px; }
+  .tt-chip { height: 40px; padding: 0 14px; }
+  .tt-btn { height: 44px; padding: 0 18px; }
+  .tt-back { min-height: 44px; }
+}

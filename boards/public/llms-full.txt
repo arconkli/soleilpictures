@@ -64,7 +64,7 @@ Screenshots are deliberately sparse. The interface moves faster than screenshots
 ## Frequently asked questions
 
 Q: Is Soleil Clusters free?
-A: Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size.
+A: Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and up to 10 people who edit, free. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size.
 
 Q: What is a cluster?
 A: A cluster is a board. The interface says "cluster" everywhere; the API and database call the same object a board. They are the same thing, and the two words are used interchangeably in these docs where the API is involved.
@@ -81,7 +81,7 @@ A: The changelog at /changelog lists every user-visible change, newest first, on
 URL: https://clusters.soleilpictures.com/docs/getting-started
 Updated: 2026-10-21
 
-Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.
+Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and up to 10 people who edit.
 
 From an empty account to a board you would show someone, in about five minutes.
 
@@ -553,7 +553,7 @@ Pick one live project rather than migrating an archive.
 Drop its reference folder, or the zip you downloaded, onto a canvas — it becomes a cluster, with a nested one for each folder inside it.
 Give things names — names are what search works on.
 Nest sub-clusters where the old tool had folders.
-Invite the team. Editors are free, so there is no seat maths.
+Invite the team. Up to 10 people edit free on Free and Creator, so there is no seat maths; a bigger team moves to Team.
 
 Archives are usually not worth moving. Leave them where they are and start with work that is live.
 
@@ -1533,7 +1533,7 @@ File type and size. Any, on every plan. .psd, .fig, .zip, project files, archive
 
 Storage. The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits; the rest waits in the tab and goes on by itself when you upgrade or add storage (Hitting a limit). Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join (Referrals).
 
-The drive and the card cap are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters, collaborators and editing are not limited on any plan.
+The drive and the card cap are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters and editing are not limited on any plan, and up to 10 people can edit on Free and Creator alike.
 
 Large uploads
 
@@ -3072,9 +3072,9 @@ A: Forward slash opens it too, when you are not typing into something.
 URL: https://clusters.soleilpictures.com/docs/collaborate
 Updated: 2026-10-17
 
-Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
+Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to 10 people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
-Collaboration is deliberately not a paid feature. Inviting people is how boards become useful, and charging per seat would make the product worse at the thing it is for.
+Collaboration is free on Free and Creator: up to 10 people can edit across everything an account owns, and anyone can view. Inviting people is how boards become useful. A group with more than 10 people who edit uses Team, which is priced per seat.
 
 Roles
 
@@ -3092,6 +3092,19 @@ Whose quota
 Always the cluster owner's. A co-owner is not the owner for this purpose: what they add counts against the owner's allowance, like an editor's.
 
 Cards added to someone else's cluster count against their card allowance; files uploaded there use their storage. This is what makes free editors workable: the person who owns the work pays for it, and inviting help costs nothing extra.
+
+Up to 10 people who edit
+
+On Free and Creator, an account can have up to 10 people who can edit, counted once each across every workspace it owns: the owner, co-owners, editors, and invites to edit that haven't been answered yet. Viewers never count.
+
+When an account is full:
+
+Can edit is greyed out in the share panel, and people can still be invited to view.
+Someone who opens a link to edit joins as a viewer and is told why, and the owner hears about it.
+Anyone but the owner can ask the owner for a place.
+The owner sees everyone who holds a place in Settings → Members, and can make someone a viewer or cancel an invite to free one.
+
+If an account ends up with more than 10 — a workspace handed over to it, for example — everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer. Groups that need more use Team.
 
 Inviting
 
@@ -3130,7 +3143,7 @@ Undoing someone else's change
 ## Frequently asked questions
 
 Q: Do collaborators need to pay?
-A: No. Editors and viewers are free on every plan, and there is no seat limit. Whoever owns the cluster pays for what it holds.
+A: No. On Free and Creator, up to 10 people can edit and anyone can view, and none of them pays. Whoever owns the cluster pays for what it holds. A group with more than 10 people who edit uses [Team](/docs/account/team), priced per seat.
 
 Q: Whose card allowance do collaborator uploads use?
 A: The owner's. If you add cards to someone else's cluster, they count against their limit, not yours.
@@ -4047,11 +4060,11 @@ A: Under Connections, alongside any apps you have approved. Tokens are shown onc
 ========================================================================
 # Plans and pricing
 URL: https://clusters.soleilpictures.com/docs/account/plans
-Updated: 2026-10-21
+Updated: 2026-10-27
 
-The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+The free Demo plan gives you 50 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.
 
-Two plans. The difference between them is deliberately small and deliberately honest — two enforced limits, listed below, and nothing else. The pricing page puts the two side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
+Three plans. Free and Creator differ deliberately little and deliberately honestly — two enforced limits, listed below, and nothing else. Team is for a group with more than 10 people who edit, and is priced per seat. The pricing page puts the three side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
 
 Pressing Get Creator there before you have an account signs you in first, then opens the Creator offer in the app with the plan you picked — monthly or annual — rather than leaving you to find it. The choice is kept on that device for 24 hours. Pressing Start free instead, there or on any other page, drops it.
 
@@ -4060,7 +4073,7 @@ Demo — free
 50 cards to build with
 A 5GB drive — any file, at any size
 Clusters are free — they cost none of your cards
-Free collaboration — invite editors to any cluster
+Free collaboration — up to 10 people who edit
 
 The free plan stops at whichever limit you reach first.
 
@@ -4070,7 +4083,7 @@ $25/mo billed monthly, or $20/mo billed annually ($240/yr, saving $60/yr).
 
 Unlimited cards — the 50-card ceiling comes off, and every card you have already made stays exactly where it is.
 A 1TB drive — free holds 5GB; Creator holds 1TB, room for the footage, the camera originals and the project archives. (During a trial it is 100GB, and the full drive comes with the first payment.)
-Covers your whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+Covers your whole workspace — everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges.
 
 What is genuinely limited
 
@@ -4087,7 +4100,7 @@ A grid counts the boxes you have filled, one card each, and an empty grid counts
 
 One plan covers the workspace
 
-Those limits are charged to whoever owns the workspace, never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite whoever you like, and they build at your limits without a plan of their own. There are no per-seat charges on any plan.
+Those limits are charged to whoever owns the workspace, never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite up to 10 people to edit, and as many as you like to view, and they build at your limits without a plan of their own. There are no per-seat charges on Free or Creator. A group with more than 10 people who edit uses Team, which is priced per seat.
 
 The same rule is why a free workspace stays limited no matter who is working in it — a collaborator's own plan never applies to someone else's workspace. If you work across several, the one that matters is the workspace the cluster lives in.
 
@@ -4152,10 +4165,10 @@ More on the free tier specifically: free mood board maker.
 ## Frequently asked questions
 
 Q: What is actually limited on the free plan?
-A: Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
+A: Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on every plan; there is no per-file limit at all. Clusters are free — they cost none of your cards — and people are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
 
 Q: Do collaborators need to pay?
-A: No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
+A: No. On Free and Creator, up to 10 people can edit at no cost to them, and anyone can view; more than that is what [Team](/docs/account/team) is for. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
 
 Q: If someone on my team upgrades, does my workspace get the higher limits?
 A: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it.
@@ -4174,6 +4187,96 @@ A: Yes, once you have built something, or the moment a drop is more than your fr
 
 Q: What happens to my work if I cancel, or my trial ends?
 A: Nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them.
+
+
+========================================================================
+# Team
+URL: https://clusters.soleilpictures.com/docs/account/team
+Updated: 2026-10-27
+
+Team is for groups where more than 10 people edit. Everyone who can edit holds a seat, at $25 a month or $240 a year; viewers are free. Seats are shared across the team's workspaces, each seat adds 1TB to one shared drive, and the team owns its workspaces, with admins to run it. It starts with a 14-day trial.
+
+Free and Creator include up to 10 people who can edit across everything an account owns, and any number of viewers. Team is for the groups that need more than that: a team owns its workspaces and pays for them per seat, and admins look after its people, seats and joining.
+
+What a seat is
+
+Everyone who can edit in the team's workspaces holds a seat: the owner, admins, members, and anyone from outside the team you let edit. An invite to edit holds one until it is answered. Viewers are free and unlimited.
+
+Seats are $25 a month each, or $240 a year. They are shared across all the team's workspaces, so one person editing in five of them is one seat. Each seat adds 1TB to the team's drive, which everyone in the team shares, and the cards are unlimited.
+
+A team has between 3 and 100 seats. Seats nobody uses are let go at renewal, never below 3.
+
+Starting a team
+
+Choose the number of seats on the pricing page and press Start a Team trial; signed in, the same setup is at /team/new. Name the team and pick which of your own workspaces move into it; the rest stay yours. Seats start at the number those workspaces need.
+
+The trial lasts 14 days. A card is needed to start it and nothing is charged until it ends. During the trial the team's drive holds 100GB; the full drive comes with the first payment.
+
+If you already pay for Creator, it keeps billing on its own. Once your work has moved into the team, cancel it in Settings → Plan & billing.
+
+More than 100 seats, single sign-on or invoices
+
+Talk to us, the link under the pricing page's cards, is a short form: what your team needs, and a work email to write back to. You don't need an account to send one.
+
+People
+
+The team's page, at /team, has three tabs: People, Seats & billing and Joining.
+
+The owner can do everything, and is the only one who changes the card, the plan or closes the team.
+Admins add seats (the price is shown first), manage people, joining and what happens when seats run out.
+Members hold a seat and can make new workspaces for the team.
+Viewers can open and comment, and need no seat.
+
+Everyone in the team sees everyone's name. Only the owner and admins see email addresses.
+
+Team workspaces are open to the whole team by default. An admin can make one private; the owner and admins can still open a private workspace, so work can always be handed over.
+
+Joining
+
+Admins choose how people join, and can use any of these together:
+
+Email invites: paste a list of addresses.
+A team link: anyone with it can join.
+Your company's email domain: prove you own it with a DNS record, and people who sign up with an address there can join. Free email providers can't be used. People who already have an account with that domain are asked once, the next time they sign in; admins never see who has one.
+
+When seats run out
+
+Admins pick one:
+
+Ask first (the default): someone new joins as a viewer and the admins are asked, and can add a seat for them.
+Add seats automatically, with an optional limit on how many can be added in a month.
+
+Your own workspaces
+
+The team never sees, opens or bills your own workspaces. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive (admins can turn this off for the team). If you leave the team, your own workspaces go back to your own plan and nothing in them is removed.
+
+Payments
+
+If a payment fails, the team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only: everything still opens, and paying again turns editing back on.
+
+Closing a team
+
+The owner can close the team. Its workspaces move to the owner's own account, and everyone keeps the access they had. If that leaves the owner's account with more than 10 people who can edit, everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer.
+
+## Frequently asked questions
+
+Q: Who needs a seat?
+A: Everyone who can edit in the team's workspaces — the owner, admins, members, and anyone from outside the team you let edit. Viewers never need one.
+
+Q: How many seats can a team have?
+A: From 3 to 100, bought and changed on the team's page. For more than 100, single sign-on, or invoices and purchase orders, use Talk to us on the pricing page.
+
+Q: What happens when every seat is taken?
+A: The admins decide. By default, someone new joins as a viewer and the admins are asked, and can add a seat for them. Or seats can be added automatically, with an optional limit on how many a month.
+
+Q: What if a payment fails?
+A: The team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only — everything still opens — until the team is paid again.
+
+Q: Does joining a team change my own workspaces?
+A: No. The team never sees, opens or bills them. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive; if you leave, they go back to your own plan and nothing is removed.
+
+Q: Do we need Team to work together?
+A: Not until more than 10 people edit. Free and Creator include up to 10 people who can edit, at no extra cost, and as many viewers as you like.
 
 
 ========================================================================
@@ -8060,7 +8163,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 
 ## Free to start, flat when you grow
 
-The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, and the clusters you make cost none of them. Invited collaborators edit free on every tier. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
+The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, and the clusters you make cost none of them. Up to 10 invited collaborators edit free on every tier but Team. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
 
 ## The case for staying on desktop
 
@@ -8236,7 +8339,7 @@ Nest a cluster per character, environment or shot and the project stays navigabl
 
 ## One plan for the team, not a licence per seat
 
-Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six.
+Free and Creator have no per-seat charges. Up to 10 people edit free on either, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six. A department with more than 10 people who edit moves to Team, which is priced per seat.
 
 ## Where a desktop app is still the right call
 
@@ -8245,7 +8348,7 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 ## How a studio sets one up
 
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
-2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
+2. **Invite the team** — Invite artists as editors by email or with an invite link. Up to 10 people edit free on Free and Creator, and everyone lands in the same live board.
 3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.
 4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
@@ -8259,14 +8362,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8278,7 +8381,7 @@ Put the reference in one board everyone can open and edit at once, instead of pa
 
 ### Do the artists I invite need to pay?
 
-No. Editors are free on every plan. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.
+No. Up to 10 people edit free on Free and Creator. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.
 
 ### Can a client or supervisor see the board without an account?
 
@@ -8358,14 +8461,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8454,14 +8557,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8542,14 +8645,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8634,14 +8737,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8738,14 +8841,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8773,7 +8876,7 @@ Yes — Milanote’s free plan caps the total number of items across your boards
 
 ### Is Clusters cheaper than Milanote for a team?
 
-Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo, billed annually, for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.
+Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo, billed annually, for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, up to 10 editors are free, and anyone you share a board with can view it free with one link.
 
 ### Is there a free Milanote alternative without item caps?
 
@@ -8815,7 +8918,7 @@ Storyflow is an AI visual workspace. You describe a board and its assistant draf
 
 ## Where Clusters is different
 
-A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on either plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
+A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on every plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
 
 - Mood board, storyboard, shot list and screenplay as nested boards
 - Tags and a relationship graph across the whole project
@@ -8871,14 +8974,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8982,14 +9085,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -9085,14 +9188,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -9218,14 +9321,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -9355,14 +9458,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -9390,7 +9493,7 @@ Yes — Clusters. It keeps the infinite collaborative canvas but strips the diag
 
 ### Can my team use Clusters without per-seat pricing?
 
-Yes. Creator is a flat $25/mo — not a per-member subscription — and anyone you share with can open a board free with one link.
+Yes, up to 10 people who edit. Creator is a flat $25/mo — not a per-member subscription — and anyone you share with can open a board free with one link.
 
 
 
@@ -11285,9 +11388,9 @@ URL: https://clusters.soleilpictures.com/pricing
 
 URL: https://clusters.soleilpictures.com/pricing
 
-The free plan is a real plan, not a countdown. Creator lifts its limits for $25/mo.
+The free plan is a real plan, not a countdown. Creator lifts its limits for $25/mo. Teams with more than 10 people who edit pay $25 a seat.
 
-Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: everyone invited builds at its limits, with no per-seat charges.
+Soleil Clusters has three plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: up to 10 people who edit build at its limits, with no per-seat charges. Team is for more than 10 people who edit: $25 a seat a month, or $20 a seat a month billed annually, from 3 seats.
 
 ## Free — $0 forever
 
@@ -11296,7 +11399,7 @@ No card, no clock, no expiry.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 ## Creator — $25/mo
 
@@ -11304,28 +11407,47 @@ Or $20/mo billed annually ($240/yr) — save 20%. Cancel any time — your cards
 
 - **Unlimited cards** — The 50-card ceiling comes off. Everything you have already made stays exactly where it is.
 - **A 1TB drive** — Free holds 5GB. Creator holds **1TB** — room for the footage, the camera originals and the project archives.
-- **Covers your whole workspace** — Everyone you invite builds at your limits. There are no per-seat charges.
+- **Covers your whole workspace** — Everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges.
 
-## Both plans, line by line
+## Team — $25 a seat /mo
 
-These are the only differences. Everything absent from this table is on both plans — files of any size, clusters, collaborators, editing, sharing, exports, version history, the API.
+More than 10 editors. Or $20 a seat /mo, billed yearly. 3 seats or more. Viewers never use a seat.
 
-| | Free | Creator |
-|---|---|---|
-| Cards | 50 | Unlimited |
-| Storage | 5GB — any file, any size | 1TB — any file, any size |
+- **Everything in Creator, for each editor** — Unlimited cards in every team workspace.
+- **1TB a seat, one shared drive** — 3 seats hold **3TB**, and every seat you add brings 1TB more. 100GB during the free trial.
+- **More than 10 people who edit** — A seat for each, 3 to 100 on your own. Viewers are free and never use one.
+- **Admins, and work the team owns** — Admins handle people and seats. Workspaces belong to the team, so the work stays when someone leaves.
+- **Their own workspaces, too** — Everyone with a seat gets unlimited cards and 50GB more in their personal workspaces, unless the team turns it off.
+- **Join by link or company email** — Invite a list, share a team link, or let in anyone from your verified company domain.
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+Start a Team trial: 14 days free · card needed.
+
+Need SSO, invoices or more than 100 seats? [Talk to us](/pricing/talk-to-us).
+
+## Every plan, line by line
+
+These are the only differences. Everything absent from this table is on every plan — files of any size, clusters, editing, sharing, exports, version history, the API.
+
+| | Free | Creator | Team |
+|---|---|---|---|
+| Cards | 50 | Unlimited | Unlimited |
+| Storage | 5GB — any file, any size | 1TB — any file, any size | 1TB a seat, shared — any file, any size |
+| People who edit | Up to 10 | Up to 10 | A seat each, 3 to 100 |
+| People who view | Unlimited | Unlimited | Unlimited, free |
+| Admins | — | — | Yes |
+| Join by company email | — | — | Yes |
+
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 ## Frequently asked questions
 
 ### What is actually limited on the free plan?
 
-Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on either plan. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
+Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
 
 ### Do the people I invite need to pay?
 
-No. Editors are free on every plan, and always were. What Creator does is carry YOUR limits to them: everything they add counts against the workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges.
+No. On Free and Creator, up to 10 people can edit at no cost to them, and anyone can view. What Creator does is carry YOUR limits to them: everything they add counts against the workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges. More than 10 people who edit is what Team is for, priced per seat.
 
 ### What happens when I reach 50 cards or fill 5GB?
 
@@ -11356,9 +11478,85 @@ Updated: 2026-10-27
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
-## 2026-10-27 — Share opens on the link again
+## 2026-10-27 — Team, for more than 10 people who edit
 
-The Share panel leads with the link again, the reminder to send a cluster comes at most once a week, and the invite link in a new workspace never fails silently.
+Team is a new plan for more than 10 people who edit, at $25 a seat a month, and Free and Creator include up to 10. Documents show their first page, and raw and Photoshop files are pictures.
+
+### Team
+
+- **Team** is a new plan for groups with more than 10
+  people who edit. A team owns its workspaces and pays for them per seat:
+  $25 a seat a month, or $240 a year,
+  from 3 seats. Each seat adds 1TB
+  to the drive the team shares, and the cards are unlimited.
+- Viewers are free and never use a seat.
+- Admins look after people, seats and joining: email invites, a team link, or
+  anyone from your company's verified email domain.
+- Start from the [pricing page](/pricing). The first 14
+  days are free, and a card is needed to start. See [Team](/docs/account/team).
+
+### Free and Creator
+
+- Up to 10 people can edit across everything an account
+  owns, and anyone can view. When an account is full, an edit link lets the
+  next person in as a viewer and tells the owner. An account that already has
+  more keeps everyone editing, and adds no one new until it is back at
+  10. See [collaborate](/docs/collaborate).
+
+### Documents
+
+- Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument and RTF
+  files show their first page on their card, with the page count where other
+  files show their size ("12 slides", "1 page"). A spreadsheet shows its
+  first sheet from the top left. See [files](/docs/files).
+- **Quick look** pages through a document, Visio and Publisher files
+  included, and says "Making a preview…" while the pages are being made.
+- A deck lands on the board at a slide's shape and any other document at a
+  page's, so its card barely moves when its page arrives.
+
+### Camera raws and Photoshop files
+
+- Camera raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the others) and
+  Photoshop files (.psd and .psb) are pictures now: they land as image cards
+  and show wherever pictures do. One already on a board as a file card turns
+  into its picture. **Download** still gives you the original. See
+  [images](/docs/canvas/images).
+
+### Tags
+
+- Tag chips show under their cards. Since May they had been hidden inside
+  the card.
+- Click a tag chip, on a card, a group or the cluster's own strip, and the
+  cluster lights up that tag's cards where they are while everything else
+  fades. `Esc`, or the same chip again, ends it. See [tags](/docs/organize/tags).
+- Suggested tags show on their card with a sparkle: ✓ keeps one, × stops it
+  being suggested there again.
+- Select several cards and press **Tag** in the selection bar to put a tag
+  on all of them, or take it off, with one undo.
+- **Tag…** works on a group and on the cluster itself (right-click the empty
+  board). In a document, select words and right-click for **Tag
+  selection…**. In `⌘K`, `#name` lists everything with that tag.
+- A tag you take off stays off. Saving a link in a document or editing a
+  paragraph no longer deletes its tags.
+- On a phone, each tag in the sidebar has a **⋯** with Rename, Recolor,
+  Merge into…, Type and Delete, and pressing and holding an item on a tag's
+  page offers Remove, and Confirm for one added automatically.
+- **Settings → Workspace** has an **AI suggestions** switch for owners and
+  co-owners. When it's off, no card or document text goes to an AI model.
+
+### ChatGPT, Claude and the API
+
+- ChatGPT and Claude can connect on your account's first day.
+- The MCP server has fewer tools, each doing more, and an old tool's name
+  answers with its new one. Every answer starts with a line in plain words
+  and the link to give you. See [MCP](/docs/mcp).
+- Through the API and MCP, an assistant can read a document or a whole board
+  as text, look at a board's pictures, write documents, read and post
+  comments, resolve and reopen threads (in documents too), work with tags,
+  and share a board by link. See [the API](/docs/api).
+- Webhooks fire for comments and for tags, and `card.moved` and
+  `image.created`, which never fired, now do. See
+  [webhooks](/docs/api/webhooks).
 
 ### Sharing
 
@@ -11370,9 +11568,16 @@ The Share panel leads with the link again, the reminder to send a cluster comes 
 - In a new workspace's setup, the invite link never fails silently: a phone
   without a share sheet copies it and says **Copied**, and where the browser
   won't copy, the link is shown selected so you can copy it yourself.
+- A document shared on its own link looks the way it does in its cluster.
+  Someone who can edit gets its bar, with **Comments** as a side panel where
+  they can reply, resolve and reopen. On a phone, Comments is a sheet over the
+  document.
 
 ### Also
 
+- **Tidy up** no longer piles cards on top of each other, and **Align** lines
+  a big selection up instead of stacking it. See
+  [snapping and alignment](/docs/canvas/snapping-and-alignment).
 - On a phone or a tablet, the swatches in a document's text colour menu are
   big enough to tap.
 

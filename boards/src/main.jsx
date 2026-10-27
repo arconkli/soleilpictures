@@ -49,6 +49,7 @@ const PublicBoardView = lazyWithReload(() => import('./components/PublicBoardVie
 const ExplorePage     = lazyWithReload(() => import('./pages/ExplorePage.jsx').then(m => ({ default: m.ExplorePage })));
 const LegalPage       = lazyWithReload(() => import('./auth/LegalPage.jsx').then(m => ({ default: m.LegalPage })));
 const PublicPricingPage = lazyWithReload(() => import('./auth/PublicPricingPage.jsx').then(m => ({ default: m.PublicPricingPage })));
+const TalkToUsPage    = lazyWithReload(() => import('./auth/TalkToUsPage.jsx').then(m => ({ default: m.TalkToUsPage })));
 const SeoLandingPage  = lazyWithReload(() => import('./pages/SeoLandingPage.jsx').then(m => ({ default: m.SeoLandingPage })));
 const ScoutPage       = lazyWithReload(() => import('./pages/ScoutPage.jsx').then(m => ({ default: m.ScoutPage })));
 const SeoListiclePage = lazyWithReload(() => import('./pages/SeoListiclePage.jsx').then(m => ({ default: m.SeoListiclePage })));
@@ -283,6 +284,10 @@ const oauthConsentMatch = /^\/oauth\/authorize\/?$/i.test(window.location.pathna
 // account-aware PricingPage in TierRouter (Manage Billing / current plan), so
 // we only intercept here when there's no cached Supabase session.
 const pricingMatch = window.location.pathname.match(/^\/pricing\/?$/i);
+// /pricing/talk-to-us = the Team card's "Talk to us" (TalkToUsPage): a short
+// form for single sign-on, invoices or more seats than a team buys itself. It
+// needs no account, so it renders before AuthGate for everyone, like /changelog.
+const talkToUsMatch = /^\/pricing\/talk-to-us\/?$/i.test(window.location.pathname);
 function hasCachedSession() {
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -307,7 +312,7 @@ const showPublicPricing = !!pricingMatch && !hasCachedSession();
 // The signed-out front door needs no entry here: AuthGate and the sign-in scene
 // are in the entry chunk, so nothing suspends on the way to it.
 const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
-  || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch
+  || changelogMatch || pricingMatch || talkToUsMatch || exploreMatch || publicBoardMatch || shareMatch
   || fileShareMatch || resumeMatch || keepMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
@@ -576,6 +581,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <DocsPage path={window.location.pathname} />
             ) : changelogMatch ? (
               <ChangelogPage />
+            ) : talkToUsMatch ? (
+              <TalkToUsPage />
             ) : showPublicPricing ? (
               <PublicPricingPage />
             ) : exploreMatch ? (

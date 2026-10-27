@@ -46,6 +46,10 @@ export const CEILINGS = {
   // the route, its import's list of chunks to preload, and the first touch's
   // keep-link redaction (lib/linkTokens.js). The page itself loads later
   // (pages/KeepPage.jsx).
+  // The Team launch's nine events (every event name is in the entry,
+  // analyticsEvents.js) and the Talk to us page's route fit under it: CI's
+  // build read 165.7 KB on 2026-10-27. The page itself loads only on
+  // /pricing/talk-to-us.
   entryJs: 166_000,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app

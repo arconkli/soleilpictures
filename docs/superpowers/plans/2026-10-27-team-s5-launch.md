@@ -42,43 +42,59 @@ secrets exist. This stage makes it public in one promote, then flips the switche
 
 ## The owner, before launch
 
-- Stripe: the Team product with `team_seat_monthly` ($25) and `team_seat_annual` ($240),
-  per unit, like Creator's; then the three `STRIPE_*_TEAM*` secrets. Needs /mcp re-auth.
-- The invite email: the email session deploys send-transactional-email with `team_invite`;
-  then 0541 is applied (kit ready, drift re-checked first).
-- Pick the Talk to us look; say go for 0542.
-- The walk-through on preview: their account in `teams_open.test_owner_ids`, a real checkout
-  with their own card, invite, seats full, close.
-- Later, not at launch unless the owner wants it first: Creator credit when a Creator buyer
-  moves everything in, their +1TB blocks moving with them, and Team storage blocks (S3b).
+- [x] Stripe: the Team product with `team_seat_monthly` ($25) and `team_seat_annual` ($240),
+  per unit, like Creator's (made 2026-10-27; both pass `teamPriceMatches`).
+- [x] The three `STRIPE_*_TEAM*` secrets (set by the owner, 2026-10-27). team-billing and
+  team-billing-cron are already deployed and stay dark until then, and closed until 0543.
+- [x] The invite email: send-transactional-email v46 renders `team_invite` (the email session,
+  2026-10-27 09:27Z); 0541 applied the same day in three parts, drift re-checked first.
+- [x] Talk to us: the owner picked C, a page of its own (2026-10-27), and said go for 0542,
+  applied that day in two parts and probed (sent, already, invalid, busy, one paged alert).
+  The admin list (/admin › More › Talk to us) is on main; the page is on this branch.
+- [x] Creator credit (S3b): the team launches without it (the owner, 2026-10-27); TeamSetup's
+  switch and lines are gone on main.
+- [x] The walk-through on preview: the owner walked the sample team (Settings › Preview), not
+  their own account (2026-10-27), and said "ship it".
 
-## The launch commit (written at launch, on the owner's "ship it")
+## The launch branch (local `team-launch`, lands on main at "ship it")
 
-Copy that says editing is unlimited or that there are no per-seat charges, rewritten for "up
-to 10 people who edit on Free and Creator; viewers unlimited; more than 10 → Team, $25 a
-seat":
+Built 2026-10-27 on top of main, kept off main because lifting the holds there would put Team
+on the next promote:
 
-- `src/lib/billingCopy.js` (the plan rows, `workspaceNote`, the FAQ answers at ~248, ~515,
-  ~560, ~567), `src/lib/pricingCrawlable.js` (~52, and a Team paragraph: the Worker's
-  crawlable /pricing must say what the React page shows), `src/lib/planBlock.js`.
-- `src/lib/seoLanding.js` passages that claim no seats at all (~585, ~780, ~789, ~1238,
-  ~1679, ~1690): Creator stays flat up to 10 editors; Team is per seat. Title changes are
-  pre-registered in the comment above them, one surface per commit.
-- Docs: `content/docs/account/plans.md` (~9, ~14, ~66, ~92), `collaborate/index.md` (~9, ~12,
-  ~24), `files/index.md` (~67), `index.md` (~12), `migrating.md` (~148); a new
-  `account/team.md` (buying, seats, joining, admins, the seat perk, closing); FACTS for the
-  seat prices, the seat range, storage per seat and the editor limit, sourced from
-  `teamBillingCore.mjs`, `teamModel.js` and `editorLimit.js`.
-- `/team` and `/team/new` are signed-in routes: `publicSurface.mjs` gains a `teamRoutes()`
-  extractor so the docs gate sees them.
-- `seoProbeContract.js` rows 78/79 ("no per-seat charges", the two-column table) and their
-  `seo_health_expectations` rows, reconciled.
-- `teamsAllowed()` and `editorLimitAllowed()` open on production, and `teamPricingAllowed()`
-  on dev too; then `pricing-flow`, `public-visual-sweep` and `upsell-metrics` read three cards.
-- Instrument the Team card before it is public: an `lp_cta_click` position and a pricing
-  event for "Start a Team trial" (with `featureEvents.js`'s `teams` entry measured), so the
-  first week says how many people pressed it.
-- The changelog entry; bump `build_min`.
+- [x] Copy that said editing is unlimited or that there are no seats at all, rewritten for
+  "up to 10 people who edit on Free and Creator; viewers unlimited; more than 10 → Team, priced
+  per seat" (billingCopy, seoLanding, the docs), and "two plans" / "either plan" made three.
+- [x] `account/team.md`, and FACTS for the seat prices, the seat range, storage per seat, the
+  trial, the grace days, the seat perk and the editor limit, read from the code that enforces
+  them.
+- [x] The crawlable /pricing says what the React page shows: the hero's Team line, the Team
+  section (the card's own words, `teamCardCopy`), Talk to us, a Team column, Team's per-seat
+  offers in the JSON-LD, and an answer paragraph with three plans. Creator's trial stays
+  absent; Team's is the Team section's own.
+- [x] `teamRoutes()` in `publicSurface.mjs`, with a coverage test on `/docs/account/team`.
+- [x] `teamsAllowed()`, `editorLimitAllowed()` and `teamPricingAllowed()` are `return true;`;
+  the pricing specs read three cards.
+- [x] Events: `pricing_team_start` (must-land) and `pricing_team_talk` from the card,
+  `team_setup_open`, `team_checkout_start` (must-land), `team_checkout_failed` and
+  `team_ready`; `featureEvents.js` measures `teams` and `teamPricing`.
+- [x] `seoProbeContract.js` row 80 reads 'Every plan, line by line' (rows 78 and 79 still
+  hold: the phrase stays, and the Team column keeps the table's first columns).
+- [x] The changelog entry, folded into 2026-10-27 (the ship day) as its lead.
+- [x] Talk to us, direction C: `/pricing/talk-to-us` (auth/TalkToUsPage.jsx) before AuthGate for
+  everyone, the card's Talk to us a link to it, its title and description in ROUTE_META (not
+  in the sitemap), the crawlable /pricing links it, account/team.md says where it is; events
+  `team_talk_view`, `team_talk_sent` and `team_talk_failed` (never a name, email or company);
+  team-talk.spec and touch/team-talk-touch.spec.
 
-Then: promote (the release recipe), apply 0543, re-run probes A–G read-only where they can be,
-watch `check_instrumentation` and the Issues view for a day.
+## Ship
+
+1. Rebase `team-launch` on main; re-date the changelog entry to the ship day (merge it into
+   that day's entry if one exists); `npm run docs:build`, `npm test`, `docs:check`, build and
+   budget; push to main; check the preview. The entry ceiling stays main's 166.0 KB (CI's build read 165.7 KB on the
+   rebased branch, 2026-10-27).
+2. Promote (the release recipe; production is behind main, so the promote merges main).
+3. Right after: update `seo_health_expectations` row 80 to 'Every plan, line by line', and bump
+   `build_min`.
+4. Apply 0543 (the switch), then 0544 (the old brake).
+5. Watch `check_instrumentation` and the Issues view for a day; re-run probes A–G read-only
+   where they can be.

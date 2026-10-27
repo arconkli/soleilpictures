@@ -35,6 +35,8 @@ import { previewTeamSeats } from '../../lib/teamsApi.js';
 import { startTeamCheckout } from '../../lib/teamBillingApi.js';
 import { refusalLine } from '../../lib/teamCopy.js';
 import { loadOwnPersonalWorkspaces, seatFloor, checkoutPlan } from '../../lib/teamSetupData.js';
+import { logEvent, logEventNow, logEventOnce } from '../../lib/analytics.js';
+import { EV } from '../../lib/analyticsEvents.js';
 
 const SEAT_MAX = 100;
 const STEPS = ['team', 'seats', 'people'];
@@ -125,6 +127,10 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
   useEffect(() => { panelRef.current?.focus?.(); }, [step]);
 
   useEffect(() => {
+    if (real) logEventOnce('team_setup_open', EV.TEAM_SETUP_OPEN, { seats: url.seats, billing: url.billing });
+  }, [real, url]);
+
+  useEffect(() => {
     if (!real) return undefined;
     let live = true;
     loadOwnPersonalWorkspaces(supabase, user?.id).then((rows) => {
@@ -170,9 +176,11 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
     setPayLine('');
     const res = await startTeamCheckout({ name: typed, color: null, workspaceIds: picked, seats, plan: checkoutPlan(billing), endCreator: false });
     if (res && res.ok && res.url) {
+      logEventNow(EV.TEAM_CHECKOUT_START, { seats, plan: checkoutPlan(billing), workspaces: picked.length });
       window.location.assign(res.url);
       return;
     }
+    logEvent(EV.TEAM_CHECKOUT_FAILED, { error: res?.error || 'unknown' });
     setPayLine(refusalLine({ code: res?.error, needed: Number(res?.detail) || undefined }));
     if (res?.error === 'team_seats_needed') setReask((n) => n + 1);
     setPaying(false);

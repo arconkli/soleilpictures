@@ -13,8 +13,8 @@ export const CHANGELOG_ENTRIES = [
   {
     "date": "2026-10-27",
     "anchor": "2026-10-27",
-    "title": "Share opens on the link again",
-    "summary": "The Share panel leads with the link again, the reminder to send a cluster comes at most once a week, and the invite link in a new workspace never fails silently.",
+    "title": "Team, for more than 10 people who edit",
+    "summary": "Team is a new plan for more than 10 people who edit, at $25 a seat a month, and Free and Creator include up to 10. Documents show their first page, and raw and Photoshop files are pictures.",
     "headings": []
   },
   {

@@ -16,7 +16,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Pricing
 
-- [Pricing](https://clusters.soleilpictures.com/pricing): Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: everyone invited builds at its limits, with no per-seat charges. Raw Markdown at https://clusters.soleilpictures.com/pricing.md; limits and billing in detail at https://clusters.soleilpictures.com/docs/account/plans.
+- [Pricing](https://clusters.soleilpictures.com/pricing): Soleil Clusters has three plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: up to 10 people who edit build at its limits, with no per-seat charges. Team is for more than 10 people who edit: $25 a seat a month, or $20 a seat a month billed annually, from 3 seats. Raw Markdown at https://clusters.soleilpictures.com/pricing.md; limits and billing in detail at https://clusters.soleilpictures.com/docs/account/plans.
 
 ## Getting started
 
@@ -70,7 +70,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Collaborate
 
-- [Collaborating](https://clusters.soleilpictures.com/docs/collaborate): Invite editors and viewers to Soleil Clusters boards. Collaboration is free on every plan — editors do not need to pay, and the owner's quota is what counts.
+- [Collaborating](https://clusters.soleilpictures.com/docs/collaborate): Invite editors and viewers to Soleil Clusters boards. Up to 10 people edit free on Free and Creator, viewers are unlimited, and the owner's quota counts.
 - [Sharing and public links](https://clusters.soleilpictures.com/docs/collaborate/sharing): Share a Soleil Clusters board with a view-only public link that needs no account, set an expiry, include sub-clusters, or invite editors by email.
 - [Presence](https://clusters.soleilpictures.com/docs/collaborate/presence): See collaborators' cursors, selections and location in real time across Soleil Clusters. Workspace facepile, click to jump to someone, presence colours.
 - [Comments](https://clusters.soleilpictures.com/docs/collaborate/comments): Comment anywhere in Soleil Clusters — on a card, a group, an empty point on the canvas, a whole board, or a range of text in a document.
@@ -89,6 +89,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [Settings](https://clusters.soleilpictures.com/docs/account/settings): Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Billing, Invite and earn, General, Members, Card defaults and Documentation.
 - [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.
+- [Team](https://clusters.soleilpictures.com/docs/account/team): Team is the plan for groups where more than 10 people edit — $25 a seat a month, 1TB of shared drive per seat, admins, and work the team owns.
 - [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.
 - [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters. They get bonus cards and storage when they join; you get yours once they get started. Stats live in Settings.
 - [Mobile and tablet](https://clusters.soleilpictures.com/docs/account/mobile): Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.

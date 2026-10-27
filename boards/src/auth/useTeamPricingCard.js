@@ -1,14 +1,15 @@
 // The Team card's state, for both pricing pages (PricingPage signed in,
-// PublicPricingPage signed out): the seat picker, the "Talk to us" note and
-// the hero's Team sentence. The sentence's price lives in the team model,
-// loaded only while the card shows (it shares a chunk with the card), so the
-// pricing pages never import it. Null when the card is off.
+// PublicPricingPage signed out): the seat picker and the hero's Team sentence,
+// and the card's two presses (Start, and Talk to us's link), recorded here for both
+// pages (`surface` says which). The sentence's price lives in the team model,
+// loaded once the card shows. Null when the card is off.
 import { useEffect, useState } from 'react';
 import { EDITOR_LIMIT } from '../lib/editorLimit.js';
+import { logEventNow } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 
-export function useTeamPricingCard({ on, plan, onStart }) {
+export function useTeamPricingCard({ on, plan, onStart, surface }) {
   const [seats, setSeats] = useState(12);
-  const [talkNote, setTalkNote] = useState(false);
   const [heroLine, setHeroLine] = useState(null);
   useEffect(() => {
     if (!on) return undefined;
@@ -21,9 +22,10 @@ export function useTeamPricingCard({ on, plan, onStart }) {
     plan,
     seats,
     setSeats,
-    onStart: () => onStart(seats),
-    talkNote,
-    onTalk: () => setTalkNote(true),
+    // Start leaves the page, so it beacons.
+    onStart: () => { logEventNow(EV.PRICING_TEAM_START, { surface, plan, seats }); onStart(seats); },
+    // Talk to us is a link to its own page, so it beacons too.
+    onTalk: () => { logEventNow(EV.PRICING_TEAM_TALK, { surface }); },
     heroLine,
     editorLimit: EDITOR_LIMIT,
   };

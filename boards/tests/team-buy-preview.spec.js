@@ -62,8 +62,8 @@ test('pricing: three cards; the seat stepper follows the sum, never below 3; ann
   await card.getByRole('button', { name: 'Start a Team trial' }).click();
   expect(await page.evaluate(() => window.__teamBuy.started)).toEqual([{ seats: 3, plan: 'annual' }]);
 
-  await page.getByRole('button', { name: 'Talk to us' }).click();
-  await expect(page.locator('.pp-talk-note')).toContainText('Preview: this opens a short form that reaches us.');
+  // Talk to us is a page of its own (team-talk.spec.js walks it).
+  await expect(page.getByRole('link', { name: 'Talk to us' })).toHaveAttribute('href', '/pricing/talk-to-us');
 });
 
 test('setup: workspaces, seats, billing, Stripe preview line, invites and the way back', async ({ page }) => {

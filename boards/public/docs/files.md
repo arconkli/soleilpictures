@@ -49,8 +49,8 @@ started, and to theirs when they join ([Referrals](/docs/account/referrals)).
 
 > **Note:** The drive and the [card cap](/docs/canvas/cards) are the real,
 > enforced differences between free and paid — a free account stops at
-> whichever it reaches first. Clusters, collaborators and editing are not
-> limited on any plan.
+> whichever it reaches first. Clusters and editing are not limited on any
+> plan, and up to 10 people can edit on Free and Creator alike.
 
 ## Large uploads
 

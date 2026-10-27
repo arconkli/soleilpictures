@@ -92,14 +92,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 

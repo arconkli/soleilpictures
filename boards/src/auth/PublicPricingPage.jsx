@@ -103,17 +103,18 @@ export function PublicPricingPage() {
     window.location.assign('/');
   };
 
-  // The Team card, while Team is open here (teamPricingAllowed: the preview
-  // host now, production at launch). A visitor can't start a team signed out,
+  // The Team card (teamPricingAllowed, open everywhere since the launch). A visitor can't start a team signed out,
   // so Start writes down the seats and billing the card showed and goes to
   // sign in; AuthGate opens the setup with them once they're in
   // (lib/teamStart.js). The newest press wins, as between Creator and free.
   const teamCard = useTeamPricingCard({
     on: teamPricingAllowed(),
     plan,
+    surface: SURFACE,
     onStart: (seats) => {
       clearCreatorIntent();
       stashTeamStart({ seats, billing: plan });
+      lp.tracker.ctaClick('team', '/');
       window.location.assign('/');
     },
   });

@@ -32,6 +32,7 @@ import { handleKeepBundle, handleSignedImage } from './worker-keep.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
+import { TEAM_TALK_META } from './lib/teamPricingCopy.js';
 import { hasPlanBlock, planBlockHtml } from './lib/planBlock.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
@@ -167,6 +168,12 @@ const ROUTE_META = {
     // Sourced from billingCopy so the SERP snippet can't drift from the tested
     // pricing copy (billingCopy.test.mjs lints it against the banned claims).
     description: PRICING_META_DESCRIPTION,
+  },
+  // Talk to us (TalkToUsPage): head meta only, like the legal pages. Not in
+  // the sitemap: a form, not something to search for.
+  '/pricing/talk-to-us': {
+    title: TEAM_TALK_META.title,
+    description: TEAM_TALK_META.description,
   },
   '/legal/privacy': {
     title: 'Privacy Policy — Soleil Clusters',

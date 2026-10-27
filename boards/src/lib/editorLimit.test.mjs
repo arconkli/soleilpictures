@@ -195,12 +195,10 @@ test('freeing a place: Make viewer keeps them in, Remove takes shares first, Rev
   assert.deepEqual(removeOps(inv), []);
 });
 
-test('the hold opens on the preview host and nowhere else in a build', () => {
+test('the hold is lifted with the Team launch, and still read into featureFlags', () => {
   const host = readFileSync(new URL('./appHost.js', import.meta.url), 'utf8');
   const body = host.match(/export function editorLimitAllowed\(\)\s*\{([\s\S]*?)\n\}/)?.[1] || '';
-  assert.match(body, /if \(onPreviewHost\(\)\) return true;/);
-  assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
-  assert.doesNotMatch(body.trim(), /^return true;$/);
+  assert.equal(body.trim(), 'return true;');
   assert.match(host, /^\s*editorLimit: editorLimitAllowed,$/m);
 });
 

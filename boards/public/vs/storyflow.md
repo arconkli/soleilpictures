@@ -16,7 +16,7 @@ Storyflow is an AI visual workspace. You describe a board and its assistant draf
 
 ## Where Clusters is different
 
-A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on either plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
+A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on every plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
 
 - Mood board, storyboard, shot list and screenplay as nested boards
 - Tags and a relationship graph across the whole project
@@ -72,14 +72,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 

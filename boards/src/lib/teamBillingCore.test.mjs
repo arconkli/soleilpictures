@@ -29,7 +29,7 @@ import {
   trimDue,
 } from '../../../supabase/functions/_shared/teamBillingCore.mjs';
 import { pickReusableCustomer } from '../../../supabase/functions/_shared/activateCore.mjs';
-import { TEAM_SEAT_PRICE } from './teamModel.js';
+import { TEAM_SEAT_PRICE, TEAM_TRIAL_DAYS as PAGE_TRIAL_DAYS } from './teamModel.js';
 
 const CFG = {
   creatorProduct: 'prod_creator',
@@ -64,6 +64,7 @@ test('the seat price the code checks is the price the page shows', () => {
   assert.equal(TEAM_SEAT_UNIT_AMOUNT.year, TEAM_SEAT_PRICE.year * 100);
   assert.equal(TEAM_MIN_SEATS, 3);
   assert.equal(TEAM_TRIAL_DAYS, 14);
+  assert.equal(PAGE_TRIAL_DAYS, TEAM_TRIAL_DAYS);
 });
 
 test('teamPriceMatches refuses a price that would charge what the page did not show', () => {
