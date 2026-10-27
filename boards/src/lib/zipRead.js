@@ -197,9 +197,11 @@ function parseHeader(bytes, view, p, skipped) {
   return { path, dir, method, compressedSize, size, crc32, offset, flags, lastModified };
 }
 
-// Read the central directory of `blob`. `pieceBytes` is the read granularity
-// (default 8 MB); tests lower it to exercise a header straddling two reads.
-export async function readZipDirectory(blob, { onProgress, pieceBytes = PIECE_BYTES } = {}) {
+// Where the central directory sits, from the end of the file alone: the EOCD
+// (and the ZIP64 records, when there are any). `entries` is the count it
+// declares. The converter reads a zip it holds only part of with this, to
+// know which bytes to ask for next.
+export async function zipDirectoryBounds(blob) {
   const total = blob.size;
   if (total < 22) throw new ZipReadError('not_zip', 'Not a zip file.');
 
@@ -236,11 +238,18 @@ export async function readZipDirectory(blob, { onProgress, pieceBytes = PIECE_BY
     zip64 = true;
   }
   if (cdOffset + cdSize > total) throw new ZipReadError('truncated', 'Central directory is past the end of the file.');
+  return { cdStart: cdOffset, cdEnd: cdOffset + cdSize, entries: entryCount, zip64 };
+}
+
+// Read the central directory of `blob`. `pieceBytes` is the read granularity
+// (default 8 MB); tests lower it to exercise a header straddling two reads.
+export async function readZipDirectory(blob, { onProgress, pieceBytes = PIECE_BYTES } = {}) {
+  const { cdStart, cdEnd, zip64 } = await zipDirectoryBounds(blob);
 
   const entries = [];
   const skipped = { encrypted: 0, unsupported: 0 };
-  const end = cdOffset + cdSize;
-  let pos = cdOffset;
+  const end = cdEnd;
+  let pos = cdStart;
   let carry = new Uint8Array(0);
 
   while (pos < end || carry.length) {
