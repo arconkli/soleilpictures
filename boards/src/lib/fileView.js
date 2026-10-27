@@ -85,9 +85,11 @@ export const DOC_EXTS = Object.freeze([
 ]);
 const DOC_SET = new Set(DOC_EXTS);
 // Design files, each with a picture inside it (media/src/zipPick.js and
-// media/src/design.js say where).
-export const DESIGN_EXTS = Object.freeze(['sketch', 'fig', 'xd', 'procreate', 'kra', 'ora', 'afdesign', 'afphoto', 'afpub',
-  'indd', 'ai', 'eps']);
+// media/src/design.js say where). The uploader keeps eight letters of an
+// extension (lib/uploads.js, party/upload.ts), so a Procreate file is stored,
+// and its card named, as a .procreat.
+export const DESIGN_EXTS = Object.freeze(['sketch', 'fig', 'xd', 'procreate', 'procreat', 'kra', 'ora',
+  'afdesign', 'afphoto', 'afpub', 'indd', 'ai', 'eps']);
 const DESIGN_SET = new Set(DESIGN_EXTS);
 
 // What the converter makes views of: a photo's ('image'), a document's first

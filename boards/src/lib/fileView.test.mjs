@@ -196,7 +196,7 @@ test('a text file drops as a page, a table as a wide page, a font as a specimen,
 });
 
 test('design files are their own view kind, drawn by no browser, and stay file cards with a picture', () => {
-  for (const ext of ['sketch', 'fig', 'xd', 'procreate', 'kra', 'ora', 'afdesign', 'afphoto', 'afpub', 'indd', 'ai', 'eps']) {
+  for (const ext of ['sketch', 'fig', 'xd', 'procreate', 'procreat', 'kra', 'ora', 'afdesign', 'afphoto', 'afpub', 'indd', 'ai', 'eps']) {
     assert.equal(viewKindOfKey(`u/w/file.${ext}`), 'design', ext);
     assert.equal(drawsNowhere(`u/w/file.${ext}`), true, ext);
     assert.equal(fileFamily(ext, 'image/x-eps'), 'design', ext);
