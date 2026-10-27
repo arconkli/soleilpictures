@@ -118,7 +118,14 @@ export const CEILINGS = {
   // sidebar's shelves and Quick look show the picture it keeps; the app glyphs
   // load later, with the page (FamilyFace.jsx). Measured as CI builds:
   // 690.25 KB on b09699ac, this change 690.47.
-  appJs: 690_500,
+  // 2026-10-27: +0.5 KB for an archive's card and a zip's Unpack into
+  // clusters: lib/fileView.js names a zip and the other archives and lands
+  // them at their sheet's or their list's shape, the card counts the files
+  // inside, and the canvas tells Quick look it can unpack a zip
+  // (lib/fileActions.js), through the bulk import; the zip's page in Quick
+  // look, its reader by ranges and its pictures load later (ZipStage.jsx).
+  // Measured as CI builds: 690.47 KB on bf6d43c4, this change 690.9.
+  appJs: 691_000,
   appCss: 21_000,
 };
 
@@ -141,8 +148,9 @@ export const LAZY_IN_APP = [
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
   'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel', 'TagManyPicker',
-  // FileCard.jsx: a text file's page; QuickLook.jsx: the page, read on
-  'FamilyFace', 'FileStages',
+  // FileCard.jsx: a text file's page; QuickLook.jsx: the page, read on, and
+  // a zip to walk through
+  'FamilyFace', 'FileStages', 'ZipStage',
   // FamilyFace.jsx and FileStages.jsx: an email's reader (postal-mime and
   // the Outlook message reader), for the first email a card or Quick look shows
   'mailRead',

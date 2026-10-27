@@ -1072,7 +1072,7 @@ export const DOCS_PAGES = [
     "title": "Files and Uploads — Soleil Clusters",
     "metaDescription": "Upload any file to Soleil Clusters, at any size, on every plan. How large uploads work, what counts toward your storage, and how deleting frees space.",
     "h1": "Files and uploads",
-    "answer": "Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page and design files (Sketch, Figma, Procreate) the picture saved inside; anything else becomes a file card with a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
+    "answer": "Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page, design files (Sketch, Figma, Procreate) the picture saved inside and zips what's inside them; anything else becomes a file card with a download. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
     "updated": "2026-10-27",
@@ -1119,7 +1119,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What file types can I upload on the free plan?",
-        "a": "Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; documents and design files show a picture of themselves; every other type — .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan."
+        "a": "Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; documents and design files show a picture of themselves, and archives what's inside them; every other type — project files, for one — is a file card with a download. The only limit is the drive, 5GB on the free plan."
       },
       {
         "q": "How large a file can I upload?",
@@ -1263,7 +1263,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-10-21",
+    "updated": "2026-10-27",
     "navLabel": "Overview",
     "headings": [
       {

@@ -3,8 +3,8 @@
 // closes. Pictures zoom and pan (the lightbox's own stage), video and audio
 // play (one thing at a time, through audioBus), PDFs page through, and so do
 // documents once the converter has printed them (lib/fileView.js), text
-// files read as their pages (FileStages.jsx), and everything else shows its
-// preview large.
+// files read as their pages (FileStages.jsx), a zip opens as a folder to walk
+// through (ZipStage.jsx), and everything else shows its preview large.
 //
 // Lazy-loaded from ListSurface. It is a modal dialog: it registers with the
 // modal guard, so the board's and Files' own keys stand down while it's open,
@@ -39,6 +39,7 @@ import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import './filesPage.css';
 
 const FileStages = lazyWithReload(() => import('./FileStages.jsx'));
+const ZipStage = lazyWithReload(() => import('./ZipStage.jsx'));
 
 // A signed URL for a stored file (r2:…), or the URL itself.
 function useResolved(src) {
@@ -131,13 +132,15 @@ function DocStage({ item, docKey }) {
 function Stage({ item, playerRef = null, modalHandle = null, onDownload = null, canPut = false, onClose = null }) {
   const card = item?.card || {};
   const name = item?.name || '';
-  // A design file's picture, once it's made, zooms as a photo does (R2Image
-  // shows the picture, never the file); until then, and when there's none
-  // inside it, its card.
-  const designRef = item.kind === 'file' && typeof card.fileSrc === 'string' && card.fileSrc.startsWith('r2:')
-    && viewKindOfKey(card.fileSrc.slice(3)) === 'design' ? card.fileSrc : null;
-  const designMeta = useImageMeta(designRef);
-  if (designRef && designMeta?.previewKey) return <ImageZoomStage src={designRef} alt={name} cardId={card.id} />;
+  const family = item.kind === 'file' ? item.preview?.family : null;
+  // A design file's picture, or the names inside an archive that isn't a
+  // zip, once it's made, zooms as a photo does (R2Image shows the picture,
+  // never the file); until then, and when there's none, its card.
+  const viewKind = item.kind === 'file' && typeof card.fileSrc === 'string' && card.fileSrc.startsWith('r2:')
+    ? viewKindOfKey(card.fileSrc.slice(3)) : null;
+  const pictureRef = viewKind === 'design' || (viewKind === 'archive' && family === 'listed') ? card.fileSrc : null;
+  const pictureMeta = useImageMeta(pictureRef);
+  if (pictureRef && pictureMeta?.previewKey) return <ImageZoomStage src={pictureRef} alt={name} cardId={card.id} />;
   if (item.kind === 'image' && card.src) {
     return <ImageZoomStage src={card.src} alt={name} adjust={card.adjust} cardId={card.id} />;
   }
@@ -169,10 +172,20 @@ function Stage({ item, playerRef = null, modalHandle = null, onDownload = null, 
   }
   const docKey = item.kind === 'file' ? docKeyOf(card) : '';
   if (docKey) return <DocStage item={item} docKey={docKey} />;
+  // A zip as a folder to walk through, read by ranges; its card until its
+  // directory is read, or when it can't be. It unpacks onto the board from
+  // there.
+  if (family === 'zip' && item.preview?.src) {
+    const fallback = <div className="ql-card"><div className="ql-card-preview"><CardPreview item={item} size="tile" px={640} /></div></div>;
+    return (
+      <Suspense fallback={fallback}>
+        <ZipStage key={item.preview.src} item={item} canPut={canPut} onClose={onClose} fallback={fallback} />
+      </Suspense>
+    );
+  }
   // A file a browser can read (text, Markdown, a table, subtitles, a font,
   // an email) as its page; its card until that loads, or when it can't be
   // read after all. An email's attachments go on the board from there.
-  const family = item.kind === 'file' ? item.preview?.family : null;
   if (isDrawnFamily(family) && item.preview?.src) {
     const fallback = <div className="ql-card"><div className="ql-card-preview"><CardPreview item={item} size="tile" px={640} /></div></div>;
     return (
@@ -269,6 +282,10 @@ export default function QuickLook({
       const t = e.target;
       const inField = t?.tagName === 'INPUT' || t?.tagName === 'TEXTAREA' || t?.isContentEditable;
       const onMediaOrButton = !!t?.closest?.('video, audio, button, a[href]');
+      // A page with a step back of its own (a zip's picture opened large,
+      // ZipStage.jsx) takes Escape for it.
+      const back = e.key === 'Escape' ? rootRef.current?.querySelector('[data-ql-back]') : null;
+      if (back) { e.preventDefault(); e.stopPropagation(); back.click(); return; }
       if (e.key === 'Escape' || ((e.key === ' ' || e.code === 'Space') && !inField && !onMediaOrButton)) {
         e.preventDefault(); e.stopPropagation(); onClose(); return;
       }

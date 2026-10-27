@@ -1,6 +1,6 @@
 # Files and uploads
 
-> Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page and design files (Sketch, Figma, Procreate) the picture saved inside; anything else becomes a file card with a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
+> Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page, design files (Sketch, Figma, Procreate) the picture saved inside and zips what's inside them; anything else becomes a file card with a download. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
 _Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-27_
 
@@ -20,6 +20,8 @@ created — you never pick "upload as image" from a menu.
 | Font (`.ttf`, `.otf`, `.woff`, `.woff2`, `.ttc`) | A specimen drawn in the font: Aa, its name and style, a sample line and its alphabet |
 | Email (`.eml`, `.msg`) | A letter: its subject, who it's from and to, the date and its first lines |
 | Design file (Sketch, Figma, Adobe XD, Procreate, Krita, OpenRaster, Affinity, InDesign, Illustrator, EPS) | A card showing the picture saved inside the file, at its shape |
+| `.zip` | A contact sheet of what's inside: its folders first, with how much each holds, then its pictures and files |
+| `.7z`, `.rar`, `.tar`, `.tar.gz` and other archives | The names inside it |
 | Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
 | PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
 | An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
@@ -62,6 +64,18 @@ Krita or OpenRaster file of any size, and of the others up to
 1 GB. A file with no picture inside it (a Figma file from
 before 2023, an EPS saved without a preview) stays a file card, with the
 download.
+
+A zip's card is a contact sheet of what's inside it — its folders first, with
+how much each holds, then its pictures, then its other files — and counts its
+files. It opens as a folder to walk through, reading only the part it shows, so
+a big zip opens at once: open its folders, see its pictures large, download any
+file inside it, or, on a board you can edit, choose **Unpack into clusters** to
+bring it in as clusters, as [importing a
+zip](/docs/clusters#importing-folders-and-zips) does (zips up to
+1 GB). Any other archive — a `.7z`, `.rar`, `.tar` or
+compressed file — shows the names inside it, for archives up to
+1 GB. A file inside that's locked with a password is listed,
+and says so, but doesn't open.
 
 ## Limits
 

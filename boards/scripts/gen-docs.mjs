@@ -91,10 +91,11 @@ import {
 } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import {
-  VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, DOC_MAX_PAGES,
+  VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, DOC_MAX_PAGES, ARCHIVE_LIST_MAX_BYTES,
 } from '../src/lib/fileView.js';
 import {
   TEXT_STAGE_MAX_BYTES, TABLE_STAGE_MAX_ROWS, FONT_FACE_MAX_BYTES, MAIL_MAX_BYTES, MAIL_CARD_MAX_BYTES,
+  UNPACK_MAX_BYTES,
 } from '../src/lib/fileFaceLimits.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
@@ -501,6 +502,10 @@ export const FACTS = {
   // message a card reads (its parts can sit anywhere in it): past it, its icon.
   mailMaxSize: `${MAIL_MAX_BYTES / MB} MB`,
   mailCardMax: `${MAIL_CARD_MAX_BYTES / MB} MB`,
+  // The largest zip Quick look offers to unpack (it downloads it whole
+  // first), and the largest other archive whose names the converter lists.
+  unpackMaxSize: `${UNPACK_MAX_BYTES / (1024 * MB)} GB`,
+  archiveListMax: `${ARCHIVE_LIST_MAX_BYTES / (1024 * MB)} GB`,
   // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
   // archive is assembled in the tab, and past these the tab is the thing that
   // fails. Stated so "why did my 600-file selection refuse" has an answer.

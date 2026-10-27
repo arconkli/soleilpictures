@@ -15266,6 +15266,62 @@ export const DOCS_CONTENT = {
     [
      [
       {
+       "t": "code",
+       "v": ".zip"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A contact sheet of what's inside: its folders first, with how much each holds, then its pictures and files"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": ".7z"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".rar"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".tar"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".tar.gz"
+      },
+      {
+       "t": "text",
+       "v": " and other archives"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The names inside it"
+      }
+     ]
+    ],
+    [
+     [
+      {
        "t": "text",
        "v": "Screenplay ("
       },
@@ -15522,6 +15578,68 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "A design file's card shows the picture the file keeps of itself — a Sketch, Figma, XD, Procreate, Krita or OpenRaster file's own preview, an Affinity file's, an InDesign file's thumbnail, an Illustrator file's first page, an EPS's preview — at the picture's shape, and opens on it, to zoom as a photo's does. It's made once, in the background: of a Sketch, Figma, XD, Procreate, Krita or OpenRaster file of any size, and of the others up to 1 GB. A file with no picture inside it (a Figma file from before 2023, an EPS saved without a preview) stays a file card, with the download."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A zip's card is a contact sheet of what's inside it — its folders first, with how much each holds, then its pictures, then its other files — and counts its files. It opens as a folder to walk through, reading only the part it shows, so a big zip opens at once: open its folders, see its pictures large, download any file inside it, or, on a board you can edit, choose "
+    },
+    {
+     "t": "strong",
+     "v": "Unpack into clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Unpack into clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to bring it in as clusters, as "
+    },
+    {
+     "t": "link",
+     "v": "importing a zip",
+     "href": "/docs/clusters#importing-folders-and-zips",
+     "children": [
+      {
+       "t": "text",
+       "v": "importing a zip"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " does (zips up to 1 GB). Any other archive — a "
+    },
+    {
+     "t": "code",
+     "v": ".7z"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".rar"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".tar"
+    },
+    {
+     "t": "text",
+     "v": " or compressed file — shows the names inside it, for archives up to 1 GB. A file inside that's locked with a password is listed, and says so, but doesn't open."
     }
    ]
   },
@@ -19041,6 +19159,26 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": ", which go into the cluster that is open, or one you pick"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a zip already on the board — open it and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Unpack into clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Unpack into clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", which unpacks it into the cluster it's in without asking"
      }
     ]
    ]
@@ -24358,7 +24496,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (Word, PowerPoint, Excel, Keynote and the rest), and everything else shows its preview large. "
+     "v": " (Word, PowerPoint, Excel, Keynote and the rest), a "
+    },
+    {
+     "t": "link",
+     "v": "zip",
+     "href": "/docs/files#what-each-type-becomes",
+     "children": [
+      {
+       "t": "text",
+       "v": "zip"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens as a folder to walk through, and everything else shows its preview large. "
     },
     {
      "t": "code",
@@ -24390,7 +24543,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " closes it."
+     "v": " closes it; in a zip, "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " first steps back from a picture you opened."
     }
    ]
   },
