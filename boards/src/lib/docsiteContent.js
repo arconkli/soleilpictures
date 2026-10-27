@@ -50324,7 +50324,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " default to 10000.)"
+     "v": " default to 10000, and a token from a "
+    },
+    {
+     "t": "link",
+     "v": "connected app",
+     "href": "/docs/api/oauth",
+     "children": [
+      {
+       "t": "text",
+       "v": "connected app"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " answers 300 while its account is under 72 hours old.)"
     }
    ]
   },
@@ -53433,7 +53448,143 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "One screen: who is asking, what each scope means in plain words, and two buttons. Afterwards the connection appears under "
+     "v": "One screen. Across its top, who vouches for the app:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Verified app",
+      "children": [
+       {
+        "t": "text",
+        "v": "Verified app"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", naming the host it came from, for a metadata document served from one of "
+     },
+     {
+      "t": "code",
+      "v": "claude.ai"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "claude.com"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "chatgpt.com"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "vscode.dev"
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Runs on this computer",
+      "children": [
+       {
+        "t": "text",
+        "v": "Runs on this computer"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", when the code goes back to "
+     },
+     {
+      "t": "code",
+      "v": "localhost"
+     },
+     {
+      "t": "text",
+      "v": " or an app's own scheme, whoever published the name: any program on the computer could have started the sign-in, so the person continues only if they just did."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Not verified",
+      "children": [
+       {
+        "t": "text",
+        "v": "Not verified"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", for anything else: a registered client, whose name is what it sent to "
+     },
+     {
+      "t": "code",
+      "v": "/oauth/register"
+     },
+     {
+      "t": "text",
+      "v": ", or a document from another host."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Then the app's name, the account it will act as (with a way to switch), what it may do in plain words, and two buttons. An app that asks for "
+    },
+    {
+     "t": "code",
+     "v": "read write"
+    },
+    {
+     "t": "text",
+     "v": " can also be allowed to delete, if the person chooses to on that screen: read the "
+    },
+    {
+     "t": "code",
+     "v": "scope"
+    },
+    {
+     "t": "text",
+     "v": " in the token response rather than assuming you got what you asked for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Afterwards the connection appears under "
     },
     {
      "t": "strong",
@@ -53480,7 +53631,28 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "At most 20 connected apps per account, and connecting one opens up once the account is 72 hours old."
+     "v": "At most 20 connected apps per account. In an account's first 72 hours, only ChatGPT and Claude can connect, by sending the person back to their own callback, and their tokens answer 300 requests an hour instead of"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Every other app can connect once the account is"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "72 hours old."
     }
    ]
   },

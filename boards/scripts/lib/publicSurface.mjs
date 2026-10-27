@@ -382,12 +382,27 @@ export function apiFacts() {
 
   // The rate limit moved in 0221: it is now per token, with this as the
   // fallback for a token that has none. Read from the migration that actually
-  // defines the current api_token_resolve — 0215's hard-coded `> 1000` is dead
-  // code that happens to carry the same number, so pointing at it would keep
-  // "passing" long after the two diverged.
-  const rateSql = read('supabase/migrations/0221_scale_limits.sql');
+  // defines the current api_token_resolve (0704) — 0215's hard-coded `> 1000`
+  // is dead code that happens to carry the same number, so pointing at it would
+  // keep "passing" long after the two diverged.
+  const rateSql = read('supabase/migrations/0704_ai_chats_connect_on_day_one.sql');
   const rate = rateSql.match(/coalesce\(t\.req_limit,\s*(\d+)\)/);
-  if (!rate) throw new Error('publicSurface: default rate limit not found in 0221_scale_limits.sql');
+  if (!rate) throw new Error('publicSurface: default rate limit not found in 0704_ai_chats_connect_on_day_one.sql');
+
+  // 0704: ChatGPT and Claude connect in an account's first hours, and an OAuth
+  // token answers fewer requests an hour until the account is past them. The
+  // hours are 0375's _account_is_new, written out again in api_token_resolve:
+  // two copies of one rule, held equal here.
+  const newOauth = rateSql.match(/c_new_account_oauth_limit constant integer := (\d+);/);
+  const newOauthHours = rateSql.match(/u\.created_at > now\(\) - interval '(\d+) hours'/);
+  const newAccountSql = read('supabase/migrations/0375_audit_new_accounts_and_inbox_budget.sql');
+  const newAccountHours = newAccountSql.match(/_account_is_new\(\)[\s\S]*?interval '(\d+) hours'/);
+  if (!newOauth || !newOauthHours || !newAccountHours) {
+    throw new Error('publicSurface: the new-account OAuth ceiling was not found in 0704_ai_chats_connect_on_day_one.sql');
+  }
+  if (newOauthHours[1] !== newAccountHours[1]) {
+    throw new Error(`publicSurface: api_token_resolve (0704) treats an account as new for ${newOauthHours[1]} hours but _account_is_new (0375) for ${newAccountHours[1]} — the docs state one number`);
+  }
 
   // Service-account numbers live in the migration that enforces them, same rule
   // as the rate limit above: the fact is read from the code that refuses, so a
@@ -407,16 +422,19 @@ export function apiFacts() {
   const tokens = mintSql.match(/revoked_at is null and oauth_client_id is null\) >= (\d+)/);
   if (!tokens) throw new Error('publicSurface: token cap not found in 0224_oauth_authorization_server.sql');
 
-  // oauth_authorize_consent and oauth_refresh_rotate were last defined by 0701,
-  // so the connection cap, the refresh ceiling and the retry window are read
-  // from there: the version that runs, same rule as the rate limit above.
+  // oauth_refresh_rotate was last defined by 0701, so the refresh ceiling and
+  // the retry window are read from there, and oauth_authorize_consent by 0704,
+  // so the connection cap is read from that: the version that runs, same rule
+  // as the rate limit above.
   const oauthSql = read('supabase/migrations/0701_oauth_metadata_clients_refresh_reuse.sql');
   const oauthSqlPick = (re, what) => {
     const m = oauthSql.match(re);
     if (!m) throw new Error(`publicSurface: ${what} not found in 0701_oauth_metadata_clients_refresh_reuse.sql`);
     return Number(m[1]);
   };
-  const connections = oauthSqlPick(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/, 'connection cap');
+  const consentCap = rateSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
+  if (!consentCap) throw new Error('publicSurface: connection cap not found in 0704_ai_chats_connect_on_day_one.sql');
+  const connections = Number(consentCap[1]);
 
   // New clients per address an hour: oauth_client_register (0224) counts the
   // rows an address created, and a metadata document's first sight (0701)
@@ -457,6 +475,7 @@ export function apiFacts() {
     defaultPage: Number(pick(/const DEFAULT_PAGE = (\d+)/, 'DEFAULT_PAGE')),
     maxUploadMb: Number(pick(/const MAX_UPLOAD_BYTES = (\d+) \* 1024 \* 1024/, 'MAX_UPLOAD_BYTES')),
     rateLimitPerHour: Number(rate[1]),
+    oauthNewAccountPerHour: Number(newOauth[1]),
     serviceRateLimitPerHour: svcPick(/coalesce\(p_req_limit,\s*(\d+)\)/, 'service token rate default'),
     maxServiceAccounts: svcPick(/at most (\d+) service accounts/, 'service account cap'),
     maxWebhooks: svcPick(/at most (\d+) active webhooks/, 'webhook cap'),

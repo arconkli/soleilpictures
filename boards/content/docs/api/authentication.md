@@ -155,7 +155,9 @@ the workspace, scoped to it, and unaffected by who comes and goes.
 
 **{{fact:rateLimitPerHour}} requests per hour, per token.**
 ([Service tokens](/docs/api/service-accounts) default to
-{{fact:serviceRateLimitPerHour}}.)
+{{fact:serviceRateLimitPerHour}}, and a token from a
+[connected app](/docs/api/oauth) answers {{fact:oauthNewAccountPerHour}} while
+its account is under {{fact:newAccountHours}} hours old.)
 
 Every response carries the current state, not just refusals:
 

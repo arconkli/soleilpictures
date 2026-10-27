@@ -549,6 +549,9 @@ export async function handleOAuthRoute(url, request, env) {
         return oauthError('temporarily_unavailable', 'try again in a moment', 503);
       }
       const message = e?.message || 'could not record that approval';
+      // 0375 + 0704: in an account's first days only ChatGPT and Claude
+      // connect. The consent page says so, rather than "could not approve".
+      if (e?.hint === 'new_account') return oauthError('new_account', message, 403);
       const status = /unknown client|redirect_uri/i.test(message) ? 400 : 403;
       return oauthError(/redirect_uri|unknown client/i.test(message) ? 'invalid_request' : 'access_denied',
         message, status);

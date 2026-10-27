@@ -177,10 +177,25 @@ test('every recognised failure says whether anything was shared', () => {
   // It is the actual question someone has on that screen, and the answer is
   // always no — each of these fires before a code is ever issued.
   for (const code of ['invalid_client', 'invalid_request', 'invalid_redirect_uri',
-    'invalid_target', 'access_denied', 'server_error', 'temporarily_unavailable']) {
+    'invalid_target', 'access_denied', 'server_error', 'temporarily_unavailable', 'new_account']) {
     assert.match(consentError(code).body, /nothing has been shared/i, `${code} must say it`);
     assert.ok(consentError(code).title.length > 0, `${code} needs a title`);
   }
+});
+
+// 0375 + 0704: a new account connects only ChatGPT and Claude. The database
+// says how long the rest wait, so the page repeats its sentence rather than
+// writing the number down a second time.
+test('a new account is told which apps connect now, in the database\'s words', () => {
+  const said = 'Connecting an app opens up once an account is three days old';
+  const { title, body } = consentError('new_account', said);
+  assert.equal(title, 'Not yet for a new account');
+  assert.ok(body.startsWith(`${said}. `), body);
+  assert.match(body, /ChatGPT and Claude can connect straight away/);
+  assert.match(body, /nothing has been shared/i);
+  // Without the sentence, still the same answer, with no number in it.
+  assert.match(consentError('new_account').body, /ChatGPT and Claude can connect straight away/);
+  assert.ok(!/\d/.test(consentError('new_account').body));
 });
 
 test('an unrecognised code still produces something sayable', () => {

@@ -239,4 +239,7 @@ export {
   Drop,
   GitMerge,
   Shapes,
+  // The consent screen's trust banner (pages/OAuthConsentPage.jsx).
+  SealCheck,
+  Monitor,
 } from '@phosphor-icons/react';

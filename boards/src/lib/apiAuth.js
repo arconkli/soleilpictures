@@ -565,6 +565,13 @@ async function restError(res, what) {
   const err = new Error(message);
   err.status = status;
   err.code = code;
+  // Our own RAISE's hint ('new_account', 0375), for a caller that answers that
+  // refusal in words of its own. Only a short word: never part of a response
+  // as it stands.
+  try {
+    const hint = raw ? JSON.parse(raw)?.hint : null;
+    if (typeof hint === 'string' && /^[a-z_]{1,40}$/.test(hint)) err.hint = hint;
+  } catch (_) { /* not JSON */ }
   // Never returned to the caller — worker-api.js logs this and sends `message`.
   err.detail = `${what} ${res.status}: ${raw.slice(0, 300)}`;
   return err;

@@ -320,6 +320,7 @@
     "defaultPage": 100,
     "maxUploadMb": 25,
     "rateLimitPerHour": 1000,
+    "oauthNewAccountPerHour": 300,
     "serviceRateLimitPerHour": 10000,
     "maxServiceAccounts": 10,
     "maxWebhooks": 20,

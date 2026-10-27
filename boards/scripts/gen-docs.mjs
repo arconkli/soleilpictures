@@ -77,6 +77,7 @@ import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '.
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
 import { GALLERY } from '../src/lib/gallery.js';
+import { VERIFIED_HOSTS } from '../src/lib/oauthTrust.js';
 import { DOC_READ } from '../src/lib/docMarkdown.js';
 import { DOC_WRITE } from '../src/lib/docWrite.js';
 import { COMMENTS } from '../src/lib/apiComments.js';
@@ -528,6 +529,10 @@ export const FACTS = {
   maxPropKeys: String(api.maxPropKeys),
   maxTokensPerAccount: String(api.maxTokensPerAccount),
   maxConnectedApps: String(api.maxConnectedApps),
+  // An OAuth token's hourly ceiling while its account is new (0704), and the
+  // hosts whose metadata documents the consent screen calls verified.
+  oauthNewAccountPerHour: String(api.oauthNewAccountPerHour),
+  oauthVerifiedHosts: VERIFIED_HOSTS.map((h) => `\`${h}\``).join(', '),
   oauthAccessTtl: `${api.oauthAccessTtlMinutes} minutes`,
   oauthRefreshDays: String(api.oauthRefreshDays),
   oauthCodeTtl: `${api.oauthCodeTtlSeconds} seconds`,

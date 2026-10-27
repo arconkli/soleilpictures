@@ -138,7 +138,9 @@ the workspace, scoped to it, and unaffected by who comes and goes.
 
 **1000 requests per hour, per token.**
 ([Service tokens](/docs/api/service-accounts) default to
-10000.)
+10000, and a token from a
+[connected app](/docs/api/oauth) answers 300 while
+its account is under 72 hours old.)
 
 Every response carries the current state, not just refusals:
 

@@ -381,6 +381,39 @@ test('approving a metadata client checks its document, then records the consent'
   assert.deepEqual(calls.map((c) => c.fn), ['oauth_client_get', 'oauth_authorize_consent']);
 });
 
+test('a new account approving an app that must wait is told so, by name', async () => {
+  // _refuse_if_new's refusal as PostgREST sends it (0375): the hint is the key.
+  stub({
+    rpc: {
+      oauth_authorize_consent: () => new Response(JSON.stringify({
+        code: '42501', message: 'Connecting an app opens up once an account is three days old',
+        hint: 'new_account', details: null,
+      }), { status: 403 }),
+    },
+  });
+  const { status, body } = await call('/oauth/authorize', {
+    method: 'POST', headers: { authorization: 'Bearer user-jwt' },
+    body: { client_id: 'soleil_abc', redirect_uri: 'https://e.example/cb', code_challenge: 'c'.repeat(43) },
+  });
+  assert.equal(status, 403);
+  assert.equal(body.error, 'new_account');
+  assert.equal(body.error_description, 'Connecting an app opens up once an account is three days old');
+});
+
+// 0704: ChatGPT and Claude connect on an account's first day, by their own
+// callbacks: exactly the web callbacks these real documents list. Never a
+// loopback or an app's scheme, which is what the wait is for.
+test('0704 lets exactly the Claude and ChatGPT web callbacks connect on day one', () => {
+  const sql = readFileSync(
+    new URL('../../../supabase/migrations/0704_ai_chats_connect_on_day_one.sql', import.meta.url), 'utf8');
+  const list = sql.match(/function public\._oauth_ai_chat_callback[\s\S]*?array\[([\s\S]*?)\]/);
+  assert.ok(list, '_oauth_ai_chat_callback not found');
+  const listed = [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  for (const uri of [...CLAUDE.redirect_uris, ...CHATGPT.redirect_uris]) assert.ok(listed.includes(uri), uri);
+  for (const uri of listed) assert.match(uri, /^https:\/\/(claude\.ai|claude\.com|chatgpt\.com)\/[^?#]+$/);
+  for (const uri of [...CLAUDE_CODE.redirect_uris, ...VSCODE.redirect_uris]) assert.ok(!listed.includes(uri), uri);
+});
+
 test('a consent the database could not record is a 503, not a refusal', async () => {
   stub({ rpc: { oauth_authorize_consent: () => new Response('{"message":"boom"}', { status: 503 }) } });
   const { status, body } = await call('/oauth/authorize', {

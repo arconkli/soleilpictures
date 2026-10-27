@@ -231,16 +231,34 @@ default that quietly included `delete` would undo that for every connection.
 
 ## What the person sees
 
-One screen: who is asking, what each scope means in plain words, and two
-buttons. Afterwards the connection appears under **Settings → Connections → Connected
+One screen. Across its top, who vouches for the app:
+
+- **Verified app**, naming the host it came from, for a metadata document
+  served from one of {{fact:oauthVerifiedHosts}}.
+- **Runs on this computer**, when the code goes back to `localhost` or an app's
+  own scheme, whoever published the name: any program on the computer could
+  have started the sign-in, so the person continues only if they just did.
+- **Not verified**, for anything else: a registered client, whose name is what
+  it sent to `/oauth/register`, or a document from another host.
+
+Then the app's name, the account it will act as (with a way to switch), what it
+may do in plain words, and two buttons. An app that asks for `read write` can
+also be allowed to delete, if the person chooses to on that screen: read the
+`scope` in the token response rather than assuming you got what you asked for.
+
+Afterwards the connection appears under **Settings → Connections → Connected
 apps** with its scopes, when it was connected, and how many calls it has made.
 
 Disconnecting revokes the access token in the same statement, so it stops
 working immediately rather than at its next expiry. Everything the app did is in
 the [audit log](/docs/api/audit), with the tool it used.
 
-At most {{fact:maxConnectedApps}} connected apps per account, and connecting one
-opens up once the account is {{fact:newAccountHours}} hours old.
+At most {{fact:maxConnectedApps}} connected apps per account. In an account's
+first {{fact:newAccountHours}} hours, only ChatGPT and Claude can connect, by
+sending the person back to their own callback, and their tokens answer
+{{fact:oauthNewAccountPerHour}} requests an hour instead of
+{{fact:rateLimitPerHour}}. Every other app can connect once the account is
+{{fact:newAccountHours}} hours old.
 
 ## What a token can reach
 
