@@ -49,6 +49,11 @@ test('a long flat list shows 6 rows and how many more', () => {
   assert.equal(more, 114);
 });
 
+test('a folder\'s row counts what is directly in it', () => {
+  const { rows } = listRows([f('Comp v12/a.exr', 1), f('Comp v12/b.exr', 1), f('Comp v12/old/c.exr', 1), f('Read me.txt', 3)]);
+  assert.deepEqual(rows.map((r) => [r.kind, r.name, r.count]), [['folder', 'Comp v12', 3], ['file', 'Read me.txt', undefined]]);
+});
+
 test('paths are cleaned: a leading ./ and / go, ".." paths are dropped, prefix folders appear', () => {
   const out = cleanEntries([f('../evil.txt'), f('/abs.txt'), f('./a/b.txt'), f('x/../y.txt')]);
   assert.deepEqual(out.map((e) => e.path), ['abs.txt', 'a/', 'a/b.txt']);

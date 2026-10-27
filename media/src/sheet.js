@@ -26,10 +26,24 @@ export function esc(s) {
     .replace(/'/g, '&apos;');
 }
 
-// Cut to a number of characters (code points), ending in an ellipsis.
-export function ellipsize(s, max) {
+// Cut to what fits `em` ems of the sans font, ending in an ellipsis: a wide
+// letter (CJK, fullwidth) counts a whole em, a capital or a digit two thirds,
+// any other a little over half, and the ellipsis an em. Generous, so a name
+// centred in its tile never runs past it.
+const emOf = (c) => (c.codePointAt(0) >= 0x2e80 ? 1 : /[A-Z0-9@%&]/.test(c) ? 0.68 : 0.56);
+export function fitText(s, em) {
   const chars = [...String(s ?? '').replace(/[\u0000-\u001F\u007F]/g, '')];
-  return chars.length <= max ? chars.join('') : `${chars.slice(0, Math.max(1, max - 1)).join('')}…`;
+  let used = 0;
+  for (const c of chars) used += emOf(c);
+  if (used <= em) return chars.join('');
+  const kept = [];
+  used = 1;
+  for (const c of chars) {
+    if (used + emOf(c) > em) break;
+    kept.push(c);
+    used += emOf(c);
+  }
+  return `${(kept.length ? kept : chars.slice(0, 1)).join('').trimEnd()}…`;
 }
 
 const ICON_BY_EXT = {
@@ -58,77 +72,87 @@ function roundedPath(x, y, w, h, r) {
   return `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
 }
 
-const PAD_X = 52;
-const PAD_Y = 48;
+// Four tiles across and three down, as the card shows them (360 x 220):
+// they stop at 727, so the card's name strip, over the sheet's foot, covers
+// nothing.
+const PAD = 48;
 const COLS = 4;
 const GAP = 20;
-const TILE_W = 319;
+const TILE_W = 321;
 const TILE_H = 213;
-const ROW_PITCH = TILE_H + 48;
-const NAME_CHARS = 22;
+const RADIUS = 8;
+const NAME_EM = (TILE_W - 40) / 30;
 // A tile's size on the sheet, which its thumbnail is made at (view.js).
 export const SHEET_TILE = Object.freeze({ w: TILE_W, h: TILE_H });
 
+const items = (n) => `${n} ${n === 1 ? 'item' : 'items'}`;
+
+// A photo is its picture, edge to edge. A folder is its glyph, its name and
+// how many things are in it; a file (or a photo that wouldn't thumbnail) its
+// glyph and its name; both on a grey tile, centred.
 export function sheetSvg(tiles, thumbs = new Map()) {
   const out = [];
   let clips = '';
   tiles.forEach((t, i) => {
-    const x = PAD_X + (i % COLS) * (TILE_W + GAP);
-    const y = PAD_Y + Math.floor(i / COLS) * ROW_PITCH;
-    out.push(`<rect x="${x}" y="${y}" width="${TILE_W}" height="${TILE_H}" rx="6" fill="${PAPER}"/>`);
+    const x = PAD + (i % COLS) * (TILE_W + GAP);
+    const y = PAD + Math.floor(i / COLS) * (TILE_H + GAP);
+    const cx = x + TILE_W / 2;
+    out.push(`<rect x="${x}" y="${y}" width="${TILE_W}" height="${TILE_H}" rx="${RADIUS}" fill="${PAPER}"/>`);
     const thumb = t.kind === 'photo' ? thumbs.get(t.path) : null;
     if (thumb) {
-      clips += `<clipPath id="c${i}"><path d="${roundedPath(x, y, TILE_W, TILE_H, 6)}"/></clipPath>`;
+      clips += `<clipPath id="c${i}"><path d="${roundedPath(x, y, TILE_W, TILE_H, RADIUS)}"/></clipPath>`;
       out.push(`<image x="${x}" y="${y}" width="${TILE_W}" height="${TILE_H}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c${i})" href="${esc(thumb)}"/>`);
-    } else {
-      out.push(glyph(iconFor(t.kind, t.ext), x + (TILE_W - 68) / 2, y + (TILE_H - 68) / 2, 68));
+      return;
     }
-    const count = t.kind === 'folder' && Number.isFinite(t.count) ? String(t.count) : '';
-    const room = NAME_CHARS - (count ? count.length + 2 : 0);
-    // Wide letters (CJK, W and M) run longer than the count of them says, so
-    // the name is clipped to its tile's width, short of the count.
-    const nameW = TILE_W - (count ? count.length * 15 + 12 : 0);
-    clips += `<clipPath id="n${i}"><path d="M${x} ${y + TILE_H}H${x + nameW}V${y + TILE_H + 48}H${x}Z"/></clipPath>`;
-    out.push(`<text x="${x}" y="${y + TILE_H + 32}" clip-path="url(#n${i})" font-family="${FONT}" font-size="26" font-weight="600" fill="${INK}">${esc(ellipsize(t.name, room))}</text>`);
-    if (count) out.push(`<text x="${x + TILE_W}" y="${y + TILE_H + 32}" text-anchor="end" font-family="${FONT}" font-size="24" fill="${MUTED}">${count}</text>`);
+    const folder = t.kind === 'folder';
+    const count = folder && Number.isInteger(t.count) && t.count >= 0 ? items(t.count) : '';
+    const top = count ? y + 42 : y + 54;
+    out.push(glyph(iconFor(t.kind, t.ext), cx - 26, top, 52));
+    // Clipped to the tile, should a name's letters still run wider than counted.
+    clips += `<clipPath id="n${i}"><path d="M${x + 12} ${y}H${x + TILE_W - 12}V${y + TILE_H}H${x + 12}Z"/></clipPath>`;
+    out.push(`<text x="${cx}" y="${top + 92}" text-anchor="middle" clip-path="url(#n${i})" font-family="${FONT}" font-size="30" font-weight="600" fill="${INK}">${esc(fitText(t.name, NAME_EM))}</text>`);
+    if (count) out.push(`<text x="${cx}" y="${top + 130}" text-anchor="middle" font-family="${FONT}" font-size="25" fill="${MUTED}">${count}</text>`);
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${SHEET_W}" height="${SHEET_H}" viewBox="0 0 ${SHEET_W} ${SHEET_H}"><defs>${clips}</defs><path d="M0 0H${SHEET_W}V${SHEET_H}H0Z" fill="#ffffff"/>${out.join('')}</svg>`;
 }
 
+// A size as the app writes one (FileCard.jsx humanSize).
 function sizeText(bytes) {
-  if (!Number.isFinite(bytes)) return '';
-  if (bytes < 1000) return `${bytes} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let n = bytes / 1000;
+  if (!Number.isFinite(bytes) || bytes < 0) return '';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let n = bytes;
   let u = 0;
-  while (n >= 1000 && u < units.length - 1) {
-    n /= 1000;
+  while (n >= 1024 && u < units.length - 1) {
+    n /= 1024;
     u++;
   }
-  return `${n >= 100 || Number.isInteger(n) ? Math.round(n) : n.toFixed(1)} ${units[u]}`;
+  return `${n >= 10 || u === 0 ? Math.round(n) : n.toFixed(1)} ${units[u]}`;
 }
 
-const ROW_H = 79;
-const LIST_PAD_X = 48;
-const LIST_PAD_Y = 40;
+// Six rows, each under a hairline's rule, ending at 540: the card's name
+// strip covers the foot, and says how many files there are in all.
+const ROW_H = 82;
+const LIST_PAD_X = 60;
+const LIST_TOP = 48;
+const RULE = '#ececef';
 
-export function listSvg(rows, more = 0) {
+// The names at an archive's top, a folder's with how many things are in it,
+// a file's with its size.
+export function listSvg(rows) {
   const out = [];
   let clips = '';
   rows.forEach((r, i) => {
-    const y = LIST_PAD_Y + i * ROW_H;
+    const y = LIST_TOP + i * ROW_H;
     const mid = y + ROW_H / 2;
-    out.push(glyph(iconFor(r.kind, String(r.name).split('.').pop()), LIST_PAD_X, mid - 20, 40));
-    const size = r.kind === 'folder' ? '' : sizeText(r.size);
+    out.push(glyph(iconFor(r.kind, String(r.name).split('.').pop()), LIST_PAD_X, mid - 18, 36));
+    const meta = r.kind === 'folder' ? (Number.isInteger(r.count) && r.count >= 0 ? items(r.count) : '') : sizeText(r.size);
     // The name stops short of its size, however wide its letters.
-    const nameEnd = LIST_W - LIST_PAD_X - (size ? 150 : 0);
-    clips += `<clipPath id="r${i}"><path d="M${LIST_PAD_X + 64} ${y}H${nameEnd}V${y + ROW_H}H${LIST_PAD_X + 64}Z"/></clipPath>`;
-    out.push(`<text x="${LIST_PAD_X + 64}" y="${mid + 10}" clip-path="url(#r${i})" font-family="${FONT}" font-size="30" fill="${INK}">${esc(ellipsize(r.name, size ? 26 : 38))}</text>`);
-    if (size) out.push(`<text x="${LIST_W - LIST_PAD_X}" y="${mid + 9}" text-anchor="end" font-family="${FONT}" font-size="26" fill="${MUTED}">${esc(size)}</text>`);
+    const nameX = LIST_PAD_X + 58;
+    const nameEnd = LIST_W - LIST_PAD_X - (meta ? 150 : 0);
+    clips += `<clipPath id="r${i}"><path d="M${nameX} ${y}H${nameEnd}V${y + ROW_H}H${nameX}Z"/></clipPath>`;
+    out.push(`<text x="${nameX}" y="${mid + 11}" clip-path="url(#r${i})" font-family="${FONT}" font-size="31" fill="${INK}">${esc(fitText(r.name, (nameEnd - nameX) / 31))}</text>`);
+    if (meta) out.push(`<text x="${LIST_W - LIST_PAD_X}" y="${mid + 9}" text-anchor="end" font-family="${FONT}" font-size="25" fill="${MUTED}">${esc(meta)}</text>`);
+    out.push(`<path d="M${LIST_PAD_X} ${y + ROW_H - 1.5}H${LIST_W - LIST_PAD_X}" stroke="${RULE}" stroke-width="3"/>`);
   });
-  if (more > 0) {
-    const y = LIST_PAD_Y + rows.length * ROW_H;
-    out.push(`<text x="${LIST_PAD_X + 64}" y="${y + ROW_H / 2 + 10}" font-family="${FONT}" font-size="30" fill="${MUTED}">and ${Math.floor(more)} more</text>`);
-  }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${LIST_W}" height="${LIST_H}" viewBox="0 0 ${LIST_W} ${LIST_H}"><defs>${clips}</defs><path d="M0 0H${LIST_W}V${LIST_H}H0Z" fill="#ffffff"/>${out.join('')}</svg>`;
 }
