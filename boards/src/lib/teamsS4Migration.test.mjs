@@ -18,7 +18,7 @@ const body = (fn) => {
 const CLIENT = ['preview_team_seats', 'team_domain_challenge'];
 
 test('0540 is one transaction that proves its own grants, with no DROP', () => {
-  assert.match(sql, /STATUS: written 2026-10-25, not applied\./);
+  assert.match(sql, /STATUS: written 2026-10-25\. Applied 2026-10-26 \(owner's go\)/);
   assert.match(sql, /^begin;$/m);
   assert.match(sql, /set local lock_timeout = '3s';/);
   assert.match(sql, /commit;\s*$/);

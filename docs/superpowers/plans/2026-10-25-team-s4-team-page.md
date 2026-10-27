@@ -86,7 +86,7 @@ its test owners.
 - [x] Pins in `teamsS4Migration.test.mjs`: the savepoint and `SLPV0` in `preview_team_seats`, its
   refusals in start_team_checkout's order, both RPCs revoked from `public, anon`, the proof block, no
   DROP, no overloads.
-- [ ] A rolled-back probe G on live: a test owner previews 3 for an empty pick and the right count for
+- [x] A rolled-back probe G on live (passed 2026-10-26, 5 of 5, after 0540 was applied on the owner's go): a test owner previews 3 for an empty pick and the right count for
   a workspace with editors; a stranger's workspace refuses `team_workspace`; a non-admin can't read a
   challenge; nothing is left behind.
 
@@ -219,6 +219,6 @@ this hunk (read back byte for byte), then apply 0541.
 
 - [x] (team-live.spec.js, stubbed Supabase) `tests/team-live.spec.js` (route mocks): setup to Stripe and back, a verify that waits, adding a
   seat with its price, the portal, an invite, the join card.
-- [ ] Probe G passes on live; the owner's go adds their test account to `teams_open.test_owner_ids`.
+- [ ] Probe G passed on live (2026-10-26); the owner's go adds their test account to `teams_open.test_owner_ids`.
 - [ ] The owner's walk-through on preview (S3 Task 5): buy with the trial, add a seat, open the portal,
   cancel, see the team go view-only. Then S3b and S5.

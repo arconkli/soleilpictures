@@ -1,6 +1,7 @@
 -- 0540: Teams, part 11 — what setup and the domain check read (S4).
 --
--- STATUS: written 2026-10-25, not applied.
+-- STATUS: written 2026-10-25. Applied 2026-10-26 (owner's go), in two parts;
+-- probe G passed on live (rolled back).
 --
 -- Two reads the real Team surfaces need (plan
 -- docs/superpowers/plans/2026-10-25-team-s4-team-page.md, Task 1):
