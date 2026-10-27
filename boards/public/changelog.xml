@@ -5,8 +5,16 @@
     <link>https://clusters.soleilpictures.com/changelog</link>
     <description>Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.</description>
     <language>en</language>
-    <lastBuildDate>Mon, 26 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 27 Oct 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://clusters.soleilpictures.com/changelog.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Share opens on the link again</title>
+      <link>https://clusters.soleilpictures.com/changelog#2026-10-27</link>
+      <guid isPermaLink="false">clusters-changelog-2026-10-27</guid>
+      <pubDate>Tue, 27 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The Share panel leads with the link again, and the reminder to send a cluster to someone comes at most once a week.</description>
+      <content:encoded><![CDATA[<h3>Sharing</h3><ul><li><b>Share</b> opens on the link again: <b>Anyone with the link</b> and its copy button sit at the top, with inviting people by email below. The button has the focus when the panel opens, so <code>Enter</code> copies the link straight away. See <a href="https://clusters.soleilpictures.com/docs/collaborate/sharing">sharing</a>.</li><li>The reminder to send a cluster to someone comes at most once a week.</li></ul>]]></content:encoded>
+    </item>
     <item>
       <title>Export and profile changes work again</title>
       <link>https://clusters.soleilpictures.com/changelog#2026-10-26</link>

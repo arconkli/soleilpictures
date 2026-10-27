@@ -11339,13 +11339,25 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-10-26
+Updated: 2026-10-27
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-10-27 — Share opens on the link again
+
+The Share panel leads with the link again, and the reminder to send a cluster to someone comes at most once a week.
+
+### Sharing
+
+- **Share** opens on the link again: **Anyone with the link** and its copy
+  button sit at the top, with inviting people by email below. The button has
+  the focus when the panel opens, so `Enter` copies the link straight away.
+  See [sharing](/docs/collaborate/sharing).
+- The reminder to send a cluster to someone comes at most once a week.
 
 ## 2026-10-26 — Export and profile changes work again
 

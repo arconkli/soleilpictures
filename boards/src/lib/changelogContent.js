@@ -2,6 +2,85 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-27": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Sharing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing"
+    }
+   ],
+   "id": "2026-10-27-sharing"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Share",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens on the link again: "
+     },
+     {
+      "t": "strong",
+      "v": "Anyone with the link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Anyone with the link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and its copy button sit at the top, with inviting people by email below. The button has the focus when the panel opens, so "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " copies the link straight away. See "
+     },
+     {
+      "t": "link",
+      "v": "sharing",
+      "href": "/docs/collaborate/sharing",
+      "children": [
+       {
+        "t": "text",
+        "v": "sharing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The reminder to send a cluster to someone comes at most once a week."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-26": [
   {
    "type": "heading",

@@ -4,6 +4,18 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-10-27 — Share opens on the link again
+
+The Share panel leads with the link again, and the reminder to send a cluster to someone comes at most once a week.
+
+### Sharing
+
+- **Share** opens on the link again: **Anyone with the link** and its copy
+  button sit at the top, with inviting people by email below. The button has
+  the focus when the panel opens, so `Enter` copies the link straight away.
+  See [sharing](/docs/collaborate/sharing).
+- The reminder to send a cluster to someone comes at most once a week.
+
 ## 2026-10-26 — Export and profile changes work again
 
 Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.
