@@ -190,6 +190,7 @@ quietly failing.
 |---|---|
 | `read_board` | `board_id`, `response_format?`, `full?`, `include?`, `source?`, `since?`, paging · the board with its link, fields and how much of the card allowance is used, its groups, and a page of its cards; `format?` (`json`\|`omc`) for the whole board as one document instead |
 | `view_board` | `board_id`, `limit?` (default 12, up to 24), `cursor?`, `card_ids?` (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card |
+| `show_board` | `board_id` — show the person the board as it is laid out: [drawn in the chat](#the-board-in-the-chat) where the host can draw it (ChatGPT, Claude), and answered with its link and what is on it everywhere else |
 | `list_comments` | `board_id`, `status?` (`open`\|`resolved`\|`all`), `limit?` (up to 200), `cursor?` — the board's [comment](/docs/api/comments) threads, those inside its docs and notes with the text they are on |
 | `list_tags` | `workspace_id?`, `board_id?`, `tag?` (a name or an id), `limit?` (up to 500) — a workspace's [tags](/docs/api/tags), the tags on one board, or with `tag` everything carrying it |
 | `list_audit` | `since?`, `cursor?` — recent writes and image fetches |
@@ -304,6 +305,25 @@ to the board owner's storage. See [Images API](/docs/api/images).
 A rewrite keeps every block it didn't change, comments and all, and is refused
 if the page changed since it was read. A picture goes in only from a file
 already on the board. The [Docs API](/docs/api/docs) has the details.
+
+## The board, in the chat
+
+`show_board` opens the board inside the conversation, in hosts that draw MCP
+Apps (ChatGPT and Claude): the cluster laid out as it is on its canvas, its
+groups named, its pictures, notes, palettes and docs where they sit. Clicking a
+card picks it, as on the canvas, and **Ask about these** puts a message in the
+chat naming what was picked, with the ids the assistant needs to look closer.
+**Open in Clusters** opens the board itself, and **View all** shows it full
+screen, to zoom and pan.
+
+The view is one page, `ui://clusters/board-v1.html`, which hosts read with
+`resources/read` as `text/html;profile=mcp-app`. It loads nothing but the
+board's pictures, from https://clusters.soleilpictures.com, at addresses that work for
+an hour ([`GET /boards/:id/canvas`](/docs/api/boards)); open
+the conversation again later and it asks for fresh ones. Every word on the board
+is drawn as text, and the only links it opens are Clusters' own. The assistant is
+told what the board holds, never the pictures' addresses, and where a host can't
+draw the view the answer is the board's link and a line on what is on it.
 
 ## Keep links
 

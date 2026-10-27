@@ -13,6 +13,7 @@ import * as Y from 'yjs';
 import { handleApiRoute } from '../worker-api.js';
 import { UNTRUSTED_NOTE } from './mcpTools.js';
 import { cardToYMap, bytesToB64, b64ToBytes, readCards } from './yhelpers.js';
+import { imageSecret, verifySignedImage, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './signedImage.js';
 
 const ENV = {
   SUPABASE_URL: 'https://db.test',
@@ -867,6 +868,64 @@ test('view_board over /mcp answers in words and pictures, for a read-only token'
 
     const wrong = await mcp('tools/call', { name: 'view_board', arguments: { board_id: B1, card_ids: ['a', 'b', 'c', 'd', 'e'] } });
     assert.equal(wrong.body.result.isError, true, 'more than four card_ids is refused before the call');
+  });
+});
+
+// ── GET /boards/:id/canvas and show_board ────────────────────────────────────
+
+test('the canvas is the board as drawn, each picture it may show at an address good for an hour', async () => {
+  const bucket = galleryBoard();
+  const before = Math.floor(Date.now() / 1000);
+  await withBucket(bucket, async () => {
+    const res = await api('GET', `/boards/${B1}/canvas`);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const c = res.body;
+    assert.deepEqual(c.board, { id: B1, name: 'Diner', url: `https://clusters.test/?to=b:${B1}`, card_count: 6 });
+    assert.equal(c.cards.length, 6);
+    assert.equal(c.picture_count, 3, 'two images and a poster the caller can read');
+    assert.equal(c.hidden, 0);
+    const by = Object.fromEntries(c.cards.map((x) => [x.id, x]));
+    assert.equal(by.n1.text, 'a note');
+    assert.equal(by.i3.picture, undefined, 'on the board, but not the caller\'s to read');
+    assert.equal(by.i4.picture, undefined, 'a web address is never signed');
+
+    // Each address names the rendition the caller's own row offered, and stops
+    // working when the answer says.
+    const secret = await imageSecret('svc');
+    const keyOf = async (u) => {
+      assert.ok(u.startsWith(`https://clusters.test${SIGNED_IMAGE_PATH}`), u);
+      return verifySignedImage(secret, u.slice(`https://clusters.test${SIGNED_IMAGE_PATH}`.length));
+    };
+    const a = await keyOf(by.i1.picture.url);
+    assert.equal(a.key, 'w1/a_sm.webp');
+    assert.equal((await keyOf(by.i2.picture.url)).key, 'w1/b.webp', 'a small original');
+    assert.equal((await keyOf(by.v1.picture.url)).key, 'w1/p_pv.webp');
+    assert.ok(a.expiresAt >= before + SIGNED_IMAGE_TTL_S && a.expiresAt <= before + SIGNED_IMAGE_TTL_S + 5);
+    assert.equal(c.expires_at, new Date(a.expiresAt * 1000).toISOString());
+    assert.ok(!JSON.stringify(c).includes('secret.webp'));
+  });
+  assert.deepEqual(bucket.read, [], 'signing reads no bytes');
+  assert.equal((await api('GET', `/boards/${B2}/canvas`)).status, 404, 'a board this user cannot see');
+});
+
+test('show_board over /mcp draws for the view and tells the model what is there, for a read-only token', async () => {
+  scopes = ['read'];
+  const bucket = galleryBoard();
+  await withBucket(bucket, async () => {
+    const res = await mcp('tools/call', { name: 'show_board', arguments: { board_id: B1 } });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const r = res.body.result;
+    assert.ok(!r.isError, JSON.stringify(r.content));
+    assert.match(r.content[0].text, /^Showing "Diner" · 6 cards · 3 pictures · https:\/\/clusters\.test\/\?to=b:/);
+    assert.equal(r.structuredContent.cards, 6);
+    assert.ok(!r.content[0].text.includes('/api/img/'), 'the model never gets the picture addresses');
+    const canvas = r._meta['clusters/canvas'];
+    assert.equal(canvas.board.id, B1);
+    assert.equal(canvas.cards.filter((x) => x.picture?.url).length, 3);
+    const tool = (await mcp('tools/list')).body.result.tools.find((t) => t.name === 'show_board');
+    assert.equal(tool._meta.ui.resourceUri, 'ui://clusters/board-v1.html');
+    const page = (await mcp('resources/read', { uri: 'ui://clusters/board-v1.html' })).body.result.contents[0];
+    assert.deepEqual(page._meta.ui.csp.resourceDomains, ['https://clusters.test'], 'pictures from the origin that answered');
   });
 });
 

@@ -217,6 +217,59 @@ identifiers, so running it again finds them instead of creating them twice.
 app — or `404`, which is also what you get for a board that exists but is not
 yours. The API never confirms the existence of something you cannot see.
 
+## `GET /boards/:id/canvas`
+
+The board as it is drawn: where every card sits and how big it is, what each
+one shows at a glance, the groups round them, and for each picture an address
+that works without signing in for {{fact:signedImageLife}}. It is what the MCP
+server's `show_board` hands the [inline view](/docs/mcp) that draws a board in a
+chat, and it serves anything else that draws a board somewhere other than
+Clusters.
+
+```sh
+curl "https://clusters.soleilpictures.com/api/v1/boards/$BOARD/canvas" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "board": { "id": "…", "name": "Tokyo noir, 1974", "url": "https://clusters.soleilpictures.com/?to=b:…",
+             "card_count": 33 },
+  "bounds": { "x": 0, "y": 0, "w": 2400, "h": 1160 },
+  "cards": [
+    { "id": "c-81", "kind": "image", "x": 0, "y": 0, "w": 240, "h": 160, "z": 1, "group_id": "g1",
+      "title": "Streets 1",
+      "picture": { "url": "https://clusters.soleilpictures.com/api/img/…", "width": 640, "height": 427,
+                   "tone": "#1d2b44" } },
+    { "id": "n1", "kind": "note", "x": 1240, "y": 640, "w": 260, "h": 100,
+      "text": "Sodium vapour, never daylight.", "color": "#fff3c4" },
+    { "id": "p1", "kind": "palette", "x": 820, "y": 640, "w": 360, "h": 120,
+      "swatches": [{ "hex": "#e8a33d", "name": "Sodium" }] }
+  ],
+  "groups": [{ "id": "g1", "x": 0, "y": 0, "w": 760, "h": 540, "name": "Streets" }],
+  "picture_count": 26,
+  "hidden": 0,
+  "expires_at": "2026-10-27T13:00:00.000Z"
+}
+```
+
+Cards come in the order they stack, each with its box in board units and what
+reads at a glance: a title, the start of its text (up to
+{{fact:canvasTextMax}} characters), a note's colours, a palette's swatches, a
+link's domain. Colours are plain hex. A cluster's card carries its name and its
+thumbnail.
+
+A picture is an image, a video's poster frame, a link's preview or a cluster's
+thumbnail, at its smaller rendition (the original only when it is small), and
+`tone` is its average colour, to draw before it arrives. Only pictures your own
+read of the board can see get an address, at most {{fact:canvasMaxPictures}};
+the rest are drawn in their tone. An address works for anyone who has it until
+`expires_at`, so a picture deleted meanwhile stays reachable until then; ask
+again for fresh ones.
+
+The first {{fact:canvasMaxCards}} cards in reading order are drawn, and
+`hidden` counts the rest.
+
 ## `PATCH /boards/:id`
 
 Every field optional:

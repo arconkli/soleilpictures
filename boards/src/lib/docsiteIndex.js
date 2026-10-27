@@ -3352,6 +3352,10 @@ export const DOCS_PAGES = [
         "text": "GET /boards/:id"
       },
       {
+        "id": "get-boards-id-canvas",
+        "text": "GET /boards/:id/canvas"
+      },
+      {
         "id": "patch-boards-id",
         "text": "PATCH /boards/:id"
       },
@@ -4129,6 +4133,10 @@ export const DOCS_PAGES = [
         "text": "Writing a doc"
       },
       {
+        "id": "the-board-in-the-chat",
+        "text": "The board, in the chat"
+      },
+      {
         "id": "keep-links",
         "text": "Keep links"
       },
@@ -4171,6 +4179,10 @@ export const DOCS_PAGES = [
       {
         "q": "Can an agent upload a video?",
         "a": "Only the local server can, with upload_file, because the file has to be read from a disk. The hosted one handles images with upload_image."
+      },
+      {
+        "q": "Can the assistant show me the board in the chat?",
+        "a": "In ChatGPT and Claude, yes. show_board draws the cluster inside the conversation, laid out as it is on its canvas; you can pick cards and ask about them, or open it in Clusters. Elsewhere the assistant gives you the board's link."
       },
       {
         "q": "Is it the same set of tools either way?",

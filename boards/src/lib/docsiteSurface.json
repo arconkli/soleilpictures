@@ -12,6 +12,7 @@
     "DELETE /webhooks/:id",
     "GET /audit?since=&cursor=&limit=",
     "GET /boards/:id",
+    "GET /boards/:id/canvas — the board as drawn, its pictures at addresses good for an hour",
     "GET /boards/:id/cards/:cardId",
     "GET /boards/:id/cards/:cardId/doc?page=&max_chars= — a doc card, page by page, as Markdown",
     "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
@@ -156,6 +157,10 @@
       "schema": "4446c48628d4"
     },
     {
+      "name": "show_board",
+      "schema": "6100a32de5dc"
+    },
+    {
       "name": "tag_cards",
       "schema": "4c7d1f9e8f2f"
     },
@@ -211,6 +216,7 @@
       "prompts/get",
       "prompts/list",
       "resources/list",
+      "resources/read",
       "resources/templates/list",
       "server/discover",
       "tools/call",
@@ -224,6 +230,7 @@
       "METHOD_NOT_FOUND=-32601",
       "MISSING_CLIENT_CAPABILITY=-32021",
       "PARSE=-32700",
+      "RESOURCE_NOT_FOUND=-32002",
       "UNSUPPORTED_PROTOCOL_VERSION=-32022"
     ]
   },

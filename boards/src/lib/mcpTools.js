@@ -49,6 +49,18 @@ const schema = (properties, required = []) => ({
 // and its failure mode is a hard tool error rather than a degraded response.
 const looseObject = (properties) => ({ type: 'object', properties, additionalProperties: true });
 
+// The inline view: a page a host draws in the chat (an MCP App) from what
+// show_board answers. `uri` is where hosts read it (resources/read), the MIME
+// type is how they know it is one, and `metaKey` is the answer's _meta entry
+// the view draws from, which the model never reads. A change the old page
+// can't draw gets a new uri (board-v2), so a host's cached copy never
+// misreads a new answer.
+export const BOARD_VIEW = Object.freeze({
+  uri: 'ui://clusters/board-v1.html',
+  mimeType: 'text/html;profile=mcp-app',
+  metaKey: 'clusters/canvas',
+});
+
 const IDENTIFIER = {
   type: 'array',
   description: 'Foreign identifiers from another system, e.g. [{"scope":"shotgrid","value":"Shot:12345"}]',
@@ -735,6 +747,41 @@ export const TOOLS = [
       })}`);
       return { content: galleryBlocks(g, { close }), structured: galleryManifest(g) };
     },
+  },
+  {
+    name: 'show_board',
+    title: 'Show a board',
+    description: 'Shows the person a board as it is laid out on the canvas, in the chat itself where the app '
+      + 'can draw it (ChatGPT, Claude): pictures, notes, palettes and docs where they sit, with the groups '
+      + 'named. They can pick pictures and ask you about them, or open it in Clusters. Call it '
+      + 'once a moodboard is made or changed, or when they ask to see a board. Where nothing can be drawn it '
+      + 'answers with the board\'s link and what is on it. view_board is for you to look at the pictures; '
+      + 'read_board to read the text.',
+    annotations: READS,
+    peoplesText: true,
+    inputSchema: schema({ board_id: uuid('The board to show') }, ['board_id']),
+    outputSchema: looseObject({
+      board: looseObject({ id: { type: 'string' }, name: { type: 'string' }, url: { type: 'string' } }),
+      cards: { type: 'number' },
+      pictures: { type: 'number' },
+      groups: { type: 'array', items: { type: 'string' } },
+    }),
+    // Hosts that draw apps read the first; the flat key and ChatGPT's own
+    // name for it say the same to hosts that read only those.
+    meta: { ui: { resourceUri: BOARD_VIEW.uri }, 'ui/resourceUri': BOARD_VIEW.uri, 'openai/outputTemplate': BOARD_VIEW.uri },
+    call: (a, { api }) => api(`/boards/${a.board_id}/canvas`),
+    // The model is told what the board holds; where everything sits, and the
+    // pictures' addresses, go to the view alone (BOARD_VIEW.metaKey).
+    forModel: (o) => ({
+      board: { id: o.board?.id, name: o.board?.name, url: o.board?.url },
+      cards: o.board?.card_count ?? 0,
+      pictures: o.picture_count ?? 0,
+      groups: (o.groups || []).map((g) => g.name).filter(Boolean),
+      ...(o.hidden ? { not_drawn: o.hidden } : {}),
+    }),
+    view: (o) => ({ [BOARD_VIEW.metaKey]: o }),
+    summary: (o) => `Showing ${named(o.board?.name)} · ${plural(o.cards ?? 0, 'card')}`
+      + `${o.pictures ? ` · ${plural(o.pictures, 'picture')}` : ''}${at(o.board?.url)}`,
   },
   {
     name: 'list_comments',
@@ -1595,7 +1642,8 @@ export const PROMPTS = [
       + 'and period details, and a few references to look at (films, photographers, painters).\n'
       + '4. write_doc: a one-page treatment, about 200 words: the feeling, what we see, what we hear, what to avoid.\n'
       + '5. arrange_board, then view_board to look at the result, and replace anything off the brief.\n'
-      + '6. Answer with the board\'s link and two lines on where it landed. Don\'t share it unless I ask.',
+      + '6. show_board to show it to me, then answer with the board\'s link and two lines on where it landed. '
+      + 'Don\'t share it unless I ask.',
   },
   {
     name: 'review_board',
@@ -1658,7 +1706,7 @@ export const RENAMED_PROMPTS = { describe_board: 'review_board' };
 export const SERVER_INFO = {
   name: 'soleil-clusters',
   title: 'Soleil Clusters',
-  version: '3.0.0',
+  version: '3.1.0',
   websiteUrl: 'https://clusters.soleilpictures.com/docs/mcp',
   icons: [
     { src: 'https://clusters.soleilpictures.com/icons/icon-512.png', mimeType: 'image/png', sizes: ['512x512'] },
@@ -1680,6 +1728,7 @@ export const toolManifest = (t) => ({
       : t.outputSchema,
   } : {}),
   annotations: t.annotations,
+  ...(t.meta ? { _meta: t.meta } : {}),
 });
 
 // ── Failures ─────────────────────────────────────────────────────────────────

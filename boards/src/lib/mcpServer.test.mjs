@@ -18,12 +18,13 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, toolManifest, apiErrorFrom, ApiError,
-  parseFetchId, UNTRUSTED_NOTE,
+  parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW,
 } from './mcpTools.js';
 import {
   handleMcpMessage, handleMcpRequest, headerProblem, decodeHeaderValue,
   SUPPORTED_PROTOCOL_VERSIONS, META, ERR, INSTRUCTIONS, toolResult,
 } from './mcpServer.js';
+import { MCP_APP_HTML } from './mcpAppHtml.generated.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../../..');
@@ -114,13 +115,22 @@ test('the npm package ships the same PROTOCOL the Worker serves', () => {
   const copy = readFileSync(resolve(REPO, 'mcp/src/server.js'), 'utf8');
   const expected = source
     .replace("from './mcpTools.js'", "from './tools.js'")
-    .replace("from './mcpValidate.js'", "from './validate.js'");
+    .replace("from './mcpValidate.js'", "from './validate.js'")
+    .replace("from './mcpAppHtml.generated.js'", "from './appHtml.js'");
   assert.equal(copy.replace(STRIP_BANNER, ''), expected,
     'mcp/src/server.js is stale — run `npm run sync` in mcp/.');
   // The permitted edits must actually have applied; if an import is ever
   // renamed, the copy would silently ship a broken specifier.
   assert.match(copy, /from '\.\/tools\.js'/);
   assert.match(copy, /from '\.\/validate\.js'/);
+  assert.match(copy, /from '\.\/appHtml\.js'/);
+});
+
+test('the npm package draws the same inline view the Worker does', () => {
+  const source = readFileSync(resolve(REPO, 'boards/src/lib/mcpAppHtml.generated.js'), 'utf8');
+  const copy = readFileSync(resolve(REPO, 'mcp/src/appHtml.js'), 'utf8');
+  assert.equal(copy.replace(STRIP_BANNER, ''), source,
+    'mcp/src/appHtml.js is stale — run `npm run sync` in mcp/.');
 });
 
 test('the npm package holds calls to the same argument rules the Worker does', () => {
@@ -221,7 +231,10 @@ test('a local-only tool refuses cleanly when there is no filesystem', async () =
 
 // ── the JSON-RPC shell ───────────────────────────────────────────────────────
 
-const ctx = { api: async (path, opts) => ({ echoed: path, method: opts?.method || 'GET' }) };
+const ctx = {
+  api: async (path, opts) => ({ echoed: path, method: opts?.method || 'GET' }),
+  origin: 'https://clusters.test',
+};
 
 // A LEGACY call: no per-request _meta, exactly as a client that opened with
 // `initialize` sends. Every assertion below that does not say otherwise is
@@ -233,10 +246,11 @@ test('initialize negotiates and advertises only what is implemented', async () =
   const r = await rpc('initialize', { protocolVersion: '2025-06-18' });
   assert.ok(r.result.protocolVersion);
   assert.equal(r.result.serverInfo.name, 'soleil-clusters');
-  assert.deepEqual(Object.keys(r.result.capabilities).sort(), ['prompts', 'tools']);
-  // Advertising resources or subscriptions and never sending one is worse than
-  // not advertising: a client waits for something that is never coming.
-  assert.equal('resources' in r.result.capabilities, false);
+  // Resources are the inline view's page, which a host reads. Nothing is
+  // offered that is never sent: advertising subscriptions with no update to
+  // send would leave a client waiting for something that never comes.
+  assert.deepEqual(Object.keys(r.result.capabilities).sort(), ['prompts', 'resources', 'tools']);
+  assert.deepEqual(r.result.capabilities.resources, {});
   assert.ok(r.result.instructions);
 });
 
@@ -370,10 +384,75 @@ test('an unsupported method is method-not-found, not a hang', async () => {
   assert.equal(r.error.code, -32601);
 });
 
-test('resources answer empty rather than erroring', async () => {
-  // A client probing for resources should get a clean "none" it can branch on.
-  assert.deepEqual((await rpc('resources/list')).result, { resources: [] });
+test('the one resource is the inline view, read as one page that fetches from this origin only', async () => {
+  const list = (await rpc('resources/list')).result.resources;
+  assert.equal(list.length, 1);
+  assert.equal(list[0].uri, BOARD_VIEW.uri);
+  assert.equal(list[0].mimeType, 'text/html;profile=mcp-app', 'how a host knows it is an app');
+  assert.deepEqual(list[0]._meta.ui.csp, { resourceDomains: ['https://clusters.test'] },
+    'its pictures come from the origin that answered, preview or production');
   assert.deepEqual((await rpc('resources/templates/list')).result, { resourceTemplates: [] });
+
+  const read = (await rpc('resources/read', { uri: BOARD_VIEW.uri })).result;
+  assert.equal(read.contents.length, 1);
+  const [page] = read.contents;
+  assert.equal(page.uri, BOARD_VIEW.uri);
+  assert.equal(page.mimeType, BOARD_VIEW.mimeType);
+  assert.equal(page.text, MCP_APP_HTML);
+  assert.match(page.text, /^<!doctype html>/);
+  assert.deepEqual(page._meta.ui, { csp: { resourceDomains: ['https://clusters.test'] }, prefersBorder: false });
+
+  // Without an origin (the stdio package always passes one) it names production.
+  const bare = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: BOARD_VIEW.uri } },
+    { api: ctx.api });
+  assert.deepEqual(bare.body.result.contents[0]._meta.ui.csp.resourceDomains, ['https://clusters.soleilpictures.com']);
+});
+
+test('an address that is not a resource says so, in each era\'s words', async () => {
+  const legacy = await rpc('resources/read', { uri: 'ui://clusters/board-v0.html' });
+  assert.equal(legacy.error.code, ERR.RESOURCE_NOT_FOUND);
+  assert.equal(legacy.error.code, -32002);
+  assert.deepEqual(legacy.error.data, { uri: 'ui://clusters/board-v0.html' });
+  const { body } = await modernRpc('resources/read', { uri: 'file:///etc/passwd' });
+  assert.equal(body.error.code, ERR.INVALID_PARAMS);
+  assert.equal((await rpc('resources/read', {})).error.code, ERR.RESOURCE_NOT_FOUND);
+});
+
+test('show_board names the view, and hands the view what the model never reads', async () => {
+  const listed = (await rpc('tools/list')).result.tools.find((t) => t.name === 'show_board');
+  assert.deepEqual(listed._meta, {
+    ui: { resourceUri: BOARD_VIEW.uri },
+    'ui/resourceUri': BOARD_VIEW.uri,
+    'openai/outputTemplate': BOARD_VIEW.uri,
+  });
+  // No other tool opens the view: a host draws one for every call that names it.
+  assert.deepEqual((await rpc('tools/list')).result.tools.filter((t) => t._meta?.ui).map((t) => t.name), ['show_board']);
+
+  const canvas = {
+    board: { id: BOARD_ID, name: 'Diner', url: 'https://clusters.test/?to=b:x', card_count: 3 },
+    bounds: { x: 0, y: 0, w: 500, h: 300 },
+    cards: [{ id: 'i1', kind: 'image', x: 0, y: 0, w: 200, h: 150, picture: { url: 'https://clusters.test/api/img/a.b' } }],
+    groups: [{ id: 'g1', x: 0, y: 0, w: 200, h: 150, name: 'Streets' }, { id: 'g2', x: 0, y: 0, w: 1, h: 1 }],
+    picture_count: 1,
+    hidden: 2,
+    expires_at: '2026-10-27T12:00:00.000Z',
+  };
+  const shown = { api: async (path) => { assert.equal(path, `/boards/${BOARD_ID}/canvas`); return canvas; } };
+  const { body } = await handleMcpMessage(
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'show_board', arguments: { board_id: BOARD_ID } } }, shown);
+  const r = body.result;
+  assert.equal(r.isError, undefined);
+  // The view draws the whole answer; the picture addresses go nowhere else.
+  assert.deepEqual(r._meta[BOARD_VIEW.metaKey], canvas);
+  assert.ok(!r.content[0].text.includes('/api/img/'), 'no picture address in what the model reads');
+  assert.ok(!JSON.stringify(r.structuredContent).includes('/api/img/'));
+  assert.equal(r.structuredContent.untrusted, UNTRUSTED_NOTE, 'names on a board are people\'s text');
+  assert.deepEqual(r.structuredContent.board, { id: BOARD_ID, name: 'Diner', url: 'https://clusters.test/?to=b:x' });
+  assert.equal(r.structuredContent.cards, 3);
+  assert.equal(r.structuredContent.pictures, 1);
+  assert.deepEqual(r.structuredContent.groups, ['Streets']);
+  assert.equal(r.structuredContent.not_drawn, 2);
+  assert.match(r.content[0].text, /^Showing "Diner" · 3 cards · 1 picture · https:\/\/clusters\.test\/\?to=b:x/);
 });
 
 // ── 2026-07-28: the handshake is gone ────────────────────────────────────────
@@ -399,7 +478,7 @@ test('server/discover is answered — the spec says servers MUST implement it', 
   assert.equal(status, 200);
   assert.deepEqual(body.result.supportedVersions, SUPPORTED_PROTOCOL_VERSIONS);
   assert.equal(body.result.supportedVersions[0], MODERN, 'newest first: it is a preference order');
-  assert.deepEqual(Object.keys(body.result.capabilities).sort(), ['prompts', 'tools']);
+  assert.deepEqual(Object.keys(body.result.capabilities).sort(), ['prompts', 'resources', 'tools']);
   assert.equal(body.result._meta[META.serverInfo].name, 'soleil-clusters');
   assert.equal(body.result.resultType, 'complete');
   assert.ok(body.result.ttlMs > 0);

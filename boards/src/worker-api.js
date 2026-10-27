@@ -73,6 +73,8 @@ import {
   GALLERY, boardPictures, pickRendition, encodeCursor, decodeCursor, boardUrl, cardUrl,
   makeInlineBudget, bytesToBase64,
 } from './lib/gallery.js';
+import { planCanvas, canvasAnswer } from './lib/canvasView.js';
+import { imageSecret, signImageKey, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './lib/signedImage.js';
 import {
   webhookUrlProblem, runWebhooks, deliverOne, hasPendingWork, WEBHOOK_EVENTS,
   AFTER_WRITE_DRAIN,
@@ -1214,6 +1216,7 @@ export async function handleMcpEndpoint(url, request, env, ctx) {
     tools: HOSTED_TOOLS,
     manifest: mixedManifest,
     instructions: DRAFT_INSTRUCTIONS,
+    origin: url.origin,
     // Signed out, a tool only ever runs as a draft, which beforeCall sets up.
     api: async () => { throw new ApiError('sign in to Clusters first', { status: 401, code: 'invalid_token' }); },
     beforeCall: async (name, params) => {
@@ -1478,6 +1481,7 @@ async function dispatch(url, request, env, ctx) {
         'GET    /boards/:id',
         'GET    /boards/:id/export?format=json|omc',
         'GET    /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=',
+        'GET    /boards/:id/canvas      — the board as drawn, its pictures at addresses good for an hour',
         'GET    /boards/:id/share-link',
         'POST   /boards/:id/share-link      {"include_subboards":false}  — the view-only link, made once',
         'DELETE /boards/:id/share-link      — revokes the view links you may revoke',
@@ -1857,6 +1861,8 @@ async function dispatch(url, request, env, ctx) {
     // /mcp signed in: its tool list and the draft argument it strips (ctx.mcp).
     const out = await handleMcpRequest(request, {
       api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
+      // Where the inline view's pictures come from (resources/read's CSP).
+      origin: url.origin,
       ...(ctx.mcp || {}),
     }, body);
     if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
@@ -3621,6 +3627,48 @@ async function dispatch(url, request, env, ctx) {
       has_more: hasMore,
       next_cursor: hasMore ? encodeCursor(offset + page.length) : null,
     });
+  }
+
+  // GET /boards/:id/canvas — the board as it is drawn, for drawing it
+  // somewhere else (lib/canvasView.js; the inline view show_board opens in an
+  // AI chat). Each picture gets an address on /api/img/ that works for an hour
+  // without a session, signed only after the caller's own read found it.
+  if (sub === 'canvas' && method === 'GET') {
+    trace.route = '/boards/:id/canvas';
+    const rows = await userSelect(env, token, 'boards', `id=eq.${id}&deleted_at=is.null`
+      + '&select=id,name,bg_color&limit=1');
+    const b = rows?.[0];
+    if (!b) throw fail(404, 'not_found', 'board not found');
+
+    const { cards, groups } = await readBoardCardsAndGroups(env, id, token);
+    const plan = planCanvas(cards, groups);
+    const [imageRows, boardRows] = await Promise.all([
+      plan.keys.length
+        ? userSelect(env, token, 'images',
+          `storage_path=in.${encodeURIComponent(pgInList(plan.keys))}&deleted_at=is.null`
+          + '&select=storage_path,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,'
+          + 'width,height,size_bytes,blur_hash')
+        : [],
+      plan.boardIds.length
+        ? userSelect(env, token, 'boards',
+          `id=in.${encodeURIComponent(pgInList(plan.boardIds))}&deleted_at=is.null&select=id,name,thumb_key`)
+        : [],
+    ]);
+
+    const secret = await imageSecret(env.SUPABASE_SERVICE_ROLE_KEY);
+    const expiresAt = Math.floor(Date.now() / 1000) + SIGNED_IMAGE_TTL_S;
+    // Addresses handed out, as bytes leaving are logged on /gallery: who could
+    // see which board's pictures, and when.
+    trace.log = true;
+    return json(await canvasAnswer({
+      board: b,
+      boardUrl: boardUrl(url.origin, b.id),
+      plan,
+      imageRows: imageRows || [],
+      boardRows: boardRows || [],
+      sign: async (key) => `${url.origin}${SIGNED_IMAGE_PATH}${await signImageKey(secret, key, expiresAt)}`,
+      expiresAt,
+    }));
   }
 
   // POST /boards/:id/docs — a new doc card holding pages written in Markdown.

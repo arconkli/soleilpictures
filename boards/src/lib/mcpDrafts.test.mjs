@@ -118,6 +118,7 @@ const RUNS = {
   list_boards: [{}, { deleted: true }, { depth: 2 }],
   read_board: [{ board_id: BOARD }, { board_id: BOARD, format: 'omc' }],
   view_board: [{ board_id: BOARD }, { board_id: BOARD, card_ids: ['c1'] }],
+  show_board: [{ board_id: BOARD }],
   create_boards: [{ boards: [{ name: 'Tokyo noir' }] }],
   update_boards: [{ boards: [{ board_id: BOARD, name: 'Night' }, { board_id: BOARD2, parent_board_id: BOARD }] }],
   add_cards: [{ board_id: BOARD, cards: [{ kind: 'note', body: 'rain' }] }],
@@ -168,6 +169,7 @@ test('a draft is refused every other route', () => {
     ['GET', `boards/${BOARD}/comments`], ['POST', `boards/${BOARD}/comments`], ['PATCH', `boards/${BOARD}/comments/x`],
     ['GET', `boards/${BOARD}/tags`], ['POST', `boards/${BOARD}/tags`],
     ['GET', `boards/${BOARD}/import`], ['GET', `boards/${BOARD}/docs`], ['POST', `boards/${BOARD}/gallery`],
+    ['POST', `boards/${BOARD}/canvas`], ['DELETE', `boards/${BOARD}/canvas`],
     ['POST', 'boards/tree'], ['GET', 'boards/move'], ['POST', 'search'], ['PATCH', 'workspaces'],
   ];
   for (const [method, path] of refused) {

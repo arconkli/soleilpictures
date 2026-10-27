@@ -52680,6 +52680,111 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "GET /boards/:id/canvas",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/canvas"
+    }
+   ],
+   "id": "get-boards-id-canvas"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board as it is drawn: where every card sits and how big it is, what each one shows at a glance, the groups round them, and for each picture an address that works without signing in for an hour. It is what the MCP server's "
+    },
+    {
+     "t": "code",
+     "v": "show_board"
+    },
+    {
+     "t": "text",
+     "v": " hands the "
+    },
+    {
+     "t": "link",
+     "v": "inline view",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "inline view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " that draws a board in a chat, and it serves anything else that draws a board somewhere other than Clusters."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"https://clusters.soleilpictures.com/api/v1/boards/$BOARD/canvas\" \\\n  -H \"Authorization: Bearer $TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board\": { \"id\": \"…\", \"name\": \"Tokyo noir, 1974\", \"url\": \"https://clusters.soleilpictures.com/?to=b:…\",\n             \"card_count\": 33 },\n  \"bounds\": { \"x\": 0, \"y\": 0, \"w\": 2400, \"h\": 1160 },\n  \"cards\": [\n    { \"id\": \"c-81\", \"kind\": \"image\", \"x\": 0, \"y\": 0, \"w\": 240, \"h\": 160, \"z\": 1, \"group_id\": \"g1\",\n      \"title\": \"Streets 1\",\n      \"picture\": { \"url\": \"https://clusters.soleilpictures.com/api/img/…\", \"width\": 640, \"height\": 427,\n                   \"tone\": \"#1d2b44\" } },\n    { \"id\": \"n1\", \"kind\": \"note\", \"x\": 1240, \"y\": 640, \"w\": 260, \"h\": 100,\n      \"text\": \"Sodium vapour, never daylight.\", \"color\": \"#fff3c4\" },\n    { \"id\": \"p1\", \"kind\": \"palette\", \"x\": 820, \"y\": 640, \"w\": 360, \"h\": 120,\n      \"swatches\": [{ \"hex\": \"#e8a33d\", \"name\": \"Sodium\" }] }\n  ],\n  \"groups\": [{ \"id\": \"g1\", \"x\": 0, \"y\": 0, \"w\": 760, \"h\": 540, \"name\": \"Streets\" }],\n  \"picture_count\": 26,\n  \"hidden\": 0,\n  \"expires_at\": \"2026-10-27T13:00:00.000Z\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards come in the order they stack, each with its box in board units and what reads at a glance: a title, the start of its text (up to 160 characters), a note's colours, a palette's swatches, a link's domain. Colours are plain hex. A cluster's card carries its name and its thumbnail."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A picture is an image, a video's poster frame, a link's preview or a cluster's thumbnail, at its smaller rendition (the original only when it is small), and "
+    },
+    {
+     "t": "code",
+     "v": "tone"
+    },
+    {
+     "t": "text",
+     "v": " is its average colour, to draw before it arrives. Only pictures your own read of the board can see get an address, at most 80; the rest are drawn in their tone. An address works for anyone who has it until "
+    },
+    {
+     "t": "code",
+     "v": "expires_at"
+    },
+    {
+     "t": "text",
+     "v": ", so a picture deleted meanwhile stays reachable until then; ask again for fresh ones."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The first 400 cards in reading order are drawn, and "
+    },
+    {
+     "t": "code",
+     "v": "hidden"
+    },
+    {
+     "t": "text",
+     "v": " counts the rest."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "PATCH /boards/:id",
    "inline": [
     {
@@ -66876,6 +66981,39 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "show_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — show the person the board as it is laid out: "
+      },
+      {
+       "t": "link",
+       "v": "drawn in the chat",
+       "href": "#the-board-in-the-chat",
+       "children": [
+        {
+         "t": "text",
+         "v": "drawn in the chat"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " where the host can draw it (ChatGPT, Claude), and answered with its link and what is on it everywhere else"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "list_comments"
       }
      ],
@@ -69107,6 +69245,121 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " has the details."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The board, in the chat",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board, in the chat"
+    }
+   ],
+   "id": "the-board-in-the-chat"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "show_board"
+    },
+    {
+     "t": "text",
+     "v": " opens the board inside the conversation, in hosts that draw MCP Apps (ChatGPT and Claude): the cluster laid out as it is on its canvas, its groups named, its pictures, notes, palettes and docs where they sit. Clicking a card picks it, as on the canvas, and "
+    },
+    {
+     "t": "strong",
+     "v": "Ask about these",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ask about these"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts a message in the chat naming what was picked, with the ids the assistant needs to look closer. "
+    },
+    {
+     "t": "strong",
+     "v": "Open in Clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open in Clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the board itself, and "
+    },
+    {
+     "t": "strong",
+     "v": "View all",
+     "children": [
+      {
+       "t": "text",
+       "v": "View all"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shows it full screen, to zoom and pan."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The view is one page, "
+    },
+    {
+     "t": "code",
+     "v": "ui://clusters/board-v1.html"
+    },
+    {
+     "t": "text",
+     "v": ", which hosts read with "
+    },
+    {
+     "t": "code",
+     "v": "resources/read"
+    },
+    {
+     "t": "text",
+     "v": " as "
+    },
+    {
+     "t": "code",
+     "v": "text/html;profile=mcp-app"
+    },
+    {
+     "t": "text",
+     "v": ". It loads nothing but the board's pictures, from https://clusters.soleilpictures.com, at addresses that work for an hour ("
+    },
+    {
+     "t": "link",
+     "v": "`GET /boards/:id/canvas`",
+     "href": "/docs/api/boards",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/canvas"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "); open the conversation again later and it asks for fresh ones. Every word on the board is drawn as text, and the only links it opens are Clusters' own. The assistant is told what the board holds, never the pictures' addresses, and where a host can't draw the view the answer is the board's link and a line on what is on it."
     }
    ]
   },
