@@ -130,7 +130,7 @@ export function AdminReferralsSection({ data, days = 30 }) {
             label="Editor seats"
             value={formatCount(seats.workspaces_with_editors || 0)}
             sub={`max ${formatCount(seats.max_editors_per_owner || 0)} per owner`}
-            title="ALL-TIME seat watch for free editor collaboration (0188): workspace owners with external editors + the largest seat count. Growth here = the future Team-plan list; runaway growth = flip admin_set_collab_editor_cap." />
+            title="ALL-TIME seat watch for free editor collaboration (0188): workspace owners with external editors + the largest seat count. Growth here = the Team plan's list; the 10-editor limit (0520) holds each account at 10 once it is switched on." />
         </div>
         {leftOut && <div className="admin-panel-note">{leftOut}</div>}
       </section>

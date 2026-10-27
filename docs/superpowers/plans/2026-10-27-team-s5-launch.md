@@ -25,13 +25,20 @@ secrets exist. This stage makes it public in one promote, then flips the switche
 - [ ] The Talk to us form: mockups A (dialog) / B (under the cards) / C (its own page) on the
   Team canvas, waiting for the owner's pick. Then `lib/teamContact.js` (send, refusals) and the
   form, lazy, opened by the pricing page's "Talk to us" on both pricing pages; the admin list.
-- [ ] Pricing shows the Team card to everyone `teamsAllowed()` lets in, not only the admin's
-  sample: signed in, Start goes to `/team/new`; signed out, Start stashes the seats and billing
-  (like `creatorIntent`) and goes to sign-in, and the app resumes at `/team/new` after it.
-- [ ] 0543, the switch (written now, applied at launch): `editor_limit.enforced = true`,
-  `teams_open.open = true`; the server event `editor_limit_viewer_fallback` joins
-  `check_instrumentation`'s watch list. The dormant 0188 brake (`collab_free_editor_cap`) is
-  dropped in a separate file the owner can run in the SQL editor if the MCP refuses DROP.
+- [x] Both pricing pages show the Team card where `teamPricingAllowed()` does (Team's hold off
+  dev; opt-in on dev with `soleil.dev.teamPricing`): signed in, Start goes to `/team/new`;
+  signed out, Start keeps the seats and billing (`lib/teamStart.js`) through sign-in, the
+  sign-in screen says so, and AuthGate opens `/team/new` with them. `/team/new` routes on
+  `teamsAllowed()`. `team-pricing-start.spec.js` pins it.
+- [x] 0543, the switch (written, applied at launch): `editor_limit.enforced = true`,
+  `teams_open.open = true`, testers kept; its STATUS names what must be live first. 0544
+  drops 0188's dormant brake (`_collab_editor_cap`, `admin_set_collab_editor_cap`, the
+  `collab_free_editor_cap` row), refusing if anything still calls it (nothing does on live,
+  2026-10-27); the owner runs it in the SQL editor if the MCP refuses DROP. Both checked in a
+  local Postgres; `teamLaunchMigration.test.mjs` pins them.
+  The planned `editor_limit_viewer_fallback` pair for `check_instrumentation` is dropped:
+  the notice and the event are written by the same statement, so the pair could only fail
+  if the function were rewritten, which the migration tests already catch.
 
 ## The owner, before launch
 
@@ -66,8 +73,12 @@ seat":
   extractor so the docs gate sees them.
 - `seoProbeContract.js` rows 78/79 ("no per-seat charges", the two-column table) and their
   `seo_health_expectations` rows, reconciled.
-- `teamsAllowed()` and `editorLimitAllowed()` open on production; the changelog entry; bump
-  `build_min`.
+- `teamsAllowed()` and `editorLimitAllowed()` open on production, and `teamPricingAllowed()`
+  on dev too; then `pricing-flow`, `public-visual-sweep` and `upsell-metrics` read three cards.
+- Instrument the Team card before it is public: an `lp_cta_click` position and a pricing
+  event for "Start a Team trial" (with `featureEvents.js`'s `teams` entry measured), so the
+  first week says how many people pressed it.
+- The changelog entry; bump `build_min`.
 
 Then: promote (the release recipe), apply 0543, re-run probes A–G read-only where they can be,
 watch `check_instrumentation` and the Issues view for a day.
