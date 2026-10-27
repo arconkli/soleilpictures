@@ -105,9 +105,10 @@ export function docDropSize(ext) {
 // The families a card draws from what the file says (FamilyFace.jsx on a
 // card, FileStages.jsx in Quick look), named by extension first, then by
 // type for a file with none. A document is one by its extension alone, as
-// it always was, and so is a font, or by a font's type; a type of video,
-// audio or image is never text: a .ts is a camera's as often as TypeScript,
-// and a system that knows the camera's says video/mp2t.
+// it always was, and so is a font, or by a font's type; an email is one by
+// .eml or .msg, or by its type; a type of video, audio or image is never
+// text: a .ts is a camera's as often as TypeScript, and a system that knows
+// the camera's says video/mp2t.
 export const CODE_EXTS = 'js jsx mjs cjs ts tsx py rb go rs c h cpp cc java kt swift sh bash zsh sql css scss html htm xml json yml yaml toml'.split(' ');
 export const FAMILY_EXTS = Object.freeze({
   markdown: ['md', 'markdown', 'mdown', 'mkd'],
@@ -116,6 +117,7 @@ export const FAMILY_EXTS = Object.freeze({
   code: CODE_EXTS,
   text: 'txt text log ini env conf cfg nfo'.split(' '),
   font: ['ttf', 'otf', 'woff', 'woff2', 'ttc'],
+  mail: ['eml', 'msg'],
 });
 export const DRAWN_FAMILIES = Object.keys(FAMILY_EXTS);
 const FAMILY_OF = new Map(DRAWN_FAMILIES.flatMap((family) => FAMILY_EXTS[family].map((e) => [e, family])));
@@ -126,6 +128,7 @@ export function fileFamily(ext, mime = '') {
   const m = String(mime || '').toLowerCase();
   if (DOC_SET.has(e)) return 'doc';
   if (/^font\/|^application\/(x-)?font-/.test(m)) return 'font';
+  if (m === 'message/rfc822' || m === 'application/vnd.ms-outlook') return 'mail';
   if (/^(video|audio|image)\//.test(m)) return null;
   const family = FAMILY_OF.get(e);
   if (family) return family;

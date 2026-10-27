@@ -169,6 +169,11 @@ test("a file's family comes from its extension, then its type; a video's type is
   assert.equal(fileFamily('TTC'), 'font');
   assert.equal(fileFamily('', 'font/ttf'), 'font');
   assert.equal(fileFamily('', 'application/font-woff'), 'font');
+  assert.equal(fileFamily('eml'), 'mail');
+  assert.equal(fileFamily('MSG'), 'mail');
+  assert.equal(fileFamily('', 'message/rfc822'), 'mail');
+  assert.equal(fileFamily('x', 'application/vnd.ms-outlook'), 'mail');
+  assert.deepEqual(fileDropSize('eml'), DOC_DROP_PAGE);
   assert.equal(fileFamily('zip'), null);
   assert.equal(fileFamily(''), null);
   assert.ok(DRAWN_FAMILIES.every(isDrawnFamily));

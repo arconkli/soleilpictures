@@ -10,3 +10,8 @@ export const TABLE_STAGE_MAX_CELLS = 100_000;
 // The largest font a card or Quick look loads (the whole file is read to
 // draw it); over it the card keeps its icon.
 export const FONT_FACE_MAX_BYTES = 16 * 1024 * 1024;
+// An email card reads its first 256 KB for the letter; Quick look reads the
+// whole message up to 50 MB, and a card over 4 MB keeps its icon.
+export const MAIL_CARD_MAX_BYTES = 4 * 1024 * 1024;
+export const MAIL_HEAD_BYTES = 256 * 1024;
+export const MAIL_MAX_BYTES = 50 * 1024 * 1024;
