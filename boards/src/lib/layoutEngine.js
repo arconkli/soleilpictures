@@ -209,8 +209,11 @@ export function relativeLayout(items, opts = {}) {
         ...(Number.isFinite(opts.columns) ? { maxCols: Math.max(1, opts.columns) } : {}),
       }));
     case 'grid':
+      // Laid out from (8, 8), not (0, 0): arrangeInFreeSpace floors every
+      // position at 8, which pressed the first column and row 8px into the
+      // second and left the grid's first gaps 16 where the rest are 24.
       return toOrigin(arrangeInFreeSpace(null, list, {
-        gap, margin: 0, startBelowGap: 0,
+        gap, margin: 8, startBelowGap: 0,
         ...(Number.isFinite(opts.columns) ? { maxCols: Math.max(1, opts.columns) } : {}),
       }));
     case 'row':
@@ -225,6 +228,110 @@ export function relativeLayout(items, opts = {}) {
         rowHeight: Number.isFinite(opts.rowHeight) ? Math.max(40, opts.rowHeight) : TARGET_ROW_HEIGHT,
       });
   }
+}
+
+// ── Groups ───────────────────────────────────────────────────────────────────
+//
+// A group is drawn as ONE outline round all its cards, 12px out, with its name
+// 22px above that (CanvasSurface's groupOutlineEls; a test keeps these equal).
+// Lay grouped cards out as one list and two groups' cards share rows: each
+// outline then takes in the other group's cards, and the names land on cards.
+// That is what an assistant got by adding four groups' cards in one call, and
+// what Tidy up did to the board after. So grouped cards are laid out a group at
+// a time, each group as its own block with room for its outline and name, and
+// the blocks are then set out like cards.
+export const GROUP_OUTLINE_PAD = 12;
+export const GROUP_LABEL_ROOM = GROUP_OUTLINE_PAD + 22;
+// Between two groups' blocks, outline to outline.
+const GROUP_GAP = 48;
+
+const groupOf = (c) => (c?.groupId ? String(c.groupId) : null);
+
+// Positions of `items` by group, in the order each group first appears; cards
+// in no group are one part more. null when nothing is grouped.
+function partsByGroup(items) {
+  const parts = new Map();
+  items.forEach((it, i) => {
+    const key = groupOf(it);
+    if (!parts.has(key)) parts.set(key, []);
+    parts.get(key).push(i);
+  });
+  if (parts.size === 1 && parts.has(null)) return null;
+  return [...parts].map(([group, idx]) => ({ group, idx }));
+}
+
+// The rectangle a group's outline and name take round its cards' bounds.
+function frameOf(b) {
+  return {
+    x: b.x - GROUP_OUTLINE_PAD,
+    y: b.y - GROUP_LABEL_ROOM,
+    w: b.right - b.x + 2 * GROUP_OUTLINE_PAD,
+    h: b.bottom - b.y + GROUP_LABEL_ROOM + GROUP_OUTLINE_PAD,
+  };
+}
+
+const overlapping = (a, b) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+// Blocks side by side in rows, in order, a row no wider than one and a half
+// times the side of a square of the same area (or the widest block); for row
+// and column, one line of them.
+function setOutBlocks(blocks, layout, gap) {
+  if (layout === 'row' || layout === 'column') {
+    let run = 0;
+    return blocks.map((b) => {
+      const at = layout === 'row' ? { x: run, y: 0 } : { x: 0, y: run };
+      run += (layout === 'row' ? b.w : b.h) + gap;
+      return { ...b, ...at };
+    });
+  }
+  const area = blocks.reduce((s, b) => s + b.w * b.h, 0);
+  const width = Math.max(...blocks.map((b) => b.w), Math.round(Math.sqrt(area) * 1.5));
+  let x = 0;
+  let y = 0;
+  let rowH = 0;
+  return blocks.map((b) => {
+    if (x > 0 && x + b.w > width) {
+      x = 0;
+      y += rowH + gap;
+      rowH = 0;
+    }
+    const at = { ...b, x, y };
+    x += b.w + gap;
+    rowH = Math.max(rowH, b.h);
+    return at;
+  });
+}
+
+/**
+ * relativeLayout, keeping each group's cards together: every group is laid out
+ * on its own, framed with room for its outline and name, and the frames are set
+ * out like cards. Cards in no group make one block more, unframed. Without
+ * groups it IS relativeLayout. Returns the items in the order given, the cards'
+ * top-left at (0, 0) as relativeLayout's are, so tidying a tidy board moves
+ * nothing.
+ */
+export function relativeLayoutByGroup(items, opts = {}) {
+  const list = (items || []).filter(Boolean);
+  const parts = partsByGroup(list);
+  if (!parts) return relativeLayout(list, opts);
+  const gap = Number.isFinite(opts.gap) ? Math.max(0, opts.gap) : LAYOUT_GAP;
+
+  const blocks = parts.map(({ group, idx }) => {
+    const laid = toOrigin(relativeLayout(idx.map((i) => list[i]), opts));
+    const b = blockBounds(laid);
+    const left = group ? GROUP_OUTLINE_PAD : 0;
+    const top = group ? GROUP_LABEL_ROOM : 0;
+    return { idx, laid, left, top, w: b.w + 2 * left, h: b.h + top + left };
+  });
+
+  const out = new Array(list.length);
+  for (const b of setOutBlocks(blocks, opts.layout, Math.max(gap, GROUP_GAP))) {
+    b.laid.forEach((c, n) => {
+      out[b.idx[n]] = { ...c, x: c.x + b.x + b.left, y: c.y + b.y + b.top };
+    });
+  }
+  return toOrigin(out);
 }
 
 /**
@@ -251,7 +358,7 @@ export function arrange(existingCards, items, opts = {}) {
   if (!list.length) return [];
 
   const gap = Number.isFinite(opts.gap) ? Math.max(0, opts.gap) : LAYOUT_GAP;
-  const placed = relativeLayout(list, { ...opts, gap });
+  const placed = relativeLayoutByGroup(list, { ...opts, gap });
 
   const solid = withGeometry(existingCards);
   const at = opts.origin;
@@ -423,4 +530,74 @@ export function rearrange(allCards, cardIds, opts = {}) {
     ...opts,
     origin: anchor ? { x: anchor.x, y: anchor.y } : undefined,
   });
+}
+
+/**
+ * Where grouped cards added without a position go. Cards for a group that
+ * already has cards on the board land under them, else to their right, as a
+ * grid, wherever the group's outline round old and new together then covers
+ * nothing it didn't already: no card from outside the group, no other group's
+ * outline or name. Everything else is laid out by group (grid) below the whole
+ * board, as arrangeExisting puts an ungrouped batch. Returns the items in the
+ * order given.
+ */
+export function placeGrouped(existingCards, items, opts = {}) {
+  const list = (items || []).filter(Boolean);
+  if (!list.length) return [];
+  const gap = Number.isFinite(opts.gap) ? Math.max(0, opts.gap) : LAYOUT_GAP;
+  const settled = withGeometry(existingCards);
+  const out = new Array(list.length);
+  const rest = [];
+
+  for (const { group, idx } of partsByGroup(list) || [{ group: null, idx: list.map((_, i) => i) }]) {
+    const members = group ? settled.filter((c) => groupOf(c) === group) : [];
+    const block = members.length
+      ? toOrigin(relativeLayout(idx.map((i) => list[i]), { layout: 'grid', gap }))
+      : null;
+    const spot = block && besideGroup(group, members, blockBounds(block), settled, gap);
+    if (!spot) {
+      rest.push(...idx);
+      continue;
+    }
+    block.forEach((c, n) => {
+      const card = { ...c, x: Math.round(c.x + spot.x), y: Math.round(c.y + spot.y) };
+      out[idx[n]] = card;
+      settled.push(card);
+    });
+  }
+
+  if (rest.length) {
+    arrange(settled, rest.map((i) => list[i]), {
+      layout: 'grid', gap, startBelowGap: opts.startBelowGap ?? 64,
+    }).forEach((c, n) => { out[rest[n]] = c; });
+  }
+  return out.filter(Boolean);
+}
+
+// Under the group's cards, else to their right — the first spot where the
+// group's frame round its cards and `block` (w×h) overlaps nothing outside the
+// group that its frame doesn't overlap already. null when neither is clear.
+function besideGroup(group, members, block, settled, gap) {
+  const gb = blockBounds(members);
+  const outside = settled.filter((c) => groupOf(c) !== group);
+  const frames = new Map();
+  for (const c of outside) {
+    const g = groupOf(c);
+    if (g) frames.set(g, [...(frames.get(g) || []), c]);
+  }
+  const obstacles = [
+    ...outside,
+    ...[...frames.values()].filter((m) => m.length >= 2).map((m) => frameOf(blockBounds(m))),
+  ];
+  const already = new Set(obstacles.filter((o) => overlapping(frameOf(gb), o)));
+  for (const spot of [{ x: gb.x, y: gb.bottom + gap }, { x: gb.right + gap, y: gb.y }]) {
+    const frame = frameOf({
+      x: Math.min(gb.x, spot.x),
+      y: Math.min(gb.y, spot.y),
+      right: Math.max(gb.right, spot.x + block.w),
+      bottom: Math.max(gb.bottom, spot.y + block.h),
+    });
+    if (obstacles.every((o) => already.has(o) || !overlapping(frame, o))) return spot;
+  }
+  return null;
 }

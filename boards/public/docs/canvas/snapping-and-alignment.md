@@ -62,6 +62,10 @@ is one undo step.
 Justified rows is the only one that resizes cards — fitting a row to a width is
 a resize. The rest only move things.
 
+Cards in a [group](/docs/canvas/groups) stay together: each group is tidied as
+its own block, with room for its outline and name, so no group's outline ends up
+round another group's cards.
+
 The same layouts are available over the [API](/docs/api/arrange), so an
 assistant can tidy a board too.
 

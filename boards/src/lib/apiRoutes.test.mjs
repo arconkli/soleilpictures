@@ -14,6 +14,7 @@ import { handleApiRoute } from '../worker-api.js';
 import { UNTRUSTED_NOTE } from './mcpTools.js';
 import { cardToYMap, bytesToB64, b64ToBytes, readCards, readGroups } from './yhelpers.js';
 import { imageSecret, verifySignedImage, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './signedImage.js';
+import { GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM } from './layoutEngine.js';
 
 const ENV = {
   SUPABASE_URL: 'https://db.test',
@@ -1249,6 +1250,32 @@ test('a group made or changed through the API is saved the way the app reads it'
   assert.equal(read[made.body.group.id].name, 'Favorites');
   assert.deepEqual([read['g-old'].name, read['g-old'].outline, read['g-old'].createdAt],
     ['To watch', true, '2026-10-27T21:29:24Z'], 'the old fields kept, the new name set');
+});
+
+// An assistant added four groups' notes in one call on 2026-10-27, without
+// positions: they landed as one grid with the groups mixed in its rows, and
+// every group's outline took in other groups' cards.
+test('cards added without positions land a group at a time, each outline round its own cards only', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g1', name: 'Canon' }, { id: 'g2', name: 'Journal' }]);
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: ['g1', 'g1', 'g1', 'g2', 'g2', 'g1', null].map((group_id, i) => ({ kind: 'note', title: `n${i}`, group_id })),
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const cards = cardsOn(B1);
+  assert.equal(cards.length, 7);
+  const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  for (const g of ['g1', 'g2']) {
+    const m = cards.filter((c) => c.groupId === g);
+    const x = Math.min(...m.map((c) => c.x)); const y = Math.min(...m.map((c) => c.y));
+    const frame = {
+      x: x - GROUP_OUTLINE_PAD, y: y - GROUP_LABEL_ROOM,
+      w: Math.max(...m.map((c) => c.x + c.w)) - x + 2 * GROUP_OUTLINE_PAD,
+      h: Math.max(...m.map((c) => c.y + c.h)) - y + GROUP_LABEL_ROOM + GROUP_OUTLINE_PAD,
+    };
+    for (const c of cards.filter((o) => o.groupId !== g)) {
+      assert.equal(hit(frame, c), false, `${g}'s outline takes in ${c.title}`);
+    }
+  }
 });
 
 test('read_board over /mcp says what it read in its first line, then the JSON, people\'s text marked', async () => {

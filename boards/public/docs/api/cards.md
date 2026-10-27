@@ -2,7 +2,7 @@
 
 > Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
-_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-25_
+_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-27_
 
 ## The card object
 
@@ -174,7 +174,11 @@ Either shape works:
 Up to **1000** cards per call; more gets `400`.
 
 **Auto-placement.** Cards without `x`/`y` are placed in free space, so a batch
-cannot land on top of existing content. Pass both to place one yourself.
+cannot land on top of existing content. Pass both to place one yourself. Cards
+with a `group_id` land a group at a time: each group's cards together, with
+room for the group's outline and name, so no group's outline takes in another
+group's cards. New cards for a group that already has cards on the board go
+under those cards, or beside them, when there is room there.
 
 ### Laying cards out
 

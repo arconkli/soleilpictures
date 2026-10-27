@@ -2,7 +2,7 @@
 
 > POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group_id, and a section_header flag.
 
-_Source: https://clusters.soleilpictures.com/docs/api/arrange · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/docs/api/arrange · Updated 2026-10-27_
 
 Placing cards is half of an API that works. The other half is that what lands
 looks composed rather than spilled.
@@ -50,6 +50,12 @@ where a shared cell reads as a clean matrix. For photographs of different shapes
 it leaves a hole around every portrait, which is what `justified` fixes.
 
 **`row`** and **`column`** — a single line, cross-axis centred.
+
+**Groups stay together.** Cards in a [group](/docs/canvas/groups) are laid out a
+group at a time, each group as its own block with room for its outline and
+name, and the blocks are set out side by side (in one line for `row` and
+`column`). Cards in no group make one block more. Arranging a board that is
+already arranged moves nothing.
 
 ### Knobs
 

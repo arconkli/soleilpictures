@@ -1020,7 +1020,8 @@ export const TOOLS = [
     name: 'add_cards',
     title: 'Add cards to a board',
     description: 'ADDS cards to a board. Existing cards are never touched, and new cards are '
-      + 'positioned in free space so they cannot cover anything already there. Give x and y only '
+      + 'positioned in free space so they cannot cover anything already there; cards given a '
+      + 'group_id land a group at a time, each group together under its name. Give x and y only '
       + 'if you specifically want to place a card yourself. For an image card, call upload_image '
       + 'first and pass the image_key it returns.',
     annotations: WRITES,
@@ -1412,7 +1413,8 @@ export const TOOLS = [
     description: 'ARRANGES cards spatially. "justified" fits rows flush on both edges with each '
       + 'picture at its true aspect ratio — the right answer for photographs, and the default. '
       + '"masonry" is colour-ordered columns, "grid" uniform cells (best for mixed kinds), '
-      + '"row" and "column" single lines. Omit card_ids to arrange the whole board. The block '
+      + '"row" and "column" single lines. Cards in a group stay together, one block per group. '
+      + 'Omit card_ids to arrange the whole board. The block '
       + 'stays where it already was and is kept clear of cards it is not moving. Use dry_run to '
       + 'see where things would land, and to compare two layouts, before moving anyone’s board.',
     annotations: EDITS,

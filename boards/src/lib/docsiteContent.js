@@ -14432,6 +14432,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Cards in a "
+    },
+    {
+     "t": "link",
+     "v": "group",
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " stay together: each group is tidied as its own block, with room for its outline and name, so no group's outline ends up round another group's cards."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "The same layouts are available over the "
     },
     {
@@ -57233,7 +57257,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself."
+     "v": " are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself. Cards with a "
+    },
+    {
+     "t": "code",
+     "v": "group_id"
+    },
+    {
+     "t": "text",
+     "v": " land a group at a time: each group's cards together, with room for the group's outline and name, so no group's outline takes in another group's cards. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there."
     }
    ]
   },
@@ -63504,6 +63536,56 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " — a single line, cross-axis centred."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Groups stay together.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Groups stay together."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Cards in a "
+    },
+    {
+     "t": "link",
+     "v": "group",
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are laid out a group at a time, each group as its own block with room for its outline and name, and the blocks are set out side by side (in one line for "
+    },
+    {
+     "t": "code",
+     "v": "row"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "column"
+    },
+    {
+     "t": "text",
+     "v": "). Cards in no group make one block more. Arranging a board that is already arranged moves nothing."
     }
    ]
   },

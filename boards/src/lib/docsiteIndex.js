@@ -3492,7 +3492,7 @@ export const DOCS_PAGES = [
     "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
     "section": "developers",
     "order": 4,
-    "updated": "2026-10-25",
+    "updated": "2026-10-27",
     "navLabel": "Cards",
     "headings": [
       {
@@ -3905,7 +3905,7 @@ export const DOCS_PAGES = [
     "answer": "POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group_id, and a section_header flag.",
     "section": "developers",
     "order": 7,
-    "updated": "2026-08-10",
+    "updated": "2026-10-27",
     "navLabel": "Arrange",
     "headings": [
       {

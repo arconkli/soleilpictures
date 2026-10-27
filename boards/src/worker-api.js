@@ -89,7 +89,7 @@ import {
 } from './lib/mcpDrafts.js';
 import { makeEdgeLimiter } from './lib/edgeLimits.js';
 import {
-  arrange, rearrange, LAYOUTS, DEFAULT_LAYOUT, isLayout,
+  arrange, rearrange, placeGrouped, LAYOUTS, DEFAULT_LAYOUT, isLayout,
 } from './lib/layoutEngine.js';
 import {
   normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
@@ -468,9 +468,11 @@ function layoutCards(built, existing, layoutOpts = null) {
       .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
   }
   const needsLayout = built.filter((c) => !Number.isFinite(c.x) || !Number.isFinite(c.y));
-  const placed = needsLayout.length
-    ? arrangeExisting({ existingCards: existing, cards: needsLayout })
-    : [];
+  // Grouped cards land a group at a time, by their group's other cards when
+  // there is room, so no group's outline takes in another group's cards.
+  const placed = !needsLayout.length ? []
+    : needsLayout.some((c) => c.groupId) ? placeGrouped(existing, needsLayout)
+      : arrangeExisting({ existingCards: existing, cards: needsLayout });
   const byId = new Map(placed.map((c) => [c.id, c]));
   return built
     .map((c) => byId.get(c.id) || c)
