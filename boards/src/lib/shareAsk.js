@@ -26,9 +26,17 @@
 // import so moving one does not silently move the other.
 export const SHARE_ASK_MIN_CARDS = 6;
 
+// At most one ask a week per account (owner, 2026-10-27). The per-cluster
+// stamp alone stopped being a limit once clusters went free: a busy account
+// crossed six cards on cluster after cluster and was asked every time, and
+// almost nobody took it. App keeps the account's last show beside the
+// per-cluster stamp and passes it in as `lastAskedAt`.
+export const SHARE_ASK_GAP_MS = 7 * 24 * 60 * 60 * 1000;
+
 // Offer iff the cluster has enough in it to be worth showing, the viewer can
-// actually produce a link, they haven't already shared this board, and they
-// haven't waved the ask away for it.
+// actually produce a link, they haven't already shared this board, they
+// haven't waved the ask away for it, and the account hasn't been asked in the
+// last week.
 //
 // `alreadyShared` is the honest half of this: once a board has a live link the
 // user has already done the thing, and asking again is nagging rather than
@@ -42,13 +50,31 @@ export function shouldAskToShare(opts) {
     alreadyShared = false,
     dismissed = false,
     min = SHARE_ASK_MIN_CARDS,
+    lastAskedAt = null,
+    now = Date.now(),
   } = opts || {};
 
   if (!canEdit || alreadyShared || dismissed) return false;
+  if (askedWithinGap(lastAskedAt, now)) return false;
 
   const n = Number(genuineCards);
   const floor = Number(min);
   if (!Number.isFinite(n) || !Number.isFinite(floor)) return false;
 
   return n >= floor;
+}
+
+// `lastAskedAt` arrives straight from localStorage: a string, null, or junk.
+// Junk is ignored rather than obeyed, so a bad stamp costs one extra ask and
+// is then rewritten, instead of retiring the ask for the account for good.
+// Number(null) and Number('') are 0, which reads as "long ago", but they are
+// screened first anyway. A stamp more than a week AHEAD of the clock (a clock
+// that was wrong when it was written) is junk by the same rule; one a little
+// ahead (a clock nudged back) still counts.
+function askedWithinGap(lastAskedAt, now) {
+  if (lastAskedAt == null || lastAskedAt === '') return false;
+  const last = Number(lastAskedAt);
+  const t = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+  if (!Number.isFinite(last)) return false;
+  return Math.abs(t - last) < SHARE_ASK_GAP_MS;
 }

@@ -1,22 +1,26 @@
 // Share panel — everything about who can open one cluster, laid out the way
 // people already know from shared documents, in the order they decide it:
 //
-//   1. Invite — email, then "Can edit ▾ in This cluster | Whole workspace", a
-//      line saying by name what that grants, and what inviting someone NEW
-//      earns (InviteRewardNote). Above it, near or at the 10-editor limit, a
+//   1. Share a link — "Anyone with the link · Can view ▾", the one button that
+//      makes the link and copies it right under it, then Link settings
+//   2. Invite people — email, then "Can edit ▾ in This cluster | Whole
+//      workspace", a line saying by name what that grants, and what inviting
+//      someone NEW earns (InviteRewardNote). Near or at the 10-editor limit, a
 //      note says so (EditorLimitNote, the owner's pick B, 2026-10-21)
-//   2. Who has access — one list, every row the same shape (who on the left,
-//      what they can do on the right), ending with the link: "Anyone with
-//      the link"
-//   3. Publish to Explore — collapsed
-//   …and a footer that stays put: Copy link, Done.
+//   3. Who has access — the people, every row the same shape (who on the
+//      left, what they can do on the right)
+//   4. Publish to Explore — collapsed
+//   …and a footer that stays put: Done.
 //
-// The panel used to open on the link picker, with invitations second and
-// labelled like a permissions console ("GENERAL ACCESS", "INVITE SPECIFIC
-// PEOPLE"). It explained nothing about roles and never mentioned that an
-// invitation pays both people. Copy link moved to the footer rather than away:
-// it is still the first thing focused, so Share then Enter is still a link on
-// the clipboard.
+// The link leads because a link is what most people open Share for. From
+// 2026-10-18 the panel opened on the invite box, with the link as the last row
+// of Who has access and Copy link in the footer, and far fewer of the people
+// who opened Share left with a link; invitations didn't rise to make up for it.
+// The owner's pick A (2026-10-27) put the link back on top, keeping everything
+// 10-18 added: before it the panel was labelled like a permissions console
+// ("GENERAL ACCESS", "INVITE SPECIFIC PEOPLE"), explained nothing about roles
+// and never mentioned that an invitation pays both people. The link button is
+// the first thing focused, so Share then Enter is a link on the clipboard.
 //
 // The two link kinds (anonymous view-only, and sign-in-then-join-as-editor)
 // are not two features to somebody deciding what to send a person. They are one
@@ -312,14 +316,17 @@ export function ShareModal({
   // recorded exactly once. It used to emit nothing at all from inside this
   // modal, leaving share_open as the last observable step of the funnel.
   // `kind` must be passed on the mint paths: a freshly created link isn't in
-  // publicLinks until the list refetches.
-  const copyLinkUrl = async (token, kind) => {
+  // publicLinks until the list refetches. `position` names the button that
+  // copied when the panel's layout is what's being read ('top': the link
+  // block's button, since the owner's pick A of 2026-10-27).
+  const copyLinkUrl = async (token, kind, position) => {
     const url = `${window.location.origin}/share/${token}`;
     try {
       logEventNow(EV.SHARE_LINK_COPIED, {
         kind: kind || (publicLinks.find(l => l.token === token)?.kind === 'invite' ? 'invite' : 'view'),
         surface: 'share_modal',
         board_id: board.id,
+        ...(position ? { position } : {}),
       });
     } catch (_) {}
     try { await navigator.clipboard.writeText(url); return true; }
@@ -380,7 +387,7 @@ export function ShareModal({
       }
       // Refresh the board's OG thumbnail so the link unfurls with a real preview.
       if (!reused) { try { onLinkCreated?.(); } catch (_) {} }
-      const copied = await copyLinkUrl(token, kind);
+      const copied = await copyLinkUrl(token, kind, 'top');
       // If the clipboard write failed (permissions, non-secure context), say
       // so — the link is listed under Link settings with a Copy button, so
       // point there instead of pretending it copied.
@@ -1012,8 +1019,8 @@ export function ShareModal({
         : `They can add, move and delete cards in “${boardName}” and its sub-clusters.${freeEditors}`;
 
   // Gold marks the action the panel is about to take, and only one control
-  // carries it. At rest that is Copy link — it has focus, so Share → Enter
-  // copies. While there are addresses in the box it is Invite. Under "No
+  // carries it. At rest that is Copy link, at the top — it has focus, so
+  // Share → Enter copies. While there are addresses in the box it is Invite. Under "No
   // link" there is no link to copy, so nothing is gold.
   const goldControl = !canInvite ? null
     : inviteEmail.trim() ? 'invite'
@@ -1026,8 +1033,8 @@ export function ShareModal({
   const linkStatus = () => {
     if (accessMode === 'off') {
       return live.length > 0
-        ? `Only the people above, plus ${live.length} link${live.length === 1 ? '' : 's'} still live`
-        : 'Only the people above can open it';
+        ? `Only the people below, plus ${live.length} link${live.length === 1 ? '' : 's'} still live`
+        : 'Only the people below can open it';
     }
     // While the plan is full, an edit link lets people in to view (0521).
     const what = accessMode === 'edit'
@@ -1152,12 +1159,111 @@ export function ShareModal({
             regions stacked inside one dialog. The footer sits outside it. */}
         <div className="share-body">
 
+        {/* THE LINK — first, because a link is what most people open Share
+            for (the owner's pick A, 2026-10-27). Its dropdown is the same
+            three answers it always had, the one button that makes the link
+            and copies it sits right under it, and anything more about a link
+            lives under Link settings. */}
+        {canInvite && (
+          <div className="share-section share-linkblock">
+            <h3 className="share-section-title">Share a link</h3>
+            <div className="share-list">
+              {personRow({
+                key: '__link',
+                className: 'share-row-link',
+                avatar: (
+                  <span className="share-avatar share-avatar-link" aria-hidden="true">
+                    <Glyph as={accessMode === 'off' ? LockIcon : GlobeIcon} size={14} weight="regular" />
+                  </span>
+                ),
+                name: accessMode === 'off' ? 'Link sharing is off' : 'Anyone with the link',
+                sub: (
+                  <>
+                    {linkStatus()}
+                    {otherLinks.length > 0 && (
+                      <>
+                        {' · '}
+                        <button type="button" className="share-linkish"
+                                onClick={() => setLinkSettingsOpen(true)}>
+                          {otherLinks.length} other link{otherLinks.length === 1 ? '' : 's'} live
+                        </button>
+                      </>
+                    )}
+                  </>
+                ),
+                control: (
+                  <select className="share-access-pick share-link-pick"
+                          aria-label="Who can open this cluster with a link"
+                          value={accessMode}
+                          onChange={(e) => onPickAccess(e.target.value)}>
+                    <option value="view">Can view</option>
+                    <option value="edit">Can edit</option>
+                    <option value="off">No link</option>
+                  </select>
+                ),
+              })}
+            </div>
+            <div className="share-link-actions">
+              <button className={'share-invite-btn share-link-copy' + goldIf('copy')}
+                      ref={copyLinkRef}
+                      onClick={takeLink}
+                      disabled={busyLink || accessMode === 'off'}
+                      title={accessMode === 'off'
+                        ? 'Nobody can open this by link — pick Can view or Can edit above first'
+                        : 'Copies the existing link when one is already live.'}>
+                <Glyph as={LinkIcon} size={14} />{' '}
+                {busyLink ? 'Working…' : currentLink ? 'Copy link' : 'Create link & copy'}
+              </button>
+            </div>
+            <details className="share-link-options"
+                     open={linkSettingsOpen}
+                     onToggle={(e) => setLinkSettingsOpen(e.currentTarget.open)}>
+              <summary className="share-hint">Link settings</summary>
+              <div className="share-link-create">
+                <label className="share-link-opt">
+                  Expires:
+                  <select className="share-role-select"
+                          value={accessMode === 'edit' ? inviteLinkExpiry : linkExpiry}
+                          onChange={(e) => (accessMode === 'edit'
+                            ? setInviteLinkExpiry(e.target.value)
+                            : setLinkExpiry(e.target.value))}>
+                    <option value="never">Never</option>
+                    <option value="7d">In 7 days</option>
+                    <option value="30d">In 30 days</option>
+                  </select>
+                </label>
+                {/* Invite links cover the subtree inherently, so the scope
+                    choice only means something for a view-only link. */}
+                {accessMode !== 'edit' && (
+                  <label className="share-link-opt">
+                    <input type="checkbox"
+                           checked={linkIncludeSubboards}
+                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
+                    Include sub-clusters
+                  </label>
+                )}
+              </div>
+              <div className="share-hint">
+                Applies to the next link you create. Existing links keep their own
+                settings — change them below.
+              </div>
+
+              {live.length > 0 && (
+                <div className="share-list" style={{ marginTop: 10 }}>
+                  {live.map(linkRow)}
+                </div>
+              )}
+            </details>
+          </div>
+        )}
+
         {/* INVITE — the address first, then what they get and how far it
             reaches, as a sentence: "Can edit ▾ in This cluster | Whole
             workspace". The line under it says exactly what that means by name,
             and the note under that says what inviting someone new earns. */}
         {canInvite && (
           <div className="share-section share-invite">
+            <h3 className="share-section-title">Invite people</h3>
             <EditorLimitNote note={limitNote}
                              onSeeWho={onSeeEditors ? seeEditors : null}
                              onAsk={askForRoom}
@@ -1219,10 +1325,10 @@ export function ShareModal({
           </div>
         )}
 
-        {/* WHO HAS ACCESS — everyone, in one list, and the link last: a link
-            is just another answer to "who can open this". Rows with access to
-            the whole workspace say so in their right-hand label, so a bare
-            "Can edit" always means this cluster. */}
+        {/* WHO HAS ACCESS — the people, in one list; the link has its own
+            block at the top. Rows with access to the whole workspace say so in
+            their right-hand label, so a bare "Can edit" always means this
+            cluster. */}
         <div className="share-section">
           <h3 className="share-section-title">Who has access · {accessCount}</h3>
           <div className="share-list">
@@ -1356,88 +1462,7 @@ export function ShareModal({
                 </select>
               ) : accessLabel(row.role === 'editor' ? 'Invited · can edit' : 'Invited · can view'),
             }))}
-
-            {/* THE LINK — the last row, because it is one more answer to "who
-                can open this": anyone holding it. Its dropdown is the same
-                three answers it always had; anything more about a link lives
-                under Link settings below. */}
-            {canInvite && personRow({
-              key: '__link',
-              className: 'share-row-link',
-              avatar: (
-                <span className="share-avatar share-avatar-link" aria-hidden="true">
-                  <Glyph as={accessMode === 'off' ? LockIcon : GlobeIcon} size={14} weight="regular" />
-                </span>
-              ),
-              name: accessMode === 'off' ? 'Link sharing is off' : 'Anyone with the link',
-              sub: (
-                <>
-                  {linkStatus()}
-                  {otherLinks.length > 0 && (
-                    <>
-                      {' · '}
-                      <button type="button" className="share-linkish"
-                              onClick={() => setLinkSettingsOpen(true)}>
-                        {otherLinks.length} other link{otherLinks.length === 1 ? '' : 's'} live
-                      </button>
-                    </>
-                  )}
-                </>
-              ),
-              control: (
-                <select className="share-access-pick share-link-pick"
-                        aria-label="Who can open this cluster with a link"
-                        value={accessMode}
-                        onChange={(e) => onPickAccess(e.target.value)}>
-                  <option value="view">Can view</option>
-                  <option value="edit">Can edit</option>
-                  <option value="off">No link</option>
-                </select>
-              ),
-            })}
           </div>
-
-          {canInvite && (
-            <details className="share-link-options"
-                     open={linkSettingsOpen}
-                     onToggle={(e) => setLinkSettingsOpen(e.currentTarget.open)}>
-              <summary className="share-hint">Link settings</summary>
-              <div className="share-link-create">
-                <label className="share-link-opt">
-                  Expires:
-                  <select className="share-role-select"
-                          value={accessMode === 'edit' ? inviteLinkExpiry : linkExpiry}
-                          onChange={(e) => (accessMode === 'edit'
-                            ? setInviteLinkExpiry(e.target.value)
-                            : setLinkExpiry(e.target.value))}>
-                    <option value="never">Never</option>
-                    <option value="7d">In 7 days</option>
-                    <option value="30d">In 30 days</option>
-                  </select>
-                </label>
-                {/* Invite links cover the subtree inherently, so the scope
-                    choice only means something for a view-only link. */}
-                {accessMode !== 'edit' && (
-                  <label className="share-link-opt">
-                    <input type="checkbox"
-                           checked={linkIncludeSubboards}
-                           onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
-                    Include sub-clusters
-                  </label>
-                )}
-              </div>
-              <div className="share-hint">
-                Applies to the next link you create. Existing links keep their own
-                settings — change them below.
-              </div>
-
-              {live.length > 0 && (
-                <div className="share-list" style={{ marginTop: 10 }}>
-                  {live.map(linkRow)}
-                </div>
-              )}
-            </details>
-          )}
         </div>
 
         <ExplorePublishSection board={board} canManage={canInvite} collapsible />
@@ -1452,22 +1477,10 @@ export function ShareModal({
         )}
         </div>
 
-        {/* The footer stays put while the body scrolls: the link is one press
-            away wherever you are in the panel, and Done is where a thumb is on
-            a phone. Viewers cannot make a link, so they get Done alone. */}
+        {/* The footer stays put while the body scrolls, with Done where a thumb
+            is on a phone. The link's button is at the top, the one copy button
+            in the panel. */}
         <div className="share-foot">
-          {canInvite && (
-            <button className={'share-invite-btn share-foot-btn' + goldIf('copy')}
-                    ref={copyLinkRef}
-                    onClick={takeLink}
-                    disabled={busyLink || accessMode === 'off'}
-                    title={accessMode === 'off'
-                      ? 'Nobody can open this by link — choose who can on the link row first'
-                      : 'Copies the existing link when one is already live.'}>
-              <Glyph as={LinkIcon} size={14} />{' '}
-              {busyLink ? 'Working…' : currentLink ? 'Copy link' : 'Create link & copy'}
-            </button>
-          )}
           <button className="share-invite-btn share-foot-btn share-foot-done"
                   ref={doneRef}
                   onClick={onClose}>

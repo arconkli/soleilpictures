@@ -1,12 +1,16 @@
-// The invite-first Share panel, mounted for real through
-// src/local/shareWorkspaceProbe.js (local QA mode never mounts ShareModal).
+// The link-first Share panel (the owner's pick A, 2026-10-27), mounted for real
+// through src/local/shareWorkspaceProbe.js (local QA mode never mounts
+// ShareModal).
 //
 // What this pins at runtime, where share-panel-simplicity.spec.js pins source:
+//   - the link leads: "Share a link", its row, and its button right under it,
+//     then inviting, then the people; the footer holds Done alone
 //   - focus lands on Copy link (Share → Enter copies), or on Done for a viewer
 //   - one gold control at rest, and it moves to Invite once there are addresses
 //   - the invitation reward is said under the invite box, in the wording for
 //     the tier, with progress once anyone has joined — and never to a viewer
-//   - Escape closes; on a phone the footer is on screen with thumb-sized buttons
+//   - Escape closes; on a phone the link's button spans the sheet in the first
+//     screen, and Done stays on screen, both thumb-sized
 import { expect, test } from '@playwright/test';
 import { inviteRewardCopy, REFERRAL_REWARDS_PER_30_DAYS } from '../src/lib/inviteReward.js';
 
@@ -43,21 +47,36 @@ async function mountPanel(page, { tier = 'demo', canManage = true, stats = null,
   return panel;
 }
 
-test('an editor lands on Copy link, the one gold control, under a panel that leads with inviting', async ({ page }) => {
+test('an editor lands on Copy link, the one gold control, at the top of a panel that leads with the link', async ({ page }) => {
   await boot(page);
   const panel = await mountPanel(page);
-  const copy = panel.locator('.share-foot-btn', { hasText: /Copy link|Create link & copy/ });
+  const copy = panel.locator('.share-link-copy');
+  await expect(copy).toHaveText(/Copy link|Create link & copy/);
   await expect(copy).toBeFocused();
   await expect(panel.locator('.share-btn-gold')).toHaveCount(1);
   await expect(copy).toHaveClass(/share-btn-gold/);
 
-  // The invite row, then everyone with access in one list, the link last.
+  // The link first, under its own title, with its button right under its row;
+  // then inviting; then the people.
+  const block = panel.locator('.share-linkblock');
+  await expect(block.locator('.share-section-title')).toHaveText('Share a link');
+  const linkRow = block.locator('.share-row-link');
+  await expect(linkRow).toContainText('Anyone with the link');
+  await expect(linkRow).toContainText('No account needed · no link yet');
+  await expect(linkRow.locator('select')).toHaveValue('view');
+  const rowBox = await linkRow.boundingBox();
+  const copyBox = await copy.boundingBox();
   const invite = await panel.locator('.share-invite').boundingBox();
   const list = await panel.locator('.share-section-title', { hasText: 'Who has access' }).boundingBox();
+  expect(copyBox.y).toBeGreaterThanOrEqual(rowBox.y + rowBox.height - 0.5);
+  expect(copyBox.y + copyBox.height).toBeLessThan(invite.y);
   expect(invite.y).toBeLessThan(list.y);
-  const lastRow = panel.locator('.share-list > .share-row').last();
-  await expect(lastRow).toContainText('Anyone with the link');
-  await expect(lastRow.locator('select')).toHaveValue('view');
+  await expect(panel.locator('.share-invite .share-section-title')).toHaveText('Invite people');
+  // Who has access is the people alone, and the footer is Done alone: one
+  // link row and one copy button in the whole panel.
+  await expect(panel.locator('.share-row-link')).toHaveCount(1);
+  await expect(panel.locator('.share-foot-btn')).toHaveCount(1);
+  await expect(panel.locator('.share-foot-btn')).toHaveText('Done');
 
   // The role line explains the picker by name, and follows it. An editor of
   // someone else's workspace can only invite to this cluster, and is told so.
@@ -159,7 +178,7 @@ test('the reach of an invitation is one click, and the line under it says what i
 test('Escape closes the panel', async ({ page }) => {
   await boot(page);
   await mountPanel(page);
-  await expect(page.locator('.share-foot-btn').first()).toBeFocused();
+  await expect(page.locator('.share-link-copy')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect.poll(() => page.evaluate(() => window.__sharePanel.closed)).toBe(1);
 });
@@ -167,7 +186,7 @@ test('Escape closes the panel', async ({ page }) => {
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('the footer stays on screen with thumb-sized buttons', async ({ page }) => {
+  test("the link's button spans the sheet in the first screen, and Done stays on screen", async ({ page }) => {
     await boot(page);
     const panel = await mountPanel(page);
     const foot = panel.locator('.share-foot');
@@ -182,6 +201,18 @@ test.describe('on a phone', () => {
     }
     // The body above it is the one scroller; the footer is not inside it.
     expect(await panel.locator('.share-body .share-foot').count()).toBe(0);
+
+    // The link's button: on screen without scrolling, finger-sized, and as
+    // wide as its section's content.
+    const copy = panel.locator('.share-link-copy');
+    const copyBox = await copy.boundingBox();
+    expect(copyBox.y + copyBox.height).toBeLessThanOrEqual(box.y);
+    expect(await copy.evaluate((el) => el.offsetHeight)).toBeGreaterThanOrEqual(44);
+    const room = await panel.locator('.share-linkblock').evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    });
+    expect(Math.abs(copyBox.width - room)).toBeLessThanOrEqual(1);
   });
 });
 

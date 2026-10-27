@@ -114,15 +114,17 @@ test.describe('collab invite-link wiring', () => {
   });
 
   test('the panel is ordered the way people decide who gets in', () => {
-    // Invite-first (owner decision 2026-10-17): naming who you want in comes
-    // first, and is where an invitation's reward is said; then who already has
-    // access; then link access for everyone else; then Explore, collapsed.
-    // The copy moved to a footer that never scrolls away and is still the
-    // first thing focused, so the link path lost nothing.
+    // Link first (the owner's pick A, 2026-10-27): a link is what most people
+    // open Share for, so it leads, with the one button that makes and copies
+    // it right under its row and its settings under that, and it is the first
+    // thing focused. Then naming who you want in, where an invitation's
+    // reward is said; then who already has access; then Explore, collapsed.
+    // From 10-18 the panel led with inviting and kept the copy in the footer,
+    // and far fewer of the people who opened it left with a link.
     const s = share();
-    // The link is the last row of "Who has access", and its settings follow it.
-    const order = ['<div className="share-section share-invite">', 'Who has access · ', "key: '__link'",
-      '<details className="share-link-options"', 'ExplorePublishSection board=', 'className="share-foot"'];
+    const order = ['<div className="share-section share-linkblock">', "key: '__link'", 'ref={copyLinkRef}',
+      '<details className="share-link-options"', '<div className="share-section share-invite">',
+      'Who has access · ', 'ExplorePublishSection board=', 'className="share-foot"'];
     const at = order.map(k => s.indexOf(k));
     at.forEach((i, n) => expect(i, `${order[n]} missing`).toBeGreaterThan(-1));
     expect(at).toEqual([...at].sort((a, b) => a - b));
@@ -136,14 +138,15 @@ test.describe('collab invite-link wiring', () => {
     // the modal it used to emit nothing at all, leaving share_open as the last
     // observable step. One funnel: all copy paths go through copyLinkUrl.
     const s = share();
-    expect(s).toMatch(/const copyLinkUrl = async \(token, kind\)[\s\S]{0,400}EV\.SHARE_LINK_COPIED/);
+    expect(s).toMatch(/const copyLinkUrl = async \(token, kind, position\)[\s\S]{0,400}EV\.SHARE_LINK_COPIED/);
     // The mint paths must name the kind. copyLinkUrl's fallback looks the token
     // up in publicLinks, and a link created a moment ago is not in that list
     // until the refetch lands — so a mint that omits the kind records every new
     // invite link as a view link.
     expect(s).toMatch(/kind = 'invite';/);
     expect(s).toMatch(/kind = 'view';/);
-    expect(s).toMatch(/copyLinkUrl\(token, kind\)/);
+    // The panel's button names its place, so a read can tell its copies apart.
+    expect(s).toMatch(/copyLinkUrl\(token, kind, 'top'\)/);
     expect(s).toMatch(/copyLinkUrl\(existing\.token, next === 'edit' \? 'invite' : 'view'\)/);
     // onCopyPublicLink must delegate rather than write its own clipboard call,
     // or the row "Copy" buttons go dark again.

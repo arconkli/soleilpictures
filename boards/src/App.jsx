@@ -8725,6 +8725,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // slot is claimed. Stamping on a decline would burn the one-shot for this
   // board on a user who never saw anything — the same dead-gate shape that
   // silently retired the first-value banner for whole accounts.
+  //
+  // A second stamp, per account, holds the last show: the ask comes at most
+  // once a week (SHARE_ASK_GAP_MS), whichever cluster crosses the line.
   const quickCopyShareLinkRef = useRef(quickCopyShareLink);
   quickCopyShareLinkRef.current = quickCopyShareLink;
   useEffect(() => {
@@ -8734,14 +8737,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!boardId || boardId !== currentBoard.id) return;
 
       const key = `soleil.shareask.${boardId}`;
+      const lastKey = `soleil.shareask.last.${user.id}`;
       let already = false;
+      let lastAskedAt = null;
       try { already = localStorage.getItem(key) === '1'; } catch (_) {}
+      try { lastAskedAt = localStorage.getItem(lastKey); } catch (_) {}
 
       if (!shouldAskToShare({
         genuineCards: cards,
         canEdit: canEditCurrent,
         alreadyShared: sharedBoardIds.has(boardId),
         dismissed: already,
+        lastAskedAt,
       })) return;
 
       // Somebody else owns this moment (the wall, first-value, the invite
@@ -8749,6 +8756,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!claimUpsellSlot('share-ask')) return;
 
       try { localStorage.setItem(key, '1'); } catch (_) {}
+      try { localStorage.setItem(lastKey, String(Date.now())); } catch (_) {}
       try { logEvent(EV.SHARE_ASK_SHOWN, { board_id: boardId, cards }); } catch (_) {}
       feedback.toast({
         message: 'This cluster is looking good — send it to someone?',
@@ -8764,7 +8772,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     window.addEventListener('soleil:share-ask', onAsk);
     return () => window.removeEventListener('soleil:share-ask', onAsk);
-  }, [currentBoard.id, canEditCurrent, sharedBoardIds, feedback]);
+  }, [currentBoard.id, canEditCurrent, sharedBoardIds, feedback, user.id]);
 
   // Per-row write check for the sidebar board context menu. Uses the same
   // pure decider as currentBoardPerm, callable per-board (a hook can't be).

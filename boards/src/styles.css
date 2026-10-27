@@ -2489,6 +2489,21 @@ body {
   border-color: transparent;
 }
 
+/* The link block's one button, right under "Anyone with the link". It is
+   the panel's main action (the owner's pick A, 2026-10-27), so it is bigger
+   than the panel's other buttons; the gold is .share-btn-gold's, and only
+   while it is the action. On a phone it spans the sheet. */
+.share-link-actions { display: flex; margin: 10px 0 4px; }
+.share-link-copy {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px;
+  padding: 0 18px;
+  font-size: 15px;
+}
+@media (max-width: 640px) {
+  .share-link-copy { width: 100%; }
+}
+
 /* Disclosure holding expiry, scope and the live-link list. Closed by
    default; the marker is the only affordance, so keep it visible. */
 .share-link-options { margin-top: 10px; }
@@ -2606,8 +2621,8 @@ body {
    "N other links live" notice, and a live link must never be hidden. */
 .share-row-link .share-row-sub { white-space: normal; }
 
-/* Outside .share-body, so it never scrolls away: the link is one press from
-   anywhere in the panel, and Done sits where a thumb is on a phone. */
+/* Outside .share-body, so it never scrolls away: Done sits where a thumb is
+   on a phone. */
 .share-foot {
   flex: 0 0 auto;
   display: flex; align-items: center; gap: 8px;
@@ -21742,6 +21757,7 @@ button, [role="button"], a {
   .share-access-pick { max-width: 150px; min-height: 36px; }
   .share-scope-btn { padding: 9px 11px; }
   .share-foot-btn { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .share-link-copy { min-height: 48px; }
   .lim-btn { min-height: 40px; padding-left: 14px; padding-right: 14px; }
   /* Presence: one face and a "+N" (App.jsx passes max=1), overlapped. */
   .topbar .ws-presence { gap: 0; padding: 0 2px; }

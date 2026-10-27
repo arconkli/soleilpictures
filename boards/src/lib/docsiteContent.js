@@ -32402,7 +32402,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " panel answers one question — who can open this cluster? — in the order you decide it: the invite box first, then "
+     "v": " panel answers one question — who can open this cluster? — in the order you decide it: the link first, under "
+    },
+    {
+     "t": "strong",
+     "v": "Share a link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share a link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "Invite people",
+     "children": [
+      {
+       "t": "text",
+       "v": "Invite people"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
     },
     {
      "t": "strong",
@@ -32416,21 +32444,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", one list of everyone who can open it, ending with "
-    },
-    {
-     "t": "strong",
-     "v": "Anyone with the link",
-     "children": [
-      {
-       "t": "text",
-       "v": "Anyone with the link"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. "
+     "v": ", one list of the people who can open it. Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. "
     },
     {
      "t": "strong",
@@ -32444,21 +32458,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and "
+     "v": " sits right under "
     },
     {
      "t": "strong",
-     "v": "Done",
+     "v": "Anyone with the link",
      "children": [
       {
        "t": "text",
-       "v": "Done"
+       "v": "Anyone with the link"
       }
      ]
     },
     {
      "t": "text",
-     "v": " sit at the bottom and stay put while the rest scrolls; anything more detailed about links is behind "
+     "v": ", and anything more detailed about links is behind "
     },
     {
      "t": "strong",
@@ -32472,7 +32486,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", under it. "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " sits at the bottom and stays put while the rest scrolls."
     }
    ]
   },
@@ -32538,21 +32566,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The last row of "
+     "v": "The link has its own row at the top: "
     },
     {
      "t": "strong",
-     "v": "Who has access",
+     "v": "Anyone with the link",
      "children": [
       {
        "t": "text",
-       "v": "Who has access"
+       "v": "Anyone with the link"
       }
      ]
     },
     {
      "t": "text",
-     "v": " is the link. Its dropdown has three answers:"
+     "v": ". Its dropdown has three answers:"
     }
    ]
   },
@@ -32678,7 +32706,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the bottom of the panel copies it again any time, and makes the link the first time. Switching between "
+     "v": ", right under it, copies it again any time, and makes the link the first time. Switching between "
     },
     {
      "t": "strong",
@@ -33680,7 +33708,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, invitations still waiting on a signup, and the link. The right-hand side of each row says what that person can do: a bare "
+     "v": "One list of the people who can open it: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. The link has its own row at the top of the panel. The right-hand side of each row says what that person can do: a bare "
     },
     {
      "t": "strong",
