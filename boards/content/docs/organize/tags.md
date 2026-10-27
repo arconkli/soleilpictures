@@ -114,7 +114,7 @@ before.
 
 Nothing applied automatically is hidden. Open the tag, press **Manage** and
 filter to **Auto** to see everything it picked up on its own. Right-click any
-item for **Confirm tag** or **Remove tag** — removing also keeps that tag off
+item (on a phone, press and hold it) for **Confirm tag** or **Remove tag** — removing also keeps that tag off
 that item for good, so it is never applied there again. In a document, removing
 a tag keeps it off that page.
 
@@ -135,7 +135,8 @@ tag off stays off under the tag it merged into.
 ## Finding by tag
 
 - The **sidebar** lists workspace tags, grouped by type; the arrow keys walk
-  them and `Enter` opens one
+  them and `Enter` opens one. A tag's ⋯ (or right-click) renames, recolors,
+  merges, types or deletes it
 - **[`⌘K`](/docs/organize/search)** finds tags by name, and `#` with a tag's
   name lists everything carrying it
 - The **tag page** is the full browse

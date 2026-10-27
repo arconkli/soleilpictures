@@ -30549,7 +30549,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to see everything it picked up on its own. Right-click any item for "
+     "v": " to see everything it picked up on its own. Right-click any item (on a phone, press and hold it) for "
     },
     {
      "t": "strong",
@@ -30675,7 +30675,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " opens one"
+      "v": " opens one. A tag's ⋯ (or right-click) renames, recolors, merges, types or deletes it"
      }
     ],
     [

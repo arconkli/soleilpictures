@@ -11417,6 +11417,40 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 /* Board-level tag strip — sits at the top-left of the canvas
    surface so the user can see (and right-click to manage) the
    tags applied to the entire board, not just individual cards. */
+/* A tag's or a tagged item's actions on a phone (direction A). */
+.sheet-root.tag-sheet { align-items: center; }
+.sheet-root.tag-sheet .sheet-panel { width: 100%; max-width: 480px; }
+.tag-sheet-head { padding: 2px 6px 12px; }
+.tag-sheet-title { font: 600 16px/1.3 var(--font-sans); color: var(--ink-0); }
+.tag-sheet-sub { margin-top: 3px; font: 400 13px/1.35 var(--font-sans); color: var(--ink-2); }
+.tag-sheet-actions { display: flex; flex-direction: column; border-top: 1px solid var(--line-1); }
+.tag-sheet-actions button {
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 14px;
+  min-height: 48px; padding: 0 6px;
+  color: var(--ink-0); font: 500 15px/1.2 var(--font-sans); text-align: left;
+  border-bottom: 1px solid var(--line-1);
+  cursor: pointer;
+}
+.tag-sheet-actions button.is-danger { color: var(--danger); }
+.tag-sheet-actions .tag-sheet-cancel { justify-content: center; color: var(--ink-2); border-bottom: 0; }
+.tag-sheet-label { flex: 1; }
+.tag-sheet-value { color: var(--ink-2); font-size: 14px; }
+/* A long press on a tag page item opens its sheet, not the browser's callout. */
+.tag-detail-body [data-tag-item] { -webkit-touch-callout: none; }
+/* The row's ⋯: always there under a finger, on hover or focus otherwise. */
+.sb-tag-row-more {
+  margin-left: 4px; width: 22px; height: 22px; flex: none;
+  border: 0; border-radius: 6px; padding: 0; background: transparent;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-2); cursor: pointer; opacity: 0;
+}
+.sb-tag-row:hover .sb-tag-row-more, .sb-tag-row:focus-within .sb-tag-row-more, .sb-tag-row-more:focus-visible { opacity: 1; }
+.sb-tag-row-more:hover { background: rgba(255,255,255,.08); color: var(--ink-0); }
+@media (hover: none) {
+  .sb-tag-row-more { opacity: 1; width: 40px; height: 40px; margin-right: -8px; }
+}
+
 /* Tag several cards at once (direction A): the tri-state picker above the
    selection bar, in the floating menus' glass. */
 .tag-many {

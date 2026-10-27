@@ -91,3 +91,17 @@ test('several cards at once: the tri-state picker over the selection', () => {
   assert.match(api, /export async function untagCards\(\{ workspaceId, boardId, cardIds, tagId, userId = null, keepOff = true \}\)/);
   assert.match(picker, /untagCards\(\{ workspaceId, boardId, cardIds: missing, tagId: tag\.id, keepOff: false \}\)/);
 });
+
+test('phones reach a tag\'s actions and a tagged item\'s', () => {
+  const side = read('../components/SidebarTags.jsx');
+  assert.match(side, /className="sb-tag-row-more"/);
+  assert.match(side, /if \(prefersSheet\(\)\) \{ setSheetFor\(tag\); return; \}/);
+  assert.match(side, /\{ id: 'delete', label: 'Delete tag', danger: true, run: \(\) => promptDelete\(sheetFor\) \}/);
+  const page = read('../components/TagDetailView.jsx');
+  assert.match(page, /onPointerDown=\{onItemPressStart\}/);
+  assert.match(page, /data-tag-item=\{JSON\.stringify\(menuTarget\)\}/);
+  assert.match(page, /\{ id: 'remove', label: 'Remove tag', danger: true, run: \(\) => removeTag\(itemSheet\) \}/);
+  // A doc item opens at its page from the menu and the sheet alike.
+  assert.match(page, /if \(m\.kind === 'doc' && m\.pageId\) \{\s*navigate\(\{ kind: 'docPos'/);
+  assert.match(read('../styles.css'), /@media \(hover: none\) \{\s*\.sb-tag-row-more \{ opacity: 1; width: 40px; height: 40px;/);
+});

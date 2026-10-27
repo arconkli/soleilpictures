@@ -2897,7 +2897,7 @@ The AI reads up to 2,000,000 characters per account a day, counting the instruct
 
 The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no card or document text goes to a model: there are no suggestions or underlines, and exact-name matches and the tags you add work as before.
 
-Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page.
+Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item (on a phone, press and hold it) for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page.
 
 Removing, deleting and merging — all reversible
 
@@ -2909,7 +2909,7 @@ Merging one tag into another can also be undone from its toast: applications mov
 
 Finding by tag
 
-The sidebar lists workspace tags, grouped by type; the arrow keys walk them and Enter opens one
+The sidebar lists workspace tags, grouped by type; the arrow keys walk them and Enter opens one. A tag's ⋯ (or right-click) renames, recolors, merges, types or deletes it
 ⌘K finds tags by name, and # with a tag's name lists everything carrying it
 The tag page is the full browse
 

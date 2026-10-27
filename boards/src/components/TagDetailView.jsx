@@ -43,6 +43,7 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { openInfo } from '../lib/infoBus.js';
 import { shareTargetForRef } from '../lib/fileShareBus.js';
+import { TagActionSheet } from './TagActionSheet.jsx';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -684,6 +685,50 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     setMenu({ ...target, x: e.clientX, y: e.clientY });
   };
 
+  // Phones (the owner's direction A): a long press on an item opens its
+  // actions in a sheet. iOS never raises contextmenu, so the right-click menu
+  // was out of reach there; Android's own long-press menu lands here too.
+  const [itemSheet, setItemSheet] = useState(null); // a menu target
+  const pressRef = useRef(null);
+  const swallowClickRef = useRef(false);
+  const onItemPressStart = (e) => {
+    if (e.pointerType !== 'touch') return;
+    const el = e.target.closest?.('[data-tag-item]');
+    if (!el) return;
+    let target = null;
+    try { target = JSON.parse(el.getAttribute('data-tag-item')); } catch (_) { return; }
+    const start = { x: e.clientX, y: e.clientY };
+    const timer = setTimeout(() => {
+      pressRef.current = null;
+      swallowClickRef.current = true;
+      setItemSheet(target);
+    }, 480);
+    pressRef.current = { timer, start };
+  };
+  const onItemPressMove = (e) => {
+    const p = pressRef.current;
+    if (p && Math.hypot(e.clientX - p.start.x, e.clientY - p.start.y) > 8) {
+      clearTimeout(p.timer);
+      pressRef.current = null;
+    }
+  };
+  const onItemPressEnd = () => {
+    const p = pressRef.current;
+    if (p) { clearTimeout(p.timer); pressRef.current = null; }
+  };
+  const openItem = (m) => {
+    if (m.kind === 'doc' && m.pageId) {
+      navigate({ kind: 'docPos', id: m.id, board_id: m.boardId, card_id: m.id, page_id: m.pageId });
+      return;
+    }
+    navigate({
+      kind: m.kind === 'group' ? 'board' : m.kind,
+      id: m.kind === 'group' ? m.boardId
+          : (m.kind === 'board' ? m.id : `${m.boardId}:${m.id}`),
+      board_id: m.boardId, card_id: m.kind !== 'board' && m.kind !== 'group' ? m.id : undefined,
+    });
+  };
+
   // ── Render helpers ──────────────────────────────────────────────────────
 
   const renderCardPreview = (c) => {
@@ -733,7 +778,8 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                 ? 'Click to preview · right-click for actions'
                 : 'Click to open · right-click for actions'}
               onClick={onPreviewClick}
-              onContextMenu={(e) => openMenu(e, menuTarget)}>
+              onContextMenu={(e) => openMenu(e, menuTarget)}
+              data-tag-item={JSON.stringify(menuTarget)}>
         {richPreview && (
           <div className="tag-detail-card-preview-rich">{richPreview}</div>
         )}
@@ -777,7 +823,8 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           <button className="tag-detail-block-title-link"
                   title="Click to open the parent cluster · right-click for actions"
                   onClick={() => navigate(navTarget)}
-                  onContextMenu={(e) => openMenu(e, menuTarget)}>
+                  onContextMenu={(e) => openMenu(e, menuTarget)}
+              data-tag-item={JSON.stringify(menuTarget)}>
             {g.title || 'Group'}
           </button>
           {opts.boardCrumb && g.board_name && (
@@ -828,7 +875,8 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           <button className="tag-detail-block-title-link"
                   title="Click to open · right-click for actions"
                   onClick={() => navigate(navTarget)}
-                  onContextMenu={(e) => openMenu(e, menuTarget)}>
+                  onContextMenu={(e) => openMenu(e, menuTarget)}
+              data-tag-item={JSON.stringify(menuTarget)}>
             {b.title || 'Board'}
           </button>
           {sourceBadge && (
@@ -1121,7 +1169,17 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         </div>
       )}
 
-      <div className="tag-detail-body">
+      <div className="tag-detail-body"
+           onPointerDown={onItemPressStart}
+           onPointerMove={onItemPressMove}
+           onPointerUp={onItemPressEnd}
+           onPointerCancel={onItemPressEnd}
+           onClickCapture={(e) => {
+             if (!swallowClickRef.current) return;
+             swallowClickRef.current = false;
+             e.preventDefault();
+             e.stopPropagation();
+           }}>
         {loading && <div className="tag-detail-empty">Looking up…</div>}
         {!loading && rows.length === 0 && (
           <div className="tag-detail-empty">
@@ -1268,21 +1326,27 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         )}
       </div>
 
+      {itemSheet && (
+        <TagActionSheet
+          title={itemSheet.title || 'Item'}
+          sub={`${tag.name}${itemSheet.source && itemSheet.source !== 'user' ? ' · added automatically' : ''}`}
+          onClose={() => setItemSheet(null)}
+          actions={[
+            { id: 'open', label: 'Open', run: () => openItem(itemSheet) },
+            itemSheet.source && itemSheet.source !== 'user'
+              ? { id: 'confirm', label: 'Confirm tag', run: () => confirmTag(itemSheet) } : null,
+            itemSheet.source
+              ? { id: 'remove', label: 'Remove tag', danger: true, run: () => removeTag(itemSheet) } : null,
+          ]}
+        />
+      )}
       {menu && (
         <div className="tag-detail-menu" role="menu"
              ref={menuRef}
              style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, zIndex: 60 }}
              onMouseDown={(e) => e.stopPropagation()}>
           <button className="tag-detail-menu-item" role="menuitem"
-                  onClick={() => {
-                    const m = menu; setMenu(null);
-                    navigate({
-                      kind: m.kind === 'group' ? 'board' : m.kind,
-                      id: m.kind === 'group' ? m.boardId
-                          : (m.kind === 'board' ? m.id : `${m.boardId}:${m.id}`),
-                      board_id: m.boardId, card_id: m.kind !== 'board' && m.kind !== 'group' ? m.id : undefined,
-                    });
-                  }}>
+                  onClick={() => { const m = menu; setMenu(null); openItem(m); }}>
             Open
           </button>
           {/* Info (lib/infoBus.js): the live card when its cluster is open in

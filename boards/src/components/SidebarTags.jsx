@@ -13,7 +13,8 @@
 // existing entity-ref drop handlers.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
+import { ChevronRight, Plus, Tag as TagIcon, MoreHorizontal } from '../lib/icons.js';
+import { TagActionSheet, prefersSheet } from './TagActionSheet.jsx';
 import { Icon } from './Icon.jsx';
 import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -223,6 +224,17 @@ export function SidebarTags({
     e.preventDefault();
     e.stopPropagation();
     setMenuFor({ tag, x: e.clientX, y: e.clientY });
+  };
+  // The row's ⋯: the same actions, as a sheet under a finger (the owner's
+  // direction A) or as the menu under a pointer.
+  const [sheetFor, setSheetFor] = useState(null);     // tag
+  const [typeSheetFor, setTypeSheetFor] = useState(null); // tag
+  const openRowActions = (e, tag) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (prefersSheet()) { setSheetFor(tag); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenuFor({ tag, x: r.left, y: r.bottom + 4 });
   };
 
   const promptRename = async (tag) => {
@@ -551,6 +563,11 @@ export function SidebarTags({
                     <span className="sb-dot" style={{ background: dot }} />
                     <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
                     {c > 0 && <span className="sb-tag-row-count">{c}</span>}
+                    <button type="button" className="sb-tag-row-more" tabIndex={-1}
+                            aria-label={`${tag.name}: actions`}
+                            onClick={(e) => openRowActions(e, tag)}>
+                      <Icon as={MoreHorizontal} size={14} />
+                    </button>
                   </div>
                 );
               })}
@@ -588,6 +605,32 @@ export function SidebarTags({
         </div>
       )}
 
+      {sheetFor && (
+        <TagActionSheet
+          title={sheetFor.name}
+          sub={[entityTypeLabel(sheetFor.entity_type), counts.get(sheetFor.id) ? `${counts.get(sheetFor.id)} ${counts.get(sheetFor.id) === 1 ? 'thing' : 'things'}` : null].filter(Boolean).join(' · ') || null}
+          onClose={() => setSheetFor(null)}
+          actions={[
+            { id: 'rename', label: 'Rename', run: () => promptRename(sheetFor) },
+            { id: 'recolor', label: 'Recolor', run: () => promptRecolor(sheetFor) },
+            { id: 'merge', label: 'Merge into…', run: () => startMerge(sheetFor) },
+            { id: 'type', label: 'Type', value: entityTypeLabel(sheetFor.entity_type) || 'None', run: () => setTypeSheetFor(sheetFor) },
+            { id: 'delete', label: 'Delete tag', danger: true, run: () => promptDelete(sheetFor) },
+          ]}
+        />
+      )}
+      {typeSheetFor && (
+        <TagActionSheet
+          title={typeSheetFor.name}
+          sub="What kind of thing is it?"
+          onClose={() => setTypeSheetFor(null)}
+          actions={ENTITY_TYPES.map(t => ({
+            id: t.value, label: t.label,
+            value: typeSheetFor.entity_type === t.value ? 'Current' : null,
+            run: () => setType(typeSheetFor, t.value),
+          }))}
+        />
+      )}
       {menuFor && (
         <div className="sb-tag-menu"
              ref={menuRef}
