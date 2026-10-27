@@ -38,7 +38,7 @@ import { getWebviewInfo } from './webview.js';
 // otherwise and used a raw literal to avoid one that doesn't exist.)
 import { EV, isWorkEvent } from './analyticsEvents.js';
 import { noteWorkOp } from './workSignal.js';
-import { redactLinkTokens, redactLinkText } from './linkTokens.js';
+import { redactLinkTokens, redactLinkText, redactKeepLink } from './linkTokens.js';
 import {
   FLUSH_INTERVAL_MS, MAX_QUEUE, MAX_BATCH, MAX_BEACON_BYTES, MAX_ROW_AGE_MS,
   beaconChunks, backoffFor, pruneStale, capQueue, partitionRetries, wireRow,
@@ -146,7 +146,8 @@ export function getFirstSource() {
     if (fbclid) source.fbclid = String(fbclid).slice(0, 200);
     // Entry path — useful context even with no external referrer, so same-host /
     // in-app arrivals carry where they landed instead of vanishing into 'direct'.
-    try { source.landing_path = window.location.pathname.slice(0, 200); } catch (_) {}
+    // A draft's keep link lands without its token (linkTokens.js redactKeepLink).
+    try { source.landing_path = redactKeepLink(window.location.pathname).slice(0, 200); } catch (_) {}
     sessionStorage.setItem(SOURCE_KEY, JSON.stringify(source));
     cachedSource = source;
   } catch (_) { cachedSource = {}; }

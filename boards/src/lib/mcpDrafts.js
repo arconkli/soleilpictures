@@ -44,8 +44,8 @@ export const DRAFT_LIFETIME_DAYS = 30;
 // key and keep link (the drafts themselves expire as usual).
 //
 // The draft key (dk_…) is what the AI passes back on each call. The keep token
-// is shaped as a v4 UUID, so the UUID redaction that keeps link tokens out of
-// events and errors (linkTokens, 0474) covers /keep/<token> too.
+// is shaped as a v4 UUID, like the other link tokens, and /keep/ is one of the
+// routes whose token is kept out of events and errors (linkTokens.js, 0707).
 
 const enc = new TextEncoder();
 const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');

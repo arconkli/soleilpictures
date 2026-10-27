@@ -4009,7 +4009,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-10-25",
+    "updated": "2026-10-27",
     "navLabel": "MCP",
     "headings": [
       {
@@ -4043,6 +4043,10 @@ export const DOCS_PAGES = [
       {
         "id": "writing-a-doc",
         "text": "Writing a doc"
+      },
+      {
+        "id": "keep-links",
+        "text": "Keep links"
       },
       {
         "id": "what-agents-should-know",

@@ -78,6 +78,7 @@ import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
 import { GALLERY } from '../src/lib/gallery.js';
 import { VERIFIED_HOSTS } from '../src/lib/oauthTrust.js';
+import { DRAFT_LIFETIME_DAYS } from '../src/lib/mcpDrafts.js';
 import { DOC_READ } from '../src/lib/docMarkdown.js';
 import { DOC_WRITE } from '../src/lib/docWrite.js';
 import { COMMENTS } from '../src/lib/apiComments.js';
@@ -556,6 +557,9 @@ export const FACTS = {
   oauthTokenPerMinute: perMinute('OAUTH_TOKEN'),
   oauthLookupPerMinute: perMinute('OAUTH_LOOKUP'),
   oauthRegistrationsPerHour: String(api.oauthRegistrationsPerHour),
+  // How long a draft nobody keeps lasts after its last change (lib/mcpDrafts.js;
+  // mcpDrafts.test.mjs holds 0705's lifetime to it).
+  draftLifetimeDays: String(DRAFT_LIFETIME_DAYS),
   // A board's gallery: its pages and what one answer may embed (lib/gallery.js),
   // and how many pictures view_board looks at closely (the tool's own schema).
   galleryDefaultLimit: String(GALLERY.defaultLimit),

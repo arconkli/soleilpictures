@@ -34,6 +34,13 @@ export const EDGE_LIMITS = {
   // burst only; the durable limit is the database's ceiling on new drafts a
   // day (mcp_draft_admit, 0705).
   MCP_DRAFT_CREATE: { limit: 20, period: 60 },
+  // A draft's keep page reading the draft, per address: one read when it
+  // opens, one for each of its clusters opened, one when pictures need fresh
+  // addresses. Each is a database call.
+  KEEP_BUNDLE: { limit: 60, period: 60 },
+  // Pictures fetched by a signed address (/api/img/), per address. A board
+  // opening asks for every picture on it at once, and a video for its parts.
+  SIGNED_IMAGE: { limit: 600, period: 60 },
 };
 
 // makeEdgeLimiter(name) → async (env, key) → { ok: true } | { ok: false, retryAfter }

@@ -58,6 +58,7 @@ const OAuthConsentPage = lazyWithReload(() => import('./pages/OAuthConsentPage.j
 const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').then(m => ({ default: m.ResumePage })));
 const TemplateSharePage = lazyWithReload(() => import('./pages/TemplateSharePage.jsx').then(m => ({ default: m.TemplateSharePage })));
 const FileSharePage = lazyWithReload(() => import('./components/fileShare/FileSharePage.jsx').then(m => ({ default: m.FileSharePage })));
+const KeepPage = lazyWithReload(() => import('./pages/KeepPage.jsx').then(m => ({ default: m.KeepPage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -198,6 +199,12 @@ const fileShareMatch = window.location.pathname.match(/^\/f\/([0-9a-f-]{36})\/?$
 // RPC, which takes a uuid argument and would 400 on anything else.
 const templateShareMatch = window.location.pathname.match(/^\/t\/([0-9a-f-]{36})\/?$/i);
 
+// /keep/<uuid> = a draft's keep page (pages/KeepPage.jsx): a cluster an AI made
+// for someone with no account, read only until they keep it. The token is the
+// key, as a share link's is (linkTokens.js); KEEP_PATH_RE in worker.js matches
+// the same shape.
+const keepMatch = window.location.pathname.match(/^\/keep\/([0-9a-f-]{36})\/?$/i);
+
 // /c/<slug> = admin-curated public marketing board (migration 0136); /explore =
 // the public board index. Both bypass auth and render the public viewer chunk,
 // just like /share. The Worker has already injected per-page SEO meta +
@@ -301,7 +308,7 @@ const showPublicPricing = !!pricingMatch && !hasCachedSession();
 // are in the entry chunk, so nothing suspends on the way to it.
 const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
   || changelogMatch || pricingMatch || exploreMatch || publicBoardMatch || shareMatch
-  || fileShareMatch || resumeMatch);
+  || fileShareMatch || resumeMatch || keepMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
@@ -581,6 +588,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <FileSharePage token={fileShareMatch[1]} />
             ) : templateShareMatch ? (
               <TemplateSharePage token={templateShareMatch[1]} />
+            ) : keepMatch ? (
+              <KeepPage token={keepMatch[1].toLowerCase()} />
             ) : oauthConsentMatch ? (
               <AuthGate>
                 <OAuthConsentPage />

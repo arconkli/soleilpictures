@@ -154,3 +154,19 @@ namespace_id = "7004"
   [ratelimits.simple]
   limit = 20
   period = 60
+
+[[ratelimits]]
+name = "KEEP_BUNDLE"
+namespace_id = "7005"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
+[[ratelimits]]
+name = "SIGNED_IMAGE"
+namespace_id = "7006"
+
+  [ratelimits.simple]
+  limit = 600
+  period = 60

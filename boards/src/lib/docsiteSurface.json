@@ -496,6 +496,7 @@
       "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
       "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
       "fileShareMatch = PATH.match(/^\\/f\\/([0-9a-f-]{36})\\/?$/i)",
+      "keepMatch = PATH.match(/^\\/keep\\/([0-9a-f-]{36})\\/?$/i)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
       "oauthConsentMatch = /^\\/oauth\\/authorize\\/?$/i.test(PATH)",
       "pricingMatch = PATH.match(/^\\/pricing\\/?$/i)",

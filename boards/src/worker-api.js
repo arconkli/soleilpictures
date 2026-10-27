@@ -1196,6 +1196,11 @@ const SIGNED_IN_MCP = {
 
 export async function handleMcpEndpoint(url, request, env, ctx) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  // Someone who opens the address in a browser reads how to connect it. (An MCP
+  // client's GET asks for an event stream, never a page.)
+  if (request.method === 'GET' && (request.headers.get('accept') || '').includes('text/html')) {
+    return Response.redirect(new URL('/docs/mcp', url.origin).toString(), 302);
+  }
   if (!draftsOpen(url.hostname)) return json({ error: 'unknown endpoint', code: 'not_found' }, 404);
 
   if (request.headers.get('authorization')) {

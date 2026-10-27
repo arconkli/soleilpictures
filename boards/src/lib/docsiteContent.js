@@ -68217,6 +68217,44 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Keep links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keep links"
+    }
+   ],
+   "id": "keep-links"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A keep link, "
+    },
+    {
+     "t": "code",
+     "v": "https://clusters.soleilpictures.com/keep/…"
+    },
+    {
+     "t": "text",
+     "v": ", opens a cluster an assistant made for someone who wasn't signed in to Clusters. The page shows the cluster read only, and keeping it takes an email address and the 6-digit code sent there: the cluster then belongs to that account, a new one or one that already exists. Whoever holds the link can keep it, so it goes only to the person it was made for. Once kept it opens nothing, and a cluster nobody keeps is deleted 30 days after its last change."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Assistants don't hand out keep links yet."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "What agents should know",
    "inline": [
     {

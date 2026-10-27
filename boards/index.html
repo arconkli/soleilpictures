@@ -210,8 +210,8 @@
        src/lib/metaPixel.js no-ops through fbqReady(), and the server senders
        withhold the same events (supabase/functions/_shared/meta-capi.ts).
        Nor when this page's address, or the page before it, holds a token — a
-       share, file or template link's page, an invite or remix link, the resume
-       link — because the pixel reports both addresses and the token opens
+       share, file or template link's page, a draft's keep page, an invite or
+       remix link, the resume link — because the pixel reports both addresses and the token opens
        what it points at. Same test as urlCarriesLinkToken in
        src/lib/linkTokens.js; linkTokens.test.mjs runs both on the same cases.
        Meta's stub runs here, so init, this PageView and every later fbq() call
@@ -221,7 +221,7 @@
        address is checked again first, in case the app has moved since. -->
   <script>
     function soleilLinkToken(p, q) {
-      return /^\/(?:share|f|t)\/[0-9a-f]{8}-|^\/resume\/?$/i.test(p)
+      return /^\/(?:share|f|t|keep)\/[0-9a-f]{8}-|^\/resume\/?$/i.test(p)
         || /[?&](?:share_token|file_token|join|wsjoin|invite|remix|shared|rt)=/i.test(q)
         || /[?&]utm_campaign=[^&#]*[0-9a-f]{8}-[0-9a-f]{4}-/i.test(q);
     }

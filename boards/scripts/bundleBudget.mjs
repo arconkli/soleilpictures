@@ -42,7 +42,11 @@ export const CEILINGS = {
   // stash; capturing, claiming, the card and the note load later
   // (components/TeamJoinCard.jsx). Most of the growth is that import's list
   // of chunks to preload.
-  entryJs: 165_500,
+  // 2026-10-27: +0.5 KB for a draft's keep page (/keep/<token>, about 0.2 KB):
+  // the route, its import's list of chunks to preload, and the first touch's
+  // keep-link redaction (lib/linkTokens.js). The page itself loads later
+  // (pages/KeepPage.jsx).
+  entryJs: 166_000,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only

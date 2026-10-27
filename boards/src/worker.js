@@ -28,6 +28,7 @@ import { handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies } from './worker-
 import { mediaKindOfKey } from './lib/playCopy.js';
 import { viewKindOfKey } from './lib/fileView.js';
 import { handleApiRoute, handleMcpEndpoint } from './worker-api.js';
+import { handleKeepBundle, handleSignedImage } from './worker-keep.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
@@ -443,6 +444,9 @@ const FILE_SHARE_PATH_RE = /^\/f\/([0-9a-f-]{36})\/?$/i;
 // templateShareMatch in main.jsx: widening one without the other means the
 // Worker and React disagree about what is a real route.
 const TEMPLATE_SHARE_PATH_RE = /^\/t\/([0-9a-f-]{36})\/?$/i;
+// /keep/<uuid> — a draft's keep page (worker-keep.js). Kept in lockstep with
+// keepMatch in main.jsx.
+const KEEP_PATH_RE = /^\/keep\/([0-9a-f-]{36})\/?$/i;
 
 // /templates/g/<slug> — a PUBLISHED community template's page. The /g/ segment
 // keeps it out of the flat namespace our own items occupy, so a published slug
@@ -758,10 +762,14 @@ const worker = {
       }
       // The MCP server for AI chats, signed in or not: someone with no account
       // makes a draft they can keep (worker-api.js handleMcpEndpoint; held on
-      // production). A browser opening it is a navigation, served the app.
+      // production). A browser opening it is sent to its docs.
       if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
         return await handleMcpEndpoint(url, request, env, ctx);
       }
+      // A draft's keep page reads the draft, and its pictures, through these
+      // (worker-keep.js; held with drafts).
+      if (url.pathname === '/api/keep/bundle') return await handleKeepBundle(url, request, env, ctx);
+      if (url.pathname.startsWith('/api/img/')) return await handleSignedImage(url, request, env);
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx, env);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
@@ -1080,6 +1088,21 @@ const worker = {
         description: 'Someone shared a grid layout with you. Open it to add the template to your own Clusters workspace.',
       }, `${SITE_ORIGIN}/templates`));
       out.headers.set('x-robots-tag', 'noindex');
+      return out;
+    }
+
+    // A draft's keep page: /keep/<token>. One unfurl for every draft, as /t/
+    // has, so nothing is looked up for whoever fetches it; never indexed; and
+    // every request from it names only our origin as its Referer, its own
+    // pictures' included, since its address is what keeps the draft. (Origin
+    // only, not none: the fonts' host checks it.)
+    if (isPageReq && KEEP_PATH_RE.test(url.pathname) && contentType.includes('text/html')) {
+      const out = withRevalidate(injectRouteMeta(res, {
+        title: 'Your draft — Soleil Clusters',
+        description: 'A cluster made in an AI chat, waiting for you to keep it. Keeping it is free.',
+      }, `${SITE_ORIGIN}/`));
+      out.headers.set('x-robots-tag', 'noindex');
+      out.headers.set('referrer-policy', 'strict-origin');
       return out;
     }
 
