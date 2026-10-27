@@ -699,6 +699,16 @@ button.dl-drow { cursor: pointer; }
   transform: rotate(45deg);
 }
 .tl-sw.is-none.is-on { box-shadow: inset 0 0 0 1.5px var(--line-3), 0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--soleil); overflow: visible; }
+/* Under a finger, as the note's colours (styles/toolbarLook.css): eight to a
+   row, each one a finger can take, 32px, 40 apart, its hit area reaching
+   halfway into the gap round it. The default's stroke then runs rim to rim
+   unclipped, since a clip would cut its hit area back to the rim too. */
+@media (hover: none) and (pointer: coarse) {
+  .dl-swrow { --tl-sws: 32px; grid-template-columns: repeat(8, auto); }
+  .dl-swrow .tl-sw::before { content: ''; position: absolute; inset: -4px; }
+  .dl-swrow .tl-sw.is-none { overflow: visible; }
+  .dl-swrow .tl-sw.is-none::after { top: 0; bottom: 0; }
+}
 
 /* The menus off the bar. A style says what it looks like; a font is in its
    own face. */
