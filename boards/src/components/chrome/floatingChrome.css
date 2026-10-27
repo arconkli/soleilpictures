@@ -58,23 +58,6 @@
 
 /* ⋯ and what it holds. */
 .chrome-more { position: relative; }
-.chrome-menu {
-  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
-  min-width: 220px; padding: 4px;
-  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius-md);
-  box-shadow: var(--shadow-2);
-}
-.chrome-menu-item {
-  display: flex; align-items: center; gap: 10px; width: 100%; height: 32px; padding: 0 10px;
-  border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer;
-  color: var(--ink-1); font: 400 13px/1 var(--font-sans); text-align: left;
-}
-.chrome-menu-item:hover, .chrome-menu-item:focus-visible { background: var(--bg-hov); color: var(--ink-0); outline: none; }
-.chrome-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--soleil); }
-.chrome-menu-noicon { width: 15px; flex-shrink: 0; }
-.chrome-menu-label { flex: 1; min-width: 0; }
-.chrome-menu-hint { color: var(--ink-3); font: 500 11px/1 var(--font-mono); }
-.chrome-menu-sep { height: 1px; margin: 4px 6px; background: var(--line-1); }
 
 /* ── Making room for the islands ─────────────────────────────────────────── */
 /* The canvas: only what sits along its own top edge steps down. */
@@ -118,5 +101,4 @@
   .chrome-island .tb-btn { position: relative; }
   .chrome-island .tb-btn::before { content: ''; position: absolute; inset: -8px 0; }
   .chrome-island .crumb.clk { min-width: 40px; }
-  .chrome-menu-item { height: 44px; font-size: 15px; }
 }
