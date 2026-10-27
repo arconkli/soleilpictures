@@ -63,10 +63,17 @@ export const REPLAY_WINDOW_SECONDS = 300;
 // for a week stops costing anything.
 export const DISABLE_AFTER_FAILURES = 20;
 
+// Each one is written by a trigger in the migrations (webhook_emit_*: 0222,
+// 0702, 0703), so a change made in the app fires it as one made here does.
+// webhooks.test.mjs holds the two lists to each other: a name offered here and
+// written by nothing would be a subscription that never fires.
 export const WEBHOOK_EVENTS = [
   'board.created', 'board.updated', 'board.deleted', 'board.restored',
   'card.created', 'card.updated', 'card.deleted', 'card.moved',
   'image.created',
+  'comment.created', 'comment.updated', 'comment.resolved', 'comment.reopened',
+  'comment.deleted', 'comment.restored',
+  'tag.applied', 'tag.removed',
 ];
 
 // 1m, 5m, 25m, 2h, 10h — bounded exponential, so a receiver that is down for a

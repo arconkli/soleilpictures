@@ -250,6 +250,15 @@ if (!newAccountHours || !newAccountWorkspaces) {
   throw new Error('gen-docs: the new-account limits were not found — update the extractor');
 }
 
+// How many ids a grouped webhook event carries: the [1:N] slice every grouping
+// webhook_emit_* trigger takes (0222, 0702, 0703). One number for all of them.
+const webhookIdSlices = ['webhook_emit_cards_ins', 'webhook_emit_cards_upd', 'webhook_emit_cards_del',
+  'webhook_emit_images_ins', 'webhook_emit_tags_ins', 'webhook_emit_tags_upd', 'webhook_emit_tags_del']
+  .map((fn) => [...(latestDefinition(fn)?.body.matchAll(/\)\[1:(\d+)\]/g) || [])].map((m) => m[1]));
+if (webhookIdSlices.some((s) => !s.length) || new Set(webhookIdSlices.flat()).size !== 1) {
+  throw new Error('gen-docs: the webhook triggers disagree on how many ids an event carries — update the extractor');
+}
+
 // Sharing one file (/f/<token>, migrations 0421 and 0422): how often a comment
 // emails the person who shared the file (_tg_file_comment_notify — the bell row
 // is never throttled), and how old the account that opened a link to anyone
@@ -513,6 +522,7 @@ export const FACTS = {
   serviceRateLimitPerHour: String(api.serviceRateLimitPerHour),
   maxServiceAccounts: String(api.maxServiceAccounts),
   maxWebhooks: String(api.maxWebhooks),
+  webhookIdsShown: webhookIdSlices[0][0],
   maxIdentifiersPerObject: String(api.maxIdentifiersPerObject),
   maxPropsBytes: String(api.maxPropsBytes),
   maxPropKeys: String(api.maxPropKeys),

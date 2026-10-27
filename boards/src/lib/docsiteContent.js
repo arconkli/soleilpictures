@@ -69634,7 +69634,119 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "An upload completes"
+       "v": "An upload completes: a picture, video, audio file or document"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.created"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A comment or a reply is posted on a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.updated"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its words change"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.resolved"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A thread is resolved"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.reopened"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A resolved thread is opened again"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.deleted"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A comment is deleted (it can still be restored)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.restored"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A deleted comment is brought back"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "tag.applied"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A tag is put on cards, groups, boards or doc pages"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "tag.removed"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A tag is taken off them"
       }
      ]
     ]
@@ -69645,25 +69757,41 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Card events are grouped.",
+     "v": "Card, upload and tag events are grouped.",
      "children": [
       {
        "t": "text",
-       "v": "Card events are grouped."
+       "v": "Card, upload and tag events are grouped."
       }
      ]
     },
     {
      "t": "text",
-     "v": " A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. "
+     "v": " A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. The ids come with it, the first 25 as a courtesy; past that, read the board."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments on the canvas fire comment events. The comments inside a doc or a note live in the doc itself, so they fire none: read them with "
     },
     {
-     "t": "code",
-     "v": "data.card_ids"
+     "t": "link",
+     "v": "`GET /boards/:id/comments`",
+     "href": "/docs/api/comments",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/comments"
+      }
+     ]
     },
     {
      "t": "text",
-     "v": " carries the first 25 as a courtesy; past that, read the board."
+     "v": "."
     }
    ]
   },
@@ -69682,7 +69810,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"type\": \"card.created\",\n  \"resource\": { \"type\": \"card\", \"id\": \"…\" },\n  \"workspace\": { \"id\": \"3b7e…\" },\n  \"board\": { \"id\": \"9f1c…\" },\n  \"data\": { \"count\": 412, \"card_ids\": [\"…\", \"…\"] },\n  \"occurred_at\": \"2026-08-09T12:00:00.412Z\"\n}"
+   "code": "{\n  \"type\": \"card.created\",\n  \"resource\": { \"type\": \"card\", \"id\": \"9f1c…\" },\n  \"workspace\": { \"id\": \"3b7e…\" },\n  \"board\": { \"id\": \"9f1c…\" },\n  \"data\": { \"count\": 412, \"card_ids\": [\"…\", \"…\"] },\n  \"occurred_at\": \"2026-08-09T12:00:00.412Z\"\n}"
   },
   {
    "type": "para",
@@ -69719,6 +69847,469 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " if you want everything that moved."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "resource.id"
+    },
+    {
+     "t": "text",
+     "v": " is the comment's id for a comment event and the tag's id for a tag event. A grouped card or upload event covers several things at once, so its "
+    },
+    {
+     "t": "code",
+     "v": "resource.id"
+    },
+    {
+     "t": "text",
+     "v": " is the board's."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What data holds",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What "
+    },
+    {
+     "t": "code",
+     "v": "data"
+    },
+    {
+     "t": "text",
+     "v": " holds"
+    }
+   ],
+   "id": "what-data-holds"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Events"
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "data"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.created"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card.updated"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card.deleted"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.moved"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      },
+      {
+       "t": "text",
+       "v": " (as they are now, on "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": "), "
+      },
+      {
+       "t": "code",
+       "v": "from_board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "from_card_ids"
+      },
+      {
+       "t": "text",
+       "v": " (the same cards' ids where they were, in the same order: a card whose id was taken on arrival gets a new one)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "image.created"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "image_keys"
+      },
+      {
+       "t": "text",
+       "v": " (each one's key for "
+      },
+      {
+       "t": "link",
+       "v": "`GET /images/:key`",
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "code",
+         "v": "GET /images/:key"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "); "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": " is null for an upload that isn't on a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.*"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "thread_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "reply"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "on"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "card"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "group"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "point"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "doc"
+      },
+      {
+       "t": "text",
+       "v": " with a "
+      },
+      {
+       "t": "code",
+       "v": "page_id"
+      },
+      {
+       "t": "text",
+       "v": " for a comment made on a doc before its comments moved into the doc), "
+      },
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "group_id"
+      },
+      {
+       "t": "text",
+       "v": " where it is pinned, "
+      },
+      {
+       "t": "code",
+       "v": "author_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "resolved"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "tag.applied"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "tag.removed"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " (the tag's), "
+      },
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": " (true when automatic tagging put it on or took it off), "
+      },
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "items"
+      },
+      {
+       "t": "text",
+       "v": ": each thing it is on, "
+      },
+      {
+       "t": "code",
+       "v": "{kind, id}"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "kind"
+      },
+      {
+       "t": "text",
+       "v": " one of "
+      },
+      {
+       "t": "code",
+       "v": "card"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "group"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "doc_page"
+      },
+      {
+       "t": "text",
+       "v": " (a doc page adds "
+      },
+      {
+       "t": "code",
+       "v": "page_id"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A comment's words are not in its event. Read them through the API, under the permissions of the person whose token you use."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A move between two workspaces fires "
+    },
+    {
+     "t": "code",
+     "v": "card.moved"
+    },
+    {
+     "t": "text",
+     "v": " in both, so the workspace the cards left hears of it too. Merging two tags reads as "
+    },
+    {
+     "t": "code",
+     "v": "tag.removed"
+    },
+    {
+     "t": "text",
+     "v": " for the tag merged away and "
+    },
+    {
+     "t": "code",
+     "v": "tag.applied"
+    },
+    {
+     "t": "text",
+     "v": " for the one it merged into. Confirming a tag that automatic tagging put on changes no tag, so it fires nothing."
     }
    ]
   },

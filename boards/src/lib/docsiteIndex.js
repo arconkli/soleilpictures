@@ -4141,12 +4141,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/api/webhooks",
     "title": "Webhooks — Soleil Clusters API",
-    "metaDescription": "Get notified when boards and cards change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.",
+    "metaDescription": "Get notified when boards, cards, comments and tags change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.",
     "h1": "Webhooks",
-    "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
+    "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads, comments and tags change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
     "section": "developers",
     "order": 12,
-    "updated": "2026-10-07",
+    "updated": "2026-10-26",
     "navLabel": "Webhooks",
     "headings": [
       {

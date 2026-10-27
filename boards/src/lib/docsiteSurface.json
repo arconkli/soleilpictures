@@ -280,7 +280,15 @@
     "card.deleted",
     "card.moved",
     "card.updated",
-    "image.created"
+    "comment.created",
+    "comment.deleted",
+    "comment.reopened",
+    "comment.resolved",
+    "comment.restored",
+    "comment.updated",
+    "image.created",
+    "tag.applied",
+    "tag.removed"
   ],
   "apiErrorCodes": [
     "400 bad_request",

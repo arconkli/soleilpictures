@@ -12,6 +12,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { MIGRATIONS_DIR, migrationFiles, latestDefinition } from './migrationText.mjs';
 import {
   signBody, verifySignature, webhookUrlProblem, fanOutEvents, deliverDue, deliverOne, runWebhooks,
   WEBHOOK_EVENTS, MAX_ATTEMPTS, DISABLE_AFTER_FAILURES, REPLAY_WINDOW_SECONDS, AFTER_WRITE_DRAIN,
@@ -272,14 +275,36 @@ test('a delivery for a hook that was switched off is dropped, not retried foreve
   assert.match(p.error, /inactive/);
 });
 
-test('the event vocabulary is closed and covers boards, cards and images', () => {
+test('the event vocabulary is closed and covers boards, cards, images, comments and tags', () => {
   assert.ok(WEBHOOK_EVENTS.includes('board.created'));
   assert.ok(WEBHOOK_EVENTS.includes('card.created'));
   assert.ok(WEBHOOK_EVENTS.includes('card.moved'));
   assert.ok(WEBHOOK_EVENTS.includes('image.created'));
+  assert.ok(WEBHOOK_EVENTS.includes('comment.resolved'));
+  assert.ok(WEBHOOK_EVENTS.includes('tag.applied'));
   // Every name is `object.verb`, which is what lets a subscriber filter by
   // prefix and what the payload's resource.type is derived from.
   for (const e of WEBHOOK_EVENTS) assert.match(e, /^[a-z]+\.[a-z]+$/);
+});
+
+// card.moved and image.created were offered from 0222 until 0703 and written by
+// nothing: subscribed and silent, the failure the docs warn about. The outbox
+// is written only by the webhook_emit_* triggers, so the names in their latest
+// definitions are the events that can fire, and the two lists must be equal.
+test('every event a webhook can subscribe to is one the database writes, and back', () => {
+  const emitters = new Set();
+  for (const f of migrationFiles()) {
+    for (const m of readFileSync(join(MIGRATIONS_DIR, f), 'utf8').matchAll(/function\s+public\.(webhook_emit_\w+)\s*\(/g)) {
+      emitters.add(m[1]);
+    }
+  }
+  const written = new Set();
+  for (const fn of emitters) {
+    const def = latestDefinition(fn);
+    assert.ok(def, `${fn} has a definition`);
+    for (const m of def.body.matchAll(/'([a-z]+\.[a-z]+)'/g)) written.add(m[1]);
+  }
+  assert.deepEqual([...written].sort(), [...WEBHOOK_EVENTS].sort());
 });
 
 test('retry policy is bounded and gives a receiver a working day to come back', () => {
