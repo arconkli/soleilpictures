@@ -1,9 +1,11 @@
 // worker-playCopy.js — /api/media/copy/*: the Worker's half of the converter.
 //
 // A video or audio file a browser can't play gets a copy that every browser
-// can (lib/playCopy.js says which files, and what the copies are called), and
-// a photo some browser can't draw (HEIC, TIFF, JPEG XL, OpenEXR) gets a view,
-// a WebP picture of it (lib/fileView.js). The converter that makes them
+// can (lib/playCopy.js says which files, and what the copies are called), a
+// photo some browser can't draw (HEIC, TIFF, JPEG XL, OpenEXR, a raw, a .psd)
+// gets a view, a WebP picture of it, and a document (Word, PowerPoint, Excel,
+// Keynote, ...) a view of its first page and a PDF of its pages
+// (lib/fileView.js). The converter that makes them
 // (media/, on Fly) is kept knowing nothing: it holds one secret,
 // MEDIA_BOX_SECRET, and no storage or database credentials. This file is
 // everything else:
@@ -14,9 +16,9 @@
 //   GET  source    (ffmpeg, or the box's download, with a per-job token) the
 //                  original, Range-capable, straight from the R2 binding —
 //                  only while the job is leased
-//   POST upload    (the box) the copy and the poster, or the view and its
-//                  small size, into R2 through the binding (one PUT, or
-//                  multipart in 64 MiB parts)
+//   POST upload    (the box) the copy and the poster, or the view, its small
+//                  size and a document's PDF, into R2 through the binding (one
+//                  PUT, or multipart in 64 MiB parts)
 //   POST heartbeat (the box) keep the lease while a long encode runs
 //   POST finish    (the box) record what was made
 //
@@ -51,7 +53,7 @@ const MAX_PARTS = 10_000;
 const PROBE_JSON_MAX = 16 * 1024;
 const WAKE_TIMEOUT_MS = 15_000;
 
-const CONTENT_TYPE = { video: 'video/mp4', audio: 'audio/mp4', poster: 'image/webp', view: 'image/webp' };
+const CONTENT_TYPE = { video: 'video/mp4', audio: 'audio/mp4', poster: 'image/webp', view: 'image/webp', pdf: 'application/pdf' };
 
 // The two queues, by what a key's file gets: a playable copy (0660) or a view
 // (0661). The functions of each take the same arguments.
@@ -84,8 +86,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 
 const validKey = (k) => typeof k === 'string' && KEY_RE.test(k) && !k.includes('..') && !isCopyKey(k) && !isViewKey(k);
 
-// The kind of work an original's file gets ('video' | 'audio' | 'image') and
-// the queue it waits in, or null for a file that gets none.
+// The kind of work an original's file gets ('video' | 'audio' | 'image' |
+// 'doc') and the queue it waits in, or null for a file that gets none.
 function workOf(key) {
   if (!validKey(key)) return null;
   const media = mediaKindOfKey(key);
@@ -94,8 +96,11 @@ function workOf(key) {
   return view ? { kind: view, queue: QUEUES.view } : null;
 }
 
+// Views: a photo's, or a document's first page and PDF.
+const isView = (kind) => kind === 'image' || kind === 'doc';
+
 // What a job made that must be in the bucket for it to count as done.
-const madeKey = (key, kind) => (kind === 'image' ? viewKeys(key).view : copyKeyFor(key, kind));
+const madeKey = (key, kind) => (isView(kind) ? viewKeys(key).view : copyKeyFor(key, kind));
 
 // ── Secrets ────────────────────────────────────────────────────────────────
 
@@ -176,7 +181,9 @@ export async function forgetPlayCopies(env, paths, deps = {}) {
     const batch = originals.slice(i, i + FORGET_BATCH);
     const made = batch.flatMap((p) => {
       const kind = workOf(p).kind;
-      if (kind === 'image') return [viewKeys(p).view, viewKeys(p).sm];
+      const v = viewKeys(p);
+      if (kind === 'image') return [v.view, v.sm];
+      if (kind === 'doc') return [v.view, v.sm, v.pdf];
       return kind === 'audio' ? [copyKeys(p).audio] : [copyKeys(p).video, copyKeys(p).poster];
     });
     await d.svcDelete(env, 'images', `storage_path=${inList(made)}`);
@@ -264,8 +271,8 @@ async function requestCopies(request, env, ctx, d) {
   return json({ states });
 }
 
-// Views first: a photo takes seconds, a film can take an hour, and a card
-// showing nothing waits on the photo.
+// Views first: a photo or a document takes seconds, a film can take an hour,
+// and a card showing nothing waits on the view.
 async function claim(env, d) {
   let job = null;
   for (const q of [QUEUES.view, QUEUES.copy]) {
@@ -354,9 +361,12 @@ async function serveSource(url, request, env, d) {
 }
 
 // Where an output goes: always the original's own copy or view key, derived
-// here.
+// here. Only a document has a PDF.
 function outputKey(key, out, kind) {
-  if (kind === 'image') return out === 'view' ? viewKeys(key).view : out === 'view_sm' ? viewKeys(key).sm : null;
+  if (isView(kind)) {
+    const v = viewKeys(key);
+    return out === 'view' ? v.view : out === 'view_sm' ? v.sm : out === 'pdf' && kind === 'doc' ? v.pdf : null;
+  }
   if (out === 'poster') return kind === 'video' ? copyKeys(key).poster : null;
   if (out === 'copy') return copyKeyFor(key, kind);
   return null;
@@ -370,7 +380,8 @@ async function upload(url, request, env, d) {
   if (!job) return json({ error: 'not_leased' }, 409);
   const target = outputKey(key, out, job.kind);
   if (!target) return json({ error: 'bad_request' }, 400);
-  const contentType = out === 'copy' ? CONTENT_TYPE[job.kind] : out === 'poster' ? CONTENT_TYPE.poster : CONTENT_TYPE.view;
+  const contentType = out === 'copy' ? CONTENT_TYPE[job.kind] : out === 'poster' ? CONTENT_TYPE.poster
+    : out === 'pdf' ? CONTENT_TYPE.pdf : CONTENT_TYPE.view;
 
   if (step === 'put') {
     const len = Number(request.headers.get('content-length'));
@@ -439,8 +450,9 @@ export function cleanResult(raw) {
   };
 }
 
-// What the box says a view job made: the view, its small size, and the
-// original's size upright (the browser couldn't read it at upload).
+// What the box says a view job made: the view, its small size, the
+// original's size upright (the browser couldn't read it at upload), and a
+// document's PDF, by its number of pages.
 export function cleanViewResult(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const dims = (o) => (o && typeof o === 'object' && int(o.w, 100000) && int(o.h, 100000) ? { w: int(o.w, 100000), h: int(o.h, 100000) } : null);
@@ -451,6 +463,7 @@ export function cleanViewResult(raw) {
     view: dims(r.view),
     viewSm: dims(r.viewSm),
     original: dims(r.original),
+    pdf: r.pdf && typeof r.pdf === 'object' && int(r.pdf.pages, 100000) ? { pages: int(r.pdf.pages, 100000) } : null,
     error: typeof r.error === 'string' ? r.error.slice(0, 300) : null,
     reason: typeof r.reason === 'string' && /^[a-z_]{1,40}$/.test(r.reason) ? r.reason : null,
   };
@@ -464,15 +477,17 @@ async function finish(request, env, d) {
   if (!work || !['done', 'skip', 'failed'].includes(state)) return json({ error: 'bad_request' }, 400);
   const job = await liveJob(env, d, key);
   if (!job) return json({ error: 'not_leased' }, 409);
-  if (work.kind === 'image') {
+  if (isView(work.kind)) {
     const result = cleanViewResult(body.result);
+    if (work.kind !== 'doc') result.pdf = null;
     if (state === 'done') {
       if (!result.view || !(await env.IMAGES.head(viewKeys(key).view))) {
         state = 'failed';
         result.error = 'the view never arrived';
         result.reason = 'error';
-      } else if (result.viewSm && !(await env.IMAGES.head(viewKeys(key).sm))) {
-        result.viewSm = null;
+      } else {
+        if (result.viewSm && !(await env.IMAGES.head(viewKeys(key).sm))) result.viewSm = null;
+        if (result.pdf && !(await env.IMAGES.head(viewKeys(key).pdf))) result.pdf = null;
       }
     }
     return json({ state: await d.svcRpc(env, work.queue.finish, { p_storage_path: key, p_state: state, p_result: result }) });

@@ -4,21 +4,25 @@ import {
   EXT_LOADERS, SOURCE_LOADERS, decoderOf, sniffLoader, sniffRaw, sniffPsd, thumbnailArgs, uprightDims, vipsEnv,
   jp2kLevel, stripWebpMetadata,
 } from '../src/viewArgs.js';
-import { viewKindOfKey, RAW_EXTS, PSD_EXTS } from '../../boards/src/lib/fileView.js';
+import { viewKindOfKey, RAW_EXTS, PSD_EXTS, DOC_EXTS } from '../../boards/src/lib/fileView.js';
 
 const bytes = (...xs) => new Uint8Array(xs);
 const ascii = (s) => new TextEncoder().encode(s);
 const ftyp = (brand) => new Uint8Array([0, 0, 0, 0x18, ...ascii('ftyp'), ...ascii(brand), 0, 0, 0, 0]);
 
 test('every format the app asks views of has a decoder here, and no other', () => {
-  const candidates = [...Object.keys(EXT_LOADERS), ...RAW_EXTS, ...PSD_EXTS,
-    'jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg', 'pdf', 'mov', 'docx', 'raw', 'constructor', 'toString'];
+  const candidates = [...Object.keys(EXT_LOADERS), ...RAW_EXTS, ...PSD_EXTS, ...DOC_EXTS,
+    'jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg', 'pdf', 'mov', 'txt', 'html', 'raw', 'constructor', 'toString'];
   for (const ext of candidates) {
-    assert.equal(viewKindOfKey(`0b6e2f0a-6c55-4b8e-9d0a-2a3f1c9e7b11/a.${ext}`) === 'image', decoderOf(ext) !== null, ext);
+    const kind = viewKindOfKey(`0b6e2f0a-6c55-4b8e-9d0a-2a3f1c9e7b11/a.${ext}`);
+    const decoder = decoderOf(ext);
+    assert.equal(kind !== null, decoder !== null, ext);
+    if (kind) assert.equal(kind === 'doc', decoder === 'doc', `${ext}: a document is LibreOffice's, a photo never`);
   }
   assert.equal(decoderOf('HEIC'), 'vips');
   assert.equal(decoderOf('ARW'), 'raw');
   assert.equal(decoderOf('psb'), 'psd');
+  assert.equal(decoderOf('PPTX'), 'doc');
 });
 
 test('a raw is known by its first bytes: TIFF-shaped, the makers\' own, never anything else', () => {

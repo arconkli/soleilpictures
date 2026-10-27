@@ -39,6 +39,7 @@ created — you never pick "upload as image" from a menu.
 | Video | An inline [player](/docs/files/video-and-audio) |
 | Audio | A [waveform player](/docs/files/video-and-audio) with cover art |
 | PDF | A [page-one thumbnail](/docs/files/pdf) opening into a full viewer |
+| Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF) | A file card that opens on its pages |
 | Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
 | PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
 | An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
@@ -47,6 +48,12 @@ created — you never pick "upload as image" from a menu.
 Small text files get an inline preview on the card rather than only a download.
 Double-click a file card to open it full screen, with **Download** and **Share**
 there.
+
+A document opens on its pages, which page through as a [PDF](/docs/files/pdf)'s
+do. They are made once, in the background, so the first look can take a few
+seconds: the first {{fact:docMaxPages}} pages of a document up to
+{{fact:docMaxSize}}. A document with a password, or one that's damaged, opens
+as its card, with the download.
 
 ## Limits
 

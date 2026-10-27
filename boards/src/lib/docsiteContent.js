@@ -15098,6 +15098,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF)"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A file card that opens on its pages"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Screenplay ("
       },
       {
@@ -15241,6 +15255,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " there."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A document opens on its pages, which page through as a "
+    },
+    {
+     "t": "link",
+     "v": "PDF",
+     "href": "/docs/files/pdf",
+     "children": [
+      {
+       "t": "text",
+       "v": "PDF"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "'s do. They are made once, in the background, so the first look can take a few seconds: the first 200 pages of a document up to 256 MB. A document with a password, or one that's damaged, opens as its card, with the download."
     }
    ]
   },
@@ -24047,7 +24085,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and everything else shows its preview large. "
+     "v": ", and so do "
+    },
+    {
+     "t": "link",
+     "v": "documents",
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "documents"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (Word, PowerPoint, Excel, Keynote and the rest), and everything else shows its preview large. "
     },
     {
      "t": "code",

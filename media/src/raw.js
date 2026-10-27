@@ -4,9 +4,9 @@
 // biggest one out and gives it the raw's orientation; a file whose biggest is
 // under RAW_MIN_EDGE on its long side, or that carries none, is developed from
 // the sensor data by LibRaw instead, at half size. Both run as the unprivileged
-// user, with a bare environment, on the local copy, like vips.
+// user, with a bare environment and no network, on the local copy, like vips.
 
-import { writeFile, chown, stat } from 'node:fs/promises';
+import { open, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { run, isRoot, MEDIA_UID, MEDIA_GID } from './ffmpeg.js';
 
@@ -69,7 +69,7 @@ const isJpeg = (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] ===
 export async function rawPicture(src, dir, { sizeOf, refuse }) {
   let info = {};
   try {
-    const out = await run('exiftool', infoArgs(src), { timeoutMs: EXIF_TIMEOUT_MS });
+    const out = await run('exiftool', infoArgs(src), { timeoutMs: EXIF_TIMEOUT_MS, isolate: true });
     info = JSON.parse(out.toString())?.[0] || {};
   } catch (_) { /* LibRaw may still read it */ }
   const original = rawSize(info);
@@ -77,13 +77,20 @@ export async function rawPicture(src, dir, { sizeOf, refuse }) {
   let embedded = null;
   const tag = biggestPreview(info);
   if (tag) {
-    const bytes = await run('exiftool', extractArgs(src, tag), { timeoutMs: EXIF_TIMEOUT_MS }).catch(() => null);
+    const bytes = await run('exiftool', extractArgs(src, tag), { timeoutMs: EXIF_TIMEOUT_MS, isolate: true }).catch(() => null);
     if (bytes && isJpeg(bytes)) {
+      // A new file (never through anything left in its place), handed to the
+      // unprivileged user by its handle: exiftool writes the orientation in.
       const path = join(dir, 'embedded.jpg');
-      await writeFile(path, bytes, { mode: 0o644 });
-      if (isRoot()) await chown(path, MEDIA_UID, MEDIA_GID);
+      const fh = await open(path, 'wx', 0o644);
+      try {
+        await fh.writeFile(bytes);
+        if (isRoot()) await fh.chown(MEDIA_UID, MEDIA_GID);
+      } finally {
+        await fh.close();
+      }
       const o = orientationOf(info);
-      if (o) await run('exiftool', orientArgs(path, o), { timeoutMs: EXIF_TIMEOUT_MS });
+      if (o) await run('exiftool', orientArgs(path, o), { timeoutMs: EXIF_TIMEOUT_MS, isolate: true });
       const size = await sizeOf(path, 'jpegload').catch(() => null);
       if (size) embedded = { path, loader: 'jpegload', original, via: 'embedded', edge: Math.max(size.w, size.h) };
     }
@@ -92,7 +99,7 @@ export async function rawPicture(src, dir, { sizeOf, refuse }) {
 
   // Too small, or nothing: develop the sensor data.
   try {
-    await run('dcraw_emu', developArgs(src), { timeoutMs: DEVELOP_TIMEOUT_MS });
+    await run('dcraw_emu', developArgs(src), { timeoutMs: DEVELOP_TIMEOUT_MS, isolate: true });
     const path = developedPath(src);
     await stat(path);
     const size = await sizeOf(path, 'tiffload');

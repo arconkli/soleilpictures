@@ -5,7 +5,7 @@ h1: Files view
 navLabel: Files view
 section: clusters
 order: 1
-updated: 2026-10-21
+updated: 2026-10-27
 answer: Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
   - q: Does opening Files change my board?
@@ -288,7 +288,8 @@ that indicate their shape and content.
 Double-click a file, or highlight it and press `Space`, to see it big without
 leaving Files. Pictures open fitted — click to see them at full size and drag
 to look around — video and audio play, PDFs page through with `↑` / `↓`, and
-everything else shows its preview large. `←` / `→` step to the previous and
+so do [documents](/docs/files) (Word, PowerPoint, Excel, Keynote and the rest),
+and everything else shows its preview large. `←` / `→` step to the previous and
 next file, in the order Files is showing them. `Space` or `Esc` closes it.
 
 A bar floats along the top: the file's name and where it is among the files

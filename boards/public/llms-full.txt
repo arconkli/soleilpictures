@@ -1517,12 +1517,15 @@ Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000, camera raw, Photoshop .psd
 Video | An inline player
 Audio | A waveform player with cover art
 PDF | A page-one thumbnail opening into a full viewer
+Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF) | A file card that opens on its pages
 Screenplay (.fountain, .fdx) | A new script document, title page included — free on every plan
 PureRef scene (.pur) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those
 An unfinished download (.crdownload, .part) | Skipped, with a note to drop it again once it has finished
 Anything else | A file card — type icon, name, size, download
 
 Small text files get an inline preview on the card rather than only a download. Double-click a file card to open it full screen, with Download and Share there.
+
+A document opens on its pages, which page through as a PDF's do. They are made once, in the background, so the first look can take a few seconds: the first 200 pages of a document up to 256 MB. A document with a password, or one that's damaged, opens as its card, with the download.
 
 Limits
 
@@ -2095,7 +2098,7 @@ A: Yes. Each card has its own size: drag its right edge, its bottom edge or its 
 ========================================================================
 # Files view
 URL: https://clusters.soleilpictures.com/docs/clusters/list-view
-Updated: 2026-10-21
+Updated: 2026-10-27
 
 Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 
@@ -2226,7 +2229,7 @@ Everything gets a real preview, not a generic icon. Images and video show themse
 
 Quick look
 
-Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it.
+Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and so do documents (Word, PowerPoint, Excel, Keynote and the rest), and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it.
 
 A bar floats along the top: the file's name and where it is among the files (Image · 3 of 30), then Show on board (or Show in cluster, for a file you're browsing in another cluster), Download and Info.
 

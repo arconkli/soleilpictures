@@ -1,11 +1,12 @@
-// Asking for a photo's view, and what a made one gives its file's image meta
-// and its card (lib/fileView.js; the Worker's half is worker-playCopy.js).
+// Asking for a photo's or a document's view, and what a made one gives its
+// file's image meta and its card (lib/fileView.js; the Worker's half is
+// worker-playCopy.js).
 //
 // No Supabase client here (lib/fileViewWork.js reads the session and the
 // records), so node can test it. Never throws: an answer it couldn't get is
 // an empty one.
 
-import { viewKindOfKey, viewKeyOfCard } from './fileView.js';
+import { viewKindOfKey, turnsIntoPicture } from './fileView.js';
 import { askConverter, REQUEST_MAX_KEYS } from './playCopyClient.js';
 
 // { [key]: state } for the originals among `keys` that get views: 'queued' |
@@ -87,9 +88,10 @@ export function viewCardPatch(card, row) {
 // is its `src`; it takes the photo's shape (`size`, {w, h}) at its own width,
 // and keeps its name, type, size and title. `fileSrc` is cleared, so nothing
 // that looks for a file card's file finds this one once the picture's file is
-// replaced. {} for a card that stays a file card (fileView.js viewKeyOfCard).
+// replaced. {} for a card that stays a file card (fileView.js
+// turnsIntoPicture): a document's always does, and shows its first page.
 export function viewFileCardPatch(card, size) {
-  if (card?.kind !== 'file' || !viewKeyOfCard(card)) return {};
+  if (!turnsIntoPicture(card)) return {};
   const w = num(size?.w);
   const h = num(size?.h);
   if (!w || !h) return {};

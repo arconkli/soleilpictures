@@ -6,10 +6,12 @@ import {
 } from './fileViewClient.js';
 import { WAITING_STATES } from './playCopyClient.js';
 
-// Photos' views, the work loaded the first time one is needed: a picture the
-// browser couldn't draw waiting on its view (components/R2Image.jsx), and the
-// editors' pass over a board (hooks/useFileViewBackfill.js). LAZY_IN_APP in
-// scripts/bundleBudget.mjs keeps it out of the app's first download.
+// Photos' and documents' views, the work loaded the first time one is
+// needed: a picture the browser couldn't draw waiting on its view
+// (components/R2Image.jsx), a document's pages in Quick look (awaitDocPdf),
+// and the editors' pass over a board (hooks/useFileViewBackfill.js).
+// LAZY_IN_APP in scripts/bundleBudget.mjs keeps it out of the app's first
+// download.
 
 async function sessionToken() {
   try {
@@ -128,6 +130,36 @@ async function poll() {
   schedulePoll();
 }
 
+// ── A document's pages ────────────────────────────────────────────────────
+
+// The record's word on a document: its row, null when it has none, undefined
+// when it couldn't be read (signed out: members read their files' rows).
+async function docRow(key) {
+  try {
+    const { data, error } = await supabase.from('file_views').select('state,view_pdf_path')
+      .eq('storage_path', key).maybeSingle();
+    return error ? undefined : data;
+  } catch (_) {
+    return undefined;
+  }
+}
+
+// The key of the PDF the converter printed of a document (Quick look shows
+// its pages), asking for it and waiting while it's made (`onWait` is told
+// when it starts to); null when there won't be one (a password, damage, a
+// viewer who can't ask).
+export async function awaitDocPdf(key, { onWait = null } = {}) {
+  if (viewKindOfKey(key) !== 'doc') return null;
+  let row = await docRow(key);
+  if (row === undefined || (row && row.state !== 'done' && !WAITING_STATES.has(row.state))) return null;
+  if (row?.state !== 'done') {
+    onWait?.();
+    if ((await awaitView(key)) !== 'ready') return null;
+    row = await docRow(key);
+  }
+  return row?.state === 'done' && row.view_pdf_path ? row.view_pdf_path : null;
+}
+
 // ── The editors' pass over a board ────────────────────────────────────────
 
 const PASS_KEYS = 60;
@@ -139,11 +171,12 @@ function metaSize(key) {
 }
 
 // One pass of useFileViewBackfill over `targets`, the board's image cards of
-// files that get views and have no preview yet, and its file cards holding
-// one (fileView.js viewKeyOfCard). A finished view goes into the meta and
-// onto every card that holds its file as the board is now (`cardsNow`,
-// `write`): an image card still at the drop's 4:3 takes the photo's shape, a
-// file card turns into its picture card. A file never asked about is asked
+// files that get views and have no preview yet, its file cards holding a
+// photo, and its documents' file cards (fileView.js viewKeyOfCard). A
+// finished view goes into the meta and onto every card that holds its file as
+// the board is now (`cardsNow`, `write`): an image card still at the drop's
+// 4:3 takes the photo's shape, a file card holding a photo turns into its
+// picture card, and a document's stays as it is. A file never asked about is asked
 // about, `perPass` at most. `settled` and `asked` are the hook's, kept across
 // passes. True while views on this board are still to come, so the hook
 // looks again.

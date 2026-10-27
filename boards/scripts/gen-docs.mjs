@@ -86,7 +86,9 @@ import {
   TOOLS as MCP_TOOLS, FETCH_MAX_CHARS, SEARCH_DEFAULT, SEARCH_MAX, TREE_MAX, UPDATE_BOARDS_MAX,
 } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
-import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
+import {
+  VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, DOC_MAX_PAGES,
+} from '../src/lib/fileView.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
@@ -456,6 +458,10 @@ export const FACTS = {
   viewEdge: String(VIEW_EDGE),
   viewMaxSize: `${VIEW_MAX_BYTES / (1024 * MB)} GB`,
   viewMaxMegapixels: String(VIEW_MAX_PIXELS / 1_000_000),
+  // And for documents (Word, PowerPoint, Excel, Keynote...): past the size a
+  // document gets no pages, and past the count only its first pages are made.
+  docMaxSize: `${DOC_MAX_BYTES / MB} MB`,
+  docMaxPages: String(DOC_MAX_PAGES),
   // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
   // archive is assembled in the tab, and past these the tab is the thing that
   // fails. Stated so "why did my 600-file selection refuse" has an answer.

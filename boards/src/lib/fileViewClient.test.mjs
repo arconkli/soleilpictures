@@ -88,6 +88,8 @@ test('a file card holding a photo turns into its picture card, at its own width,
     { ...card, pending: true }, { ...card, locked: true },
     { ...card, versions: [{ fileSrc: `r2:${ARW}`, id: 'v1' }] }, { ...card, fileSrc: 'blob:x' },
     { ...card, kind: 'image', src: `r2:${ARW}` },
+    // A document's card shows its first page and stays a file card.
+    { ...card, fileSrc: `r2:${WS}/brief.docx` }, { ...card, fileSrc: `r2:${WS}/Deck.key` },
   ]) assert.deepEqual(viewFileCardPatch(other, { w: 400, h: 300 }), {});
 });
 

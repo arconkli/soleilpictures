@@ -1,7 +1,8 @@
 // Quick look — a file, big, without leaving Files. Double-click a file or press
 // Space; ←/→ step through the files in the order Files shows them; Space or Esc
 // closes. Pictures zoom and pan (the lightbox's own stage), video and audio
-// play (one thing at a time, through audioBus), PDFs page through, and
+// play (one thing at a time, through audioBus), PDFs page through, and so do
+// documents once the converter has printed them (lib/fileView.js), and
 // everything else shows its preview large.
 //
 // Lazy-loaded from ListSurface. It is a modal dialog: it registers with the
@@ -32,6 +33,7 @@ import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
 import { usePlayCopy } from '../../hooks/usePlayCopy.js';
 import { reportError } from '../../lib/errorReporting.js';
+import { viewKindOfKey } from '../../lib/fileView.js';
 import './filesPage.css';
 
 // A signed URL for a stored file (r2:…), or the URL itself.
@@ -90,6 +92,38 @@ function Media({ kind, src, poster, title, playSrc = null }) {
   return <audio ref={ref} className="ql-audio-el" src={url} controls autoPlay aria-label={title} />;
 }
 
+// The document a file card holds (Word, PowerPoint, Excel, Keynote, ...), or ''.
+function docKeyOf(card) {
+  const ref = typeof card?.fileSrc === 'string' && card.fileSrc.startsWith('r2:') ? card.fileSrc.slice(3) : '';
+  return ref && viewKindOfKey(ref) === 'doc' ? ref : '';
+}
+
+// A document's pages: the PDF the converter printed of it (lib/fileViewWork.js
+// asks for it when nobody has), paged through as a PDF is. Until it's there,
+// or when there won't be one (a password, a viewer who can't ask), its card
+// as before, saying so while it's being made.
+function DocStage({ item, docKey }) {
+  const [shown, setShown] = useState({ key: '', pdf: null, making: false });
+  useEffect(() => {
+    let off = false;
+    const show = (pdf, making) => { if (!off) setShown({ key: docKey, pdf, making }); };
+    import('../../lib/fileViewWork.js')
+      .then((m) => m.awaitDocPdf(docKey, { onWait: () => show(null, true) }))
+      .then((pdf) => show(pdf, false), () => show(null, false));
+    return () => { off = true; };
+  }, [docKey]);
+  const now = shown.key === docKey ? shown : { pdf: null, making: false };
+  if (now.pdf) {
+    return <div className="ql-pdf"><PdfViewer embedded src={`r2:${now.pdf}`} name={item?.name || ''} /></div>;
+  }
+  return (
+    <div className="ql-card">
+      <div className="ql-card-preview"><CardPreview item={item} size="tile" px={640} /></div>
+      {now.making && <p className="ql-audio-status" role="status">Making a preview…</p>}
+    </div>
+  );
+}
+
 function Stage({ item, playerRef = null, modalHandle = null }) {
   const card = item?.card || {};
   const name = item?.name || '';
@@ -122,6 +156,8 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
   if (item.kind === 'pdf' && card.pdfSrc) {
     return <div className="ql-pdf"><PdfViewer embedded src={card.pdfSrc} name={name} /></div>;
   }
+  const docKey = item.kind === 'file' ? docKeyOf(card) : '';
+  if (docKey) return <DocStage item={item} docKey={docKey} />;
   if (item.kind === 'link') {
     // A link gets a card of its own: its picture if it has one, the site's
     // mark, the title, the address, and an Open link that always works — a

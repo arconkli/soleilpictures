@@ -1404,7 +1404,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-21",
+    "updated": "2026-10-27",
     "navLabel": "Files view",
     "headings": [
       {
