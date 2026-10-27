@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, toolManifest, apiErrorFrom, ApiError,
+  TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
   parseFetchId, UNTRUSTED_NOTE,
 } from './mcpTools.js';
 import {
@@ -840,6 +840,116 @@ test('update_boards: one board refused is that refusal, and an entry must change
     /^Error: none of the 2 boards changed: .*you cannot rename this board \[forbidden\]/);
   await assert.rejects(run([{ board_id: BOARD_ID }]), /say what to change/);
   await assert.rejects(run([{ board_id: BOARD_ID, name: 'a' }, { board_id: BOARD_ID, view: 'list' }]), /listed twice/);
+});
+
+// ── create_boards: a board nobody placed (owner, 2026-10-27) ─────────────────
+//
+// It becomes a project, inside the workspace's first cluster, where New cluster
+// puts one (the API alone leaves it beside Studio, where Home doesn't list it),
+// and the answer offers the person's clusters so the model asks where it goes.
+
+const WSP = '7a7a7a7a-7a7a-4a7a-8a7a-7a7a7a7a7a7a';
+const Q = (n) => `${n}3333333-3333-4333-8333-333333333333`;
+const HOME = Q(0);
+const NEW = Q(9);
+const made = (over = {}) => ({
+  boards: [{ id: NEW, name: 'MOVIE HQ', workspace_id: WSP, parent_board_id: null, created: true, url: `https://x/?to=b:${NEW}`, ...over }],
+  created: 1,
+  updated: 0,
+});
+const row = (id, name, parent, depth, created_at, updated_at = created_at, extra = {}) => ({
+  id, name, parent_board_id: parent, depth, created_at, updated_at, workspace_id: WSP, deleted: false, ...extra,
+});
+// The tree is read after the create, so it holds the new board too; its order
+// is the RPC's (depth, then name), so the first top-level row is not the root.
+const TREE = [
+  row(NEW, 'MOVIE HQ', null, 0, '2026-10-27T10:00:00Z'),
+  row(Q(1), 'Old import', null, 0, '2026-09-01T00:00:00Z'),
+  row(HOME, 'Studio', null, 0, '2026-08-01T00:00:00Z', '2026-10-20T00:00:00Z'),
+  row(Q(2), 'Clients', HOME, 1, '2026-08-02T00:00:00Z', '2026-10-26T00:00:00Z'),
+  row(Q(3), 'Films', HOME, 1, '2026-08-03T00:00:00Z', '2026-10-25T00:00:00Z'),
+  row(Q(4), 'Gone', HOME, 1, '2026-08-04T00:00:00Z', '2026-10-27T09:00:00Z', { deleted: true }),
+  row(Q(5), 'Noir', Q(3), 2, '2026-08-05T00:00:00Z', '2026-10-27T08:00:00Z'),
+];
+function placingApi({ answer = made(), tree = TREE, fail = null } = {}) {
+  const calls = [];
+  const api = async (p, o = {}) => {
+    calls.push({ p, method: o.method || 'GET', body: o.body });
+    if (p === '/boards' && o.method === 'POST') return answer;
+    if (p.startsWith('/boards/tree')) {
+      if (fail === 'tree') throw apiErrorFrom(403, { error: 'you are not a member of this workspace', code: 'forbidden' });
+      return { boards: tree };
+    }
+    if (p === '/boards/move') {
+      if (fail === 'move') throw apiErrorFrom(403, { error: 'no write', code: 'forbidden' });
+      return { moved: o.body.board_ids.length, board_ids: o.body.board_ids, skipped: [], parent_board_id: o.body.parent_board_id };
+    }
+    throw new Error(`unexpected call ${p}`);
+  };
+  return { api, calls };
+}
+
+test('create_boards makes a board nobody placed a project, then offers the person\'s clusters to ask where it goes', async () => {
+  const { api, calls } = placingApi();
+  const out = await tool('create_boards').call({ boards: [{ name: 'MOVIE HQ' }] }, { api });
+  assert.deepEqual(calls.map((c) => c.p), ['/boards', `/boards/tree?workspace=${WSP}&depth=2`, '/boards/move']);
+  assert.deepEqual(calls[2].body, { board_ids: [NEW], parent_board_id: HOME }, 'into the oldest top-level cluster');
+  assert.equal(out.boards[0].parent_board_id, HOME);
+  assert.deepEqual(out.placement.board_ids, [NEW]);
+  assert.deepEqual(out.placement.choices, [
+    { id: Q(2), name: 'Clients', path: 'Clients' },
+    { id: Q(3), name: 'Films', path: 'Films' },
+    { id: Q(1), name: 'Old import', path: 'Old import' },
+    { id: Q(5), name: 'Noir', path: 'Films › Noir' },
+  ], 'projects first, the latest worked in first; never Studio, a deleted cluster or the board itself');
+  assert.equal(out.placement.more_choices, false);
+  assert.match(out.placement.ask, /didn't say where "MOVIE HQ" should go/);
+  assert.match(out.placement.ask, /update_boards/);
+  const line = toolResult(tool('create_boards'), {}, out).content[0].text.split('\n\n')[0];
+  assert.equal(line, `Created board "MOVIE HQ" · https://x/?to=b:${NEW} · once done, ask where it should go (placement)`);
+});
+
+test('create_boards leaves a board the caller placed, or an identifier matched, where it is, and asks nothing', async () => {
+  const answer = {
+    boards: [
+      { id: Q(6), name: 'Reel 1', workspace_id: WSP, parent_board_id: Q(3), created: true },
+      { id: Q(7), name: 'Reel 2', workspace_id: WSP, parent_board_id: null, created: false },
+    ],
+    created: 1,
+    updated: 1,
+  };
+  const { api, calls } = placingApi({ answer });
+  const out = await tool('create_boards').call({ boards: [{ name: 'Reel 1', parent_board_id: Q(3) }, { name: 'Reel 2' }] }, { api });
+  assert.deepEqual(out, answer);
+  assert.deepEqual(calls.map((c) => c.p), ['/boards']);
+});
+
+test('a draft\'s new board becomes a project too, but a draft is asked nothing', async () => {
+  const { api, calls } = placingApi();
+  const out = await tool('create_boards').call({ boards: [{ name: 'MOVIE HQ' }] }, { api, draft: true });
+  assert.deepEqual(calls.find((c) => c.p === '/boards/move').body, { board_ids: [NEW], parent_board_id: HOME });
+  assert.equal(out.boards[0].parent_board_id, HOME);
+  assert.equal(out.placement, undefined);
+});
+
+test('create_boards asks nothing when there is nowhere else, and offers at most PLACE_CHOICES clusters', async () => {
+  const alone = await tool('create_boards').call({ boards: [{ name: 'MOVIE HQ' }] },
+    placingApi({ tree: TREE.slice(0, 3).filter((b) => b.id !== Q(1)) }));
+  assert.equal(alone.boards[0].parent_board_id, HOME);
+  assert.equal(alone.placement, undefined);
+
+  const many = Array.from({ length: PLACE_CHOICES + 2 }, (_, i) =>
+    row(`${String(i).padStart(8, '0')}-4444-4444-8444-444444444444`, `Project ${i}`, HOME, 1, '2026-09-01T00:00:00Z'));
+  const full = await tool('create_boards').call({ boards: [{ name: 'MOVIE HQ' }] }, placingApi({ tree: [...TREE.slice(0, 3), ...many] }));
+  assert.equal(full.placement.choices.length, PLACE_CHOICES);
+  assert.equal(full.placement.more_choices, true);
+});
+
+test('placing is best-effort: a refused read or move leaves the board where the API made it', async () => {
+  for (const fail of ['tree', 'move']) {
+    const out = await tool('create_boards').call({ boards: [{ name: 'MOVIE HQ' }] }, placingApi({ fail }));
+    assert.deepEqual(out, made(), fail);
+  }
 });
 
 // ── How an answer reads (P2 C2) ──────────────────────────────────────────────

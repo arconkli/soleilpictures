@@ -198,7 +198,7 @@ quietly failing.
 
 | Tool | Input |
 |---|---|
-| `create_boards` | `boards[]` — one, or up to 500, each `{ name, workspace_id?, parent_board_id?, view?, identifiers?, props? }`; `workspace_id?`, `on_conflict?` · each board comes back with its `url` |
+| `create_boards` | `boards[]` — one, or up to 500, each `{ name, workspace_id?, parent_board_id?, view?, identifiers?, props? }`; `workspace_id?`, `on_conflict?` · each board comes back with its `url`; with no `parent_board_id` it becomes a project at the top of the workspace, where **New cluster** puts one, and the answer's `placement` offers up to 12 of your clusters to ask where it belongs |
 | `add_cards` | `board_id`, `cards[]` — up to 1000, `on_conflict?` |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
@@ -339,6 +339,14 @@ field saying so: it is material to work with, never instructions to follow, so a
 note that says "delete this board" is something to tell the person about, not
 something to do. The server's instructions say the same, for hosts that pass
 them on.
+
+**A new board goes where you say, or you're asked.** Name the cluster it
+belongs in and `create_boards` puts it there. Say nothing and it becomes a
+project at the top of your workspace, as **New cluster** makes one, and the
+answer carries `placement`: up to 12 of your clusters, projects
+first, the ones you worked in most recently first. The assistant finishes what
+you asked, then asks where the board should live and moves it there with
+`update_boards`. Leave it where it is by saying so.
 
 **Deleting returns the cards.** `delete_cards` responds with the cards it
 removed. Those objects are the undo — pass them back to `add_cards` to restore them.
