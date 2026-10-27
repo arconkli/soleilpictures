@@ -105,8 +105,9 @@ export function spawnPlan(bin, args, { root = isRoot(), isolate = false } = {}) 
 // `group` starts the child in a process group of its own and kills the whole
 // group, for a program that starts helpers (LibreOffice's soffice starts
 // soffice.bin). `maxBytes` caps what is captured of stdout: a child that
-// prints more is killed and this rejects `output_too_large`. Once the last unprivileged child has ended, every process the
-// unprivileged user still has is killed before this settles (killStrays).
+// prints more is killed and this rejects `output_too_large`. Once the last
+// unprivileged child has ended, every process the unprivileged user still
+// has is killed before this settles (killStrays).
 export function run(bin, args, { timeoutMs, capture = 'stdout', env = null, isolate = false, group = false, maxBytes = 0 } = {}) {
   return new Promise((resolve, reject) => {
     if (stopping) {
