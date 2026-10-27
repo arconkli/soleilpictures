@@ -234,8 +234,8 @@ export const isDrawnFamily = (family) => DRAWN_FAMILIES.includes(family);
 export function fileFamily(ext, mime = '') {
   const e = String(ext || '').toLowerCase();
   const m = String(mime || '').toLowerCase();
-  if (/^(video|audio|image)\//.test(m)) return null;
   if (DOC_SET.has(e)) return 'doc';
+  if (/^(video|audio|image)\//.test(m)) return null;
   const family = FAMILY_OF.get(e);
   if (family) return family;
   if (m === 'application/json' || m === 'application/xml') return 'code';

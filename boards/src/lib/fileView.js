@@ -102,6 +102,48 @@ export function docDropSize(ext) {
   return family === 'slides' ? DOC_DROP_SLIDE : family ? DOC_DROP_PAGE : null;
 }
 
+// The families a card draws from what the file says (FamilyFace.jsx on a
+// card, FileStages.jsx in Quick look), named by extension first, then by
+// type for a file with none. A document is one by its extension alone, as
+// it always was; a type of video, audio or image is never text: a .ts is a
+// camera's as often as TypeScript, and a system that knows the camera's says
+// video/mp2t.
+export const CODE_EXTS = ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx', 'py', 'rb', 'go', 'rs', 'c', 'h', 'cpp', 'cc',
+  'java', 'kt', 'swift', 'sh', 'bash', 'zsh', 'sql', 'css', 'scss', 'html', 'htm', 'xml', 'json', 'yml', 'yaml', 'toml'];
+export const FAMILY_EXTS = Object.freeze({
+  markdown: ['md', 'markdown', 'mdown', 'mkd'],
+  table: ['csv', 'tsv'],
+  subtitles: ['srt', 'vtt'],
+  code: CODE_EXTS,
+  text: ['txt', 'text', 'log', 'ini', 'env', 'conf', 'cfg', 'nfo'],
+});
+export const DRAWN_FAMILIES = Object.keys(FAMILY_EXTS);
+const FAMILY_OF = new Map(DRAWN_FAMILIES.flatMap((family) => FAMILY_EXTS[family].map((e) => [e, family])));
+export const isDrawnFamily = (family) => DRAWN_FAMILIES.includes(family);
+
+export function fileFamily(ext, mime = '') {
+  const e = String(ext || '').toLowerCase();
+  const m = String(mime || '').toLowerCase();
+  if (DOC_SET.has(e)) return 'doc';
+  if (/^(video|audio|image)\//.test(m)) return null;
+  const family = FAMILY_OF.get(e);
+  if (family) return family;
+  if (m === 'application/json' || m === 'application/xml') return 'code';
+  return m.startsWith('text/') ? 'text' : null;
+}
+
+// A table is wider than it is tall; every other drawn page is a page.
+export const TABLE_DROP = Object.freeze({ w: 400, h: 236 });
+
+// The size a new file card lands at: its family's shape, so the card doesn't
+// jump when its face arrives. Null: a file card's own 240 x 150.
+export function fileDropSize(ext, mime = '') {
+  const family = fileFamily(ext, mime);
+  if (family === 'doc') return docDropSize(ext);
+  if (family === 'table') return TABLE_DROP;
+  return family ? DOC_DROP_PAGE : null;
+}
+
 // The extension of a stored file's key (or its "r2:" ref), lowercased, or ''.
 export function extOfKey(key) {
   const m = String(key || '').match(EXT_RE);
