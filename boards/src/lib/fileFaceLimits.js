@@ -7,3 +7,6 @@ export const TABLE_STAGE_MAX_ROWS = 5000;
 // A very wide table shows fewer rows, so its page never holds more cells
 // than a tab draws at once (never fewer than 100 rows).
 export const TABLE_STAGE_MAX_CELLS = 100_000;
+// The largest font a card or Quick look loads (the whole file is read to
+// draw it); over it the card keeps its icon.
+export const FONT_FACE_MAX_BYTES = 16 * 1024 * 1024;
