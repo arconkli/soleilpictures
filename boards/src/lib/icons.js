@@ -254,4 +254,6 @@ export {
   // The consent screen's trust banner (pages/OAuthConsentPage.jsx).
   SealCheck,
   Monitor,
+  // A zip in Quick look: Unpack into clusters (components/clusterBrowser/ZipStage.jsx).
+  Package,
 } from '@phosphor-icons/react';

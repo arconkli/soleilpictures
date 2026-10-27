@@ -267,8 +267,10 @@ Double-click a file, or highlight it and press `Space`, to see it big without
 leaving Files. Pictures open fitted — click to see them at full size and drag
 to look around — video and audio play, PDFs page through with `↑` / `↓`, and
 so do [documents](/docs/files) (Word, PowerPoint, Excel, Keynote and the rest),
+a [zip](/docs/files#what-each-type-becomes) opens as a folder to walk through,
 and everything else shows its preview large. `←` / `→` step to the previous and
-next file, in the order Files is showing them. `Space` or `Esc` closes it.
+next file, in the order Files is showing them. `Space` or `Esc` closes it; in a
+zip, `Esc` first steps back from a picture you opened.
 
 A bar floats along the top: the file's name and where it is among the files
 (*Image · 3 of 30*), then **Show on board** (or **Show in cluster**, for a file

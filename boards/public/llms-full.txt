@@ -1506,7 +1506,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 URL: https://clusters.soleilpictures.com/docs/files
 Updated: 2026-10-27
 
-Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page and design files (Sketch, Figma, Procreate) the picture saved inside; anything else becomes a file card with a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
+Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page, design files (Sketch, Figma, Procreate) the picture saved inside and zips what's inside them; anything else becomes a file card with a download. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
 Drag a file onto the canvas. The type is detected and the right kind of card is created — you never pick "upload as image" from a menu.
 
@@ -1522,6 +1522,8 @@ Text, Markdown, code, logs, .csv, .tsv, .srt, .vtt | A white page showing the st
 Font (.ttf, .otf, .woff, .woff2, .ttc) | A specimen drawn in the font: Aa, its name and style, a sample line and its alphabet
 Email (.eml, .msg) | A letter: its subject, who it's from and to, the date and its first lines
 Design file (Sketch, Figma, Adobe XD, Procreate, Krita, OpenRaster, Affinity, InDesign, Illustrator, EPS) | A card showing the picture saved inside the file, at its shape
+.zip | A contact sheet of what's inside: its folders first, with how much each holds, then its pictures and files
+.7z, .rar, .tar, .tar.gz and other archives | The names inside it
 Screenplay (.fountain, .fdx) | A new script document, title page included — free on every plan
 PureRef scene (.pur) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those
 An unfinished download (.crdownload, .part) | Skipped, with a note to drop it again once it has finished
@@ -1538,6 +1540,8 @@ A font opens as a page to try it on: type your own words and change the size, wi
 An email opens as it was sent, with its attachments below it, to download one by one or put on the board together. Pictures from the web stay hidden until you choose Show pictures, and nothing in an email can run. An email over 50 MB doesn't open there (download it to read it), and an Outlook .msg over 4 MB keeps its icon on the board.
 
 A design file's card shows the picture the file keeps of itself — a Sketch, Figma, XD, Procreate, Krita or OpenRaster file's own preview, an Affinity file's, an InDesign file's thumbnail, an Illustrator file's first page, an EPS's preview — at the picture's shape, and opens on it, to zoom as a photo's does. It's made once, in the background: of a Sketch, Figma, XD, Procreate, Krita or OpenRaster file of any size, and of the others up to 1 GB. A file with no picture inside it (a Figma file from before 2023, an EPS saved without a preview) stays a file card, with the download.
+
+A zip's card is a contact sheet of what's inside it — its folders first, with how much each holds, then its pictures, then its other files — and counts its files. It opens as a folder to walk through, reading only the part it shows, so a big zip opens at once: open its folders, see its pictures large, download any file inside it, or, on a board you can edit, choose Unpack into clusters to bring it in as clusters, as importing a zip does (zips up to 1 GB). Any other archive — a .7z, .rar, .tar or compressed file — shows the names inside it, for archives up to 1 GB. A file inside that's locked with a password is listed, and says so, but doesn't open.
 
 Limits
 
@@ -1604,7 +1608,7 @@ To send someone one file on its own — a page with just that file, its player a
 ## Frequently asked questions
 
 Q: What file types can I upload on the free plan?
-A: Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; documents and design files show a picture of themselves; every other type — .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan.
+A: Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; documents and design files show a picture of themselves, and archives what's inside them; every other type — project files, for one — is a file card with a download. The only limit is the drive, 5GB on the free plan.
 
 Q: How large a file can I upload?
 A: As large as the room left on your drive — there is no per-file limit on any plan, and very large files upload in parts automatically. The drive is 5GB on the free plan and 1TB on Creator.
@@ -1833,7 +1837,7 @@ A: Any video or audio file. H.264 in an MP4 or MOV, MP3 and WAV play as they are
 ========================================================================
 # Clusters
 URL: https://clusters.soleilpictures.com/docs/clusters
-Updated: 2026-10-21
+Updated: 2026-10-27
 
 A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
@@ -1861,6 +1865,7 @@ a canvas — drop a folder or a zip, or Add → Folder…
 Files — drop a folder or a zip into the list
 a cluster in the sidebar — drop it onto the cluster's row
 the sidebar's Upload menu — A folder…, or A zip or Google Takeout…, which go into the cluster that is open, or one you pick
+a zip already on the board — open it and choose Unpack into clusters, which unpacks it into the cluster it's in without asking
 
 A phone's or a tablet's browser can't pick or drag a folder, so there you choose a zip instead. To bring files over from Google Drive, Dropbox, OneDrive or iCloud, see Coming from another tool.
 
@@ -2241,7 +2246,7 @@ Everything gets a real preview, not a generic icon. Images and video show themse
 
 Quick look
 
-Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and so do documents (Word, PowerPoint, Excel, Keynote and the rest), and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it.
+Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and so do documents (Word, PowerPoint, Excel, Keynote and the rest), a zip opens as a folder to walk through, and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it; in a zip, Esc first steps back from a picture you opened.
 
 A bar floats along the top: the file's name and where it is among the files (Image · 3 of 30), then Show on board (or Show in cluster, for a file you're browsing in another cluster), Download and Info.
 

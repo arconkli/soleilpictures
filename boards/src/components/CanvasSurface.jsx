@@ -4955,16 +4955,34 @@ export function CanvasSurface({
   // Quick look's "Put both on board" (an email's attachments, FileStages.jsx)
   // lands its files here as a drop does, in the middle of the view; offered
   // only while this board is on screen and can be changed (lib/fileActions.js).
+  // Its "Unpack into clusters" (a zip, ZipStage.jsx) goes to the bulk import
+  // as the sidebar's "A zip…" does, picked to unpack, so it asks nothing; its
+  // clusters land in the middle of the view, and what isn't part of them as
+  // a drop's files (heldEnvRef, below, read when it's pressed).
   useEffect(() => {
     const boardId = board?.id;
     if (!boardId || !canEdit || !boardReady) return undefined;
+    const unpack = onImportFolder && bulkImportAllowed() ? {
+      unpackZip: async (file) => {
+        const p = readViewCenter();
+        const at = { x: p?.x ?? 200, y: p?.y ?? 200 };
+        const env = heldEnvRef.current;
+        const out = await onImportFolder({
+          zips: [file], askZips: false, at, boardId, mutators: env?.mutators, canAttemptFiles: env?.canAttemptFiles,
+          source: 'quicklook', boardWasEmpty: !(env?.cards || []).length,
+        });
+        if (out?.loose?.length) await ingestFilesRef.current?.(out.loose, at.x, at.y);
+        return out;
+      },
+    } : {};
     return setFileActions(boardId, {
       putFiles: (files) => {
         const p = readViewCenter();
         return ingestFilesRef.current?.(files, p?.x ?? 200, p?.y ?? 200, 'email');
       },
+      ...unpack,
     });
-  }, [board?.id, canEdit, boardReady, readViewCenter]);
+  }, [board?.id, canEdit, boardReady, readViewCenter, onImportFolder]);
 
   // Held drops for this cluster (lib/heldUploads.js), the moment App's release
   // watcher says there may be room: back through the drop, so the card cap,

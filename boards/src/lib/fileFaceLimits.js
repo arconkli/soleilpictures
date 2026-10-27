@@ -15,3 +15,8 @@ export const FONT_FACE_MAX_BYTES = 16 * 1024 * 1024;
 export const MAIL_CARD_MAX_BYTES = 4 * 1024 * 1024;
 export const MAIL_HEAD_BYTES = 256 * 1024;
 export const MAIL_MAX_BYTES = 50 * 1024 * 1024;
+// A zip in Quick look (ZipStage.jsx): Unpack into clusters downloads the
+// whole zip first, so it's offered up to 1 GB; a picture inside it is drawn
+// small only when it's at most 12 MB (it's read whole to be drawn).
+export const UNPACK_MAX_BYTES = 1024 ** 3;
+export const ZIP_THUMB_MAX_BYTES = 12 * 1024 * 1024;
