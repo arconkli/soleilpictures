@@ -288,7 +288,7 @@ test('a card-to-card connector set to No arrowheads keeps its editor', async ({ 
     clientX: box.x + box.width / 2, clientY: box.y + box.height / 2,
   });
   await page.mouse.up();
-  // Its bar in either look (helpers/arrowBar.js).
+  // Its bar (helpers/arrowBar.js).
   const pop = arrowBar(page);
   await expect(pop).toBeVisible();
   await pickArrowHead(page, 'No arrowheads');

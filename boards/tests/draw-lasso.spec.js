@@ -105,13 +105,11 @@ test('the lasso is not ink — it leaves no stroke behind', async ({ page }) => 
 test('lasso mode hides the ink controls that mean nothing for a selection', async ({ page }) => {
   await page.getByRole('button', { name: 'Lasso' }).click();
   await expect(page.getByText('Circle strokes to select')).toBeVisible();
-  await expect(page.locator('.tob-swatches')).toHaveCount(0);
-  await expect(page.locator('.tob-thickness')).toHaveCount(0);
-  // By name too, as the toolbar look's bar has them.
+  // No colours, widths or eraser sizes, by name.
   await expect(page.locator('.tob').getByRole('button', { name: /^(Colou?r #|Stroke width |Eraser size )/ })).toHaveCount(0);
   // Pen must not read as active while the lasso is the live mode.
   const pen = page.getByRole('button', { name: 'Pen', exact: true });
-  await expect(pen).not.toHaveClass(/is-active/);
+  await expect(pen).not.toHaveClass(/\bis-on\b/);
   await expect(pen).toHaveAttribute('aria-pressed', 'false');
 });
 

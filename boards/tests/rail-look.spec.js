@@ -1,29 +1,24 @@
 // The tool rail in the toolbar look (the owner's pick "A · Islands",
-// 2026-10-21, mockup A-add), shipped 2026-10-25 (lib/appHost.js
-// toolbarLookAllowed): its tooltips are the look's one tooltip (glass, the
-// words, the key in a cap, on the right); the + menu says Draw's key in a cap;
-// the + with its menu open is open, not on (gold is for the tool that's on);
-// and the guided tour's last step still shows every tool's name at once.
-// Today's rail keeps its own tooltips, and nothing of the look.
+// 2026-10-21, mockup A-add), shipped 2026-10-25: its tooltips are the look's
+// one tooltip (glass, the words, the key in a cap, on the right); the + menu
+// says Draw's key in a cap; the + with its menu open is open, not on (gold is
+// for the tool that's on); and the guided tour's last step still shows every
+// tool's name at once.
 //
 // On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const rail = (page) => page.locator('.cnv-tools');
 const tool = (page, name) => rail(page).getByRole('button', { name, exact: true });
 const addMenu = (page) => page.getByRole('menu', { name: 'Add' });
 
-async function open(page, on) {
-  await look(page, on);
+async function open(page) {
   await page.goto('/?local=1&reset=1');
   await expect(rail(page)).toBeVisible({ timeout: 30000 });
 }
 
 test('a tool shows the look\'s tooltip on the right: its words and its key in a cap', async ({ page }) => {
-  await open(page, true);
+  await open(page);
   await expect(page.locator('html')).toHaveAttribute('data-tb', 'a');
   const select = tool(page, 'Select tool');
   await expect(select).toHaveAttribute('data-tl-tip', 'Select / move');
@@ -40,7 +35,7 @@ test('a tool shows the look\'s tooltip on the right: its words and its key in a 
 });
 
 test('the + menu says Draw\'s key in a cap, and the + with it open is open, not on', async ({ page }) => {
-  await open(page, true);
+  await open(page);
   const add = rail(page).getByRole('button', { name: 'Add menu' });
   await add.click();
   await expect(addMenu(page)).toBeVisible();
@@ -61,7 +56,7 @@ test('the + menu says Draw\'s key in a cap, and the + with it open is open, not 
 });
 
 test('the guided tour\'s last step still shows every tool\'s name at once, and no hover tooltip', async ({ page }) => {
-  await open(page, true);
+  await open(page);
   await page.evaluate(() => {
     document.body.setAttribute('data-tour-active', '1');
     document.querySelector('.cnv-tools').classList.add('tour-target');
@@ -78,15 +73,4 @@ test('the guided tour\'s last step still shows every tool\'s name at once, and n
   await tool(page, 'Pan tool').hover();
   await page.waitForTimeout(800);
   await expect(page.locator('.tl-tip.is-shown')).toBeHidden();
-});
-
-test('today\'s rail keeps its own tooltips, and nothing of the look', async ({ page }) => {
-  await open(page, false);
-  await expect(page.locator('html')).not.toHaveAttribute('data-tb', 'a');
-  await expect(rail(page).locator('[data-tl-tip]')).toHaveCount(0);
-  await expect(tool(page, 'Select tool')).toHaveAttribute('data-tip', 'Select / move (V)');
-  await rail(page).getByRole('button', { name: 'Add menu' }).click();
-  const draw = addMenu(page).getByRole('menuitem', { name: 'Draw', exact: true });
-  await expect(draw).toHaveAttribute('data-tip', 'Free-draw (D)');
-  await expect(draw.locator('.tl-keys')).toHaveCount(0);
 });

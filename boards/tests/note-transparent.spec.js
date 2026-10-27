@@ -4,8 +4,7 @@ import { colourButton, shownColour, swatch } from './helpers/noteBar.js';
 // Transparent note background — exposed as a swatch in the note's
 // "Card background" strip (the CSS .note.is-transparent plumbing already
 // existed; this covers the UI path end-to-end and that the option is
-// reversible). The bar's controls through helpers/noteBar.js, so this passes
-// in the toolbar look too.
+// reversible). The bar's controls through helpers/noteBar.js.
 
 test('note background can be set to transparent and back', async ({ page }) => {
   await page.goto('/?local=1&reset=1&blank=1');

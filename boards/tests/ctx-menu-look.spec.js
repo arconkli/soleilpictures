@@ -1,17 +1,13 @@
 // The right-click menus in the toolbar look (the owner's pick "A · Islands"),
-// shipped 2026-10-25 (lib/appHost.js): a card's menu and the canvas's wear
-// the look's menu, its glass at the tooltip's 94% since they open over
-// photos, rows of words at 13px, and a shortcut a cap per key, which the row
-// says to a screen reader in aria-keyshortcuts rather than in its name
-// (components/ctxMenuParts.jsx); a submenu's › is the look's caret. Today's
-// look keeps today's: solid, the shortcut in words, the › glyph.
+// shipped 2026-10-25: a card's menu and the canvas's wear the look's menu,
+// its glass at the tooltip's 94% since they open over photos, rows of words at
+// 13px, and a shortcut a cap per key, which the row says to a screen reader in
+// aria-keyshortcuts rather than in its name (components/ctxMenuParts.jsx); a
+// submenu's › is the look's caret.
 //
 // On the real canvas, through ?local=1 (the home cluster's cards).
 import { expect, test } from '@playwright/test';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const card = (page, id) => page.locator(`[data-card-id="${id}"]`);
 const menu = (page) => page.locator('.ctx-menu:not(.ctx-submenu)');
 const row = (page, name) => menu(page).getByRole('menuitem', { name, exact: true });
@@ -19,8 +15,7 @@ const row = (page, name) => menu(page).getByRole('menuitem', { name, exact: true
 const subRow = (page, name) => menu(page).locator('.ctx-has-submenu')
   .filter({ has: page.locator('.ctx-label', { hasText: new RegExp(`^${name}$`) }) });
 
-async function cardMenu(page, on = true) {
-  await look(page, on);
+async function cardMenu(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?local=1&reset=1');
   await expect(card(page, 'home-image')).toBeVisible({ timeout: 30000 });
@@ -81,7 +76,6 @@ test('a submenu opens in the same glass, its row marked by the look\'s caret', a
 });
 
 test('the canvas\'s menu wears it too', async ({ page }) => {
-  await look(page, true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?local=1&reset=1');
   await expect(card(page, 'home-note')).toBeVisible({ timeout: 30000 });
@@ -93,16 +87,4 @@ test('the canvas\'s menu wears it too', async ({ page }) => {
   const paste = menu(page).getByRole('menuitem', { name: 'Paste', exact: true });
   await expect(paste).toHaveAttribute('aria-keyshortcuts', /^(Meta|Control)\+V$/);
   await expect(paste.locator('.ctx-shortcut kbd')).toHaveText([/^(⌘|Ctrl)$/, 'V']);
-});
-
-test('today\'s look keeps today\'s menu: solid, the shortcut in words, the › glyph', async ({ page }) => {
-  await cardMenu(page, false);
-  const m = await style(menu(page), ['borderRadius', 'backgroundColor']);
-  expect(m.borderRadius).not.toBe('10px');
-  expect(alpha(m.backgroundColor)).toBe(1);
-  const dup = menu(page).getByRole('menuitem', { name: /^Duplicate/ });
-  await expect(dup.locator('.ctx-shortcut')).toHaveText(/^(⌘|Ctrl\+)D$/);
-  await expect(dup.locator('kbd')).toHaveCount(0);
-  await expect(dup).not.toHaveAttribute('aria-keyshortcuts', /.*/);
-  await expect(subRow(page, 'Edit').locator('.ctx-chevron')).toHaveText('›');
 });

@@ -22,12 +22,19 @@ const tapOn = async (page, sel) => {
   return true;
 };
 
-// Two taps, the way a finger opens a note or a doc (lib/doubleTap).
+// Two taps on one spot, the way a finger opens a note or a doc
+// (lib/doubleTap), straight to the screen as the other touch specs tap: a
+// locator's tap first waits for its target to be in view and still, which
+// under load stretched the gap past the 320ms a double tap allows.
 const twoTaps = async (page, sel) => {
   const el = page.locator(sel).first();
-  await el.tap();
+  await el.scrollIntoViewIfNeeded();
+  const b = await el.boundingBox();
+  const x = Math.round(b.x + b.width / 2);
+  const y = Math.round(b.y + b.height / 2);
+  await page.touchscreen.tap(x, y);
   await page.waitForTimeout(90);
-  await el.tap();
+  await page.touchscreen.tap(x, y);
 };
 
 // The local board's note, open for writing: its bar is up.
@@ -66,8 +73,8 @@ async function pickDocImage(page) {
   await page.locator('.tt-img-wrap.is-selected .tt-img-tb').waitFor();
   return true;
 }
-// An arrow drawn across the middle of an empty board, then picked: its
-// popover is up, or the look's bar (helpers/arrowBar.js).
+// An arrow drawn across the middle of an empty board, then picked: its bar is
+// up (helpers/arrowBar.js).
 async function pickAnArrow(page) {
   await page.keyboard.press('a');
   const b = await page.locator('.canvas-wrap').boundingBox();
@@ -96,23 +103,15 @@ const CLIP = readFileSync(new URL('../fixtures/media/frames-vp9.mp4', import.met
 // `scope`: what it opened, the only part judged (the page under it has its own
 // test, and an open menu half-covers whatever it hangs over).
 // `allow(width)`: this page's own ALLOW, for the screen's width.
-// `dense(width)`: the controls of a bar too dense to grow where it is: finger
-// sized, it no longer fits its row, and how it folds is the toolbar language's
-// to design (B2, overflow included). Their hit areas wait for it, and the test
-// names them as it passes; their text and their visibility are judged now.
 // Home with `drawer=0`: on a phone the harness opens the drawer over it, as
 // the menu button would.
 const DOC_LOOK = { 'soleil.dev.docLook': '1' };
 // Today's doc bars, held to today's look (the look's are the 'doc look …'
 // pages, which its dev switch would otherwise take these to).
 const TODAYS_DOC = { 'soleil.dev.docLook': '0' };
-// The same for the canvas's bars and the toolbar look (lib/appHost.js
-// toolbarLookAllowed; its pages are the '… look' ones).
-const TB_LOOK = { 'soleil.dev.toolbarLook': '1' };
-const TODAYS_BARS = { 'soleil.dev.toolbarLook': '0' };
 
-// The look's note bar (NoteBarA), on the local board's note: one of its
-// buttons tapped and the menu it opens up.
+// The note bar (NoteBarA), on the local board's note: one of its buttons
+// tapped and the menu it opens up.
 async function noteBarMenu(page, name, menu) {
   await editNote(page);
   await page.locator('.tob').getByRole('button', { name }).tap();
@@ -139,8 +138,8 @@ async function openSketchPad(page) {
   await page.locator('.sketchpad-frame').waitFor();
   return true;
 }
-// One of the look's canvas bars' buttons tapped, and the menu it opens up;
-// false where the bar doesn't have it on this device.
+// One of the canvas bars' buttons tapped, and the menu it opens up; false
+// where the bar doesn't have it on this device.
 async function barMenu(page, name, menu) {
   const btn = page.locator('.tob').getByRole('button', { name });
   if (!(await btn.count())) return false;
@@ -150,17 +149,14 @@ async function barMenu(page, name, menu) {
 }
 
 const PAGES = [
-  { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TODAYS_BARS },
   { name: 'home', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]' },
   { name: 'home naming', url: '/?sidebarqa=1&surface=home&drawer=0', ready: '[data-sidebarqa-ready]',
     // The map's bottom bar, or a phone's row under the search.
     open: (page) => tapOn(page, '.ch-bar .ch-quiet, .ch-find-row .ch-quiet'), scope: '.ch-naming' },
-  { name: 'bar menu', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TODAYS_BARS,
-    open: (page) => tapOn(page, '.chrome-more-btn'), scope: '.chrome-menu' },
-  // The top islands in the toolbar look (FloatingChrome, toolbarLook.css), and
-  // ⋯'s menu, the look's (ChromeMoreA).
-  { name: 'sidebar + board look', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TB_LOOK },
-  { name: 'bar menu look', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]', storage: TB_LOOK,
+  // The top islands (FloatingChrome, toolbarLook.css), and ⋯'s menu
+  // (ChromeMoreA).
+  { name: 'sidebar + board', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]' },
+  { name: 'bar menu', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
     open: (page) => tapOn(page, '.chrome-more-btn'), scope: '.tl-menu' },
   { name: 'new cluster', url: '/?sidebarqa=1', ready: '[data-sidebarqa-ready]',
     open: (page) => tapOn(page, '.tb-newcluster'), scope: '.ncl-pop' },
@@ -188,9 +184,8 @@ const PAGES = [
   { name: 'import guide', url: '/?importqa=1&guide=1', ready: '#root[data-importqa-ready]' },
   { name: 'import ask', url: '/?importqa=1&dialog=free', ready: '#root[data-importqa-ready]' },
   { name: 'upload menu', url: '/?importqa=1&menu=1', ready: '#root[data-importqa-ready]' },
-  { name: 'canvas', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS },
   // The rail, the top islands and the comments toggle over the rail.
-  { name: 'canvas look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK },
+  { name: 'canvas', url: '/?local=1&reset=1', ready: '.canvas-wrap .card' },
   { name: 'files', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await page.locator('.view-pill--primary .view-pill-btn').nth(1).tap();
@@ -224,28 +219,18 @@ const PAGES = [
       await page.locator('.ctx-menu').waitFor();
       return true;
     }, scope: '.ctx-menu' },
-  { name: 'note bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
-    open: (page) => editNote(page), scope: '.tob',
-    dense: (w) => (w > 640 ? '.tob-btn, .size-combo, .size-combo-arrow' : null) },
-  { name: 'note colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
-    open: async (page) => {
-      await editNote(page);
-      await page.locator('.tob').getByRole('button', { name: 'Text color' }).tap();
-      await page.locator('.tob-pop').waitFor();
-      return true;
-    }, scope: '.tob-pop' },
-  // The note bar in the toolbar look, folded under a finger to its five
-  // groups and ⋯ (NoteBarA; note-bar-look.spec.js), and each of its menus.
-  { name: 'note bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  // The note bar, folded under a finger to its five groups and ⋯ (NoteBarA;
+  // note-bar-look.spec.js), and each of its menus.
+  { name: 'note bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: (page) => editNote(page), scope: '.tob' },
-  { name: 'note bar look fonts', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'note bar fonts', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: (page) => noteBarMenu(page, /^Font/, '.nb-font-pop'), scope: '.nb-font-pop' },
-  { name: 'note bar look colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'note colours', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: (page) => noteBarMenu(page, 'Text color', '.nb-colour-menu'), scope: '.nb-colour-menu' },
-  { name: 'note bar look more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'note bar more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: (page) => noteBarMenu(page, 'More formatting', '.nb-more'), scope: '.nb-more' },
-  // The background's menu, off ⋯ (a phone's are ⋯'s own: 'note bar look more').
-  { name: 'note bar look background', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  // The background's menu, off ⋯ (a phone's are ⋯'s own: 'note bar more').
+  { name: 'note bar background', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await noteBarMenu(page, 'More formatting', '.nb-more');
       const row = page.locator('.nb-more').getByRole('menuitem', { name: 'Card background' });
@@ -255,7 +240,7 @@ const PAGES = [
       return true;
     }, scope: '.nb-colour-menu' },
   // A phone's lists are a menu of their own.
-  { name: 'note bar look lists', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'note bar lists', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await editNote(page);
       const lists = page.locator('.tob').getByRole('button', { name: /^Lists/ });
@@ -264,53 +249,33 @@ const PAGES = [
       await page.locator('.tl-menu.tob-menu').waitFor();
       return true;
     }, scope: '.tl-menu.tob-menu' },
-  { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
+  // ── The draw, shape, line and arrow bars (components/toolbar/CanvasBarsA.jsx) ──
+  { name: 'draw bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: drawTool, scope: '.tob' },
-  { name: 'shape bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
-    open: shapeTool, scope: '.tob' },
-  { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
-    open: async (page) => {
-      await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
-      await page.locator('.tob').waitFor();
-      return true;
-    }, scope: '.tob' },
-  { name: 'an arrow picked', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TODAYS_BARS,
-    open: async (page) => { await pickAnArrow(page); return true; }, scope: '.arrow-popover',
-    dense: () => '.arrow-popover button, .arrow-popover input' },
-  { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TODAYS_BARS,
-    open: async (page) => {
-      await pickAnArrow(page);
-      await pickArrowHead(page, 'No arrowheads');
-      await page.locator('.tob[aria-label="Line"]').waitFor();
-      return true;
-    }, scope: '.tob' },
-  // ── The look's draw, shape, line and arrow bars (components/toolbar/CanvasBarsA.jsx) ──
-  { name: 'draw bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
-    open: drawTool, scope: '.tob' },
-  { name: 'draw bar look menu', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'draw bar menu', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => { await drawTool(page); return barMenu(page, 'Brush, color and width', '.db-menu'); },
     scope: '.db-menu' },
-  { name: 'shape bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'shape bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: shapeTool, scope: '.tob' },
-  { name: 'shape bar look shapes', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'shape bar shapes', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => { await shapeTool(page); return barMenu(page, /^Shape: /, '.tl-menu.tob-menu'); },
     scope: '.tl-menu.tob-menu' },
-  { name: 'shape bar look fill', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'shape bar fill', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => { await shapeTool(page); return barMenu(page, 'Fill', '.sb-colour-menu'); },
     scope: '.sb-colour-menu' },
-  { name: 'shape bar look more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'shape bar more', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => { await shapeTool(page); return barMenu(page, 'More shape options', '.sb-more'); },
     scope: '.sb-more' },
-  { name: 'arrow bar look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
       await page.locator('.tob').waitFor();
       return true;
     }, scope: '.tob' },
   // A picked arrow's (PickedArrowBarA), finger sized where it is, and its ⋯.
-  { name: 'an arrow picked look', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+  { name: 'an arrow picked', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
     open: async (page) => { await pickAnArrow(page); return true; }, scope: '.tl-bar.pa-a' },
-  { name: 'an arrow picked look more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+  { name: 'an arrow picked more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
     open: async (page) => {
       await pickAnArrow(page);
       const more = arrowBar(page).getByRole('button', { name: 'More arrow options' });
@@ -319,23 +284,21 @@ const PAGES = [
       await page.locator('.pa-more').waitFor();
       return true;
     }, scope: '.pa-more' },
-  { name: 'line bar look', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+  { name: 'line bar', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
     open: async (page) => {
       await pickAnArrow(page);
       await pickArrowHead(page, 'No arrowheads');
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return true;
     }, scope: '.tob' },
-  { name: 'line bar look more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap', storage: TB_LOOK,
+  { name: 'line bar more', url: '/?local=1&reset=1&blank=1', ready: '.canvas-wrap',
     open: async (page) => {
       await pickAnArrow(page);
       await pickArrowHead(page, 'No arrowheads');
       await page.locator('.tob[aria-label="Line"]').waitFor();
       return barMenu(page, 'More line options', '.ln-more');
     }, scope: '.ln-more' },
-  { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TODAYS_BARS,
-    open: openSketchPad, scope: '.sketchpad-frame' },
-  { name: 'sketch pad look', url: '/?local=1&reset=1', ready: '.canvas-wrap .card', storage: TB_LOOK,
+  { name: 'sketch pad', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: openSketchPad, scope: '.sketchpad-frame' },
   // Two versions, so its header carries the version pills (on a phone, their menu).
   { name: 'review player', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
@@ -515,8 +478,26 @@ const ALLOW = {
   '.msg-panel, .msg-panel *': 'Messages UI (handed to its own session)',
 };
 
-async function audit(page, allow, scope = null, dense = null) {
-  return page.evaluate(([allow, scope, dense]) => {
+// What a page opened comes in with a fade (a menu's rise-in): its finite
+// animations and transitions run out before it's judged, since under load the
+// half-second after `open` can end mid-fade, where a control reads as
+// invisible at rest. An endless one (a spinner) isn't waited for, nor anything
+// past 3s.
+const settled = (page, scope) => page.evaluate((sel) => {
+  const inScope = (a) => {
+    const el = a.effect?.target;
+    return !!el && (!!el.closest?.(sel) || !!el.querySelector?.(sel));
+  };
+  const runs = document.getAnimations()
+    .filter((a) => inScope(a) && Number.isFinite(a.effect.getComputedTiming().endTime));
+  return Promise.race([
+    Promise.all(runs.map((a) => a.finished.catch(() => {}))),
+    new Promise((r) => { setTimeout(r, 3000); }),
+  ]).then(() => undefined);
+}, scope);
+
+async function audit(page, allow, scope = null) {
+  return page.evaluate(([allow, scope]) => {
     const out = [];
     const SEL = 'button, [role=button], a[href], input:not([type=hidden]), select, textarea, [role=menuitem], [role=tab], [role=option], [role=switch], [role=checkbox], [contenteditable=true]';
     const allowed = (el) => Object.keys(allow).some((s) => { try { return el.matches(s); } catch (_) { return false; } });
@@ -590,11 +571,10 @@ async function audit(page, allow, scope = null, dense = null) {
       if (r.width < 1 || r.height < 1 || r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) continue;
       if (allowed(el) || scrolledOut(el, r)) continue;
       const field = el.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]), textarea, select, [contenteditable=true]');
-      out.push({ name: name(el), field, fontSize: parseFloat(cs.fontSize), opacity: opacityOf(el), box: hitOf(el, r),
-        dense: !!dense && el.matches(dense) });
+      out.push({ name: name(el), field, fontSize: parseFloat(cs.fontSize), opacity: opacityOf(el), box: hitOf(el, r) });
     }
     return out;
-  }, [allow, scope, dense]);
+  }, [allow, scope]);
 }
 
 for (const p of PAGES) {
@@ -624,11 +604,11 @@ for (const p of PAGES) {
       test.skip(!shown, `${p.name} isn't reached this way on this device`);
       await page.waitForTimeout(500);
     }
+    if (p.scope) await settled(page, p.scope);
     const width = page.viewportSize().width;
-    const found = await audit(page, { ...ALLOW, ...p.allow?.(width) }, p.scope, p.dense?.(width));
+    const found = await audit(page, { ...ALLOW, ...p.allow?.(width) }, p.scope);
     if (p.scope) expect(found.length, `${p.name}: nothing to judge in ${p.scope}`).toBeGreaterThan(0);
     const bad = [];
-    const waiting = [];
     for (const c of found) {
       if (c.opacity < 0.05) { bad.push(`${c.name}: invisible at rest (opacity ${c.opacity.toFixed(2)})`); continue; }
       if (c.field && c.fontSize < 16) bad.push(`${c.name}: field text ${c.fontSize}px (iOS zooms below 16)`);
@@ -637,11 +617,7 @@ for (const p of PAGES) {
       // A pixel of slack: a 40px control flush with the screen's edge, or on a
       // half-pixel, measures 39.
       if (Math.min(box.w, box.h) >= 39) continue;
-      if (c.dense) waiting.push(`${c.name} ${box.w}×${box.h}`);
-      else bad.push(`${c.name}: hit area ${box.w}×${box.h}`);
-    }
-    if (waiting.length) {
-      test.info().annotations.push({ type: 'dense bar, sized in B2', description: waiting.join('; ') });
+      bad.push(`${c.name}: hit area ${box.w}×${box.h}`);
     }
     expect(bad, `${p.name} — controls a finger can't take:\n  ${bad.join('\n  ')}`).toEqual([]);
   });

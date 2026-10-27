@@ -7,7 +7,7 @@ import {
 // The note formatting bar against the REAL collaborative note editor (the
 // ?local canvas still runs the legacy contentEditable, so these drive the
 // ?noteqa harness with its &toolbar=1 bar instead). Its controls through
-// helpers/noteBar.js, so these pass in the toolbar look too.
+// helpers/noteBar.js.
 
 const A = '[data-client="A"] .note';
 const A_EDIT = '[data-client="A"] .note-body[contenteditable="true"]';

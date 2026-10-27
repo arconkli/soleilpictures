@@ -1,25 +1,20 @@
 // The shape, line and arrow bars in the toolbar look (the owner's pick
-// "A · Islands", mockup A-parts), shipped 2026-10-25 (lib/appHost.js
-// toolbarLookAllowed; components/toolbar/CanvasBarsA.jsx): the shape as a
-// menu of shapes, its stroke and fill as colour chips with their menus, the
-// width between − and +, the line style as a menu; a line's colour, width,
-// style and angle; the arrow tool's path and style as two pairs of words.
-// Under a finger what doesn't fit is ⋯'s. Today's bars keep nothing of the
-// look.
+// "A · Islands", mockup A-parts), shipped 2026-10-25
+// (components/toolbar/CanvasBarsA.jsx): the shape as a menu of shapes, its
+// stroke and fill as colour chips with their menus, the width between − and
+// +, the line style as a menu; a line's colour, width, style and angle; the
+// arrow tool's path and style as two pairs of words. Under a finger what
+// doesn't fit is ⋯'s.
 //
 // On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
 import { pickArrowHead } from './helpers/arrowBar.js';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const bar = (page, name) => page.getByRole('toolbar', { name });
 const names = (loc) => loc.locator('button, input')
   .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') || e.textContent.trim()));
 
-async function board(page, on = true) {
-  await look(page, on);
+async function board(page) {
   await page.goto('/?local=1&reset=1&blank=1');
   await page.locator('.canvas-wrap').waitFor({ timeout: 30000 });
   await page.addStyleTag({ content: '.dev-banner, .twk-gear { display: none !important; }' });
@@ -136,17 +131,6 @@ test('a line picked: its colour, width, style and angle', async ({ page }) => {
   await expect(angle).toHaveValue('45');
   await line.getByRole('button', { name: 'Increase line width' }).click();
   await expect(line.getByRole('textbox', { name: 'Line width' })).toHaveValue('3');
-});
-
-test('today\'s shape and arrow bars keep nothing of the look', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await board(page, false);
-  await shapeTool(page);
-  await expect(bar(page, 'Shape')).not.toHaveClass(/\btob-a\b/);
-  await expect(bar(page, 'Shape').locator('select.tob-select').first()).toBeVisible();
-  await page.keyboard.press('Escape');
-  await page.locator('.cnv-tools').getByRole('button', { name: 'Arrow tool' }).click();
-  await expect(bar(page, 'Arrow').locator('.tob-segmented').first()).toBeVisible();
 });
 
 test.describe('on a phone', () => {

@@ -21,8 +21,8 @@ async function editA(page) {
   await expect(noteBar(page)).toBeVisible();
 }
 
-// Each popover's button and the popover, through helpers/noteBar.js, so these
-// pass in the toolbar look too (its menus).
+// Each popover's button and the popover (the bar's menus), through
+// helpers/noteBar.js.
 const POPOVERS = [
   ['font list', fontButton, fontList],
   ['size list', sizePresets, sizeList],

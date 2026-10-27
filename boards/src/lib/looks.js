@@ -1,12 +1,12 @@
-// Which look the toolbars and the doc editor wear (lib/appHost.js
-// toolbarLookAllowed, docLookAllowed: on everywhere, and on dev unless a hold
-// says '0'). main.jsx asks the switches once, before anything renders, and
-// marks <html>: data-tb="a" for the toolbars, data-doc-look="a" for the doc
-// editor. The CSS keys on the marks and markup that differs asks here, so no
-// component asks a switch, and the markup and the CSS can't disagree.
+// Which look the doc editor wears (lib/appHost.js docLookAllowed: on
+// everywhere, and on dev unless its hold says '0'), and the parts every bar in
+// the toolbar look uses. main.jsx marks <html> once, before anything renders:
+// data-tb="a" always (the toolbar look is the only one the bars have), and
+// data-doc-look="a" for the doc editor. The CSS keys on the marks and markup
+// that differs asks docLook() here, so no component asks a switch, and the
+// markup and the CSS can't disagree.
 const mark = (name) => (typeof document !== 'undefined' && document.documentElement?.dataset?.[name]) || null;
 
-export const toolbarLook = () => mark('tb') === 'a';
 export const docLook = () => mark('docLook') === 'a';
 
 // A shortcut as the keys a tooltip or a menu shows, each in its own cap:
@@ -56,21 +56,12 @@ export function shortcutAria(written) {
   return shortcutCaps(written).map((k) => ARIA_OF[k] || k).join('+');
 }
 
-// The tooltip a control asks for in the new look: the one host's
-// (components/toolbar/tipHost.js), with its words and the shortcut's keys in
-// caps, on the side it asks for (the rail's go right).
+// A control's tooltip: the one host's (components/toolbar/tipHost.js), with
+// its words and the shortcut's keys in caps, on the side it asks for (the
+// rail's go right).
 export function tlTip(label, keys, side) {
   const a = { 'data-tl-tip': label };
   if (keys) a['data-tl-keys'] = keys;
   if (side) a['data-tl-tip-side'] = side;
   return a;
-}
-
-// The same, for a control that is in both looks: in the look before the new
-// one it keeps the browser's tooltip it always had (`legacy`, its old title;
-// null if it had none), so nothing changes there.
-export function tip(label, keys, legacy, look = toolbarLook()) {
-  if (look) return tlTip(label, keys);
-  if (legacy === null) return {};
-  return { title: legacy ?? label };
 }

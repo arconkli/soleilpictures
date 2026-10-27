@@ -1,18 +1,13 @@
 // The sketch pad's bar in the toolbar look (the owner's pick "A · Islands"),
-// shipped 2026-10-25 (lib/appHost.js): the tools are the look's icons, the
-// canvas draw bar's, at 32px, with the look's glass tooltip; what's on (the
-// tool, the brush, the layer you draw on) is the look's gold tint and ring
-// rather than a gold border, and a screen reader hears which tool is on; the
-// bar still wraps whole inside the pad. Today's look keeps its glyphs, titles
-// and gold border.
+// shipped 2026-10-25: the tools are the look's icons, the canvas draw bar's,
+// at 32px, with the look's glass tooltip; what's on (the tool, the brush, the
+// layer you draw on) is the look's gold tint and ring rather than a gold
+// border, and a screen reader hears which tool is on; the bar still wraps
+// whole inside the pad.
 import { expect, test } from '@playwright/test';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 
-async function openPad(page, on) {
-  await look(page, on);
+async function openPad(page) {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
@@ -28,7 +23,7 @@ const ON_RING = 'rgba(255, 165, 0, 0.34)';
 const bg = (loc) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
 
 test('the pad\'s tools are the look\'s icons, the one that\'s on in its tint and ring', async ({ page }) => {
-  await openPad(page, true);
+  await openPad(page);
   const pen = bar(page).getByRole('button', { name: 'Pen', exact: true });
   const eraser = bar(page).getByRole('button', { name: 'Eraser', exact: true });
   for (const name of ['Pen', 'Eraser', 'Paint bucket']) {
@@ -59,7 +54,7 @@ test('the pad\'s tools are the look\'s icons, the one that\'s on in its tint and
 });
 
 test('the layer you draw on wears the on, and its row\'s controls are the look\'s icons', async ({ page }) => {
-  await openPad(page, true);
+  await openPad(page);
   await bar(page).getByRole('button', { name: /^Layers/ }).click();
   const layer = page.locator('.sp-layer.is-active');
   await expect(layer).toBeVisible();
@@ -69,7 +64,6 @@ test('the layer you draw on wears the on, and its row\'s controls are the look\'
 });
 
 test('at 1024×768 every control on the bar is whole, inside the pad, in the look', async ({ page }) => {
-  await look(page, true);
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
@@ -98,14 +92,4 @@ test('at 1024×768 every control on the bar is whole, inside the pad, in the loo
   }));
   expect(seps.some((s) => s.rowEnd)).toBe(true);
   for (const s of seps) expect(s.visibility).toBe(s.rowEnd ? 'hidden' : 'visible');
-});
-
-test('today\'s look keeps the pad\'s glyphs, titles and gold border', async ({ page }) => {
-  await openPad(page, false);
-  const pen = bar(page).getByRole('button', { name: 'Pen', exact: true });
-  await expect(pen).toHaveText('✎');
-  await expect(pen).toHaveAttribute('title', 'Pen');
-  await expect(bar(page).getByRole('button', { name: 'Paint bucket', exact: true })).toHaveAttribute('title', 'Paint bucket (click pad to fill background)');
-  await expect(bar(page).getByRole('button', { name: 'Undo sketch change' })).toHaveAttribute('title', 'Undo (⌘Z)');
-  expect(await pen.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(255, 165, 0)');
 });

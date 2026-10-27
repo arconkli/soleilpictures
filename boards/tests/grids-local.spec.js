@@ -5,8 +5,7 @@ import { colourButton, formatButton, noteBar, pressControl, scopeGroup, someColo
 // wiring end to end with REAL input: add a Grid via the canvas right-click menu,
 // select it, drag a divider (the shared-edge resize), and fill an empty cell
 // with text via the chooser. The pure layout/sequence math is covered separately
-// by grids.spec.js (?gridqa=1). The bar's controls through helpers/noteBar.js,
-// so these pass in the toolbar look too.
+// by grids.spec.js (?gridqa=1). The bar's controls through helpers/noteBar.js.
 
 async function addGrid(page) {
   const canvas = page.locator('.canvas-wrap');

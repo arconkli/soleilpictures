@@ -6,8 +6,8 @@ import './toolbar.css';
 // 2026-10-21): glass, the control's words, and the shortcut's keys each in a
 // cap. A control asks for it with data-tl-tip (lib/looks.js tlTip), and one
 // host serves the page: a bar needs no tooltip of its own, and a control in a
-// menu portaled out of its bar gets the same one. main.jsx installs it while
-// either look is on.
+// menu portaled out of its bar gets the same one. main.jsx installs it on
+// every page.
 //
 //  - Under a mouse, after a pause; while one shows, or just after, the next
 //    comes at once, so a pointer run along a bar reads it. On a keyboard's

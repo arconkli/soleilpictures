@@ -33,10 +33,10 @@ import {
 // selected rather than written in has no emphasis or lists, and one that
 // holds a picture only its background and that scope.
 //
-// ToolOptionsBar's NoteRichTextBar works it, as it works today's bar: the
-// format state (fmt, display, fore), what each control does (act), where the
-// bar sits and the keyboard's lift (.tob, barRef), and its keys (onKeyDown:
-// one Tab stop, the arrows along it, ⌥F10 from the text and Escape back).
+// ToolOptionsBar's NoteRichTextBar works it: the format state (fmt, display,
+// fore), what each control does (act), where the bar sits and the keyboard's
+// lift (.tob, barRef), and its keys (onKeyDown: one Tab stop, the arrows along
+// it, ⌥F10 from the text and Escape back).
 // This draws it. Nothing in it takes the focus from the text on a press, and
 // its menus (MENU) are the note's edit session too (NoteTiptapSurface
 // EDIT_SESSION_UI), so the note stays in edit while one is open.

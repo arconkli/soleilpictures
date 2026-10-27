@@ -14,22 +14,21 @@ import { logClientError, installErrorWatch } from './lib/errorReporting.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload, isCssPreloadError, reloadedRecently } from './lib/lazyWithReload.js';
 import { installDomMutationGuard } from './lib/domMutationGuard.js';
-import { toolbarLookAllowed, docLookAllowed } from './lib/appHost.js';
+import { docLookAllowed } from './lib/appHost.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
-// The toolbar look and the doc editor's look (on everywhere; on dev a hold
-// set to '0' shows today's): marked on <html> once, before anything renders,
-// so the CSS and lib/looks.js agree from the first frame.
+// The toolbar look, the only one the bars have, and the doc editor's look (on
+// everywhere; on dev a hold set to '0' shows today's): marked on <html> once,
+// before anything renders, so the CSS and lib/looks.js agree from the first
+// frame.
 if (typeof document !== 'undefined') {
-  if (toolbarLookAllowed()) document.documentElement.dataset.tb = 'a';
+  document.documentElement.dataset.tb = 'a';
   if (docLookAllowed()) document.documentElement.dataset.docLook = 'a';
   // Their one tooltip, with the shortcut's keys in caps.
-  if (toolbarLookAllowed() || docLookAllowed()) {
-    import('./components/toolbar/tipHost.js').then((m) => m.installTipHost()).catch(() => {});
-  }
-  // Where the bars the app already has wear the toolbar look.
-  if (toolbarLookAllowed()) import('./styles/toolbarLook.css').catch(() => {});
+  import('./components/toolbar/tipHost.js').then((m) => m.installTipHost()).catch(() => {});
+  // Where the bars wear the toolbar look.
+  import('./styles/toolbarLook.css').catch(() => {});
 }
 
 // DEV-only logic bridge for Playwright specs (first-value-upgrade.spec.js).
@@ -146,7 +145,7 @@ loadPixelLater({ signedIn: hasCachedSession() });
 if (import.meta.env.DEV && typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
   setTimeout(() => {
     const surfaces = ['.topbar', '.sidebar', '.sb-mid', '.rail', '.share-modal', '.modal', '.twk-panel',
-      '.bc', '.cnv-tools', '.tob', '.tob-pop', '.doc-tb', '.sketchpad-toolbar', '.sketchpad-frame',
+      '.bc', '.cnv-tools', '.tob', '.doc-tb', '.sketchpad-toolbar', '.sketchpad-frame',
       '.ctx-menu', '.ctx-submenu', '.cp-pop', '.ws-menu', '.cnv-add-menu', '.topbar-add-menu',
       '.entity-picker', '.entity-hover-popover', '.link-popover', '.link-hover-card',
       '.account-modal', '.settings-modal', '.home-graph-drawer', '.tag-detail', '.inbox'];

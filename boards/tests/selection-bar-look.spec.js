@@ -1,17 +1,14 @@
 // The selection's bar in the toolbar look (the owner's pick "A · Islands",
-// mockup A-select), shipped 2026-10-25 (lib/appHost.js toolbarLookAllowed;
-// components/toolbar/SelectionBarA.jsx): two or more cards picked on a desktop
-// canvas get, on the bottom row, what right-clicking one of them offers, each
-// control the card menu's own item: Tidy up, Align (and Distribute), Group, New
-// cluster from N cards, Move N cards to…; ⋯ is that menu itself, over the bar,
-// and Delete is ⌫'s, with its undo. Today's look keeps the count at the top.
+// mockup A-select), shipped 2026-10-25 (components/toolbar/SelectionBarA.jsx):
+// two or more cards picked on a desktop canvas get, on the bottom row, what
+// right-clicking one of them offers, each control the card menu's own item:
+// Tidy up, Align (and Distribute), Group, New cluster from N cards, Move N
+// cards to…; ⋯ is that menu itself, over the bar, and Delete is ⌫'s, with its
+// undo.
 //
 // On the real canvas, through ?local=1 (the home cluster's cards).
 import { expect, test } from '@playwright/test';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const bar = (page) => page.getByRole('toolbar', { name: 'Selection' });
 const button = (page, name) => bar(page).getByRole('button', { name, exact: true });
 const card = (page, id) => page.locator(`[data-card-id="${id}"]`);
@@ -21,8 +18,7 @@ const names = (loc) => loc.locator('button')
 const meets = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 // The note, the palette and the image on the home cluster, picked.
-async function threePicked(page, on = true) {
-  await look(page, on);
+async function threePicked(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?local=1&reset=1');
   await expect(card(page, 'home-note')).toBeVisible({ timeout: 30000 });
@@ -134,10 +130,4 @@ test('the arrows walk the bar, and leave the cards where they are', async ({ pag
   // ⌫ from the bar is still the canvas's, on the selection.
   await page.keyboard.press('Backspace');
   for (const id of PICKED) await expect(card(page, id)).toHaveCount(0);
-});
-
-test('today\'s look keeps the count at the top, and no bar', async ({ page }) => {
-  await threePicked(page, false);
-  await expect(page.locator('.cnv-selcount')).toHaveText('3 selected');
-  await expect(bar(page)).toHaveCount(0);
 });

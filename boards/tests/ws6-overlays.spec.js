@@ -4,8 +4,7 @@ test('sketch-pad discard prompt uses the in-app dialog (not native confirm)', as
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   await page.keyboard.press('d'); // Free-draw is a keyboard shortcut now (moved off the rail into the + menu)
-  // By name (its tooltip is a title on today's bar, the toolbar look's own
-  // there).
+  // By name (its tooltip is the toolbar look's own).
   await page.locator('.tob').getByRole('button', { name: 'Open a fullscreen drawing canvas' }).click();
   const pad = page.locator('.sketchpad-surface');
   await expect(pad).toBeVisible();

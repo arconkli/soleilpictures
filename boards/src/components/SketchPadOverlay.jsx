@@ -19,7 +19,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react
 import { createPortal } from 'react-dom';
 import { X, Undo, Redo, ArrowDown, ArrowUp, Eraser, Eye, EyeOff, MoreHorizontal, PaintBucket, PenNib, Plus, Stack, Trash2 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
-import { tip, toolbarLook } from '../lib/looks.js';
+import { tlTip } from '../lib/looks.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
 import { ColorPicker } from './ColorPicker.jsx';
 import { addRecentColor } from '../lib/recentColors.js';
@@ -137,8 +137,6 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   // agrees with the rest of the app about what "mobile" means.
   const { isPhone, isTablet, isTouch } = useBreakpoint();
   const compact = isPhone || (isTablet && isTouch);
-  const tbLook = toolbarLook();
-  const iconWeight = tbLook ? 'regular' : undefined;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [renamingId, setRenamingId] = useState(null);
@@ -686,12 +684,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
   }, [layers, visibleStrokes, padBg, onCommitStrokes, onClose, editingCard, logicalW, logicalH]);
 
   // The desktop bar wraps (its groups whole), and a hairline the wrap leaves
-  // at the end of a row parts nothing there: in the toolbar look it hides,
-  // keeping its room, so hiding it can't move the wrap.
+  // at the end of a row parts nothing there: it hides, keeping its room, so
+  // hiding it can't move the wrap.
   const framePickable = !editingCard && !totalStrokes;
   useLayoutEffect(() => {
     const bar = barRef.current;
-    if (!tbLook || !open || compact || !bar) return undefined;
+    if (!open || compact || !bar) return undefined;
     const mark = () => {
       for (const sep of bar.querySelectorAll(':scope > .sp-sep')) {
         const r = sep.getBoundingClientRect();
@@ -704,7 +702,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     const ro = new ResizeObserver(mark);
     ro.observe(bar);
     return () => ro.disconnect();
-  }, [tbLook, open, compact, framePickable]);
+  }, [open, compact, framePickable]);
 
   if (!open) return null;
 
@@ -726,7 +724,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                 className={`sp-color ${color === c ? 'is-active' : ''}`}
                 style={{ background: c }}
                 onClick={() => { setColor(c); addRecentColor(c); }}
-                {...tip(c)}
+                {...tlTip(c)}
                 aria-label={`Colour ${c}`} />
       ))}
       <button type="button"
@@ -735,8 +733,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                 const r = e.currentTarget.getBoundingClientRect();
                 setPickerPos({ x: r.left + r.width / 2, y: r.bottom + 8 });
               }}
-              {...tip('Custom colour', null, 'Custom color')}
-              aria-label="Custom colour">{tbLook ? <Icon as={Plus} size={12} weight="bold" /> : '⋯'}</button>
+              {...tlTip('Custom colour')}
+              aria-label="Custom colour"><Icon as={Plus} size={12} weight="bold" /></button>
     </>
   );
 
@@ -745,7 +743,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             type="button"
             className={`sp-width ${activeWidth === w ? 'is-active' : ''}`}
             onClick={() => (tool === 'eraser' ? setEraserWidth(w) : setWidth(w))}
-            {...tip(tool === 'eraser' ? `Eraser size ${w}px` : `${w}px`)}
+            {...tlTip(tool === 'eraser' ? `Eraser size ${w}px` : `${w}px`)}
             aria-label={tool === 'eraser' ? `Eraser size ${w}` : `Stroke width ${w}`}>
       <span className="sp-width-dot" style={{
         width: Math.min(20, w + 4),
@@ -761,7 +759,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             type="button"
             className={`sp-brush ${brush === id ? 'is-active' : ''}`}
             onClick={() => { setBrush(id); setTool('pen'); }}
-            {...tip(BRUSH_LABELS[id])}
+            {...tlTip(BRUSH_LABELS[id])}
             aria-label={`${BRUSH_LABELS[id]} brush`}>
       <svg viewBox="0 0 56 26" width="52" height="24" aria-hidden="true">
         <BrushPreview brush={id} />
@@ -839,11 +837,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                   className="sp-layer-eye"
                   onClick={() => toggleLayer(l.id)}
                   aria-pressed={l.visible !== false}
-                  {...tip(l.visible === false ? 'Show layer' : 'Hide layer')}
+                  {...tlTip(l.visible === false ? 'Show layer' : 'Hide layer')}
                   aria-label={`${l.visible === false ? 'Show' : 'Hide'} ${l.name}`}>
-            {tbLook
-              ? <Icon as={l.visible === false ? EyeOff : Eye} size={16} weight="regular" />
-              : (l.visible === false ? '◌' : '◉')}
+            <Icon as={l.visible === false ? EyeOff : Eye} size={16} weight="regular" />
           </button>
           {renamingId === l.id ? (
             // Commit on Enter or blur, abandon on Escape. The pad's capture-phase
@@ -869,22 +865,22 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                       if (tapIsDouble(doubleTapRef, e, { key: l.id })) setRenamingId(l.id);
                     }}
                     onDoubleClick={() => setRenamingId(l.id)}
-                    {...tip('Draw on this layer — double-tap to rename')}>
+                    {...tlTip('Draw on this layer — double-tap to rename')}>
               {l.name}
               <span className="sp-layer-count">{l.strokes.length || ''}</span>
             </button>
           )}
           <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, 1)}
                   disabled={idx === layers.length - 1} aria-label={`Move ${l.name} up`}>
-            {tbLook ? <Icon as={ArrowUp} size={14} weight="regular" /> : '↑'}
+            <Icon as={ArrowUp} size={14} weight="regular" />
           </button>
           <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, -1)}
                   disabled={idx === 0} aria-label={`Move ${l.name} down`}>
-            {tbLook ? <Icon as={ArrowDown} size={14} weight="regular" /> : '↓'}
+            <Icon as={ArrowDown} size={14} weight="regular" />
           </button>
           <button type="button" className="sp-layer-btn" onClick={() => removeLayer(l.id)}
                   disabled={layers.length <= 1} aria-label={`Delete ${l.name}`}>
-            {tbLook ? <Icon as={Trash2} size={14} weight="regular" /> : '✕'}
+            <Icon as={Trash2} size={14} weight="regular" />
           </button>
         </div>
         {/* Only the layer you are working on shows its opacity, so the panel
@@ -923,34 +919,34 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             type="button"
             className={`sp-aspect ${aspect === a.id ? 'is-active' : ''}`}
             onClick={() => setAspect(a.id)}
-            {...tip(a.hint)}>
+            {...tlTip(a.hint)}>
       <span className="sp-aspect-box" style={{ aspectRatio: `${a.w} / ${a.h}` }} />
       <span className="sp-aspect-lbl">{a.label}</span>
     </button>
   ));
 
-  // In the toolbar look (lib/looks.js; styles/toolbarLook.css) the tools are
-  // the look's icons, the canvas draw bar's, with its glass tooltip, and what's
-  // on is its tint and ring; today's look keeps its glyphs and titles.
+  // The tools are the toolbar look's icons (styles/toolbarLook.css), the
+  // canvas draw bar's, with its glass tooltip, and what's on is its tint and
+  // ring.
   const toolButtons = (
     <>
       <button type="button"
               className={`sp-tool ${tool === 'pen' ? 'is-active' : ''}`}
               onClick={() => setTool('pen')}
               aria-pressed={tool === 'pen'}
-              aria-label="Pen" {...tip('Pen')}>{tbLook ? <Icon as={PenNib} size={18} weight="regular" /> : '✎'}</button>
+              aria-label="Pen" {...tlTip('Pen')}><Icon as={PenNib} size={18} weight="regular" /></button>
       <button type="button"
               className={`sp-tool ${tool === 'eraser' ? 'is-active' : ''}`}
               onClick={() => setTool('eraser')}
               aria-pressed={tool === 'eraser'}
-              aria-label="Eraser" {...tip('Eraser')}>{tbLook ? <Icon as={Eraser} size={18} weight="regular" /> : '⌫'}</button>
+              aria-label="Eraser" {...tlTip('Eraser')}><Icon as={Eraser} size={18} weight="regular" /></button>
       <button type="button"
               className={`sp-tool ${tool === 'bucket' ? 'is-active' : ''}`}
               onClick={() => setTool('bucket')}
               aria-pressed={tool === 'bucket'}
               aria-label="Paint bucket"
-              {...tip('Paint bucket: a click fills the background', null, 'Paint bucket (click pad to fill background)')}>
-        {tbLook ? <Icon as={PaintBucket} size={18} weight="regular" /> : '●'}
+              {...tlTip('Paint bucket: a click fills the background')}>
+        <Icon as={PaintBucket} size={18} weight="regular" />
       </button>
     </>
   );
@@ -961,19 +957,19 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               className="sp-tool"
               onClick={undoPad}
               disabled={!undoStackRef.current.length}
-              {...tip('Undo', 'Mod+Z', 'Undo (⌘Z)')}
-              aria-keyshortcuts={tbLook ? ariaKeys('Mod+Z') : undefined}
+              {...tlTip('Undo', 'Mod+Z')}
+              aria-keyshortcuts={ariaKeys('Mod+Z')}
               aria-label="Undo sketch change">
-        <Icon as={Undo} size={tbLook ? 18 : 16} weight={iconWeight} />
+        <Icon as={Undo} size={18} weight="regular" />
       </button>
       <button type="button"
               className="sp-tool"
               onClick={redoPad}
               disabled={!redoStackRef.current.length}
-              {...tip('Redo', 'Mod+Shift+Z', 'Redo (⌘⇧Z)')}
-              aria-keyshortcuts={tbLook ? ariaKeys('Mod+Shift+Z') : undefined}
+              {...tlTip('Redo', 'Mod+Shift+Z')}
+              aria-keyshortcuts={ariaKeys('Mod+Shift+Z')}
               aria-label="Redo sketch change">
-        <Icon as={Redo} size={tbLook ? 18 : 16} weight={iconWeight} />
+        <Icon as={Redo} size={18} weight="regular" />
       </button>
     </>
   );
@@ -1030,7 +1026,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                       className="sp-x"
                       onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
                       aria-label="Close">
-                <Icon as={X} size={tbLook ? 20 : 18} weight={iconWeight} />
+                <Icon as={X} size={20} weight="regular" />
               </button>
               <span className="sp-bar-gap" />
               {undoRedo}
@@ -1056,14 +1052,14 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                       className={`sp-tool sp-layers-btn ${sheetOpen === 'layers' ? 'is-active' : ''}`}
                       onClick={() => setSheetOpen('layers')}
                       aria-label={`Layers (${layers.length})`}
-                      {...tip('Layers')}>
-                {tbLook ? <Icon as={Stack} size={20} weight="regular" aria-hidden="true" /> : <span aria-hidden="true">⧉</span>}
+                      {...tlTip('Layers')}>
+                <Icon as={Stack} size={20} weight="regular" aria-hidden="true" />
                 <span className="sp-layers-n">{layers.length}</span>
               </button>
               <button type="button"
                       className={`sp-tool ${sheetOpen === 'more' ? 'is-active' : ''}`}
                       onClick={() => setSheetOpen('more')}
-                      aria-label="More sketch options">{tbLook ? <Icon as={MoreHorizontal} size={20} weight="regular" /> : '⋯'}</button>
+                      aria-label="More sketch options"><Icon as={MoreHorizontal} size={20} weight="regular" /></button>
             </div>
             {/* Row 3 — only while the canvas is still empty. The frame shape is
                 the one decision that cannot be revisited (nothing rescales once
@@ -1111,9 +1107,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <button type="button"
                       className="sp-x"
                       onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
-                      aria-label="Close" {...tip('Close', 'Escape', null)}
-                      aria-keyshortcuts={tbLook ? 'Escape' : undefined}>
-                <Icon as={X} size={tbLook ? 16 : 14} weight={iconWeight} />
+                      aria-label="Close" {...tlTip('Close', 'Escape')}
+                      aria-keyshortcuts="Escape">
+                <Icon as={X} size={16} weight="regular" />
               </button>
           </div>
         )}

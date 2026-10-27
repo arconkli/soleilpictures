@@ -7,9 +7,8 @@ import { expect, test } from '@playwright/test';
 import { countRenders, resetRenders, renders } from './helpers/renderCounter.js';
 import { formatButton, noteBar } from './helpers/noteBar.js';
 
-// Today's bar's parts, and the toolbar look's (NoteBarA and what it draws with).
-const BAR = ['NoteRichTextBar', 'NoteCommentBtn', 'FontPicker', 'SizeInput', 'ColorBtn',
-  'NoteBarA', 'CommentBtn', 'MenuButton', 'Btn'];
+// The bar's parts (NoteBarA and what it draws with).
+const BAR = ['NoteRichTextBar', 'SizeInput', 'NoteBarA', 'CommentBtn', 'MenuButton', 'Btn'];
 const none = Object.fromEntries(BAR.map((k) => [k, 0]));
 const barRenders = async (page) => {
   const n = await renders(page);

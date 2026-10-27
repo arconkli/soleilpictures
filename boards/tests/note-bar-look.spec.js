@@ -1,23 +1,18 @@
 // The note bar in the toolbar look (the owner's pick "A · Islands",
-// 2026-10-21; the toolbar canvas's A-note, A-ipad and A-phone frames), held
-// to a dev opt-in (lib/appHost.js toolbarLookAllowed; components/toolbar/
-// NoteBarA.jsx). On a desktop it carries every control by name, with its keys
-// and the look's tooltip, in the room the rail and the zoom leave it, centred
-// by its margins (its rise-in moved it sideways when a transform centred it);
-// a window too narrow for the row folds it a step at a time and unfolds it
-// again, never cutting its end off; each fold's controls are in ⋯ or a menu,
-// and work there. A phone draws the A-phone row: its lists a menu, and its
-// background's colours in ⋯. Today's bar keeps nothing of the look.
+// 2026-10-21; the toolbar canvas's A-note, A-ipad and A-phone frames), shipped
+// 2026-10-25 (components/toolbar/NoteBarA.jsx). On a desktop it carries every
+// control by name, with its keys and the look's tooltip, in the room the rail
+// and the zoom leave it, centred by its margins (its rise-in moved it sideways
+// when a transform centred it); a window too narrow for the row folds it a
+// step at a time and unfolds it again, never cutting its end off; each fold's
+// controls are in ⋯ or a menu, and work there. A phone draws the A-phone row:
+// its lists a menu, and its background's colours in ⋯.
 //
-// The specs that work a control in either look go through
-// tests/helpers/noteBar.js; this one is the look's own. On the real canvas,
-// through ?local=1.
+// The specs that only work a control go through tests/helpers/noteBar.js;
+// this one is the bar's own. On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
 import { noteBar } from './helpers/noteBar.js';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const note = (page) => page.locator('.canvas-wrap .card[data-card-id="home-note"]');
 const button = (page, name) => noteBar(page).getByRole('button', { name, exact: true });
 const names = (page) => noteBar(page).locator('button, input')
@@ -25,8 +20,7 @@ const names = (page) => noteBar(page).locator('button, input')
 
 // The local board's note, open for writing, with its words selected: its bar
 // is up.
-async function editNote(page, { on = true, touch = false } = {}) {
-  await look(page, on);
+async function editNote(page, { touch = false } = {}) {
   await page.goto('/?local=1&reset=1');
   await note(page).waitFor({ timeout: 30000 });
   // What only the dev harness draws: the tweaks gear in the corner, over a
@@ -34,10 +28,15 @@ async function editNote(page, { on = true, touch = false } = {}) {
   await page.addStyleTag({ content: '.dev-banner, .twk-gear { display: none !important; }' });
   await page.waitForTimeout(500);
   if (touch) {
-    const body = note(page).locator('.note');
-    await body.tap();
+    // Two taps on one spot, straight to the screen: a locator's tap waits for
+    // its target to be still first, which under load can stretch the gap past
+    // the 320ms a double tap allows (lib/doubleTap).
+    const b = await note(page).locator('.note').boundingBox();
+    const x = Math.round(b.x + b.width / 2);
+    const y = Math.round(b.y + b.height / 2);
+    await page.touchscreen.tap(x, y);
     await page.waitForTimeout(90);
-    await body.tap();
+    await page.touchscreen.tap(x, y);
   } else {
     await note(page).dblclick();
   }
@@ -92,7 +91,6 @@ test('on a desktop the whole row: every control by name, its keys, the look\'s t
 
 test('on a desktop it sits between the rail and the zoom, centred by its margins, and comes in without a sideways jump', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await look(page, true);
   await page.goto('/?local=1&reset=1');
   await note(page).waitFor({ timeout: 30000 });
   await page.waitForTimeout(500);
@@ -237,16 +235,6 @@ test('the background\'s chip is the note\'s own surface while it has none, and t
   await bg.click();
   await page.locator('.nb-colour-menu').getByLabel('Color #fef3c7', { exact: true }).click();
   await expect.poll(chip).toBe('rgb(254, 243, 199)');
-});
-
-test('today\'s bar keeps nothing of the look', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await editNote(page, { on: false });
-  await expect(page.locator('html')).not.toHaveAttribute('data-tb', 'a');
-  await expect(noteBar(page)).not.toHaveClass(/\bnb-a\b/);
-  await expect(noteBar(page).locator('[data-tl-tip]')).toHaveCount(0);
-  await expect(noteBar(page).locator('.tob-btn').first()).toBeVisible();
-  await expect(button(page, 'Strike')).toBeVisible();
 });
 
 test.describe('on a phone', () => {

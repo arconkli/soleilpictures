@@ -1,9 +1,8 @@
 // The bars over pictures, PDFs and clips in the toolbar look (the owner's
-// pick "A · Islands"), shipped 2026-10-25 (lib/appHost.js): an image card's
-// actions are the look's island over the picture, with its icons and glass
-// tooltip; the PDF viewer's page and zoom are small islands of the look's
-// icons, with the keys in their tooltips; the film's "on" is the look's gold
-// tint and ring. Today's look keeps today's.
+// pick "A · Islands"), shipped 2026-10-25: an image card's actions are the
+// look's island over the picture, with its icons and glass tooltip; the PDF
+// viewer's page and zoom are small islands of the look's icons, with the keys
+// in their tooltips; the film's "on" is the look's gold tint and ring.
 //
 // On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
@@ -11,21 +10,17 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const SAMPLE_PDF = resolve(dirname(fileURLToPath(import.meta.url)), '../public/sample.pdf');
 const clip = () => readFileSync(new URL('./fixtures/media/frames-vp9.mp4', import.meta.url)).toString('base64');
 
-async function home(page, on) {
-  await look(page, on);
+async function home(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('[data-card-id="home-image"]')).toBeVisible({ timeout: 30000 });
 }
 
 test('an image card\'s actions are the look\'s island: its icons, its corners, its tooltip', async ({ page }) => {
-  await home(page, true);
+  await home(page);
   const card = page.locator('.canvas-wrap .card[data-card-id="home-image"]');
   await card.hover();
   const strip = card.locator('.ic-actions');
@@ -39,14 +34,6 @@ test('an image card\'s actions are the look\'s island: its icons, its corners, i
   expect(await dl.evaluate((el) => [el.offsetWidth, el.offsetHeight])).toEqual([26, 26]);
   await dl.hover();
   await expect(page.locator('.tl-tip')).toContainText('Download');
-});
-
-test('today\'s look keeps today\'s image actions', async ({ page }) => {
-  await home(page, false);
-  const strip = page.locator('.canvas-wrap .card[data-card-id="home-image"] .ic-actions');
-  const titles = await strip.getByRole('button').evaluateAll((els) => els.map((el) => el.title));
-  expect(titles).toEqual(['Edit photo', 'Download', 'View full size']);
-  await expect(strip.getByRole('button', { name: 'Download' }).locator('svg')).toHaveAttribute('viewBox', '0 0 14 14');
 });
 
 async function pdfViewer(page) {
@@ -66,7 +53,7 @@ async function pdfViewer(page) {
 }
 
 test('the PDF viewer\'s page and zoom are islands of the look\'s icons, the keys in their tooltips', async ({ page }) => {
-  await home(page, true);
+  await home(page);
   const viewer = await pdfViewer(page);
   for (const name of ['Previous page', 'Next page', 'Zoom out', 'Zoom in', 'Close']) {
     const b = viewer.getByRole('button', { name, exact: true });
@@ -87,16 +74,8 @@ test('the PDF viewer\'s page and zoom are islands of the look\'s icons, the keys
   await expect(viewer).toHaveCount(0);
 });
 
-test('today\'s look keeps the PDF bar\'s glyphs and titles', async ({ page }) => {
-  await home(page, false);
-  const viewer = await pdfViewer(page);
-  await expect(viewer.getByRole('button', { name: 'Next page', exact: true })).toHaveText('↓');
-  await expect(viewer.getByRole('button', { name: 'Zoom in', exact: true })).toHaveAttribute('title', 'Zoom in');
-  await expect(viewer.getByRole('button', { name: 'Close', exact: true })).toHaveText('×');
-});
-
 test('the review player\'s Loop, on, wears the look\'s gold tint and ring', async ({ page }) => {
-  await home(page, true);
+  await home(page);
   await page.evaluate((data) => {
     const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));

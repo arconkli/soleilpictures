@@ -23,7 +23,7 @@ const SHARED_WITH_CLEAN_MODE = [
   '.mb-nav', '.board-tags-strip', '.presence-stack-wrap',
   '.upgrade-chip', '.feedback-trigger', '.fv-banner', '.onboarding-coachmark',
   '.imptray', '.imptray-chip',
-  // The selection's bar in the toolbar look (toolbarLook.css hides it).
+  // The selection's bar (toolbarLook.css hides it).
   '.tl-bar.sel-a',
 ];
 

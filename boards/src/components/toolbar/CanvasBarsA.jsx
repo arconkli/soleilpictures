@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { IconWeightContext } from '../Icon.jsx';
-import { useArrowPopover } from '../ArrowPopover.jsx';
+import { useArrowPopover } from '../../hooks/useArrowPopover.js';
 import { Btn, Group, Swatch, Toolbar } from './Toolbar.jsx';
 import { MenuButton, MenuHead, MenuItem, MenuSep, useMenu } from './Menu.jsx';
 import { Chip, ColourRows, colourChoices, inkBg } from './Colours.jsx';
@@ -37,14 +37,14 @@ import {
 // shape and line bars' width and style into ⋯, as on a phone. The eraser
 // keeps only its sizes, and the lasso only what it does.
 //
-// ToolOptionsBar works each as it works today's: what's set (the draw tool's
-// options, a shape's, a line's), what a control sets, and the bar's keys
-// (onKeyDown: one Tab stop, the arrows along it). Each menu takes the press
+// ToolOptionsBar works each: what's set (the draw tool's options, a shape's,
+// a line's), what a control sets, and the bar's keys (onKeyDown: one Tab
+// stop, the arrows along it). Each menu takes the press
 // that closes it (Menu's scrim), so it doesn't also draw or place a shape.
 
 const MENU = 'tob-menu';
-// The draw bar's own colours, A-draw's nine: white, a grey, black, then
-// today's bar's.
+// The draw bar's own colours, A-draw's nine: white, a grey, black, then red,
+// amber, green, blue, violet and pink.
 const DRAW_COLORS = ['#f5f5f6', '#9ca3af', '#0a0a0c', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 const SHAPE_ICONS = {
   rect: Square, ellipse: Circle, line: LineSegment, arrow: ArrowRight,
@@ -119,7 +119,7 @@ function WidthStep({ name, value, onSet }) {
   return (
     <span className="tl-step">
       <Btn icon={Minus} label={`Decrease ${what}`} onClick={() => onSet(clampWidth(value - 1))} />
-      <LinePxInput look value={value} label={name} onCommit={onSet} />
+      <LinePxInput value={value} label={name} onCommit={onSet} />
       <Btn icon={Plus} label={`Increase ${what}`} onClick={() => onSet(clampWidth(value + 1))} />
     </span>
   );
@@ -385,7 +385,7 @@ export function LineBarA({ barRef, onKeyDown, stroke, width, dash, angle, onAngl
   const setDash = (d) => onChange({ customDash: d === 'solid' ? null : d });
   const angleField = (
     <span className="tl-step">
-      <LineAngleInput look angle={angle} onCommit={onAngle} />
+      <LineAngleInput angle={angle} onCommit={onAngle} />
       <span className="tl-unit" aria-hidden="true">°</span>
     </span>
   );
@@ -451,9 +451,9 @@ export function ArrowBarA({ barRef, onKeyDown, options, setOptions }) {
 }
 
 // A picked arrow's bar (one with heads, or a connector between cards; a free
-// line with none is LineBarA's), over the arrow's middle where today's
-// popover sits (ArrowPopover.jsx useArrowPopover: its place, Escape, its
-// label field), in the look's glass rather than the bottom row's:
+// line with none is LineBarA's), over the arrow's middle
+// (hooks/useArrowPopover.js: its place, Escape, its label field), in the
+// look's glass rather than the bottom row's:
 //
 //   desktop  ● | ═ ═ ═ | — → ↔ | ⌒ ╱ | ┄ | Label… | 🗑
 //   iPad     ● | — → ↔ | Label… | ⋯ | 🗑    (⋯: the width, the path, the style)

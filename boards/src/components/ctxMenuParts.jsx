@@ -2,24 +2,23 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { ChevronRight } from '../lib/icons.js';
-import { shortcutAria, shortcutCaps, toolbarLook } from '../lib/looks.js';
+import { shortcutAria, shortcutCaps } from '../lib/looks.js';
 
 // The parts the right-click menus share (CardContextMenu.jsx,
-// BackgroundContextMenu.jsx): a row's shortcut, the › of a row that opens a
-// submenu, that row and its submenu, and the keys that walk a menu. In the toolbar look (lib/looks.js; styles/toolbarLook.css) the
-// shortcut is a cap per key, and the row says it to a screen reader in its
-// aria-keyshortcuts rather than in its name (rowKeys); the › is the look's
-// caret. Today's look keeps the words and the glyph.
+// BackgroundContextMenu.jsx): a row's shortcut, the caret of a row that opens
+// a submenu, that row and its submenu, and the keys that walk a menu. In the
+// toolbar look (styles/toolbarLook.css) the shortcut is a cap per key, and the
+// row says it to a screen reader in its aria-keyshortcuts rather than in its
+// name (rowKeys).
 
-export function rowKeys(written, look = toolbarLook()) {
-  return look && written ? { 'aria-keyshortcuts': shortcutAria(written) } : {};
+export function rowKeys(written) {
+  return written ? { 'aria-keyshortcuts': shortcutAria(written) } : {};
 }
 
 // The caps keep the words' "+" between them, unseen (toolbarLook.css), so
 // the shortcut's text is the menu's, "Ctrl+D" as it was.
 export function CtxShortcut({ keys }) {
   if (!keys) return null;
-  if (!toolbarLook()) return <span className="ctx-shortcut">{keys}</span>;
   const caps = shortcutCaps(keys);
   const plus = caps.length > 1 && caps.join('+') === String(keys).trim();
   return (
@@ -35,9 +34,7 @@ export function CtxShortcut({ keys }) {
 }
 
 export function CtxChevron() {
-  return toolbarLook()
-    ? <Icon as={ChevronRight} size={12} weight="regular" className="ctx-chevron" aria-hidden="true" />
-    : <span className="ctx-chevron" aria-hidden="true">›</span>;
+  return <Icon as={ChevronRight} size={12} weight="regular" className="ctx-chevron" aria-hidden="true" />;
 }
 
 // The WAI-ARIA menu pattern's keys, for a menu's onKeyDown: ↑ ↓ walk its

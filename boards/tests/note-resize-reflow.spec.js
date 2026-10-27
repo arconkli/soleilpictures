@@ -104,7 +104,7 @@ test('bumping font size from the toolbar re-fits the note height', async ({ page
   // Commit a larger size via the toolbar combo (mutates the DOM without
   // firing `input` — the MutationObserver path). 18px keeps the content
   // inside the 480px auto-size cap; past the cap notes scroll by design.
-  // The size field in either look (helpers/noteBar.js).
+  // The size field (helpers/noteBar.js).
   const combo = sizeField(page);
   await combo.click();
   await combo.fill('18');

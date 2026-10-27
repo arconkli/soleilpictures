@@ -134,7 +134,7 @@ import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalG
 import { Avatar, SoleilMark } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
-import { tip as lookTip } from './lib/looks.js';
+import { tlTip } from './lib/looks.js';
 import { ariaKeys } from './lib/ariaKeys.js';
 import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question, Eye } from './lib/icons.js';
 // The small things in the files sidebar's look (nudges, View only, a
@@ -11025,21 +11025,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             left={(
               <>
                 {!sidebarShownNow && (
-                  <button className="tb-icon" {...lookTip('Open sidebar', 'Mod+B', 'Open sidebar (⌘B)')}
+                  <button className="tb-icon" {...tlTip('Open sidebar', 'Mod+B')}
                           aria-label="Open sidebar" aria-keyshortcuts={ariaKeys('Mod+B')}
                           onClick={showSidebarNow}>
                     <Icon as={PanelLeftOpen} size={16} />
                   </button>
                 )}
-                <button className="tb-brand" {...lookTip('Home')} aria-label="Clusters home"
+                <button className="tb-brand" {...tlTip('Home')} aria-label="Clusters home"
                         onClick={() => setCurrentSurface('home')}>
                   <ClustersMark size={20} />
                 </button>
-                <button className="tb-icon tb-hist" {...lookTip('Back')} aria-label="Back"
+                <button className="tb-icon tb-hist" {...tlTip('Back')} aria-label="Back"
                         disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
                   <Icon as={ChevronLeft} size={15} />
                 </button>
-                <button className="tb-icon tb-hist" {...lookTip('Forward')} aria-label="Forward"
+                <button className="tb-icon tb-hist" {...tlTip('Forward')} aria-label="Forward"
                         disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
                   <Icon as={ChevronRight} size={15} />
                 </button>
@@ -11069,20 +11069,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     the bar's buttons are 40px and the trail needs the room
                     beside the files, so the pill and the theme wait in ⋯. */}
                 {myTier.tier === 'admin' && !isTouch && (
-                  <button className="tb-admin-btn" {...lookTip('Admin dashboard')}
+                  <button className="tb-admin-btn" {...tlTip('Admin dashboard')}
                           onClick={() => window.location.assign('/admin')}>
                     Admin
                   </button>
                 )}
-                <button className="tb-icon" {...lookTip('Undo', 'Mod+Z', 'Undo (⌘Z)')} aria-label="Undo"
+                <button className="tb-icon" {...tlTip('Undo', 'Mod+Z')} aria-label="Undo"
                         aria-keyshortcuts={ariaKeys('Mod+Z')} disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
                   <Icon as={Undo} size={16} />
                 </button>
-                <button className="tb-icon" {...lookTip('Redo', 'Mod+Shift+Z', 'Redo (⌘⇧Z)')} aria-label="Redo"
+                <button className="tb-icon" {...tlTip('Redo', 'Mod+Shift+Z')} aria-label="Redo"
                         aria-keyshortcuts={ariaKeys('Mod+Shift+Z')} disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
                   <Icon as={Redo} size={16} />
                 </button>
-                <button className="tb-icon" {...lookTip('Search', 'Mod+K', 'Search (⌘K)')} aria-label="Search"
+                <button className="tb-icon" {...tlTip('Search', 'Mod+K')} aria-label="Search"
                         aria-keyshortcuts={ariaKeys('Mod+K')} onClick={() => setPaletteOpen(true)}>
                   <Icon as={Search} size={16} />
                 </button>
@@ -11095,12 +11095,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 {!isTouch ? (
                   <>
                     <button className={`tb-icon tb-icon-split${splitId ? ' is-pressed' : ''}`}
-                            {...lookTip(splitId ? 'Close split view' : 'Pin alongside…')}
+                            {...tlTip(splitId ? 'Close split view' : 'Pin alongside…')}
                             aria-label="Split view" aria-pressed={!!splitId}
                             onClick={() => (splitId ? setSplitId(null) : setSplitPickerOpen(true))}>
                       <Icon as={Columns2} size={16} />
                     </button>
-                    <button className="tb-icon tb-icon-theme" {...lookTip('Toggle theme')} aria-label="Toggle theme"
+                    <button className="tb-icon tb-icon-theme" {...tlTip('Toggle theme')} aria-label="Toggle theme"
                             onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
                       <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
                     </button>
@@ -11113,12 +11113,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 {/* In view on touch, as in the bar: a tablet has no ⌘. for clean mode. */}
                 {isTouch && (
                   <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
-                          {...lookTip('Focus view — hide everything but the cluster')}
+                          {...tlTip('Focus view — hide everything but the cluster')}
                           aria-label="Enter focus view">
                     <Icon as={Maximize2} size={16} />
                   </button>
                 )}
-                <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} {...lookTip('Share this cluster')} aria-label="Share this cluster">
+                <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} {...tlTip('Share this cluster')} aria-label="Share this cluster">
                   <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
                 </button>
               </>

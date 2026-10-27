@@ -24,8 +24,8 @@ test('with a mouse, split view is a button in the right island, before the theme
 });
 
 test('it pins a cluster alongside, or closes the split that is open', () => {
-  // Its tip is lib/looks.js's: today's title, or the toolbar look's glass one.
-  assert.match(island, /\{\.\.\.lookTip\(splitId \? 'Close split view' : 'Pin alongside…'\)\}/);
+  // Its tip is the toolbar look's glass one (lib/looks.js tlTip).
+  assert.match(island, /\{\.\.\.tlTip\(splitId \? 'Close split view' : 'Pin alongside…'\)\}/);
   assert.match(island, /onClick=\{\(\) => \(splitId \? setSplitId\(null\) : setSplitPickerOpen\(true\)\)\}/);
 });
 

@@ -46,8 +46,7 @@ test('sketch pad: strokes undo/redo via keys AND buttons; board stays untouched'
 
   // Open the pad from the Draw toolbar.
   await page.keyboard.press('d');
-  // By name (its tooltip is a title on today's bar, the toolbar look's own
-  // there).
+  // By name (its tooltip is the toolbar look's own).
   await page.locator('.tob').getByRole('button', { name: 'Open a fullscreen drawing canvas' }).click();
   const pad = page.locator('.sketchpad-surface');
   await expect(pad).toBeVisible();
