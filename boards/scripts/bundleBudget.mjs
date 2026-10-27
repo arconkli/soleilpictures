@@ -53,7 +53,12 @@ export const CEILINGS = {
   // the browser can't draw waits for the file's view and shows it, and an
   // editor's cluster asks views for its photos; asking for and waiting on a
   // view load later (fileViewWork).
-  appJs: 689_000,
+  // 2026-10-27, production only: +1 KB. The Export fix (062bbca4) put CI's
+  // build at 689.3 KB, so this check has read OVER on production since then,
+  // and the link-first Share hotfix adds 0.2 KB (the share toast's weekly gap,
+  // in App.jsx and lib/shareAsk.js; the panel itself loads on demand). Main's
+  // ceiling is already above both, and the next promote brings it.
+  appJs: 690_000,
   appCss: 21_000,
 };
 
