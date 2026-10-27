@@ -63585,7 +63585,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "). Cards in no group make one block more. Arranging a board that is already arranged moves nothing."
+     "v": "). Cards in no group make one block more. Arranging a board that is already arranged moves nothing, except that "
+    },
+    {
+     "t": "code",
+     "v": "justified"
+    },
+    {
+     "t": "text",
+     "v": " can re-balance its rows: it works from the sizes it set the time before, so a row can end a card sooner or later."
     }
    ]
   },

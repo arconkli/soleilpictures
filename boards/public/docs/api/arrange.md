@@ -55,7 +55,9 @@ it leaves a hole around every portrait, which is what `justified` fixes.
 group at a time, each group as its own block with room for its outline and
 name, and the blocks are set out side by side (in one line for `row` and
 `column`). Cards in no group make one block more. Arranging a board that is
-already arranged moves nothing.
+already arranged moves nothing, except that `justified` can re-balance its rows:
+it works from the sizes it set the time before, so a row can end a card sooner
+or later.
 
 ### Knobs
 
