@@ -678,6 +678,46 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": "."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A cluster an assistant sorted into sections opens again. It used to keep loading forever."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A cluster an assistant makes without being told where it goes now lands in "
+     },
+     {
+      "t": "strong",
+      "v": "Studio",
+      "children": [
+       {
+        "t": "text",
+        "v": "Studio"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " as a project, where "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts one. The assistant then asks where it belongs and moves it there."
+     }
     ]
    ]
   },
