@@ -11,7 +11,7 @@
 //   await countRenders(page);              // before page.goto
 //   await resetRenders(page);
 //   …type…
-//   const n = await renders(page);         // { DocToolbar: 0, … }
+//   const n = await renders(page);         // { DocBarA: 0, … }
 export async function countRenders(page) {
   await page.addInitScript(() => {
     const counts = {};

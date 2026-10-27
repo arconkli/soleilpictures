@@ -6,8 +6,8 @@ import { Icon } from './Icon.jsx';
 import { Check, ChevronDown } from '../lib/icons.js';
 import { tlTip } from '../lib/looks.js';
 
-// Compact editable font-size combobox shared by the note (ToolOptionsBar) and
-// doc (DocToolbar) toolbars. The user can type an EXACT px size, or pick a
+// Compact editable font-size combobox shared by the note (NoteBarA) and doc
+// (DocBarA) bars. The user can type an EXACT px size, or pick a
 // preset from the dropdown. The presets used to live in a native <datalist>,
 // but Chrome only surfaces datalist suggestions while typing into an empty/
 // matching field — there's no affordance, so the control read as type-only.

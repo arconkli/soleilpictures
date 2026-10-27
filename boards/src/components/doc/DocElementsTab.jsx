@@ -10,8 +10,7 @@ import { Check, Columns2 } from '../../lib/icons.js';
 // checked, a click (or ↑ ↓ and Enter) making the line that, as the bar's
 // element menu does; Tab and Enter in the text still step them
 // (ScreenplayKeymap). Then the script's own: its title page, its scene
-// numbers, and dual dialogue for the speech at the caret, the commands
-// DocToolbar runs (a doc shared on its own still has that bar).
+// numbers, and dual dialogue for the speech at the caret.
 
 const SPEECH = new Set(['character', 'parenthetical', 'dialogue']);
 const NONE = { el: '', dual: false };

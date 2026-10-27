@@ -145,7 +145,7 @@ loadPixelLater({ signedIn: hasCachedSession() });
 if (import.meta.env.DEV && typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
   setTimeout(() => {
     const surfaces = ['.topbar', '.sidebar', '.sb-mid', '.rail', '.share-modal', '.modal', '.twk-panel',
-      '.bc', '.cnv-tools', '.tob', '.doc-tb', '.sketchpad-toolbar', '.sketchpad-frame',
+      '.bc', '.cnv-tools', '.tob', '.sketchpad-toolbar', '.sketchpad-frame',
       '.ctx-menu', '.ctx-submenu', '.cp-pop', '.ws-menu', '.cnv-add-menu', '.topbar-add-menu',
       '.entity-picker', '.entity-hover-popover', '.link-popover', '.link-hover-card',
       '.account-modal', '.settings-modal', '.home-graph-drawer', '.tag-detail', '.inbox'];

@@ -32,10 +32,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                               canEdit = true,
                               // Name for the page that replaces a deleted last page: the
                               // same card-title name DocSurface's empty-doc seed uses.
-                              defaultName = 'Untitled',
-                              // The doc look (DocSurface's frame): icons where the glyphs
-                              // were, and its own indent.
-                              look = false }) {
+                              defaultName = 'Untitled' }) {
   const tree = buildPageTree(pages);
   const [renaming, setRenaming] = useState(null);  // page id
   const [draftName, setDraftName] = useState('');
@@ -221,7 +218,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
       <div key={p.id} className="doc-tree-node">
         <div className={`doc-tree-row ${isActive ? 'is-active' : ''} ${drop ? `drop-${drop}` : ''}`}
              draggable={canEdit && renaming !== p.id}
-             style={{ paddingLeft: look ? 6 + depth * 16 : 6 + depth * 14 }}
+             style={{ paddingLeft: 6 + depth * 16 }}
              onDragStart={(e) => onDragStart(e, p)}
              onDragOver={(e) => onDragOver(e, p)}
              onDragLeave={onDragLeave}
@@ -238,9 +235,9 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                   aria-expanded={isOpen}
                   onClick={(e) => { e.stopPropagation(); if (hasKids) fold.setOpen(p.id, !isOpen); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}>
-            {look ? <Icon as={isOpen ? ChevronDown : ChevronRight} size={11} /> : (isOpen ? '▾' : '▸')}
+            <Icon as={isOpen ? ChevronDown : ChevronRight} size={11} />
           </button>
-          {look && <Icon as={FileText} size={16} className="doc-tree-ico" />}
+          <Icon as={FileText} size={16} className="doc-tree-ico" />
           {renaming === p.id ? (
             <input className="doc-tree-rename"
                    autoFocus
@@ -281,7 +278,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           <button className="doc-tree-add"
                   title="Add sub-page"
                   aria-label="Add sub-page"
-                  onClick={(e) => { e.stopPropagation(); onAddChild(p.id); }}>{look ? <Icon as={Plus} size={14} /> : '+'}</button>
+                  onClick={(e) => { e.stopPropagation(); onAddChild(p.id); }}><Icon as={Plus} size={14} /></button>
           )}
         </div>
         {isOpen && p.children?.length > 0 && (
@@ -297,7 +294,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     <div className="doc-tree">
       <div className="doc-tree-head">
         <span className="doc-tree-kicker">Pages</span>
-        {canEdit && <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}>{look ? <Icon as={Plus} size={16} /> : '+'}</button>}
+        {canEdit && <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}><Icon as={Plus} size={16} /></button>}
       </div>
       <div className="doc-tree-body">
         {tree.length === 0 ? (canEdit ? (

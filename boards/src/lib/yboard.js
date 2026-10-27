@@ -398,7 +398,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   let draftDirtySince = 0;   // when the oldest not-yet-drafted local edit landed; 0 = draft current
   let localSeq = 0;          // bumps per local edit; lets a save tell whether it covered them all
 
-  // Broadcast the real persistence lifecycle so UI (DocStatusFooter) can show
+  // Broadcast the real persistence lifecycle so UI (the doc's footer) can show
   // an honest saving → saved / error state instead of a fixed timer that lies
   // on failure and flickers on peer edits.
   const emitSaveState = (state) => {
