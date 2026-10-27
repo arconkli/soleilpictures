@@ -17,7 +17,7 @@ import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  VIEW_EDGE, VIEW_SM_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES,
+  VIEW_EDGE, VIEW_SM_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, docFamily, extOfKey,
 } from '../../boards/src/lib/fileView.js';
 import { run, isStopping, makeJobDir, readOwn, killStrays } from './ffmpeg.js';
 import {
@@ -151,16 +151,20 @@ async function psdPicture(src, work) {
 }
 
 // The views of a job's downloaded file `src`, by how its format is read. A
-// document's carry its PDF (`pdfPath`, `pages`) and no original's size.
+// document's carry its PDF (`pdfPath`, `pages`), the picture they were made
+// of (doc.js docPages) and no original's size.
 export async function viewsOf(decoder, src, dirs) {
   if (decoder === 'vips') return { ...(await makeViews(src, dirs)), via: 'vips' };
   const head = await headOf(src);
   const refuse = (reason, message) => new Refused(reason, message);
   if (decoder === 'doc') {
     if (!sniffDoc(head)) throw new Refused('unsupported', 'not a document');
-    const doc = await docPages(src, dirs, { refuse });
+    // `src` keeps its extension (processView), which says a spreadsheet.
+    const doc = await docPages(src, dirs, { refuse, sheet: docFamily(extOfKey(src)) === 'sheet' });
     const made = await makeViews(doc.pagePath, dirs, { loaders: ['pngload'] });
-    return { ...made, original: null, via: 'libreoffice', pdfPath: doc.pdfPath, pages: doc.pages };
+    return {
+      ...made, original: null, via: 'libreoffice', picture: doc.picture, pdfPath: doc.pdfPath, pages: doc.pages,
+    };
   }
   let picture;
   if (decoder === 'raw') {
@@ -219,7 +223,7 @@ export async function processView(job) {
     }
     const probe = made.original
       ? { loader: made.loader, via: made.via, w: made.original.w, h: made.original.h }
-      : { loader: made.loader, via: made.via, pages: made.pages ?? null };
+      : { loader: made.loader, via: made.via, pages: made.pages ?? null, ...(made.picture ? { picture: made.picture } : {}) };
     await api.finish(key, 'done', { probe, view: made.view, viewSm, original: made.original, pdf });
   } catch (e) {
     // On SIGTERM we killed vips ourselves: say nothing, and the lease
