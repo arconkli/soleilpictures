@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 import { createStoreZip, crc32 } from './zipStore.js';
 import {
-  ZipReadError, canInflate, readZipDirectory, openEntry, mergeArchives, groupArchives,
+  ZipReadError, canInflate, readZipDirectory, zipDirectoryBounds, openEntry, mergeArchives, groupArchives,
 } from './zipRead.js';
 
 // ---- fixture builder: local headers, central directory and EOCD by hand ----
@@ -304,4 +304,13 @@ test('groupArchives: Takeout and Drive parts group in part order; any other zip 
     'Night Shift-20261019T101010Z-001.zip', 'Roll-001.zip', 'Roll-002.zip', 'Night Shift-20261019T101010Z-002.ZIP',
   ]), [[2, 0], [1], [3, 6], [4], [5]]);
   assert.deepEqual(groupArchives([]), []);
+});
+
+test('zipDirectoryBounds says where the central directory sits from the end of the file alone', async () => {
+  const zip = buildZip([{ name: 'a.txt', raw: Buffer.from('aaa') }, { name: 'b.txt', raw: Buffer.from('bbbb') }]);
+  const { cdStart, cdEnd, entries, zip64 } = await zipDirectoryBounds(zip);
+  assert.equal(entries, 2);
+  assert.equal(zip64, false);
+  assert.equal(new DataView(await zip.slice(cdStart, cdStart + 4).arrayBuffer()).getUint32(0, true), 0x02014b50);
+  assert.ok(cdEnd > cdStart && cdEnd <= zip.size);
 });
