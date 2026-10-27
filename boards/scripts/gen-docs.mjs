@@ -93,7 +93,7 @@ import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '
 import {
   VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, DOC_MAX_PAGES,
 } from '../src/lib/fileView.js';
-import { TEXT_STAGE_MAX_BYTES, TABLE_STAGE_MAX_ROWS } from '../src/lib/fileFaceLimits.js';
+import { TEXT_STAGE_MAX_BYTES, TABLE_STAGE_MAX_ROWS, FONT_FACE_MAX_BYTES } from '../src/lib/fileFaceLimits.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
@@ -493,6 +493,8 @@ export const FACTS = {
   // size it shows the start and says so; past the rows, a table's first rows.
   textStageMax: `${TEXT_STAGE_MAX_BYTES / MB} MB`,
   tableStageRows: TABLE_STAGE_MAX_ROWS.toLocaleString('en-US'),
+  // The largest font a card draws in (the whole file is read): past it, its icon.
+  fontFaceMax: `${FONT_FACE_MAX_BYTES / MB} MB`,
   // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
   // archive is assembled in the tab, and past these the tab is the thing that
   // fails. Stated so "why did my 600-file selection refuse" has an answer.

@@ -245,6 +245,7 @@ test("a file item names its family, and the type it's called by is its family's"
   assert.equal(it('app.py').typeLabel, 'Code');
   assert.equal(it('crew.csv').typeLabel, 'Spreadsheet');
   assert.equal(it('cues.srt').typeLabel, 'Subtitles');
+  assert.equal(it('Fraunces-Black.woff2').typeLabel, 'Font');
   assert.equal(it('Pitch.pptx').typeLabel, 'File');
   assert.equal(it('README', 'text/plain').typeLabel, 'Text');
   assert.equal(it('pack.bin').typeLabel, 'File');

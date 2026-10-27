@@ -84,3 +84,40 @@
   .ql .fst-table table { min-width: calc(100% - 32px); margin: 0 16px 24px; }
   .ql .fst-cues .fst-body { padding: 24px 20px 40px; }
 }
+
+/* A font: a page to try it on, every sample in the face (its own weight,
+   so normal). The slider is the page's grey, never gold. */
+.ql .qpage.fst-font { width: min(1080px, 100%); }
+.ql .fst-font-hd { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 34px 44px 22px; border-bottom: 1px solid #ececef; }
+.ql .fst-font-fam { min-width: 0; font-size: 54px; line-height: 1.05; font-weight: normal; color: #111; overflow-wrap: anywhere; }
+.ql .fst-font-facts { flex: none; display: grid; grid-template-columns: auto auto; gap: 5px 18px; margin: 0; font-size: 13px; color: #3a3a40; }
+.ql .fst-font-facts dt { color: #8a8a90; }
+.ql .fst-font-facts dd { max-width: 280px; margin: 0; }
+.ql .fst-font-try { margin: 26px 44px 0; padding-bottom: 18px; border-bottom: 1px solid #ececef; }
+.ql .fst-font-lab {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px;
+  color: #8a8a90; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+}
+.ql .fst-font-size { display: flex; align-items: center; gap: 12px; color: #6a6a70; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.ql .fst-font-size input { width: 196px; margin: 0; accent-color: #6a6a70; }
+.ql .fst-font-size output { min-width: 46px; text-align: right; }
+.ql .fst-font-field {
+  display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 0; border: 0; outline: none; resize: none; overflow: hidden;
+  background: transparent; color: #111; line-height: 1.08; font-weight: normal;
+}
+.ql .fst-font-fall { margin: 18px 44px 0; }
+.ql .fst-font-fall > div { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: baseline; margin-bottom: 8px; color: #1d1d1f; white-space: nowrap; }
+.ql .fst-font-fall i { font-style: normal; font-size: 12px; color: #a0a0a6; font-variant-numeric: tabular-nums; }
+.ql .fst-font-fall span { overflow: hidden; text-overflow: ellipsis; font-weight: normal; }
+.ql .fst-font-glyphs { display: grid; grid-template-columns: repeat(13, 1fr); margin: 22px 44px 44px; border-top: 1px solid #ececef; border-left: 1px solid #ececef; }
+.ql .fst-font-glyphs span {
+  display: grid; place-items: center; height: 64px; border-right: 1px solid #ececef; border-bottom: 1px solid #ececef;
+  font-size: 30px; font-weight: normal; color: #111;
+}
+@media (max-width: 720px) {
+  .ql .fst-font-hd { flex-direction: column; align-items: flex-start; padding: 22px 18px 16px; }
+  .ql .fst-font-fam { font-size: 36px; }
+  .ql .fst-font-try, .ql .fst-font-fall { margin-left: 18px; margin-right: 18px; }
+  .ql .fst-font-size input { width: 120px; }
+  .ql .fst-font-glyphs { grid-template-columns: repeat(7, 1fr); margin: 18px 18px 28px; }
+}

@@ -198,7 +198,7 @@ function Stage({ item, playerRef = null, modalHandle = null, onDownload = null }
   );
 }
 
-const FOCUSABLE = 'button, a[href], video, audio, [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = 'button, a[href], input:not([type="hidden"]), textarea, select, video, audio, [tabindex]:not([tabindex="-1"])';
 
 export default function QuickLook({
   items, index, onIndex, onClose,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   viewKindOfKey, viewKeys, isViewKey, isViewPdfKey, drawsNowhere, viewKeyOfCard, turnsIntoPicture, VIEW_EDGE,
   VIEW_SM_EDGE, RAW_EXTS, PSD_EXTS, DOC_EXTS, DOC_MAX_BYTES, VIEW_MAX_BYTES, DOC_MAX_PAGES, docFamily, docDropSize,
-  DOC_DROP_PAGE, DOC_DROP_SLIDE, extOfKey, fileFamily, fileDropSize, TABLE_DROP, DRAWN_FAMILIES, isDrawnFamily,
+  DOC_DROP_PAGE, DOC_DROP_SLIDE, extOfKey, fileFamily, fileDropSize, TABLE_DROP, FONT_DROP, DRAWN_FAMILIES, isDrawnFamily,
 } from './fileView.js';
 import { mediaKindOfKey, isCopyKey } from './playCopy.js';
 
@@ -165,18 +165,24 @@ test("a file's family comes from its extension, then its type; a video's type is
   assert.equal(fileFamily('', 'application/json'), 'code');
   assert.equal(fileFamily('', 'text/plain'), 'text');
   assert.equal(fileFamily('ts', 'video/mp2t'), null);
+  assert.equal(fileFamily('woff2'), 'font');
+  assert.equal(fileFamily('TTC'), 'font');
+  assert.equal(fileFamily('', 'font/ttf'), 'font');
+  assert.equal(fileFamily('', 'application/font-woff'), 'font');
   assert.equal(fileFamily('zip'), null);
   assert.equal(fileFamily(''), null);
   assert.ok(DRAWN_FAMILIES.every(isDrawnFamily));
   assert.equal(isDrawnFamily('doc'), false);
 });
 
-test('a text file drops as a page, a table as a wide page, a document as before, anything else as nothing', () => {
+test('a text file drops as a page, a table as a wide page, a font as a specimen, a document as before, anything else as nothing', () => {
   assert.deepEqual(fileDropSize('md'), DOC_DROP_PAGE);
   assert.deepEqual(fileDropSize('log'), DOC_DROP_PAGE);
   assert.deepEqual(fileDropSize('', 'text/plain'), DOC_DROP_PAGE);
   assert.deepEqual(fileDropSize('csv'), TABLE_DROP);
   assert.deepEqual(TABLE_DROP, { w: 400, h: 236 });
+  assert.deepEqual(fileDropSize('otf'), FONT_DROP);
+  assert.deepEqual(FONT_DROP, { w: 320, h: 220 });
   assert.deepEqual(fileDropSize('pptx'), DOC_DROP_SLIDE);
   assert.deepEqual(fileDropSize('xlsx'), DOC_DROP_PAGE);
   assert.equal(fileDropSize('zip'), null);

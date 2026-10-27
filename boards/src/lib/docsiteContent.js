@@ -15169,6 +15169,60 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Font ("
+      },
+      {
+       "t": "code",
+       "v": ".ttf"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".otf"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".woff"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".woff2"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".ttc"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A specimen drawn in the font: Aa, its name and style, a sample line and its alphabet"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Screenplay ("
       },
       {
@@ -15375,6 +15429,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " opens as a table under its header row, up to 5,000 rows. Subtitles open as their cues, and Markdown as a document whose links open in a new tab."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A font opens as a page to try it on: type your own words and change the size, with the font set at five sizes and its letters and numbers below, and its style, format and licence as the font itself states them. A font over 16 MB, or one that won't load, keeps its icon."
     }
    ]
   },

@@ -48,7 +48,8 @@ async function tableBytes(bytes, t) {
   return t.compLength < t.origLength ? inflate(slice) : slice;
 }
 
-// Windows (UTF-16BE) in US English first, then any Windows, then Mac Roman.
+// Windows (UTF-16BE) in US English first, then any Windows, then Unicode
+// (UTF-16BE too, which some Apple fonts carry alone), then Mac Roman.
 function readNames(table) {
   const v = new DataView(table.buffer, table.byteOffset, table.byteLength);
   if (!fits(v, 0, 6)) return new Map();
@@ -64,20 +65,23 @@ function readNames(table) {
     const length = v.getUint16(rec + 8);
     const at = strings + v.getUint16(rec + 10);
     if (!fits(v, at, length)) continue;
-    const rank = platform === 3 ? (lang === 0x409 ? 3 : 2) : platform === 1 ? 1 : 0;
+    const rank = platform === 3 ? (lang === 0x409 ? 4 : 3) : platform === 0 ? 2 : platform === 1 ? 1 : 0;
     if (!rank || rank <= (best.get(id)?.rank || 0)) continue;
     const raw = table.subarray(at, at + length);
-    const text = platform === 3 ? new TextDecoder('utf-16be').decode(raw) : new TextDecoder('latin1').decode(raw);
+    const text = new TextDecoder(platform === 1 ? 'latin1' : 'utf-16be').decode(raw);
     best.set(id, { rank, text: text.trim() });
   }
   return new Map([...best].map(([id, b]) => [id, b.text]));
 }
 
+// "CourierPrime-BoldItalic.woff2" is Courier Prime, Bold Italic: a WOFF2,
+// the web's usual font, is always named this way.
+const words = (s) => s.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim();
 function fromFileName(fileName) {
   const base = String(fileName || '').replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '');
   const cut = Math.max(base.lastIndexOf('-'), base.lastIndexOf('_'));
-  if (cut > 0 && cut < base.length - 1) return { family: base.slice(0, cut), style: base.slice(cut + 1) };
-  return { family: base || 'Font', style: 'Regular' };
+  if (cut > 0 && cut < base.length - 1) return { family: words(base.slice(0, cut)), style: words(base.slice(cut + 1)) };
+  return { family: words(base) || 'Font', style: 'Regular' };
 }
 
 export function licenseLabel(text, url) {

@@ -73,7 +73,7 @@ export function CardPreview({ item, size = 'row', px = null }) {
       if (!faces || !p.src) return tile;
       return (
         <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-          <faces.default family={p.family} src={p.src} ext={item?.ext || p.ext} sizeBytes={item?.sizeBytes ?? null} fallback={tile} />
+          <faces.default family={p.family} src={p.src} ext={item?.ext || p.ext} name={item?.card?.fileName || item?.name || ''} sizeBytes={item?.sizeBytes ?? null} fallback={tile} />
         </div>
       );
     }
