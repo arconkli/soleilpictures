@@ -2,7 +2,8 @@
 --
 -- STATUS: written 2026-10-27. NOT applied. Apply with the launch, after 0543,
 -- on the owner's go. If the MCP refuses a DROP, the owner runs this file in the
--- SQL editor as it is.
+-- SQL editor as it is. It did refuse (2026-10-27, twice, after 0543), so the
+-- owner runs it; until then the brake stays dormant, and nothing calls it.
 --
 -- 0188 kept a dormant cap on editor shares (_collab_editor_cap, set through
 -- admin_set_collab_editor_cap, stored in app_config.collab_free_editor_cap,

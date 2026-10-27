@@ -12,7 +12,7 @@ const code = (s) => s.replace(/--[^\n]*/g, '');   // comments are not wiring
 
 test('0543 turns the limit on and opens teams for everyone, keeps the testers, and proves it', () => {
   const sql = read('0543_team_launch_switch.sql');
-  assert.match(sql, /STATUS: written 2026-10-27\. NOT applied\./);
+  assert.match(sql, /STATUS: APPLIED 2026-10-27 on the owner's go/);
   // What has to be live first is written where whoever applies it will read it.
   for (const pre of ['launch release is live', 'STRIPE_PRICE_TEAM_MONTHLY', '0541 applied']) {
     assert.ok(sql.includes(pre), pre);

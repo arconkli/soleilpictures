@@ -88,13 +88,15 @@ on the next promote:
 
 ## Ship
 
-1. Rebase `team-launch` on main; re-date the changelog entry to the ship day (merge it into
+1. [x] Rebase `team-launch` on main; re-date the changelog entry to the ship day (merge it into
    that day's entry if one exists); `npm run docs:build`, `npm test`, `docs:check`, build and
    budget; push to main; check the preview. The entry ceiling stays main's 166.0 KB (CI's build read 165.7 KB on the
    rebased branch, 2026-10-27).
-2. Promote (the release recipe; production is behind main, so the promote merges main).
-3. Right after: update `seo_health_expectations` row 80 to 'Every plan, line by line', and bump
-   `build_min`.
-4. Apply 0543 (the switch), then 0544 (the old brake).
+2. [x] Promote (the release recipe; production is behind main, so the promote merges main):
+   production cc3ad9a9, a tree-identical merge of main 5cd49ebb, live 2026-10-27 ~10:00Z.
+3. [x] Right after: update `seo_health_expectations` row 80 to 'Every plan, line by line' (done),
+   and bump `build_min` (not needed: it was already 2026-10-27, the build's own date).
+4. [x] Apply 0543 (the switch), then 0544 (the old brake). 0543 applied; the MCP refused
+   0544 twice, so the owner runs it in the SQL editor (cleanup only, nothing calls it).
 5. Watch `check_instrumentation` and the Issues view for a day; re-run probes A–G read-only
    where they can be.

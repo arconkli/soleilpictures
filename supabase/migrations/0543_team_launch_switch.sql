@@ -1,7 +1,8 @@
 -- 0543: Teams, part 14 — the launch switch (S5).
 --
--- STATUS: written 2026-10-27. NOT applied. Apply on the owner's go, and only
--- once all of these are true:
+-- STATUS: APPLIED 2026-10-27 on the owner's go ("ship it"), right after
+-- production cc3ad9a9 went live; the proof passed. It was applied once all of
+-- these were true:
 --   * the launch release is live on production (teamsAllowed(),
 --     editorLimitAllowed() and teamPricingAllowed() open, with the docs), so
 --     every app that meets a refusal already knows what it means;
