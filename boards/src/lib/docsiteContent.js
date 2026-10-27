@@ -15253,6 +15253,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Design file (Sketch, Figma, Adobe XD, Procreate, Krita, OpenRaster, Affinity, InDesign, Illustrator, EPS)"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A card showing the picture saved inside the file, at its shape"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Screenplay ("
       },
       {
@@ -15499,6 +15513,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " over 4 MB keeps its icon on the board."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A design file's card shows the picture the file keeps of itself — a Sketch, Figma, XD, Procreate, Krita or OpenRaster file's own preview, an Affinity file's, an InDesign file's thumbnail, an Illustrator file's first page, an EPS's preview — at the picture's shape, and opens on it, to zoom as a photo's does. It's made once, in the background: of a Sketch, Figma, XD, Procreate, Krita or OpenRaster file of any size, and of the others up to 1 GB. A file with no picture inside it (a Figma file from before 2023, an EPS saved without a preview) stays a file card, with the download."
     }
    ]
   },

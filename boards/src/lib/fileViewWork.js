@@ -172,13 +172,14 @@ function metaSize(key) {
 
 // One pass of useFileViewBackfill over `targets`, the board's image cards of
 // files that get views and have no preview yet, its file cards holding a
-// photo, and its documents' file cards (fileView.js viewKeyOfCard). A
-// finished view goes into the meta and onto every card that holds its file as
-// the board is now (`cardsNow`, `write`): an image card still at the drop's
-// 4:3 takes the photo's shape, a file card holding a photo turns into its
-// picture card, and a document's card takes its page's shape while it's still
-// the size it landed at, learns its number of pages, and goes back to a file
-// card's size when no page will come. A file never asked about is asked
+// photo, and its documents' and design files' file cards (fileView.js
+// viewKeyOfCard). A finished view goes into the meta and onto every card that
+// holds its file as the board is now (`cardsNow`, `write`): an image card
+// still at the drop's 4:3 takes the photo's shape, a file card holding a photo
+// turns into its picture card, a document's card takes its page's shape while
+// it's still the size it landed at and learns its number of pages, a design
+// file's takes its picture's, and either goes back to a file card's size when
+// no picture will come. A file never asked about is asked
 // about, `perPass` at most. `settled` and `asked` are the hook's, kept across
 // passes. True while views on this board are still to come, so the hook
 // looks again.
@@ -199,7 +200,8 @@ export async function viewPass({ targets, cardsNow, write, settled, asked, perPa
       if (Object.keys(patch).length) write(c.id, patch);
     }
   };
-  // A document that won't get a page: its cards go back to a file card's size.
+  // A document that won't get a page, or a design file with no picture: its
+  // cards go back to a file card's size.
   const writeNoPage = (key) => {
     const ref = `r2:${key}`;
     for (const c of cardsNow() || []) {
@@ -217,7 +219,8 @@ export async function viewPass({ targets, cardsNow, write, settled, asked, perPa
       waiting = true;
     } else if (row) {
       if (row.reason === 'has_preview' && await refreshMeta(key)) writeCards(key, null);
-      // A document that won't get a page goes back to a file card's size.
+      // A document or a design file that won't get a picture goes back to a
+      // file card's size.
       if (row.state === 'failed' || (row.state === 'skip' && row.reason !== 'has_preview')) writeNoPage(key);
       settled.add(key);
     } else if (!asked.has(key)) {

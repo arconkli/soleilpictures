@@ -45,6 +45,9 @@
 .filec .filec-page { position: absolute; inset: 0; }
 .filec .filec-page .r2p-img { object-position: center top; background: #fff; }
 .filec .filec-page.is-sheet .r2p-img { object-position: left top; }
+/* A design file's picture covers its card from the middle: at the picture's
+   own shape once it's made, cropped on a card placed before or resized. */
+.filec .filec-page.is-picture .r2p-img { object-position: center; }
 /* Until it's here, its glyph, saying so while the page is being made: only
    once that takes a while, so a quick answer never flashes it. */
 .filec-glyph.is-making { flex-direction: column; gap: 10px; }

@@ -22,7 +22,7 @@ import { KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
 import { iconForFile, humanSize, useFaces } from '../cards/FileCard.jsx';
 import { formatDuration } from '../../lib/loopMeta.js';
-import { docFamily, extOfKey, isDrawnFamily } from '../../lib/fileView.js';
+import { docFamily, extOfKey, isDrawnFamily, viewKindOfKey } from '../../lib/fileView.js';
 import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark, AudioMark, inkOn } from './marks.jsx';
 import { GridContentPreview } from './GridContentPreview.jsx';
 
@@ -57,11 +57,13 @@ export function CardPreview({ item, size = 'row', px = null }) {
   }
   if (p.mode === 'file') {
     // A document whose first page is made shows the page, from its top (a
-    // sheet's cells from their top left), as its card does on the canvas.
+    // sheet's cells from their top left), and a design file its picture, from
+    // its middle, as their cards do on the canvas.
     if (p.page && meta?.previewKey) {
       const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
       const src = tileImageSrc(p.page, meta, displayPx * dpr);
-      const objectPosition = docFamily(extOfKey(p.page)) === 'sheet' ? 'left top' : 'center top';
+      const objectPosition = viewKindOfKey(p.page.slice(3)) === 'design' ? 'center'
+        : docFamily(extOfKey(p.page)) === 'sheet' ? 'left top' : 'center top';
       return <R2Image key={src} src={src} alt="" className="cbp-img" draggable="false"
                       w={displayPx} h={displayPx} style={{ objectPosition }} />;
     }

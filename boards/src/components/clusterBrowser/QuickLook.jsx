@@ -20,7 +20,7 @@ import * as audioBus from '../../lib/audioBus.js';
 import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { ImageZoomStage } from '../ImageLightbox.jsx';
 import { PdfViewer } from '../PdfViewer.jsx';
-import { CardPreview } from './CardPreview.jsx';
+import { CardPreview, useImageMeta } from './CardPreview.jsx';
 import { LinkMark } from './marks.jsx';
 import { DetailPanel } from './DetailPanel.jsx';
 import { Icon, IconWeightContext } from '../Icon.jsx';
@@ -131,6 +131,13 @@ function DocStage({ item, docKey }) {
 function Stage({ item, playerRef = null, modalHandle = null, onDownload = null, canPut = false, onClose = null }) {
   const card = item?.card || {};
   const name = item?.name || '';
+  // A design file's picture, once it's made, zooms as a photo does (R2Image
+  // shows the picture, never the file); until then, and when there's none
+  // inside it, its card.
+  const designRef = item.kind === 'file' && typeof card.fileSrc === 'string' && card.fileSrc.startsWith('r2:')
+    && viewKindOfKey(card.fileSrc.slice(3)) === 'design' ? card.fileSrc : null;
+  const designMeta = useImageMeta(designRef);
+  if (designRef && designMeta?.previewKey) return <ImageZoomStage src={designRef} alt={name} cardId={card.id} />;
   if (item.kind === 'image' && card.src) {
     return <ImageZoomStage src={card.src} alt={name} adjust={card.adjust} cardId={card.id} />;
   }

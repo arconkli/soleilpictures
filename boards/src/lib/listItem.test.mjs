@@ -229,6 +229,8 @@ test("a document's item carries its file as its page, which the Files tiles and 
   const doc = toListItem({ id: 'd', kind: 'file', fileName: 'Pitch.pptx', ext: 'pptx', fileSrc: 'r2:ws/abc/Pitch.pptx' });
   assert.equal(doc.preview.mode, 'file');
   assert.equal(doc.preview.page, 'r2:ws/abc/Pitch.pptx');
+  const design = toListItem({ id: 'g', kind: 'file', fileName: 'Title card v3.sketch', ext: 'sketch', fileSrc: 'r2:ws/abc/Title card v3.sketch' });
+  assert.equal(design.preview.page, 'r2:ws/abc/Title card v3.sketch', "a design file's picture, likewise");
   for (const card of [
     { id: 'z', kind: 'file', fileName: 'pack.zip', ext: 'zip', fileSrc: 'r2:ws/abc/pack.zip' },
     { id: 'p', kind: 'file', fileName: 'Pitch.pptx', ext: 'pptx', fileSrc: 'blob:x' },
@@ -238,7 +240,7 @@ test("a document's item carries its file as its page, which the Files tiles and 
 
 
 test("a file item names its family, and the type it's called by is its family's", () => {
-  const it = (fileName, mime) => toListItem({ id: 'c', kind: 'file', fileName, mime, fileSrc: `r2:k/${fileName}` });
+  const it = (fileName, mime, ext) => toListItem({ id: 'c', kind: 'file', fileName, mime, ext, fileSrc: `r2:k/${fileName}` });
   assert.equal(it('notes.md').preview.family, 'markdown');
   assert.equal(it('notes.md').preview.src, 'r2:k/notes.md');
   assert.equal(it('notes.md').typeLabel, 'Text');
@@ -248,6 +250,10 @@ test("a file item names its family, and the type it's called by is its family's"
   assert.equal(it('Fraunces-Black.woff2').typeLabel, 'Font');
   assert.equal(it('Re Day 4.eml').typeLabel, 'Email');
   assert.equal(it('Re Day 4.msg').typeLabel, 'Email');
+  // A card carries its extension as the uploader stored it, eight letters at most.
+  assert.equal(it('Title card v3.sketch', '', 'sketch').typeLabel, 'Design file');
+  assert.equal(it('Boards p1.procreate', '', 'procreat').typeLabel, 'Design file');
+  assert.equal(it('Logo lockup.eps', 'image/x-eps').typeLabel, 'Design file');
   assert.equal(it('Pitch.pptx').typeLabel, 'File');
   assert.equal(it('README', 'text/plain').typeLabel, 'Text');
   assert.equal(it('pack.bin').typeLabel, 'File');

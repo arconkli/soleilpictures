@@ -21,7 +21,7 @@ import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
 import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebarRows.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../../lib/imageMeta.js';
-import { viewKindOfKey, docFamily, extOfKey } from '../../lib/fileView.js';
+import { viewKindOfKey, isCardViewKind, docFamily, extOfKey } from '../../lib/fileView.js';
 
 const WINDOW_AFTER = 80;
 // Rows start a little in from the list's edge, so a hover fill has room: with
@@ -85,11 +85,11 @@ function primeDoc(key) {
   docsToPrime.add(key);
 }
 
-// A document's first page, once it's made (lib/fileView.js): its small view,
-// for the row's thumb.
-function useDocThumb(item) {
+// A document's first page, or a design file's own picture, once it's made
+// (lib/fileView.js): its small view, for the row's thumb.
+function useViewThumb(item) {
   const ref = item.kind === 'file' ? item.meta?.fileSrc : null;
-  const key = typeof ref === 'string' && ref.startsWith('r2:') && viewKindOfKey(ref.slice(3)) === 'doc' ? ref.slice(3) : null;
+  const key = typeof ref === 'string' && ref.startsWith('r2:') && isCardViewKind(viewKindOfKey(ref.slice(3))) ? ref.slice(3) : null;
   const [, bump] = useState(0);
   useEffect(() => {
     if (!key) return undefined;
@@ -99,20 +99,23 @@ function useDocThumb(item) {
   }, [key]);
   const m = key ? getMeta(key) : null;
   const view = m?.previewSmKey || m?.previewKey;
-  return view ? { src: `r2:${view}`, sheet: docFamily(extOfKey(key)) === 'sheet' } : null;
+  if (!view) return null;
+  const pos = viewKindOfKey(key) === 'design' ? 'center' : docFamily(extOfKey(key)) === 'sheet' ? 'left top' : 'center top';
+  return { src: `r2:${view}`, pos };
 }
 
 function ItemGlyph({ item }) {
-  const page = useDocThumb(item);
+  const page = useViewThumb(item);
   const src = thumbSrc(item);
   if (src) {
     return <span className="sbf-file-thumb"><R2Image src={src} alt="" /></span>;
   }
-  // The page from its top, a sheet's cells from their top left.
+  // The page from its top, a sheet's cells from their top left, a design
+  // file's picture from its middle.
   if (page) {
     return (
       <span className="sbf-file-thumb">
-        <R2Image src={page.src} alt="" style={{ objectPosition: page.sheet ? 'left top' : 'center top' }} />
+        <R2Image src={page.src} alt="" style={{ objectPosition: page.pos }} />
       </span>
     );
   }

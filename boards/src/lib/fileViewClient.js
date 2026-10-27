@@ -1,12 +1,15 @@
-// Asking for a photo's or a document's view, and what a made one gives its
-// file's image meta and its card (lib/fileView.js; the Worker's half is
-// worker-playCopy.js).
+// Asking for a photo's, a document's or a design file's view, and what a
+// made one gives its file's image meta and its card (lib/fileView.js; the
+// Worker's half is worker-playCopy.js).
 //
 // No Supabase client here (lib/fileViewWork.js reads the session and the
 // records), so node can test it. Never throws: an answer it couldn't get is
 // an empty one.
 
-import { viewKindOfKey, turnsIntoPicture, docDropSize, extOfKey, DOC_DROP_PAGE, DOC_DROP_SLIDE } from './fileView.js';
+import {
+  viewKindOfKey, isCardViewKind, turnsIntoPicture, docDropSize, fileDropSize, extOfKey, DOC_DROP_PAGE, DOC_DROP_SLIDE,
+  DESIGN_DROP,
+} from './fileView.js';
 import { askConverter, REQUEST_MAX_KEYS } from './playCopyClient.js';
 
 // { [key]: state } for the originals among `keys` that get views: 'queued' |
@@ -83,11 +86,14 @@ export function viewCardPatch(card, row) {
   return next;
 }
 
-// The document a file card holds (its key), or ''.
-function docKeyOf(card) {
-  if (!card || card.kind !== 'file' || card.pending || typeof card.fileSrc !== 'string' || !card.fileSrc.startsWith('r2:')) return '';
+// The file a file card holds whose picture the card shows (fileView.js
+// CARD_VIEW_KINDS: a document's first page, a design file's own picture):
+// { key, kind }, or null.
+function cardViewOf(card) {
+  if (!card || card.kind !== 'file' || card.pending || typeof card.fileSrc !== 'string' || !card.fileSrc.startsWith('r2:')) return null;
   const key = card.fileSrc.slice(3);
-  return viewKindOfKey(key) === 'doc' ? key : '';
+  const kind = viewKindOfKey(key);
+  return isCardViewKind(kind) ? { key, kind } : null;
 }
 const atSize = (card, s) => Math.abs((Number(card.w) || 0) - s.w) <= 1 && Math.abs((Number(card.h) || 0) - s.h) <= 1;
 
@@ -97,9 +103,7 @@ const atSize = (card, s) => Math.abs((Number(card.w) || 0) - s.w) <= 1 && Math.a
 // standing up, as a PDF card, 400 lying down, as a slide. A card placed
 // before pages showed (a file card's 240×150) or resized keeps its size, and
 // the page fills it from the top.
-function docCardPatch(card, size, pages) {
-  const key = docKeyOf(card);
-  if (!key) return {};
+function docCardPatch(card, key, size, pages) {
   const patch = {};
   if (pages > 0 && card.pageCount !== pages) patch.pageCount = pages;
   const drop = docDropSize(extOfKey(key));
@@ -112,6 +116,27 @@ function docCardPatch(card, size, pages) {
   return patch;
 }
 
+// The narrowest a design file's card gets, and how much smaller than its
+// picture it may be (InDesign keeps only a thumbnail, a few hundred pixels).
+const DESIGN_MIN_W = 160;
+const DESIGN_SHRINK = 1.6;
+
+// What a design file's picture writes onto its file card: while the card is
+// still the size it landed at (fileView.js DESIGN_DROP), the picture's shape
+// at that width, or narrower for a small picture, never more than
+// DESIGN_SHRINK times smaller than the picture itself nor under DESIGN_MIN_W,
+// and never taller than the canvas's paste window (a tall picture is cropped
+// to it). A card resized, or placed before pictures came, keeps its size, and
+// the picture covers it.
+function designCardPatch(card, size) {
+  const w = num(size?.w);
+  const h = num(size?.h);
+  if (!w || !h || !atSize(card, DESIGN_DROP)) return {};
+  const cw = Math.min(DESIGN_DROP.w, Math.max(DESIGN_MIN_W, Math.round(w / DESIGN_SHRINK)));
+  const next = { w: cw, h: Math.min(MAX_SIDE, Math.max(MIN_SIDE, Math.round(cw * (h / w)))) };
+  return Math.abs(next.w - card.w) > 1 || Math.abs(next.h - card.h) > 1 ? next : {};
+}
+
 // What a photo's picture, once there is one, writes onto a file card holding
 // the photo (a raw or a .psd dropped before views, a photo some system gave no
 // type): the card turns into the picture card a drop makes now. The same file
@@ -120,9 +145,12 @@ function docCardPatch(card, size, pages) {
 // that looks for a file card's file finds this one once the picture's file is
 // replaced. {} for a card that stays a file card (fileView.js
 // turnsIntoPicture), except a document's, which takes its first page's shape
-// while it is still at its drop size, and its page count (docCardPatch).
+// while it is still at its drop size, and its page count (docCardPatch), and
+// a design file's, which takes its picture's (designCardPatch).
 export function viewFileCardPatch(card, size, pages = 0) {
-  if (docKeyOf(card)) return docCardPatch(card, size, pages);
+  const view = cardViewOf(card);
+  if (view?.kind === 'doc') return docCardPatch(card, view.key, size, pages);
+  if (view?.kind === 'design') return designCardPatch(card, size);
   if (!turnsIntoPicture(card)) return {};
   const w = num(size?.w);
   const h = num(size?.h);
@@ -130,11 +158,12 @@ export function viewFileCardPatch(card, size, pages = 0) {
   return { kind: 'image', src: card.fileSrc, ...shapeAt(card.w > 0 ? card.w : FILE_CARD_W, w, h), fileSrc: null };
 }
 
-// A document that won't get a first page (a password, damage, too big): a
-// card still the size it landed at goes back to a file card's.
+// A document that won't get a first page (a password, damage, too big), or
+// a design file with no picture inside it: a card still the size it landed
+// at (fileView.js fileDropSize) goes back to a file card's.
 export function noPageCardPatch(card) {
-  const key = docKeyOf(card);
-  const drop = key ? docDropSize(extOfKey(key)) : null;
+  const view = cardViewOf(card);
+  const drop = view ? fileDropSize(extOfKey(view.key)) : null;
   return drop && atSize(card, drop) ? { w: FILE_CARD_W, h: FILE_CARD_H } : {};
 }
 

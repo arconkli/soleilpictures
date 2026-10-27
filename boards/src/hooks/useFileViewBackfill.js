@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { viewKeyOfCard, turnsIntoPicture, viewKindOfKey } from '../lib/fileView.js';
+import { viewKeyOfCard, turnsIntoPicture, viewKindOfKey, DESIGN_DROP } from '../lib/fileView.js';
 import { getMeta } from '../lib/imageMeta.js';
 
 // Every photo shows in every browser (lib/fileView.js). For a writer on the
@@ -11,7 +11,9 @@ import { getMeta } from '../lib/imageMeta.js';
 // at. A file card holding such a photo (a raw or a .psd from before views)
 // turns into its picture card once the view is made. A file card holding a
 // document (Word, PowerPoint, Excel, Keynote, ...) is asked its first page,
-// which the card shows; it stays a file card. Pictures elsewhere (Files,
+// and one holding a design file (Sketch, Figma, Procreate, Illustrator, ...)
+// the picture it keeps of itself, which the card shows; it stays a file
+// card. Pictures elsewhere (Files,
 // Quick look, a reader's canvas) ask on their own when they can't draw a file
 // (components/R2Image.jsx). The pass loads with lib/fileViewWork.js the first
 // time a board has a card to look at.
@@ -59,9 +61,10 @@ export function useFileViewBackfill({
       // it's looked at even when the meta has the picture already. A
       // document's card is looked at until it knows its pages, so a page made
       // while no editor had the board open still gives the card its shape and
-      // count.
+      // count, and a design file's while it is still the size it landed at.
       return key && !settled.current.has(key)
-        && (turnsIntoPicture(c) || !getMeta(key)?.previewKey || (viewKindOfKey(key) === 'doc' && !(c.pageCount > 0)));
+        && (turnsIntoPicture(c) || !getMeta(key)?.previewKey || (viewKindOfKey(key) === 'doc' && !(c.pageCount > 0))
+          || (viewKindOfKey(key) === 'design' && c.w === DESIGN_DROP.w && c.h === DESIGN_DROP.h));
     });
     if (!targets.length) return;
     const scope = scopeRef.current;

@@ -172,6 +172,9 @@ export {
   Subtitles,
   EnvelopeSimple,
   FileImage,
+  // A design file's strip on its card (cards/FamilyFace.jsx familyGlyph).
+  SketchLogo,
+  FigmaLogo,
   Presentation,
   FilmSlate as Clapperboard,
   Database,
