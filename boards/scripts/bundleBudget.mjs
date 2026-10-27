@@ -112,7 +112,13 @@ export const CEILINGS = {
   // what its page knows (an email's attachments); the letter, the page and
   // the email's reader all load later (FamilyFace, FileStages, mailRead).
   // Measured as CI builds: 690.12 KB on 6eab06ea, this change 690.25.
-  appJs: 690_300,
+  // 2026-10-27: +0.2 KB for a design file's card: lib/fileView.js names a
+  // design file (by its extension, .procreat as the uploader stores it) and
+  // lands it at a design file's size, and the card, the Files list, the
+  // sidebar's shelves and Quick look show the picture it keeps; the app glyphs
+  // load later, with the page (FamilyFace.jsx). Measured as CI builds:
+  // 690.25 KB on b09699ac, this change 690.47.
+  appJs: 690_500,
   appCss: 21_000,
 };
 
