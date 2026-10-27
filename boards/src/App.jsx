@@ -203,7 +203,7 @@ import { ancestorPath, boardDepth, collectDescendantIds, planReparent } from './
 import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
 import { b64ToBytes } from './lib/yhelpers.js';
-import { cardToYMap } from './lib/yhelpers.js';
+import { cardToYMap, groupYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, fitByCost, rejectedNoun, wallCardsOf, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { CLUSTER_CARD_COST } from './lib/gridCount.js';
 import { planImport, planBytes } from './lib/importPreflight.js';
@@ -2987,15 +2987,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }
       }, 'local');
     };
+    // groupYMap: a group the API saved as a plain object becomes a Y.Map first.
     const renameGroup = (groupId, name) => {
       if (!groupId) return;
-      const gm = groupsMap(); const g = gm?.get(groupId); if (!g) return;
-      ydoc.transact(() => { g.set('name', String(name || '').slice(0, 80)); }, 'local');
+      const gm = groupsMap(); if (!gm?.has(groupId)) return;
+      ydoc.transact(() => { groupYMap(gm, groupId)?.set('name', String(name || '').slice(0, 80)); }, 'local');
     };
     const setGroupOutline = (groupId, patch) => {
       if (!groupId) return;
-      const gm = groupsMap(); const g = gm?.get(groupId); if (!g) return;
+      const gm = groupsMap(); if (!gm?.has(groupId)) return;
       ydoc.transact(() => {
+        const g = groupYMap(gm, groupId); if (!g) return;
         if ('outline' in patch) g.set('outline', !!patch.outline);
         if ('color'   in patch) g.set('color', patch.color);
         if ('width'   in patch) g.set('width', patch.width);
@@ -4415,7 +4417,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // manually (e.g. Cmd+G on a Grid + an unrelated Note) — that would drag the
       // Note along and fracture the family; make a fresh family group instead.
       let groupId = sourceCy.get('groupId');
-      if (groupId) { const g = gm.get(groupId); if (!g || g.get('kind') !== 'gridFamily') groupId = null; }
+      if (groupId) { const g = gm.get(groupId); if (!g || (g.get?.('kind') ?? g.kind) !== 'gridFamily') groupId = null; }
       if (!groupId) {
         groupId = `g-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         const g = new Y.Map();

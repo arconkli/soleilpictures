@@ -22,7 +22,7 @@ import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
-import { bytesToB64, b64ToBytes, cardToYMap, readCards, writeCardFields } from './yhelpers.js';
+import { bytesToB64, b64ToBytes, cardToYMap, readCards, writeCardFields, upsertGroup } from './yhelpers.js';
 import { buildCardIndexRows, stampCard } from '../../scripts/lib/cardEncode.mjs';
 import { scoutSelect, scoutInsert, scoutRpc, scoutPatch, scoutDelete } from './scoutDb.js';
 import { PARTY_HOST } from './partyHost.js';
@@ -1284,11 +1284,10 @@ export async function writeBoardGroups(env, {
     }
 
     await commitDoc(env, boardId, board, () => {
-      for (const g of upserts) {
-        const existing = groups.get(String(g.id));
-        const before = existing && typeof existing.toJSON === 'function' ? existing.toJSON() : (existing || {});
-        groups.set(String(g.id), { ...before, ...g, id: String(g.id) });
-      }
+      // Each group a Y.Map, as the app writes it. This wrote plain objects
+      // until 2026-10-27, which the app's group reader threw on, so a cluster
+      // with an API-made group never opened.
+      for (const g of upserts) upsertGroup(groups, String(g.id), { ...g, id: String(g.id) });
       for (const id of gone) groups.delete(String(id));
       for (const c of orphaned) cards.set(String(c.id), cardToYMap({ ...c, groupId: null }));
     });
