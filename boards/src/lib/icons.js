@@ -170,6 +170,8 @@ export {
   FileTxt,
   FileCsv,
   Subtitles,
+  EnvelopeSimple,
+  FileImage,
   Presentation,
   FilmSlate as Clapperboard,
   Database,

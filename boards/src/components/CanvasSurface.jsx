@@ -2,6 +2,7 @@ import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallbac
 import { createPortal } from 'react-dom';
 import * as perf from '../lib/perf.js';
 import { fileDropSize } from '../lib/fileView.js';
+import { setFileActions } from '../lib/fileActions.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
@@ -4951,6 +4952,19 @@ export function CanvasSurface({
   }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators, markViewSettled]);
   ingestFilesRef.current = ingestFiles;
+  // Quick look's "Put both on board" (an email's attachments, FileStages.jsx)
+  // lands its files here as a drop does, in the middle of the view; offered
+  // only while this board is on screen and can be changed (lib/fileActions.js).
+  useEffect(() => {
+    const boardId = board?.id;
+    if (!boardId || !canEdit || !boardReady) return undefined;
+    return setFileActions(boardId, {
+      putFiles: (files) => {
+        const p = readViewCenter();
+        return ingestFilesRef.current?.(files, p?.x ?? 200, p?.y ?? 200, 'email');
+      },
+    });
+  }, [board?.id, canEdit, boardReady, readViewCenter]);
 
   // Held drops for this cluster (lib/heldUploads.js), the moment App's release
   // watcher says there may be room: back through the drop, so the card cap,

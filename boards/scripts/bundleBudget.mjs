@@ -131,6 +131,9 @@ export const LAZY_IN_APP = [
   'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel', 'TagManyPicker',
   // FileCard.jsx: a text file's page; QuickLook.jsx: the page, read on
   'FamilyFace', 'FileStages',
+  // FamilyFace.jsx and FileStages.jsx: an email's reader (postal-mime and
+  // the Outlook message reader), for the first email a card or Quick look shows
+  'mailRead',
   // ToolOptionsBar.jsx: the note bar and the draw, shape, line and arrow bars in the toolbar look
   'NoteBarA', 'CanvasBarsA',
   // CanvasSurface.jsx: the selection's bar in the toolbar look

@@ -56,3 +56,22 @@
   grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid #e4e4e8;
   font-size: 19px; letter-spacing: .02em; font-weight: normal; color: #3a3a40; white-space: nowrap; overflow: hidden;
 }
+
+/* An email: a letter, its subject over who it's from and to and when, its
+   first lines, and its attachments as chips. */
+.fpg-mail { overflow-wrap: anywhere; }
+.fpg-mail-subj {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  margin: 0 0 14px; font-size: 25px; line-height: 1.2; font-weight: 700; color: #111;
+}
+.fpg-mail-hdr { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 4px 10px; font-size: 13px; line-height: 1.35; color: #3a3a40; }
+.fpg-mail-k { color: #8a8a90; }
+.fpg-mail-rule { height: 1px; margin: 16px 0; background: #e4e4e8; }
+.fpg-mail p { margin: 0 0 12px; font-size: 15px; line-height: 1.55; color: #222226; }
+.fpg-mail-att { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.fpg-mail-chip {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%; box-sizing: border-box; padding: 7px 10px;
+  border: 1px solid #dcdce0; border-radius: 7px; font-size: 12.5px; color: #2a2a2e; white-space: nowrap; overflow: hidden;
+}
+.fpg-mail-chip svg { flex: none; color: #8a8a90; }
+.fpg-mail-chip span { color: #8a8a90; }

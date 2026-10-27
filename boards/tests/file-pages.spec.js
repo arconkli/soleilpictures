@@ -218,3 +218,115 @@ test('Quick look opens a font as a page to try it on: type, change the size, see
   await field.press('Escape');
   await expect(ql).toHaveCount(0);
 });
+
+// The letter from lib/mailRead.test.mjs: a decoded subject, a plain and an
+// HTML body (a picture inside the message and one from the web), and one
+// attachment; a plain-text reply that quotes; and an Outlook message built
+// in the page by the tests' own compound-file writer (lib/testCfb.mjs).
+const EML = [
+  'From: Ines Carvalho <ines@example.com>', 'To: Mara Ellison <mara@example.com>', 'Cc: Theo Park <theo@example.com>',
+  'Subject: =?UTF-8?Q?Re:_Day_4_call_times_=E2=80=94_dock?=', 'Date: Mon, 13 Oct 2026 21:04:00 +0000',
+  'MIME-Version: 1.0', 'Content-Type: multipart/mixed; boundary="b1"', '',
+  '--b1', 'Content-Type: multipart/alternative; boundary="b2"', '',
+  '--b2', 'Content-Type: text/plain; charset=utf-8', '', 'Crew call is 05:30.', '', '> Can we push crew call?', '',
+  '--b2', 'Content-Type: text/html; charset=utf-8', '', '<p>Crew call is <b>05:30</b>.</p><img src="cid:logo1"><img src="https://tracker.example/p.gif">', '',
+  '--b2--',
+  '--b1', 'Content-Type: image/png', 'Content-ID: <logo1>', 'Content-Disposition: inline', 'Content-Transfer-Encoding: base64', '', 'iVBORw0KGgo=', '',
+  '--b1', 'Content-Type: application/pdf; name="call-sheet.pdf"', 'Content-Disposition: attachment; filename="call-sheet.pdf"', 'Content-Transfer-Encoding: base64', '', 'JVBERi0xLjQ=', '',
+  '--b1--', '',
+].join('\r\n');
+const PLAIN = [
+  'From: Iris Chen <iris@example.com>', 'To: Cast & crew <crew@example.com>', 'Subject: Day 5', 'Date: Tue, 14 Oct 2026 21:12:00 +0000',
+  'Content-Type: text/plain; charset=utf-8', '',
+  'Basecamp opens at 15:00.', '', 'On Mon 13 Oct 2026, Mara Ellison wrote:', '> Can we push crew call?', '',
+].join('\r\n');
+
+async function addMail(page) {
+  await page.evaluate(async ({ eml, plain }) => {
+    const { writeCfb, utf16le } = await import('/src/lib/testCfb.mjs');
+    const msg = writeCfb({ name: 'Root Entry', children: [
+      { name: '__substg1.0_0037001F', data: utf16le('Wrap notes') },
+      { name: '__substg1.0_0C1A001F', data: utf16le('Theo Park') },
+      { name: '__substg1.0_5D01001F', data: utf16le('theo@example.com') },
+      { name: '__substg1.0_1000001F', data: utf16le('That is a wrap on the dock.') },
+    ] }, { miniCutoff: 4096 });
+    for (const [key, body] of [['qa-files/Re Day 4.eml', eml], ['qa-files/Day 5.eml', plain], ['qa-files/Wrap.msg', msg]]) {
+      const blob = new Blob([body]);
+      window.__qaUrls[key] = URL.createObjectURL(blob);
+      window.__qaSizes[key] = blob.size;
+    }
+  }, { eml: EML, plain: PLAIN });
+  await add(page, [
+    { id: 'mail', fileSrc: 'r2:qa-files/Re Day 4.eml', fileName: 'Re Day 4.eml', ext: 'eml', x: 60, y: 60, w: 300, h: 388 },
+    { id: 'plain', fileSrc: 'r2:qa-files/Day 5.eml', fileName: 'Day 5.eml', ext: 'eml', x: 400, y: 60, w: 300, h: 388 },
+    { id: 'msg', fileSrc: 'r2:qa-files/Wrap.msg', fileName: 'Wrap.msg', ext: 'msg', x: 740, y: 60, w: 300, h: 388 },
+  ]);
+}
+
+test("an email's card is a letter: its subject, who it's from, its first lines, and its attachments on its strip", async ({ page }) => {
+  await board(page);
+  await addMail(page);
+  const letter = card(page, 'mail').locator('.fpg-mail');
+  await expect(letter.locator('.fpg-mail-subj')).toHaveText('Re: Day 4 call times — dock');
+  await expect(letter.locator('.fpg-mail-hdr')).toContainText('Ines Carvalho <ines@example.com>');
+  await expect(letter.locator('.fpg-mail-hdr')).toContainText('Mara Ellison');
+  // What it quotes isn't the letter.
+  await expect(letter.locator('p')).toHaveText(['Crew call is 05:30.']);
+  await expect(letter.locator('.fpg-mail-chip')).toContainText('call-sheet.pdf');
+  // Nothing on a card loads from the web.
+  await expect(letter.locator('img')).toHaveCount(0);
+  await expect(card(page, 'mail').locator('.filec-info-size')).toHaveText('1 attachment');
+  await expect(card(page, 'plain').locator('.fpg-mail p')).toHaveText(['Basecamp opens at 15:00.']);
+  await expect(card(page, 'plain').locator('.filec-info-size')).toHaveText(/ B$/);
+  // An Outlook message reads into the same letter.
+  await expect(card(page, 'msg').locator('.fpg-mail-subj')).toHaveText('Wrap notes');
+  await expect(card(page, 'msg').locator('.fpg-mail-hdr')).toContainText('Theo Park <theo@example.com>');
+  await expect(card(page, 'msg').locator('.fpg-mail p')).toHaveText(['That is a wrap on the dock.']);
+});
+
+test('Quick look opens an email as it was sent: in a frame that runs nothing, its pictures from the web held until asked, its attachment onto the board', async ({ page }) => {
+  await board(page);
+  await addMail(page);
+  await card(page, 'mail').locator('.filec-body').dblclick();
+  const ql = page.locator('.ql');
+  const stage = ql.locator('.fst-mail');
+  await expect(stage.locator('.fst-mail-subj')).toHaveText('Re: Day 4 call times — dock');
+  await expect(ql.locator('.ql-meta')).toHaveText('Email');
+  await expect(stage.locator('.fst-mail-from')).toContainText('Ines Carvalho');
+  await expect(stage.locator('.fst-mail-from')).toContainText('Cc Theo Park');
+  await expect(stage.locator('.fst-mail-av')).toHaveText('IC');
+  const frame = stage.locator('iframe.fst-mail-frame');
+  await expect(frame).toHaveAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox');
+  const policy = async () => (await frame.getAttribute('srcdoc')).match(/Content-Security-Policy" content="([^"]*)"/)[1];
+  expect(await policy()).toContain('img-src data:;');
+  expect(await policy()).not.toContain('https:');
+  // The picture inside the message is there as data; the one from the web waits.
+  expect(await frame.getAttribute('srcdoc')).toContain('src="data:image/png;base64,iVBORw0KGgo="');
+  await expect(stage.locator('.fst-top')).toHaveText('Pictures from the web are hidden in this email.Show pictures');
+  await stage.getByRole('button', { name: 'Show pictures' }).click();
+  await expect(stage.locator('.fst-top')).toHaveCount(0);
+  expect(await policy()).toContain('img-src data: https: http:;');
+  // Its attachment: to save, or onto the board, where it lands and Quick look closes.
+  await expect(stage.locator('.fst-mail-lab')).toHaveText('1 attachment');
+  await expect(stage.locator('.fst-mail-att')).toContainText('call-sheet.pdf');
+  const download = page.waitForEvent('download');
+  await stage.getByRole('button', { name: 'Download call-sheet.pdf' }).click();
+  expect((await download).suggestedFilename()).toBe('call-sheet.pdf');
+  const before = await page.locator('[data-card-id]').count();
+  await stage.getByRole('button', { name: 'Put it on board' }).click();
+  await expect(ql).toHaveCount(0);
+  await expect(page.locator('[data-card-id]')).toHaveCount(before + 1);
+});
+
+test('Quick look sets a plain-text email on its page, its quote apart, with no frame and nothing to put on the board', async ({ page }) => {
+  await board(page);
+  await addMail(page);
+  await card(page, 'plain').locator('.filec-body').dblclick();
+  const stage = page.locator('.ql .fst-mail');
+  await expect(stage.locator('.fst-mail-subj')).toHaveText('Day 5');
+  await expect(stage.locator('.fst-mail-text > p')).toHaveText(['Basecamp opens at 15:00.']);
+  await expect(stage.locator('.fst-mail-quote p')).toHaveText(['On Mon 13 Oct 2026, Mara Ellison wrote:', 'Can we push crew call?']);
+  await expect(stage.locator('iframe')).toHaveCount(0);
+  await expect(stage.locator('.fst-mail-atts')).toHaveCount(0);
+  await expect(stage).not.toHaveClass(/is-html/);
+});
