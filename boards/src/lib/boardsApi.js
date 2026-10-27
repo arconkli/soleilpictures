@@ -231,17 +231,37 @@ export async function updateOwnSettings(patch) {
   return (data && typeof data === 'object') ? data : {};
 }
 
-// Upsert the caller's profile. Pass only the fields you want to write.
+// Write the caller's profile. Pass only the fields you want to write.
+//
+// An update, and an insert only when there is no row yet. Not an upsert:
+// PostgREST's names user_id in its ON CONFLICT … DO UPDATE SET, and since 0091
+// a person may update their profile's name, colour and picture but not its
+// user_id, so every save was refused ("permission denied for table profiles",
+// a 403) from 2026-05-28 until this. profileWrites.test.mjs holds the columns
+// written here to 0091's grants.
 export async function saveOwnProfile({ userId, displayName, color, avatarUrl }) {
   if (!userId) throw new Error('userId required');
-  const row = { user_id: userId };
-  if (displayName !== undefined) row.display_name = displayName?.trim() || null;
-  if (color !== undefined)       row.color = color || null;
-  if (avatarUrl !== undefined)   row.avatar_url = avatarUrl || null;
-  const { error } = await supabase
+  const fields = {};
+  if (displayName !== undefined) fields.display_name = displayName?.trim() || null;
+  if (color !== undefined)       fields.color = color || null;
+  if (avatarUrl !== undefined)   fields.avatar_url = avatarUrl || null;
+  if (Object.keys(fields).length === 0) return;
+  const update = () => supabase
     .from('profiles')
-    .upsert(row, { onConflict: 'user_id' });
+    .update(fields)
+    .eq('user_id', userId)
+    .select('user_id');
+  const { data, error } = await update();
   if (error) throw error;
+  if (data?.length) return;
+  const { error: insertError } = await supabase
+    .from('profiles')
+    .insert({ user_id: userId, ...fields });
+  if (!insertError) return;
+  // The row arrived in between (the sign-up trigger writes it): update that.
+  if (insertError.code !== '23505') throw insertError;
+  const { error: retryError } = await update();
+  if (retryError) throw retryError;
 }
 
 // Read the name, colour and picture of the given user ids — yours and anyone
