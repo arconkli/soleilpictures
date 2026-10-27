@@ -569,6 +569,8 @@ export const EV = Object.freeze({
   TAG_CANDIDATE_PROMOTE:   'tag_candidate_promote',       // promoted a discovered prose name to a real tag {entity_type,count,anchored}
   TAG_CANDIDATE_DISMISS:   'tag_candidate_dismiss',       // dismissed a discovered prose name (workspace ignore) {count}
   TAG_SET_TYPE:            'tag_set_type',                // one-tap set/changed an entity's type {tag_id,entity_type}
+  TAG_SPOTLIGHT:           'tag_spotlight',               // lit a tag's cards up on the open cluster {tag_id,via:'card_chip'|'board_chip'|'group_chip'}
+  TAG_SUGGESTION_DISMISS:  'tag_suggestion_dismiss',      // dismissed a suggested tag on a card {tag_id,via:'card'} (accepting one is a TAG_MANUAL_APPLY via 'suggested_chip')
 });
 
 // ── What counts as WORK, as opposed to presence ───────────────────────────

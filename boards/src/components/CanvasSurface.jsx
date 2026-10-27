@@ -93,7 +93,7 @@ import {
   MessageCircle, MessageCircleOff,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
-  Calendar as CalendarPh, X, Minus,
+  Calendar as CalendarPh, X, Minus, Eye, Check, Sparkle,
 } from '../lib/icons.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { keyCaps, tip, tlTip, toolbarLook } from '../lib/looks.js';
@@ -209,6 +209,8 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
+import { useTagSuggestions, acceptCardSuggestion, dismissCardSuggestion } from '../hooks/useTagSuggestions.js';
+import { resolveTagColor } from '../lib/tagColor.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { embedTextForLiveCard } from '../lib/embedText.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
@@ -10384,6 +10386,72 @@ export function CanvasSurface({
     }
   };
 
+  // Spotlight (the owner's direction A): a tag chip lights that tag's cards
+  // on this cluster and dims the rest, and a pill says what is showing. It
+  // hides nothing and moves nothing; Esc or × ends it, and the tag in the
+  // pill opens its page. A card counts when it, or its group, carries the
+  // tag (the tag page counts a tagged group's cards the same way).
+  const [spotlightTagId, setSpotlightTagId] = useState(null);
+  useEffect(() => { setSpotlightTagId(null); }, [board?.id]);
+  const wsTagById = useMemo(() => new Map((wsTags || []).map(t => [t.id, t])), [wsTags]);
+  const spotlightTag = spotlightTagId ? wsTagById.get(spotlightTagId) || null : null;
+  const spotMatched = useMemo(() => {
+    if (!spotlightTagId) return null;
+    const out = new Set();
+    for (const c of cards || []) {
+      const own = (tagsByCard.get(c.id) || []).some(t => t.id === spotlightTagId);
+      const viaGroup = !!c.groupId && (tagsByGroup?.get(c.groupId) || []).some(t => t.id === spotlightTagId);
+      if (own || viaGroup) out.add(c.id);
+    }
+    return out;
+  }, [spotlightTagId, cards, tagsByCard, tagsByGroup]);
+  const toggleSpotlight = (tagId, via) => {
+    const next = spotlightTagId === tagId ? null : tagId;
+    setSpotlightTagId(next);
+    if (next) { try { logEvent(EV.TAG_SPOTLIGHT, { tag_id: next, via }); } catch (_) {} }
+  };
+  const openTagPage = (tagId, via) => {
+    try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: tagId, via }); } catch (_) {}
+    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId } }));
+  };
+  // Esc ends the spotlight before the canvas's own Escape, unless a field,
+  // a menu or a dialog has it.
+  useEffect(() => {
+    if (!spotlightTagId) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || isEditableTarget(e.target)) return;
+      if (document.querySelector('.ctx-menu, .sb-tag-menu, .tag-picker, .modal-bg, [role="dialog"]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setSpotlightTagId(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [spotlightTagId]);
+
+  // Suggested tags, on the card they were suggested for: the closest one
+  // shows as a hollow chip; ✓ keeps it, × never suggests it there again.
+  const tagSuggest = useTagSuggestions({ boardId: board?.id, enabled: !!canEdit && !isPublic });
+  const acceptSuggestion = async (cardId, tag) => {
+    try {
+      await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
+      await acceptCardSuggestion({ tagId: tag.id, cardId });
+      try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'suggested_chip', tag_id: tag.id }); } catch (_) {}
+      refreshTags?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: 'Could not keep it: ' + (err.message || err) });
+    }
+  };
+  const dismissSuggestion = async (cardId, tag) => {
+    try {
+      await dismissCardSuggestion({ tagId: tag.id, cardId });
+      await dismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id, userId });
+      try { logEvent(EV.TAG_SUGGESTION_DISMISS, { tag_id: tag.id, via: 'card' }); } catch (_) {}
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: 'Could not dismiss it: ' + (err.message || err) });
+    }
+  };
+
   // Auto-tag cards + the board itself.
   //
   // Two halves: a per-render "wake" call that flags pending work,
@@ -10498,7 +10566,7 @@ export function CanvasSurface({
         // embedText: what the card's embedding is built from (lib/embedText.js),
         // never this boosted scoring text, which only the TF-IDF engine uses.
         const suggestions = await s.autotagSuggest(text, {
-          kind: 'card', id: c.id, cardKind: c.kind || null, embedText: embedTextForLiveCard(c),
+          kind: 'card', id: c.id, boardId: s.board.id, cardKind: c.kind || null, embedText: embedTextForLiveCard(c),
         });
         for (const sg of suggestions) {
           if (sg.score < HIGH) continue;
@@ -11203,7 +11271,7 @@ export function CanvasSurface({
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}${isVersionDrop ? ' is-version-drop' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}${isVersionDrop ? ' is-version-drop' : ''}${spotMatched && !spotMatched.has(c.id) ? ' is-spot-dim' : ''}`,
       'data-card-id': c.id,
       'data-version-drop': isVersionDrop ? versionDropTarget.label : undefined,
       onPointerDown: (e) => onCardPointerDown(e, c),
@@ -11427,6 +11495,10 @@ export function CanvasSurface({
     // their tagging — without this, "Tag…" silently writes to the DB
     // and the user has no feedback that anything happened.
     const cardTags = tagsByCard?.get?.(c.id) || [];
+    const cardSugg = canEdit && !isPublic
+      ? (tagSuggest.byCard.get(c.id) || []).find(sg => wsTagById.has(sg.tagId) && !cardTags.some(t => t.id === sg.tagId)) || null
+      : null;
+    const suggTag = cardSugg ? wsTagById.get(cardSugg.tagId) : null;
     return (
       <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
@@ -11445,22 +11517,21 @@ export function CanvasSurface({
             </button>
           );
         })()}
-        {cardTags.length > 0 && (
+        {(cardTags.length > 0 || suggTag) && (
           <div className="card-tags-strip" data-card-id={c.id}>
             {cardTags.slice(0, 4).map(t => (
               <span key={t.id}
                     role="button"
-                    className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
+                    className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
                     style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                    title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to see everywhere it's used`}
+                    title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to light it up on this cluster`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
-                      // Click-through to the tag's cross-board collection — the
-                      // payoff. Was a dead-end (right-click only) before.
+                      // Lights the tag up here (the spotlight); its page opens
+                      // from the pill, the chip's menu or the sidebar.
                       e.preventDefault();
                       e.stopPropagation();
-                      try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'card_chip' }); } catch (_) {}
-                      document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
+                      toggleSpotlight(t.id, 'card_chip');
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -11475,6 +11546,25 @@ export function CanvasSurface({
               <span className="card-tag-chip card-tag-chip-overflow"
                     title={cardTags.slice(4).map(t => t.name).join(', ')}>
                 +{cardTags.length - 4}
+              </span>
+            )}
+            {suggTag && (
+              <span className="card-tag-chip is-suggested"
+                    style={{ '--tag-c': resolveTagColor(suggTag) }}
+                    title={`Suggested from the text: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
+                    onPointerDown={(e) => e.stopPropagation()}>
+                <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
+                <span className="card-tag-chip-name">{suggTag.name}</span>
+                <span className="card-tag-chip-acts">
+                  <button type="button" className="card-tag-chip-act" aria-label={`Keep ${suggTag.name}`}
+                          onClick={(e) => { e.stopPropagation(); acceptSuggestion(c.id, suggTag); }}>
+                    <Icon as={Check} size={9} />
+                  </button>
+                  <button type="button" className="card-tag-chip-act is-dismiss" aria-label={`Never suggest ${suggTag.name} here`}
+                          onClick={(e) => { e.stopPropagation(); dismissSuggestion(c.id, suggTag); }}>
+                    <Icon as={X} size={9} />
+                  </button>
+                </span>
               </span>
             )}
           </div>
@@ -12940,6 +13030,21 @@ export function CanvasSurface({
                       }}
                     />
                   ) : g.name}
+                  {(tagsByGroup?.get(g.id) || []).length > 0 && (
+                    <span className="group-label-tags">
+                      {(tagsByGroup.get(g.id) || []).slice(0, 3).map(t => (
+                        <button type="button" key={t.id}
+                                className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
+                                style={{ '--tag-c': t.color || '#4f8df8' }}
+                                title={`${t.name} — click to light it up on this cluster`}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); toggleSpotlight(t.id, 'group_chip'); }}>
+                          <span className="card-tag-chip-dot" />
+                          <span className="card-tag-chip-name">{t.name}</span>
+                        </button>
+                      ))}
+                    </span>
+                  )}
                 </div>
               ) : null;
 
@@ -13095,9 +13200,9 @@ export function CanvasSurface({
             <span key={t.id}
                   role="button"
                   tabIndex={0}
-                  className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
+                  className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
                   style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                  title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to see everywhere it's used`}
+                  title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to light it up on this cluster`}
                   onKeyDown={(e) => {
                     // The cluster's own chips are few, so they take the keyboard.
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
@@ -13106,8 +13211,7 @@ export function CanvasSurface({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'board_chip' }); } catch (_) {}
-                    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
+                    toggleSpotlight(t.id, 'board_chip');
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -13118,6 +13222,26 @@ export function CanvasSurface({
               <span className="card-tag-chip-name">{t.name}</span>
             </span>
           ))}
+        </div>
+      )}
+      {spotlightTag && (
+        <div className="tag-spotlight-pill" role="status" aria-live="polite">
+          <Icon as={Eye} size={15} className="tag-spotlight-eye" />
+          <span>Showing</span>
+          <button type="button" className="card-tag-chip is-lit tag-spotlight-chip"
+                  style={{ '--tag-c': resolveTagColor(spotlightTag) }}
+                  title={`Open ${spotlightTag.name}'s page: everything carrying it, everywhere`}
+                  onClick={() => openTagPage(spotlightTag.id, 'spotlight')}>
+            <span className="card-tag-chip-dot" />
+            <span className="card-tag-chip-name">{spotlightTag.name}</span>
+          </button>
+          <span className="tag-spotlight-count">{spotMatched?.size || 0} of {(cards || []).length} cards</span>
+          <span className="tag-spotlight-rule" aria-hidden="true" />
+          <span className="tag-spotlight-hint"><kbd>Esc</kbd>clears</span>
+          <button type="button" className="tag-spotlight-x" aria-label={`Clear filter: ${spotlightTag.name}`}
+                  onClick={() => setSpotlightTagId(null)}>
+            <Icon as={X} size={14} />
+          </button>
         </div>
       )}
       {/* Capture Mode's synthetic cast is spliced in HERE and nowhere else.
@@ -14899,6 +15023,10 @@ export function CanvasSurface({
         <div className="sb-tag-menu" role="menu"
              style={{ position: 'fixed', left: tagChipMenu.x, top: tagChipMenu.y, zIndex: 60 }}
              onMouseDown={(e) => e.stopPropagation()}>
+          <button className="sb-tag-menu-item" role="menuitem"
+                  onClick={() => { const { tag } = tagChipMenu; closeTagChipMenu(); openTagPage(tag.id, 'chip_menu'); }}>
+            Open tag page
+          </button>
           {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
             <button className="sb-tag-menu-item" role="menuitem"
                     onClick={async () => {

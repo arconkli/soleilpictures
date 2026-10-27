@@ -30061,6 +30061,35 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Lighting a tag up on a cluster",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Lighting a tag up on a cluster"
+    }
+   ],
+   "id": "lighting-a-tag-up-on-a-cluster"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click a tag chip — on a card, on a group's label, or on the cluster's own strip at the top — and the cluster lights up that tag: its cards stay as they are and everything else recedes. Nothing moves and nothing is hidden. A pill at the top says what is showing and how many cards carry it (\"Showing Onyx · 6 of 14 cards\"); "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": ", the ×, or clicking the same chip again ends it. A card in a tagged group counts."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "The tag page",
    "inline": [
     {
@@ -30075,7 +30104,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Open a tag from the sidebar, from a tag chip, or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: \"12 tagged · 40 inside\" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups."
+     "v": "Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's right-click menu ("
+    },
+    {
+     "t": "strong",
+     "v": "Open tag page",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open tag page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: \"12 tagged · 40 inside\" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups."
     }
    ]
   },
@@ -30364,7 +30407,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " The AI compares what a card says with your tags, and a close one waits on the tag's page until you accept or dismiss it."
+      "v": " The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under "
+     },
+     {
+      "t": "strong",
+      "v": "Manage",
+      "children": [
+       {
+        "t": "text",
+        "v": "Manage"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ]
    ]

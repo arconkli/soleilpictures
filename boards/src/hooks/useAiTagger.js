@@ -41,6 +41,7 @@ import { propagateTagToGroups } from '../lib/aiGroupPropagation.js';
 import { TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { readWorkspaceAiEnabled, AI_SETTING_CHANGED } from './useWorkspaceAiEnabled.js';
 import { clientEmbedsKind } from '../lib/embedText.js';
+import { announceTagSuggestionsChanged } from './useTagSuggestions.js';
 
 // Round 19: mount-time work (warmup, centroid seeding) gets pushed to
 // idle so it can't compete with the boot/paint window. Same pattern
@@ -713,6 +714,7 @@ export function useAiTagger(workspaceId, { canWrite = true } = {}) {
         .upsert(rows, { onConflict: 'tag_id,source_kind,source_id', ignoreDuplicates: true })
         .then(({ error }) => {
           if (error) console.warn('[ai-tagger] tag_suggestions upsert failed', error.message);
+          else announceTagSuggestionsChanged(); // the canvas shows them on their cards
         });
     }
 

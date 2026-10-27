@@ -71,7 +71,12 @@ export const CEILINGS = {
   // and nanoid 3.3.12, where the lockfile (and CI, and Cloudflare) has 3.4.17
   // and 3.3.20, about 0.6 KB less. Take the figure from CI's run, or from a
   // worktree with its own `npm ci`.
-  appJs: 691_500,
+  // 2026-10-26: +1.5 KB for the tag spotlight (a chip lights its tag's cards
+  // up in place, with the pill), suggested chips on cards, and chips on group
+  // labels: the owner's direction A, all in CanvasSurface's closure. Sized
+  // for CI's build (a worktree on the shared node_modules reads ~0.6 KB low,
+  // as above): about +1.3 KB measured.
+  appJs: 693_000,
   appCss: 21_000,
 };
 

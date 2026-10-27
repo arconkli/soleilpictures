@@ -23,10 +23,20 @@ everything that does not fit a hierarchy.
 An item can carry several tags. A tag is **not a location**. Tagging moves
 nothing.
 
+## Lighting a tag up on a cluster
+
+Click a tag chip — on a card, on a group's label, or on the cluster's own
+strip at the top — and the cluster lights up that tag: its cards stay as they
+are and everything else recedes. Nothing moves and nothing is hidden. A pill at
+the top says what is showing and how many cards carry it ("Showing Onyx · 6 of
+14 cards"); `Esc`, the ×, or clicking the same chip again ends it. A card in a
+tagged group counts.
+
 ## The tag page
 
-Open a tag from the sidebar, from a tag chip, or from its hover card, and you
-get everything carrying it, from anywhere in the workspace — clusters, then
+Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's
+right-click menu (**Open tag page**), or from its hover card, and you get
+everything carrying it, from anywhere in the workspace — clusters, then
 groups, then cards — and the document pages it is on. A tagged group or
 cluster shows what is inside it. Its header counts both: "12 tagged · 40
 inside" is twelve things carrying the tag (the number the sidebar shows) and
@@ -66,8 +76,9 @@ only uses tags you have already made, so a workspace with no tags gets none.
   underlines words that clearly refer to one of your tags, even when they are
   not its exact name.
 - **Anything looser is only suggested.** The AI compares what a card says with
-  your tags, and a close one waits on the tag's page until you accept or
-  dismiss it.
+  your tags, and the closest suggestion shows on the card as a hollow chip with
+  a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the
+  tag's page, under **Manage**.
 
 The AI reads up to 2,000,000 characters per account a day,
 counting the instructions sent along with your text, more than a normal day's

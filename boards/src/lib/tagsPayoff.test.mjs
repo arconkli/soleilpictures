@@ -49,3 +49,29 @@ test('Cmd-K: #name lists everything carrying the tag', () => {
   assert.match(pal, /supabase\.rpc\('get_things_tagged', \{ p_tag_id: tag\.id, p_limit: 40 \}\)/);
   assert.doesNotMatch(pal, /rpc\([^)]*\)\s*\.catch\(/, 'an rpc builder is a thenable: .catch swallows it');
 });
+
+test('Spotlight (direction A): a chip lights its tag up on the cluster', () => {
+  const canvas = read('../components/CanvasSurface.jsx');
+  assert.match(canvas, /toggleSpotlight\(t\.id, 'card_chip'\)/);
+  assert.match(canvas, /toggleSpotlight\(t\.id, 'board_chip'\)/);
+  assert.match(canvas, /toggleSpotlight\(t\.id, 'group_chip'\)/);
+  assert.match(canvas, /\$\{spotMatched && !spotMatched\.has\(c\.id\) \? ' is-spot-dim' : ''\}/);
+  assert.match(canvas, /className="tag-spotlight-pill" role="status"/);
+  assert.match(canvas, /aria-label=\{`Clear filter: \$\{spotlightTag\.name\}`\}/);
+  assert.match(canvas, /openTagPage\(spotlightTag\.id, 'spotlight'\)/, 'the tag in the pill opens its page');
+  assert.match(canvas, /openTagPage\(tag\.id, 'chip_menu'\)/, 'the chip menu opens its page');
+  const css = read('../styles.css');
+  assert.match(css, /\.card\.is-spot-dim \{\s*opacity: \.16;\s*filter: grayscale\(\.85\);/, 'the mockup\'s dim');
+});
+
+test('a suggestion shows on its card, kept or dismissed in one tap', () => {
+  const canvas = read('../components/CanvasSurface.jsx');
+  assert.match(canvas, /className="card-tag-chip is-suggested"/);
+  assert.match(canvas, /acceptSuggestion\(c\.id, suggTag\)/);
+  assert.match(canvas, /dismissSuggestion\(c\.id, suggTag\)/);
+  // Dismissing keeps it off the card for the automatic paths too.
+  assert.match(canvas, /await dismissCardSuggestion\(\{ tagId: tag\.id, cardId \}\);\s*await dismissAutotagSuggestion\(/);
+  // The scorer writes the cluster on each row, so the canvas can read them back.
+  assert.match(canvas, /kind: 'card', id: c\.id, boardId: s\.board\.id,/);
+  assert.match(read('../hooks/useTagSuggestions.js'), /\.eq\('board_id', boardId\)\s*\.eq\('source_kind', 'card'\)\s*\.is\('dismissed_at', null\)/);
+});

@@ -1921,6 +1921,10 @@ export const DOCS_PAGES = [
         "text": "Tagging"
       },
       {
+        "id": "lighting-a-tag-up-on-a-cluster",
+        "text": "Lighting a tag up on a cluster"
+      },
+      {
         "id": "the-tag-page",
         "text": "The tag page"
       },

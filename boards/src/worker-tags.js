@@ -52,6 +52,7 @@ const EMBEDDING_DIM = 1024;   // pgvector columns are vector(1024) since 0418
 const MAX_EMBED_CARDS_PER_CALL = 64;
 const MAX_APPLY_CARDS_PER_CALL = 16;
 const MAX_APPLY_TAGS_PER_CARD = 30;
+const APPLY_TIMEOUT_MS = 25_000;
 
 export async function handleTagsRoute(url, request, env) {
   if (request.method !== 'POST') {
@@ -255,10 +256,16 @@ async function handleApply(request, env) {
   if (budget !== 'ok') return budgetRefusal(budget, 'tagging');
   let resp;
   try {
-    resp = await runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT, userMsg,
-      { max_tokens: 2000, temperature: 0.1 });
+    // A hung model call (one ran 96 s on 2026-10-25) holds the client's
+    // request open the whole time; give up at APPLY_TIMEOUT_MS and let the
+    // client's 5xx cooldown retry later.
+    resp = await Promise.race([
+      runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT, userMsg, { max_tokens: 2000, temperature: 0.1 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('model timed out')), APPLY_TIMEOUT_MS)),
+    ]);
   } catch (e) {
-    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
+    const timedOut = String(e?.message || '') === 'model timed out';
+    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, timedOut ? 504 : 502);
   }
   const parsed = parseJsonLoose(resp);
   if (!parsed) return json({ error: 'malformed json from model', detail: String(resp).slice(0, 500) }, 502);
