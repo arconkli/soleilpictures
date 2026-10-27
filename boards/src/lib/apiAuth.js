@@ -301,6 +301,23 @@ export async function deleteAuthUser(env, userId) {
   return !!res?.ok;
 }
 
+// An auth user as the admin API has it ({ id, email, user_metadata, … }), or
+// null when there is none. Throws when the API doesn't answer, so a caller
+// can tell "gone" from "couldn't ask".
+export async function getAuthUser(env, userId) {
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`admin/users ${res.status}`);
+  return await res.json();
+}
+
 function cacheSession(userId, accessToken) {
   if (_sessionCache.size > 200) _sessionCache.clear();
   _sessionCache.set(userId, { accessToken, expires: Date.now() + SESSION_TTL_MS });

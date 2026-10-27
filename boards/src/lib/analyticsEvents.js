@@ -565,6 +565,17 @@ export const EV = Object.freeze({
   OAUTH_CONSENT_DENIED:    'oauth_consent_denied',        // Cancel pressed, beaconed before the redirect
   OAUTH_AUTHORIZE_ERROR:   'oauth_authorize_error',       // the screen refused the request {stage:'request'|'client'|'consent',reason} — reason is consentRequestFault's code at 'request', else the server's OAuth error code, http_<status> or 'network'
 
+  // ── A draft's keep page (/keep/<token>, pages/KeepPage.jsx): what ChatGPT or
+  //    Claude made for someone without an account. Never the token, the email
+  //    or anything in the draft: host is mcp_drafts.host ('chatgpt'|'claude'|
+  //    'other'), cards a count. The draft's own steps are the server's rows
+  //    (mcp_drafts, and mcp_draft_kept from keep_mcp_draft, 0706);
+  //    admin_mcp_drafts joins them per host. ──
+  KEEP_PAGE_VIEW:          'keep_page_view',              // the draft's first read answered, once per page load {state:'live'|'kept'|'expired'|'unknown',host,cards (live only)}
+  KEEP_CODE_SENT:          'keep_code_sent',              // the island's sign-in code sent {resend}
+  KEEP_KEPT:               'keep_kept',                   // keep_mcp_draft kept it {host,via:'code'|'signed_in',beside_own}
+  KEEP_FAILED:             'keep_failed',                 // a step failed {step:'load'|'send'|'code'|'keep',reason} — reason is keepFailReason() (an auth code, http_<status>, 'network' or 'error'), or keepFailure()'s word at 'keep'
+
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
   //    tagging pays off. ──

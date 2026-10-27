@@ -57,7 +57,9 @@ binding = "AI"
 # Daily 04:00 UTC: history-aware R2 orphan sweep (dry-run by default), and the
 #                    Workers AI model watch (src/worker-aiwatch.js), which pages
 #                    when a model the app calls is retiring, gone or failing.
-# Hourly at :15:     Job 1 compaction — board_ops → R2 hourly batches (dry-run by default).
+# Hourly at :15:     Job 1 compaction — board_ops → R2 hourly batches (dry-run by default),
+#                    and the drafts' reaper (src/worker-drafts.js): drafts made
+#                    through /mcp that were kept or ran out lose their identity.
 # Every minute:      webhook drain — fan the outbox out and deliver what is due.
 #                    This is the path that carries changes made IN THE APP;
 #                    API-driven events are already delivered inline. It costs

@@ -166,4 +166,13 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.OAUTH_CONSENT_ALLOWED],
     failure: [EV.OAUTH_AUTHORIZE_ERROR],
   },
+  // A draft made in an AI chat without an account (P3b), kept on its keep
+  // page. Held by the Worker (lib/mcpDrafts.js DRAFTS_HELD), not featureFlags():
+  // until it opens, production's keep pages all answer 'unknown'.
+  mcpDrafts: {
+    exposure: [EV.KEEP_PAGE_VIEW],
+    action: [EV.KEEP_CODE_SENT],
+    outcome: [EV.KEEP_KEPT],
+    failure: [EV.KEEP_FAILED],
+  },
 });

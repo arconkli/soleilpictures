@@ -152,6 +152,11 @@ function watchUrls(page) {
   return urls;
 }
 
+// The analytics rows the page sent, from either stub's record of calls.
+const eventRows = (calls) => calls
+  .filter((c) => c.path === '/rest/v1/analytics_events' || c.path === 'analytics_events')
+  .flatMap((c) => (Array.isArray(c.body) ? c.body : []));
+
 async function picturesDrawn(page) {
   await expect(page.locator('.keep-island')).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('.public-canvas-host img.r2p-img')]
@@ -217,6 +222,19 @@ test('signed out: the draft under the island, then the email, the code, and it i
 
   const carrying = urls.filter((u) => u.includes(TOKEN));
   expect(carrying, 'requests with the token in their address').toEqual([]);
+
+  // Its steps reach analytics (keep_kept is beaconed at once, the rest with
+  // it), and no row carries the token or the address.
+  await expect.poll(() => eventRows(calls).map((r) => r.event)).toEqual(
+    expect.arrayContaining(['keep_page_view', 'keep_code_sent', 'keep_kept']));
+  const rows = eventRows(calls);
+  expect(rows.find((r) => r.event === 'keep_page_view').props).toMatchObject({ state: 'live', host: 'chatgpt', cards: 9 });
+  expect(rows.find((r) => r.event === 'keep_code_sent').props).toMatchObject({ resend: false });
+  expect(rows.find((r) => r.event === 'keep_kept').props).toMatchObject({ host: 'chatgpt', via: 'code', beside_own: false });
+  expect(rows.filter((r) => r.event === 'keep_page_view')).toHaveLength(1);
+  const wire = JSON.stringify(rows);
+  expect(wire).not.toContain(TOKEN);
+  expect(wire.toLowerCase()).not.toContain('ren@example.com');
 });
 
 test('signed out: a code that does not match says so, and another email starts over', async ({ page }) => {
@@ -262,6 +280,8 @@ test('signed in: one button keeps it beside their own work', async ({ page }, te
   await expect(island.locator('.keep-island-title')).toHaveText('Kept. It’s yours.');
   await expect(island.locator('.keep-island-meta')).toHaveText(`${NAME} is in your Clusters.`);
   expect(calls.filter((c) => c.path === 'rpc/keep_mcp_draft').map((c) => c.body)).toEqual([{ p_token: TOKEN }]);
+  await expect.poll(() => eventRows(calls).find((r) => r.event === 'keep_kept')?.props).toMatchObject(
+    { host: 'chatgpt', via: 'signed_in', beside_own: true });
 });
 
 test('signed in: Use another email signs out to the email step', async ({ page }) => {
@@ -275,7 +295,7 @@ test('signed in: Use another email signs out to the email step', async ({ page }
 
 test('kept by someone else first: the island gives way to what happened', async ({ page }) => {
   await routeKeep(page);
-  await routeSignedOut(page, {
+  const calls = await routeSignedOut(page, {
     keep: { error: { status: 403, body: { code: '42501', message: 'this draft was kept', hint: 'draft_kept', details: null } } },
   });
   await page.goto(`/keep/${TOKEN}`);
@@ -284,6 +304,9 @@ test('kept by someone else first: the island gives way to what happened', async 
   await page.getByRole('button', { name: 'Keep it free' }).click();
   await page.getByLabel('6-digit code').fill('123456');
   await expect(page.locator('.keep-state-title')).toHaveText('This draft was kept');
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await expect.poll(() => eventRows(calls).find((r) => r.event === 'keep_failed')?.props).toMatchObject(
+    { step: 'keep', reason: 'kept' });
 });
 
 test('opening a cluster inside the draft: crumbs, its address, and back', async ({ page }) => {

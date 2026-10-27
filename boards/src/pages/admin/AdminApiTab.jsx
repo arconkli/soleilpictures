@@ -19,7 +19,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { CopyableText } from '../../components/CopyableText.jsx';
-import { formatCount, formatPct, relativeTime, fmtDateTime, shortDate } from '../../lib/adminFormat.js';
+import { formatCount, formatPct, relativeTime, fmtDateTime, shortDate, formatExpires } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminStatCard } from './AdminStatCard.jsx';
@@ -168,12 +168,78 @@ function ConnectFunnel({ funnel, failed }) {
   );
 }
 
+// Drafts made in ChatGPT or Claude without an account (0708 admin_mcp_drafts),
+// per host: made, opened on the keep page, kept (and by how many new
+// accounts), back on a later day, run out. "Opened late" is a keep page opened
+// after its draft ran out, which says whether drafts last long enough.
+const DRAFT_HOSTS = { chatgpt: 'ChatGPT', claude: 'Claude', other: 'Other' };
+
+function DraftsFunnel({ drafts, failed }) {
+  if (failed || !drafts) {
+    return (
+      <section className="admin-chart-panel admin-chart-panel-wide">
+        <header className="admin-chart-head"><h3 className="admin-chart-title">Drafts without an account</h3></header>
+        <div className="admin-chart-body"><div className="admin-empty">The drafts funnel did not load.</div></div>
+      </section>
+    );
+  }
+  const n = (v) => formatCount(Number(v) || 0);
+  const dim = (v) => (Number(v) > 0 ? '' : 'admin-muted');
+  const host = (h) => DRAFT_HOSTS[h] || h;
+  return (
+    <>
+      <Table
+        title="Drafts without an account"
+        sub="made in an AI chat through /mcp, per assistant · kept by someone internal left out"
+        columns={['Made in', 'Made', 'Opened', 'Kept', 'New accounts', 'Came back', 'Ran out', 'Live', 'Opened late']}
+        rows={drafts.hosts || []}
+        empty="No draft made in this window."
+        renderRow={(h) => (
+          <tr key={h.host}>
+            <td>{host(h.host)}</td>
+            <td className={dim(h.made)}>{n(h.made)}</td>
+            <td className={dim(h.opened)}>{n(h.opened)}</td>
+            <td className={dim(h.kept)}>{n(h.kept)}</td>
+            <td className={dim(h.kept_new)}>{n(h.kept_new)}</td>
+            <td className={dim(h.came_back)}>{n(h.came_back)}</td>
+            <td className={dim(h.expired)}>{n(h.expired)}</td>
+            <td className={dim(h.live)}>{n(h.live)}</td>
+            <td className={dim(h.opened_late)}>{n(h.opened_late)}</td>
+          </tr>
+        )}
+      />
+      <Table
+        title="Recent drafts"
+        sub="the latest 25, by their last step"
+        columns={['Draft', 'Made in', 'Made', 'Last change', 'Opened', 'Kept', 'By', 'Came back', 'Now']}
+        rows={drafts.recent || []}
+        empty="Nothing in this window."
+        renderRow={(r) => (
+          <tr key={r.id}>
+            <td><CopyableText value={r.id} display={String(r.id).slice(0, 8)} title="Copy the draft's id" /></td>
+            <td>{host(r.host)}</td>
+            <StepCell at={r.made_at} />
+            <StepCell at={r.last_used_at} />
+            <StepCell at={r.opened_at} />
+            <StepCell at={r.kept_at} />
+            <td className={r.keeper ? '' : 'admin-muted'}>{r.keeper === 'new' ? 'new account' : r.keeper === 'existing' ? 'existing account' : '—'}</td>
+            <td className={r.came_back ? '' : 'admin-muted'}>{r.came_back ? 'yes' : '—'}</td>
+            <td className={r.state === 'live' ? '' : 'admin-muted'}>
+              {r.state === 'live' ? `live · ends ${formatExpires(r.expires_at)}` : r.state === 'kept' ? 'kept' : 'ran out'}
+            </td>
+          </tr>
+        )}
+      />
+    </>
+  );
+}
+
 export function AdminApiTab() {
   const [days, setDays] = useState(30);
   const [onlyErrors, setOnlyErrors] = useState(false);
 
   const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(async () => {
-    const [ov, series, tools, routes, callers, recent, funnel] = await Promise.all([
+    const [ov, series, tools, routes, callers, recent, funnel, drafts] = await Promise.all([
       supabase.rpc('admin_api_overview', { p_days: days }),
       supabase.rpc('admin_api_series', { p_days: days }),
       supabase.rpc('admin_api_tools', { p_days: days, p_limit: 25 }),
@@ -181,9 +247,10 @@ export function AdminApiTab() {
       supabase.rpc('admin_api_callers', { p_days: days, p_limit: 50 }),
       supabase.rpc('admin_api_recent', { p_limit: RECENT_LIMIT, p_only_errors: onlyErrors }),
       supabase.rpc('admin_mcp_funnel', { p_days: days }),
+      supabase.rpc('admin_mcp_drafts', { p_days: days }),
     ]);
     for (const r of [ov, series, tools, routes, callers, recent]) if (r.error) throw r.error;
-    // The funnel failing leaves the traffic readable; it says so in its place.
+    // A funnel failing leaves the traffic readable; it says so in its place.
     return {
       overview: ov.data || null,
       series: series.data || [],
@@ -193,6 +260,8 @@ export function AdminApiTab() {
       recent: recent.data || [],
       funnel: funnel.error ? null : (funnel.data || null),
       funnelFailed: !!funnel.error,
+      drafts: drafts.error ? null : (drafts.data || null),
+      draftsFailed: !!drafts.error,
     };
   }, [days, onlyErrors]);
 
@@ -257,6 +326,7 @@ export function AdminApiTab() {
           </div>
 
           <ConnectFunnel funnel={data?.funnel} failed={data?.funnelFailed} />
+          <DraftsFunnel drafts={data?.drafts} failed={data?.draftsFailed} />
 
           {!everCalled ? <NeverUsed overview={ov} /> : (
             <>

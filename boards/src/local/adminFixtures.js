@@ -974,6 +974,25 @@ RPCS.admin_mcp_funnel = {
     { client_id: 'fx-c6', client_name: 'mcp-probe', kind: 'dcr', host: 'agents.example.dev', registered_at: tsISO(60 * 120), disabled: true, viewed_at: null, allowed_at: null, denied_at: null, token_at: null, first_call_at: null, first_write_at: null, tool_calls: 0, writes: 0, people: 0 },
   ],
 };
+// admin_mcp_drafts(p_days, p_exclude_internal): drafts made in an AI chat
+// without an account (0708), per assistant, then the latest one by one — one
+// of each story: kept by a new account that came back, kept beside an
+// existing account, opened and still live, never opened, run out.
+RPCS.admin_mcp_drafts = {
+  days: 30,
+  hosts: [
+    { host: 'chatgpt', made: 14, opened: 9, kept: 4, kept_new: 3, came_back: 2, expired: 3, live: 7, opened_late: 1 },
+    { host: 'claude', made: 6, opened: 4, kept: 2, kept_new: 1, came_back: 1, expired: 0, live: 4, opened_late: 0 },
+    { host: 'other', made: 1, opened: 0, kept: 0, kept_new: 0, came_back: 0, expired: 1, live: 0, opened_late: 0 },
+  ],
+  recent: [
+    { id: 'fd000000-0000-4000-8000-000000000001', host: 'chatgpt', state: 'kept', made_at: tsISO(60 * 30), last_used_at: tsISO(60 * 29), opened_at: tsISO(60 * 28), kept_at: tsISO(60 * 27), keeper: 'new', came_back: true, expires_at: tsISO(-60 * 24 * 29) },
+    { id: 'fd000000-0000-4000-8000-000000000002', host: 'claude', state: 'kept', made_at: tsISO(60 * 50), last_used_at: tsISO(60 * 50), opened_at: tsISO(60 * 49), kept_at: tsISO(60 * 49), keeper: 'existing', came_back: false, expires_at: tsISO(-60 * 24 * 28) },
+    { id: 'fd000000-0000-4000-8000-000000000003', host: 'chatgpt', state: 'live', made_at: tsISO(60 * 74), last_used_at: tsISO(60 * 70), opened_at: tsISO(60 * 69), kept_at: null, keeper: null, came_back: false, expires_at: tsISO(-60 * 24 * 27) },
+    { id: 'fd000000-0000-4000-8000-000000000004', host: 'claude', state: 'live', made_at: tsISO(60 * 99), last_used_at: tsISO(60 * 99), opened_at: null, kept_at: null, keeper: null, came_back: false, expires_at: tsISO(-60 * 24 * 26) },
+    { id: 'fd000000-0000-4000-8000-000000000005', host: 'chatgpt', state: 'expired', made_at: tsISO(60 * 24 * 29), last_used_at: tsISO(60 * 24 * 29), opened_at: null, kept_at: null, keeper: null, came_back: false, expires_at: tsISO(60 * 24) },
+  ],
+};
 // admin_lifetime_totals(p_exclude_internal, p_verified_only): what exists now,
 // under the toolbar's toggles (0460). The harness has one population, as with
 // admin_weekly_series, so a toggle re-issues the call over the same numbers.
