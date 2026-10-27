@@ -103,6 +103,11 @@ Team is a new plan for more than 10 people who edit, at $25 a seat a month, and 
 - Webhooks fire for comments and for tags, and `card.moved` and
   `image.created`, which never fired, now do. See
   [webhooks](/docs/api/webhooks).
+- A cluster an assistant sorted into sections opens again. It used to keep
+  loading forever.
+- A cluster an assistant makes without being told where it goes now lands in
+  **Studio** as a project, where **New cluster** puts one. The assistant then
+  asks where it belongs and moves it there.
 
 ### Sharing
 
