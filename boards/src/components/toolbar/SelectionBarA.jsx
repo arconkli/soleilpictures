@@ -4,7 +4,7 @@ import { MenuButton, MenuHead, MenuItem, MenuSep } from './Menu.jsx';
 import { useIslandFit } from './useIslandFit.js';
 import {
   AlignCardsBottom, AlignCardsCenter, AlignCardsLeft, AlignCardsMiddle, AlignCardsRight, AlignCardsTop, ArrowBendUpRight,
-  BoundingBox, DistributeAcross, DistributeDown, FolderSimplePlus, LayoutGrid, MoreHorizontal, Trash2,
+  BoundingBox, DistributeAcross, DistributeDown, FolderSimplePlus, LayoutGrid, MoreHorizontal, Tag, Trash2,
 } from '../../lib/icons.js';
 
 // The selection's bar in the toolbar look (the owner's pick "A · Islands",
@@ -56,6 +56,7 @@ function SelectionBar({ count, items, api, canDelete }) {
   const group = find(items, 'group');
   const cluster = find(items, 'new-cluster-from');
   const move = find(items, 'move-cards-to-board');
+  const tagMany = find(items, 'tag-many');
   return (
     <Toolbar label="Selection" barRef={barRef} className="sel-a" onPointerDown={(e) => e.stopPropagation()}>
       <Group><span className="sel-count">{count} selected</span></Group>
@@ -80,9 +81,13 @@ function SelectionBar({ count, items, api, canDelete }) {
           )}
         </Group>
       )}
-      {(group || cluster || move) && (
+      {(group || cluster || move || tagMany) && (
         <Group>
           {group && <Btn icon={BoundingBox} text="Group" keys="Mod+G" onClick={() => run('group')} />}
+          {tagMany && (
+            <Btn icon={Tag} text="Tag"
+                 onClick={(e) => find(api.items(), 'tag-many')?.run?.(e.currentTarget.getBoundingClientRect())} />
+          )}
           {cluster && <Btn icon={FolderSimplePlus} label={cluster.label} onClick={() => run('new-cluster-from')} />}
           {move && (
             <MenuButton icon={ArrowBendUpRight} label={move.label} caret side="above" menuClassName="sel-a-menu sel-a-move">

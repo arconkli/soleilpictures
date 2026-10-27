@@ -77,6 +77,8 @@ const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then
 // bars (on dev, the hold set to '0') never fetch.
 const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
+// Opened only by a multi-selection's Tag, so it loads then (LAZY_IN_APP).
+const TagManyPicker = lazyPanel(() => import('./TagManyPicker.jsx').then(m => ({ default: m.TagManyPicker })));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
@@ -8860,6 +8862,12 @@ export function CanvasSurface({
       }
     }
 
+    if (multi && canEdit && !isPublic) {
+      // The selection bar's Tag runs this with its own rect; the menu, with
+      // the right-click point.
+      annotateItems.push({ id: 'tag-many', label: `Tag ${selected.size} cards…`,
+        run: (rect) => openTagMany(rect || { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 }) });
+    }
     if (!multi) {
       annotateItems.push({ id: 'comment', label: 'Add comment',
         run: () => promptComment({ kind: 'card', id: c.id }) });
@@ -10384,6 +10392,33 @@ export function CanvasSurface({
     } catch (err) {
       feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
     }
+  };
+
+  // Several cards at once (direction A): the tri-state picker over the
+  // selection. ✓ on every selected card takes the tag off all of them; –
+  // (some) or empty puts it on all of them. One write and one undo each.
+  const [tagMany, setTagMany] = useState(null); // { anchorRect, cardIds }
+  const openTagMany = (anchorRect) => {
+    const ids = [...effectiveSelectedIds].filter(id => cardById[id] && cardById[id].kind !== 'board');
+    if (ids.length) setTagMany({ anchorRect, cardIds: ids });
+  };
+  const tagManyCounts = useMemo(() => {
+    const m = new Map();
+    for (const id of tagMany?.cardIds || []) {
+      for (const t of tagsByCard.get(id) || []) m.set(t.id, (m.get(t.id) || 0) + 1);
+    }
+    return m;
+  }, [tagMany, tagsByCard]);
+  // The writes live with the picker (TagManyPicker.jsx, loaded on demand),
+  // so the canvas's own bundle carries neither.
+  const tagManyCtx = () => ({ workspaceId, boardId: board.id, userId, tagsByCard, refreshTags, feedback });
+  const tagManyCards = (cardIds, tag, mode, via) => import('./TagManyPicker.jsx')
+    .then(m => m.applyTagToCards({ cardIds, tag, mode, via, ctx: tagManyCtx() }));
+  const createTagForMany = (name) => {
+    const ids = tagMany?.cardIds || [];
+    setTagMany(null);
+    return import('./TagManyPicker.jsx')
+      .then(m => m.createTagOnCards({ name, cardIds: ids, ctx: tagManyCtx() }));
   };
 
   // Spotlight (the owner's direction A): a tag chip lights that tag's cards
@@ -12116,6 +12151,11 @@ export function CanvasSurface({
               if (droppedCard.kind === 'board') {
                 tagBoard({ workspaceId, boardId: droppedCard.id, tagId: ref.id, source: 'user' })
                   .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
+              } else if (effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(droppedCard.id)) {
+                // Dropped on a selected card: the whole selection takes it.
+                const tag = wsTagById.get(ref.id) || { id: ref.id, name: ref.title || 'tag' };
+                const ids = [...effectiveSelectedIds].filter(id => cardById[id] && cardById[id].kind !== 'board');
+                tagManyCards(ids, tag, 'add', 'drop_selection');
               } else {
                 tagCard({ workspaceId, boardId: board.id, cardId: droppedCard.id, tagId: ref.id, source: 'user' })
                   .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
@@ -14992,6 +15032,20 @@ export function CanvasSurface({
           palettes={picker.palettes || palettes}
           disableRecent={picker.disableRecent}
         />
+      )}
+      {tagMany && (
+        <Suspense fallback={null}>
+          <TagManyPicker
+            open
+            anchorRect={tagMany.anchorRect}
+            onClose={() => setTagMany(null)}
+            tags={wsTags}
+            counts={tagManyCounts}
+            total={tagMany.cardIds.length}
+            onApply={(t, mode) => tagManyCards(tagMany.cardIds, t, mode, 'selection')}
+            onCreate={createTagForMany}
+          />
+        </Suspense>
       )}
       {tagPicker && (
         <TagPicker

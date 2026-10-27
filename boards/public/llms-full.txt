@@ -2855,6 +2855,7 @@ Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you eve
 Tagging
 
 A card — right-click it and choose Tag…. The picker suggests as you type, and Enter creates a tag that does not exist yet.
+Several cards at once — select them and press Tag in the selection bar (or right-click one and choose Tag … cards…). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection.
 A group, as a unit — right-click its label and choose Tag group….
 A whole cluster — right-click an empty part of it and choose Tag this cluster…, or drag a tag from the sidebar onto it.
 A passage of text — in a document, select the words, right-click and choose Tag selection…; a name the app has noticed can also become a tag right where it appears.

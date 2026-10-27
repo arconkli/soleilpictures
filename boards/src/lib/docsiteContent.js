@@ -29904,6 +29904,50 @@ export const DOCS_CONTENT = {
     ],
     [
      {
+      "t": "strong",
+      "v": "Several cards at once",
+      "children": [
+       {
+        "t": "text",
+        "v": "Several cards at once"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — select them and press "
+     },
+     {
+      "t": "strong",
+      "v": "Tag",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the selection bar (or right-click one and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag … cards…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag … cards…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection."
+     }
+    ],
+    [
+     {
       "t": "text",
       "v": "A "
      },

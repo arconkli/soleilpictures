@@ -76,7 +76,10 @@ export const CEILINGS = {
   // labels: the owner's direction A, all in CanvasSurface's closure. Sized
   // for CI's build (a worktree on the shared node_modules reads ~0.6 KB low,
   // as above): about +1.3 KB measured.
-  appJs: 693_000,
+  // 2026-10-26: +1 KB for tagging several cards at once: the selection bar's
+  // Tag and its state in CanvasSurface (the tri-state picker and its writes,
+  // TagManyPicker + tagCardsBatch, load on demand). Sized for CI, as above.
+  appJs: 694_000,
   appCss: 21_000,
 };
 
@@ -98,7 +101,7 @@ export const LAZY_IN_APP = [
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
-  'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel',
+  'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel', 'TagManyPicker',
   // ToolOptionsBar.jsx: the note bar and the draw, shape, line and arrow bars in the toolbar look
   'NoteBarA', 'CanvasBarsA',
   // CanvasSurface.jsx: the selection's bar in the toolbar look

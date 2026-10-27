@@ -12,6 +12,11 @@ everything that does not fit a hierarchy.
 - A **[card](/docs/canvas/cards)** — right-click it and choose **Tag…**. The
   picker suggests as you type, and `Enter` creates a tag that does not exist
   yet.
+- **Several cards at once** — select them and press **Tag** in the selection
+  bar (or right-click one and choose **Tag … cards…**). Each tag shows how many
+  of the selected cards carry it (✓ all, – some); clicking puts it on all of
+  them, or takes it off all of them when they all have it. Dropping a tag from
+  the sidebar onto a selected card tags the whole selection.
 - A **[group](/docs/canvas/groups)**, as a unit — right-click its label and
   choose **Tag group…**.
 - A whole **[cluster](/docs/clusters)** — right-click an empty part of it and

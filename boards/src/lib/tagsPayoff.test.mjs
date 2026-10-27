@@ -75,3 +75,19 @@ test('a suggestion shows on its card, kept or dismissed in one tap', () => {
   assert.match(canvas, /kind: 'card', id: c\.id, boardId: s\.board\.id,/);
   assert.match(read('../hooks/useTagSuggestions.js'), /\.eq\('board_id', boardId\)\s*\.eq\('source_kind', 'card'\)\s*\.is\('dismissed_at', null\)/);
 });
+
+test('several cards at once: the tri-state picker over the selection', () => {
+  const canvas = read('../components/CanvasSurface.jsx');
+  assert.match(canvas, /id: 'tag-many', label: `Tag \$\{selected\.size\} cards…`/);
+  assert.match(canvas, /<TagManyPicker/);
+  assert.match(canvas, /tagManyCards\(ids, tag, 'add', 'drop_selection'\)/, 'a drop on a selected card tags the selection');
+  const bar = read('../components/toolbar/SelectionBarA.jsx');
+  assert.match(bar, /find\(api\.items\(\), 'tag-many'\)\?\.run\?\.\(e\.currentTarget\.getBoundingClientRect\(\)\)/);
+  const picker = read('../components/TagManyPicker.jsx');
+  assert.match(picker, /aria-pressed=\{st === 'all' \? 'true' : st === 'some' \? 'mixed' : 'false'\}/);
+  assert.match(picker, /onApply\?\.\(row\.tag, stateOf\(row\.tag\) === 'all' \? 'remove' : 'add'\)/);
+  const api = read('tagCardsBatch.js');
+  // One write each way; a removal keeps the tag off unless it's an undo.
+  assert.match(api, /export async function untagCards\(\{ workspaceId, boardId, cardIds, tagId, userId = null, keepOff = true \}\)/);
+  assert.match(picker, /untagCards\(\{ workspaceId, boardId, cardIds: missing, tagId: tag\.id, keepOff: false \}\)/);
+});
