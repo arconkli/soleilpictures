@@ -318,10 +318,19 @@ async function callTool(tools, name, rawArgs, ctx) {
  *
  * `ctx.tools` selects the registry. The hosted server serves HOSTED_TOOLS; the
  * stdio server serves all of them, including the one that reads local files.
+ *
+ * /mcp, where nobody need be signed in (worker-api.js handleMcpEndpoint),
+ * also sets `ctx.instructions`, `ctx.manifest` (how each tool is listed) and
+ * `ctx.beforeCall(name, params)`, which settles who a call runs as. It answers
+ * in the tool's place, `{ result }` as the tool's own answer or `{ http }` as
+ * an HTTP answer with its headers, or hands back `{ args, ctx }` to run the
+ * tool with; that ctx's `afterCall(out)` finishes the answer.
  */
 export async function handleMcpMessage(msg, ctx) {
   const { id, method, params } = msg || {};
   const tools = ctx?.tools || HOSTED_TOOLS;
+  const instructions = ctx?.instructions || INSTRUCTIONS;
+  const manifest = ctx?.manifest || toolManifest;
 
   // Notifications carry no id and get no response. 2026-07-28 defines no
   // client-to-server notifications at all, but a legacy client still sends
@@ -367,7 +376,7 @@ export async function handleMcpMessage(msg, ctx) {
       return ok(id, cacheable({
         supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
         capabilities: CAPABILITIES,
-        instructions: INSTRUCTIONS,
+        instructions,
       }, true, DISCOVER_TTL_MS), true);
 
     // The legacy handshake. Echo the client's version when we implement it, so
@@ -387,7 +396,7 @@ export async function handleMcpMessage(msg, ctx) {
         // client will wait for something that is never coming.
         capabilities: CAPABILITIES,
         serverInfo: SERVER_INFO,
-        instructions: INSTRUCTIONS,
+        instructions,
       }, false);
     }
 
@@ -400,12 +409,21 @@ export async function handleMcpMessage(msg, ctx) {
       // Deterministic order: the registry is a fixed array and is served in
       // its own order, which is what lets a client cache the list and keeps
       // an LLM's prompt cache warm across calls.
-      return ok(id, cacheable({ tools: tools.map(toolManifest) }, modern, LIST_TTL_MS), modern);
+      return ok(id, cacheable({ tools: tools.map((t) => manifest(t)) }, modern, LIST_TTL_MS), modern);
 
     case 'tools/call': {
       const name = params?.name;
       if (!name) return err(id, ERR.INVALID_PARAMS, 'params.name is required');
-      const out = await callTool(tools, name, params?.arguments, ctx);
+      let callArgs = params?.arguments;
+      let callCtx = ctx;
+      if (typeof ctx?.beforeCall === 'function' && tools.some((t) => t.name === name)) {
+        const pre = await ctx.beforeCall(name, params);
+        if (pre?.http) return pre.http;
+        if (pre?.result) return ok(id, pre.result, modern);
+        if (pre && 'args' in pre) callArgs = pre.args;
+        if (pre?.ctx) callCtx = { ...ctx, ...pre.ctx };
+      }
+      const out = await callTool(tools, name, callArgs, callCtx);
       if (out.unknown) {
         const available = tools.map((t) => t.name);
         // A host holding the list from before 3.0 is told what does that now.
@@ -416,7 +434,7 @@ export async function handleMcpMessage(msg, ctx) {
         }
         return err(id, ERR.INVALID_PARAMS, `unknown tool: ${name}`, { available });
       }
-      return ok(id, out, modern);
+      return ok(id, typeof callCtx?.afterCall === 'function' ? callCtx.afterCall(out) : out, modern);
     }
 
     case 'prompts/list':

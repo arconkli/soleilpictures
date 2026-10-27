@@ -33,7 +33,7 @@ import * as Y from 'yjs';
 import {
   resolveApiToken, hasScope, apiUserSession, rateHeaders, normalizeApiError,
   userSelect, userRpc, userInsert, userPatch, userDelete,
-  createServiceAuthUser, deleteAuthUser,
+  createServiceAuthUser, createDraftAuthUser, deleteAuthUser,
 } from './lib/apiAuth.js';
 import {
   normalizeProps, normalizeIdentifiers, matchIdentifiers, loadMeta, loadBoardsMeta,
@@ -79,7 +79,13 @@ import {
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
 import { answeredWith, reportWorkerError } from './lib/workerErrors.js';
-import { ApiError, apiErrorFrom } from './lib/mcpTools.js';
+import { ApiError, apiErrorFrom, HOSTED_TOOLS } from './lib/mcpTools.js';
+import {
+  draftsOpen, draftSecret, draftTokens, draftEmail, subjectHash, sha256Hex, isDraftKey, isDraftTool,
+  draftRouteAllowed, mixedManifest, withoutDraft, DRAFT_INSTRUCTIONS, draftHost, signInAnswer,
+  draftRefusal, draftAnswer, DRAFT_SAYS,
+} from './lib/mcpDrafts.js';
+import { makeEdgeLimiter } from './lib/edgeLimits.js';
 import {
   arrange, rearrange, LAYOUTS, DEFAULT_LAYOUT, isLayout,
 } from './lib/layoutEngine.js';
@@ -961,7 +967,10 @@ export function scopeFor(method, pathname) {
   return method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : 'write';
 }
 
-export async function handleApiRoute(url, request, env, ctx) {
+// `opts` is /mcp's (handleMcpEndpoint), which serves a signed-in caller through
+// here: `resourcePath` names its own metadata in a challenge, and `mcp` is how
+// its MCP server lists and runs tools.
+export async function handleApiRoute(url, request, env, ctx, opts = {}) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
   // The spec answers before authentication on purpose: a machine-readable
@@ -982,7 +991,8 @@ export async function handleApiRoute(url, request, env, ctx) {
   // The path is the resource's own path, so /api/v1/mcp and /api/v1 each
   // describe themselves rather than sharing one document that is wrong for one
   // of them.
-  const resourcePath = url.pathname.startsWith('/api/v1/mcp') ? '/api/v1/mcp' : '/api/v1';
+  const resourcePath = opts.resourcePath
+    || (url.pathname.startsWith('/api/v1/mcp') ? '/api/v1/mcp' : '/api/v1');
   const challenge = (params) => ({
     'www-authenticate': `Bearer realm="soleil", ${params}, `
       + `resource_metadata="${url.origin}/.well-known/oauth-protected-resource${resourcePath}"`,
@@ -1081,7 +1091,7 @@ export async function handleApiRoute(url, request, env, ctx) {
       throw err;
     });
     res = await dispatch(url, request, env, {
-      auth, token, trace, waitUntil: ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null,
+      auth, token, trace, waitUntil: ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null, mcp: opts.mcp,
     });
   } catch (e) {
     // EVERY error leaves through normalizeApiError. Returning `e.message`
@@ -1158,6 +1168,155 @@ export async function handleApiRoute(url, request, env, ctx) {
   }
 
   return withHeaders(res, rl);
+}
+
+// ── /mcp: the MCP server for AI chats, with an account or without ───────────
+//
+// /api/v1/mcp asks for a sign-in before anything, which is right for Claude
+// Code, Cursor and VS Code: a developer connecting a tool means their account.
+// Someone in ChatGPT or Claude asking for a moodboard may have no account, so
+// /mcp answers them without one (P3b): the handshake and the tool list are
+// open, the draft tools run as a draft (an account nobody has claimed yet,
+// 0705, lib/mcpDrafts.js), and the rest ask the person to sign in the way their
+// host shows it. With a token it is /api/v1/mcp, listing the tools the same way.
+//
+// Held on production until a release opens it with its docs (draftsOpen).
+
+// New drafts per address a minute. ChatGPT and Claude call from a few shared
+// addresses for all of their users, so this only stops a burst; the day's
+// ceiling on new drafts (mcp_draft_admit) is the real limit.
+const draftCreateAllow = makeEdgeLimiter('MCP_DRAFT_CREATE');
+
+const SIGNED_IN_MCP = {
+  manifest: mixedManifest,
+  instructions: DRAFT_INSTRUCTIONS,
+  // A draft key from earlier in the conversation means nothing once signed in.
+  beforeCall: (name, params) => ({ args: withoutDraft(params?.arguments) }),
+};
+
+export async function handleMcpEndpoint(url, request, env, ctx) {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  if (!draftsOpen(url.hostname)) return json({ error: 'unknown endpoint', code: 'not_found' }, 404);
+
+  if (request.headers.get('authorization')) {
+    return handleApiRoute(new URL('/api/v1/mcp', url.origin), request, env, ctx,
+      { resourcePath: '/mcp', mcp: SIGNED_IN_MCP });
+  }
+
+  let body = null;
+  try { body = await request.json(); } catch { /* answered as a parse error */ }
+  const out = await handleMcpRequest(request, {
+    tools: HOSTED_TOOLS,
+    manifest: mixedManifest,
+    instructions: DRAFT_INSTRUCTIONS,
+    // Signed out, a tool only ever runs as a draft, which beforeCall sets up.
+    api: async () => { throw new ApiError('sign in to Clusters first', { status: 401, code: 'invalid_token' }); },
+    beforeCall: async (name, params) => {
+      try {
+        return await draftCall(url, request, env, ctx, name, params);
+      } catch (e) {
+        reportWorkerError(env, ctx, { kind: 'api', error: e, request, status: 500, code: 'draft_failed', op: 'mcp_draft' });
+        throw e;
+      }
+    },
+  }, body);
+  if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
+  return json(out.body, out.status, out.headers);
+}
+
+// Who a signed-out call runs as: the draft its key finds (or, in ChatGPT, the
+// draft of the same anonymous user), a new draft when the call is
+// create_boards, or nobody, and then the person is asked to sign in.
+async function draftCall(url, request, env, ctx, name, params) {
+  const meta = params?._meta && typeof params._meta === 'object' ? params._meta : {};
+  const host = draftHost(meta, request.headers.get('user-agent'));
+  const signIn = (message) => signInAnswer({ origin: url.origin, host, message });
+  if (!isDraftTool(name)) return signIn(DRAFT_SAYS.signInFor(name));
+
+  const raw = params?.arguments && typeof params.arguments === 'object' ? params.arguments : {};
+  const key = raw.draft;
+  if (key !== undefined && !isDraftKey(key)) return draftRefusal(DRAFT_SAYS.notAKey);
+
+  const secret = await draftSecret(env.SUPABASE_SERVICE_ROLE_KEY);
+  const subject = await subjectHash(secret, meta['openai/subject']);
+  const write = !HOSTED_TOOLS.find((t) => t.name === name)?.annotations?.readOnlyHint;
+
+  let found = null;
+  if (key || subject) {
+    const rows = await scoutRpc(env, 'mcp_draft_resolve', {
+      p_key_hash: key ? await sha256Hex(key) : null, p_subject_hash: subject, p_write: write,
+    });
+    found = (Array.isArray(rows) ? rows[0] : rows) || null;
+  }
+  const state = found?.state || 'unknown';
+  if (state === 'kept') return signIn(DRAFT_SAYS.kept);
+  if (state === 'rate_limited') return draftRefusal(DRAFT_SAYS.tooMany(found.req_limit, found.req_reset));
+  if (key && state === 'expired') return draftRefusal(DRAFT_SAYS.expired);
+  if (key && state === 'unknown') return draftRefusal(DRAFT_SAYS.unknown);
+
+  let draft = state === 'live' ? found : null;
+  let created = false;
+  if (!draft) {
+    if (name !== 'create_boards') return signIn(DRAFT_SAYS.nothingYet);
+    const made = await makeDraft(env, request, { secret, subject, host, signIn });
+    if (made.answer) return made.answer;
+    ({ draft, created } = made);
+  }
+
+  // Files cost storage, and a day's bytes across all drafts have a ceiling.
+  if (name === 'import_urls' && await scoutRpc(env, 'mcp_draft_admit', { p_kind: 'bytes' }) === 'paused') {
+    return draftRefusal(DRAFT_SAYS.noMoreFiles);
+  }
+
+  const tokens = await draftTokens(secret, draft.draft_id);
+  const auth = {
+    ok: true, userId: draft.user_id, scopes: ['read', 'write', 'delete'], tokenId: null,
+    draft: { id: draft.draft_id },
+  };
+  const token = await apiUserSession(env, draft.user_id);
+  return {
+    args: withoutDraft(raw),
+    ctx: {
+      api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
+      afterCall: (out) => draftAnswer(out, { origin: url.origin, tokens, expiresAt: draft.expires_at, created }),
+    },
+  };
+}
+
+// A new draft: an auth user at the draft's address, its personal workspace and
+// root cluster (made as Scout makes a shell's), then its row (0705). Undone if
+// a step fails, so no half-made draft is left behind.
+async function makeDraft(env, request, { secret, subject, host, signIn }) {
+  const gate = await draftCreateAllow(env, request.headers.get('cf-connecting-ip') || 'unknown');
+  if (!gate.ok) return { answer: draftRefusal(DRAFT_SAYS.tooManyNew(gate.retryAfter)) };
+  if (await scoutRpc(env, 'mcp_draft_admit', { p_kind: 'create' }) === 'paused') {
+    return { answer: signIn(DRAFT_SAYS.paused) };
+  }
+
+  const id = crypto.randomUUID();
+  const { userId } = await createDraftAuthUser(env, draftEmail(id), { host });
+  let workspaceId = null;
+  try {
+    const ws = await scoutRpc(env, 'get_or_create_personal_workspace', { p_user_id: userId, p_name: 'Personal' });
+    workspaceId = (Array.isArray(ws) ? ws[0] : ws)?.id || null;
+    if (!workspaceId) throw new Error('no personal workspace for the draft');
+    const t = await draftTokens(secret, id);
+    const expiresAt = await scoutRpc(env, 'mcp_draft_register', {
+      p_id: id, p_user_id: userId, p_workspace_id: workspaceId,
+      p_key_hash: t.keyHash, p_keep_hash: t.keepHash, p_subject_hash: subject, p_host: host,
+    });
+    return { draft: { draft_id: id, user_id: userId, workspace_id: workspaceId, expires_at: expiresAt }, created: true };
+  } catch (e) {
+    if (workspaceId) await scoutDelete(env, 'workspaces', `id=eq.${workspaceId}`).catch(() => {});
+    await deleteAuthUser(env, userId);
+    // One ChatGPT user's first two calls at once: the other one made the draft.
+    if (subject && (e?.status === 409 || /23505/.test(e?.body || ''))) {
+      const rows = await scoutRpc(env, 'mcp_draft_resolve', { p_key_hash: null, p_subject_hash: subject, p_write: true });
+      const other = (Array.isArray(rows) ? rows[0] : rows) || null;
+      if (other?.state === 'live') return { draft: other, created: false };
+    }
+    throw e;
+  }
 }
 
 // Call this API's own routes, from inside it.
@@ -1248,6 +1407,13 @@ async function dispatch(url, request, env, ctx) {
     throw fail(403, 'insufficient_scope', need === 'delete'
       ? 'this token cannot delete — mint one with the delete scope if that was the intent'
       : `this token cannot ${need}`);
+  }
+
+  // A draft (made through /mcp by someone with no account) reaches the routes
+  // its tools use and nothing else: never sharing or publishing, tokens,
+  // webhooks, the audit log, uploads, or deleting a cluster (lib/mcpDrafts.js).
+  if (auth.draft && !draftRouteAllowed(method, parts)) {
+    throw fail(403, 'forbidden', 'a draft can make and change its own clusters, and no more until it is kept in Clusters');
   }
 
   // The single-shot upload carries RAW BYTES, so its body must not be parsed as
@@ -1683,11 +1849,13 @@ async function dispatch(url, request, env, ctx) {
     // Which tool, not just which route. See mcpTraceName — one HTTP route
     // serving thirty-three tools makes a route-keyed log useless.
     trace.tool = mcpTraceName(body);
+    // /mcp signed in: its tool list and the draft argument it strips (ctx.mcp).
     const out = await handleMcpRequest(request, {
       api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
+      ...(ctx.mcp || {}),
     }, body);
     if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
-    return json(out.body, out.status);
+    return json(out.body, out.status, out.headers);
   }
 
   // GET /audit?since=&cursor=&limit=

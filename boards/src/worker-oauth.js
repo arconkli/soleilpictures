@@ -123,8 +123,10 @@ const mcpResource = (origin) => `${origin}/api/v1/mcp`;
 // be usable there. Three spellings of OUR OWN resource are accepted because
 // clients differ on how specific they are, and refusing a client for naming the
 // API root rather than the MCP path would be pedantry with a support cost.
+// /mcp is the same server for AI chats, open before sign-in (worker-api.js
+// handleMcpEndpoint): a host that connected there signs in for it.
 const acceptableResources = (origin) => new Set([
-  origin, `${origin}/`, `${origin}/api/v1`, `${origin}/api/v1/`, mcpResource(origin),
+  origin, `${origin}/`, `${origin}/api/v1`, `${origin}/api/v1/`, mcpResource(origin), `${origin}/mcp`,
 ]);
 
 const resourceIsOurs = (origin, resource) => {

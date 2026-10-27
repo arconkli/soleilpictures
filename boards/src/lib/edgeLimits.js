@@ -29,6 +29,11 @@ export const EDGE_LIMITS = {
   // Fetching an app's client metadata document from its server, per address:
   // each fetch is a request to a URL somebody chose.
   OAUTH_LOOKUP: { limit: 10, period: 60 },
+  // New drafts made through /mcp with no account, per address. ChatGPT and
+  // Claude call from a few addresses for all of their users, so this stops a
+  // burst only; the durable limit is the database's ceiling on new drafts a
+  // day (mcp_draft_admit, 0705).
+  MCP_DRAFT_CREATE: { limit: 20, period: 60 },
 };
 
 // makeEdgeLimiter(name) → async (env, key) → { ok: true } | { ok: false, retryAfter }

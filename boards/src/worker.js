@@ -27,7 +27,7 @@ import { handleMediaRoute } from './worker-media.js';
 import { handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies } from './worker-playCopy.js';
 import { mediaKindOfKey } from './lib/playCopy.js';
 import { viewKindOfKey } from './lib/fileView.js';
-import { handleApiRoute } from './worker-api.js';
+import { handleApiRoute, handleMcpEndpoint } from './worker-api.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
@@ -755,6 +755,12 @@ const worker = {
       // runs under ordinary RLS. See lib/apiAuth.js.
       if (url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/')) {
         return await handleApiRoute(url, request, env, ctx);
+      }
+      // The MCP server for AI chats, signed in or not: someone with no account
+      // makes a draft they can keep (worker-api.js handleMcpEndpoint; held on
+      // production). A browser opening it is a navigation, served the app.
+      if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
+        return await handleMcpEndpoint(url, request, env, ctx);
       }
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx, env);

@@ -239,6 +239,29 @@ export async function createServiceAuthUser(env, { label } = {}) {
     throw new Error('service accounts need SUPABASE_SERVICE_ROLE_KEY');
   }
   const email = `svc+${crypto.randomUUID()}@service.soleilpictures.com`;
+  return createConfirmedAuthUser(env, {
+    email,
+    email_confirm: true,
+    user_metadata: { service_account: true, label: String(label || '').slice(0, 80) },
+  }, 'the service identity');
+}
+
+// The identity behind a draft (/mcp, 0705): an account nobody has claimed yet,
+// made the same way at an address only drafts use (lib/mcpDrafts.js
+// draftEmail), so it too is a real user every predicate already applies to.
+// Keeping the draft hands its workspace to a person; this identity is deleted.
+export async function createDraftAuthUser(env, email, { host } = {}) {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('drafts need SUPABASE_SERVICE_ROLE_KEY');
+  return createConfirmedAuthUser(env, {
+    email,
+    email_confirm: true,
+    user_metadata: { draft: true, host: String(host || 'other').slice(0, 20) },
+  }, 'the draft');
+}
+
+// `user` is admin/users' body: the address, confirmed, and what it is.
+async function createConfirmedAuthUser(env, user, what) {
+  const { email } = user;
   const res = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users`, {
     method: 'POST',
     headers: {
@@ -247,22 +270,18 @@ export async function createServiceAuthUser(env, { label } = {}) {
       'content-type': 'application/json',
       accept: 'application/json',
     },
-    body: JSON.stringify({
-      email,
-      email_confirm: true,
-      user_metadata: { service_account: true, label: String(label || '').slice(0, 80) },
-    }),
+    body: JSON.stringify(user),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    const e = new Error('could not create the service identity');
+    const e = new Error(`could not create ${what}`);
     e.detail = `admin/users ${res.status}: ${detail.slice(0, 300)}`;
     throw e;
   }
-  const user = await res.json();
-  if (!user?.id) throw new Error('admin/users returned no id');
-  return { userId: user.id, email };
+  const made = await res.json();
+  if (!made?.id) throw new Error('admin/users returned no id');
+  return { userId: made.id, email };
 }
 
 // Undo createServiceAuthUser. Only used when registration fails after the

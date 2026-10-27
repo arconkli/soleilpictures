@@ -353,7 +353,7 @@ test('a token for somebody else\'s resource is refused before anything is spent'
 });
 
 test('our own resource, however it is spelled, is accepted at the token endpoint', async () => {
-  for (const resource of [`${ORIGIN}/api/v1/mcp`, `${ORIGIN}/api/v1/mcp/`, `${ORIGIN}/api/v1`, ORIGIN]) {
+  for (const resource of [`${ORIGIN}/api/v1/mcp`, `${ORIGIN}/api/v1/mcp/`, `${ORIGIN}/api/v1`, ORIGIN, `${ORIGIN}/mcp`, `${ORIGIN}/mcp/`]) {
     stub({ rpc: { oauth_client_get: () => null } });
     const { body } = await call('/oauth/token', {
       method: 'POST', form: { grant_type: 'refresh_token', refresh_token: 'rt_x', client_id: 'soleil_abc', resource },
