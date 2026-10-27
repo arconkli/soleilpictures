@@ -16,12 +16,12 @@ created — you never pick "upload as image" from a menu.
 | Audio | A [waveform player](/docs/files/video-and-audio) with cover art |
 | PDF | A [page-one thumbnail](/docs/files/pdf) opening into a full viewer |
 | Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF) | A card showing its first page, opening on all its pages |
+| Text, Markdown, code, logs, `.csv`, `.tsv`, `.srt`, `.vtt` | A white page showing the start of the file: Markdown set as a document, a table's rows, subtitle cues, code and logs as the file has them |
 | Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
 | PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
 | An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
 | Anything else | A file card — type icon, name, size, download |
 
-Small text files get an inline preview on the card rather than only a download.
 Double-click a file card to open it full screen, with **Download** and **Share**
 there.
 

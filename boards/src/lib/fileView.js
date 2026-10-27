@@ -108,14 +108,13 @@ export function docDropSize(ext) {
 // it always was; a type of video, audio or image is never text: a .ts is a
 // camera's as often as TypeScript, and a system that knows the camera's says
 // video/mp2t.
-export const CODE_EXTS = ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx', 'py', 'rb', 'go', 'rs', 'c', 'h', 'cpp', 'cc',
-  'java', 'kt', 'swift', 'sh', 'bash', 'zsh', 'sql', 'css', 'scss', 'html', 'htm', 'xml', 'json', 'yml', 'yaml', 'toml'];
+export const CODE_EXTS = 'js jsx mjs cjs ts tsx py rb go rs c h cpp cc java kt swift sh bash zsh sql css scss html htm xml json yml yaml toml'.split(' ');
 export const FAMILY_EXTS = Object.freeze({
   markdown: ['md', 'markdown', 'mdown', 'mkd'],
   table: ['csv', 'tsv'],
   subtitles: ['srt', 'vtt'],
   code: CODE_EXTS,
-  text: ['txt', 'text', 'log', 'ini', 'env', 'conf', 'cfg', 'nfo'],
+  text: 'txt text log ini env conf cfg nfo'.split(' '),
 });
 export const DRAWN_FAMILIES = Object.keys(FAMILY_EXTS);
 const FAMILY_OF = new Map(DRAWN_FAMILIES.flatMap((family) => FAMILY_EXTS[family].map((e) => [e, family])));

@@ -1,6 +1,7 @@
 // Generic file card — any uploaded file that isn't a richer card kind
 // (image/pdf/video/audio). Shows a type icon, filename + size, and a
-// download/open button. Small text-ish files render an inline preview, and a
+// download/open button. A text file (Markdown, a table, subtitles, code, a
+// log) shows its first page, drawn from the file (FamilyFace.jsx), and a
 // document (Word, PowerPoint, Excel…) its first page. The original lives at
 // `fileSrc` ("r2:<key>"). Read-only safe (works on public boards:
 // download/preview just resolve a signed read URL).
@@ -11,7 +12,7 @@ import { EditableText } from '../EditableText.jsx';
 import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { resolveSrc } from '../../lib/r2.js';
-import { viewKindOfKey, docFamily, extOfKey, DOC_MAX_PAGES } from '../../lib/fileView.js';
+import { viewKindOfKey, docFamily, extOfKey, DOC_MAX_PAGES, fileFamily, isDrawnFamily } from '../../lib/fileView.js';
 import { downloadCardAsset } from '../../lib/cardDownload.js';
 import { useOptionalFeedback } from '../AppFeedback.jsx';
 import {
@@ -20,11 +21,21 @@ import {
 } from '../../lib/icons.js';
 import './fileCard.css';
 
-const TEXT_PREVIEW_MAX_BYTES = 256 * 1024;   // don't fetch big files for a preview
-const TEXT_PREVIEW_MAX_CHARS = 50 * 1024;    // bound the DOM
-const CODE_EXTS = new Set(['js','jsx','ts','tsx','py','rb','go','rs','c','h','cpp','cc',
-  'java','kt','swift','sh','bash','zsh','sql','css','scss','html','htm','xml','json','yml','yaml','toml']);
-const TEXT_EXTS = new Set([...CODE_EXTS, 'txt','md','markdown','csv','tsv','ini','log','env','conf']);
+// The pages of the families a card draws from the file live in their own
+// chunk (FamilyFace.jsx), loaded the first time a card needs one.
+let facesMod = null;
+let facesLoad = null;
+const loadFaces = () => facesLoad || (facesLoad = import('./FamilyFace.jsx').then((m) => { facesMod = m; return m; }));
+export function useFaces(want) {
+  const [mod, setMod] = useState(facesMod);
+  useEffect(() => {
+    if (!want || mod) return undefined;
+    let live = true;
+    loadFaces().then((m) => { if (live) setMod(m); }, () => { facesLoad = null; });
+    return () => { live = false; };
+  }, [want, mod]);
+  return mod;
+}
 
 export function humanSize(bytes) {
   if (bytes == null) return '';
@@ -53,8 +64,9 @@ export function iconForFile(ext, mime) {
   if (/^(key|odp|otp|sxi)$/.test(e)) return Presentation;
   if (/^(numbers|ods|ots|sxc|csv|tsv|parquet)$/.test(e)) return Database;
   if (/^(doc|docx|docm|dot|dotx|dotm|pages|rtf|odt|ott|wpd|wps|sxw)$/.test(e)) return FileDoc;
-  if (CODE_EXTS.has(e) || m === 'application/json') return CodeIcon;
-  if (TEXT_EXTS.has(e) || m.startsWith('text/')) return FileText;
+  const family = fileFamily(e, m);
+  if (family === 'code') return CodeIcon;
+  if (family && family !== 'doc') return FileText;
   if (/^(psd|ai|sketch|fig|xd|eps|svg|tiff?|raw|cr2|nef|heic)$/.test(e) || m.startsWith('image/')) return ImagePh;
   if (m.startsWith('audio/')) return Headphones;
   if (m.startsWith('video/')) return Clapperboard;
@@ -106,26 +118,15 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
     </div>
   );
 
-  // Inline preview for small text-ish files (best-effort, never blocks the card).
-  const [preview, setPreview] = useState(null);
-  const isTextish = !pending && !!fileSrc && sizeBytes != null && sizeBytes <= TEXT_PREVIEW_MAX_BYTES
-    && (TEXT_EXTS.has(e) || (mime || '').startsWith('text/')
-        || mime === 'application/json' || mime === 'application/xml');
-  useEffect(() => {
-    if (!isTextish) { setPreview(null); return; }
-    let cancelled = false;
-    (async () => {
-      try {
-        const url = await resolveSrc(fileSrc);
-        if (!url || cancelled) return;
-        const res = await fetch(url);
-        if (!res.ok || cancelled) return;
-        const text = (await res.text()).slice(0, TEXT_PREVIEW_MAX_CHARS);
-        if (!cancelled) setPreview(text);
-      } catch (_) { /* leave the icon tile */ }
-    })();
-    return () => { cancelled = true; };
-  }, [isTextish, fileSrc]);
+  // A text file's first page (FamilyFace.jsx): white from the start, its
+  // page once its chunk and the file's first bytes are here, and its glyph
+  // when the file only says it's text. Its strip wears its family's icon.
+  const drawnFamily = !docKey && !pending && fileSrc ? fileFamily(e, mime) : null;
+  const drawn = isDrawnFamily(drawnFamily);
+  const faces = useFaces(drawn);
+  const StripIcon = (drawn && faces?.familyGlyph(drawnFamily, e)) || GlyphIcon;
+  // Uploading, the spinner stands alone on the card.
+  const glyph = <div className="filec-glyph">{!pending && <Icon as={GlyphIcon} size={42} />}</div>;
 
   // Shared with every other download in the app (lib/cardDownload.js), which
   // among other things routes through deliverFile — so this button now does
@@ -155,17 +156,14 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
 
   return (
     <div className="filec ic">
-      <div className={`filec-body ${preview != null ? 'has-preview' : ''}`} onDoubleClick={opensOnBoard ? undefined : download}>
+      <div className={`filec-body${drawn ? ' is-page' : ''}`} onDoubleClick={opensOnBoard ? undefined : download}>
         {docKey ? (
           <R2Image progressive src={fileSrc} alt={label} w={w} h={h} boardId={boardId} cardId={cardId}
                    className={`filec-page${family === 'sheet' ? ' is-sheet' : ''}`} draggable="false"
                    placeholder={docPlaceholder} />
-        ) : preview != null ? (
-          <pre className={`filec-preview ${CODE_EXTS.has(e) ? 'is-code' : ''}`}>{preview}</pre>
-        ) : (
-          // Uploading, the spinner stands alone on the card.
-          <div className="filec-glyph">{!pending && <Icon as={GlyphIcon} size={42} />}</div>
-        )}
+        ) : drawn ? (
+          faces && <faces.default family={drawnFamily} src={fileSrc} ext={e} sizeBytes={sizeBytes} w={w} h={h} fallback={glyph} />
+        ) : glyph}
         {pending && (
           <div className="ic-upload-overlay" aria-label="Uploading file">
             <Spinner size={22} tone="on-dark" label="Uploading file" />
@@ -186,7 +184,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
           </button>
         )}
         <div className="filec-info">
-          <span className="filec-info-icon"><Icon as={GlyphIcon} size={15} /></span>
+          <span className="filec-info-icon"><Icon as={StripIcon} size={15} /></span>
           <span className="filec-info-name" title={label}>{label}</span>
           {metaText && <span className="filec-info-size">{metaText}</span>}
         </div>

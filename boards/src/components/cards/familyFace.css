@@ -1,0 +1,36 @@
+/* A file's first page (FamilyFace.jsx): white in both themes, as a
+   document's page is, drawn at its design width and scaled to its box. The
+   fade at the foot lets the page run under the name strip. */
+.fpg { position: absolute; inset: 0; overflow: hidden; background: #fff; pointer-events: none; }
+.fpg::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 46px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #fff 72%); }
+.fpg-sheet { position: absolute; left: 0; top: 0; transform-origin: 0 0; box-sizing: border-box; overflow: hidden;
+  color: #1d1d1f; font-family: var(--font-sans); text-align: left; }
+
+.fpg-md { font-size: 15px; line-height: 1.5; color: #2a2a2e; overflow-wrap: anywhere; }
+.fpg-md > :first-child { margin-top: 0; }
+.fpg-md h1 { margin: 0 0 6px; font-size: 27px; line-height: 1.15; font-weight: 700; color: #111; letter-spacing: -.005em; }
+.fpg-md h2, .fpg-md h3, .fpg-md h4, .fpg-md h5, .fpg-md h6 { margin: 24px 0 8px; font-size: 16px; line-height: 1.3; font-weight: 700; color: #1d1d1f; }
+.fpg-md p { margin: 0 0 10px; }
+.fpg-md ul, .fpg-md ol { margin: 0 0 10px; padding-left: 22px; }
+.fpg-md li { margin: 0 0 6px; }
+.fpg-md strong { font-weight: 700; color: #111; }
+.fpg-md blockquote { margin: 22px 0 10px 22px; padding: 0; font-style: italic; color: #5a5a60; }
+.fpg-md code { font-family: var(--font-mono); font-size: 13px; }
+.fpg-md pre { margin: 0 0 10px; font-family: var(--font-mono); font-size: 13px; white-space: pre; overflow: hidden; }
+.fpg-md a { color: inherit; text-decoration: underline; }
+.fpg-md hr { border: 0; border-top: 1px solid #e4e4e8; margin: 18px 0; }
+.fpg-md table { border-collapse: collapse; font-size: 14px; }
+.fpg-md th, .fpg-md td { padding: 4px 12px 4px 0; border-bottom: 1px solid #e4e4e8; text-align: left; }
+
+.fpg-pre { margin: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: #2c2c30; white-space: pre; }
+.fpg-pre.is-wrapped { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.fpg-cue { margin: 0 0 15px; }
+.fpg-cue-n { font-family: var(--font-mono); font-size: 11px; color: #9a9aa0; }
+.fpg-cue-tc { margin: 1px 0 3px; font-family: var(--font-mono); font-size: 12px; color: #7a7a80; }
+.fpg-cue-t { font-size: 16px; line-height: 1.4; color: #1a1a1c; white-space: pre-line; }
+
+.fpg-grid { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+.fpg-grid th { text-align: left; font-weight: 700; color: #111; padding: 0 14px 8px 0; border-bottom: 1.5px solid #1d1d1f; white-space: nowrap; }
+.fpg-grid td { padding: 8px 14px 8px 0; border-bottom: 1px solid #e4e4e8; color: #2a2a2e; white-space: nowrap; }
