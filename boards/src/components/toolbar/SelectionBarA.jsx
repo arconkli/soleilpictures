@@ -20,8 +20,8 @@ import {
 // Align's edges and Distribute, Group, New cluster from N cards, Move N cards
 // to…. ⋯ opens that menu itself, over the bar, and Delete is ⌫'s. A control
 // whose item the menu doesn't hold for this selection (a cluster you can only
-// view, strokes with no card) isn't there. Under a finger, and in today's
-// look, the selection keeps its count at the top.
+// view, strokes with no card) isn't there. Under a finger the selection keeps
+// its count at the top.
 //
 // `items` is the menu for the selection as it was drawn (CanvasSurface keeps
 // it while the selection holds), for what shows; `api.items()` builds it

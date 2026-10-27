@@ -32,7 +32,7 @@ export function keyCaps(spec, mac = MAC) {
 // A right-click menu row's shortcut as the menu writes it for the eye, the
 // platform's way ("⌘⇧D", "Ctrl+Shift+D", "⌫", "F2"): its keys, each for a cap
 // of its own; and the same in aria-keyshortcuts' words, which the row carries
-// in the look so that a screen reader reads its name without them.
+// so that a screen reader reads its name without them.
 const GLYPH_MODS = '⌘⌃⌥⇧';
 const ARIA_OF = {
   '⌘': 'Meta', '⌃': 'Control', Ctrl: 'Control', '⌥': 'Alt', '⇧': 'Shift',
