@@ -133,6 +133,31 @@ test('an owner says who and what, copies the link, sends an email and opens the 
   expect(errors).toEqual([]);
 });
 
+test('where the browser refuses the clipboard, the link is shown selected, and copying it by hand counts', async ({ page }) => {
+  const errors = await open(page, 'setup=B&resume=invite&clip=fail');
+  await expect(page.getByRole('heading', { name: 'Invite the people you work with' })).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('.su-link-url')).toContainText('?wsjoin=');
+
+  await page.getByRole('button', { name: 'Copy link' }).click();
+  const field = page.getByRole('textbox', { name: 'Invite link' });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue(/\/\?wsjoin=[0-9a-f-]{36}$/);
+  expect(await field.evaluate((el) => el.selectionStart === 0 && el.selectionEnd === el.value.length)).toBe(true);
+  await expect(page.locator('.su-linknote')).toContainText(/The link is selected: press (⌘C|Ctrl\+C) to copy it\./);
+  await expect(page.getByRole('button', { name: 'Copied' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Skip for now' })).toBeVisible();
+  expect(await page.evaluate(() => window.__setupQa.clipboard)).toEqual([]);
+
+  await field.dispatchEvent('copy');
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skip for now' })).toHaveCount(0);
+  await expect(page.locator('.su-strip-line')).toHaveText('Invite link ready');
+  const ev = await events(page);
+  expect(pick(ev, 'workspace_link_shared', { surface: 'setup', method: 'copy', ok: false })).toHaveLength(1);
+  expect(pick(ev, 'workspace_link_shared', { surface: 'setup', method: 'copy', ok: true, by: 'hand' })).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
 test('skipping both optional steps still lands in the app, and says so', async ({ page }) => {
   await open(page, 'setup=B');
   await page.getByLabel('Workspace name').fill('Lost Time');

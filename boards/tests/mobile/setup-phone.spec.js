@@ -1,7 +1,8 @@
 // The first-run setup on a phone and on a tablet held upright (?setupqa=1, see
 // tests/setup-flow.spec.js for the harness). A phone shares the invite link
-// through its own share sheet, and closing the sheet still counts as out; a
-// tablet gets the computer's Copy link. Neither scrolls sideways.
+// through its own share sheet, and closing the sheet still counts as out; with
+// no sheet the button copies and says so; a tablet gets the computer's Copy
+// link. Neither scrolls sideways.
 import { test, expect } from '@playwright/test';
 
 const PHONE_MAX = 640;   // hooks/useBreakpoint.js
@@ -63,6 +64,45 @@ test('on a phone, closing the share sheet still moves them on', async ({ page, v
   await expect(page.getByRole('button', { name: 'Skip for now' })).toHaveCount(0);
   const ev = await events(page);
   expect(ev.filter((e) => e.event === 'workspace_link_shared' && e.props.method === 'share' && e.props.completed === false)).toHaveLength(1);
+});
+
+test('on a phone with no share sheet, the button copies the link and says so', async ({ page, viewport }) => {
+  test.skip(viewport.width > PHONE_MAX, 'phones only');
+  const errors = await open(page, 'setup=B&share=none');
+  await toInvite(page);
+  await page.getByRole('button', { name: 'Share invite link' }).tap();
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  const clip = await page.evaluate(() => window.__setupQa.clipboard);
+  expect(clip).toHaveLength(1);
+  expect(clip[0]).toMatch(/\/\?wsjoin=[0-9a-f-]{36}$/);
+  await expect(page.getByRole('button', { name: 'Open Lost Time' })).toBeVisible();
+  const ev = await events(page);
+  expect(ev.filter((e) => e.event === 'workspace_link_shared' && e.props.method === 'copy' && e.props.ok === true)).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
+
+test('on a phone where copying is refused too, the link is shown to press and hold', async ({ page, viewport }) => {
+  test.skip(viewport.width > PHONE_MAX, 'phones only');
+  const errors = await open(page, 'setup=B&share=none&clip=fail');
+  await toInvite(page);
+  await page.getByRole('button', { name: 'Share invite link' }).tap();
+  const field = page.getByRole('textbox', { name: 'Invite link' });
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue(/\/\?wsjoin=[0-9a-f-]{36}$/);
+  await expect(page.locator('.su-linknote')).toContainText('Press and hold the link to copy it.');
+  await expect(page.getByRole('button', { name: 'Copied' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open Lost Time' })).toHaveCount(0);
+  // 16px, so focusing it never zooms the page.
+  expect(await field.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  expect(await noSideScroll(page)).toBe(true);
+
+  await field.dispatchEvent('copy');
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open Lost Time' })).toBeVisible();
+  const ev = await events(page);
+  expect(ev.filter((e) => e.event === 'workspace_link_shared' && e.props.ok === false)).toHaveLength(1);
+  expect(ev.filter((e) => e.event === 'workspace_link_shared' && e.props.by === 'hand')).toHaveLength(1);
+  expect(errors).toEqual([]);
 });
 
 test('on a phone, the email limit points at sharing the link', async ({ page, viewport }) => {
