@@ -2,14 +2,15 @@
 // Space; ←/→ step through the files in the order Files shows them; Space or Esc
 // closes. Pictures zoom and pan (the lightbox's own stage), video and audio
 // play (one thing at a time, through audioBus), PDFs page through, and so do
-// documents once the converter has printed them (lib/fileView.js), and
-// everything else shows its preview large.
+// documents once the converter has printed them (lib/fileView.js), text
+// files read as their pages (FileStages.jsx), and everything else shows its
+// preview large.
 //
 // Lazy-loaded from ListSurface. It is a modal dialog: it registers with the
 // modal guard, so the board's and Files' own keys stand down while it's open,
 // and it keeps keyboard focus inside itself until it closes.
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as modalGuard from '../../lib/modalGuard.js';
 import { filmLayerOpen } from '../../lib/filmLayers.js';
@@ -33,8 +34,11 @@ import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
 import { usePlayCopy } from '../../hooks/usePlayCopy.js';
 import { reportError } from '../../lib/errorReporting.js';
-import { viewKindOfKey } from '../../lib/fileView.js';
+import { viewKindOfKey, isDrawnFamily } from '../../lib/fileView.js';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import './filesPage.css';
+
+const FileStages = lazyWithReload(() => import('./FileStages.jsx'));
 
 // A signed URL for a stored file (r2:…), or the URL itself.
 function useResolved(src) {
@@ -124,7 +128,7 @@ function DocStage({ item, docKey }) {
   );
 }
 
-function Stage({ item, playerRef = null, modalHandle = null }) {
+function Stage({ item, playerRef = null, modalHandle = null, onDownload = null }) {
   const card = item?.card || {};
   const name = item?.name || '';
   if (item.kind === 'image' && card.src) {
@@ -158,6 +162,13 @@ function Stage({ item, playerRef = null, modalHandle = null }) {
   }
   const docKey = item.kind === 'file' ? docKeyOf(card) : '';
   if (docKey) return <DocStage item={item} docKey={docKey} />;
+  // A file a browser can read (text, Markdown, a table, subtitles) as its
+  // page; its card until that loads, or when it isn't text after all.
+  const family = item.kind === 'file' ? item.preview?.family : null;
+  if (isDrawnFamily(family) && item.preview?.src) {
+    const fallback = <div className="ql-card"><div className="ql-card-preview"><CardPreview item={item} size="tile" px={640} /></div></div>;
+    return <Suspense fallback={fallback}><FileStages family={family} item={item} onDownload={onDownload} fallback={fallback} /></Suspense>;
+  }
   if (item.kind === 'link') {
     // A link gets a card of its own: its picture if it has one, the site's
     // mark, the title, the address, and an Open link that always works — a
@@ -351,7 +362,7 @@ export default function QuickLook({
             <Icon as={ChevronLeft} size={20} weight="light" />
           </button>
         )}
-        <div className="ql-stage" key={item.id}><Stage item={item} playerRef={playerRef} modalHandle={modalRef} /></div>
+        <div className="ql-stage" key={item.id}><Stage item={item} playerRef={playerRef} modalHandle={modalRef} onDownload={canDownload ? onDownload : null} /></div>
         {n > 1 && (
           <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label="Next file" title="Next (→)">
             <Icon as={ChevronRight} size={20} weight="light" />

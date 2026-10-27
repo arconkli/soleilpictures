@@ -125,8 +125,8 @@ export const LAZY_IN_APP = [
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
   'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel', 'TagManyPicker',
-  // FileCard.jsx: a text file's page
-  'FamilyFace',
+  // FileCard.jsx: a text file's page; QuickLook.jsx: the page, read on
+  'FamilyFace', 'FileStages',
   // ToolOptionsBar.jsx: the note bar and the draw, shape, line and arrow bars in the toolbar look
   'NoteBarA', 'CanvasBarsA',
   // CanvasSurface.jsx: the selection's bar in the toolbar look

@@ -57,6 +57,12 @@ seconds to show its page: the first {{fact:docMaxPages}} pages of a document up
 to {{fact:docMaxSize}}. A document with a password, or one that's damaged,
 stays a file card, with the download.
 
+A text file opens as its page, with line numbers, up to its first
+{{fact:textStageMax}}; past that, the page says so, and **Download all of it**
+saves the whole file. A `.csv` or `.tsv` opens as a table under its header row,
+up to {{fact:tableStageRows}} rows. Subtitles open as their cues, and Markdown
+as a document whose links open in a new tab.
+
 ## Limits
 
 **File type and size.** Any, on every plan. `.psd`, `.fig`, `.zip`, project

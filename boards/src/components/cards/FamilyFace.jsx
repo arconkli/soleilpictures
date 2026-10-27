@@ -23,19 +23,27 @@ const PAD = { markdown: '46px 48px', text: '36px 34px', code: '36px 34px', subti
 
 // One read per file and ceiling, however many cards and tiles show it. A
 // file that isn't text is remembered as such; a read that failed is not,
-// so the next mount tries again.
+// so the next mount tries again. Quick look reads up to megabytes, so only
+// its last few are kept, and a file a card read whole (or found isn't text)
+// costs Quick look nothing.
 const heads = new Map();
+const pages = new Map();
 function headOf(src, max, sizeBytes) {
   const key = `${max}:${src}`;
-  const known = heads.get(key);
-  if (known) { heads.delete(key); heads.set(key, known); return known; }
-  const p = resolveSrc(src)
+  const big = max > CARD_HEAD_BYTES;
+  const reads = big ? pages : heads;
+  const known = reads.get(key);
+  if (known) { reads.delete(key); reads.set(key, known); return known; }
+  const read = () => resolveSrc(src)
     .then((url) => (url ? readHead(url, max, { size: sizeBytes ?? undefined }) : null))
-    .then((r) => (r ? { text: decodeText(r.bytes, { complete: r.complete }), complete: r.complete } : null))
+    .then((r) => (r ? { text: decodeText(r.bytes, { complete: r.complete }), complete: r.complete } : null));
+  const card = big ? heads.get(`${CARD_HEAD_BYTES}:${src}`) : null;
+  const p = (card || Promise.resolve(null))
+    .then((r) => (r && (r.complete || r.text == null) ? r : read()))
     .catch(() => null)
-    .then((r) => { if (!r) heads.delete(key); return r; });
-  heads.set(key, p);
-  while (heads.size > 96) heads.delete(heads.keys().next().value);
+    .then((r) => { if (!r) reads.delete(key); return r; });
+  reads.set(key, p);
+  while (reads.size > (big ? 4 : 96)) reads.delete(reads.keys().next().value);
   return p;
 }
 

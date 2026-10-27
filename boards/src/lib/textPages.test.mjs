@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { headLines, sniffSep, parseDelimited, parseCues } from './textPages.js';
+import { headLines, sniffSep, parseDelimited, parseCues, stageTable } from './textPages.js';
 
 test('lines: CRLF and CR read as LF, no phantom last line, a cut last line dropped', () => {
   assert.deepEqual(headLines('a\r\nb\rc\n'), ['a', 'b', 'c']);
@@ -37,4 +37,25 @@ test('cues from SRT and WebVTT: numbers, times, text without tags; headers and n
     { n: '2', start: '00:03.000', end: '00:04.000', text: 'Go' },
   ]);
   assert.equal(parseCues(srt, { max: 1 }).length, 1);
+});
+
+test("Quick look's table: its header, then rows up to the ceiling, fewer for a wide one, never fewer than 100", () => {
+  assert.deepEqual(stageTable('Name,Role\nMara,Director\nPark,DP\n', { ext: 'csv' }),
+    { head: ['Name', 'Role'], body: [['Mara', 'Director'], ['Park', 'DP']], cols: 2, more: false });
+  assert.equal(stageTable('a;b\n1;2', { ext: 'csv' }).cols, 2);
+  assert.equal(stageTable('a\tb\n1\t2\t3', { ext: 'tsv' }).cols, 3);
+  const tall = ['n', ...Array.from({ length: 30 }, (_, i) => String(i))].join('\n');
+  const capped = stageTable(tall, { maxRows: 20 });
+  assert.equal(capped.body.length, 20);
+  assert.equal(capped.more, true);
+  assert.equal(stageTable(tall, { maxRows: 30 }).more, false);
+  // A head that was cut has more rows past it, however few it shows.
+  assert.equal(stageTable('a\n1\n2', { complete: false }).more, true);
+  const wideRow = Array.from({ length: 1000 }, (_, i) => `c${i}`).join(',');
+  const wide = stageTable(Array.from({ length: 300 }, () => wideRow).join('\n'), { maxRows: 5000, maxCells: 100_000 });
+  assert.equal(wide.cols, 1000);
+  assert.equal(wide.body.length, 100);
+  assert.equal(wide.more, true);
+  const mid = stageTable(Array.from({ length: 3000 }, () => 'a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y').join('\n'), { maxRows: 5000, maxCells: 50_000 });
+  assert.equal(mid.body.length, 2000);
 });

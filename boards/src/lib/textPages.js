@@ -48,6 +48,18 @@ export function parseDelimited(text, { sep = ',', maxRows = Infinity, complete =
   return { rows, more: !complete };
 }
 
+// Quick look's table: the header row, then up to maxRows rows, fewer for a
+// wide table, so its page never holds more than maxCells cells (never fewer
+// than 100 rows). `more` when the file goes on past the last row shown.
+export function stageTable(text, { ext = '', complete = true, maxRows = Infinity, maxCells = Infinity } = {}) {
+  const { rows, more } = parseDelimited(text, { sep: sniffSep(text, ext), maxRows: maxRows + 1, complete });
+  const [head = [], ...body] = rows;
+  let cols = head.length;
+  for (const r of body) if (r.length > cols) cols = r.length;
+  const fit = Math.max(100, Math.floor(maxCells / Math.max(1, cols)));
+  return body.length > fit ? { head, body: body.slice(0, fit), cols, more: true } : { head, body, cols, more };
+}
+
 const TC = /((?:\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*((?:\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3})/;
 const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&nbsp;': ' ', '&lrm;': '', '&rlm;': '', '&quot;': '"', '&#39;': "'" };
 
