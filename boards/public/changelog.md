@@ -4,6 +4,16 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-10-26 — Export works again
+
+Export saves a board as a PNG image or a PDF again, on every board.
+
+### Export
+
+- Right-click the canvas and choose **Export** to save the whole board as a
+  PNG or a PDF again. Since May it said "Nothing to export." on every board.
+  The PDF no longer opens a pop-up window. See [export](/docs/canvas/export).
+
 ## 2026-10-25 — A new look for toolbars, and every video plays
 
 Every toolbar looks and works the same way, picking several cards brings up a bar for them, and every video, sound file and photo now plays or shows in every browser.

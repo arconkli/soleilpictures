@@ -2,6 +2,61 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-26": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Export",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Export"
+    }
+   ],
+   "id": "2026-10-26-export"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Right-click the canvas and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Export",
+      "children": [
+       {
+        "t": "text",
+        "v": "Export"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to save the whole board as a PNG or a PDF again. Since May it said \"Nothing to export.\" on every board. The PDF no longer opens a pop-up window. See "
+     },
+     {
+      "t": "link",
+      "v": "export",
+      "href": "/docs/canvas/export",
+      "children": [
+       {
+        "t": "text",
+        "v": "export"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-25": [
   {
    "type": "heading",

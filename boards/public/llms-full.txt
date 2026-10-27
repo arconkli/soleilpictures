@@ -11294,13 +11294,23 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-10-25
+Updated: 2026-10-26
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-10-26 — Export works again
+
+Export saves a board as a PNG image or a PDF again, on every board.
+
+### Export
+
+- Right-click the canvas and choose **Export** to save the whole board as a
+  PNG or a PDF again. Since May it said "Nothing to export." on every board.
+  The PDF no longer opens a pop-up window. See [export](/docs/canvas/export).
 
 ## 2026-10-25 — A new look for toolbars, and every video plays
 

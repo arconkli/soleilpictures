@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-26",
+    "anchor": "2026-10-26",
+    "title": "Export works again",
+    "summary": "Export saves a board as a PNG image or a PDF again, on every board.",
+    "headings": []
+  },
+  {
     "date": "2026-10-25",
     "anchor": "2026-10-25",
     "title": "A new look for toolbars, and every video plays",
