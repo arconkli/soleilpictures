@@ -112,6 +112,35 @@ test.describe('Team plan on the real app, Supabase stubbed', () => {
     expect(checkout.body.plan).toBe('annual');
   });
 
+  // Settings › Preview walks an admin through buying Team on the sample team.
+  // The press leaves for /pricing with Settings still open: closing it first
+  // rewound the history entry Settings keeps for Back (lib/modalGuard.js), and
+  // that rewind cancelled the trip, so the press did nothing (the owner,
+  // 2026-10-27).
+  test('Settings › Preview › Walk through buying it: pricing, the sample setup, then the team page', async ({ page }) => {
+    const { calls } = await bootSignedIn(page);
+    await page.waitForSelector(SHELL);
+    await page.locator('button[aria-label="Settings"]').first().click();
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await settings.getByRole('tab', { name: 'Preview' }).click();
+    await settings.getByRole('button', { name: 'Walk through buying it' }).click();
+
+    await page.waitForURL((u) => u.pathname === '/pricing');
+    await page.locator('.pp-plan-team').getByRole('button', { name: 'Start a Team trial' }).click();
+
+    await page.waitForURL((u) => u.pathname === '/team/new');
+    await expect(page.getByLabel('Team name')).toHaveValue('Northlight Films');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('button', { name: /Continue to payment/ }).click();
+    await page.getByRole('button', { name: 'Skip for now' }).click();
+    await page.getByRole('button', { name: 'Open the team page' }).click();
+
+    await page.waitForURL((u) => u.pathname === '/');
+    await expect(page.getByRole('heading', { name: 'Northlight Films' })).toBeVisible();
+    // The sample is look only: nothing was billed or sent.
+    expect(only(calls, 'functions/team-billing')).toEqual([]);
+  });
+
   test('a team link, already signed in: the card asks, Join joins', async ({ page }) => {
     const { calls } = await bootSignedIn(page, {
       path: `/?teamjoin=${TOKEN}`,

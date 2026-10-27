@@ -75,8 +75,11 @@ export function PreviewTab({ onClose }) {
           <button type="button" className="settings-btn"
                   onClick={() => {
                     if (!teamAs) { writeTeamPreview('owner'); setTeamAs('owner'); }
-                    onClose?.();
-                    window.location.assign('/pricing');
+                    // Leave with Settings open: closing it rewinds the history
+                    // entry it keeps for Back (lib/modalGuard.js), and that
+                    // rewind cancels the trip. replace() takes the entry's
+                    // place, so Back from pricing lands on the app.
+                    window.location.replace('/pricing');
                   }}>Walk through buying it</button>
         </div>
       </SettingsCategory>
