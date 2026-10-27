@@ -35879,21 +35879,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The doc's name, "
-    },
-    {
-     "t": "strong",
-     "v": "Editing",
-     "children": [
-      {
-       "t": "text",
-       "v": "Editing"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " or "
+     "v": "The doc as it looks in its cluster: its name at the top, its pages and images, and "
     },
     {
      "t": "strong",
@@ -35907,7 +35893,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and the doc, with its pages and images. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked "
+     "v": " if they can only read it. Someone who can edit gets the toolbar, and "
+    },
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top opens the doc's comments beside the page. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked "
     },
     {
      "t": "strong",

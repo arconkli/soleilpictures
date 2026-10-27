@@ -24,6 +24,10 @@ import { ArrowUp, Check, Trash2 } from '../../lib/icons.js';
 // and Resolve, or who resolved it with Reopen. A card takes you to its words
 // (DocSurface's onJump: the page opened, the words shown and lit); the caret
 // in commented words picks their card.
+//
+// A guest in a doc shared on its own (`guest`) replies, resolves and reopens
+// in their own name, as anyone who can edit it does, but deletes only a
+// thread they started: the doc's room refuses the rest (lib/docRoomBridge.js).
 
 const FILTERS = [['all', 'All'], ['open', 'Open'], ['resolved', 'Resolved']];
 
@@ -32,7 +36,7 @@ const FILTERS = [['all', 'All'], ['open', 'Open'], ['resolved', 'Resolved']];
 const drafts = new Map();
 
 export function DocCommentsTab({
-  ydoc, scope, threads = [], editor = null, currentUser = null, canEdit = true,
+  ydoc, scope, threads = [], editor = null, currentUser = null, canEdit = true, guest = false,
   workspaceId = null, boardId = null, cardId = null,
   selectedId = null, onSelect, onJump,
 }) {
@@ -69,7 +73,7 @@ export function DocCommentsTab({
     });
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ctx = { ydoc, scope, currentUser, canEdit, workspaceId, boardId, cardId, onSelect, onJump };
+  const ctx = { ydoc, scope, currentUser, canEdit, guest, workspaceId, boardId, cardId, onSelect, onJump };
   return (
     <div className="dl-cmts">
       <div className="dl-cmts-f">
@@ -145,9 +149,10 @@ const fullDate = (ts) => {
 };
 
 function ThreadCard({ thread, anchor, selected, ctx }) {
-  const { ydoc, scope, currentUser, canEdit, onSelect, onJump } = ctx;
+  const { ydoc, scope, currentUser, canEdit, guest, onSelect, onJump } = ctx;
   const feedback = useFeedback();
   const me = currentUser?.id || null;
+  const canDelete = canEdit && (!guest || (!!me && thread.authorId === me));
   const items = [
     { id: thread.id, author: thread.author, authorId: thread.authorId, authorColor: thread.authorColor, ts: thread.ts, body: thread.body },
     ...(thread.replies || []),
@@ -187,7 +192,7 @@ function ThreadCard({ thread, anchor, selected, ctx }) {
               {it.ts ? <time dateTime={new Date(it.ts).toISOString()} title={fullDate(it.ts)}>{relativeTimeCompact(it.ts)}</time> : null}
               {/* The thread's delete, at the end of its first line, so the
                   words it's on keep the card's width. */}
-              {i === 0 && canEdit && (
+              {i === 0 && canDelete && (
                 <button type="button" className="dl-th-del" aria-label="Delete thread" title="Delete thread"
                         onClick={() => deleteCommentThreadUndoably(ydoc, scope, thread.id, feedback)}>
                   <Icon as={Trash2} size={14} />

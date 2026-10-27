@@ -396,9 +396,11 @@ manage the doc, and anyone who can only view the cluster can read it.
 
 ### What the other person sees
 
-The doc's name, **Editing** or **View only**, and the doc, with its pages and
-images. Everyone in it sees everyone else's cursor: people from the cluster
-see the others' names marked **(guest)**. If they are signed in, **Open in
+The doc as it looks in its cluster: its name at the top, its pages and
+images, and **View only** if they can only read it. Someone who can edit gets
+the toolbar, and **Comments** at the top opens the doc's comments beside the
+page. Everyone in it sees everyone else's cursor: people from the cluster see
+the others' names marked **(guest)**. If they are signed in, **Open in
 Clusters** at the top opens it inside the app.
 
 Someone editing through a link is a guest in the doc, so a few things stay

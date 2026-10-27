@@ -41,9 +41,16 @@ export { DocTableBar } from './DocTableBar.jsx';
 // On a phone (mockups A-phone, S-phone) it is Close, Pages, the title with a
 // line under it (how the doc's saving, who else is in it), Share and ⋯, which
 // holds the rest: the surface's DocMoreA, opened through the frame.
+//
+// A doc shared on its own (fileShare/DocShareView.jsx) is read or edited by a
+// guest (`guestMode`): its title is its cluster's to change and its saving is
+// the room's, so the title only reads and the phone's line says nothing of
+// saving. The page it sits in has no close or dock of its own (no onClose, no
+// onSetMode), and what the share adds (Sign in to edit) comes as `children`,
+// after the title.
 export function DocHeadA({
-  frame, card, scope, boards, canEdit = true, isPublic = false, mode, titleInputRef, focusTitle = false,
-  onUpdate, onSetMode, onClose, peersOnCard = [], onJumpToPeer,
+  frame, card, scope, boards, canEdit = true, isPublic = false, guestMode = false, mode, titleInputRef,
+  focusTitle = false, onUpdate, onSetMode, onClose, peersOnCard = [], onJumpToPeer, children = null,
 }) {
   const f = useDocFrame(frame);
   const { isPhone } = useBreakpoint();
@@ -69,14 +76,15 @@ export function DocHeadA({
          aria-expanded={f.railOpen} disabled={!f.ready}
          onClick={() => frame?.act.toggleRail()} />
   );
+  const canRename = canEdit && !guestMode;
   const title = (
     <input className="doc-card-title-input dl-title"
            ref={setTitle}
            aria-label="Document title"
            value={card.title || ''}
            placeholder="Untitled doc"
-           readOnly={!canEdit}
-           onChange={(e) => { if (canEdit) onUpdate?.({ title: e.target.value }); }}
+           readOnly={!canRename}
+           onChange={(e) => { if (canRename) onUpdate?.({ title: e.target.value }); }}
            onKeyDown={(e) => {
              // Named, Enter goes on to the text (mockup S-open).
              if (e.key !== 'Enter' || isComposingKey(e) || !canEdit) return;
@@ -94,13 +102,15 @@ export function DocHeadA({
     return (
       <IconWeightContext.Provider value="regular">
         <div className="dl-head is-phone">
-          <Btn icon={X} label="Close document" onClick={onClose} />
+          {onClose && <Btn icon={X} label="Close document" onClick={onClose} />}
           {pagesBtn}
           <div className="dl-ptitle">
             {title}
-            <PhoneLine boardId={scope?.boardId || (scope ? null : card.id)} showSave={f.showSave !== false}
-                       canEdit={canEdit} isPublic={isPublic} fresh={focusTitle} peers={peersOnCard} />
+            {/* A guest who can only read is told so, as on a computer. */}
+            <PhoneLine boardId={scope?.boardId || (scope ? null : card.id)} showSave={!guestMode && f.showSave !== false}
+                       canEdit={canEdit} isPublic={isPublic && !guestMode} fresh={focusTitle} peers={peersOnCard} />
           </div>
+          {children}
           {share}
           <Btn ref={moreRef} icon={MoreHorizontal} label={unread > 0 ? `More, ${unread} unread messages` : 'More'}
                aria-haspopup="menu" aria-expanded={!!f.moreOpen} disabled={!f.ready}
@@ -145,6 +155,7 @@ export function DocHeadA({
             )}
           </div>
         )}
+        {children}
         {share}
         {!isPublic && (
           <Btn icon={ChatCircleText} label={open > 0 ? `Comments, ${open} open` : 'Comments'}
@@ -153,12 +164,12 @@ export function DocHeadA({
         )}
         {!isPublic && <MessagesBtn />}
         {/* Hidden on public: the side dock assumes the workspace around it. */}
-        {isPublic ? null : mode === 'full' ? (
+        {isPublic || !onSetMode ? null : mode === 'full' ? (
           <Btn icon={Sidebar} className="dl-flip" label="Dock beside the canvas" onClick={() => onSetMode('side')} />
         ) : (
           <Btn icon={CornersOut} label="Open fullscreen" onClick={() => onSetMode('full')} />
         )}
-        <Btn icon={X} label="Close document" onClick={onClose} />
+        {onClose && <Btn icon={X} label="Close document" onClick={onClose} />}
       </div>
     </IconWeightContext.Provider>
   );

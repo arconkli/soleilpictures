@@ -189,9 +189,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     throw new Error('docqa: this doc crashed');
   }
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
-  // Every doc a cluster opens comes with the look's frame (DocCard.jsx). A
-  // doc shared on its own (fileShare/DocShareView.jsx) opens without one, in
-  // the editor before the look: DocToolbar, the page rail and the old footer.
+  // Every doc a cluster opens comes with the look's frame (DocCard.jsx), and
+  // so does a doc shared on its own (fileShare/DocShareView.jsx). Without one
+  // it is the editor before the look: DocToolbar, the page rail and the old
+  // footer.
   const lookA = !!frame;
 
   // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —
@@ -1536,9 +1537,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
 
       {panelOpen && (
         <Suspense fallback={null}>
+          {/* A phone's sheet lies in the doc's window, over its header: the
+              cluster's (DocCard.jsx) or a shared doc's page (DocShareView). */}
           <DocSidePanel tab={panel.tab} onTab={(tab) => setPanel((p) => ({ ...p, tab }))}
                         sheet={panelSheet} onClose={closePanel}
-                        host={panelSheet ? rootRef.current?.closest('.doc-card-modal') || null : null}
+                        host={panelSheet ? rootRef.current?.closest('.doc-card-modal, .dsv') || null : null}
                         screenplay={docMode === 'screenplay' && canEdit} openComments={openComments}
                         onEscape={() => { try { editorRef.current?.commands.focus(); } catch (_) {} }}>
             {{
@@ -1547,15 +1550,17 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                                 titlePage={titlePage.enabled} onToggleTitlePage={toggleTitlePage}
                                 sceneNumbers={sceneNumbersShow} onSetSceneNumbers={onSetSceneNumbersShow} />
               ),
+              // A guest's comments carry who they are, which the room
+              // checks: none until the share has said.
               comments: (
                 <DocCommentsTab ydoc={ydoc} scope={scope} threads={comments}
                                 editor={editorRef.current} currentUser={currentUser}
-                                canEdit={canEdit && !guestMode}
+                                canEdit={canEdit && (!guestMode || !!currentUser?.id)} guest={guestMode}
                                 workspaceId={workspaceId} boardId={scope?.boardId || null} cardId={scope?.docCardId || null}
                                 selectedId={panelThread} onSelect={setPanelThread} onJump={jumpToThread} />
               ),
               find: (active) => (
-                <DocFindTab ydoc={ydoc} scope={scope} canEdit={canEdit && !guestMode}
+                <DocFindTab ydoc={ydoc} scope={scope} canEdit={canEdit}
                             active={active} activePageId={activePageId}
                             editorsOf={(pid) => (pid ? getPageSheetIds(ydoc, pid, scope) : [])
                               .map((sid) => editorsRef.current.get(sid)).filter((ed) => ed && !ed.isDestroyed)}
