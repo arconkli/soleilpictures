@@ -1,5 +1,6 @@
 # Built by media/deploy.sh from a context laid out like the repo, holding only
-# what is copied below (playCopy.js and fileView.js are shared with the Worker):
+# what is copied below (playCopy.js and fileView.js are shared with the Worker;
+# zipRead.js and zipStore.js are the app's zip reader, which zipMain.js runs):
 #   sh media/deploy.sh
 FROM node:22-bookworm-slim
 
@@ -29,6 +30,8 @@ RUN groupadd -g 10001 media \
 WORKDIR /app
 COPY boards/src/lib/playCopy.js ./boards/src/lib/playCopy.js
 COPY boards/src/lib/fileView.js ./boards/src/lib/fileView.js
+COPY boards/src/lib/zipRead.js ./boards/src/lib/zipRead.js
+COPY boards/src/lib/zipStore.js ./boards/src/lib/zipStore.js
 COPY media/package.json ./media/package.json
 COPY media/src ./media/src
 

@@ -7,7 +7,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CTX=$(mktemp -d)
 trap 'rm -rf "$CTX"' EXIT
 mkdir -p "$CTX/boards/src/lib" "$CTX/media"
-cp "$ROOT/boards/src/lib/playCopy.js" "$ROOT/boards/src/lib/fileView.js" "$CTX/boards/src/lib/"
+cp "$ROOT/boards/src/lib/playCopy.js" "$ROOT/boards/src/lib/fileView.js" "$ROOT/boards/src/lib/zipRead.js" "$ROOT/boards/src/lib/zipStore.js" "$CTX/boards/src/lib/"
 cp -R "$ROOT/media/package.json" "$ROOT/media/src" "$ROOT/media/Dockerfile" "$ROOT/media/fly.toml" "$CTX/media/"
 cd "$CTX"
 fly deploy --config media/fly.toml --dockerfile media/Dockerfile --remote-only --ha=false "$@" .

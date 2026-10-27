@@ -104,9 +104,10 @@ export function spawnPlan(bin, args, { root = isRoot(), isolate = false } = {}) 
 // the child's bare environment (vips' untrusted-loader block), never secrets.
 // `group` starts the child in a process group of its own and kills the whole
 // group, for a program that starts helpers (LibreOffice's soffice starts
-// soffice.bin). Once the last unprivileged child has ended, every process the
+// soffice.bin). `maxBytes` caps what is captured of stdout: a child that
+// prints more is killed and this rejects `output_too_large`. Once the last unprivileged child has ended, every process the
 // unprivileged user still has is killed before this settles (killStrays).
-export function run(bin, args, { timeoutMs, capture = 'stdout', env = null, isolate = false, group = false } = {}) {
+export function run(bin, args, { timeoutMs, capture = 'stdout', env = null, isolate = false, group = false, maxBytes = 0 } = {}) {
   return new Promise((resolve, reject) => {
     if (stopping) {
       reject(new Error('shutting down'));
@@ -160,7 +161,15 @@ export function run(bin, args, { timeoutMs, capture = 'stdout', env = null, isol
     }, timeoutMs);
 
     // Keep only a bounded tail of stderr: a long encode can be chatty.
-    child.stdout.on('data', (d) => out.push(d));
+    let outBytes = 0;
+    child.stdout.on('data', (d) => {
+      out.push(d);
+      outBytes += d.length;
+      if (maxBytes && outBytes > maxBytes) {
+        kill();
+        finish(reject, new Error('output_too_large'));
+      }
+    });
     child.stderr.on('data', (d) => {
       err.push(d);
       if (err.length > 64) err.shift();
