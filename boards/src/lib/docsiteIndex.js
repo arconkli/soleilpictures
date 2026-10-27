@@ -1019,7 +1019,7 @@ export const DOCS_PAGES = [
     "answer": "Right-click the canvas and choose Export to save the whole board as a PNG or a PDF. Individual images download from the lightbox, either as the original file or with your adjustments baked in. Documents have their own exports including PDF, Markdown, HTML and screenplay formats.",
     "section": "canvas",
     "order": 12,
-    "updated": "2026-08-08",
+    "updated": "2026-10-26",
     "navLabel": "Exporting",
     "headings": [
       {
@@ -1051,11 +1051,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does the export include drawings and arrows?",
-        "a": "Yes. A board export is a picture of the board — cards, arrows, drawings, groups and backgrounds all appear as they do on screen."
+        "a": "Yes. A board export is a picture of the whole board — its cards, arrows, drawings and background, drawn the way the cluster's cover is."
       },
       {
         "q": "Can I export just part of a board?",
-        "a": "Not as a region selection. Fit the selection on screen first, or move the cards you want onto their own cluster and export that."
+        "a": "Not as a region selection — an export is always the whole board. Move the cards you want onto their own cluster and export that."
       },
       {
         "q": "Should I export or share a link?",

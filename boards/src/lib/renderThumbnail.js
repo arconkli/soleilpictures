@@ -37,6 +37,7 @@ import { dayTypesFor, dayTypeColor } from './dayTypes.js';
 import { isItemKey as isSchedItemKey } from './schedLayout.js';
 import { readCardStrokes } from './strokeModel.js';
 import { drawStrokes } from './strokeRender.js';
+import { exportFrame } from './exportFrame.js';
 
 // A dated cluster's phase colour, resolved against its PARENT's palette (the
 // production owns the palette; the day only references a slug).
@@ -1168,8 +1169,8 @@ function buildDrawPlan(cards, strokes, arrows, boards, { mosaic = false } = {}) 
 
 // Async: render the plan to a real canvas, encode as a blob. Two-phase:
 // first kick off all image loads in parallel, then draw everything in
-// z-order. Returns a Blob or null.
-async function planToBlob(plan, { width, height, allowImages, bgColor }) {
+// z-order. Returns a Blob (WebP unless `type` asks otherwise) or null.
+async function planToBlob(plan, { width, height, allowImages, bgColor, type = 'image/webp' }) {
   if (plan.mosaic) return mosaicToBlob(plan.mosaic, { width, height, allowImages });
   const { sorted, strokes, arrows, arrowPlacements, minX, minY, contentW, contentH, boards } = plan;
 
@@ -1375,18 +1376,19 @@ async function planToBlob(plan, { width, height, allowImages, bgColor }) {
   // full opacity), floored so they stay visible at fit-to-content scale.
   drawStrokes(ctx, strokes, { ppu: pxPerUnit });
 
-  return canvasToWebp(canvas);
+  return canvasToWebp(canvas, type);
 }
 
 // Encode. Prefer WebP for size; browsers reject the call for tainted
 // canvases with a SecurityError — caller retries with allowImages=false.
-function canvasToWebp(canvas) {
+// `type` is for the export, which keeps a PNG.
+function canvasToWebp(canvas, type = 'image/webp') {
   return new Promise((resolve, reject) => {
     try {
       canvas.toBlob((b) => {
         if (b) resolve(b);
         else reject(new Error('toBlob returned null'));
-      }, 'image/webp', 0.8);
+      }, type, 0.8);
     } catch (e) {
       reject(e);
     }
@@ -1558,4 +1560,27 @@ export async function renderThumbnailToBlob({ cards, strokes, arrows, boards = {
   const url = URL.createObjectURL(blob);
   _cacheSet(key, url);
   return url;
+}
+
+// The board as a picture to keep: Export → PNG image / PDF (lib/exportBoard.js).
+// The covers' drawing in the board's own frame (lib/exportFrame.js), as a PNG.
+//   { cards, strokes, arrows, boards, bgColor } → Promise<Blob | null>
+// null only when nothing is on the board; a board it can't draw throws, so the
+// export says it failed rather than that the board is empty.
+export async function renderBoardPng({ cards, strokes, arrows, boards = {}, bgColor = null } = {}) {
+  const plan = buildDrawPlan(cards, strokes, arrows, boards);
+  if (!plan) return null;
+  const { width, height } = exportFrame(plan.contentW, plan.contentH, MAX_ZOOM);
+  const draw = (allowImages) => planToBlob(plan, { width, height, allowImages, bgColor, type: 'image/png' });
+  let blob;
+  try {
+    blob = await draw(true);
+  } catch (e) {
+    // A picture that poisoned the canvas (see renderThumbnailBlob): the board
+    // with placeholders where its pictures go beats no export.
+    if (e?.message !== 'TAINT' && String(e?.name) !== 'SecurityError') throw e;
+    blob = await draw(false);
+  }
+  if (!blob) throw new Error('This browser could not draw the board.');
+  return blob;
 }

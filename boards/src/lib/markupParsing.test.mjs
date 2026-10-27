@@ -42,7 +42,7 @@ const REVIEWED = [
   ['components/docExtensions/BoardEmbed.js', "dom.innerHTML = ''", 'clears'],
   ['components/docExtensions/BoardEmbed.js', "icon.innerHTML = '<svg", 'a fixed icon'],
   ['components/docExtensions/screenplay/ScreenplaySuggest.js', "el.innerHTML = ''", 'clears'],
-  ['lib/exportBoard.js', 'w.document.write(`<!doctype html>', 'print window: the serialized board picture, title without < or >'],
+  ['lib/exportBoard.js', 'iframe.srcdoc = html', "print frame: an <img> of the board's own picture (a blob: URL), title without < or >"],
   ['components/DocExportMenu.jsx', 'iframe.srcdoc = html', 'print frame: editor.getHTML() from the doc schema'],
 ];
 
@@ -114,7 +114,6 @@ const OPENERS = [
   ['components/HelpHub.jsx', "window.open(path,", 'a help path from the built-in list'],
   ['components/gallery/SurfaceGallery.jsx', "window.open(url,", 'admin gallery route from its registry'],
   ['components/fileShare/FileShareDialog.jsx', "window.open(fileShareUrl(s.token),", 'our own page'],
-  ['lib/exportBoard.js', "window.open('', '_blank')", 'a blank print window'],
   ['lib/checkout.js', "window.open('', '_blank')", 'a blank tab for Stripe checkout'],
   ['lib/cardDownload.js', "window.open(url,", 'download fallback, vetted by openableUrl'],
 ];
