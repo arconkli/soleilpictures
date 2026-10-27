@@ -2,9 +2,9 @@
 // mockup A-select), shipped 2026-10-25 (components/toolbar/SelectionBarA.jsx):
 // two or more cards picked on a desktop canvas get, on the bottom row, what
 // right-clicking one of them offers, each control the card menu's own item:
-// Tidy up, Align (and Distribute), Group, New cluster from N cards, Move N
-// cards to…; ⋯ is that menu itself, over the bar, and Delete is ⌫'s, with its
-// undo.
+// Tidy up, Align (and Distribute), Group, Tag (its picker, 2026-10-26), New
+// cluster from N cards, Move N cards to…; ⋯ is that menu itself, over the bar,
+// and Delete is ⌫'s, with its undo.
 //
 // On the real canvas, through ?local=1 (the home cluster's cards).
 import { expect, test } from '@playwright/test';
@@ -35,12 +35,12 @@ const lefts = (page) => page.evaluate((ids) => ids.map((id) => {
   return Math.round(parseFloat(el.style.left));
 }), PICKED);
 
-test('three cards picked: the count, then Tidy up, Align, Group, New cluster, Move, More and Delete, by name', async ({ page }) => {
+test('three cards picked: the count, then Tidy up, Align, Group, Tag, New cluster, Move, More and Delete, by name', async ({ page }) => {
   await threePicked(page);
   await expect(bar(page)).toBeVisible();
   await expect(bar(page)).toContainText('3 selected');
   await expect(page.locator('.cnv-selcount')).toHaveCount(0);
-  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'New cluster from 3 cards', 'Move 3 cards to…',
+  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'Tag', 'New cluster from 3 cards', 'Move 3 cards to…',
     'More', 'Delete']);
   await expect(button(page, 'Group')).toHaveAttribute('aria-keyshortcuts', /^(Meta|Control)\+G$/);
   await expect(button(page, 'Delete')).toHaveAttribute('aria-keyshortcuts', 'Backspace');
@@ -69,6 +69,74 @@ test('Tidy up\'s and Align\'s menus are the card menu\'s, and Align lines the ca
   await expect.poll(async () => new Set(await lefts(page)).size).toBe(1);
   // Still picked, so the bar stays for the next step.
   await expect(bar(page)).toContainText('3 selected');
+});
+
+// Two dozen pictures dropped on an empty cluster, all picked. A drop is
+// centred on the pointer, so the block reaches left of and above the board's
+// corner, as most boards' cards do: there Tidy up used to floor each card at
+// 8px on its own and pile every row onto one line, and Left on a grid piled
+// each row.
+async function dozensPicked(page, n = 24) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?local=1&reset=1&blank=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
+  await page.addStyleTag({ content: '.dev-banner, .twk-gear { display: none !important; }' });
+  await page.evaluate(async (count) => {
+    const shapes = [[1600, 1067], [1067, 1600], [1200, 1200], [1920, 800], [900, 1350], [2000, 1125]];
+    const dt = new DataTransfer();
+    for (let i = 0; i < count; i++) {
+      const [w, h] = shapes[i % shapes.length];
+      const c = new OffscreenCanvas(w / 8, h / 8);
+      const g = c.getContext('2d');
+      g.fillStyle = `hsl(${(i * 37) % 360} 60% 50%)`;
+      g.fillRect(0, 0, w, h);
+      dt.items.add(new File([await c.convertToBlob({ type: 'image/png' })], `still-${i + 1}.png`, { type: 'image/png' }));
+    }
+    const wrap = document.querySelector('.canvas-wrap');
+    const r = wrap.getBoundingClientRect();
+    const at = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true, dataTransfer: dt };
+    for (const type of ['dragenter', 'dragover', 'drop']) wrap.dispatchEvent(new DragEvent(type, at));
+  }, n);
+  await expect(page.locator('[data-card-id].card')).toHaveCount(n, { timeout: 15000 });
+  await page.mouse.click(1300, 150);
+  await page.keyboard.press('ControlOrMeta+a');
+  await expect(page.locator('.card.is-selected')).toHaveCount(n);
+}
+const boxes = (page) => page.evaluate(() => [...document.querySelectorAll('[data-card-id].card')].map((el) => ({
+  id: el.dataset.cardId, x: parseFloat(el.style.left), y: parseFloat(el.style.top), width: el.offsetWidth, height: el.offsetHeight,
+})));
+const piledPairs = (bs) => {
+  let n = 0;
+  for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) if (meets(bs[i], bs[j])) n++;
+  return n;
+};
+const corner = (bs) => ({ x: Math.min(...bs.map((b) => b.x)), y: Math.min(...bs.map((b) => b.y)) });
+
+test('Tidy up lays dozens of pictures out where they were, none on another, past the board\'s corner too', async ({ page }) => {
+  await dozensPicked(page);
+  const before = await boxes(page);
+  expect(corner(before).y).toBeLessThan(8);
+  await button(page, 'Tidy up').click();
+  await page.getByRole('menu', { name: 'Tidy up' }).getByRole('menuitem', { name: 'Justified rows', exact: true }).click();
+  await expect.poll(async () => piledPairs(await boxes(page))).toBe(0);
+  const after = await boxes(page);
+  expect(after.filter((b) => before.some((a) => a.id === b.id && (a.x !== b.x || a.y !== b.y))).length).toBeGreaterThan(0);
+  // Where it was, to the pixel (a drop can leave half pixels; a tidy rounds).
+  const [was, is] = [corner(before), corner(after)];
+  expect(Math.abs(is.x - was.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(is.y - was.y)).toBeLessThanOrEqual(1);
+});
+
+test('Align lines dozens of pictures up without piling them: Left makes one column, in reading order', async ({ page }) => {
+  await dozensPicked(page);
+  const before = await boxes(page);
+  const reading = [...before].sort((a, b) => a.y - b.y || a.x - b.x).map((b) => b.id);
+  await button(page, 'Align').click();
+  await page.getByRole('menu', { name: 'Align' }).getByRole('menuitem', { name: 'Left', exact: true }).click();
+  await expect.poll(async () => new Set((await boxes(page)).map((b) => b.x)).size).toBe(1);
+  const after = await boxes(page);
+  expect(piledPairs(after)).toBe(0);
+  expect([...after].sort((a, b) => a.y - b.y).map((b) => b.id)).toEqual(reading);
 });
 
 test('Group asks for a name, as the card menu\'s does, and groups them', async ({ page }) => {

@@ -11,6 +11,20 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-27",
+    "anchor": "2026-10-27",
+    "title": "Team, for more than 10 people who edit",
+    "summary": "Team is a new plan for more than 10 people who edit, at $25 a seat a month, and Free and Creator include up to 10. Documents show their first page, and raw and Photoshop files are pictures.",
+    "headings": []
+  },
+  {
+    "date": "2026-10-26",
+    "anchor": "2026-10-26",
+    "title": "Export and profile changes work again",
+    "summary": "Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.",
+    "headings": []
+  },
+  {
     "date": "2026-10-25",
     "anchor": "2026-10-25",
     "title": "A new look for toolbars, and every video plays",

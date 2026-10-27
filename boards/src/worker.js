@@ -20,16 +20,19 @@
 
 import { handleTagsRoute } from './worker-tags.js';
 import { handleClustersRoute } from './worker-clusters.js';
+import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
 import { handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies } from './worker-playCopy.js';
 import { mediaKindOfKey } from './lib/playCopy.js';
 import { viewKindOfKey } from './lib/fileView.js';
-import { handleApiRoute } from './worker-api.js';
+import { handleApiRoute, handleMcpEndpoint } from './worker-api.js';
+import { handleKeepBundle, handleSignedImage } from './worker-keep.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
+import { TEAM_TALK_META } from './lib/teamPricingCopy.js';
 import { hasPlanBlock, planBlockHtml } from './lib/planBlock.js';
 import {
   handleScoutSession, handleScoutSessionMint, handleScoutSignup, handleScoutClaim,
@@ -61,13 +64,14 @@ import { publicTemplateSlug, TEMPLATE_STORE_HELD, isTemplateStorePath, templateS
 import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
-// Public documentation (/docs/*). Two GENERATED modules, both built from
-// content/docs/**.md by scripts/gen-docs.mjs: the light index for meta and the
-// sitemap, and the pre-rendered crawlable HTML. The Worker deliberately does
-// NOT import the block AST (lib/docsiteContent.js) — React renders from that,
-// and pulling it in here would double the prose in this bundle for no gain.
+// Public documentation (/docs/*), GENERATED from content/docs/**.md by
+// scripts/gen-docs.mjs: the light index for meta and the sitemap is imported,
+// and each page's pre-rendered crawlable HTML is a file in the assets, read
+// when that page is served (readDocsHtml). The Worker deliberately does NOT
+// import the block AST (lib/docsiteContent.js) — React renders from that, and
+// pulling it in here would double the prose in this bundle for no gain.
 import { DOCS_PAGES, getDocsPage, isDocsPath } from './lib/docsiteIndex.js';
-import { DOCS_HTML } from './lib/docsiteCrawlable.js';
+import { docsHtmlAsset, docsHtmlFrom } from './lib/docsiteHtml.js';
 import { CHANGELOG_ENTRIES, CHANGELOG_LATEST, CHANGELOG_META, isChangelogPath } from './lib/changelogIndex.js';
 import { CHANGELOG_HTML } from './lib/changelogCrawlable.js';
 // /c/<slug> editorial article: shared model + renderer (imported by BOTH this
@@ -164,6 +168,12 @@ const ROUTE_META = {
     // Sourced from billingCopy so the SERP snippet can't drift from the tested
     // pricing copy (billingCopy.test.mjs lints it against the banned claims).
     description: PRICING_META_DESCRIPTION,
+  },
+  // Talk to us (TalkToUsPage): head meta only, like the legal pages. Not in
+  // the sitemap: a form, not something to search for.
+  '/pricing/talk-to-us': {
+    title: TEAM_TALK_META.title,
+    description: TEAM_TALK_META.description,
   },
   '/legal/privacy': {
     title: 'Privacy Policy — Soleil Clusters',
@@ -441,6 +451,9 @@ const FILE_SHARE_PATH_RE = /^\/f\/([0-9a-f-]{36})\/?$/i;
 // templateShareMatch in main.jsx: widening one without the other means the
 // Worker and React disagree about what is a real route.
 const TEMPLATE_SHARE_PATH_RE = /^\/t\/([0-9a-f-]{36})\/?$/i;
+// /keep/<uuid> — a draft's keep page (worker-keep.js). Kept in lockstep with
+// keepMatch in main.jsx.
+const KEEP_PATH_RE = /^\/keep\/([0-9a-f-]{36})\/?$/i;
 
 // /templates/g/<slug> — a PUBLISHED community template's page. The /g/ segment
 // keeps it out of the flat namespace our own items occupy, so a published slug
@@ -740,6 +753,7 @@ const worker = {
       if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/clusters/')) return await handleClustersRoute(url, request, env);
+      if (url.pathname.startsWith('/api/team/')) return await handleTeamRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
       if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
       // A copy of a video or audio file that every browser can play: asked for
@@ -753,6 +767,16 @@ const worker = {
       if (url.pathname === '/api/v1' || url.pathname.startsWith('/api/v1/')) {
         return await handleApiRoute(url, request, env, ctx);
       }
+      // The MCP server for AI chats, signed in or not: someone with no account
+      // makes a draft they can keep (worker-api.js handleMcpEndpoint; held on
+      // production). A browser opening it is sent to its docs.
+      if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
+        return await handleMcpEndpoint(url, request, env, ctx);
+      }
+      // A draft's keep page reads the draft, and its pictures, through these
+      // (worker-keep.js; held with drafts).
+      if (url.pathname === '/api/keep/bundle') return await handleKeepBundle(url, request, env, ctx);
+      if (url.pathname.startsWith('/api/img/')) return await handleSignedImage(url, request, env);
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx, env);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
@@ -855,6 +879,11 @@ const worker = {
       : null;
     const exploreMatch = isPageReq ? url.pathname.match(EXPLORE_PATH_RE) : null;
     const exploreListPromise = exploreMatch ? fetchPublicBoards(env).catch(failOpen('explore_list')) : null;
+    // A docs page's crawlable body, read from its own file in the assets
+    // beside the shell (never rejects; '' when missing). A HEAD has no body.
+    const docsPage = isPageReq ? getDocsPage(url.pathname) : null;
+    const docsHtmlPromise = docsPage && request.method === 'GET'
+      ? readDocsHtml(env, ctx, request, docsPage) : null;
 
     // Page URLs (no extension, not /assets/*): strip conditional headers before
     // asking ASSETS, so it always returns a full 200 document instead of a 304.
@@ -1003,8 +1032,7 @@ const worker = {
     // (/docs/api/cards.md) are real files in dist/ and were already served by
     // env.ASSETS long before we get here.
     if (isPageReq && contentType.includes('text/html') && isDocsPath(url.pathname)) {
-      const docsPage = getDocsPage(url.pathname);
-      if (docsPage) return withRevalidate(injectDocs(res, docsPage));
+      if (docsPage) return withRevalidate(injectDocs(res, docsPage, (await docsHtmlPromise) || ''));
       return notFoundResponse(res, 'Page not found — Soleil Clusters docs');
     }
 
@@ -1070,6 +1098,21 @@ const worker = {
       return out;
     }
 
+    // A draft's keep page: /keep/<token>. One unfurl for every draft, as /t/
+    // has, so nothing is looked up for whoever fetches it; never indexed; and
+    // every request from it names only our origin as its Referer, its own
+    // pictures' included, since its address is what keeps the draft. (Origin
+    // only, not none: the fonts' host checks it.)
+    if (isPageReq && KEEP_PATH_RE.test(url.pathname) && contentType.includes('text/html')) {
+      const out = withRevalidate(injectRouteMeta(res, {
+        title: 'Your draft — Soleil Clusters',
+        description: 'A cluster made in an AI chat, waiting for you to keep it. Keeping it is free.',
+      }, `${SITE_ORIGIN}/`));
+      out.headers.set('x-robots-tag', 'noindex');
+      out.headers.set('referrer-policy', 'strict-origin');
+      return out;
+    }
+
     // index.html (the SPA document, served for every app route) must be
     // revalidated so a returning client always picks up the newest deploy's
     // content-hashed chunk references instead of running a stale index that
@@ -1117,6 +1160,9 @@ const worker = {
       // app calls is announced for retirement, leaves the catalog, or stops
       // answering. Separate from the sweep; it touches no R2.
       ctx.waitUntil(watch('ai_watch', runAiModelWatch(env)));
+      // A team's verified company domain whose TXT record is gone stops
+      // auto-joining until a check passes again (worker-team.js, 0534).
+      ctx.waitUntil(watch('team_domains', runTeamDomainRecheck(env)));
     } else if (which === '0 6 * * 1') {
       // Sundays 06:00 UTC: Cloudflare counts day-of-week 1 as Sunday, and every
       // run since 2026-09-06 has landed on one. The AEO retrieval probe (0296). Weekly
@@ -1965,7 +2011,9 @@ function injectPublicTemplate(res, pub) {
 //
 // One shared OG card per section, not per page: 50-odd near-identical cards
 // would be churn in public/og/ for no meaningful difference in a link preview.
-function injectDocs(res, page) {
+//
+// The body comes from readDocsHtml: the page's own file in the assets.
+function injectDocs(res, page, html) {
   const canonical = `${SITE_ORIGIN}${page.path}`;
   const og = `${SITE_ORIGIN}/og/docs-${page.section}.png?v=${page.updated}`;
   const desc = page.metaDescription;
@@ -1981,7 +2029,7 @@ function injectDocs(res, page) {
     .on('meta[name="twitter:description"]', new SetContent(desc))
     .on('meta[name="twitter:image"]',       new SetContent(og))
     .on('link[rel="canonical"]',            new SetHref(canonical))
-    .on('main#seo-fallback',                new SetInnerHtml(DOCS_HTML[page.path] || ''))
+    .on('main#seo-fallback',                new SetInnerHtml(html))
     .on('head', new AppendHead(
       '<script type="application/ld+json">'
       + jsonLdSafe(buildDocsJsonLd(page, canonical)) + '</script>'
@@ -1991,6 +2039,24 @@ function injectDocs(res, page) {
       + `<link rel="alternate" type="text/markdown" href="${escapeHtml(page.path)}.md">`
     ))
     .transform(res);
+}
+
+// A docs page's crawlable body: the escaped HTML gen-docs writes to the page's
+// own file in the assets (lib/docsiteHtml.js), read here rather than bundled.
+// A page served without it keeps its meta and JSON-LD, but a crawler that runs
+// no script reads it as empty, so a miss is recorded.
+async function readDocsHtml(env, ctx, request, page) {
+  let error;
+  try {
+    const r = await env.ASSETS.fetch(new Request(new URL(docsHtmlAsset(page.path), request.url)));
+    const html = r.ok ? docsHtmlFrom(await r.text(), page.path) : null;
+    if (html != null) return html;
+    error = new Error(`no crawlable html for ${page.path} in the assets (${r.status})`);
+  } catch (e) {
+    error = e;
+  }
+  report(env, ctx, { kind: 'degraded', what: 'docs_html', error, request });
+  return '';
 }
 
 // TechArticle + BreadcrumbList (+ FAQPage where the page has one). TechArticle

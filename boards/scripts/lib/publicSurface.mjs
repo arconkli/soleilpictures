@@ -258,6 +258,28 @@ export function publicRoutes() {
   };
 }
 
+// ── Team routes ─────────────────────────────────────────────────────────────
+// The Team plan's own addresses are in the signed-in app, where the router
+// branches above never look: the setup at /team/new (TierRouter) and the team's
+// page at /team, with what Stripe and the Customer Portal add on the way back
+// (lib/teamReturn.js). The pricing page's Team card and docs/account/team send
+// people to them, so moving one is a docs change. Branches are captured
+// verbatim, as the router's are.
+export function teamRoutes() {
+  const tf = 'boards/src/auth/TierRouter.jsx';
+  const setup = [...read(tf).matchAll(/^\s*if \((path === '\/team.*?)\) return\b/gm)].map((m) => m[1]);
+  expect(setup, 1, 'TierRouter team branches', tf);
+  const rf = 'boards/src/lib/teamReturn.js';
+  const ret = read(rf);
+  const page = [...new Set([...ret.matchAll(/pathname !== '(\/team\/?)'/g)].map((m) => m[1].replace(/\/$/, '')))];
+  expect(page, 1, 'team page paths', rf);
+  const params = [...new Set([...ret.matchAll(/params\.get\('([a-z_]+)'\)/g)].map((m) => m[1]))];
+  expect(params, 2, 'team return params', rf);
+  const kinds = [...new Set([...ret.matchAll(/kind: '([a-z]+)'/g)].map((m) => m[1]))];
+  expect(kinds, 3, 'team return kinds', rf);
+  return { setup: setup.sort(), page: page.sort(), params: params.sort(), kinds: kinds.sort() };
+}
+
 // ── Token scopes ────────────────────────────────────────────────────────────
 // The DB check constraint is the real definition — the Worker's scope gate can
 // only ever enforce a subset of it, so this is the honest source.
@@ -301,8 +323,14 @@ export function oauthEndpoints() {
     return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : [];
   };
 
+  // The yes/no capabilities a client branches on: dropping metadata-document
+  // support would strand every Claude and ChatGPT connection mid-sign-in.
+  const flag = (key) => new RegExp(`${key}:\\s*true`).test(src);
+  const flags = ['client_id_metadata_document_supported', 'authorization_response_iss_parameter_supported'];
+
   const found = [
     ...[...paths].map((p) => `route ${p}`),
+    ...flags.filter(flag).map((k) => `flag ${k}`),
     ...capability('grant_types_supported').map((g) => `grant ${g}`),
     ...capability('code_challenge_methods_supported').map((c) => `pkce ${c}`),
     ...capability('token_endpoint_auth_methods_supported').map((a) => `client_auth ${a}`),
@@ -376,12 +404,27 @@ export function apiFacts() {
 
   // The rate limit moved in 0221: it is now per token, with this as the
   // fallback for a token that has none. Read from the migration that actually
-  // defines the current api_token_resolve — 0215's hard-coded `> 1000` is dead
-  // code that happens to carry the same number, so pointing at it would keep
-  // "passing" long after the two diverged.
-  const rateSql = read('supabase/migrations/0221_scale_limits.sql');
+  // defines the current api_token_resolve (0704) — 0215's hard-coded `> 1000`
+  // is dead code that happens to carry the same number, so pointing at it would
+  // keep "passing" long after the two diverged.
+  const rateSql = read('supabase/migrations/0704_ai_chats_connect_on_day_one.sql');
   const rate = rateSql.match(/coalesce\(t\.req_limit,\s*(\d+)\)/);
-  if (!rate) throw new Error('publicSurface: default rate limit not found in 0221_scale_limits.sql');
+  if (!rate) throw new Error('publicSurface: default rate limit not found in 0704_ai_chats_connect_on_day_one.sql');
+
+  // 0704: ChatGPT and Claude connect in an account's first hours, and an OAuth
+  // token answers fewer requests an hour until the account is past them. The
+  // hours are 0375's _account_is_new, written out again in api_token_resolve:
+  // two copies of one rule, held equal here.
+  const newOauth = rateSql.match(/c_new_account_oauth_limit constant integer := (\d+);/);
+  const newOauthHours = rateSql.match(/u\.created_at > now\(\) - interval '(\d+) hours'/);
+  const newAccountSql = read('supabase/migrations/0375_audit_new_accounts_and_inbox_budget.sql');
+  const newAccountHours = newAccountSql.match(/_account_is_new\(\)[\s\S]*?interval '(\d+) hours'/);
+  if (!newOauth || !newOauthHours || !newAccountHours) {
+    throw new Error('publicSurface: the new-account OAuth ceiling was not found in 0704_ai_chats_connect_on_day_one.sql');
+  }
+  if (newOauthHours[1] !== newAccountHours[1]) {
+    throw new Error(`publicSurface: api_token_resolve (0704) treats an account as new for ${newOauthHours[1]} hours but _account_is_new (0375) for ${newAccountHours[1]} — the docs state one number`);
+  }
 
   // Service-account numbers live in the migration that enforces them, same rule
   // as the rate limit above: the fact is read from the code that refuses, so a
@@ -401,9 +444,38 @@ export function apiFacts() {
   const tokens = mintSql.match(/revoked_at is null and oauth_client_id is null\) >= (\d+)/);
   if (!tokens) throw new Error('publicSurface: token cap not found in 0224_oauth_authorization_server.sql');
 
-  const oauthSql = read('supabase/migrations/0224_oauth_authorization_server.sql');
-  const connections = oauthSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
-  if (!connections) throw new Error('publicSurface: connection cap not found in 0224');
+  // oauth_refresh_rotate was last defined by 0701, so the refresh ceiling and
+  // the retry window are read from there, and oauth_authorize_consent by 0704,
+  // so the connection cap is read from that: the version that runs, same rule
+  // as the rate limit above.
+  const oauthSql = read('supabase/migrations/0701_oauth_metadata_clients_refresh_reuse.sql');
+  const oauthSqlPick = (re, what) => {
+    const m = oauthSql.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in 0701_oauth_metadata_clients_refresh_reuse.sql`);
+    return Number(m[1]);
+  };
+  const consentCap = rateSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
+  if (!consentCap) throw new Error('publicSurface: connection cap not found in 0704_ai_chats_connect_on_day_one.sql');
+  const connections = Number(consentCap[1]);
+
+  // New clients per address an hour: oauth_client_register (0224) counts the
+  // rows an address created, and a metadata document's first sight (0701)
+  // counts against the same number. Two copies of one rule, held equal here.
+  const registerSql = read('supabase/migrations/0224_oauth_authorization_server.sql');
+  const registrations = registerSql.match(/where created_ip = p_ip and created_at > now\(\) - interval '1 hour'\s*\) >= (\d+) then/);
+  if (!registrations) throw new Error('publicSurface: registration cap not found in 0224_oauth_authorization_server.sql');
+  const firstSights = oauthSqlPick(/c\.created_ip = p_ip and c\.created_at > now\(\) - interval '1 hour'\) >= (\d+) then/, 'first-sight cap');
+  if (firstSights !== Number(registrations[1])) {
+    throw new Error(`publicSurface: 0224 allows ${registrations[1]} registrations an hour but 0701 counts ${firstSights} — the docs state one number`);
+  }
+
+  // A metadata document's limits live beside the code that enforces them.
+  const clientsSrc = read('boards/src/lib/oauthClients.js');
+  const clientsPick = (re, what) => {
+    const m = clientsSrc.match(re);
+    if (!m) throw new Error(`publicSurface: ${what} not found in oauthClients.js`);
+    return Number(m[1]);
+  };
 
   const oauthSrc = read('boards/src/worker-oauth.js');
   const oauthPick = (re, what) => {
@@ -425,6 +497,7 @@ export function apiFacts() {
     defaultPage: Number(pick(/const DEFAULT_PAGE = (\d+)/, 'DEFAULT_PAGE')),
     maxUploadMb: Number(pick(/const MAX_UPLOAD_BYTES = (\d+) \* 1024 \* 1024/, 'MAX_UPLOAD_BYTES')),
     rateLimitPerHour: Number(rate[1]),
+    oauthNewAccountPerHour: Number(newOauth[1]),
     serviceRateLimitPerHour: svcPick(/coalesce\(p_req_limit,\s*(\d+)\)/, 'service token rate default'),
     maxServiceAccounts: svcPick(/at most (\d+) service accounts/, 'service account cap'),
     maxWebhooks: svcPick(/at most (\d+) active webhooks/, 'webhook cap'),
@@ -435,8 +508,14 @@ export function apiFacts() {
     oauthAccessTtlMinutes: oauthPick(/const ACCESS_TTL_SECONDS = (\d+)/, 'ACCESS_TTL_SECONDS') / 60,
     oauthRefreshDays: oauthPick(/const REFRESH_TTL_DAYS = (\d+)/, 'REFRESH_TTL_DAYS'),
     oauthCodeTtlSeconds: oauthPick(/const CODE_TTL_SECONDS = (\d+)/, 'CODE_TTL_SECONDS'),
-    oauthMaxRedirectUris: oauthPick(/const MAX_REDIRECT_URIS = (\d+)/, 'MAX_REDIRECT_URIS'),
-    maxConnectedApps: Number(connections[1]),
+    oauthMaxRedirectUris: clientsPick(/export const MAX_REDIRECT_URIS = (\d+)/, 'MAX_REDIRECT_URIS'),
+    oauthRefreshMaxDays: oauthSqlPick(/og\.created_at \+ interval '(\d+) days'/, 'refresh ceiling'),
+    oauthRefreshRetrySeconds: oauthSqlPick(/used_at < now\(\) - interval '(\d+) seconds'/, 'refresh retry window'),
+    oauthMetadataMaxKb: clientsPick(/export const METADATA_MAX_BYTES = (\d+) \* 1024/, 'METADATA_MAX_BYTES'),
+    oauthMetadataCacheMinMinutes: clientsPick(/export const METADATA_CACHE_MIN_SECONDS = (\d+)/, 'METADATA_CACHE_MIN_SECONDS') / 60,
+    oauthMetadataCacheMaxHours: clientsPick(/export const METADATA_CACHE_MAX_SECONDS = (\d+)/, 'METADATA_CACHE_MAX_SECONDS') / 3600,
+    maxConnectedApps: connections,
+    oauthRegistrationsPerHour: firstSights,
   };
 }
 
@@ -463,6 +542,7 @@ export function publicSurface() {
     powerRevealKeys: powerRevealKeys(),
     shortcutSections: shortcutSections(),
     publicRoutes: publicRoutes(),
+    teamRoutes: teamRoutes(),
   };
 }
 

@@ -1,8 +1,8 @@
 # Webhooks
 
-> Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
+> Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads, comments and tags change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 
-_Source: https://clusters.soleilpictures.com/docs/api/webhooks · Updated 2026-10-07_
+_Source: https://clusters.soleilpictures.com/docs/api/webhooks · Updated 2026-10-26_
 
 Register an HTTPS endpoint and we post to it when something changes.
 
@@ -59,19 +59,31 @@ fires — "subscribed and silent" is the hardest webhook failure to diagnose.
 | `card.updated` | Their text or contents change |
 | `card.deleted` | Cards are removed |
 | `card.moved` | Cards move to another board |
-| `image.created` | An upload completes |
+| `image.created` | An upload completes: a picture, video, audio file or document |
+| `comment.created` | A comment or a reply is posted on a board |
+| `comment.updated` | Its words change |
+| `comment.resolved` | A thread is resolved |
+| `comment.reopened` | A resolved thread is opened again |
+| `comment.deleted` | A comment is deleted (it can still be restored) |
+| `comment.restored` | A deleted comment is brought back |
+| `tag.applied` | A tag is put on cards, groups, boards or doc pages |
+| `tag.removed` | A tag is taken off them |
 
-**Card events are grouped.** A single operation on a board produces one event
-carrying a count, not one per card — so importing a thousand cards is one
-delivery, not a thousand. `data.card_ids` carries the first 25 as a courtesy;
-past that, read the board.
+**Card, upload and tag events are grouped.** A single operation on a board
+produces one event carrying a count, not one per card — so importing a thousand
+cards is one delivery, not a thousand. The ids come with it, the first
+25 as a courtesy; past that, read the board.
+
+Comments on the canvas fire comment events. The comments inside a doc or a
+note live in the doc itself, so they fire none: read them with
+[`GET /boards/:id/comments`](/docs/api/comments).
 
 ## The payload
 
 ```json
 {
   "type": "card.created",
-  "resource": { "type": "card", "id": "…" },
+  "resource": { "type": "card", "id": "9f1c…" },
   "workspace": { "id": "3b7e…" },
   "board": { "id": "9f1c…" },
   "data": { "count": 412, "card_ids": ["…", "…"] },
@@ -83,6 +95,28 @@ Deliberately thin. A payload is a copy of the truth, and a copy goes stale
 between being sent and being read — worse, it goes stale *silently*. You get
 enough to know what to look at; call back for current state, with
 [`?since=`](/docs/api/boards) if you want everything that moved.
+
+`resource.id` is the comment's id for a comment event and the tag's id for a
+tag event. A grouped card or upload event covers several things at once, so
+its `resource.id` is the board's.
+
+### What `data` holds
+
+| Events | `data` |
+|---|---|
+| `card.created`, `card.updated`, `card.deleted` | `count`, `card_ids` |
+| `card.moved` | `count`, `card_ids` (as they are now, on `board`), `from_board_id`, `from_card_ids` (the same cards' ids where they were, in the same order: a card whose id was taken on arrival gets a new one) |
+| `image.created` | `count`, `image_keys` (each one's key for [`GET /images/:key`](/docs/api/images)); `board` is null for an upload that isn't on a board |
+| `comment.*` | `id`, `thread_id`, `reply`, `on` (`card`, `group`, `point` or `board`, or `doc` with a `page_id` for a comment made on a doc before its comments moved into the doc), `card_id` or `group_id` where it is pinned, `author_id`, `resolved` |
+| `tag.applied`, `tag.removed` | `id` (the tag's), `auto` (true when automatic tagging put it on or took it off), `count`, `items`: each thing it is on, `{kind, id}` with `kind` one of `card`, `group`, `board` or `doc_page` (a doc page adds `page_id`) |
+
+A comment's words are not in its event. Read them through the API, under the
+permissions of the person whose token you use.
+
+A move between two workspaces fires `card.moved` in both, so the workspace the
+cards left hears of it too. Merging two tags reads as `tag.removed` for the tag
+merged away and `tag.applied` for the one it merged into. Confirming a tag that
+automatic tagging put on changes no tag, so it fires nothing.
 
 ## Verifying a delivery
 

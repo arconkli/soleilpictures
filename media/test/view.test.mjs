@@ -1,19 +1,50 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  EXT_LOADERS, sniffLoader, thumbnailArgs, uprightDims, vipsEnv, jp2kLevel, stripWebpMetadata,
+  EXT_LOADERS, SOURCE_LOADERS, decoderOf, sniffLoader, sniffRaw, sniffPsd, thumbnailArgs, uprightDims, vipsEnv,
+  jp2kLevel, stripWebpMetadata,
 } from '../src/viewArgs.js';
-import { viewKindOfKey } from '../../boards/src/lib/fileView.js';
+import { viewKindOfKey, RAW_EXTS, PSD_EXTS, DOC_EXTS } from '../../boards/src/lib/fileView.js';
 
 const bytes = (...xs) => new Uint8Array(xs);
 const ascii = (s) => new TextEncoder().encode(s);
 const ftyp = (brand) => new Uint8Array([0, 0, 0, 0x18, ...ascii('ftyp'), ...ascii(brand), 0, 0, 0, 0]);
 
 test('every format the app asks views of has a decoder here, and no other', () => {
-  const candidates = [...Object.keys(EXT_LOADERS), 'jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg', 'psd', 'pdf', 'mov'];
+  const candidates = [...Object.keys(EXT_LOADERS), ...RAW_EXTS, ...PSD_EXTS, ...DOC_EXTS,
+    'jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg', 'pdf', 'mov', 'txt', 'html', 'raw', 'constructor', 'toString'];
   for (const ext of candidates) {
-    assert.equal(viewKindOfKey(`0b6e2f0a-6c55-4b8e-9d0a-2a3f1c9e7b11/a.${ext}`) === 'image', ext in EXT_LOADERS, ext);
+    const kind = viewKindOfKey(`0b6e2f0a-6c55-4b8e-9d0a-2a3f1c9e7b11/a.${ext}`);
+    const decoder = decoderOf(ext);
+    assert.equal(kind !== null, decoder !== null, ext);
+    if (kind) assert.equal(kind === 'doc', decoder === 'doc', `${ext}: a document is LibreOffice's, a photo never`);
   }
+  assert.equal(decoderOf('HEIC'), 'vips');
+  assert.equal(decoderOf('ARW'), 'raw');
+  assert.equal(decoderOf('psb'), 'psd');
+  assert.equal(decoderOf('PPTX'), 'doc');
+});
+
+test('a raw is known by its first bytes: TIFF-shaped, the makers\' own, never anything else', () => {
+  assert.equal(sniffRaw(bytes(0x49, 0x49, 0x2a, 0x00, 8, 0, 0, 0)), true, 'Sony, Nikon, a DNG');
+  assert.equal(sniffRaw(bytes(0x4d, 0x4d, 0x00, 0x2a)), true);
+  for (const s of ['IIRO', 'IIRS', 'MMOR', 'FUJIFILMCCD-RAW 0201', 'FOVb']) assert.equal(sniffRaw(ascii(s)), true, s);
+  assert.equal(sniffRaw(bytes(0x49, 0x49, 0x55, 0x00)), true, 'Panasonic');
+  assert.equal(sniffRaw(ftyp('crx ')), true, 'Canon .cr3');
+  assert.equal(sniffRaw(new Uint8Array([0x49, 0x49, 0x1a, 0, 0, 0, ...ascii('HEAPCCDR')])), true, 'Canon .crw');
+  assert.equal(sniffRaw(bytes(0, 0x4d, 0x52, 0x4d)), true, 'Minolta');
+  for (const b of [ftyp('heic'), ascii('%PDF-1.7'), ascii('8BPS'), bytes(0xff, 0xd8, 0xff), ascii('<svg'), bytes(0x49, 0x49)]) {
+    assert.equal(sniffRaw(b), false);
+  }
+  assert.equal(sniffRaw(null), false);
+});
+
+test('a Photoshop document is 8BPS, version 1 or 2', () => {
+  assert.equal(sniffPsd(new Uint8Array([...ascii('8BPS'), 0, 1])), true);
+  assert.equal(sniffPsd(new Uint8Array([...ascii('8BPS'), 0, 2])), true, 'a .psb');
+  assert.equal(sniffPsd(new Uint8Array([...ascii('8BPS'), 0, 3])), false);
+  assert.equal(sniffPsd(ascii('8BPX\0\x01')), false);
+  assert.equal(sniffPsd(null), false);
 });
 
 test('a file\'s first bytes pick its decoder', () => {
@@ -31,7 +62,10 @@ test('a file\'s first bytes pick its decoder', () => {
 test('anything else never reaches vips', () => {
   assert.equal(sniffLoader(ftyp('avif')), null, 'every browser draws AVIF');
   assert.equal(sniffLoader(ftyp('qt  ')), null, 'a QuickTime movie');
-  assert.equal(sniffLoader(bytes(0xff, 0xd8, 0xff, 0xe0)), null, 'a JPEG');
+  assert.equal(sniffLoader(bytes(0xff, 0xd8, 0xff, 0xe0)), 'jpegload', 'a JPEG is told apart…');
+  assert.equal(SOURCE_LOADERS.includes('jpegload'), false, '…but only ever read when a raw gave it up');
+  assert.deepEqual([...SOURCE_LOADERS].sort(), [...new Set(Object.values(EXT_LOADERS))].sort(),
+    'a downloaded file is read only as a format the app asks views of');
   assert.equal(sniffLoader(bytes(0x89, 0x50, 0x4e, 0x47)), null, 'a PNG');
   assert.equal(sniffLoader(ascii('%PDF-1.7')), null);
   assert.equal(sniffLoader(ascii('<svg xmlns')), null);

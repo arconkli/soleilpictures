@@ -3,7 +3,7 @@
 // Authorization header of calls to OUR Worker and nowhere else: not to ffmpeg,
 // not into a URL, not into a log.
 
-import { open } from 'node:fs/promises';
+import { openOwn } from './ffmpeg.js';
 
 const BASE = String(process.env.MEDIA_API_BASE || '').replace(/\/+$/, '');
 const SECRET = process.env.MEDIA_BOX_SECRET || '';
@@ -82,16 +82,20 @@ async function readRange(fh, start, len) {
   return buf.subarray(0, got);
 }
 
-// Uploads a file as `out` ('copy' | 'poster'). Small files in one request,
-// big ones in 64 MiB parts so one dropped connection costs a part, not an hour.
-export async function uploadFile(key, out, path, size, contentType) {
-  const fh = await open(path, 'r');
+// Uploads a file as `out` ('copy' | 'poster' | 'view' | 'view_sm' | 'pdf').
+// Small files in one request, big ones in 64 MiB parts so one dropped
+// connection costs a part, not an hour. The file is opened as the file it is
+// (openOwn: never through a link a decoder left in its place). Resolves with
+// the number of bytes sent.
+export async function uploadFile(key, out, path, contentType) {
+  const { fh, size } = await openOwn(path);
   try {
     if (size <= PUT_MAX_BYTES) {
       const body = await readRange(fh, 0, size);
-      return await withRetry(async () => okJson(await call(`upload?${q({ key, out, step: 'put' })}`, {
+      await withRetry(async () => okJson(await call(`upload?${q({ key, out, step: 'put' })}`, {
         body, headers: { 'content-type': contentType }, timeoutMs: 10 * 60_000,
       }), 'upload'));
+      return size;
     }
     const { uploadId } = await okJson(await call(`upload?${q({ key, out, step: 'create' })}`), 'upload create');
     const parts = [];
@@ -102,9 +106,10 @@ export async function uploadFile(key, out, path, size, contentType) {
       }), 'upload part'));
       parts.push({ partNumber: part.partNumber, etag: part.etag });
     }
-    return await okJson(await call(`upload?${q({ key, out, step: 'complete', uploadId })}`, {
+    await okJson(await call(`upload?${q({ key, out, step: 'complete', uploadId })}`, {
       json: { parts }, timeoutMs: 120_000,
     }), 'upload complete');
+    return size;
   } finally {
     await fh.close();
   }

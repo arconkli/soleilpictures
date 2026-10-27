@@ -74,6 +74,16 @@ test('the editor limit stops the run, says whether to ask the owner, and hands b
   });
 });
 
+test('a team whose seats are full stops the run the same way, and says it was the team (0531)', async () => {
+  const why = 'team seats full: ask an admin of the team for another seat';
+  const r = await runInvites(['a@x.co', 'b@x.co'], async () => {
+    const err = new Error(why);
+    err.hint = 'team_seats_ask_admin';
+    throw err;
+  });
+  assert.deepEqual(r.limit, { kind: 'editors', ask: true, team: true, reason: why, unsent: ['a@x.co', 'b@x.co'] });
+});
+
 test('by role: the editor limit stops the editors, and the viewers still go out', async () => {
   const sent = [];
   const why = 'editor limit reached: you have 10 people who can edit across your workspaces, the most a personal plan allows';

@@ -31,6 +31,17 @@ test('the original only when there is nothing smaller', () => {
   assert.equal(pickVariantKey(null, META), null);
 });
 
+test('a raw or a .psd with no picture yet gives nothing to fetch, never its original', () => {
+  for (const key of ['ws/b/DSC00412.ARW', 'ws/b/comp.psd', 'ws/b/plate.exr']) {
+    assert.equal(pickVariantKey(key, null, 300), null, `${key}, meta not read`);
+    assert.equal(pickVariantKey(key, { previewKey: null, previewSmKey: null }, 300), null, `${key}, no preview`);
+    assert.equal(pickVariantKey(key, META, 300), META.previewSmKey, `${key}, its picture`);
+    assert.equal(pickVariantSrc(`r2:${key}`, () => null, 300), null);
+  }
+  // Safari draws a HEIC or a TIFF: its original is still a tier there.
+  assert.equal(pickVariantKey('ws/b/a.heic', null, 300), 'ws/b/a.heic');
+});
+
 test('pickVariantSrc keeps the r2: sentinel and leaves other srcs alone', () => {
   const get = (k) => (k === 'ws/b/a.jpg' ? META : null);
   assert.equal(pickVariantSrc('r2:ws/b/a.jpg', get, 200), `r2:${META.previewSmKey}`);

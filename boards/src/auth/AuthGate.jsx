@@ -32,11 +32,12 @@ import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCol
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
 import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
 import { WSJOIN_PARAM, parseWsJoinParam, stashWsJoin, readWsJoin, clearWsJoin, markJoined } from '../lib/workspaceLink.js';
-import { onPreviewHost, workspaceSetupAllowed } from '../lib/appHost.js';
+import { onPreviewHost, workspaceSetupAllowed, teamsAllowed } from '../lib/appHost.js';
 import { readSetupOverride, setupMayOpenFirst } from '../lib/setupRule.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
+import { readTeamStart, clearTeamStart, teamStartHref } from '../lib/teamStart.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail, emailProblem } from '../lib/emailTypo.js';
 import { savePendingCode, readPendingCode, clearPendingCode, resendWait } from '../lib/pendingCode.js';
@@ -233,6 +234,18 @@ function consumeFileReturn() {
   return true;
 }
 
+// "Start a Team trial" on the signed-out /pricing (lib/teamStart.js): once a
+// session exists, open the team setup with the seats and billing the card
+// showed. Returns true when it navigated — the caller must not render the app.
+function consumeTeamStart() {
+  const start = readTeamStart();
+  if (!start) return false;
+  clearTeamStart();
+  if (!teamsAllowed()) return false;
+  window.location.replace(teamStartHref(start));
+  return true;
+}
+
 // Capture ?remix=<t_token|s_slug> on landing (from the /share or /c "Make a
 // copy" CTA) and stash the source so the authenticated app can clone it into a
 // fresh board after sign-in. Strips the param. Runs whether or not the user is
@@ -319,6 +332,17 @@ function captureWsJoinToken() {
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
+// The Team plan's links (?teamjoin=, ?teaminvite=) live in a lazy module,
+// components/TeamJoinCard.jsx, which stashes them like ?wsjoin=, claims them
+// and draws their card and sign-in note. The entry carries only these checks.
+// TEAM_LINK_KEY is lib/teamLinks.js's stash key (teamLinks.test.mjs pins it).
+const TEAM_LINK_KEY = 'soleil.boards.pending.teamlink';
+const TEAM_LINK_IN_URL = /[?&]team(join|invite)=/;
+const teamLinkModule = () => import('../components/TeamJoinCard.jsx');
+function teamLinkStashed() {
+  try { return !!localStorage.getItem(TEAM_LINK_KEY); } catch (_) { return false; }
+}
+
 // Set just before the sign-in form verifies a code, so the session it makes is
 // known to come from someone who read "Join {workspace}" above the form and
 // signed in to do it. A session that was already there never claims on its
@@ -353,6 +377,14 @@ async function consumePendingWsJoin(userId) {
   } finally {
     clearWsJoin();
   }
+}
+
+// Claim a stashed team link for a session the sign-in form just made. An email
+// invite waits for App (lib/teamBoot.js). Never throws; a team link's stash
+// clears on any outcome.
+async function consumePendingTeamLink(userId) {
+  if (!userId || !signingInByForm || !teamsAllowed() || !teamLinkStashed()) return;
+  try { await (await teamLinkModule()).claimStashedTeamLink(); } catch (_) {}
 }
 
 // Attach a freshly-made account to the Scout waitlist row for the number they
@@ -570,6 +602,8 @@ function startPersonalPrefetch(user) {
 
 // Only someone already signed in who opens a workspace invite link sees it.
 const WorkspaceJoinCard = lazy(() => import('../components/WorkspaceJoinCard.jsx'));
+// The same for a team's link, and its note on the sign-in form (`note`).
+const TeamLink = lazy(teamLinkModule);
 
 // `warmApp` runs the app that renders once there is a session (main.jsx passes
 // AppShell's warm), so the sign-in form can start it while a code is typed.
@@ -585,6 +619,7 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
   // A workspace invite link opened by someone already signed in: asked, never
   // claimed on the visit alone.
   const [wsJoinAsk, setWsJoinAsk] = useState(null);
+  const [teamJoinAsk, setTeamJoinAsk] = useState(false);
 
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
@@ -601,6 +636,11 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
     const refreshDue = storedSessionNeedsRefresh();
     (async () => {
       try {
+        // A team link in the address is stashed (by its lazy module) before
+        // anything else reads the URL.
+        if (teamsAllowed() && TEAM_LINK_IN_URL.test(window.location.search)) {
+          try { (await teamLinkModule()).captureTeamLink(); } catch (_) {}
+        }
         const callbackSession = await consumeAuthCallback();
         const { data } = callbackSession
           ? { data: { session: callbackSession } }
@@ -616,14 +656,17 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
           await consumePendingInvite(data.session.user.id);
           await consumePendingJoin(data.session.user.id);
           await consumePendingWsJoin(data.session.user.id);
+          await consumePendingTeamLink(data.session.user.id);
           await consumeScoutClaim(data.session.user.id);
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
+          if (consumeTeamStart()) return;
           // Already signed in when the link was opened: ask first.
           if (!signingInByForm && workspaceSetupAllowed()) {
             const ws = readWsJoin();
             if (ws && !cancelled) setWsJoinAsk(ws);
           }
+          if (!signingInByForm && teamsAllowed() && teamLinkStashed() && !cancelled) setTeamJoinAsk(true);
         }
         // The reads the app opens with start now, while it downloads, and
         // after the claims above: they rewrite the keys that say which
@@ -671,9 +714,11 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
           await consumePendingInvite(sess.user.id);
           await consumePendingJoin(sess.user.id);
           await consumePendingWsJoin(sess.user.id);
+          await consumePendingTeamLink(sess.user.id);
           await consumeScoutClaim(sess.user.id);
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
+          if (consumeTeamStart()) return;
         }
         if (sess?.user?.id && !cancelled) {
           startBootPrefetch(sess.user.id);
@@ -736,6 +781,11 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
         <Suspense fallback={null}>
           <WorkspaceJoinCard token={wsJoinAsk} userId={session.user.id}
             onClose={() => { clearWsJoin(); setWsJoinAsk(null); }} />
+        </Suspense>
+      )}
+      {teamJoinAsk && (
+        <Suspense fallback={null}>
+          <TeamLink onClose={() => setTeamJoinAsk(false)} />
         </Suspense>
       )}
     </AuthContext.Provider>
@@ -807,9 +857,13 @@ function SignIn({ warmApp = null }) {
   const [joinHint, setJoinHint] = useState(null);
   // ?wsjoin= names the workspace and who sent it (peek_workspace_invite_link).
   const [wsJoinHint, setWsJoinHint] = useState(null);
+  // A stashed ?teamjoin= / ?teaminvite=, noted by the lazy TeamLink.
+  const [teamLink] = useState(() => teamsAllowed() && teamLinkStashed());
   // Non-null when "Get Creator" on /pricing sent them here (creatorIntent.js).
   // Read once: an expired entry is removed on read and simply shows nothing.
   const [creatorHint] = useState(() => { try { return readCreatorIntent(); } catch (_) { return null; } });
+  // Non-null when "Start a Team trial" on /pricing sent them here (teamStart.js).
+  const [teamStartHint] = useState(() => { try { return teamsAllowed() ? readTeamStart() : null; } catch (_) { return null; } });
   const codeRef = useRef(null);
   const captchaRef = useRef(null);   // where Turnstile shows a check, if it ever needs one
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
@@ -1154,15 +1208,26 @@ function SignIn({ warmApp = null }) {
         </div>
       ))}
 
+      {!inviteHint && !joinHint && !wsJoinHint && teamLink && (
+        <Suspense fallback={null}>
+          <TeamLink note />
+        </Suspense>
+      )}
+
       {/* "Get Creator" on /pricing sends a signed-out visitor here. Without a
           line saying so, the sign-in screen looked like the free signup they
           had just declined, and nothing said the offer was still coming. The
           labels were written in by /pricing (creatorIntent.js). */}
-      {!inviteHint && !joinHint && !wsJoinHint && creatorHint && (
+      {!inviteHint && !joinHint && !wsJoinHint && !teamLink && creatorHint && (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
           Sign in to finish getting <b>{creatorHint.planName || 'the paid plan'}</b>
           {creatorHint.priceLabel ? <> at <b>{creatorHint.priceLabel}</b></> : null}
           {' '}— the offer opens as soon as you are in.
+        </div>
+      )}
+      {!inviteHint && !joinHint && !wsJoinHint && !teamLink && !creatorHint && teamStartHint && (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          Sign in to start your <b>Team</b> trial — the setup opens as soon as you are in.
         </div>
       )}
 

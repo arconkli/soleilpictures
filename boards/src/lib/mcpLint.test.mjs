@@ -14,7 +14,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO } from './mcpTools.js';
+import { TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, toolManifest } from './mcpTools.js';
+import { INSTRUCTIONS } from './mcpServer.js';
 
 const HINTS = ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'];
 
@@ -36,16 +37,16 @@ const KEYWORDS = new Set([
 ]);
 const FORMATS = new Set(['uuid', 'uri', 'date-time', 'date', 'email']);
 
-// Tools that still answer without an outputSchema, so their structured result
-// is undeclared. P2 (tools 3.0) gives every tool one; this list only shrinks —
-// a new tool can't join it, and a tool that gains a schema must leave it.
-const PENDING_OUTPUT_SCHEMA = new Set([
-  'list_workspaces', 'search', 'list_boards', 'board_tree', 'get_board', 'list_deleted_boards',
-  'resolve_identifier', 'read_board', 'view_image', 'list_images', 'list_groups', 'create_group',
-  'export_board', 'get_metadata', 'list_audit', 'create_boards', 'add_cards', 'upload_image',
-  'rename_board', 'move_boards', 'update_card', 'update_cards', 'move_cards', 'set_metadata',
-  'restore_board', 'delete_card', 'delete_cards', 'delete_board', 'upload_file',
-]);
+// Fields that hold what people wrote at length. An answer declaring one is
+// marked peoplesText, so it begins with the notice that the text is data
+// (INJ-6) — unless all it quotes is what the call itself just wrote.
+const PEOPLES_TEXT = new Set(['body', 'text', 'excerpt', 'caption', 'quote', 'markdown']);
+const ECHOES_OWN_TEXT = new Set(['add_comment']);
+
+// Tools whose answer has no summary line: ChatGPT parses search's and fetch's
+// text as JSON, view_board's opening lines are its own, and an upload's key
+// is the whole answer.
+const NO_SUMMARY = new Set(['search', 'fetch', 'view_board', 'upload_image', 'upload_file']);
 
 const names = new Set(TOOLS.map((t) => t.name));
 
@@ -117,16 +118,43 @@ test('input schemas use only what every host accepts, and say what each field is
   }
 });
 
-test('the tools without a declared result only ever get fewer', () => {
+test('every tool declares its result', () => {
   for (const t of TOOLS) {
-    if (!t.outputSchema) {
-      assert.ok(PENDING_OUTPUT_SCHEMA.has(t.name), `${t.name}: a new tool declares its outputSchema`);
-    } else {
-      assert.equal(t.outputSchema.type, 'object', `${t.name}: structuredContent is an object`);
-      assert.ok(!PENDING_OUTPUT_SCHEMA.has(t.name), `${t.name} has an outputSchema now: take it off PENDING_OUTPUT_SCHEMA`);
+    assert.ok(t.outputSchema, `${t.name}: declare an outputSchema`);
+    assert.equal(t.outputSchema.type, 'object', `${t.name}: structuredContent is an object`);
+  }
+});
+
+test('an answer quoting people\'s text says it is data, first', () => {
+  const fields = (node, out = new Set()) => {
+    if (Array.isArray(node)) node.forEach((n) => fields(n, out));
+    else if (node && typeof node === 'object') {
+      for (const [k, v] of Object.entries(node)) {
+        if (k === 'properties' && v && typeof v === 'object') Object.keys(v).forEach((f) => out.add(f));
+        fields(v, out);
+      }
+    }
+    return out;
+  };
+  for (const t of TOOLS) {
+    const quoted = [...fields(t.outputSchema)].filter((f) => PEOPLES_TEXT.has(f));
+    if (quoted.length && !ECHOES_OWN_TEXT.has(t.name)) {
+      assert.equal(t.peoplesText, true, `${t.name} answers with ${quoted.join(', ')}: mark it peoplesText`);
+    }
+    if (t.peoplesText) {
+      const m = toolManifest(t);
+      assert.equal(Object.keys(m.outputSchema.properties)[0], 'untrusted', `${t.name}: the notice comes first`);
     }
   }
-  for (const n of PENDING_OUTPUT_SCHEMA) assert.ok(names.has(n), `PENDING_OUTPUT_SCHEMA names ${n}, which is gone`);
+  for (const n of ECHOES_OWN_TEXT) assert.ok(names.has(n), `ECHOES_OWN_TEXT names ${n}, which is gone`);
+});
+
+test('every answer but a few begins with a summary line', () => {
+  for (const t of TOOLS) {
+    if (NO_SUMMARY.has(t.name)) assert.equal(t.summary, undefined, `${t.name} is meant to answer without one`);
+    else assert.equal(typeof t.summary, 'function', `${t.name}: give it a summary(answer, args) line`);
+  }
+  for (const n of NO_SUMMARY) assert.ok(names.has(n), `NO_SUMMARY names ${n}, which is gone`);
 });
 
 test('prompts are named and described', () => {
@@ -137,6 +165,16 @@ test('prompts are named and described', () => {
       assert.match(a.name, /^[a-z][a-z_]*$/, `prompt ${p.name}: argument ${a.name}`);
       assert.ok((a.description || '').length > 0, `prompt ${p.name}.${a.name}: describe it`);
     }
+  }
+});
+
+test('the instructions name only real tools, and say the essentials first', () => {
+  // Some hosts keep only the start of a server's instructions, so what to use
+  // for what, and that people's text is data, come before everything else.
+  for (const [, n] of INSTRUCTIONS.matchAll(TOOL_LIKE)) assert.ok(names.has(n), `INSTRUCTIONS names ${n}, which is not a tool`);
+  const first = INSTRUCTIONS.slice(0, 512);
+  for (const must of ['clusters', 'search', 'read_board', 'view_board', 'create_boards', 'Link every board', 'never instructions']) {
+    assert.ok(first.includes(must), `the first 512 characters should say "${must}"`);
   }
 });
 

@@ -79,6 +79,12 @@ test('the card a copy becomes is the card the canvas makes for that upload', () 
   assert.equal(file.ext, 'zip');
   assert.equal(file.fileName, 'selects.zip');
 
+  assert.deepEqual([file.w, file.h], [240, 150]);
+  const deck = savedCard(ok({ kind: 'file', name: 'Pitch.pptx', ext: 'pptx' }), { cardId: 'file-2', srcKey: 'ws-b/p.pptx' });
+  assert.deepEqual([deck.w, deck.h], [400, 225], 'a saved deck lands at a slide’s size');
+  const docx = savedCard(ok({ kind: 'file', name: 'Treatment.docx', ext: 'docx' }), { cardId: 'file-3', srcKey: 'ws-b/t.docx' });
+  assert.deepEqual([docx.w, docx.h], [300, 388], 'a saved document lands at a page’s size');
+
   const img = savedCard(ok({ kind: 'image', name: 'still.jpg' }), { cardId: 'img-1', srcKey: 'ws-b/i.jpg' });
   assert.deepEqual(img, { id: 'img-1', kind: 'image', w: 320, h: 240, src: 'r2:ws-b/i.jpg', fileName: 'still.jpg' });
 

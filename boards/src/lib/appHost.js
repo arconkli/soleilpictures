@@ -150,32 +150,37 @@ export function touchPassAllowed() {
 //
 // Free and Creator can have at most 10 people who can edit (owner,
 // 2026-10-20); a group that needs more buys a Team. The real switch is the
-// server's, app_config.editor_limit (0520): off until launch, with a list of
-// test accounts. This hold keeps the app's side of it closed until the Team
-// plan launches with it: the share panel's count, "Ask the owner", the
-// joined-as-viewer toast, and "Join as an editor" no longer saying "free".
-// Open on preview, where the owner tries it on their own account (listed in
-// test_owner_ids; for anyone else the server says it's off and nothing new
-// shows but the dropped "free"), closed on production until the Team plan
-// launches with it, opt-in on dev with localStorage soleil.dev.editorLimit = '1'.
+// server's, app_config.editor_limit (0520), which 0543 turned on for everyone.
+// The app's side of it (the share panel's count, "Ask the owner", the
+// joined-as-viewer toast, and "Join as an editor" no longer saying "free") was
+// held to the preview and a dev opt-in until the Team plan launched with it and
+// the docs that describe it (docs/collaborate, docs/account/team), so it is on
+// everywhere. EDITOR_LIMIT_DEV_FLAG is no longer read; it stays exported for
+// the specs that still set it, which is harmless.
 export const EDITOR_LIMIT_DEV_FLAG = 'soleil.dev.editorLimit';
 export function editorLimitAllowed() {
-  if (onPreviewHost()) return true;
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(EDITOR_LIMIT_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
 // The Team plan
 //
-// Teams, seats and team workspaces (0522, 0530-0535). Closed everywhere until
-// the plan launches with its page and docs; the server's own switch
-// (app_config.teams_open) refuses creating a team before then. Opt-in on dev
-// with localStorage soleil.dev.teams = '1'.
-export const TEAMS_DEV_FLAG = 'soleil.dev.teams';
+// Teams, seats and team workspaces (0522, 0530-0535). Held to the preview host
+// and dev until the plan launched with its docs (docs/account/team), so it is
+// on everywhere. The server's own switch (app_config.teams_open, which 0543
+// opened) says whether a team can be made.
 export function teamsAllowed() {
-  if (!import.meta.env.DEV) return false;
-  try { return window.localStorage.getItem(TEAMS_DEV_FLAG) === '1'; } catch (_) { return false; }
+  return true;
+}
+
+// The Team card on both pricing pages, signed in and signed out. It followed
+// teamsAllowed() and was opt-in on dev until the plan launched; it is on
+// everywhere now, as /pricing's crawlable body (pricingCrawlable.js) and the
+// docs say. TEAM_PRICING_DEV_FLAG is no longer read; it stays exported for the
+// specs that still set it, which is harmless.
+export const TEAM_PRICING_DEV_FLAG = 'soleil.dev.teamPricing';
+export function teamPricingAllowed() {
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +308,7 @@ export function featureFlags() {
     touchPass: touchPassAllowed,
     editorLimit: editorLimitAllowed,
     teams: teamsAllowed,
+    teamPricing: teamPricingAllowed,
     fileShares: fileSharesAllowed,
     sharedFiles: sharedFilesAllowed,
     docShares: docSharesAllowed,

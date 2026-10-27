@@ -2,11 +2,10 @@
 // playPlan (boards/src/lib/playCopy.js, shared with the Worker); this file
 // only runs it.
 
-import { mkdtemp, rm, chown, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { playPlan, probeDuration } from '../../boards/src/lib/playCopy.js';
-import { run, isRoot, isStopping, MEDIA_UID, MEDIA_GID } from './ffmpeg.js';
+import { run, isStopping, makeJobDir, killStrays } from './ffmpeg.js';
 import { probeArgs, copyArgs, posterArgs, posterDims, displayDims, trimProbe, scrubError } from './args.js';
 import * as api from './api.js';
 
@@ -37,7 +36,7 @@ function result(probe, durationSec, extra = {}) {
 // Returns nothing; the caller only needs to know it is done.
 export async function processJob(job, { zscale }) {
   const key = job.key;
-  let dir = null;
+  let dirs = null;
   let probe = null;
   let durationSec = null;
   const beat = setInterval(() => {
@@ -59,11 +58,10 @@ export async function processJob(job, { zscale }) {
       return;
     }
 
-    dir = await mkdtemp(join(tmpdir(), 'media-'));
-    // ffmpeg runs as an unprivileged user and must be able to write here.
-    if (isRoot()) await chown(dir, MEDIA_UID, MEDIA_GID);
+    // ffmpeg runs as an unprivileged user and writes in the work folder.
+    dirs = await makeJobDir('media-');
     const audioJob = job.kind === 'audio';
-    const copyPath = join(dir, audioJob ? 'copy.m4a' : 'copy.mp4');
+    const copyPath = join(dirs.work, audioJob ? 'copy.m4a' : 'copy.mp4');
 
     await run('ffmpeg', copyArgs({ plan, probe, kind: job.kind, input, output: copyPath, zscale }), {
       timeoutMs: encodeTimeoutMs(durationSec),
@@ -72,14 +70,13 @@ export async function processJob(job, { zscale }) {
     // The copy's real size, read back from the file we are about to ship.
     const outProbe = await probeOf(copyPath);
     const outDims = displayDims(outProbe) || { w: 0, h: 0 };
-    const copyBytes = (await stat(copyPath)).size;
 
     // A poster failing costs a card its picture, not its playback.
     let poster = null;
     const srcDims = displayDims(probe);
     let posterPath = null;
     if (!audioJob && srcDims) {
-      posterPath = join(dir, 'poster.webp');
+      posterPath = join(dirs.work, 'poster.webp');
       const at = durationSec > 0 ? Math.min(durationSec * 0.12, Math.max(0, durationSec - 0.1)) : 0;
       try {
         await run('ffmpeg', posterArgs({ input, output: posterPath, at, hdr: plan.hdr, zscale }), {
@@ -92,10 +89,10 @@ export async function processJob(job, { zscale }) {
       }
     }
 
-    await api.uploadFile(key, 'copy', copyPath, copyBytes, audioJob ? 'audio/mp4' : 'video/mp4');
+    const copyBytes = await api.uploadFile(key, 'copy', copyPath, audioJob ? 'audio/mp4' : 'video/mp4');
     if (poster && posterPath) {
       try {
-        await api.uploadFile(key, 'poster', posterPath, (await stat(posterPath)).size, 'image/webp');
+        await api.uploadFile(key, 'poster', posterPath, 'image/webp');
       } catch (e) {
         console.warn(`[media] poster upload failed for ${key}: ${scrubError(e?.message)}`);
         poster = null;
@@ -118,6 +115,9 @@ export async function processJob(job, { zscale }) {
     }
   } finally {
     clearInterval(beat);
-    if (dir) await rm(dir, { recursive: true, force: true }).catch(() => {});
+    // Nothing of the unprivileged user's may still be running while the
+    // folder goes.
+    await killStrays().catch(() => {});
+    if (dirs) await rm(dirs.dir, { recursive: true, force: true }).catch(() => {});
   }
 }

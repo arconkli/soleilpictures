@@ -35,6 +35,10 @@ test('the Audit tab is in More', () => {
   assert.ok(OVERFLOW.includes('audit'));
 });
 
+test('Talk to us is in More', () => {
+  assert.ok(OVERFLOW.includes('talk'));
+});
+
 test('Waitlist and Campaign are in More: the waitlist is switched off', () => {
   for (const id of ['waitlist', 'campaign']) {
     assert.ok(OVERFLOW.includes(id), `${id} is in More`);

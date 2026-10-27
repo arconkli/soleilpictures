@@ -20,8 +20,9 @@
 // The doc-* fixtures open a shared doc (DocShareView) on an in-memory room
 // (fakeDocRoom): the doc as the room would send it, a hello, caught up.
 // window.__fileShareQa.docRooms holds each room, so a spec can refuse a
-// write (refuse(reason)), close it (end(code)) or put a new card in the doc's
-// place (restore(lines)). In an edit room every write
+// write (refuse(reason)), close it (end(code)), put a new card in the doc's
+// place (restore(lines)) or bring in a thread one of its members wrote
+// (thread({ body, author, authorId }) → its id). In an edit room every write
 // this tab makes is judged by the real room's rule (validateGuestUpdate) on a
 // copy of the doc written by another client, as its members' would be; what
 // it refuses lands in window.__fileShareQa.refusals.
@@ -31,7 +32,7 @@
 import { useMemo, useState } from 'react';
 import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
-import { addPage, cardScope, initCardDocStore } from '../lib/docState.js';
+import { addCommentThread, addPage, cardScope, initCardDocStore } from '../lib/docState.js';
 import { validateGuestUpdate } from '../lib/docRoomBridge.js';
 import { ShortcutCard } from '../components/cards/ShortcutCard.jsx';
 import { SharedFileHost } from '../components/fileShare/SharedFileHost.jsx';
@@ -255,6 +256,8 @@ export const FIXTURES = {
   'doc-view': { share: okDoc(), comments: [] },
   'doc-edit': { share: okDoc({ access: 'edit', can_edit: true }), comments: [] },
   'doc-signed-out': { share: okDoc({ signed_in: false, edit_needs_sign_in: true }), comments: [] },
+  // The same doc to edit, opened over the app (the Shared page, the bell).
+  'doc-overlay': { mode: 'overlay', share: okDoc({ access: 'edit', can_edit: true }), comments: [] },
   'doc-manage': {
     share: okDoc({ access: 'manage', can_edit: true, allow_download: true, board_id: 'qa-board', card_id: DOC_CARD }),
     comments: [],
@@ -306,6 +309,7 @@ function fakeDocRoom(fx, log) {
     awareness.setLocalState({});
     // The doc as its members wrote it: another client's.
     const board = new Y.Doc();
+    let pageId = null;
     const writeCard = () => board.transact(() => {
       const card = new Y.Map();
       board.getMap('cards').set(DOC_CARD, card);
@@ -316,7 +320,7 @@ function fakeDocRoom(fx, log) {
       // The view room holds no comment threads.
       if (!share.can_edit) card.delete('docComments');
       const scope = cardScope(card);
-      const pageId = addPage(board, { name: 'Act one', scope });
+      pageId = addPage(board, { name: 'Act one', scope });
       const block = (text, type = 'paragraph', attrs = {}) => {
         const el = new Y.XmlElement(type);
         for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
@@ -357,7 +361,26 @@ function fakeDocRoom(fx, log) {
       Y.applyUpdate(roomDoc, u, 'room');
       Y.applyUpdate(ydoc, u, 'room');
     };
-    const handle = { room, refuse: (reason) => onRefused(reason), end: (code) => onEnd({ action: 'reask', code }), restore };
+    // A thread one of the doc's members wrote, arriving from the room, on
+    // the words `on` in the page (the comment mark, as the editor writes it).
+    const thread = ({ body = 'Is it dawn already?', author = 'Rae Okafor', authorId = 'rae-okafor-0000', on = 'before dawn' } = {}) => {
+      const scope = cardScope(board.getMap('cards').get(DOC_CARD));
+      const id = addCommentThread(board, { pageId, body, author, authorId, authorColor: '#d9822b', scope });
+      board.transact(() => {
+        for (const el of scope.content.get(pageId).toArray()) {
+          const text = el.get?.(0);
+          const words = text instanceof Y.XmlText
+            ? text.toDelta().map((d) => (typeof d.insert === 'string' ? d.insert : '')).join('') : '';
+          const at = words.indexOf(on);
+          if (at >= 0) { text.format(at, on.length, { comment: { id } }); break; }
+        }
+      });
+      const u = Y.encodeStateAsUpdate(board);
+      Y.applyUpdate(roomDoc, u, 'room');
+      Y.applyUpdate(ydoc, u, 'room');
+      return id;
+    };
+    const handle = { room, refuse: (reason) => onRefused(reason), end: (code) => onEnd({ action: 'reask', code }), restore, thread };
     if (typeof window !== 'undefined' && window.__fileShareQa) (window.__fileShareQa.docRooms ||= []).push(handle);
     const timer = setTimeout(() => {
       onHello({ type: 'hello', me: { name: 'Sam Rivera', color: '#2fb67c' }, access: share.access,

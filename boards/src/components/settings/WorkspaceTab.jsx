@@ -11,13 +11,14 @@
 // owner and co-owners (0391/0392 enforce it server-side); Recovery stays the
 // owner's alone — it rewinds every cluster at once.
 import { useEffect, useState } from 'react';
-import { updateWorkspaceSettings, renameWorkspace } from '../../lib/boardsApi.js';
+import { updateWorkspaceSettings, renameWorkspace, getWorkspaceAiEnabled, setWorkspaceAiEnabled } from '../../lib/boardsApi.js';
+import { announceAiSettingChanged } from '../../hooks/useWorkspaceAiEnabled.js';
 import { uploadImage } from '../../lib/uploads.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { HARDCODED_FALLBACKS } from '../../hooks/useResolvedDefaults.js';
 import { SHAPES, DASH_STYLES } from '../../lib/shapeOptions.js';
-import { Field, SettingsCategory, SwatchInput, FontField, AvatarUploadRow } from './fields.jsx';
+import { Field, SettingsCategory, SwatchInput, FontField, AvatarUploadRow, Toggle } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 import { canManageWorkspace, canWriteWorkspace } from '../../lib/workspaceRoles.js';
 
@@ -51,6 +52,33 @@ export function WorkspaceGeneralTab({
     save(async () => {
       await renameWorkspace(workspaceId, trimmed);
       await onWorkspacesChanged?.();
+    });
+  };
+
+  // The workspace's AI switch. Everyone sees it; the owner and co-owners
+  // change it. null while loading.
+  const [aiOn, setAiOn] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setAiOn(null);
+    if (workspaceId) {
+      getWorkspaceAiEnabled(workspaceId)
+        .then((v) => { if (alive) setAiOn(v); })
+        .catch(() => { if (alive) setAiOn(null); });
+    }
+    return () => { alive = false; };
+  }, [workspaceId]);
+  const changeAi = (next) => {
+    if (!canManage || !workspaceId || aiOn === null) return;
+    setAiOn(next);
+    save(async () => {
+      try {
+        await setWorkspaceAiEnabled(workspaceId, next);
+      } catch (err) {
+        setAiOn(!next);
+        throw err;
+      }
+      announceAiSettingChanged(workspaceId);
     });
   };
 
@@ -115,6 +143,23 @@ export function WorkspaceGeneralTab({
             onRemove={() => setIcon('')}
           />
         </Field>
+      </SettingsCategory>
+
+      <SettingsCategory title="AI" desc="What may go to an AI model">
+        {canManage ? (
+          <Toggle label="AI suggestions"
+                  desc={'Suggests tags from what people write here, and underlines likely ones in docs. '
+                    + 'The text goes to Cloudflare Workers AI. Off, nothing is sent; tags you add, '
+                    + 'and tags whose exact name appears in the text, still work.'}
+                  value={aiOn !== false}
+                  onChange={changeAi} />
+        ) : (
+          <Field label="AI suggestions">
+            <span className="settings-toggle-desc">
+              {aiOn === null ? '…' : aiOn ? 'On' : 'Off'} · only the owner or a co-owner can change this
+            </span>
+          </Field>
+        )}
       </SettingsCategory>
 
       {isOwner && onOpenRecovery && (

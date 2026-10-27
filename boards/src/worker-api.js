@@ -32,8 +32,8 @@
 import * as Y from 'yjs';
 import {
   resolveApiToken, hasScope, apiUserSession, rateHeaders, normalizeApiError,
-  userSelect, userRpc, userInsert, userPatch,
-  createServiceAuthUser, deleteAuthUser,
+  userSelect, userRpc, userInsert, userPatch, userDelete,
+  createServiceAuthUser, createDraftAuthUser, deleteAuthUser,
 } from './lib/apiAuth.js';
 import {
   normalizeProps, normalizeIdentifiers, matchIdentifiers, loadMeta, loadBoardsMeta,
@@ -44,12 +44,25 @@ import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.j
 import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards, readBoardCardsChecked,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
-  readBoardGroups, writeBoardGroups,
+  readBoardGroups, readBoardCardsAndGroups, writeBoardGroups, withBoardCards, editCardLive, editBoardLive,
 } from './lib/scoutBoard.js';
+import { DOC_READ, readDocPages } from './lib/docMarkdown.js';
+import {
+  COMMENTS, COMMENT_FIELDS, STATUSES, isBoardCommentId, boardThreads, cardThreads, namesFrom,
+  authorIds, pageThreads, publicThread, readNewComment, anchorOf, commentRow, placeComment,
+  readResolveMany, findCardThread, docAuthor,
+} from './lib/apiComments.js';
+import { addCommentThread, addCommentReply, resolveComment, deleteCommentThread } from './lib/docState.js';
+import { commentReplyKey } from './lib/commentKeys.js';
+import { findQuote, markQuote, unmarkThread } from './lib/docCommentAnchor.js';
+import {
+  TAGS, TAG_FIELDS, readTagRequest, matchTags, isDeadTag, publicTag, boardTags, taggedItem,
+  cleanTagName, tagSlug,
+} from './lib/apiTags.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
-import { bytesToB64 } from './lib/yhelpers.js';
+import { bytesToB64, readCards } from './lib/yhelpers.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
@@ -57,12 +70,22 @@ import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from '.
 import { openapiDocument } from './lib/apiOpenapi.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
+  GALLERY, boardPictures, pickRendition, encodeCursor, decodeCursor, boardUrl, cardUrl,
+  makeInlineBudget, bytesToBase64,
+} from './lib/gallery.js';
+import {
   webhookUrlProblem, runWebhooks, deliverOne, hasPendingWork, WEBHOOK_EVENTS,
   AFTER_WRITE_DRAIN,
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
 import { answeredWith, reportWorkerError } from './lib/workerErrors.js';
-import { ApiError, apiErrorFrom } from './lib/mcpTools.js';
+import { ApiError, apiErrorFrom, HOSTED_TOOLS } from './lib/mcpTools.js';
+import {
+  draftsOpen, draftSecret, draftTokens, draftEmail, subjectHash, sha256Hex, isDraftKey, isDraftTool,
+  draftRouteAllowed, mixedManifest, withoutDraft, DRAFT_INSTRUCTIONS, draftHost, signInAnswer,
+  draftRefusal, draftAnswer, DRAFT_SAYS,
+} from './lib/mcpDrafts.js';
+import { makeEdgeLimiter } from './lib/edgeLimits.js';
 import {
   arrange, rearrange, LAYOUTS, DEFAULT_LAYOUT, isLayout,
 } from './lib/layoutEngine.js';
@@ -147,11 +170,11 @@ const BYTES_FIELD = {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-  'access-control-allow-headers': 'authorization,content-type,idempotency-key,'
+  'access-control-allow-headers': 'authorization,content-type,idempotency-key,if-match,'
     + 'mcp-protocol-version,mcp-method,mcp-name',
   'access-control-expose-headers':
     'x-ratelimit-limit,x-ratelimit-remaining,x-ratelimit-reset,retry-after,'
-    + 'idempotent-replay,x-image-variant',
+    + 'idempotent-replay,x-image-variant,etag',
   'access-control-max-age': '86400',
 };
 
@@ -619,10 +642,10 @@ export function pgLikeValue(q) {
 // can_write_board is the app's own predicate, evaluated as the user. It walks
 // the parent chain and honours workspace membership, editor shares and the
 // waitlist gate — none of which this file should be re-deriving.
-async function requireBoardWrite(env, token, boardId) {
+async function requireBoardWrite(env, token, boardId, refusal = 'you cannot write to that board') {
   const ok = await userRpc(env, token, 'can_write_board', { p_board_id: boardId })
     .catch(() => false);
-  if (ok !== true) throw fail(403, 'forbidden', 'you cannot write to that board');
+  if (ok !== true) throw fail(403, 'forbidden', refusal);
 }
 
 // ── Multipart uploads ────────────────────────────────────────────────────────
@@ -690,6 +713,160 @@ async function boardForUser(env, token, boardId, { includeDeleted = false } = {}
     + '&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at';
   const rows = await userSelect(env, token, 'boards', q);
   return rows?.[0] || null;
+}
+
+// ── Docs written through the API ─────────────────────────────────────────────
+//
+// lib/docWrite.js turns Markdown into a doc's pages, written through the
+// board's live room or not at all (scoutBoard.editCardLive, and
+// addCardsToBoard's requireLive): a reader with the doc open, and a doc shared
+// on its own (DocParty's mirror), only ever hear a page through the room. It
+// loads on demand, so the Markdown parser costs only the calls that write one.
+const loadDocWrite = () => import('./lib/docWrite.js');
+
+// The room couldn't be reached, or never confirmed the change: nothing was
+// written, and trying again is the right thing to do.
+async function throughRoom(run) {
+  try {
+    return await run();
+  } catch (e) {
+    if (e?.code === 'room_unavailable') throw fail(503, 'room_unavailable', e.message);
+    throw e;
+  }
+}
+
+// A written page as the API answers with it: what GET …/doc lists for it.
+const publicDocPage = ({ text: _text, ...page }) => page;
+
+// A picture a doc written here may place: a file already on the board (or in
+// the doc), named as a read gives it back (r2:<key>) or by its bare image_key.
+const pictureFrom = (images) => (src) => {
+  if (images.has(src)) return src;
+  return images.has(`r2:${src}`) ? `r2:${src}` : false;
+};
+
+// Search inside documents reads doc_page_index, which the app writes when it
+// saves a board, and a doc written here may wait a long time for that. Written
+// as the user, row for row as the app writes it (lib/boardsApi.js
+// syncDocPageIndex): a page with no words has no row. Best-effort: the doc is
+// already written, and the app's next save writes the same rows.
+async function indexDocPages(env, token, workspaceId, cardId, pages) {
+  const rows = [];
+  const empty = [];
+  for (const p of pages) {
+    const text = String(p.text || '').slice(0, 20000);
+    if (!text.trim()) { empty.push(p.id); continue; }
+    rows.push({
+      doc_card_id: cardId,
+      page_id: p.id,
+      workspace_id: workspaceId,
+      page_title: String(p.title || '').slice(0, 200),
+      page_text: text,
+      updated_at: new Date().toISOString(),
+    });
+  }
+  try {
+    if (rows.length) {
+      await userInsert(env, token, 'doc_page_index', rows, { returning: 'minimal', onConflict: 'doc_card_id,page_id' });
+    }
+    if (empty.length) {
+      await userDelete(env, token, 'doc_page_index',
+        `doc_card_id=eq.${encodeURIComponent(cardId)}&page_id=in.${encodeURIComponent(pgInList(empty))}`);
+    }
+  } catch (e) {
+    console.warn('[api] doc_page_index', e?.message);
+  }
+}
+
+// The names a comment list shows (lib/apiComments.js namesFrom), read as the
+// user, so whoever they can't see stays "Member" as in the app. Best effort: a
+// thread still reads without its author's name.
+async function commentNames(env, token, ids) {
+  if (!ids.length) return new Map();
+  const [profiles, users] = await Promise.all([
+    userSelect(env, token, 'member_profiles', `user_id=in.(${ids.join(',')})&select=user_id,display_name`)
+      .catch(() => []),
+    userRpc(env, token, 'users_by_ids', { p_user_ids: ids }).catch(() => []),
+  ]);
+  return namesFrom(profiles, users);
+}
+
+// Who the caller is filed as on a comment written inside a doc or a note: the
+// name and colour the app files them under (apiComments.docAuthor).
+async function commentAuthor(env, token, userId) {
+  const [profiles, users] = await Promise.all([
+    userSelect(env, token, 'member_profiles', `user_id=eq.${userId}&select=user_id,display_name,color`)
+      .catch(() => []),
+    userRpc(env, token, 'users_by_ids', { p_user_ids: [userId] }).catch(() => []),
+  ]);
+  return docAuthor({ profile: profiles?.[0] || null, email: users?.[0]?.email || null, userId });
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────────────
+
+// What is on a board now, by id: its cards and its groups, from its document,
+// which is the truth (a card past its owner's cap has no card_index row, and a
+// deleted card keeps its tag links so that undoing the delete brings them
+// back). `loaded: false` when the document couldn't be read.
+async function boardContents(env, token, boardId) {
+  return withBoardCards(env, boardId, token, ({ cards, doc, loaded }) => ({
+    loaded,
+    cards: new Set(cards.map((c) => String(c.id))),
+    groups: new Set(doc.getMap('groups').keys()),
+  }));
+}
+
+// Every row a select matches, a page at a time: the database answers one
+// request with at most a thousand rows, and says nothing when it stops there.
+// `query` names an order, so the pages don't overlap.
+async function selectAll(env, token, table, query, { page = 1000, max = 20_000 } = {}) {
+  const out = [];
+  for (let offset = 0; offset < max; offset += page) {
+    const rows = await userSelect(env, token, table, `${query}&limit=${page}&offset=${offset}`);
+    out.push(...rows);
+    if (rows.length < page) break;
+  }
+  return out;
+}
+
+// A write refused because the row is already there (unique_violation). The
+// curated error keeps the database's own answer in its detail.
+const isDuplicate = (e) => /"code":"23505"/.test(String(e?.detail || ''));
+
+const TAG_ROW = `${TAG_FIELDS},slug,status,deleted_at`;
+
+// The workspace's tags that `asked` names, by id or by name, deleted ones
+// included: a deleted tag's name brings it back rather than making another
+// (lib/tagsApi.js ensureTag).
+async function findWorkspaceTags(env, token, workspaceId, asked) {
+  const ids = asked.filter((t) => t.id).map((t) => t.id);
+  const slugs = asked.filter((t) => t.slug).map((t) => t.slug);
+  const [byId, bySlug] = await Promise.all([
+    ids.length ? userSelect(env, token, 'tags',
+      `workspace_id=eq.${workspaceId}&id=in.(${ids.join(',')})&select=${TAG_ROW}`) : [],
+    slugs.length ? userSelect(env, token, 'tags',
+      `workspace_id=eq.${workspaceId}&slug=in.${encodeURIComponent(pgInList(slugs))}&select=${TAG_ROW}`) : [],
+  ]);
+  return [...byId, ...bySlug];
+}
+
+// A new tag, as the app's Tag… picker makes one (ensureTag): the name as
+// given, kind 'user', no colour (the app gives it one from its name). One made
+// meanwhile by someone else is found instead.
+async function makeTag(env, token, workspaceId, userId, tag) {
+  try {
+    const [row] = await userInsert(env, token, 'tags', [{
+      workspace_id: workspaceId, name: tag.name, color: null, kind: 'user', created_by: userId,
+    }]);
+    return { row, created: true };
+  } catch (e) {
+    if (!isDuplicate(e)) throw e;
+    const [row] = await findWorkspaceTags(env, token, workspaceId, [tag]);
+    if (!row) {
+      throw fail(409, 'conflict', `a tag named "${tag.name}" was being made at the same moment: try again`);
+    }
+    return { row, created: false };
+  }
 }
 
 function pageParams(url) {
@@ -784,10 +961,16 @@ function deliveryOutcome(id, o) {
 // read-only token still cannot run add_cards or delete_board.
 export function scopeFor(method, pathname) {
   if (/^\/api\/v1\/mcp\/?$/.test(pathname)) return 'read';
+  // Taking a public link back undoes a write and destroys nothing anyone made:
+  // whoever may publish a board may unpublish it.
+  if (method === 'DELETE' && /^\/api\/v1\/boards\/[^/]+\/share-link\/?$/.test(pathname)) return 'write';
   return method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : 'write';
 }
 
-export async function handleApiRoute(url, request, env, ctx) {
+// `opts` is /mcp's (handleMcpEndpoint), which serves a signed-in caller through
+// here: `resourcePath` names its own metadata in a challenge, and `mcp` is how
+// its MCP server lists and runs tools.
+export async function handleApiRoute(url, request, env, ctx, opts = {}) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
   // The spec answers before authentication on purpose: a machine-readable
@@ -808,7 +991,8 @@ export async function handleApiRoute(url, request, env, ctx) {
   // The path is the resource's own path, so /api/v1/mcp and /api/v1 each
   // describe themselves rather than sharing one document that is wrong for one
   // of them.
-  const resourcePath = url.pathname.startsWith('/api/v1/mcp') ? '/api/v1/mcp' : '/api/v1';
+  const resourcePath = opts.resourcePath
+    || (url.pathname.startsWith('/api/v1/mcp') ? '/api/v1/mcp' : '/api/v1');
   const challenge = (params) => ({
     'www-authenticate': `Bearer realm="soleil", ${params}, `
       + `resource_metadata="${url.origin}/.well-known/oauth-protected-resource${resourcePath}"`,
@@ -906,7 +1090,9 @@ export async function handleApiRoute(url, request, env, ctx) {
       err.cause = e;
       throw err;
     });
-    res = await dispatch(url, request, env, { auth, token, trace });
+    res = await dispatch(url, request, env, {
+      auth, token, trace, waitUntil: ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null, mcp: opts.mcp,
+    });
   } catch (e) {
     // EVERY error leaves through normalizeApiError. Returning `e.message`
     // directly is what put the raw PostgREST envelope — table name, SQLSTATE
@@ -984,6 +1170,160 @@ export async function handleApiRoute(url, request, env, ctx) {
   return withHeaders(res, rl);
 }
 
+// ── /mcp: the MCP server for AI chats, with an account or without ───────────
+//
+// /api/v1/mcp asks for a sign-in before anything, which is right for Claude
+// Code, Cursor and VS Code: a developer connecting a tool means their account.
+// Someone in ChatGPT or Claude asking for a moodboard may have no account, so
+// /mcp answers them without one (P3b): the handshake and the tool list are
+// open, the draft tools run as a draft (an account nobody has claimed yet,
+// 0705, lib/mcpDrafts.js), and the rest ask the person to sign in the way their
+// host shows it. With a token it is /api/v1/mcp, listing the tools the same way.
+//
+// Held on production until a release opens it with its docs (draftsOpen).
+
+// New drafts per address a minute. ChatGPT and Claude call from a few shared
+// addresses for all of their users, so this only stops a burst; the day's
+// ceiling on new drafts (mcp_draft_admit) is the real limit.
+const draftCreateAllow = makeEdgeLimiter('MCP_DRAFT_CREATE');
+
+const SIGNED_IN_MCP = {
+  manifest: mixedManifest,
+  instructions: DRAFT_INSTRUCTIONS,
+  // A draft key from earlier in the conversation means nothing once signed in.
+  beforeCall: (name, params) => ({ args: withoutDraft(params?.arguments) }),
+};
+
+export async function handleMcpEndpoint(url, request, env, ctx) {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  // Someone who opens the address in a browser reads how to connect it. (An MCP
+  // client's GET asks for an event stream, never a page.)
+  if (request.method === 'GET' && (request.headers.get('accept') || '').includes('text/html')) {
+    return Response.redirect(new URL('/docs/mcp', url.origin).toString(), 302);
+  }
+  if (!draftsOpen(url.hostname)) return json({ error: 'unknown endpoint', code: 'not_found' }, 404);
+
+  if (request.headers.get('authorization')) {
+    return handleApiRoute(new URL('/api/v1/mcp', url.origin), request, env, ctx,
+      { resourcePath: '/mcp', mcp: SIGNED_IN_MCP });
+  }
+
+  let body = null;
+  try { body = await request.json(); } catch { /* answered as a parse error */ }
+  const out = await handleMcpRequest(request, {
+    tools: HOSTED_TOOLS,
+    manifest: mixedManifest,
+    instructions: DRAFT_INSTRUCTIONS,
+    // Signed out, a tool only ever runs as a draft, which beforeCall sets up.
+    api: async () => { throw new ApiError('sign in to Clusters first', { status: 401, code: 'invalid_token' }); },
+    beforeCall: async (name, params) => {
+      try {
+        return await draftCall(url, request, env, ctx, name, params);
+      } catch (e) {
+        reportWorkerError(env, ctx, { kind: 'api', error: e, request, status: 500, code: 'draft_failed', op: 'mcp_draft' });
+        throw e;
+      }
+    },
+  }, body);
+  if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
+  return json(out.body, out.status, out.headers);
+}
+
+// Who a signed-out call runs as: the draft its key finds (or, in ChatGPT, the
+// draft of the same anonymous user), a new draft when the call is
+// create_boards, or nobody, and then the person is asked to sign in.
+async function draftCall(url, request, env, ctx, name, params) {
+  const meta = params?._meta && typeof params._meta === 'object' ? params._meta : {};
+  const host = draftHost(meta, request.headers.get('user-agent'));
+  const signIn = (message) => signInAnswer({ origin: url.origin, host, message });
+  if (!isDraftTool(name)) return signIn(DRAFT_SAYS.signInFor(name));
+
+  const raw = params?.arguments && typeof params.arguments === 'object' ? params.arguments : {};
+  const key = raw.draft;
+  if (key !== undefined && !isDraftKey(key)) return draftRefusal(DRAFT_SAYS.notAKey);
+
+  const secret = await draftSecret(env.SUPABASE_SERVICE_ROLE_KEY);
+  const subject = await subjectHash(secret, meta['openai/subject']);
+  const write = !HOSTED_TOOLS.find((t) => t.name === name)?.annotations?.readOnlyHint;
+
+  let found = null;
+  if (key || subject) {
+    const rows = await scoutRpc(env, 'mcp_draft_resolve', {
+      p_key_hash: key ? await sha256Hex(key) : null, p_subject_hash: subject, p_write: write,
+    });
+    found = (Array.isArray(rows) ? rows[0] : rows) || null;
+  }
+  const state = found?.state || 'unknown';
+  if (state === 'kept') return signIn(DRAFT_SAYS.kept);
+  if (state === 'rate_limited') return draftRefusal(DRAFT_SAYS.tooMany(found.req_limit, found.req_reset));
+  if (key && state === 'expired') return draftRefusal(DRAFT_SAYS.expired);
+  if (key && state === 'unknown') return draftRefusal(DRAFT_SAYS.unknown);
+
+  let draft = state === 'live' ? found : null;
+  let created = false;
+  if (!draft) {
+    if (name !== 'create_boards') return signIn(DRAFT_SAYS.nothingYet);
+    const made = await makeDraft(env, request, { secret, subject, host, signIn });
+    if (made.answer) return made.answer;
+    ({ draft, created } = made);
+  }
+
+  // Files cost storage, and a day's bytes across all drafts have a ceiling.
+  if (name === 'import_urls' && await scoutRpc(env, 'mcp_draft_admit', { p_kind: 'bytes' }) === 'paused') {
+    return draftRefusal(DRAFT_SAYS.noMoreFiles);
+  }
+
+  const tokens = await draftTokens(secret, draft.draft_id);
+  const auth = {
+    ok: true, userId: draft.user_id, scopes: ['read', 'write', 'delete'], tokenId: null,
+    draft: { id: draft.draft_id },
+  };
+  const token = await apiUserSession(env, draft.user_id);
+  return {
+    args: withoutDraft(raw),
+    ctx: {
+      api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
+      afterCall: (out) => draftAnswer(out, { origin: url.origin, tokens, expiresAt: draft.expires_at, created }),
+    },
+  };
+}
+
+// A new draft: an auth user at the draft's address, its personal workspace and
+// root cluster (made as Scout makes a shell's), then its row (0705). Undone if
+// a step fails, so no half-made draft is left behind.
+async function makeDraft(env, request, { secret, subject, host, signIn }) {
+  const gate = await draftCreateAllow(env, request.headers.get('cf-connecting-ip') || 'unknown');
+  if (!gate.ok) return { answer: draftRefusal(DRAFT_SAYS.tooManyNew(gate.retryAfter)) };
+  if (await scoutRpc(env, 'mcp_draft_admit', { p_kind: 'create' }) === 'paused') {
+    return { answer: signIn(DRAFT_SAYS.paused) };
+  }
+
+  const id = crypto.randomUUID();
+  const { userId } = await createDraftAuthUser(env, draftEmail(id), { host });
+  let workspaceId = null;
+  try {
+    const ws = await scoutRpc(env, 'get_or_create_personal_workspace', { p_user_id: userId, p_name: 'Personal' });
+    workspaceId = (Array.isArray(ws) ? ws[0] : ws)?.id || null;
+    if (!workspaceId) throw new Error('no personal workspace for the draft');
+    const t = await draftTokens(secret, id);
+    const expiresAt = await scoutRpc(env, 'mcp_draft_register', {
+      p_id: id, p_user_id: userId, p_workspace_id: workspaceId,
+      p_key_hash: t.keyHash, p_keep_hash: t.keepHash, p_subject_hash: subject, p_host: host,
+    });
+    return { draft: { draft_id: id, user_id: userId, workspace_id: workspaceId, expires_at: expiresAt }, created: true };
+  } catch (e) {
+    if (workspaceId) await scoutDelete(env, 'workspaces', `id=eq.${workspaceId}`).catch(() => {});
+    await deleteAuthUser(env, userId);
+    // One ChatGPT user's first two calls at once: the other one made the draft.
+    if (subject && (e?.status === 409 || /23505/.test(e?.body || ''))) {
+      const rows = await scoutRpc(env, 'mcp_draft_resolve', { p_key_hash: null, p_subject_hash: subject, p_write: true });
+      const other = (Array.isArray(rows) ? rows[0] : rows) || null;
+      if (other?.state === 'live') return { draft: other, created: false };
+    }
+    throw e;
+  }
+}
+
 // Call this API's own routes, from inside it.
 //
 // The MCP tools are defined once and used by two transports, so they are
@@ -1017,7 +1357,7 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
   const trace = { route: target.pathname.replace(/^\/api\/v1/, '') || '/', target: null };
   let res;
   try {
-    res = await dispatch(target, req, env, { auth, token, trace });
+    res = await dispatch(target, req, env, { auth, token, trace, waitUntil: ctx?.waitUntil || null });
   } catch (e) {
     // dispatch THROWS its refusals and lets a database failure through raw;
     // handleApiRoute curates both on the way out of a REST call, and this is
@@ -1074,6 +1414,13 @@ async function dispatch(url, request, env, ctx) {
       : `this token cannot ${need}`);
   }
 
+  // A draft (made through /mcp by someone with no account) reaches the routes
+  // its tools use and nothing else: never sharing or publishing, tokens,
+  // webhooks, the audit log, uploads, or deleting a cluster (lib/mcpDrafts.js).
+  if (auth.draft && !draftRouteAllowed(method, parts)) {
+    throw fail(403, 'forbidden', 'a draft can make and change its own clusters, and no more until it is kept in Clusters');
+  }
+
   // The single-shot upload carries RAW BYTES, so its body must not be parsed as
   // JSON. Its multipart siblings underneath /uploads/* are ordinary JSON, and
   // treating them as raw too is what made every field arrive undefined.
@@ -1103,6 +1450,8 @@ async function dispatch(url, request, env, ctx) {
       endpoints: [
         'GET    /me',
         'GET    /workspaces',
+        'GET    /workspaces/:id/tags?name=&limit=&offset=  — its tags, each with how many things carry it',
+        'GET    /tags/:id?limit=            — everything carrying a tag, across the workspace',
         'GET    /service-accounts?workspace=',
         'POST   /service-accounts',
         'DELETE /service-accounts/:id',
@@ -1128,12 +1477,24 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards            {"boards":[…]}  — bulk, up to 500',
         'GET    /boards/:id',
         'GET    /boards/:id/export?format=json|omc',
+        'GET    /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=',
+        'GET    /boards/:id/share-link',
+        'POST   /boards/:id/share-link      {"include_subboards":false}  — the view-only link, made once',
+        'DELETE /boards/:id/share-link      — revokes the view links you may revoke',
         'POST   /boards/:id/import          {"items":[{"url":…}]}  — re-runnable',
         'POST   /boards/:id/arrange         {"layout":"justified|masonry|grid|row|column"}',
         'GET    /boards/:id/groups',
         'POST   /boards/:id/groups',
         'PATCH  /boards/:id/groups/:groupId',
         'DELETE /boards/:id/groups/:groupId  — ungroups, never deletes cards',
+        'GET    /boards/:id/comments?status=open|resolved|all&limit=&cursor=  — threads, on the canvas and inside docs and notes',
+        'POST   /boards/:id/comments        {"body":…,"card_id"|"group_id"|"x","y"|"reply_to":…}; "quote" (and "page_id") with a doc card puts it on those words',
+        'PATCH  /boards/:id/comments        {"comment_ids":[…],"resolved":true|false}',
+        'PATCH  /boards/:id/comments/:commentId  {"resolved":true|false}',
+        'DELETE /boards/:id/comments/:commentId  — your own; restorable, except a thread inside a doc',
+        'POST   /boards/:id/comments/:commentId/restore',
+        'GET    /boards/:id/tags            — the tags on this board, and what carries each',
+        'POST   /boards/:id/tags            {"card_ids":[…],"add":[…],"remove":[…]}  — tags on cards, by name or id',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
@@ -1141,6 +1502,11 @@ async function dispatch(url, request, env, ctx) {
         'POST   /boards/:id/cards',
         'PATCH  /boards/:id/cards            {"cards":[…]}  — bulk',
         'DELETE /boards/:id/cards            {"card_ids":[…]}  — bulk',
+        'GET    /boards/:id/cards/:cardId',
+        'GET    /boards/:id/cards/:cardId/doc?page=&max_chars=  — a doc card, page by page, as Markdown',
+        'POST   /boards/:id/docs            {"title":…,"pages":[{"title":…,"markdown":…}]}  — a new doc card',
+        'POST   /boards/:id/cards/:cardId/doc/pages  {"pages":[…],"parent_page_id":…}  — pages added',
+        'PATCH  /boards/:id/cards/:cardId/doc/pages/:pageId  {"markdown":…,"page_hash":…} | {"edits":[…]} | {"title":…}',
         'PATCH  /boards/:id/cards/:cardId',
         'DELETE /boards/:id/cards/:cardId',
         'POST   /boards/:id/cards/move',
@@ -1175,6 +1541,40 @@ async function dispatch(url, request, env, ctx) {
         remaining: auth.rate ? Math.max(0, auth.rate.limit - auth.rate.used) : null,
         reset: auth.rate?.reset ?? null,
       },
+    });
+  }
+
+  // ── Tags ───────────────────────────────────────────────────────────────────
+  //
+  // The app's tags (lib/apiTags.js): a workspace's tags, everything one tag is
+  // on, and, under /boards/:id/tags, a board's tags and tagging its cards. All
+  // as the person, so the tables' own policies decide; as in the app, a
+  // workspace's tags are its members'.
+
+  // GET /workspaces/:id/tags?name=&limit=&offset= — the workspace's tags, each
+  // with how many things carry it (tag_item_counts, 0592); name finds one.
+  if (head === 'workspaces' && id && sub === 'tags' && !subId) {
+    trace.route = '/workspaces/:id/tags';
+    if (method !== 'GET') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+    if (!isUuid(id)) throw fail(400, 'bad_request', 'workspace id must be a uuid');
+    trace.target = id;
+    const named = url.searchParams.has('name') ? cleanTagName(url.searchParams.get('name')) : undefined;
+    if (named === null) throw fail(400, 'bad_request', 'name must be a tag\'s name');
+    const member = await userRpc(env, token, 'is_workspace_member', { ws: id }).catch(() => false);
+    if (member !== true) throw fail(404, 'not_found', 'no workspace of yours has that id');
+    const { limit, offset } = pageParams(url);
+    const [rows, counts] = await Promise.all([
+      userSelect(env, token, 'tags', `workspace_id=eq.${id}&status=neq.deleted&deleted_at=is.null`
+        + (named ? `&slug=in.${encodeURIComponent(pgInList([tagSlug(named)]))}` : '')
+        + `&select=${TAG_FIELDS}&order=name.asc,id.asc&limit=${limit + 1}&offset=${offset}`),
+      userRpc(env, token, 'tag_item_counts', { p_workspace_id: id }).catch(() => null),
+    ]);
+    const items = new Map((counts || []).map((c) => [c.tag_id, c.items]));
+    const page = paginate(rows || [], limit, offset);
+    return json({
+      workspace_id: id,
+      tags: page.items.map((t) => publicTag(t, counts ? items.get(t.id) ?? 0 : null)),
+      limit, offset, has_more: page.has_more,
     });
   }
 
@@ -1454,11 +1854,13 @@ async function dispatch(url, request, env, ctx) {
     // Which tool, not just which route. See mcpTraceName — one HTTP route
     // serving thirty-three tools makes a route-keyed log useless.
     trace.tool = mcpTraceName(body);
+    // /mcp signed in: its tool list and the draft argument it strips (ctx.mcp).
     const out = await handleMcpRequest(request, {
       api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
+      ...(ctx.mcp || {}),
     }, body);
     if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
-    return json(out.body, out.status);
+    return json(out.body, out.status, out.headers);
   }
 
   // GET /audit?since=&cursor=&limit=
@@ -1599,13 +2001,24 @@ async function dispatch(url, request, env, ctx) {
 
     const boards = paginate(boardRows, limit, offset);
     const cards = paginate(cardRows, limit, offset);
+    // The board each card is on, by name, so a hit says where it is without a
+    // second call. One select for the page; a board that can't be read leaves
+    // the name null rather than failing the search.
+    const onIds = [...new Set(cards.items.map((r) => r.board_id))];
+    const boardNames = new Map(onIds.length
+      ? (await userSelect(env, token, 'boards',
+        `id=in.${encodeURIComponent(pgInList(onIds))}&select=id,name`).catch(() => []) || [])
+        .map((b) => [b.id, b.name])
+      : []);
     return json({
       query: q,
-      boards: { ...boards, items: boards.items.map(publicBoard) },
+      // Each hit with a link that opens it in the app this API is served from.
+      boards: { ...boards, items: boards.items.map((b) => ({ ...publicBoard(b), url: boardUrl(url.origin, b.id) })) },
       cards: {
         ...cards,
         items: cards.items.map((r) => ({
           board_id: r.board_id,
+          board_name: boardNames.get(r.board_id) ?? null,
           card_id: r.card_id,
           kind: r.kind,
           title: r.title ?? null,
@@ -1615,6 +2028,7 @@ async function dispatch(url, request, env, ctx) {
           excerpt: r.body ? String(r.body).slice(0, 300) : null,
           workspace_id: r.workspace_id,
           updated_at: r.updated_at,
+          url: cardUrl(url.origin, r.board_id, r.card_id),
         })),
       },
     });
@@ -1978,6 +2392,33 @@ async function dispatch(url, request, env, ctx) {
     });
   }
 
+  // GET /tags/:id?limit= — a tag, and everything carrying it across its
+  // workspace's clusters, the most recently tagged first (get_things_tagged,
+  // 0590, the tag page's own read). The tag is the workspace's: someone
+  // outside it gets a 404, as the tags table answers them nothing.
+  if (head === 'tags') {
+    trace.route = '/tags/:id';
+    if (!id || sub) throw fail(404, 'not_found', 'unknown endpoint');
+    if (method !== 'GET') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+    if (!isUuid(id)) throw fail(400, 'bad_request', 'tag id must be a uuid');
+    trace.target = id;
+    const [tag] = await userSelect(env, token, 'tags',
+      `id=eq.${id}&status=neq.deleted&deleted_at=is.null&select=${TAG_FIELDS},workspace_id`);
+    if (!tag) throw fail(404, 'not_found', 'no tag in a workspace of yours has that id');
+    const raw = Number(url.searchParams.get('limit'));
+    const limit = Math.max(1, Math.min(Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : TAGS.defaultItems,
+      TAGS.maxItems));
+    // The function stops after p_limit applications and then drops any whose
+    // thing is gone (a deleted card keeps its link), so it is asked for twice
+    // the page: "more" is then wrong only where most of a tag's things are gone.
+    const rows = (await userRpc(env, token, 'get_things_tagged', { p_tag_id: id, p_limit: limit * 2 + 1 })) || [];
+    return json({
+      tag: { ...publicTag(tag), workspace_id: tag.workspace_id },
+      items: rows.slice(0, limit).map((r) => taggedItem(r, url.origin)),
+      has_more: rows.length > limit,
+    });
+  }
+
   if (head !== 'boards') throw fail(404, 'not_found', 'unknown endpoint');
 
   // ── /boards ────────────────────────────────────────────────────────────────
@@ -2048,7 +2489,10 @@ async function dispatch(url, request, env, ctx) {
 
       const rows = await userSelect(env, token, 'boards', q);
       const page = paginate(rows, limit, offset);
-      const boards = await decorateBoards(env, token, page.items, include);
+      // Each with the link that opens it in the app, except a deleted board,
+      // which no link opens until it is restored.
+      const boards = (await decorateBoards(env, token, page.items, include))
+        .map((b) => ({ ...b, url: b.deleted ? null : boardUrl(url.origin, b.id) }));
       if (!delta) return json({ boards, ...pageMeta(page) });
       const last = page.items[page.items.length - 1];
       return json({
@@ -2248,6 +2692,7 @@ async function dispatch(url, request, env, ctx) {
         boards: prepared.map((b) => ({
           ...publicBoard({ ...b, created_at: now }),
           created: createdIds.has(b.id),
+          url: boardUrl(url.origin, b.id),
         })),
         created: creates.length,
         updated: updates.length,
@@ -2327,6 +2772,7 @@ async function dispatch(url, request, env, ctx) {
       return json({
         board: publicBoard(created || { id: boardId, name, workspace_id: workspaceId }),
         created: !existing,
+        url: boardUrl(url.origin, boardId),
       }, existing ? 200 : 201);
     }
 
@@ -2435,6 +2881,7 @@ async function dispatch(url, request, env, ctx) {
         created_at: b.created_at,
         updated_at: b.updated_at,
         deleted: !!b.deleted,
+        url: b.deleted ? null : boardUrl(url.origin, b.id),
       })),
       count: (rows || []).length,
     });
@@ -2471,6 +2918,8 @@ async function dispatch(url, request, env, ctx) {
             : Math.max(0, Number(cap.cap) - Number(cap.used ?? 0)),
           capped: !!cap.is_capped,
         } : null,
+        // Opens the board in the app this API is served from.
+        url: boardUrl(url.origin, id),
       });
     }
 
@@ -2549,7 +2998,7 @@ async function dispatch(url, request, env, ctx) {
     if (!b) throw fail(404, 'not_found', 'board not found');
     await userRpc(env, token, 'restore_board', { p_board_id: id });
     const after = await boardForUser(env, token, id, { includeDeleted: true });
-    return json({ restored: true, board: publicBoard(after || b) });
+    return json({ restored: true, board: publicBoard(after || b), url: boardUrl(url.origin, id) });
   }
 
   // GET /boards/:id/export?format=json|omc
@@ -2963,6 +3412,800 @@ async function dispatch(url, request, env, ctx) {
     });
   }
 
+  // /boards/:id/share-link — the board's view-only link: anyone with it opens
+  // the board without signing in, and nobody can change anything through it.
+  //
+  // POST hands back a live link rather than making another, as the Share
+  // panel's one-tap copy does (lib/boardsApi.js ensurePublicLink), so asking
+  // twice never piles up tokens; one is made only when none fits. Without
+  // include_subboards any live link will do; with it, only one of that scope.
+  // A link made here shows the one board unless include_subboards is true —
+  // the narrower choice, since an agent may be the one asking. DELETE revokes
+  // every live view link the caller may revoke and says how many others stay.
+  // Invite links (kind 'invite') grant access when claimed and are never
+  // touched here. The token only ever travels in a response body: in a path or
+  // a query string it would land in api_request_log.
+  if (sub === 'share-link') {
+    trace.route = '/boards/:id/share-link';
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    const now = Date.now();
+    const isLive = (l) => (l.kind || 'view') === 'view' && !l.revoked_at
+      && (!l.expires_at || Date.parse(l.expires_at) > now);
+    const shape = (l) => ({
+      url: `${url.origin}/share/${l.token}`,
+      include_subboards: !!l.include_subboards,
+      expires_at: l.expires_at ?? null,
+      created_at: l.created_at ?? null,
+      created_by_you: l.created_by === auth.userId,
+    });
+    // Answers for whoever may manage the board's links — an owner, a co-owner
+    // or an editor — newest first, and refuses anyone else (42501 → 403).
+    const liveLinks = async () =>
+      ((await userRpc(env, token, 'list_public_links', { p_board_id: id })) || []).filter(isLive);
+
+    if (method === 'GET') {
+      return json({ board_id: id, links: (await liveLinks()).map(shape) });
+    }
+
+    if (method === 'POST') {
+      const want = body?.include_subboards;
+      if (want !== undefined && typeof want !== 'boolean') {
+        throw fail(400, 'bad_request', 'include_subboards must be true or false');
+      }
+      const live = await liveLinks();
+      const existing = want === undefined ? live[0] : live.find((l) => !!l.include_subboards === want);
+      if (existing) return json({ board_id: id, created: false, link: shape(existing) });
+      const minted = await userRpc(env, token, 'create_public_link', {
+        p_board_id: id, p_expires_at: null, p_include_subboards: want === true,
+      });
+      if (typeof minted !== 'string' || !isUuid(minted)) {
+        throw fail(502, 'upstream_error', 'the link was not made — try again');
+      }
+      return json({
+        board_id: id,
+        created: true,
+        link: shape({ token: minted, include_subboards: want === true, expires_at: null,
+          created_at: new Date(now).toISOString(), created_by: auth.userId }),
+      }, 201);
+    }
+
+    if (method === 'DELETE') {
+      let revoked = 0;
+      let stillShared = 0;
+      for (const l of await liveLinks()) {
+        try {
+          await userRpc(env, token, 'revoke_public_link', { p_token: l.token });
+          revoked += 1;
+        } catch (e) {
+          // An editor may revoke only the links they made; the rest stay live
+          // until their maker or an owner revokes them, and the answer says so.
+          if (normalizeApiError(e).status !== 403) throw e;
+          stillShared += 1;
+        }
+      }
+      return json({
+        board_id: id,
+        revoked,
+        still_shared: stillShared,
+        ...(stillShared ? { message: `${stillShared} link${stillShared === 1 ? '' : 's'} made by someone else `
+          + `${stillShared === 1 ? 'stays' : 'stay'} live until they, or an owner of the workspace, revoke ` + (stillShared === 1 ? 'it' : 'them') } : {}),
+      });
+    }
+
+    throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+  }
+
+  // GET /boards/:id/gallery — the board's pictures in the order a person reads
+  // them, at a size a model can afford to look at (lib/gallery.js). inline=1
+  // embeds them as base64 under a byte budget, so an agent sees a board in one
+  // request rather than one per picture; card_ids picks pictures to look at
+  // closely, with size=preview.
+  if (sub === 'gallery' && method === 'GET') {
+    trace.route = '/boards/:id/gallery';
+    const sizeParam = url.searchParams.get('size');
+    if (sizeParam && !['sm', 'preview'].includes(sizeParam)) {
+      throw fail(400, 'bad_request', 'size must be sm or preview');
+    }
+    const size = sizeParam || 'sm';
+    const inline = ['1', 'true'].includes(url.searchParams.get('inline') || '');
+    const rawLimit = Number(url.searchParams.get('limit'));
+    const limit = Math.max(1, Math.min(
+      Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : GALLERY.defaultLimit, GALLERY.maxLimit));
+    const offset = decodeCursor(url.searchParams.get('cursor'));
+    if (offset == null) throw fail(400, 'bad_request', 'cursor is not one this endpoint issued');
+    const wanted = [...new Set((url.searchParams.get('card_ids') || '')
+      .split(',').map((s) => s.trim()).filter(Boolean))];
+    if (wanted.length > GALLERY.maxCardIds) {
+      throw fail(400, 'bad_request', `at most ${GALLERY.maxCardIds} card_ids — got ${wanted.length}`);
+    }
+
+    const rows = await userSelect(env, token, 'boards', `id=eq.${id}&deleted_at=is.null`
+      + '&select=id,name,workspace_id,thumb_key,thumb_updated_at&limit=1');
+    const b = rows?.[0];
+    if (!b) throw fail(404, 'not_found', 'board not found');
+
+    const cards = await readBoardCards(env, id, token);
+    const pictures = boardPictures(cards);
+    let page;
+    if (wanted.length) {
+      const byId = new Map(pictures.map((p) => [String(p.card.id), p]));
+      const missing = wanted.filter((cid) => !byId.has(cid));
+      if (missing.length) {
+        throw fail(404, 'not_found', `no picture on this board for card ${missing.slice(0, 3).join(', ')}`
+          + ' — only image cards, and videos with a poster frame, have one');
+      }
+      page = wanted.map((cid) => byId.get(cid));
+    } else {
+      page = pictures.slice(offset, offset + limit);
+    }
+    const hasMore = !wanted.length && offset + page.length < pictures.length;
+
+    // The rows behind this page, read AS THE USER: whoever may read a picture
+    // may read its renditions, and one they cannot see is listed without them.
+    const keys = [...new Set(page.map((p) => p.key))];
+    const imageRows = keys.length
+      ? await userSelect(env, token, 'images',
+        `storage_path=in.${encodeURIComponent(pgInList(keys))}&deleted_at=is.null`
+        + '&select=storage_path,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,'
+        + 'width,height,size_bytes')
+      : [];
+    const rowByKey = new Map((imageRows || []).map((r) => [r.storage_path, r]));
+
+    // Bytes in reading order, the board's own picture first: each embedded
+    // while it fits, the rest listed with the reason they were not.
+    const fits = makeInlineBudget(size);
+    const embed = async (key) => {
+      if (!env.IMAGES) return { reason: 'storage_unavailable' };
+      const obj = await env.IMAGES.get(key);
+      if (!obj) return { reason: 'missing' };
+      const reason = fits(obj.size);
+      if (reason) {
+        try { await obj.body.cancel(); } catch (_) { /* nothing to release */ }
+        return { reason };
+      }
+      return {
+        data: bytesToBase64(new Uint8Array(await obj.arrayBuffer())),
+        mime: obj.httpMetadata?.contentType || 'image/webp',
+        bytes: obj.size,
+      };
+    };
+
+    let thumbnail = null;
+    if (b.thumb_key && !wanted.length && offset === 0) {
+      thumbnail = { updated_at: b.thumb_updated_at ?? null };
+      if (inline) Object.assign(thumbnail, await embed(b.thumb_key));
+    }
+
+    const items = [];
+    for (const [i, p] of page.entries()) {
+      const c = p.card;
+      const row = rowByKey.get(p.key);
+      const rendition = pickRendition(row, size);
+      const item = {
+        card_id: String(c.id),
+        kind: c.kind || 'image',
+        position: wanted.length ? null : offset + i + 1,
+        title: c.title ?? null,
+        caption: (textOf(c) || '').slice(0, 280) || null,
+        x: c.x, y: c.y, w: c.w, h: c.h,
+        image_key: p.key,
+        ...(p.from === 'poster' ? { poster: true } : {}),
+        width: row?.width ?? null,
+        height: row?.height ?? null,
+        rendition: rendition ? { variant: rendition.variant, width: rendition.width, height: rendition.height } : null,
+        url: cardUrl(url.origin, id, c.id),
+      };
+      if (inline) {
+        Object.assign(item, rendition ? await embed(rendition.key) : { reason: row ? 'no_rendition' : 'not_found' });
+      }
+      items.push(item);
+    }
+
+    // Bytes leaving, as with GET /images/:key: the question a studio's review
+    // asks is who took a copy, and when.
+    if (inline) trace.log = true;
+
+    return json({
+      board: {
+        id: b.id,
+        name: b.name,
+        workspace_id: b.workspace_id,
+        url: boardUrl(url.origin, b.id),
+        card_count: cards.length,
+        picture_count: pictures.length,
+        thumbnail,
+      },
+      size,
+      pictures: items,
+      has_more: hasMore,
+      next_cursor: hasMore ? encodeCursor(offset + page.length) : null,
+    });
+  }
+
+  // POST /boards/:id/docs — a new doc card holding pages written in Markdown.
+  // The pages go in inside the transaction that puts the card on the board, as
+  // the app's own addCard does, so the doc arrives whole; through the live room
+  // or not at all (see loadDocWrite).
+  if (sub === 'docs') {
+    if (subId) throw fail(404, 'not_found', 'unknown endpoint');
+    if (method !== 'POST') {
+      throw fail(405, 'method_not_allowed', `a doc is made here; read one at GET /boards/${id}/cards/:cardId/doc`);
+    }
+    trace.route = '/boards/:id/docs';
+    const dw = await loadDocWrite();
+    const pages = dw.preparePages(body.pages);
+    if (body.title != null && typeof body.title !== 'string') throw fail(400, 'bad_request', 'title must be a string');
+    const target = await boardForUser(env, token, id);
+    if (!target) throw fail(404, 'not_found', 'board not found');
+    await requireBoardWrite(env, token, id);
+
+    // The card takes the title given, else its one page's; a first page with
+    // no title of its own takes the card's, as a new doc's first page does in
+    // the app (docState.followTitle).
+    const title = String(body.title ?? '').trim()
+      || (pages.length === 1 && pages[0].title !== 'Untitled' ? pages[0].title : '')
+      || 'Untitled doc';
+    if (pages[0].title === 'Untitled' && title !== 'Untitled doc') pages[0].title = title.slice(0, dw.DOC_WRITE.maxTitle);
+    // The app's size for a new doc card.
+    const card = normalizeIncomingCard({ kind: 'doc', title, w: 320, h: 240, x: body.x, y: body.y });
+
+    let images = new Set();
+    let made = [];
+    const result = await throughRoom(() => addCardsToBoard(env, {
+      boardId: id,
+      workspaceId: target.workspace_id,
+      userId: auth.userId,
+      accessToken: token,
+      requireLive: true,
+      buildCards: async (existing) => {
+        images = dw.placeableImages(existing, null);
+        return layoutCards([card], existing);
+      },
+      afterInsert: (doc, cardYMap) => {
+        made = dw.writePages(doc, cardYMap, pages, { userId: auth.userId, imageAllowed: pictureFrom(images) });
+      },
+    }));
+    const placed = result.cards[0];
+    if (!placed) throw fail(409, 'conflict', 'the doc could not be placed on that board; nothing was added');
+    await indexDocPages(env, token, target.workspace_id, String(placed.id), made);
+    return json({
+      board_id: id,
+      card: publicCard(placed),
+      url: cardUrl(url.origin, id, placed.id),
+      pages: made.map(publicDocPage),
+      live: true,
+    }, 201);
+  }
+
+  // /boards/:id/comments — the board's comment threads and the ones inside its
+  // docs and notes, as one list (lib/apiComments.js). The board's own are
+  // written as the user, so the comments table's policies decide, as they do
+  // in the app: anyone who can open a board may comment on it; a thread's
+  // author or an editor of the board may resolve it; only its author deletes a
+  // comment (an editor resolves someone else's instead), and a deleted one can
+  // be restored. The threads inside docs and notes are the card's own, written
+  // through the board's live room, and as in the app only an editor of the
+  // board writes in them (DocCommentsTab's canEdit): a reply, resolving, a new
+  // thread on words in a doc (lib/docCommentAnchor.js), and deleting one's own
+  // thread in a doc while no one else has replied in it.
+  if (sub === 'comments') {
+    const action = parts[4];
+    if (parts.length > 5 || (action !== undefined && action !== 'restore')) {
+      throw fail(404, 'not_found', 'unknown endpoint');
+    }
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    const noSuch = () => fail(404, 'not_found', 'no such comment on this board');
+    // One of the board's own comments; with `deleted`, one in its trash too.
+    const commentOnBoard = async (commentId, { deleted = false } = {}) => {
+      if (!isBoardCommentId(commentId)) throw noSuch();
+      const rows = await userSelect(env, token, 'comments', `id=eq.${commentId}&board_id=eq.${id}`
+        + `${deleted ? '' : '&deleted_at=is.null'}&select=${COMMENT_FIELDS},deleted_at`);
+      if (!rows?.[0]) throw noSuch();
+      return rows[0];
+    };
+    const threadUrl = (t) => (t.card_id != null ? cardUrl(url.origin, id, t.card_id) : boardUrl(url.origin, id));
+    const when = (ms) => new Date(Number.isFinite(ms) ? ms : Date.now()).toISOString();
+    const editorsOnly = () => requireBoardWrite(env, token, id,
+      'only an editor of this board writes in the threads inside its docs and notes, as in the app');
+    // A write in the threads inside docs and notes: checked against the board
+    // as its room has it, then written through the room, or not at all.
+    const writeInCards = (prepare, write) => throughRoom(() => editBoardLive(env, {
+      boardId: id, accessToken: token, prepare, write,
+    }));
+
+    // Resolve or reopen some of the board's own threads: one read, one write,
+    // as the user (a refused update matches no rows, so the rows coming back
+    // are what says it happened, as the app's updateComment checks).
+    const resolveOnBoard = async (ids, resolved, out) => {
+      const rows = await userSelect(env, token, 'comments', `id=in.(${ids.join(',')})&board_id=eq.${id}`
+        + '&deleted_at=is.null&select=id,reply_to,anchor_kind,anchor_id');
+      const found = new Map((rows || []).map((r) => [r.id, r]));
+      const threads = [];
+      for (const cid of ids) {
+        const r = found.get(cid);
+        if (!r) out.not_found.push(cid);
+        else if (r.reply_to) {
+          out.refused.push({ id: cid, status: 400, code: 'bad_request', reason: `that is a reply: resolve its thread, ${r.reply_to}` });
+        } else {
+          threads.push(cid);
+          out.cards.set(cid, r.anchor_kind === 'card' ? r.anchor_id : null);
+        }
+      }
+      if (!threads.length) return;
+      const done = await userPatch(env, token, 'comments', `id=in.(${threads.join(',')})&board_id=eq.${id}`, { resolved });
+      const ok = new Set((done || []).map((r) => r.id));
+      for (const cid of threads) {
+        if (ok.has(cid)) out.changed.push(cid);
+        else {
+          out.refused.push({ id: cid, status: 403, code: 'forbidden',
+            reason: 'only the thread\'s author or an editor of this board can resolve it' });
+        }
+      }
+    };
+
+    // The same for threads inside docs and notes, all in one write (a resolve
+    // filed beside each thread, naming who resolved it, as the app files one).
+    const resolveInCards = async (ids, resolved, out) => {
+      const refuse = (cid, status, code, reason) => out.refused.push({ id: cid, status, code, reason });
+      const editor = await userRpc(env, token, 'can_write_board', { p_board_id: id }).catch(() => false);
+      if (editor !== true) {
+        for (const cid of ids) {
+          refuse(cid, 403, 'forbidden', 'only an editor of this board resolves the threads inside its docs and notes, as in the app');
+        }
+        return;
+      }
+      const me = await commentAuthor(env, token, auth.userId);
+      const plan = [];
+      try {
+        await writeInCards((doc) => {
+          const cards = doc.getMap('cards');
+          for (const cid of ids) {
+            const at = findCardThread(cards, cid);
+            if (!at) out.not_found.push(cid);
+            else if (at.replyId) refuse(cid, 400, 'bad_request', `that is a reply: resolve its thread, ${at.thread.id}`);
+            else {
+              out.cards.set(cid, at.cardId);
+              if (at.thread.resolved === resolved) out.changed.push(cid);
+              else plan.push(at);
+            }
+          }
+          return plan.length ? null : { unchanged: true };
+        }, (doc) => {
+          for (const at of plan) {
+            resolveComment(doc, at.thread.id, resolved, { comments: at.comments }, { by: auth.userId, byName: me.name });
+          }
+        });
+        for (const at of plan) out.changed.push(at.thread.id);
+      } catch (e) {
+        if (e?.code !== 'room_unavailable') throw e;
+        // Nothing was written. The room was away before the board could be
+        // read (nothing sorted yet), or didn't take the change.
+        for (const cid of plan.length ? plan.map((at) => at.thread.id) : ids) refuse(cid, 503, 'room_unavailable', e.message);
+      }
+    };
+
+    // A reply in a thread inside a doc or a note, filed beside the thread as
+    // the app files one (docState.addCommentReply).
+    const replyInCard = async ({ body: words, replyTo }) => {
+      const [, me] = await Promise.all([editorsOnly(), commentAuthor(env, token, auth.userId)]);
+      let at = null;
+      const { result } = await writeInCards((doc) => {
+        at = findCardThread(doc.getMap('cards'), replyTo);
+        if (!at) throw noSuch();
+        // The app offers no reply on a resolved thread, only Reopen.
+        if (at.thread.resolved) {
+          throw fail(409, 'conflict', 'that thread is resolved: reopen it first '
+            + `(PATCH /api/v1/boards/${id}/comments/${at.thread.id} with {"resolved": false})`);
+        }
+      }, (doc) => {
+        const replyId = addCommentReply(doc, at.thread.id, {
+          body: words, author: me.name, authorId: auth.userId, authorColor: me.color, mentions: [],
+          scope: { comments: at.comments },
+        });
+        return { replyId, ts: at.comments.get(commentReplyKey(at.thread.id, replyId))?.ts };
+      });
+      const link = cardUrl(url.origin, id, at.cardId);
+      return json({
+        board_id: id,
+        comment: {
+          id: result.replyId, reply_to: at.thread.id, body: words, author_id: auth.userId,
+          author_name: me.name, by_you: true, created_at: when(result.ts), url: link,
+        },
+        url: link,
+      }, 201);
+    };
+
+    // A new thread on words in a doc: filed as the app's addCommentThread
+    // files one, and its mark put on the words (lib/docCommentAnchor.js).
+    const startInDoc = async ({ body: words, anchor }) => {
+      const [, me] = await Promise.all([editorsOnly(), commentAuthor(env, token, auth.userId)]);
+      const { result } = await writeInCards((doc) => {
+        const ym = doc.getMap('cards').get(String(anchor.id));
+        if (!ym || typeof ym.get !== 'function') throw fail(404, 'not_found', 'no such card on this board');
+        const kind = ym.get('kind') || 'note';
+        if (kind === 'note') {
+          throw fail(400, 'bad_request', 'words in a note take a comment in the app; leave out quote to comment on the note');
+        }
+        if (kind !== 'doc') throw fail(400, 'bad_request', `quote is for the words in a doc, and card ${anchor.id} isn't one`);
+        const found = findQuote(ym, anchor.quote, { pageId: anchor.pageId });
+        if (found.problem === 'page') throw fail(404, 'not_found', `this doc has no page ${anchor.pageId}`);
+        if (found.problem === 'none') {
+          throw fail(400, 'bad_request', `those words aren't in this doc${anchor.pageId ? ' on that page' : ''}: `
+            + `quote them as the doc has them (GET /api/v1/boards/${id}/cards/${anchor.id}/doc)`);
+        }
+        if (found.problem === 'code') {
+          throw fail(400, 'bad_request', 'those words are code, which takes no comment: quote the words around it');
+        }
+        if (found.problem === 'many') {
+          throw fail(400, 'bad_request', `those words are in this doc ${found.count} times `
+            + `(${found.pages.slice(0, 5).join(', ')}): quote more of the words around them`
+            + `${anchor.pageId ? '' : ', or name page_id'}`);
+        }
+        return { ym, found };
+      }, (doc, { ym, found }) => {
+        // Not initCardDocStore: it also gathers a page's old stacked sheets
+        // into one, which would move the very words being marked.
+        if (!ym.get('docComments')) ym.set('docComments', new Y.Map());
+        const comments = ym.get('docComments');
+        const threadId = addCommentThread(doc, {
+          pageId: found.pageId, body: words, author: me.name, authorId: auth.userId, authorColor: me.color,
+          mentions: [], scope: { comments },
+        });
+        markQuote(found.ranges, threadId);
+        return {
+          threadId, ts: comments.get(threadId)?.ts, title: ym.get('title') || null,
+          pageId: found.pageId, pageName: found.pageName, quote: found.quote,
+        };
+      });
+      const link = cardUrl(url.origin, id, anchor.id);
+      const comment = publicThread({
+        id: result.threadId, on: 'doc', card_id: String(anchor.id), group_id: null, x: null, y: null,
+        page_id: result.pageId, page_title: result.pageName, quote: result.quote,
+        body: words, author_id: auth.userId, author_name: me.name, created_at: when(result.ts),
+        resolved: false, hidden: false, replies: [],
+      }, {
+        names: new Map([[auth.userId, me.name]]),
+        userId: auth.userId,
+        cards: new Map([[String(anchor.id), { kind: 'doc', title: result.title }]]),
+        url: link,
+      });
+      return json({ board_id: id, comment, url: link }, 201);
+    };
+
+    // Deleting your own thread in a doc, while no one else has replied in it:
+    // the thread, everything filed under it, and its mark on the words, as the
+    // app's delete takes them. There is no restore for it.
+    const deleteInDoc = async (threadId) => {
+      await editorsOnly();
+      let cardId = null;
+      await writeInCards((doc) => {
+        const at = findCardThread(doc.getMap('cards'), threadId);
+        if (!at) throw noSuch();
+        if (at.replyId) throw fail(400, 'bad_request', `a reply inside a doc or a note stays with its thread, ${at.thread.id}`);
+        if (at.kind !== 'doc') throw fail(400, 'bad_request', 'a thread inside a note is deleted in the app; resolve it instead');
+        if (at.thread.authorId !== auth.userId) {
+          throw fail(403, 'forbidden', 'only its author deletes a thread; resolve someone else\'s instead');
+        }
+        if (at.thread.replies.some((r) => r.authorId !== auth.userId)) {
+          throw fail(409, 'conflict', 'someone else has replied in that thread: resolve it instead');
+        }
+        cardId = at.cardId;
+        return { at };
+      }, (doc, { at }) => {
+        unmarkThread(at.ym, at.thread.id);
+        deleteCommentThread(doc, at.thread.id, { comments: at.comments });
+      });
+      return json({
+        board_id: id,
+        comment_id: threadId,
+        deleted: true,
+        restore: null,
+        note: 'a thread inside a doc is gone once deleted: there is no restore for it',
+        url: cardUrl(url.origin, id, cardId),
+      });
+    };
+
+    if (!subId && method === 'GET') {
+      trace.route = '/boards/:id/comments';
+      const status = url.searchParams.get('status') || 'open';
+      if (!STATUSES.includes(status)) throw fail(400, 'bad_request', `status must be ${STATUSES.join(', ')}`);
+      const rawLimit = Number(url.searchParams.get('limit'));
+      const limit = Math.max(1, Math.min(
+        Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : COMMENTS.defaultLimit, COMMENTS.maxLimit));
+      const offset = decodeCursor(url.searchParams.get('cursor'));
+      if (offset === null) throw fail(400, 'bad_request', 'cursor must be a next_cursor this endpoint gave out');
+      const [rows, inCards] = await Promise.all([
+        userSelect(env, token, 'comments', `board_id=eq.${id}&deleted_at=is.null`
+          + `&select=${COMMENT_FIELDS}&order=created_at.asc&limit=${COMMENTS.maxRows}`),
+        withBoardCards(env, id, token, ({ cards, loaded }) => ({
+          loaded,
+          threads: cardThreads(cards),
+          cards: new Map(cards.map((c) => [String(c.id), { kind: c.kind || 'note', title: c.title }])),
+        })),
+      ]);
+      const threads = [...boardThreads(rows), ...inCards.threads];
+      const names = await commentNames(env, token, authorIds(threads));
+      const { counts, page, hasMore } = pageThreads(threads, { status, offset, limit });
+      const notes = [];
+      if (!inCards.loaded) notes.push('the threads inside docs and notes could not be read just now, so these are the board\'s own');
+      if ((rows || []).length >= COMMENTS.maxRows) notes.push(`only the board's first ${COMMENTS.maxRows} comments were read`);
+      return json({
+        board_id: id,
+        url: boardUrl(url.origin, id),
+        status,
+        counts,
+        threads: page.map((t) => publicThread(t, { names, userId: auth.userId, cards: inCards.cards, url: threadUrl(t) })),
+        has_more: hasMore,
+        next_cursor: hasMore ? encodeCursor(offset + page.length) : null,
+        ...(notes.length ? { note: notes.join('; ') } : {}),
+      });
+    }
+
+    if (!subId && method === 'POST') {
+      trace.route = '/boards/:id/comments';
+      const input = readNewComment(body);
+      if (input.problem) throw fail(400, 'bad_request', input.problem);
+      if (input.replyTo && !isBoardCommentId(input.replyTo)) return replyInCard(input);
+      if (input.anchor?.kind === 'doc') return startInDoc(input);
+      let anchor = input.anchor;
+      let replyTo = null;
+      let offset = null;
+      if (input.replyTo) {
+        // Into the thread, under its first comment, where the thread is: as a
+        // reply made in the app goes (CanvasComment's submitReply).
+        const parent = await commentOnBoard(input.replyTo);
+        const root = parent.reply_to ? await commentOnBoard(parent.reply_to) : parent;
+        anchor = anchorOf(root);
+        replyTo = root.id;
+      } else if (anchor.kind !== 'point') {
+        // What it is on, checked, and where its bubble goes (a point is its
+        // own place).
+        const [onBoard, shown] = await Promise.all([
+          withBoardCards(env, id, token, ({ cards, doc, loaded }) => ({
+            loaded,
+            cards: cards.map((c) => ({ id: String(c.id), x: c.x, y: c.y, w: c.w, h: c.h, groupId: c.groupId ?? null })),
+            groups: new Set(doc.getMap('groups').keys()),
+          })),
+          userSelect(env, token, 'comments', `board_id=eq.${id}&deleted_at=is.null&reply_to=is.null`
+            + `&resolved=is.false&hidden=is.false&select=${COMMENT_FIELDS}&limit=${COMMENTS.maxRows}`),
+        ]);
+        if (!onBoard.loaded) {
+          throw fail(503, 'room_unavailable', 'the board could not be read to place the comment; nothing was written — try again');
+        }
+        if (anchor.kind === 'card' && !onBoard.cards.some((c) => c.id === String(anchor.id))) {
+          throw fail(404, 'not_found', 'no such card on this board');
+        }
+        if (anchor.kind === 'group' && !onBoard.groups.has(String(anchor.id))) {
+          throw fail(404, 'not_found', 'no such group on this board');
+        }
+        offset = placeComment(anchor, { cards: onBoard.cards, comments: shown || [] });
+      }
+      const [saved] = (await userInsert(env, token, 'comments', [commentRow({
+        workspaceId: board.workspace_id, boardId: id, author: auth.userId, body: input.body, anchor, replyTo, offset,
+      })])) || [];
+      if (!saved) throw fail(502, 'upstream_error', 'the comment was not saved — try again');
+      const names = await commentNames(env, token, [auth.userId]);
+      const link = threadUrl({ card_id: anchor.kind === 'card' ? anchor.id : null });
+      // A new thread as the list has it; a reply as a thread's replies are,
+      // naming its thread.
+      const thread = publicThread(boardThreads([{ ...saved, reply_to: null }])[0],
+        { names, userId: auth.userId, url: link });
+      const comment = replyTo
+        ? { id: thread.id, reply_to: replyTo, body: thread.body, author_id: thread.author_id,
+          author_name: thread.author_name, by_you: true, created_at: thread.created_at, url: link }
+        : thread;
+      return json({ board_id: id, comment, url: link }, 201);
+    }
+
+    // Several threads at once, of either kind: what changed, what isn't on the
+    // board, and what was refused and why, in the order asked.
+    if (!subId && method === 'PATCH') {
+      trace.route = '/boards/:id/comments';
+      const ask = readResolveMany(body);
+      if (ask.problem) throw fail(400, 'bad_request', ask.problem);
+      const out = { changed: [], not_found: [], refused: [], cards: new Map() };
+      const own = ask.ids.filter(isBoardCommentId);
+      const inside = ask.ids.filter((cid) => !isBoardCommentId(cid));
+      if (own.length) await resolveOnBoard(own, ask.resolved, out);
+      if (inside.length) await resolveInCards(inside, ask.resolved, out);
+      const inOrder = (list) => ask.ids.filter((cid) => list.includes(cid));
+      return json({
+        board_id: id,
+        resolved: ask.resolved,
+        changed: inOrder(out.changed),
+        not_found: inOrder(out.not_found),
+        refused: ask.ids.flatMap((cid) => out.refused.filter((r) => r.id === cid))
+          .map((r) => ({ id: r.id, code: r.code, reason: r.reason })),
+      });
+    }
+
+    if (!subId) throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+
+    if (action === 'restore') {
+      if (method !== 'POST') throw fail(405, 'method_not_allowed', 'a comment is restored with POST');
+      trace.route = '/boards/:id/comments/:commentId/restore';
+      if (!isBoardCommentId(subId)) {
+        throw fail(400, 'bad_request', 'a thread inside a doc or a note has no restore: deleting one takes it away for good');
+      }
+      const c = await commentOnBoard(subId, { deleted: true });
+      // Its author or an editor of the board, as restore_comment decides
+      // (42501 → 403). Restoring one that isn't deleted changes nothing.
+      if (c.deleted_at) await userRpc(env, token, 'restore_comment', { p_comment_id: subId });
+      return json({ board_id: id, comment_id: subId, restored: true, url: threadUrl({ card_id: c.anchor_kind === 'card' ? c.anchor_id : null }) });
+    }
+
+    if (method === 'PATCH') {
+      trace.route = '/boards/:id/comments/:commentId';
+      if (typeof body?.resolved !== 'boolean' || Object.keys(body).length !== 1) {
+        throw fail(400, 'bad_request', 'send {"resolved": true} to resolve a thread, or {"resolved": false} to reopen it');
+      }
+      const out = { changed: [], not_found: [], refused: [], cards: new Map() };
+      await (isBoardCommentId(subId) ? resolveOnBoard : resolveInCards)([subId], body.resolved, out);
+      if (out.not_found.length) throw noSuch();
+      const [no] = out.refused;
+      if (no) throw fail(no.status, no.code, no.reason);
+      return json({ board_id: id, comment_id: subId, resolved: body.resolved, url: threadUrl({ card_id: out.cards.get(subId) ?? null }) });
+    }
+
+    if (method === 'DELETE') {
+      trace.route = '/boards/:id/comments/:commentId';
+      if (!isBoardCommentId(subId)) return deleteInDoc(subId);
+      const c = await commentOnBoard(subId);
+      if (c.author !== auth.userId) {
+        throw fail(403, 'forbidden', 'only its author deletes a comment; an editor resolves someone else\'s thread instead');
+      }
+      await userRpc(env, token, 'soft_delete_comment', { p_comment_id: subId });
+      return json({
+        board_id: id,
+        comment_id: subId,
+        deleted: true,
+        restore: `POST /api/v1/boards/${id}/comments/${subId}/restore`,
+      });
+    }
+
+    throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+  }
+
+  // /boards/:id/tags — the tags on this board's cards, groups and doc pages
+  // (GET), and putting tags on its cards or taking them off (POST), each as
+  // the app's Tag… picker does it (lib/apiTags.js): a name the workspace lacks
+  // becomes a tag, which then applies itself wherever its name appears
+  // (backfill_tag_applications, as ensureTag runs it); a deleted tag's name
+  // brings that tag back; taking a tag off a card keeps it off for good
+  // (autotag_ignored, the 0590 guard), and putting it on again lifts that.
+  if (sub === 'tags') {
+    trace.route = '/boards/:id/tags';
+    if (parts.length > 3) throw fail(404, 'not_found', 'unknown endpoint');
+    if (method === 'GET') {
+      const board = await boardForUser(env, token, id);
+      if (!board) throw fail(404, 'not_found', 'board not found');
+      const [links, onBoard] = await Promise.all([
+        selectAll(env, token, 'entity_links', `source_board_id=eq.${id}&target_kind=eq.tag&link_kind=eq.applied`
+          + '&select=source_kind,source_id,source_page_id,target_id&order=created_at.asc,id.asc'),
+        boardContents(env, token, id),
+      ]);
+      const tagIds = [...new Set(links.map((l) => l.target_id))];
+      const tags = [];
+      for (let i = 0; i < tagIds.length; i += 100) {
+        tags.push(...await userSelect(env, token, 'tags', `id=in.(${tagIds.slice(i, i + 100).join(',')})`
+          + `&status=neq.deleted&deleted_at=is.null&select=${TAG_FIELDS}`));
+      }
+      return json({
+        board_id: id,
+        tags: boardTags(links, tags, id, onBoard.loaded ? onBoard : null),
+        ...(onBoard.loaded ? {} : { note: 'the board could not be read just now, so cards deleted since may be listed' }),
+        url: boardUrl(url.origin, id),
+      });
+    }
+    if (method !== 'POST') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
+
+    const asked = readTagRequest(body);
+    if (asked.problem) throw fail(400, 'bad_request', asked.problem);
+    const board = await boardForUser(env, token, id);
+    if (!board) throw fail(404, 'not_found', 'board not found');
+    const ws = board.workspace_id;
+    const [canTag, onBoard, rows] = await Promise.all([
+      userRpc(env, token, 'can_write_workspace', { ws }).catch(() => false),
+      boardContents(env, token, id),
+      findWorkspaceTags(env, token, ws, [...asked.add, ...asked.remove]),
+    ]);
+    if (canTag !== true) {
+      throw fail(403, 'forbidden', 'only someone who can edit this board\'s workspace tags things in it, as in the app');
+    }
+    if (!onBoard.loaded) {
+      throw fail(503, 'room_unavailable', 'the board could not be read to find the cards; nothing was written — try again');
+    }
+    const cardIds = asked.cardIds.filter((c) => onBoard.cards.has(c));
+    if (!cardIds.length) throw fail(404, 'not_found', 'none of those cards is on this board');
+    const live = (t) => t.row && !isDeadTag(t.row);
+    // One entry per tag: a tag named once and also given by its id is one tag.
+    const once = (list) => list.filter((t, i) => !t.row || list.findIndex((u) => u.row?.id === t.row.id) === i);
+    const askedAdd = matchTags(asked.add, rows);
+    const add = once(askedAdd.filter((t) => t.row || !t.id));
+    const remove = matchTags(asked.remove, rows);
+    const notFoundTags = [
+      ...askedAdd.filter((t) => t.id && !t.row),
+      ...remove.filter((t) => !live(t)),
+    ].map((t) => t.name);
+    const both = add.find((t) => t.row && remove.some((r) => live(r) && r.row.id === t.row.id));
+    if (both) throw fail(400, 'bad_request', `${both.name} is both added and removed: leave it out of one`);
+    const takeOff = once(remove.filter(live));
+
+    // The tags to add: made where the workspace has none of the name, brought
+    // back where it has a deleted one.
+    await Promise.all(add.map(async (t) => {
+      if (!t.row) Object.assign(t, await makeTag(env, token, ws, auth.userId, t));
+      else if (isDeadTag(t.row)) {
+        await userRpc(env, token, 'restore_tag', { p_tag_id: t.row.id });
+        t.row = { ...t.row, status: 'active', deleted_at: null };
+        t.revived = true;
+      }
+    }));
+
+    // Which of the cards carry which of the tags now.
+    const tagIds = [...add, ...takeOff].map((t) => t.row.id);
+    const cardList = encodeURIComponent(pgInList(cardIds));
+    const carried = new Set(tagIds.length ? (await selectAll(env, token, 'entity_links',
+      `source_kind=eq.card&source_board_id=eq.${id}&target_kind=eq.tag&link_kind=eq.applied`
+      + `&target_id=in.(${tagIds.join(',')})&source_id=in.${cardList}&select=source_id,target_id&order=id.asc`))
+      .map((l) => `${l.target_id}|${l.source_id}`) : []);
+
+    // Off: the applications go, whoever made them, and each pair is kept off.
+    const removed = takeOff.map((t) => ({ tag: t, cards: cardIds.filter((c) => carried.has(`${t.row.id}|${c}`)) }));
+    if (removed.some((r) => r.cards.length)) {
+      await userDelete(env, token, 'entity_links', `source_kind=eq.card&source_board_id=eq.${id}`
+        + `&target_kind=eq.tag&link_kind=eq.applied&target_id=in.(${takeOff.map((t) => t.row.id).join(',')})`
+        + `&source_id=in.${cardList}`);
+      await userInsert(env, token, 'autotag_ignored', removed.flatMap((r) => r.cards.map((c) => ({
+        workspace_id: ws, target_kind: 'card', target_id: c, tag_id: r.tag.row.id, ignored_by: auth.userId,
+      }))), { returning: 'minimal', onConflict: 'workspace_id,target_kind,target_id,tag_id' });
+    }
+
+    // On: an application for each pair not already there, as the person's
+    // own (source 'user'), and any earlier "keep it off" lifted.
+    const added = add.map((t) => ({ tag: t, cards: cardIds.filter((c) => !carried.has(`${t.row.id}|${c}`)) }));
+    const links = added.flatMap((a) => a.cards.map((c) => ({
+      source_kind: 'card', source_id: c, source_workspace: ws, source_board_id: id,
+      target_kind: 'tag', target_id: a.tag.row.id, link_kind: 'applied', source: 'user',
+    })));
+    if (links.length) {
+      try {
+        await userInsert(env, token, 'entity_links', links, { returning: 'minimal' });
+      } catch (e) {
+        // Someone put one of them on meanwhile: the rest, one at a time.
+        if (!isDuplicate(e)) throw e;
+        await mapWithConcurrency(links, 8, (l) => userInsert(env, token, 'entity_links', [l], { returning: 'minimal' })
+          .catch((err) => { if (!isDuplicate(err)) throw err; }));
+      }
+    }
+    if (add.length) {
+      await userDelete(env, token, 'autotag_ignored', `workspace_id=eq.${ws}&target_kind=eq.card`
+        + `&tag_id=in.(${add.map((t) => t.row.id).join(',')})&target_id=in.${cardList}`);
+    }
+
+    // A new tag then finds the rest of what it names across the workspace, as
+    // one made in the app does (ensureTag), once this call's own are written.
+    for (const t of add.filter((x) => x.created)) {
+      const spread = userRpc(env, token, 'backfill_tag_applications', { p_tag_id: t.row.id, p_workspace_id: ws })
+        .catch(() => {});
+      if (ctx.waitUntil) ctx.waitUntil(spread);
+      else await spread;
+    }
+
+    return json({
+      board_id: id,
+      added: added.map((a) => ({
+        ...publicTag(a.tag.row), created: Boolean(a.tag.created), ...(a.tag.revived ? { revived: true } : {}),
+        card_ids: a.cards,
+      })),
+      removed: removed.map((r) => ({ ...publicTag(r.tag.row), card_ids: r.cards })),
+      not_found: { card_ids: asked.cardIds.filter((c) => !onBoard.cards.has(c)), tags: notFoundTags },
+      url: boardUrl(url.origin, id),
+    });
+  }
+
   if (sub !== 'cards') throw fail(404, 'not_found', 'unknown endpoint');
 
   // ── /boards/:id/cards ──────────────────────────────────────────────────────
@@ -2972,7 +4215,7 @@ async function dispatch(url, request, env, ctx) {
   if (!subId && method === 'GET') {
     trace.route = '/boards/:id/cards';
     const { limit, offset } = pageParams(url);
-    const include = parseInclude(url, ['props', 'identifiers', 'raw']);
+    const include = parseInclude(url, ['props', 'identifiers', 'raw', 'groups']);
 
     // ?source=index — the projection in card_index instead of the Y.Doc.
     //
@@ -3051,15 +4294,182 @@ async function dispatch(url, request, env, ctx) {
 
     // Read through the live room when we can, so a card added seconds ago by a
     // collaborator is visible rather than missing until the next snapshot.
-    const all = await readBoardCards(env, id, token);
+    // include=groups reads the board's groups in the same open.
+    const { cards: all, groups } = include.has('groups')
+      ? await readBoardCardsAndGroups(env, id, token)
+      : { cards: await readBoardCards(env, id, token), groups: null };
     const slice = all.slice(offset, offset + limit + 1);
     const page = paginate(slice, limit, offset);
     return json({
       board_id: id,
       source: 'live',
       cards: await decorateCards(env, token, id, page.items, include),
+      ...(groups ? { groups: groups.map(publicGroup) } : {}),
       total: all.length,
       ...pageMeta(page),
+    });
+  }
+
+  // Below a card, only its doc is a route: /doc, /doc/pages and
+  // /doc/pages/:pageId. Anything else used to fall through to the card itself,
+  // so a PATCH meant for something deeper would have rewritten the card.
+  const leaf = parts[4];
+  const docPath = leaf === 'doc' && (parts.length === 5 || (parts[5] === 'pages' && parts.length <= 7));
+  if (subId && leaf !== undefined && !docPath) {
+    throw fail(404, 'not_found', 'unknown endpoint');
+  }
+
+  // GET /boards/:id/cards/:cardId — one card, as the list gives it.
+  if (subId && !leaf && method === 'GET') {
+    trace.route = '/boards/:id/cards/:cardId';
+    const include = parseInclude(url, ['props', 'identifiers', 'raw']);
+    const card = (await readBoardCards(env, id, token)).find((c) => String(c.id) === subId);
+    if (!card) throw fail(404, 'not_found', 'card not found');
+    return json({
+      board_id: id,
+      card: (await decorateCards(env, token, id, [card], include))[0],
+      url: cardUrl(url.origin, id, subId),
+    });
+  }
+
+  // GET /boards/:id/cards/:cardId/doc?page=&max_chars= — a doc card's pages as
+  // Markdown, read from its fragments in the board's document
+  // (lib/docMarkdown.js): every page listed, the text bounded by max_chars,
+  // one page by ?page= (with its hash as the ETag a rewrite names). Read only —
+  // nothing here may create a page or a fragment on a board that someone may
+  // have open.
+  if (leaf === 'doc' && parts.length === 5) {
+    if (method !== 'GET') {
+      throw fail(405, 'method_not_allowed', `a doc is read here; its pages are written at /boards/${id}/cards/${subId}/doc/pages`);
+    }
+    trace.route = '/boards/:id/cards/:cardId/doc';
+    const pageId = url.searchParams.get('page') || null;
+    const rawMax = Number(url.searchParams.get('max_chars'));
+    const maxChars = Math.max(1, Math.min(
+      Number.isFinite(rawMax) && rawMax > 0 ? Math.floor(rawMax) : DOC_READ.defaultChars, DOC_READ.maxChars));
+    const out = await withBoardCards(env, id, token, ({ cards, doc }) => {
+      const card = cards.find((c) => String(c.id) === subId);
+      if (!card) return { missing: true };
+      if ((card.kind || 'note') !== 'doc') return { kind: card.kind || 'note' };
+      const scope = {
+        pages: card.docPages, content: card.docPageContent,
+        pageSheets: card.docPageSheets, sheetContent: card.docSheetContent,
+      };
+      return { title: card.title ?? null, read: readDocPages(doc, scope, { pageId, maxChars }) };
+    });
+    if (out.missing) throw fail(404, 'not_found', 'card not found');
+    if (out.kind) {
+      throw fail(400, 'bad_request', `card ${subId} is a ${out.kind}, not a doc — GET /boards/${id}/cards/${subId} reads it`);
+    }
+    if (!out.read) throw fail(404, 'not_found', 'this doc has no such page');
+    return json({
+      board_id: id,
+      card_id: subId,
+      title: out.title,
+      url: cardUrl(url.origin, id, subId),
+      page_count: out.read.total,
+      pages: out.read.pages,
+      complete: out.read.pages.every((p) => p.markdown !== null && !p.truncated),
+    }, 200, pageId ? { etag: `"${out.read.pages[0].hash}"` } : {});
+  }
+
+  // POST …/doc/pages — pages added to a doc in Markdown, after the ones it has
+  // or under parent_page_id. PATCH …/doc/pages/:pageId — one page rewritten
+  // from Markdown, changed by exact-text edits, or renamed. Written through the
+  // live room (see loadDocWrite), as the user who could have typed it.
+  if (leaf === 'doc') {
+    const pageId = parts[6] || null;
+    if (method !== (pageId ? 'PATCH' : 'POST')) {
+      throw fail(405, 'method_not_allowed', pageId
+        ? `a page is changed with PATCH and read at GET /boards/${id}/cards/${subId}/doc?page=${pageId}`
+        : `pages are added with POST and read at GET /boards/${id}/cards/${subId}/doc`);
+    }
+    await requireBoardWrite(env, token, id);
+    const dw = await loadDocWrite();
+    const writableDoc = (doc, ym) => {
+      const problem = dw.docProblem(doc, ym);
+      if (problem) throw fail(400, 'bad_request', `card ${subId} is ${problem}`);
+    };
+    const docUrl = cardUrl(url.origin, id, subId);
+
+    if (!pageId) {
+      trace.route = '/boards/:id/cards/:cardId/doc/pages';
+      const pages = dw.preparePages(body.pages);
+      const parentId = body.parent_page_id ?? null;
+      if (parentId !== null && typeof parentId !== 'string') {
+        throw fail(400, 'bad_request', 'parent_page_id must be the id of a page in this doc');
+      }
+      const out = await throughRoom(() => editCardLive(env, {
+        boardId: id, userId: auth.userId, accessToken: token, cardId: subId,
+        prepare: (doc, ym) => {
+          writableDoc(doc, ym);
+          if (parentId && !dw.currentPage(doc, ym, parentId)) throw fail(404, 'not_found', `this doc has no page ${parentId}`);
+          return { images: dw.placeableImages(readCards(doc), ym) };
+        },
+        write: (doc, ym, { images }) => dw.writePages(doc, ym, pages, {
+          parentId, userId: auth.userId, imageAllowed: pictureFrom(images),
+        }),
+      }));
+      if (out.missing) throw fail(404, 'not_found', 'card not found');
+      await indexDocPages(env, token, board.workspace_id, subId, out.result);
+      return json({ board_id: id, card_id: subId, url: docUrl, pages: out.result.map(publicDocPage) }, 201);
+    }
+
+    trace.route = '/boards/:id/cards/:cardId/doc/pages/:pageId';
+    const hasMarkdown = body.markdown !== undefined;
+    const hasEdits = body.edits !== undefined;
+    if (hasMarkdown && hasEdits) throw fail(400, 'bad_request', 'send markdown or edits, not both');
+    if (body.title != null && typeof body.title !== 'string') throw fail(400, 'bad_request', 'title must be a string');
+    if (!hasMarkdown && !hasEdits && body.title == null) {
+      throw fail(400, 'bad_request', 'nothing to change: send markdown (the whole page), edits, or title');
+    }
+    const tokens = hasMarkdown ? dw.pageMarkdown(body.markdown) : null;
+    // A whole-page rewrite names the page as it was read, so it can't erase a
+    // change made since; edits name the exact text they change instead.
+    const ifMatch = (request.headers.get('if-match') || '').replace(/^W\//, '').replace(/"/g, '').trim();
+    const expected = (typeof body.page_hash === 'string' && body.page_hash.trim()) || ifMatch || null;
+    if (hasMarkdown && !expected) {
+      throw fail(400, 'bad_request',
+        `a whole-page rewrite needs page_hash: the hash GET /boards/${id}/cards/${subId}/doc?page=${pageId} gives for the page`);
+    }
+    const changedSince = () => fail(409, 'page_changed', 'the page changed after it was read; read it again '
+      + `(GET /boards/${id}/cards/${subId}/doc?page=${pageId}) and make the change to that`);
+
+    let same = null;
+    const out = await throughRoom(() => editCardLive(env, {
+      boardId: id, userId: auth.userId, accessToken: token, cardId: subId,
+      checkpoint: { action: 'api-edit-doc-page', card_id: subId, page_id: pageId },
+      prepare: (doc, ym) => {
+        writableDoc(doc, ym);
+        const page = dw.currentPage(doc, ym, pageId);
+        if (!page) throw fail(404, 'not_found', 'this doc has no such page');
+        if (expected && page.hash !== expected) throw changedSince();
+        const next = hasEdits ? dw.pageMarkdown(dw.applyTextEdits(page.markdown, body.edits)) : tokens;
+        const imageAllowed = pictureFrom(dw.placeableImages(readCards(doc), ym));
+        const plan = dw.planPageEdit(doc, ym, pageId, next, { title: body.title ?? null, imageAllowed });
+        const { markdown: _m, truncated: _t, ...summary } = page;
+        same = { page: summary, blocks: { kept: plan.old.length, removed: 0, added: 0 } };
+        return { tokens: next, imageAllowed, hash: page.hash, unchanged: plan.unchanged };
+      },
+      // Checked again at the moment of writing: the room kept talking while
+      // the checkpoint was saved.
+      write: (doc, ym, prep) => {
+        if (prep.tokens && dw.currentPage(doc, ym, pageId)?.hash !== prep.hash) throw changedSince();
+        return dw.rewritePage(doc, ym, pageId, prep.tokens, {
+          title: body.title ?? null, userId: auth.userId, imageAllowed: prep.imageAllowed,
+        });
+      },
+    }));
+    if (out.missing) throw fail(404, 'not_found', 'card not found');
+    if (out.unchanged) return json({ board_id: id, card_id: subId, url: docUrl, ...same, changed: false });
+    await indexDocPages(env, token, board.workspace_id, subId, [out.result.page]);
+    return json({
+      board_id: id,
+      card_id: subId,
+      url: docUrl,
+      page: publicDocPage(out.result.page),
+      blocks: out.result.blocks,
+      changed: true,
     });
   }
 

@@ -70,12 +70,52 @@ test('the shared doc is a guest: nothing brought in, the room’s word on writin
   assert.match(v, /const canEdit = !!res\.can_edit && hello\?\.readOnly === false && phase !== 'ended';/);
   assert.match(v, /workspaceId=\{null\}/);
   assert.match(v, /isPublic=\{!canEdit\}\s+guestMode/);
-  assert.match(v, /allowExport=\{!!res\.allow_download\}/);
+  assert.match(v, /allowExport=\{canEdit && !!res\.allow_download\}/, 'Export is for the people who can edit it');
   assert.match(v, /return \{ \.\.\.s, comments: s\.comments \|\| emptyComments, cardId: cardKey, docCardId: cardKey, boardId: null \};/);
   assert.match(v, /const c = cards\.get\(cardKey\);/, 'the card is the one the share named');
   assert.doesNotMatch(v, /initCardDocStore/, 'a guest never backfills the card (a write outside the doc)');
   assert.match(v, /for \(const k of r2KeysIn\(update\)\) \{[\s\S]{0,120}setKeyResolver\(k, resolver\);/);
   assert.match(v, /const doc = new Y\.Doc\(\);/, 'a copy of its own, made by the effect that runs the room');
+});
+
+// The doc look, as in its cluster (2026-10-27): the look's header over the
+// surface through a frame, a guest's (its title only reads; the page closes
+// and docks nothing), and no workspace's messages.
+test('the shared doc wears the doc look, with a guest’s header', () => {
+  const v = src('../components/fileShare/DocShareView.jsx');
+  assert.match(v, /const \[frame\] = useState\(\(\) => createDocFrame\(\)\);/);
+  const headTag = v.match(/<DocHeadA [^>]*>/)?.[0] || '';
+  assert.match(headTag, /frame=\{frame\} card=\{headCard\} scope=\{scope\} boards=\{null\}\s+canEdit=\{canEdit\} isPublic=\{!canEdit\} guestMode/);
+  assert.doesNotMatch(headTag, /onClose|onSetMode|onUpdate/, 'nothing on the page closes, docks or renames the doc');
+  assert.match(v, /allowExport=\{canEdit && !!res\.allow_download\}\s+frame=\{frame\} \/>/);
+  assert.match(v, /<MessagesUiContext\.Provider value=\{null\}>/);
+  const head = src('../components/doc/DocFrameA.jsx');
+  assert.match(head, /const canRename = canEdit && !guestMode;/);
+  assert.match(head, /readOnly=\{!canRename\}/);
+  assert.match(head, /\{onClose && <Btn icon=\{X\} label="Close document" onClick=\{onClose\} \/>\}/);
+  assert.match(head, /\{isPublic \|\| !onSetMode \? null : mode === 'full'/);
+  assert.match(head, /showSave=\{!guestMode && f\.showSave !== false\}/, 'a guest’s saving is the room’s');
+  const s = src('../components/DocSurface.jsx');
+  assert.match(s, /closest\('\.doc-card-modal, \.dsv'\)/, 'a phone’s sheet lies over the shared doc’s header too');
+});
+
+// A guest's comments: a reply, a resolve or a reopen in their own name, as
+// the room allows (lib/docRoomBridge.js), and Delete only on their own.
+test('a guest comments in the side panel in their own name, and deletes only their own thread', () => {
+  const s = src('../components/DocSurface.jsx');
+  assert.match(s, /canEdit=\{canEdit && \(!guestMode \|\| !!currentUser\?\.id\)\} guest=\{guestMode\}/);
+  assert.match(s, /<DocFindTab ydoc=\{ydoc\} scope=\{scope\} canEdit=\{canEdit\}/, 'a replace is typing');
+  const tab = src('../components/doc/DocCommentsTab.jsx');
+  assert.match(tab, /const canDelete = canEdit && \(!guest \|\| \(!!me && thread\.authorId === me\)\);/);
+  assert.match(tab, /\{i === 0 && canDelete && \(/);
+});
+
+// Inside the app a shared doc's Escape is the doc's first (DocCard.jsx's
+// rule): never while typing, and a layer in the doc takes its own.
+test('in the app, Escape in a shared doc is the doc’s before it closes the dialog', () => {
+  const p = src('../components/fileShare/FileSharePage.jsx');
+  assert.match(p, /if \(doc && \(e\.defaultPrevented \|\| isComposingKey\(e\) \|\| isEditableTarget\(e\)\)\) return;/);
+  assert.match(p, /const at = doc \? window : document;\s+at\.addEventListener\('keydown', onKey, !doc\);/);
 });
 
 test('guest mode leaves the doc’s housekeeping to its members and filters what a guest pastes', () => {

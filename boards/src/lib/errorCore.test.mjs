@@ -16,7 +16,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   ERROR_CONTEXT_KEYS, ERROR_HTTP_KEYS, errorContext, dedupeKey, crumbNames,
-  routeOf, bodyCode, classifyHttpFailure, scrubUrls, channelFailure, channelLabel,
+  routeOf, bodyCode, classifyHttpFailure, scrubUrls, channelFailure, channelLabel, timersRanAhead,
 } from './errorCore.js';
 import { isNoise, isBotUA } from './errorNoise.js';
 import { crumb, crumbsSnapshot, __resetCrumbsForTest } from './errorCrumbs.js';
@@ -302,4 +302,29 @@ test('what a status says about the channel itself, and a dropped socket says not
     ['CHANNEL_ERROR', new Error('Realtime was unable to connect to the project database'), 'refused'],
   ];
   for (const [status, err, want] of cases) assert.equal(channelFailure(status, err), want, `${status} ${err?.message || ''}`);
+});
+
+test('a watchdog that went off before its time is a renderer\'s, never a person\'s', () => {
+  // As the renderers that set off "the app is not opening" (2026-10-27) did:
+  // the 45-second splash watchdog, after 9 and 5 seconds of the page's clock.
+  assert.equal(timersRanAhead(9047, 45_000), true);
+  assert.equal(timersRanAhead(4815, 45_000), true);
+  assert.equal(timersRanAhead(45_000, 45_000), false);
+  assert.equal(timersRanAhead(61_200, 45_000), false, 'a browser fires a timer late');
+  // Knowing nothing proves nothing: an item without its delay still counts.
+  assert.equal(timersRanAhead(9047, undefined), false);
+  assert.equal(timersRanAhead(undefined, 45_000), false);
+
+  // The splash watchdog hands its delay along, and the sender drops it early.
+  const reporting = readFileSync(new URL('./errorReporting.js', import.meta.url), 'utf8');
+  const delay = Number(reporting.match(/const BOOT_STUCK_MS = ([\d_]+);/)[1].replace(/_/g, ''));
+  assert.equal(delay, 45_000);
+  assert.match(reporting, /hand\(\{ t: 'boot', m: moment\(\), after: BOOT_STUCK_MS \}\)/);
+  assert.match(reporting, /\}, BOOT_STUCK_MS\);/);
+  const sender = readFileSync(new URL('./errorSender.js', import.meta.url), 'utf8');
+  const boot = sender.slice(sender.indexOf("it.t === 'boot'"), sender.indexOf("it.t === 'perf'"));
+  assert.match(boot, /timersRanAhead\(m\.at, it\.after\)[\s\S]*?\) return;/);
+  // 0583 drops the rows builds already out still send, at the same 45 seconds.
+  const sql = latestDefinition('_breaking_candidates').body;
+  assert.match(sql, new RegExp(`message like 'Boot stuck after %'\\s+and coalesce\\(\\(e\\.context->>'ms'\\)::numeric, ${delay}\\) < ${delay}\\)`));
 });

@@ -99,6 +99,12 @@ The same disclosure lists every link currently live on the cluster, with what
 each one grants, how many people have joined through it, when it expires, and
 buttons to copy or **revoke** it.
 
+An AI assistant you have [connected](/docs/mcp) can do the same two things
+with `share_board` and `unshare_board`: hand back the cluster's view link, or
+revoke it. It gets the link that already exists when there is one, and a link it
+makes shows just that one board unless it asks for the nested ones too. Scripts
+use [the same endpoint](/docs/api/boards#sharing-by-link-boards-id-share-link).
+
 > **Note:** By default a shared board tells search engines not to index it. It
 > is reachable by anyone with the URL, but it will not turn up in a search
 > unless you allow indexing or [publish it to Explore](/docs/publish/explore).
@@ -416,9 +422,11 @@ manage the doc, and anyone who can only view the cluster can read it.
 
 ### What the other person sees
 
-The doc's name, **Editing** or **View only**, and the doc, with its pages and
-images. Everyone in it sees everyone else's cursor: people from the cluster
-see the others' names marked **(guest)**. If they are signed in, **Open in
+The doc as it looks in its cluster: its name at the top, its pages and
+images, and **View only** if they can only read it. Someone who can edit gets
+the toolbar, and **Comments** at the top opens the doc's comments beside the
+page. Everyone in it sees everyone else's cursor: people from the cluster see
+the others' names marked **(guest)**. If they are signed in, **Open in
 Clusters** at the top opens it inside the app.
 
 Someone editing through a link is a guest in the doc, so a few things stay

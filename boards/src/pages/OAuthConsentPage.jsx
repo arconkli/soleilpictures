@@ -25,43 +25,39 @@ import { useAuth } from '../auth/AuthGate.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { Lock, Check, X } from '../lib/icons.js';
+import { Lock, Eye, Edit, Trash2, SealCheck, Monitor, Warning } from '../lib/icons.js';
 import { consentError, consentRequestProblem, consentRequestFault } from '../lib/oauthConsentCopy.js';
 import { connectEventProps } from '../lib/oauthConnect.js';
+import { consentTrust, consentScopes, scopeSentence, returnLabel, SCOPE_CHIPS } from '../lib/oauthTrust.js';
 import { logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import './oauthConsent.css';
 
-// What each scope actually lets an assistant do, in the words of the product
-// rather than the words of the API. "write" is not a permission anyone can
-// weigh; "create and change clusters, cards and files" is.
-const SCOPE_COPY = {
-  read: {
-    title: 'Read your clusters',
-    body: 'See your clusters, the cards on them, and the images and files they hold.',
-  },
-  write: {
-    title: 'Create and change things',
-    body: 'Add clusters and cards, upload files, move and arrange what is already there.',
-  },
-  delete: {
-    title: 'Delete things',
-    body: 'Remove cards and clusters. Deleted clusters go to the bin and can be restored.',
-  },
-};
+// Direction D, "Trust banner" (the owner's pick, 2026-10-26): who vouches for
+// the app across the top of the card (lib/oauthTrust.js), then the app, the
+// account it will act as, what it may do as chips with one plain sentence, and
+// two answers. "write" is not a permission anyone can weigh; "create and
+// change" is.
+const CHIP_ICON = { read: Eye, write: Edit, delete: Trash2 };
+const BANNER_ICON = { verified: SealCheck, local: Monitor, unverified: Warning };
+
+// The first character of a name, for the app's tile and the account's avatar.
+// Never a remote logo: a registered client's logo_uri is whatever it typed.
+const initialOf = (s) => (Array.from(String(s || '').trim())[0] || '?').toUpperCase();
 
 function Shell({ children }) {
   return (
     <div className="oauth-screen">
-      <div className="oauth-card">
+      <div className="oauth-column">
         <div className="oauth-brand"><SoleilWordmark size="block" /></div>
-        {children}
+        <div className="oauth-card">{children}</div>
       </div>
     </div>
   );
 }
 
 export function OAuthConsentPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const params = new URLSearchParams(window.location.search);
 
   const clientId = params.get('client_id') || '';
@@ -71,14 +67,16 @@ export function OAuthConsentPage() {
   const challengeMethod = params.get('code_challenge_method') || '';
   const state = params.get('state');
   const resource = params.get('resource') || '';
-  const scopes = (params.get('scope') || 'read write')
-    .split(/[\s,]+/).map((s) => s.trim().toLowerCase())
-    .filter((s) => s in SCOPE_COPY);
-  const shown = scopes.length ? scopes : ['read', 'write'];
+  const { shown, offerDelete } = consentScopes((params.get('scope') || '')
+    .split(/[\s,]+/).map((s) => s.trim().toLowerCase()));
 
   const [client, setClient] = useState(null);
   const [problem, setProblem] = useState(null);
   const [busy, setBusy] = useState('');
+  // An app that asked to write can be allowed to delete too; the token
+  // response's `scope` tells it what it got.
+  const [allowDelete, setAllowDelete] = useState(false);
+  const granted = offerDelete && allowDelete ? [...shown, 'delete'] : shown;
 
   // Everything wrong with the REQUEST itself, decided before any network call.
   // Phrased for the person who clicked, not the person who integrated — see
@@ -141,7 +139,7 @@ export function OAuthConsentPage() {
         body: JSON.stringify({
           client_id: clientId,
           redirect_uri: redirectUri,
-          scope: scopes.length ? scopes : ['read', 'write'],
+          scope: granted,
           code_challenge: codeChallenge,
           code_challenge_method: 'S256',
           state,
@@ -180,12 +178,14 @@ export function OAuthConsentPage() {
   if (fatal) {
     return (
       <Shell>
-        <EmptyState
-          icon={Lock}
-          title={fatal.title}
-          body={fatal.body}
-          action={{ label: 'Go to Clusters', onClick: () => window.location.assign('/') }}
-        />
+        <div className="oauth-body">
+          <EmptyState
+            icon={Lock}
+            title={fatal.title}
+            body={fatal.body}
+            action={{ label: 'Go to Clusters', onClick: () => window.location.assign('/') }}
+          />
+        </div>
       </Shell>
     );
   }
@@ -193,61 +193,62 @@ export function OAuthConsentPage() {
   if (!client) {
     return (
       <Shell>
-        <div className="oauth-loading t-body">Checking that application…</div>
+        <div className="oauth-loading">Checking that application…</div>
       </Shell>
     );
   }
 
-  const host = (() => {
-    try { return new URL(redirectUri).host || new URL(redirectUri).protocol; } catch { return redirectUri; }
-  })();
+  const name = client.client_name || 'This app';
+  const trust = consentTrust(client, redirectUri);
 
   return (
     <Shell>
-      <h1 className="oauth-title t-h1">
-        <b>{client.client_name}</b> wants to connect to your clusters
-      </h1>
-      <div className="oauth-sub t-body">
-        Signed in as <b>{user?.email}</b>
+      <div className={`oauth-banner is-${trust.tone}`} data-trust={trust.kind}>
+        <Icon as={BANNER_ICON[trust.kind]} size={15} weight="regular" className="oauth-banner-icon" />
+        <span><b>{trust.lead}</b> {trust.rest}</span>
       </div>
 
-      <ul className="oauth-scopes">
-        {shown.map((s) => (
-          <li key={s} className="oauth-scope">
-            <span className="oauth-scope-tick"><Icon as={Check} size={14} /></span>
-            <span>
-              <span className="oauth-scope-title">{SCOPE_COPY[s].title}</span>
-              <span className="oauth-scope-body t-meta">{SCOPE_COPY[s].body}</span>
+      <div className="oauth-body">
+        <div className="oauth-app" aria-hidden="true">{initialOf(name)}</div>
+        <h1 className="oauth-name">{name}</h1>
+        <div className="oauth-wants">wants to connect to your clusters</div>
+
+        {/* Signing out leaves this page where it is: AuthGate asks for an
+            email, and the same request comes back for whoever signs in. */}
+        <button type="button" className="oauth-account" disabled={!!busy} onClick={() => signOut()}
+          title="Connect a different account">
+          <span className="oauth-account-avatar" aria-hidden="true">{initialOf(user?.email)}</span>
+          <span className="oauth-account-email">{user?.email}</span>
+          <span className="oauth-account-switch">· Switch</span>
+        </button>
+
+        <div className="oauth-chips">
+          {shown.map((s) => (
+            <span key={s} className="oauth-chip">
+              <Icon as={CHIP_ICON[s]} size={14} weight="regular" />{SCOPE_CHIPS[s]}
             </span>
-          </li>
-        ))}
-      </ul>
+          ))}
+          {offerDelete && (
+            <button type="button" className={`oauth-chip oauth-chip-toggle${allowDelete ? ' is-on' : ''}`}
+              aria-pressed={allowDelete} disabled={!!busy} onClick={() => setAllowDelete((on) => !on)}>
+              <Icon as={Trash2} size={14} weight="regular" />{allowDelete ? SCOPE_CHIPS.delete : 'Allow deleting'}
+            </button>
+          )}
+        </div>
+        <div className="oauth-sentence">{scopeSentence(granted)}</div>
 
-      <div className="oauth-note t-meta">
-        It will reach exactly what you can reach — no more. You can disconnect it at any time in
-        {' '}<b>Settings → API</b>, and everything it does is recorded in your audit log.
-      </div>
-
-      <div className="oauth-actions">
-        <button
-          type="button"
-          className="oauth-deny"
-          disabled={!!busy}
-          onClick={() => send('/oauth/deny')}
-        >
-          <Icon as={X} size={14} /> {busy === '/oauth/deny' ? 'Cancelling…' : 'Cancel'}
+        <button type="button" className="oauth-allow" disabled={!!busy} onClick={() => send('/oauth/authorize')}>
+          {busy === '/oauth/authorize' ? 'Connecting…' : `Connect ${name}`}
         </button>
-        <button
-          type="button"
-          className="oauth-allow"
-          disabled={!!busy}
-          onClick={() => send('/oauth/authorize')}
-        >
-          {busy === '/oauth/authorize' ? 'Connecting…' : `Connect ${client.client_name}`}
+        <button type="button" className="oauth-deny" disabled={!!busy} onClick={() => send('/oauth/deny')}>
+          {busy === '/oauth/deny' ? 'Cancelling…' : 'Cancel'}
         </button>
       </div>
 
-      <div className="oauth-target t-meta">You will be returned to {host}</div>
+      <div className="oauth-foot">
+        Returns to <b>{returnLabel(redirectUri)}</b> · Disconnect any time in Settings → Connections ·
+        Everything it does is in your audit log
+      </div>
     </Shell>
   );
 }

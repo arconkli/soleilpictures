@@ -30,11 +30,12 @@ and as little manual work on our side as possible.
 
 ### The Team plan
 
-- Its own plan, bought directly: **$15 per editor seat a month, $144 a year** (20% off, like
-  Creator), **3-seat minimum**, self-serve up to 100 seats.
+- Its own plan, bought directly: **$25 per editor seat a month, $240 a year** (what Creator
+  costs, 20% off yearly like Creator; the owner's pick of 2026-10-25, first set at $15 / $144), **3-seat minimum**, self-serve up to 100 seats.
 - Every editor uses a seat, the owner and outside guest editors included. Seats are pooled
   across the team's workspaces. Viewers are free.
-- Unlimited cards. Storage pool = **max(1 TB, 250 GB × seats)**, plus +1 TB blocks at $25 each.
+- Unlimited cards. Storage pool = **1 TB × seats**, as Creator (2026-10-25, was max(1 TB, 250 GB × seats);
+  0539), plus +1 TB blocks at $25 each.
 - A 14-day trial with a card; storage is capped at **100 GB until the first payment**; seats
   added during the trial are charged when it converts.
 - Unused seats are used first. When the seats run out, the **admins choose**:

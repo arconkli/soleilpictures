@@ -276,3 +276,14 @@ export function channelLabel(name) {
   }
   return words.join('-') || 'other';
 }
+
+// ── Watchdogs ───────────────────────────────────────────────────────────────
+
+// A watchdog's timer that went off before its delay had passed on the page's
+// own clock (performance.now() at the firing, against the delay it was set
+// for). A browser only ever fires a timer late; a renderer that runs pages with
+// their timers fast-forwarded fires a 45-second one after a few seconds, with
+// nobody waiting on the page.
+export function timersRanAhead(firedAt, delay) {
+  return Number.isFinite(firedAt) && Number.isFinite(delay) && firedAt < delay;
+}

@@ -27,7 +27,9 @@ import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { teamPreviewAvailable, readTeamPreview } from '../lib/teamPreview.js';
-import { EDITOR_LIMIT } from '../lib/editorLimit.js';
+import { teamPricingAllowed } from '../lib/appHost.js';
+import { teamStartHref } from '../lib/teamStart.js';
+import { useTeamPricingCard } from './useTeamPricingCard.js';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
@@ -36,20 +38,15 @@ export function PricingPage() {
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState(null);
   const rootRef = useRef(null);
-  // The team preview's third card (Settings › Preview › Team plan, preview
-  // host and dev only). Look only: Start opens the setup at /team/new.
-  const teamOn = teamPreviewAvailable() && !!readTeamPreview();
-  const [teamSeats, setTeamSeats] = useState(12);
-  const [talkNote, setTalkNote] = useState(false);
-  // The hero's Team sentence. The price lives in the team model, which only
-  // the preview loads (it shares a chunk with the Team card).
-  const [teamHero, setTeamHero] = useState(null);
-  useEffect(() => {
-    if (!teamOn) return undefined;
-    let live = true;
-    import('../lib/teamModel.js').then((m) => { if (live) setTeamHero(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});
-    return () => { live = false; };
-  }, [teamOn]);
+  // The third card, Team, while Team is open here (teamPricingAllowed), or
+  // with Settings › Preview's sample team. Start opens the setup at /team/new,
+  // which is the sample's walk-through when the sample is on.
+  const teamCard = useTeamPricingCard({
+    on: teamPricingAllowed() || (teamPreviewAvailable() && !!readTeamPreview()),
+    plan,
+    surface: 'page',
+    onStart: (seats) => window.location.assign(teamStartHref({ seats, billing: plan })),
+  });
   // Back from Stripe restores the page with the CTA still busy.
   useBfcacheRestore(() => setBusy(false));
 
@@ -141,15 +138,7 @@ export function PricingPage() {
           window.location.assign('/waitlist');
         },
       }}
-      teamCard={teamOn ? {
-        plan,
-        seats: teamSeats,
-        setSeats: setTeamSeats,
-        onStart: () => window.location.assign(`/team/new?seats=${teamSeats}&billing=${plan}`),
-        talkNote,
-        onTalk: () => setTalkNote(true),
-        heroLine: teamHero,
-      } : null}
+      teamCard={teamCard}
       showPlanToggle={!alreadyPaid}
       showPrice={!alreadyPaid}
       stateLine={alreadyPaid ? (

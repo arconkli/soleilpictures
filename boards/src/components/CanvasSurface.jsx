@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import * as perf from '../lib/perf.js';
+import { docDropSize } from '../lib/fileView.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
@@ -77,6 +78,8 @@ const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then
 // which gets the count instead, never fetches it.
 const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
+// Opened only by a multi-selection's Tag, so it loads then (LAZY_IN_APP).
+const TagManyPicker = lazyPanel(() => import('./TagManyPicker.jsx').then(m => ({ default: m.TagManyPicker })));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
@@ -93,7 +96,7 @@ import {
   MessageCircle, MessageCircleOff,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
-  Calendar as CalendarPh, X, Minus,
+  Calendar as CalendarPh, X, Minus, Eye, Check, Sparkle,
 } from '../lib/icons.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { keyCaps, tlTip } from '../lib/looks.js';
@@ -209,7 +212,10 @@ import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.
 import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
+import { useTagSuggestions, acceptCardSuggestion, dismissCardSuggestion } from '../hooks/useTagSuggestions.js';
+import { resolveTagColor } from '../lib/tagColor.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
+import { embedTextForLiveCard } from '../lib/embedText.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading, stashLateUpload, takeLateUploads } from '../lib/abandonedUploads.js';
@@ -4537,9 +4543,10 @@ export function CanvasSurface({
     if (!file) return;
     const dropBoardId = board?.id;
     const id = `file-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    const w = 240, h = 150;
-    const placed = placeDropRect(cx, cy, w, h, rect);
     const ext = (file.name?.split('.').pop() || '').toLowerCase();
+    // A document lands at its first page's family shape (lib/fileView.js).
+    const { w, h } = docDropSize(ext) || { w: 240, h: 150 };
+    const placed = placeDropRect(cx, cy, w, h, rect);
 
     if (useLocalImages) {
       // Local QA — no backend. resolveSrc passes a non-r2: blob URL through.
@@ -8856,6 +8863,12 @@ export function CanvasSurface({
       }
     }
 
+    if (multi && canEdit && !isPublic) {
+      // The selection bar's Tag runs this with its own rect; the menu, with
+      // the right-click point.
+      annotateItems.push({ id: 'tag-many', label: `Tag ${selected.size} cards…`,
+        run: (rect) => openTagMany(rect || { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 }) });
+    }
     if (!multi) {
       annotateItems.push({ id: 'comment', label: 'Add comment',
         run: () => promptComment({ kind: 'card', id: c.id }) });
@@ -9156,7 +9169,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .card-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -10039,11 +10052,7 @@ export function CanvasSurface({
         items.push({ id: 'group-tag', label: 'Tag group…',
           run: () => {
             const r = { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 };
-            // Reuse the per-card tag picker — group tagging would need
-            // a `board_tags` flow which is its own feature; for now we
-            // surface this as a placeholder so users see it and the
-            // archive popover entry still makes sense.
-            feedback.toast({ type: 'info', message: 'Group tagging is coming — comment for now.' });
+            setTagPicker({ kind: 'group', id: gid, anchorRect: r });
           }});
         items.push({ id: 'group-rename', label: 'Rename group', run: async () => {
           const name = await feedback.prompt({
@@ -10174,6 +10183,9 @@ export function CanvasSurface({
       ...selectSome,
       { header: 'BOARD' },
       clusterInfo,
+      ...(canEdit && !isPublic ? [{ id: 'board-tag', label: 'Tag this cluster…', run: () => {
+        setTagPicker({ kind: 'board', id: board.id, anchorRect: { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 } });
+      } }] : []),
       { id: 'bg', label: 'Background', submenu: [
         { id: 'bg-default', swatch: 'transparent', label: 'Default', run: () => mutators.setBoardBgColor?.(null) },
         { id: 'bg-paper',   swatch: '#f5f2ec', label: 'Paper',   run: () => mutators.setBoardBgColor?.('#f5f2ec') },
@@ -10245,7 +10257,7 @@ export function CanvasSurface({
   };
 
   // ── Tags ──────────────────────────────────────────────────────────────
-  const { tags: wsTags, byCard: tagsByCard, byBoard: tagsByBoard, refresh: refreshTags } =
+  const { tags: wsTags, byCard: tagsByCard, byBoard: tagsByBoard, byGroup: tagsByGroup, refresh: refreshTags } =
     useWorkspaceTags({ workspaceId, boardId: board?.id });
   // Stable fingerprint of the workspace's tag definitions — used as
   // a dep + as a per-card hash component so creating / renaming /
@@ -10256,7 +10268,7 @@ export function CanvasSurface({
     () => (wsTags || []).map(t => `${t.id}:${t.slug || t.name || ''}`).sort().join('|'),
     [wsTags],
   );
-  const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect }
+  const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect } | { kind: 'group'|'board', id, anchorRect }
   const openTagPicker = (cardId, anchorRect) => setTagPicker({ cardId, anchorRect });
   const closeTagPicker = () => setTagPicker(null);
   // Right-click menu for an applied tag chip on a card. Lets users
@@ -10322,6 +10334,157 @@ export function CanvasSurface({
       refreshTags?.();
     } catch (err) {
       feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+    }
+  };
+
+  // A group and the cluster itself take the card's path with their own
+  // helpers: apply, or remove with the same "keep it off" and undo that a
+  // card's removal has.
+  const tagTargets = {
+    group: {
+      applied: (id) => tagsByGroup?.get(id) || [],
+      add: (id, tagId) => tagGroup({ workspaceId, boardId: board.id, groupId: id, tagId }),
+      remove: (id, tagId) => untagGroup({ boardId: board.id, groupId: id, tagId }),
+    },
+    board: {
+      applied: () => tagsByBoard.get(board.id) || [],
+      add: (_id, tagId) => tagBoard({ workspaceId, boardId: board.id, tagId }),
+      remove: (_id, tagId) => untagBoard({ boardId: board.id, tagId }),
+    },
+  };
+  const toggleTagOn = async (kind, id, tag) => {
+    const t = tagTargets[kind];
+    if (!t || !workspaceId || !board?.id || !tag) return;
+    const targetId = kind === 'board' ? board.id : id;
+    const applied = t.applied(id).some(x => x.id === tag.id);
+    try {
+      if (!applied) {
+        await t.add(id, tag.id);
+        refreshTags?.();
+        return;
+      }
+      await t.remove(id, tag.id);
+      await dismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id, userId });
+      refreshTags?.();
+      undoToast(feedback, {
+        message: `Removed “${tag.name || 'tag'}”`,
+        onUndo: async () => {
+          try {
+            await t.add(id, tag.id);
+            await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
+            refreshTags?.();
+          } catch (err) {
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+          }
+        },
+      });
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+    }
+  };
+  const createAndApplyTagOn = async (kind, id, name) => {
+    const t = tagTargets[kind];
+    if (!t || !workspaceId || !board?.id) return;
+    try {
+      const tag = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
+      await t.add(id, tag.id);
+      refreshTags?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+    }
+  };
+
+  // Several cards at once (direction A): the tri-state picker over the
+  // selection. ✓ on every selected card takes the tag off all of them; –
+  // (some) or empty puts it on all of them. One write and one undo each.
+  const [tagMany, setTagMany] = useState(null); // { anchorRect, cardIds }
+  const openTagMany = (anchorRect) => {
+    const ids = [...effectiveSelectedIds].filter(id => cardById[id] && cardById[id].kind !== 'board');
+    // The bar's Tag opens and closes it (the picker leaves that press to it).
+    if (ids.length) setTagMany(prev => (prev ? null : { anchorRect, cardIds: ids }));
+  };
+  const tagManyCounts = useMemo(() => {
+    const m = new Map();
+    for (const id of tagMany?.cardIds || []) {
+      for (const t of tagsByCard.get(id) || []) m.set(t.id, (m.get(t.id) || 0) + 1);
+    }
+    return m;
+  }, [tagMany, tagsByCard]);
+  // The writes live with the picker (TagManyPicker.jsx, loaded on demand),
+  // so the canvas's own bundle carries neither.
+  const tagManyCtx = () => ({ workspaceId, boardId: board.id, userId, tagsByCard, refreshTags, feedback });
+  const tagManyCards = (cardIds, tag, mode, via) => import('./TagManyPicker.jsx')
+    .then(m => m.applyTagToCards({ cardIds, tag, mode, via, ctx: tagManyCtx() }));
+  const createTagForMany = (name) => {
+    const ids = tagMany?.cardIds || [];
+    setTagMany(null);
+    return import('./TagManyPicker.jsx')
+      .then(m => m.createTagOnCards({ name, cardIds: ids, ctx: tagManyCtx() }));
+  };
+
+  // Spotlight (the owner's direction A): a tag chip lights that tag's cards
+  // on this cluster and dims the rest, and a pill says what is showing. It
+  // hides nothing and moves nothing; Esc or × ends it, and the tag in the
+  // pill opens its page. A card counts when it, or its group, carries the
+  // tag (the tag page counts a tagged group's cards the same way).
+  const [spotlightTagId, setSpotlightTagId] = useState(null);
+  useEffect(() => { setSpotlightTagId(null); }, [board?.id]);
+  const wsTagById = useMemo(() => new Map((wsTags || []).map(t => [t.id, t])), [wsTags]);
+  const spotlightTag = spotlightTagId ? wsTagById.get(spotlightTagId) || null : null;
+  const spotMatched = useMemo(() => {
+    if (!spotlightTagId) return null;
+    const out = new Set();
+    for (const c of cards || []) {
+      const own = (tagsByCard.get(c.id) || []).some(t => t.id === spotlightTagId);
+      const viaGroup = !!c.groupId && (tagsByGroup?.get(c.groupId) || []).some(t => t.id === spotlightTagId);
+      if (own || viaGroup) out.add(c.id);
+    }
+    return out;
+  }, [spotlightTagId, cards, tagsByCard, tagsByGroup]);
+  const toggleSpotlight = (tagId, via) => {
+    const next = spotlightTagId === tagId ? null : tagId;
+    setSpotlightTagId(next);
+    if (next) { try { logEvent(EV.TAG_SPOTLIGHT, { tag_id: next, via }); } catch (_) {} }
+  };
+  const openTagPage = (tagId, via) => {
+    try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: tagId, via }); } catch (_) {}
+    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId } }));
+  };
+  // Esc ends the spotlight before the canvas's own Escape, unless a field,
+  // a menu or a dialog has it.
+  useEffect(() => {
+    if (!spotlightTagId) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || isEditableTarget(e.target)) return;
+      if (document.querySelector('.ctx-menu, .sb-tag-menu, .tag-picker, .modal-bg, [role="dialog"]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setSpotlightTagId(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [spotlightTagId]);
+
+  // Suggested tags, on the card they were suggested for: the closest one
+  // shows as a hollow chip; ✓ keeps it, × never suggests it there again.
+  const tagSuggest = useTagSuggestions({ boardId: board?.id, enabled: !!canEdit && !isPublic });
+  const acceptSuggestion = async (cardId, tag) => {
+    try {
+      await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
+      await acceptCardSuggestion({ tagId: tag.id, cardId });
+      try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'suggested_chip', tag_id: tag.id }); } catch (_) {}
+      refreshTags?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: 'Could not keep it: ' + (err.message || err) });
+    }
+  };
+  const dismissSuggestion = async (cardId, tag) => {
+    try {
+      await dismissCardSuggestion({ tagId: tag.id, cardId });
+      await dismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id, userId });
+      try { logEvent(EV.TAG_SUGGESTION_DISMISS, { tag_id: tag.id, via: 'card' }); } catch (_) {}
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: 'Could not dismiss it: ' + (err.message || err) });
     }
   };
 
@@ -10436,7 +10599,11 @@ export function CanvasSurface({
       if (autoTaggedHashRef.current.get(cardKey) === hash) continue;
       autoTaggedHashRef.current.set(cardKey, hash);
       try {
-        const suggestions = await s.autotagSuggest(text, { kind: 'card', id: c.id });
+        // embedText: what the card's embedding is built from (lib/embedText.js),
+        // never this boosted scoring text, which only the TF-IDF engine uses.
+        const suggestions = await s.autotagSuggest(text, {
+          kind: 'card', id: c.id, boardId: s.board.id, cardKind: c.kind || null, embedText: embedTextForLiveCard(c),
+        });
         for (const sg of suggestions) {
           if (sg.score < HIGH) continue;
           if (knownIds.has(sg.tagId) || !s.liveTagIds.has(sg.tagId)) continue;
@@ -10460,6 +10627,8 @@ export function CanvasSurface({
   // round-trip when content changes).
   useEffect(() => {
     if (!autotagReady || !workspaceId || !board?.id) return;
+    // A viewer or a share link can't save a suggestion; don't spend on one.
+    if (!canEdit || isPublic) return;
     if (autotagPendingRef.current) return; // already scheduled
     if (autotagInFlightRef.current) return; // currently scoring
     autotagPendingRef.current = true;
@@ -11138,7 +11307,7 @@ export function CanvasSurface({
       style: isTagDropHover
         ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
         : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}${isVersionDrop ? ' is-version-drop' : ''}`,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}${isVersionDrop ? ' is-version-drop' : ''}${spotMatched && !spotMatched.has(c.id) ? ' is-spot-dim' : ''}`,
       'data-card-id': c.id,
       'data-version-drop': isVersionDrop ? versionDropTarget.label : undefined,
       onPointerDown: (e) => onCardPointerDown(e, c),
@@ -11348,7 +11517,8 @@ export function CanvasSurface({
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
                                                        sizeBytes={c.sizeBytes} ext={c.ext} title={c.title}
                                                        onUpdate={onUpdate} autoFocus={af}
-                                                       cardId={c.id}
+                                                       cardId={c.id} boardId={board.id} pageCount={c.pageCount}
+                                                       w={Math.round(c.w)} h={Math.round(c.h)}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                        pending={!!c.pending}
                                                        uploadProgress={uploadProgressById[c.id] ?? null}
@@ -11362,8 +11532,73 @@ export function CanvasSurface({
     // their tagging — without this, "Tag…" silently writes to the DB
     // and the user has no feedback that anything happened.
     const cardTags = tagsByCard?.get?.(c.id) || [];
-    return (
-      <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
+    const cardSugg = canEdit && !isPublic
+      ? (tagSuggest.byCard.get(c.id) || []).find(sg => wsTagById.has(sg.tagId) && !cardTags.some(t => t.id === sg.tagId)) || null
+      : null;
+    const suggTag = cardSugg ? wsTagById.get(cardSugg.tagId) : null;
+    // The chips hang under the card, beside it in the DOM: .card clips what
+    // it holds (overflow: hidden, contain: paint), so a strip inside it
+    // never showed. Turned with the card, about the card's centre.
+    const stripStyle = { position: 'absolute', left: x, top: y + h + 6, width: Math.max(w, 180) };
+    if (rotation) {
+      stripStyle.transform = `rotate(${rotation}deg)`;
+      stripStyle.transformOrigin = `${w / 2}px ${-(h / 2 + 6)}px`;
+    }
+    const tagStrip = (cardTags.length > 0 || suggTag) ? (
+      <div className={`card-tags-strip${spotMatched && !spotMatched.has(c.id) ? ' is-spot-dim' : ''}${inDrag ? ' is-dragging' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`}
+           data-card-id={c.id} style={stripStyle}>
+        {cardTags.slice(0, 4).map(t => (
+          <span key={t.id}
+                role="button"
+                className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
+                style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
+                title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to light it up on this cluster`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  // Lights the tag up here (the spotlight); its page opens
+                  // from the pill, the chip's menu or the sidebar.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleSpotlight(t.id, 'card_chip');
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'card', targetId: c.id, tag: t });
+                }}>
+            <span className="card-tag-chip-dot" />
+            <span className="card-tag-chip-name">{t.name}</span>
+          </span>
+        ))}
+        {cardTags.length > 4 && (
+          <span className="card-tag-chip card-tag-chip-overflow"
+                title={cardTags.slice(4).map(t => t.name).join(', ')}>
+            +{cardTags.length - 4}
+          </span>
+        )}
+        {suggTag && (
+          <span className="card-tag-chip is-suggested"
+                style={{ '--tag-c': resolveTagColor(suggTag) }}
+                title={`Suggested from the text: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
+                onPointerDown={(e) => e.stopPropagation()}>
+            <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
+            <span className="card-tag-chip-name">{suggTag.name}</span>
+            <span className="card-tag-chip-acts">
+              <button type="button" className="card-tag-chip-act" aria-label={`Keep ${suggTag.name}`}
+                      onClick={(e) => { e.stopPropagation(); acceptSuggestion(c.id, suggTag); }}>
+                <Icon as={Check} size={9} />
+              </button>
+              <button type="button" className="card-tag-chip-act is-dismiss" aria-label={`Never suggest ${suggTag.name} here`}
+                      onClick={(e) => { e.stopPropagation(); dismissSuggestion(c.id, suggTag); }}>
+                <Icon as={X} size={9} />
+              </button>
+            </span>
+          </span>
+        )}
+      </div>
+    ) : null;
+    const cardEl = (
+      <div {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
         <CardStrokesOverlay card={c} w={w} h={h} />
         {/* A file with more than one version says which is on show; the
@@ -11380,40 +11615,6 @@ export function CanvasSurface({
             </button>
           );
         })()}
-        {cardTags.length > 0 && (
-          <div className="card-tags-strip" data-card-id={c.id}>
-            {cardTags.slice(0, 4).map(t => (
-              <span key={t.id}
-                    role="button"
-                    className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
-                    style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                    title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to see everywhere it's used`}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      // Click-through to the tag's cross-board collection — the
-                      // payoff. Was a dead-end (right-click only) before.
-                      e.preventDefault();
-                      e.stopPropagation();
-                      try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'card_chip' }); } catch (_) {}
-                      document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'card', targetId: c.id, tag: t });
-                    }}>
-                <span className="card-tag-chip-dot" />
-                <span className="card-tag-chip-name">{t.name}</span>
-              </span>
-            ))}
-            {cardTags.length > 4 && (
-              <span className="card-tag-chip card-tag-chip-overflow"
-                    title={cardTags.slice(4).map(t => t.name).join(', ')}>
-                +{cardTags.length - 4}
-              </span>
-            )}
-          </div>
-        )}
         {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
                title={(c.kind === 'image' || c.kind === 'video' || c.kind === 'pdf')
@@ -11430,6 +11631,7 @@ export function CanvasSurface({
         )}
       </div>
     );
+    return <Fragment key={c.id}>{cardEl}{tagStrip}</Fragment>;
   };
 
   // ── Files → board ────────────────────────────────────────────────────────
@@ -11961,6 +12163,11 @@ export function CanvasSurface({
               if (droppedCard.kind === 'board') {
                 tagBoard({ workspaceId, boardId: droppedCard.id, tagId: ref.id, source: 'user' })
                   .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
+              } else if (effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(droppedCard.id)) {
+                // Dropped on a selected card: the whole selection takes it.
+                const tag = wsTagById.get(ref.id) || { id: ref.id, name: ref.title || 'tag' };
+                const ids = [...effectiveSelectedIds].filter(id => cardById[id] && cardById[id].kind !== 'board');
+                tagManyCards(ids, tag, 'add', 'drop_selection');
               } else {
                 tagCard({ workspaceId, boardId: board.id, cardId: droppedCard.id, tagId: ref.id, source: 'user' })
                   .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
@@ -12874,6 +13081,21 @@ export function CanvasSurface({
                       }}
                     />
                   ) : g.name}
+                  {(tagsByGroup?.get(g.id) || []).length > 0 && (
+                    <span className="group-label-tags">
+                      {(tagsByGroup.get(g.id) || []).slice(0, 3).map(t => (
+                        <button type="button" key={t.id}
+                                className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
+                                style={{ '--tag-c': t.color || '#4f8df8' }}
+                                title={`${t.name} — click to light it up on this cluster`}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); toggleSpotlight(t.id, 'group_chip'); }}>
+                          <span className="card-tag-chip-dot" />
+                          <span className="card-tag-chip-name">{t.name}</span>
+                        </button>
+                      ))}
+                    </span>
+                  )}
                 </div>
               ) : null;
 
@@ -13028,15 +13250,19 @@ export function CanvasSurface({
           {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
             <span key={t.id}
                   role="button"
-                  className={`card-tag-chip is-clickable is-${t.source || 'user'}`}
+                  tabIndex={0}
+                  className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
                   style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                  title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to see everywhere it's used`}
+                  title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to light it up on this cluster`}
+                  onKeyDown={(e) => {
+                    // The cluster's own chips are few, so they take the keyboard.
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
+                  }}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: t.id, via: 'board_chip' }); } catch (_) {}
-                    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: t.id } }));
+                    toggleSpotlight(t.id, 'board_chip');
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -13047,6 +13273,26 @@ export function CanvasSurface({
               <span className="card-tag-chip-name">{t.name}</span>
             </span>
           ))}
+        </div>
+      )}
+      {spotlightTag && (
+        <div className="tag-spotlight-pill" role="status" aria-live="polite">
+          <Icon as={Eye} size={15} className="tag-spotlight-eye" />
+          <span>Showing</span>
+          <button type="button" className="card-tag-chip is-lit tag-spotlight-chip"
+                  style={{ '--tag-c': resolveTagColor(spotlightTag) }}
+                  title={`Open ${spotlightTag.name}'s page: everything carrying it, everywhere`}
+                  onClick={() => openTagPage(spotlightTag.id, 'spotlight')}>
+            <span className="card-tag-chip-dot" />
+            <span className="card-tag-chip-name">{spotlightTag.name}</span>
+          </button>
+          <span className="tag-spotlight-count">{spotMatched?.size || 0} of {(cards || []).length} cards</span>
+          <span className="tag-spotlight-rule" aria-hidden="true" />
+          <span className="tag-spotlight-hint"><kbd>Esc</kbd>clears</span>
+          <button type="button" className="tag-spotlight-x" aria-label={`Clear filter: ${spotlightTag.name}`}
+                  onClick={() => setSpotlightTagId(null)}>
+            <Icon as={X} size={14} />
+          </button>
         </div>
       )}
       {/* Capture Mode's synthetic cast is spliced in HERE and nowhere else.
@@ -14311,7 +14557,7 @@ export function CanvasSurface({
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (selBarOn ? (
         <Suspense fallback={null}>
           <SelectionBarA count={selected.size + selectedStrokes.size + selectedArrows.size} items={selBarItems}
-                         api={selBarApi} canDelete={canEdit} />
+                         api={selBarApi} canDelete={canEdit} tagOpen={!!tagMany} />
         </Suspense>
       ) : (
         <div className="cnv-selcount">{selected.size + selectedStrokes.size + selectedArrows.size} selected</div>
@@ -14798,23 +15044,43 @@ export function CanvasSurface({
           disableRecent={picker.disableRecent}
         />
       )}
+      {tagMany && (
+        <Suspense fallback={null}>
+          <TagManyPicker
+            open
+            anchorRect={tagMany.anchorRect}
+            onClose={() => setTagMany(null)}
+            tags={wsTags}
+            counts={tagManyCounts}
+            total={tagMany.cardIds.length}
+            onApply={(t, mode) => tagManyCards(tagMany.cardIds, t, mode, 'selection')}
+            onCreate={createTagForMany}
+          />
+        </Suspense>
+      )}
       {tagPicker && (
         <TagPicker
           open={!!tagPicker}
           anchorRect={tagPicker.anchorRect}
           onClose={closeTagPicker}
           tags={wsTags}
-          appliedIds={new Set((tagsByCard.get(tagPicker.cardId) || []).map(t => t.id))}
+          appliedIds={new Set((tagPicker.kind
+            ? tagTargets[tagPicker.kind].applied(tagPicker.id)
+            : (tagsByCard.get(tagPicker.cardId) || [])).map(t => t.id))}
           onToggle={(t) => {
             // TAG_MANUAL_APPLY has been in the event catalog since the tags
             // rework with no emission site anywhere, so hand-tagging — the whole
             // point of this picker — recorded nothing. This is its home.
-            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'picker', tag_id: t?.id }); } catch (_) {}
-            toggleTagOnCard(tagPicker.cardId, t);
+            const kind = tagPicker.kind || 'card';
+            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: kind, via: 'picker', tag_id: t?.id }); } catch (_) {}
+            if (kind === 'card') toggleTagOnCard(tagPicker.cardId, t);
+            else toggleTagOn(kind, tagPicker.id, t);
           }}
           onCreate={(name) => {
-            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'picker_create' }); } catch (_) {}
-            createAndApplyTag(tagPicker.cardId, name);
+            const kind = tagPicker.kind || 'card';
+            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: kind, via: 'picker_create' }); } catch (_) {}
+            if (kind === 'card') createAndApplyTag(tagPicker.cardId, name);
+            else createAndApplyTagOn(kind, tagPicker.id, name);
           }}
         />
       )}
@@ -14822,6 +15088,10 @@ export function CanvasSurface({
         <div className="sb-tag-menu" role="menu"
              style={{ position: 'fixed', left: tagChipMenu.x, top: tagChipMenu.y, zIndex: 60 }}
              onMouseDown={(e) => e.stopPropagation()}>
+          <button className="sb-tag-menu-item" role="menuitem"
+                  onClick={() => { const { tag } = tagChipMenu; closeTagChipMenu(); openTagPage(tag.id, 'chip_menu'); }}>
+            Open tag page
+          </button>
           {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
             <button className="sb-tag-menu-item" role="menuitem"
                     onClick={async () => {

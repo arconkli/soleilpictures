@@ -430,7 +430,6 @@ test.describe('Phase 4 — tags everywhere', () => {
   test('TagPicker CSS ships', async ({ page }) => {
     await go(page);
     expect(await hasCssRule(page, /\.tag-picker/)).toBe(true);
-    expect(await hasCssRule(page, /\.tag-chip/)).toBe(true);
   });
 
   test('card tag chip strip CSS ships', async ({ page }) => {

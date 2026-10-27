@@ -16,6 +16,7 @@ import Stripe from "npm:stripe@17.7.0";
 import { activateUserFromSubscription } from "../_shared/activate.ts";
 import { emitCapi, gpcFrom } from "../_shared/meta-capi.ts";
 import { failedWith, reportEdgeError, reported } from "../_shared/reportError.ts";
+import { earlyAnswer, settle, tokenClaims } from "../_shared/earlyReads.mjs";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -53,22 +54,36 @@ Deno.serve(reported("verify-checkout-session", async (req) => {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false },
     });
-    const u = await userClient.auth.getUser();
-    if (u.error || !u.data.user?.id) return json({ error: "invalid token" }, 401);
-    const callerId = u.data.user.id;
 
-    let sessionId: string;
+    // The session id is in the body, which is already here, so Stripe is asked
+    // about the session beside getUser instead of after it: the buyer is
+    // watching the success page wait for this answer. Only for a signed-in
+    // user's token (_shared/earlyReads.mjs), and nothing it returns is used
+    // before getUser has answered and the owner check below has run. The
+    // body's errors still answer after the token's, as they always have.
+    let sessionId = "";
+    let badBody = false;
     try {
       const body = await req.json();
       sessionId = String(body.session_id || "");
-    } catch { return json({ error: "invalid json" }, 400); }
-    if (!sessionId.startsWith("cs_")) return json({ error: "session_id required" }, 400);
-
+    } catch { badBody = true; }
     // Before the read: the subscription arrives expanded on the session.
     const observedAt = new Date().toISOString();
+    const early = !badBody && sessionId.startsWith("cs_") && tokenClaims(token)
+      ? settle(stripe.checkout.sessions.retrieve(sessionId, { expand: ["subscription"] }))
+      : null;
+
+    const u = await userClient.auth.getUser();
+    if (u.error || !u.data.user?.id) return json({ error: "invalid token" }, 401);
+    const callerId = u.data.user.id;
+    if (badBody) return json({ error: "invalid json" }, 400);
+    if (!sessionId.startsWith("cs_")) return json({ error: "session_id required" }, 400);
+
     let session: Stripe.Checkout.Session;
     try {
-      session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
+      session = early
+        ? await earlyAnswer(early)
+        : await stripe.checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
     } catch (e) {
       // A session id nobody made is the caller's; anything else is ours.
       void reportEdgeError("verify-checkout-session", {

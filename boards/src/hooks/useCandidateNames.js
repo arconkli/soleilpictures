@@ -23,6 +23,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
 import { classifyCandidates } from '../lib/candidatesAiClient.js';
+import { readWorkspaceAiEnabled } from './useWorkspaceAiEnabled.js';
 
 const CACHE = new Map(); // workspaceId → { rows, ts, enriched }
 const TTL_MS = 60_000;
@@ -83,6 +84,9 @@ export function useCandidateNames(workspaceId) {
   // leave the deterministic rows untouched.
   const enrich = useCallback(async (wsId, rows, reqId) => {
     if (!rows || rows.length === 0) return;
+    // The names still show (they're found in the database); only the model's
+    // second opinion is skipped when the workspace's AI is off.
+    if (!(await readWorkspaceAiEnabled(wsId))) return;
     const verdicts = await classifyCandidates(wsId, rows);
     if (!verdicts || reqRef.current !== reqId) return;
     const merged = mergeVerdicts(rows, verdicts);

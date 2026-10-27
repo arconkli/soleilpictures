@@ -30,21 +30,32 @@
 //
 // `api` may carry attachDocRoom / createDocImageResolver / getSessionUserId:
 // the DEV harness passes an in-memory room (local/FileShareQaHarness.jsx).
+//
+// It wears the doc look, as a doc in its cluster does (DocCard.jsx): the
+// look's header over the surface, the two talking through a frame
+// (lib/docFrame.js). The header is a guest's (DocHeadA guestMode): the title
+// only reads, and nothing closes or docks it here, the page around it does.
+// Messages are the workspace's, and a shared doc stands outside any.
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { attachDocRoom as realAttachDocRoom, DOC_ROOM_CLOSE } from '../../lib/docRoomClient.js';
 import { createDocImageResolver as realImageResolver } from '../../lib/docShareImages.js';
 import { r2KeysIn, DOC_KEYS } from '../../lib/docRoomBridge.js';
 import { cardScope } from '../../lib/docState.js';
+import { createDocFrame } from '../../lib/docFrame.js';
 import { setKeyResolver, releaseKeyResolver } from '../../lib/r2.js';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
+import { MessagesUiContext } from '../../hooks/useOpenDm.js';
 import { SurfaceErrorBoundary } from '../SurfaceErrorBoundary.jsx';
 import { DocOpening } from '../DocOpening.jsx';
+import { Icon } from '../Icon.jsx';
+import { X } from '../../lib/icons.js';
 import { logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './docShareView.css';
 
 const DocSurface = lazyWithReload(() => import('../DocSurface.jsx').then((m) => ({ default: m.DocSurface })));
+const DocHeadA = lazyWithReload(() => import('../doc/DocFrameA.jsx').then((m) => ({ default: m.DocHeadA })));
 
 async function supabaseClient() {
   try { return (await import('../../lib/supabase.js')).supabase; } catch (_) { return null; }
@@ -91,6 +102,7 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
   const [card, setCard] = useState(null);
   const [notice, setNotice] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [frame] = useState(() => createDocFrame());
   const clientRef = useRef(null);
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
@@ -220,21 +232,32 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
     ? { id: userId, name: hello.me.name, color: hello.me.color }
     : null), [hello, userId]);
   const name = title || res.file?.name || 'Untitled doc';
+  const headCard = useMemo(() => ({ id: cardKey, title: name }), [cardKey, name]);
 
   const retry = () => { setNotice(null); setPhase('reasking'); onRefreshRef.current?.(); };
 
   return (
+    <MessagesUiContext.Provider value={null}>
     <div className="dsv" data-doc-share-phase={phase} data-doc-share-mode={canEdit ? 'edit' : 'view'}>
-      <div className="dsv-bar">
-        <span className="dsv-name" title={name}>{name}</span>
-        <span className="dsv-mode">{canEdit ? 'Editing' : 'View only'}</span>
-        {notice && <span className="dsv-notice" role="status">{notice}</span>}
-        <span className="dsv-spacer" />
-        {res.edit_needs_sign_in && !signedIn && (
-          <a className="fsp-btn dsv-signin" href={signInHref}
-             onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'doc_edit' })}>Sign in to edit</a>
-        )}
-      </div>
+      <Suspense fallback={<div className="dl-head" />}>
+        <DocHeadA frame={frame} card={headCard} scope={scope} boards={null}
+                  canEdit={canEdit} isPublic={!canEdit} guestMode>
+          {res.edit_needs_sign_in && !signedIn && (
+            <a className="dsv-signin" href={signInHref}
+               onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'doc_edit' })}>Sign in to edit</a>
+          )}
+        </DocHeadA>
+      </Suspense>
+      {/* What happened to this copy, under the header until it's put away
+          (a closed doc says it in its place instead). */}
+      {notice && phase !== 'ended' && (
+        <div className="dsv-notice" role="status">
+          <span className="dsv-notice-t">{notice}</span>
+          <button type="button" className="dsv-notice-x" aria-label="Dismiss" onClick={() => setNotice(null)}>
+            <Icon as={X} size={14} weight="regular" />
+          </button>
+        </div>
+      )}
       <div className="dsv-body">
         {phase === 'ended' ? (
           <div className="fsp-state" role="status">
@@ -281,12 +304,16 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
               canEdit={canEdit}
               isPublic={!canEdit}
               guestMode
-              allowExport={!!res.allow_download} />
+              // "Allow exporting" is for the people who can edit it: a
+              // reader has no toolbar (docs/collaborate/sharing).
+              allowExport={canEdit && !!res.allow_download}
+              frame={frame} />
           </Suspense>
           </SurfaceErrorBoundary>
         )}
       </div>
     </div>
+    </MessagesUiContext.Provider>
   );
 }
 

@@ -64,7 +64,7 @@ Screenshots are deliberately sparse. The interface moves faster than screenshots
 ## Frequently asked questions
 
 Q: Is Soleil Clusters free?
-A: Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size.
+A: Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and up to 10 people who edit, free. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size.
 
 Q: What is a cluster?
 A: A cluster is a board. The interface says "cluster" everywhere; the API and database call the same object a board. They are the same thing, and the two words are used interchangeably in these docs where the API is involved.
@@ -81,7 +81,7 @@ A: The changelog at /changelog lists every user-visible change, newest first, on
 URL: https://clusters.soleilpictures.com/docs/getting-started
 Updated: 2026-10-21
 
-Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.
+Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and up to 10 people who edit.
 
 From an empty account to a board you would show someone, in about five minutes.
 
@@ -553,7 +553,7 @@ Pick one live project rather than migrating an archive.
 Drop its reference folder, or the zip you downloaded, onto a canvas — it becomes a cluster, with a nested one for each folder inside it.
 Give things names — names are what search works on.
 Nest sub-clusters where the old tool had folders.
-Invite the team. Editors are free, so there is no seat maths.
+Invite the team. Up to 10 people edit free on Free and Creator, so there is no seat maths; a bigger team moves to Team.
 
 Archives are usually not worth moving. Leave them where they are and start with work that is live.
 
@@ -794,7 +794,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-24
+Updated: 2026-10-27
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -812,9 +812,9 @@ Uploads go straight to storage from your browser. Large batches run a few at a t
 
 Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in Files and comes back out of Download under it. Give a card a caption and the caption is what Files shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one image.png), so it is not given one.
 
-Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000. Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. Download always gives the original, and the picture never counts toward your storage.
+Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR, JPEG 2000, a camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) and Photoshop documents (.psd, .psb). Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR, a raw or a .psd. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. A raw's picture is the one the camera made of the shot, which the raw file keeps beside the sensor data; a .psd's is the flattened image Photoshop saves with the layers. Download always gives the original, and the picture never counts toward your storage. A raw or a .psd dropped before Clusters made these pictures was a file card; it becomes an image card the next time someone who can edit its cluster opens it.
 
-A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. These photos arrive as images even when the browser reports no file type at all.
+A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. A raw or a .psd over 1 GB stays a file card, since no browser can draw it. These photos arrive as images even when the browser reports no file type at all.
 
 To swap in a new take of an image, drop the new file onto it, or choose Edit → Upload new version…. The old one is kept as an earlier version, so you can go back to it from Info.
 
@@ -881,6 +881,9 @@ A: Yes. HEIC and HEIF show in every browser, not only Safari, even when the brow
 
 Q: Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?
 A: Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file.
+
+Q: Can I drop camera raw files or Photoshop documents?
+A: Yes. A camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) and Photoshop documents (.psd, .psb) become image cards that show in every browser. For a raw the picture is the one your camera made of the shot; for a .psd it is the flattened image Photoshop saves with the layers. Download always gives the original file.
 
 
 ========================================================================
@@ -1370,7 +1373,7 @@ A: Copy the palette card and paste it into another cluster. Its swatches then fe
 ========================================================================
 # Snapping and alignment
 URL: https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment
-Updated: 2026-10-20
+Updated: 2026-10-27
 
 As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.
 
@@ -1396,7 +1399,7 @@ Aligning a selection
 
 Select several cards and right-click. Under Arrange you get:
 
-Align — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized.
+Align — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized, and nothing lands on top of anything else: cards that would meet on the edge line up one after another instead, in the order they were in. Left on a grid of pictures makes one column, in reading order, rather than a pile.
 
 Distribute — Horizontally or Vertically. The two outermost cards stay put and the ones between them are spread so the gaps are equal. Equal gaps rather than equal centres, because with cards of different sizes equal centres still looks uneven, which is the thing you were trying to fix. Needs at least three cards — two have no gap between them to even out.
 
@@ -1501,19 +1504,20 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-24
+Updated: 2026-10-27
 
-Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
+Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; Word, PowerPoint, Excel and other documents show their first page; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
 Drag a file onto the canvas. The type is detected and the right kind of card is created — you never pick "upload as image" from a menu.
 
 What each type becomes
 
 You drop | You get
-Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000) | An image card with adjustments, shown in every browser
+Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000, camera raw, Photoshop .psd) | An image card with adjustments, shown in every browser
 Video | An inline player
 Audio | A waveform player with cover art
 PDF | A page-one thumbnail opening into a full viewer
+Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF) | A card showing its first page, opening on all its pages
 Screenplay (.fountain, .fdx) | A new script document, title page included — free on every plan
 PureRef scene (.pur) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those
 An unfinished download (.crdownload, .part) | Skipped, with a note to drop it again once it has finished
@@ -1521,13 +1525,15 @@ Anything else | A file card — type icon, name, size, download
 
 Small text files get an inline preview on the card rather than only a download. Double-click a file card to open it full screen, with Download and Share there.
 
+A document's card shows its first page, at the page's own shape, as a PDF's does — a spreadsheet's shows its first sheet — and counts its pages. It opens on its pages, which page through as a PDF's do. They are made once, in the background, so a new document's card takes a few seconds to show its page: the first 200 pages of a document up to 256 MB. A document with a password, or one that's damaged, stays a file card, with the download.
+
 Limits
 
 File type and size. Any, on every plan. .psd, .fig, .zip, project files, archives, a 4K clip, a WAV stem — each lands as its own card, at any size. There is no per-file limit on any plan.
 
 Storage. The only limit is the drive: 5GB on the free plan, 1TB on Creator. A drop that would not fit is caught before anything uploads, and you can add the part that fits; the rest waits in the tab and goes on by itself when you upgrade or add storage (Hitting a limit). Inviting someone new adds 0.5GB to your drive once they get started, and to theirs when they join (Referrals).
 
-The drive and the card cap are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters, collaborators and editing are not limited on any plan.
+The drive and the card cap are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters and editing are not limited on any plan, and up to 10 people can edit on Free and Creator alike.
 
 Large uploads
 
@@ -1586,7 +1592,7 @@ To send someone one file on its own — a page with just that file, its player a
 ## Frequently asked questions
 
 Q: What file types can I upload on the free plan?
-A: Any, at any size. Video, audio, PDFs and images get their own cards; every other type — .psd, .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan.
+A: Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; every other type — .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan.
 
 Q: How large a file can I upload?
 A: As large as the room left on your drive — there is no per-file limit on any plan, and very large files upload in parts automatically. The drive is 5GB on the free plan and 1TB on Creator.
@@ -2092,7 +2098,7 @@ A: Yes. Each card has its own size: drag its right edge, its bottom edge or its 
 ========================================================================
 # Files view
 URL: https://clusters.soleilpictures.com/docs/clusters/list-view
-Updated: 2026-10-21
+Updated: 2026-10-27
 
 Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 
@@ -2219,11 +2225,11 @@ Anything in the selection with no file behind it — a note, a link — is skipp
 
 Previews
 
-Everything gets a real preview, not a generic icon. Images and video show themselves; grids, docs, shapes, notes and links get schematic marks that indicate their shape and content.
+Everything gets a real preview, not a generic icon. Images and video show themselves, and a document (Word, PowerPoint, Excel and the rest) its first page; grids, docs, shapes, notes and links get schematic marks that indicate their shape and content.
 
 Quick look
 
-Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it.
+Double-click a file, or highlight it and press Space, to see it big without leaving Files. Pictures open fitted — click to see them at full size and drag to look around — video and audio play, PDFs page through with ↑ / ↓, and so do documents (Word, PowerPoint, Excel, Keynote and the rest), and everything else shows its preview large. ← / → step to the previous and next file, in the order Files is showing them. Space or Esc closes it.
 
 A bar floats along the top: the file's name and where it is among the files (Image · 3 of 30), then Show on board (or Show in cluster, for a file you're browsing in another cluster), Download and Info.
 
@@ -2713,7 +2719,7 @@ A: Yes. The scene navigator lists every scene heading with its number, and click
 ========================================================================
 # Exporting documents
 URL: https://clusters.soleilpictures.com/docs/documents/export
-Updated: 2026-10-24
+Updated: 2026-10-25
 
 Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
@@ -2738,9 +2744,11 @@ For screenplays it is vector output in Courier at correct industry metrics, and 
 
 Markdown
 
-Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link.
+Plain text with structure preserved: headings, lists and checklists (nested ones too), emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link.
 
-The right choice for moving writing into another tool without reformatting it by hand.
+The right choice for moving writing into another tool without reformatting it by hand. A screenplay's Markdown keeps every line, one to a paragraph, with scene headings in bold; Fountain keeps the screenplay's own format.
+
+An AI assistant you have connected reads a doc the same way, as Markdown page by page, with fetch, and writes one with write_doc and edit_doc_page. The Docs API does both for your own code.
 
 HTML
 
@@ -2773,9 +2781,9 @@ A: Fountain is plain text — it opens anywhere, diffs cleanly in version contro
 ========================================================================
 # Comments, tags and backlinks in documents
 URL: https://clusters.soleilpictures.com/docs/documents/comments-and-tags
-Updated: 2026-10-24
+Updated: 2026-10-25
 
-Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
+Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
 Documents carry annotation in the margins, so the text stays clean and the apparatus stays visible.
 
@@ -2795,19 +2803,21 @@ Because a text comment is part of the document, it follows edit access. A viewer
 
 Tags on a range
 
-A tag can apply to a passage rather than the whole document. Tagged text is underlined, with dots in the left margin.
+A tag can apply to a passage rather than the whole document: select the words, right-click and choose Tag selection…. Tagged text is underlined, with dots in the left margin.
 
-This is what lets a script's mention of a location connect to the reference wall for that location — the tag's detail view will list this passage among everything else carrying it.
+This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it.
+
+Words that clearly refer to one of your tags are underlined on their own, marked auto, in prose and in screenplay blocks alike. Right-click one to remove it, which keeps that tag off the page. A tag you put on a word follows the word as you edit around it, and stays on the page if the word goes.
 
 Suggested entities
 
 As you write, names that look like entities — characters, locations, organizations — are detected and offered in the margin with a tick and a cross.
 
-Nothing is applied until you accept it. A suggestion is a suggestion; the document is not silently tagged behind you.
+Nothing is applied until you accept it. A suggested name is a suggestion; it does not become a tag behind you.
 
 Accepting one creates or links the entity, so the next occurrence anywhere is recognised automatically.
 
-The detector is on by default and can be switched off in settings if you would rather work without it.
+Names are found without AI. With the workspace's AI suggestions on, the AI also guesses what kind of name each one is; with them off (Settings → Workspace), that guess is left out and no text is sent.
 
 Links and mentions
 
@@ -2835,35 +2845,36 @@ A: It follows the text. Comments anchor to the range, not to a character offset,
 Q: What are the dots in the margins?
 A: Right margin is comments. Left margin is tags and suggested entities. Click one to open it.
 
-Q: Can I turn off the entity suggestions?
-A: Yes. The AI tagger is on by default and can be switched off in settings. Suggestions never apply themselves — nothing is tagged until you accept it.
+Q: Can I turn off the AI in documents?
+A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. The automatic underlines stop and no text goes to a model. Suggested names still appear, without the AI's guess at what kind of name each is, and nothing becomes a tag until you accept it.
 
 
 ========================================================================
 # Tags and entities
 URL: https://clusters.soleilpictures.com/docs/organize/tags
-Updated: 2026-10-07
+Updated: 2026-10-25
 
-A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.
+A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.
 
 Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you everything that does not fit a hierarchy.
 
 Tagging
 
-Right-click almost anything → tag. You can tag:
+A card — right-click it and choose Tag…. The picker suggests as you type, and Enter creates a tag that does not exist yet.
+Several cards at once — select them and press Tag in the selection bar (or right-click one and choose Tag … cards…). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection.
+A group, as a unit — right-click its label and choose Tag group….
+A whole cluster — right-click an empty part of it and choose Tag this cluster…, or drag a tag from the sidebar onto it.
+A passage of text — in a document, select the words, right-click and choose Tag selection…; a name the app has noticed can also become a tag right where it appears.
 
-A card
-A group — as a unit, not card by card
-A whole cluster
-A passage of text in a document
+An item can carry several tags. A card's show as chips just under it (four, then a +N for the rest). A tag is not a location. Tagging moves nothing.
 
-The picker suggests as you type, and Enter creates a tag that does not exist yet. Multi-select is supported — most things carry more than one.
+Lighting a tag up on a cluster
 
-A tag is not a location. Tagging moves nothing.
+Click a tag chip — on a card, on a group's label, or on the cluster's own strip at the top — and the cluster lights up that tag: its cards stay as they are and everything else recedes. Nothing moves and nothing is hidden. A pill at the top says what is showing and how many cards carry it ("Showing Onyx · 6 of 14 cards"); Esc, the ×, or clicking the same chip again ends it. A card in a tagged group counts.
 
-The tag detail view
+The tag page
 
-Open a tag from the sidebar and you get everything carrying it, from anywhere in the workspace, arranged hierarchically — boards, then groups, then cards.
+Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's right-click menu (Open tag page), or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: "12 tagged · 40 inside" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups.
 
 This is the payoff. "Show me everything about the diner" spans a script scene, a reference wall, a group of location photos and a note, and no folder structure could have anticipated that grouping.
 
@@ -2875,33 +2886,24 @@ Type | For
 Character | People in the work
 Setting | Locations
 Organization | Companies, departments, crews
-Concept | Themes, ideas, looks
+Topic | Themes, ideas, looks
 Thing | Objects, props, assets
 
-Typed tags get an appropriate colour and drive the hover previews and backlinks in links and mentions.
+The type shows on a tag's hover card and its page, the sidebar groups tags by it, and it drives the hover previews and backlinks in links and mentions.
 
 Automatic tagging
 
-Automatic tagging works from text — card titles, notes, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none.
+Automatic tagging works from text — card titles, notes, documents, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none.
 
-A close match is applied, marked auto. Make a Diner tag, and a note about the diner can pick it up on its own.
-A looser match is only suggested. It waits on the tag until you accept or dismiss it.
+An exact name match is applied, marked auto. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called "Diner stills". Creating a tag applies it straight away to what already says its name.
+In documents, clear mentions are underlined, marked auto: the AI underlines words that clearly refer to one of your tags, even when they are not its exact name.
+Anything looser is only suggested. The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under Manage.
 
-It reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day.
+The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day.
 
-Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again.
+The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no card or document text goes to a model: there are no suggestions or underlines, and exact-name matches and the tags you add work as before.
 
-Emergent themes
-
-Beyond individual suggestions, the app looks for clusters of related content and proposes a name for the theme it found — material that clearly belongs together but that nobody had a word for yet.
-
-Accepting one creates the tag and applies it to the group that suggested it.
-
-Propagation and backfill
-
-Creating a tag offers to apply it to existing content that matches, so a tag created late is not empty.
-
-A tag applied to a group propagates to what is in it, and in documents a tag on a paragraph can cascade to related passages.
+Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item (on a phone, press and hold it) for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page.
 
 Removing, deleting and merging — all reversible
 
@@ -2909,13 +2911,15 @@ Removing a tag from one item shows an undo toast; undoing also lifts the "don't 
 
 Deleting a tag removes it everywhere, but softly: the tag and every one of its applications stay recoverable for 30 days — from the undo toast, or by recreating a tag with the same name, which revives the old one intact.
 
-Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns.
+Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns. Anything you had taken the merged tag off stays off under the tag it merged into.
 
 Finding by tag
 
-The sidebar lists workspace tags
-⌘K searches tags alongside everything else
-The tag detail view is the full hierarchical browse
+The sidebar lists workspace tags, grouped by type; the arrow keys walk them and Enter opens one. A tag's ⋯ (or right-click) renames, recolors, merges, types or deletes it
+⌘K finds tags by name, and # with a tag's name lists everything carrying it
+The tag page is the full browse
+
+Scripts and AI assistants read and apply tags the same way, through the Tags API and the MCP server.
 
 ## Frequently asked questions
 
@@ -2923,10 +2927,13 @@ Q: Do tags move things?
 A: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
 
 Q: Does Clusters tag things without asking?
-A: Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, press Manage and filter to Auto, then right-click any item to confirm or remove the tag — removing it also keeps that tag off that item for good. Looser matches are only suggested. It reads text, not what an image shows.
+A: Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested. Remove an automatic tag and it stays off that item for good.
 
 Q: What is an entity type?
-A: A tag can be typed as a character, setting, organization, concept or thing. Typed tags get an appropriate colour and behaviour, and are what make hover previews and backlinks useful.
+A: A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it.
+
+Q: Can I turn the AI off?
+A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no text goes to a model. Tags you add, and exact-name matches, still work.
 
 
 ========================================================================
@@ -2998,7 +3005,7 @@ A: Yes. Copy link on any card gives a URL that opens the board with that card se
 ========================================================================
 # Search and the command palette
 URL: https://clusters.soleilpictures.com/docs/organize/search
-Updated: 2026-10-04
+Updated: 2026-10-25
 
 Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
@@ -3010,7 +3017,7 @@ Recents — what you have had open
 Clusters — by name
 Cards and notes — by title, and by the first 500 characters of their text
 Files — by the name the file was uploaded with, so a photo nobody captioned is found as diner_ext_dusk_04.jpg (photos and videos uploaded since names were kept; audio, PDFs and attachments always had theirs)
-Tags
+Tags — by name. Type # and a tag's name, as in #diner, to list everything carrying it instead: cards, groups, clusters and document pages, each opened in place
 Docs — by title, and by the words on every page: a match shows the line it came from, under Inside docs, and opens the document at that page
 
 A document written before search learned to read it is indexed the next time it, or anything else in its cluster, is edited. Inside one long document, ⌘F finds every occurrence on the page you are on.
@@ -3065,9 +3072,9 @@ A: Forward slash opens it too, when you are not typing into something.
 URL: https://clusters.soleilpictures.com/docs/collaborate
 Updated: 2026-10-17
 
-Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.
+Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to 10 people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
-Collaboration is deliberately not a paid feature. Inviting people is how boards become useful, and charging per seat would make the product worse at the thing it is for.
+Collaboration is free on Free and Creator: up to 10 people can edit across everything an account owns, and anyone can view. Inviting people is how boards become useful. A group with more than 10 people who edit uses Team, which is priced per seat.
 
 Roles
 
@@ -3085,6 +3092,19 @@ Whose quota
 Always the cluster owner's. A co-owner is not the owner for this purpose: what they add counts against the owner's allowance, like an editor's.
 
 Cards added to someone else's cluster count against their card allowance; files uploaded there use their storage. This is what makes free editors workable: the person who owns the work pays for it, and inviting help costs nothing extra.
+
+Up to 10 people who edit
+
+On Free and Creator, an account can have up to 10 people who can edit, counted once each across every workspace it owns: the owner, co-owners, editors, and invites to edit that haven't been answered yet. Viewers never count.
+
+When an account is full:
+
+Can edit is greyed out in the share panel, and people can still be invited to view.
+Someone who opens a link to edit joins as a viewer and is told why, and the owner hears about it.
+Anyone but the owner can ask the owner for a place.
+The owner sees everyone who holds a place in Settings → Members, and can make someone a viewer or cancel an invite to free one.
+
+If an account ends up with more than 10 — a workspace handed over to it, for example — everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer. Groups that need more use Team.
 
 Inviting
 
@@ -3123,7 +3143,7 @@ Undoing someone else's change
 ## Frequently asked questions
 
 Q: Do collaborators need to pay?
-A: No. Editors and viewers are free on every plan, and there is no seat limit. Whoever owns the cluster pays for what it holds.
+A: No. On Free and Creator, up to 10 people can edit and anyone can view, and none of them pays. Whoever owns the cluster pays for what it holds. A group with more than 10 people who edit uses [Team](/docs/account/team), priced per seat.
 
 Q: Whose card allowance do collaborator uploads use?
 A: The owner's. If you add cards to someone else's cluster, they count against their limit, not yours.
@@ -3176,6 +3196,8 @@ Allow indexing | Whether search engines may index it — off by default
 With sub-clusters included, viewers navigate into nested boards with breadcrumbs. With it off, the link shows exactly one board.
 
 The same disclosure lists every link currently live on the cluster, with what each one grants, how many people have joined through it, when it expires, and buttons to copy or revoke it.
+
+An AI assistant you have connected can do the same two things with share_board and unshare_board: hand back the cluster's view link, or revoke it. It gets the link that already exists when there is one, and a link it makes shows just that one board unless it asks for the nested ones too. Scripts use the same endpoint.
 
 By default a shared board tells search engines not to index it. It is reachable by anyone with the URL, but it will not turn up in a search unless you allow indexing or publish it to Explore. Allowing indexing opens up once an account is 72 hours old.
 
@@ -3337,7 +3359,7 @@ Only people added asks each person to sign in as the address you added.
 
 What the other person sees
 
-The doc's name, Editing or View only, and the doc, with its pages and images. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked (guest). If they are signed in, Open in Clusters at the top opens it inside the app.
+The doc as it looks in its cluster: its name at the top, its pages and images, and View only if they can only read it. Someone who can edit gets the toolbar, and Comments at the top opens the doc's comments beside the page. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked (guest). If they are signed in, Open in Clusters at the top opens it inside the app.
 
 Someone editing through a link is a guest in the doc, so a few things stay with the people in its cluster:
 
@@ -3481,7 +3503,7 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 ========================================================================
 # Comments
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
-Updated: 2026-10-12
+Updated: 2026-10-25
 
 A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
 
@@ -3502,7 +3524,7 @@ Threads
 
 Comments thread with replies. Resolve when the thing is dealt with — resolved comments are archived rather than deleted, so the record of why something changed survives.
 
-Resolving, hiding and deleting a comment is for its author and for people who can edit the board. Someone with view-only access sees those buttons on their own comments only.
+Resolving and hiding a comment is for its author and for people who can edit the board; deleting one is for its author. Someone with view-only access sees those buttons on their own comments only.
 
 Mentions
 
@@ -3523,6 +3545,10 @@ Who can comment
 On the canvas, anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
 
 A comment on a text range is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access.
+
+From your own code, or an assistant
+
+The Comments API lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments under the same rules. Connected over MCP, an assistant can read the feedback on a board, act on it, reply, resolve what it dealt with, and comment on the words of a document.
 
 Comments versus votes
 
@@ -4034,11 +4060,11 @@ A: Under Connections, alongside any apps you have approved. Tokens are shown onc
 ========================================================================
 # Plans and pricing
 URL: https://clusters.soleilpictures.com/docs/account/plans
-Updated: 2026-10-21
+Updated: 2026-10-27
 
-The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+The free Demo plan gives you 50 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.
 
-Two plans. The difference between them is deliberately small and deliberately honest — two enforced limits, listed below, and nothing else. The pricing page puts the two side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
+Three plans. Free and Creator differ deliberately little and deliberately honestly — two enforced limits, listed below, and nothing else. Team is for a group with more than 10 people who edit, and is priced per seat. The pricing page puts the three side by side, and its plain-Markdown twin is at /pricing.md for anything that reads text rather than pages.
 
 Pressing Get Creator there before you have an account signs you in first, then opens the Creator offer in the app with the plan you picked — monthly or annual — rather than leaving you to find it. The choice is kept on that device for 24 hours. Pressing Start free instead, there or on any other page, drops it.
 
@@ -4047,7 +4073,7 @@ Demo — free
 50 cards to build with
 A 5GB drive — any file, at any size
 Clusters are free — they cost none of your cards
-Free collaboration — invite editors to any cluster
+Free collaboration — up to 10 people who edit
 
 The free plan stops at whichever limit you reach first.
 
@@ -4057,7 +4083,7 @@ $25/mo billed monthly, or $20/mo billed annually ($240/yr, saving $60/yr).
 
 Unlimited cards — the 50-card ceiling comes off, and every card you have already made stays exactly where it is.
 A 1TB drive — free holds 5GB; Creator holds 1TB, room for the footage, the camera originals and the project archives. (During a trial it is 100GB, and the full drive comes with the first payment.)
-Covers your whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+Covers your whole workspace — everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges.
 
 What is genuinely limited
 
@@ -4074,7 +4100,7 @@ A grid counts the boxes you have filled, one card each, and an empty grid counts
 
 One plan covers the workspace
 
-Those limits are charged to whoever owns the workspace, never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite whoever you like, and they build at your limits without a plan of their own. There are no per-seat charges on any plan.
+Those limits are charged to whoever owns the workspace, never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite up to 10 people to edit, and as many as you like to view, and they build at your limits without a plan of their own. There are no per-seat charges on Free or Creator. A group with more than 10 people who edit uses Team, which is priced per seat.
 
 The same rule is why a free workspace stays limited no matter who is working in it — a collaborator's own plan never applies to someone else's workspace. If you work across several, the one that matters is the workspace the cluster lives in.
 
@@ -4139,10 +4165,10 @@ More on the free tier specifically: free mood board maker.
 ## Frequently asked questions
 
 Q: What is actually limited on the free plan?
-A: Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
+A: Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on every plan; there is no per-file limit at all. Clusters are free — they cost none of your cards — and people are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
 
 Q: Do collaborators need to pay?
-A: No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
+A: No. On Free and Creator, up to 10 people can edit at no cost to them, and anyone can view; more than that is what [Team](/docs/account/team) is for. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
 
 Q: If someone on my team upgrades, does my workspace get the higher limits?
 A: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it.
@@ -4161,6 +4187,96 @@ A: Yes, once you have built something, or the moment a drop is more than your fr
 
 Q: What happens to my work if I cancel, or my trial ends?
 A: Nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them.
+
+
+========================================================================
+# Team
+URL: https://clusters.soleilpictures.com/docs/account/team
+Updated: 2026-10-27
+
+Team is for groups where more than 10 people edit. Everyone who can edit holds a seat, at $25 a month or $240 a year; viewers are free. Seats are shared across the team's workspaces, each seat adds 1TB to one shared drive, and the team owns its workspaces, with admins to run it. It starts with a 14-day trial.
+
+Free and Creator include up to 10 people who can edit across everything an account owns, and any number of viewers. Team is for the groups that need more than that: a team owns its workspaces and pays for them per seat, and admins look after its people, seats and joining.
+
+What a seat is
+
+Everyone who can edit in the team's workspaces holds a seat: the owner, admins, members, and anyone from outside the team you let edit. An invite to edit holds one until it is answered. Viewers are free and unlimited.
+
+Seats are $25 a month each, or $240 a year. They are shared across all the team's workspaces, so one person editing in five of them is one seat. Each seat adds 1TB to the team's drive, which everyone in the team shares, and the cards are unlimited.
+
+A team has between 3 and 100 seats. Seats nobody uses are let go at renewal, never below 3.
+
+Starting a team
+
+Choose the number of seats on the pricing page and press Start a Team trial; signed in, the same setup is at /team/new. Name the team and pick which of your own workspaces move into it; the rest stay yours. Seats start at the number those workspaces need.
+
+The trial lasts 14 days. A card is needed to start it and nothing is charged until it ends. During the trial the team's drive holds 100GB; the full drive comes with the first payment.
+
+If you already pay for Creator, it keeps billing on its own. Once your work has moved into the team, cancel it in Settings → Plan & billing.
+
+More than 100 seats, single sign-on or invoices
+
+Talk to us, the link under the pricing page's cards, is a short form: what your team needs, and a work email to write back to. You don't need an account to send one.
+
+People
+
+The team's page, at /team, has three tabs: People, Seats & billing and Joining.
+
+The owner can do everything, and is the only one who changes the card, the plan or closes the team.
+Admins add seats (the price is shown first), manage people, joining and what happens when seats run out.
+Members hold a seat and can make new workspaces for the team.
+Viewers can open and comment, and need no seat.
+
+Everyone in the team sees everyone's name. Only the owner and admins see email addresses.
+
+Team workspaces are open to the whole team by default. An admin can make one private; the owner and admins can still open a private workspace, so work can always be handed over.
+
+Joining
+
+Admins choose how people join, and can use any of these together:
+
+Email invites: paste a list of addresses.
+A team link: anyone with it can join.
+Your company's email domain: prove you own it with a DNS record, and people who sign up with an address there can join. Free email providers can't be used. People who already have an account with that domain are asked once, the next time they sign in; admins never see who has one.
+
+When seats run out
+
+Admins pick one:
+
+Ask first (the default): someone new joins as a viewer and the admins are asked, and can add a seat for them.
+Add seats automatically, with an optional limit on how many can be added in a month.
+
+Your own workspaces
+
+The team never sees, opens or bills your own workspaces. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive (admins can turn this off for the team). If you leave the team, your own workspaces go back to your own plan and nothing in them is removed.
+
+Payments
+
+If a payment fails, the team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only: everything still opens, and paying again turns editing back on.
+
+Closing a team
+
+The owner can close the team. Its workspaces move to the owner's own account, and everyone keeps the access they had. If that leaves the owner's account with more than 10 people who can edit, everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer.
+
+## Frequently asked questions
+
+Q: Who needs a seat?
+A: Everyone who can edit in the team's workspaces — the owner, admins, members, and anyone from outside the team you let edit. Viewers never need one.
+
+Q: How many seats can a team have?
+A: From 3 to 100, bought and changed on the team's page. For more than 100, single sign-on, or invoices and purchase orders, use Talk to us on the pricing page.
+
+Q: What happens when every seat is taken?
+A: The admins decide. By default, someone new joins as a viewer and the admins are asked, and can add a seat for them. Or seats can be added automatically, with an optional limit on how many a month.
+
+Q: What if a payment fails?
+A: The team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only — everything still opens — until the team is paid again.
+
+Q: Does joining a team change my own workspaces?
+A: No. The team never sees, opens or bills them. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive; if you leave, they go back to your own plan and nothing is removed.
+
+Q: Do we need Team to work together?
+A: Not until more than 10 people edit. Free and Creator include up to 10 people who can edit, at no extra cost, and as many viewers as you like.
 
 
 ========================================================================
@@ -4586,7 +4702,7 @@ A: Export boards and documents, download original files, or read everything prog
 ========================================================================
 # The REST API
 URL: https://clusters.soleilpictures.com/docs/api
-Updated: 2026-08-10
+Updated: 2026-10-25
 
 The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.
 
@@ -4621,6 +4737,18 @@ POST /boards/:id/cards | Add cards
 PATCH /boards/:id/cards/:cardId | Change a card
 DELETE /boards/:id/cards/:cardId | Remove a card
 POST /boards/:id/cards/move | Move cards to another board
+GET /boards/:id/cards/:cardId/doc | A doc's pages as Markdown
+POST /boards/:id/docs | Write a new doc from Markdown
+PATCH /boards/:id/cards/:cardId/doc/pages/:pageId | Rewrite or edit one page, safely
+GET /boards/:id/comments | A board's comment threads, those inside its docs included
+POST /boards/:id/comments | Comment on a card, a group, a spot, the board or words in a doc, or reply in a thread
+PATCH /boards/:id/comments | Resolve or reopen several threads at once
+PATCH /boards/:id/comments/:commentId | Resolve or reopen a thread
+DELETE /boards/:id/comments/:commentId | Delete your own comment — restorable on the canvas
+GET /workspaces/:id/tags | A workspace's tags, each with how many things carry it
+GET /tags/:id | Everything carrying a tag, on every board
+GET /boards/:id/tags | The tags on a board, and what carries each
+POST /boards/:id/tags | Put tags on cards or take them off, by name or id
 POST /uploads | Upload an image, get a key back
 GET /images/:key | Read an image back
 GET /resolve | Find an object by a foreign identifier
@@ -4718,7 +4846,7 @@ A: Yes, OpenAPI at /api/v1/openapi.json. It is served without authentication, be
 URL: https://clusters.soleilpictures.com/docs/api/quickstart
 Updated: 2026-08-08
 
-Mint a token with write access under Settings then API, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
+Mint a token with write access under Settings then Connections, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
 
 1. Get a token
 
@@ -4879,9 +5007,9 @@ A: Two requests. POST the bytes to /uploads to get an image_key, then create a c
 ========================================================================
 # Authentication
 URL: https://clusters.soleilpictures.com/docs/api/authentication
-Updated: 2026-10-07
+Updated: 2026-10-25
 
-Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
+Two ways in. For your own scripts, create a personal access token under Settings then Connections and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.
 
 Which one do you want
 
@@ -4923,7 +5051,7 @@ read | Every GET
 write | Creating and changing — POST, PATCH
 delete | Removing — DELETE
 
-POST /api/v1/mcp is the one exception to "the method decides": it is the MCP transport, and every message on it is a POST, so any token may open it. Each tool is then held to the scope its own call would need — a read-only token can connect and run the read tools, and is refused add_cards or delete_board with the same insufficient_scope sentence.
+Two exceptions to "the method decides". POST /api/v1/mcp is the MCP transport, and every message on it is a POST, so any token may open it. Each tool is then held to the scope its own call would need — a read-only token can connect and run the read tools, and is refused add_cards or delete_board with the same insufficient_scope sentence. And DELETE /boards/:id/share-link needs only write: whoever may publish a board's link may take it back.
 
 Deleting is deliberately separate from writing. "Can add cards to my moodboard" and "can destroy my moodboard" are different levels of trust to hand out, and the distinction matters most when the caller is a language model driving MCP tools.
 
@@ -4972,7 +5100,7 @@ A personal token acts as you, which means an integration built on one stops work
 
 Rate limiting
 
-1000 requests per hour, per token. (Service tokens default to 10000.)
+1000 requests per hour, per token. (Service tokens default to 10000, and a token from a connected app answers 300 while its account is under 72 hours old.)
 
 Every response carries the current state, not just refusals:
 
@@ -5005,7 +5133,7 @@ A: Up to 20 active at once. Revoked ones do not count.
 ========================================================================
 # Boards API
 URL: https://clusters.soleilpictures.com/docs/api/boards
-Updated: 2026-10-20
+Updated: 2026-10-25
 
 Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.
 
@@ -5052,7 +5180,7 @@ curl "$SOLEIL_API/boards?parent=root&limit=50" -H "Authorization: Bearer $SOLEIL
 
 { "boards": [ … ], "limit": 50, "offset": 0, "has_more": true, "next_offset": 50 }
 
-Follow next_offset until it comes back null.
+Each board carries the url that opens it in the app, or null for a deleted board, which no link opens until it is restored. Follow next_offset until it comes back null.
 
 Asking what changed
 
@@ -5079,12 +5207,12 @@ curl "$SOLEIL_API/boards/tree?root=$BOARD&depth=6" -H "Authorization: Bearer $SO
 { "root": "3b7e…", "count": 214,
   "boards": [
     { "id": "3b7e…", "parent_board_id": null, "name": "THE FALL",
-      "depth": 0, "card_count": 0, "updated_at": "…", "deleted": false },
+      "depth": 0, "card_count": 0, "updated_at": "…", "deleted": false, "url": "https://…" },
     { "id": "9f1c…", "parent_board_id": "3b7e…", "name": "Costume",
-      "depth": 1, "card_count": 42, "updated_at": "…", "deleted": false }
+      "depth": 1, "card_count": 42, "updated_at": "…", "deleted": false, "url": "https://…" }
   ] }
 
-Pass root (a board id) or workspace, and optionally depth (default 10, maximum 20). Results are flat with a depth and a parent_board_id, so you can rebuild the tree in whatever shape you need without the response nesting for you.
+Pass root (a board id) or workspace, and optionally depth (default 10, maximum 20). Results are flat with a depth and a parent_board_id, so you can rebuild the tree in whatever shape you need without the response nesting for you. Each board's url opens it in the app.
 
 A show's structure — title, department, sequence, shot — is the first thing any integration walks, and ?parent= costs a request per node.
 
@@ -5103,7 +5231,7 @@ No workspace_id → your personal workspace, created if needed.
 No parent_board_id → top level.
 view is "canvas" unless you pass exactly "list".
 
-Returns 201 with { "board": … }.
+Returns 201 with { "board": …, "url": … }, where url opens the new board in the app.
 
 Creating many at once
 
@@ -5117,7 +5245,7 @@ Pass a boards array instead, up to 500 per call:
   ]
 }
 
-Returns 201 with { "boards": [ … ], "created": 2 }.
+Returns 201 with { "boards": [ … ], "created": 2 }, each board with the url that opens it.
 
 This matters when you are importing an existing library, because a large one is a tree — a board per scene, reel or shoot — so the first thing an import does is create thousands of boards. One request each is the slowest possible way to do that; this is two inserts however many you pass.
 
@@ -5141,7 +5269,7 @@ An update changes name and view. A matched board stays where it is unless the en
 
 GET /boards/:id
 
-{ "board": … }, or 404 — which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see.
+{ "board": …, "capacity": …, "url": … }, where url opens the board in the app — or 404, which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see.
 
 PATCH /boards/:id
 
@@ -5177,11 +5305,32 @@ Soft, and restorable one at a time, exactly like the single delete. Sent as a JS
 
 POST /boards/:id/restore
 
-Puts a soft-deleted board back. Find deleted boards with GET /boards?deleted=1.
+Puts a soft-deleted board back, and answers with { "restored": true, "board": …, "url": … }, where url opens it in the app. Find deleted boards with GET /boards?deleted=1.
 
 Restoring a board that is already live is a no-op, so a retry is safe.
 
 This call can be refused. A deleted cluster stops counting against the card limit the moment it is deleted, so the room it held is immediately usable. The other side of that is that a restore has to fit: if the space has been used since, putting the cluster back would take the account over its limit, and the call answers 402 limit_reached with a message naming the number it would reach. Free some room or upgrade, then retry. Nothing is lost in the meantime — the 30-day trash window is the only clock running.
+
+Sharing by link — /boards/:id/share-link
+
+A board's view-only link: anyone with it opens the board without signing in, and nobody can change anything through it.
+
+curl -X POST "$SOLEIL_API/boards/$BOARD/share-link" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" -d '{}'
+
+{
+  "board_id": "…",
+  "created": true,
+  "link": { "url": "https://clusters.soleilpictures.com/share/…", "include_subboards": false,
+            "expires_at": null, "created_at": "…", "created_by_you": true }
+}
+
+Call | Does
+POST | Returns a live view link the board already has, 200 and "created": false; makes one only when none fits, 201. With include_subboards, only a link of that kind fits. A link made here shows just this board unless include_subboards is true
+GET | The board's live view links, newest first
+DELETE | Revokes every live view link you may revoke. still_shared counts the links someone else made, which stay live until they or an owner of the workspace revoke them
+
+Asking twice never makes a second link, so a retry is safe. Invite links, which grant editing once someone signs in, are never returned or revoked here. Only someone who may manage the board's links (an owner, a co-owner or an editor) gets an answer; anyone else gets 403. DELETE here needs only the write scope: taking a link back undoes a write and destroys nothing anyone made.
 
 Worked example
 
@@ -5217,9 +5366,9 @@ A: Usually. DELETE is a soft delete and POST /boards/:id/restore puts it back, w
 ========================================================================
 # Connecting an app (OAuth)
 URL: https://clusters.soleilpictures.com/docs/api/oauth
-Updated: 2026-10-07
+Updated: 2026-10-25
 
-Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
+Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.
 
 There are two ways into this API.
 
@@ -5243,9 +5392,30 @@ That header is the entry point. Follow it:
 
 Both are public and cacheable. A discovery document you need a credential to read is not discovery.
 
+Client metadata documents
+
+The simplest client registers nothing. Publish your metadata as JSON at an https URL and use that URL as your client_id (Client ID Metadata Documents). The authorization server metadata says client_id_metadata_document_supported: true, and this is how Claude, Claude Code, ChatGPT and VS Code connect.
+
+{
+  "client_id": "https://shotplanner.example/oauth/client.json",
+  "client_name": "Shot Planner",
+  "redirect_uris": ["https://shotplanner.example/callback"],
+  "token_endpoint_auth_method": "none"
+}
+
+We fetch it when the person first lands on the consent screen, and it has to pass these checks:
+
+client_id is exactly the URL it is served from. The URL is https, on the default port, with a path, no fragment and a public host.
+It answers 200 with JSON at that URL. Redirects are not followed, and the document can be at most 5 KB.
+redirect_uris follow the same rules as registration, below.
+token_endpoint_auth_method is none or private_key_jwt. A published document cannot keep a secret, so the client_secret_* methods are refused. Either way the client is public, and PKCE is what proves it at the token endpoint.
+grant_types, if present, includes authorization_code. Grants we do not issue are ignored.
+
+A good document is trusted for its Cache-Control max-age, at least 5 minutes and at most 24 hours, and read again after that. A document that failed is never cached, so fix it and try again straight away. The consent screen names the host the document came from.
+
 Registering
 
-Registration is open and dynamic — no review, no application form, no key to request:
+If you would rather not publish a document, registration is open and dynamic: no review, no application form, no key to request.
 
 curl -X POST https://clusters.soleilpictures.com/oauth/register \
   -H 'content-type: application/json' \
@@ -5259,6 +5429,8 @@ curl -X POST https://clusters.soleilpictures.com/oauth/register \
   "client_name": "Shot Planner", "redirect_uris": ["https://shotplanner.example/callback"] }
 
 At most 10 redirect URIs. They must be https, http on loopback (127.0.0.1, ::1, localhost — for a command-line client with no domain), or a private scheme like shotplanner://. A URI with a fragment is refused: the response is appended to the query, and a URI that already has a fragment cannot be extended safely.
+
+A loopback redirect URI matches on any port (RFC 8252 §7.3). Register or publish http://127.0.0.1/callback and come back on whichever port the operating system gave you. Host, path and query still have to match exactly, and https URIs never get this exception.
 
 Leave token_endpoint_auth_method as none unless your client can genuinely keep a secret. A desktop app, a CLI and a browser extension cannot — PKCE is what proves identity there, and a "secret" shipped inside a download is not one.
 
@@ -5316,27 +5488,54 @@ Tokens
 
  | 
 Access token | 60 minutes, sent as Authorization: Bearer …
-Refresh token | Rotates on every use; valid 90 days from last use
+Refresh token | Rotates on every use. Valid 90 days from last use, at most 180 days after the person connected
 Scopes | delete · read · write — the same three scopes a token has
 
 curl -X POST https://clusters.soleilpictures.com/oauth/token \
   -d grant_type=refresh_token -d refresh_token=rt_… -d client_id=soleil_a1b2…
 
-Refresh tokens are single-use: the old one is replaced in the same statement that claims it, so a replayed refresh finds nothing. Store the new one.
+Refresh tokens are single-use: the old one is replaced in the same statement that claims it. Store the new one.
+
+Retrying within 30 seconds. If a response never reached you, sending the same refresh token again within 30 seconds gets you a fresh pair.
+Presenting it any later. A refresh token that was already exchanged is treated as stolen. The connection is revoked along with its access token, and the person has to approve the app again.
+Concurrent processes. Several processes sharing one connection should refresh through one place. Otherwise one of them will eventually present a spent token.
 
 delete is never granted by default. Ask for it in scope only if the application genuinely needs to destroy things — the product's rule is that an assistant can be allowed to build without being allowed to destroy, and a default that quietly included delete would undo that for every connection.
 
 What the person sees
 
-One screen: who is asking, what each scope means in plain words, and two buttons. Afterwards the connection appears under Settings → Connections → Connected apps with its scopes, when it was connected, and how many calls it has made.
+One screen. Across its top, who vouches for the app:
+
+Verified app, naming the host it came from, for a metadata document served from one of claude.ai, claude.com, chatgpt.com, vscode.dev.
+Runs on this computer, when the code goes back to localhost or an app's own scheme, whoever published the name: any program on the computer could have started the sign-in, so the person continues only if they just did.
+Not verified, for anything else: a registered client, whose name is what it sent to /oauth/register, or a document from another host.
+
+Then the app's name, the account it will act as (with a way to switch), what it may do in plain words, and two buttons. An app that asks for read write can also be allowed to delete, if the person chooses to on that screen: read the scope in the token response rather than assuming you got what you asked for.
+
+Afterwards the connection appears under Settings → Connections → Connected apps with its scopes, when it was connected, and how many calls it has made.
 
 Disconnecting revokes the access token in the same statement, so it stops working immediately rather than at its next expiry. Everything the app did is in the audit log, with the tool it used.
 
-At most 20 connected apps per account, and connecting one opens up once the account is 72 hours old.
+At most 20 connected apps per account. In an account's first 72 hours, only ChatGPT and Claude can connect, by sending the person back to their own callback, and their tokens answer 300 requests an hour instead of
+
+Every other app can connect once the account is
+
+72 hours old.
 
 What a token can reach
 
 Exactly what the person can reach. An OAuth access token is resolved to their own database session, under ordinary row-level security, by the same code path a personal access token uses. There is no separate permission model to get wrong: if they cannot see a cluster, neither can anything they connect.
+
+Limits
+
+Each is counted per address:
+
+ | 
+POST /oauth/register | 10 a minute, and 20 new clients an hour (a metadata document read for the first time counts as one)
+POST /oauth/token and /oauth/revoke | 120 a minute between them
+Reading a metadata document from its host | 10 a minute
+
+Past one, the answer is 429 with temporarily_unavailable, and a retry-after in seconds on the per-minute ones. Those are kept in each Cloudflare location, so they are approximate: they are there to stop a loop, and a client that refreshes when its token runs out never meets them.
 
 Errors
 
@@ -5345,12 +5544,13 @@ Failures use the OAuth shape, so a client can branch on them:
 { "error": "invalid_grant", "error_description": "that authorization code is not valid" }
 
  | 
-invalid_client | Unknown client_id, or a confidential client failed to authenticate
+invalid_client | Unknown client_id, a metadata document that could not be read or failed the checks above (the error_description says which), or a confidential client failed to authenticate
 invalid_grant | Code or refresh token expired, already used, or not yours
 invalid_request | A required parameter is missing or malformed
 invalid_redirect_uri | Registration was refused — see the shape rules above
 invalid_target | The resource named is not served here
 unsupported_grant_type | Only authorization_code and refresh_token exist
+temporarily_unavailable | 503 when we, or your metadata document's host, did not answer; 429 when an address goes past one of the limits. Retry, after retry-after when there is one; it is never a reason to throw a connection away
 
 A bad redirect_uri is never redirected to. If the URI is not one the client registered, the person sees an error page and nothing is sent anywhere — bouncing an error to an unverified address is the open redirect the check exists to prevent.
 
@@ -5358,18 +5558,18 @@ Revoking
 
 curl -X POST https://clusters.soleilpictures.com/oauth/revoke -d token=rt_… -d client_id=soleil_a1b2…
 
-Always answers 200, even for a token that was never valid, per RFC 7009. Saying "no such token" would turn the endpoint into a way to test whether a stolen string is live.
+Always answers 200, even for a token that was never valid, per RFC 7009. Saying "no such token" would turn the endpoint into a way to test whether a stolen string is live. (A 429 says only that the address went past its limit.)
 
 ## Frequently asked questions
 
 Q: Do I need to register an application first?
-A: No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request.
+A: No. Either use the https URL of a client metadata document you publish as your client_id, which is how Claude, ChatGPT and VS Code connect, or POST your client metadata to /oauth/register and get a client_id back immediately. There is no review queue and no key to request.
 
 Q: Is PKCE required?
 A: Yes, with S256. The plain method is not supported at all, because OAuth 2.1 removes it.
 
 Q: How long do tokens last?
-A: An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use.
+A: An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use, but never more than 180 days after the person connected; then they approve the app again.
 
 Q: What happens if someone disconnects the app?
 A: The access token is revoked in the same statement, so it stops working immediately rather than at its next expiry.
@@ -5381,7 +5581,7 @@ A: Yes. Nothing about tokens has changed. OAuth is for applications that other p
 ========================================================================
 # Cards API
 URL: https://clusters.soleilpictures.com/docs/api/cards
-Updated: 2026-10-20
+Updated: 2026-10-25
 
 Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 
@@ -5488,6 +5688,7 @@ Value | Adds
 props | The card's properties
 identifiers | Its foreign identifiers
 raw | The card exactly as the canvas stores it
+groups | The board's groups, as groups beside the cards, read in the same pass (not with source=index)
 
 raw exists because the card object above is a deliberately narrow projection, and the app has kinds it does not describe — a grid carries its cells and template and a palette its swatches. Those read back through the projection with their interiors missing, which for anyone taking a backup is data loss that looks like success.
 
@@ -5561,6 +5762,17 @@ Sent as a JSON body on DELETE, which is unusual but deliberate: a thousand card 
 
 Every removed card comes back, so the response is the undo — with the same exceptions as the single delete below.
 
+GET /boards/:id/cards/:cardId
+
+One card, as the list gives it, and url, the link that opens the board with the card picked. ?include= works as it does on the list.
+
+{ "board_id": "9f1c…", "card": { "id": "c-12", "kind": "note", … },
+  "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:c-12" }
+
+Doc cards
+
+A doc card's pages are read and written as Markdown on routes of their own: see the Docs API. POST /boards/:id/docs makes a doc with its pages already in it.
+
 PATCH /boards/:id/cards/:cardId
 
 A partial patch — only the fields you send change. No defaults are applied, so patching title alone will not resize the card.
@@ -5616,9 +5828,382 @@ A: The cards are saved, but a canvas someone already has open will not show them
 
 
 ========================================================================
+# Docs API
+URL: https://clusters.soleilpictures.com/docs/api/docs
+Updated: 2026-10-25
+
+A doc card's pages are read and written as Markdown. GET /boards/:id/cards/:cardId/doc reads every page with a hash of each; POST /boards/:id/docs makes a doc holding up to 50 pages; POST …/doc/pages adds pages; PATCH …/doc/pages/:pageId rewrites, edits or renames one page. A rewrite names the hash the page was read at, so it never erases a change made since, and it keeps every block it didn't change, comments included.
+
+A doc card holds pages of writing. Over the API you read them and write them as Markdown, page by page: the same Markdown the export gives you.
+
+GET /boards/:id/cards/:cardId/doc
+
+A doc card's text: every page, in the order its page list shows them, as Markdown.
+
+{
+  "board_id": "9f1c…", "card_id": "c-3", "title": "Treatment", "url": "…",
+  "page_count": 2,
+  "pages": [
+    { "id": "p1", "title": "Opening", "parent_id": null, "depth": 0,
+      "markdown": "A diner at night…\n", "chars": 1840, "hash": "5d1f0c2a", "truncated": false },
+    { "id": "p2", "title": "Close", "parent_id": null, "depth": 0,
+      "markdown": null, "chars": 960, "hash": "0be4a9d1", "truncated": false }
+  ],
+  "complete": false
+}
+
+Parameter | 
+page | One page, by its id
+max_chars | Markdown handed back across the pages: 20,000 characters by default, at most 200,000
+
+Pages fill in order until max_chars runs out. The page that crosses it is cut and marked truncated, and any after it come back with markdown: null, so every page is listed with its length in chars either way. complete says whether you have all of it; read the rest one page at a time. A page nested under another carries that page's id in parent_id, and a depth one more.
+
+Links in the text carry their real address, and comments are left out: GET /boards/:id/comments lists them, with the text each is on. An uploaded image's source is r2: followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. hash changes whenever the page's Markdown does, and a read of one page carries it as the ETag.
+
+A card that is not a doc answers 400, naming the route that reads it.
+
+POST /boards/:id/docs
+
+A new doc card holding the pages you send, placed in free space on the board, or at x and y.
+
+{
+  "title": "Tokyo noir",
+  "pages": [
+    { "title": "Logline", "markdown": "A night-shift detective follows a dead phone through Shinjuku." },
+    { "markdown": "# Places\n\n- Shinjuku\n- [Golden Gai](https://example.com/gg)" }
+  ]
+}
+
+Field | 
+pages | Required. Up to 50, each { title?, markdown }, with up to 200,000 characters of Markdown between them
+title | The card's title. Left out, its one page's title, else "Untitled doc"
+x, y | Where the card goes. Left out, it is placed where it covers nothing
+
+A page with no title takes the words of its first heading, and a first page with neither takes the card's title, as a new doc's first page does in the app. Titles are cut at 200 characters.
+
+{
+  "board_id": "9f1c…",
+  "card": { "id": "api-m2x9k1-a81f3c", "kind": "doc", "title": "Tokyo noir", … },
+  "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:api-m2x9k1-a81f3c",
+  "pages": [
+    { "id": "p_k3v8x0q2m1c4", "title": "Logline", "parent_id": null, "depth": 0, "chars": 64, "hash": "5d1f0c2a" },
+    { "id": "p_7hd2w9zr8b0e", "title": "Places", "parent_id": null, "depth": 0, "chars": 57, "hash": "0be4a9d1" }
+  ],
+  "live": true
+}
+
+That is a 201. The doc counts as one card toward the card cap.
+
+POST /boards/:id/cards/:cardId/doc/pages
+
+More pages for a doc that exists: after the pages it has, or, with parent_page_id, under that page as its sub-pages. pages is as above. The answer is a 201 listing the new pages.
+
+PATCH /boards/:id/cards/:cardId/doc/pages/:pageId
+
+One page changed, in one of three ways:
+
+Send | Does
+markdown and page_hash | Rewrites the page. markdown is the whole page as it should now read; page_hash is the hash you read it at, or send that as If-Match
+edits | Up to 50 { "old_text", "new_text" }, applied in order. Each old_text must appear in the page's Markdown exactly once
+title | Renames the page, alone or with either of the others
+
+{
+  "markdown": "# Places\n\n- Shinjuku at 4am\n- [Golden Gai](https://example.com/gg)\n",
+  "page_hash": "0be4a9d1"
+}
+
+{
+  "board_id": "9f1c…", "card_id": "api-m2x9k1-a81f3c", "url": "…",
+  "page": { "id": "p_7hd2w9zr8b0e", "title": "Places", "parent_id": null, "depth": 0, "chars": 66, "hash": "77a0e3b4" },
+  "blocks": { "kept": 1, "removed": 1, "added": 1 },
+  "changed": true
+}
+
+Only what you changed is rewritten. The page you send is matched against the page as it stands, block by block, by each block's Markdown. A heading, paragraph, list, table or quote whose Markdown you left alone stays the same block, so a comment on it, its text colour, an embedded board and anything else Markdown has no words for stay with it. blocks counts what was kept, removed and added. Send a page back as it was and nothing is written: changed is false.
+
+A rewrite can't erase anyone's change. When the page's hash is no longer the one you name, the write is refused with 409 page_changed and nothing is written. Read the page again and make your change to that. edits need no hash, because the exact text each one names is its own check.
+
+Before a page is rewritten or edited, the board is saved to its Version history as it was, marked API.
+
+What the Markdown carries
+
+Markdown | In the doc
+# to ###### | Headings
+**bold**, *italic*, ~~strike~~, ` code , ==highlight==, <u>underline</u>, <sub>, <sup>` | The same marks
+- and 1. lists, nested | Lists, numbered from where yours starts
+- [ ] and - [x] | A checklist, when every item in the list is one
+> | A quote
+Fenced code | A code block, with its language
+Tables | Tables, each column aligned as you aligned it
+--- | A divider
+[words](https://…), a bare https:// address, mailto: | Links
+![caption](r2:<image_key>) | A picture, when the file is already on the board
+A single line break | A line break; a blank line starts a new paragraph
+
+Links go only to http, https and mailto addresses; any other keeps its words without the link. A picture is placed only from a file already on the board: an image card's image_key from GET /boards/:id/cards, written r2:<image_key> as a read gives it back (the bare key works too). Any other picture becomes a link to its address, so writing a doc never fetches anything into it. Other HTML stays as text.
+
+A screenplay is written in the app. The API writes prose docs, and answers 400 for a screenplay.
+
+Live, or not at all
+
+Doc writes go through the cluster's live room, as an edit in the app does, so anyone with the doc open sees the change land, on the board or in a doc shared on its own. When the room can't be reached, or doesn't confirm the change, the answer is 503 room_unavailable and nothing was written: try again.
+
+Search inside documents finds what you wrote straight away.
+
+## Frequently asked questions
+
+Q: Will rewriting a page lose its comments or colours?
+A: Not on the parts you leave alone. A rewrite keeps every block whose Markdown is unchanged as the same block, so a comment on it, its text colour and anything else Markdown can't express stay with it. Only the blocks you change are written fresh.
+
+Q: What if someone edits the page while my script is working on it?
+A: A whole-page rewrite names the hash of the page as you read it. If the page has changed since, the write is refused with 409 page_changed and nothing is written. Read it again and make your change to that.
+
+Q: Can a doc written through the API hold pictures?
+A: Pictures already in the cluster, yes. Write ![caption](r2:<image_key>) with the image_key of an image card on the board. Any other picture becomes a link to it, so writing a doc never fetches anything into it.
+
+Q: Why did I get 503 room_unavailable?
+A: A doc is written through the cluster's live room or not at all, and the room couldn't be reached or didn't confirm the change. Nothing was written, so it is safe to try again.
+
+
+========================================================================
+# Comments API
+URL: https://clusters.soleilpictures.com/docs/api/comments
+Updated: 2026-10-25
+
+GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST adds a comment on a card, a group, a spot, the whole board or words in a doc, or a reply in any thread. PATCH resolves or reopens threads, and DELETE removes your own comment.
+
+A board's comments are read and written here: the bubbles on its canvas, and the threads inside its docs and notes. Everything runs as you, so the API lets you do with a comment exactly what the app does.
+
+GET /boards/:id/comments
+
+Every comment thread on the board, in one list: on the canvas, and inside its docs and notes.
+
+{
+  "board_id": "9f1c…", "status": "open", "counts": { "open": 2, "resolved": 5 },
+  "threads": [
+    { "id": "cm_k3v8x0q2", "on": "doc", "card_id": "d-4", "card_title": "Treatment",
+      "page_title": "Opening", "quote": "at night",
+      "body": "Too slow?", "author_name": "Sam Park", "by_you": false, "resolved": false, "replies": [] },
+    { "id": "6a0e…", "on": "card", "card_id": "c-3", "card_title": "Hero still",
+      "body": "Too dark", "author_name": "Ana Ruiz", "by_you": true, "resolved": false,
+      "replies": [{ "id": "41bd…", "body": "Agreed", "author_name": "Sam Park", "by_you": false }] }
+  ],
+  "has_more": false, "next_cursor": null
+}
+
+Every thread and reply also carries author_id and created_at, and every thread a url that opens it in the app.
+
+Parameter | 
+status | open (the default), resolved, or all
+limit | Threads per page: 50 by default, at most 200
+cursor | The next_cursor of the page before
+
+The liveliest thread comes first: one moves up when someone replies to it. counts tells you how many are open and resolved, whichever you asked for.
+
+Each thread says what it is on, and carries only the fields that go with it:
+
+on | Means | Also carries
+card | A bubble on a card | card_id, card_kind, card_title
+group | A bubble on a group | group_id
+point | A bubble at a spot on the canvas | x, y
+board | A bubble about the board as a whole | —
+doc | A thread on a run of a doc's text | card_id, page_id, page_title, quote
+note | A thread on a run of a note's text | card_id, quote
+
+quote is the text the thread is on, up to 300 characters. A name is the one the person set, else one made from their email, as the app shows it. by_you marks what you wrote. A thread someone hid on the canvas carries hidden: true. When the threads inside docs and notes can't be read just then, the list holds the board's own and a note says so.
+
+POST /boards/:id/comments
+
+A comment, in your name.
+
+{ "body": "Warmer grade?", "card_id": "c-3" }
+
+Field | 
+body | Required. Up to 4,000 characters
+card_id | On that card
+group_id | On that group
+x, y | At that spot on the canvas
+quote | With a doc's card_id: on those words in the doc
+page_id | With quote: the page the words are on
+reply_to | In that thread, as a reply
+
+Send one of card_id, group_id, or x and y, or none of them for a comment about the board as a whole. The bubble is placed as the app places one: beside its card or group, on the side where it covers least, and a comment on the whole board beside everything on it.
+
+A reply takes no place of its own: it goes into its thread, wherever the thread is, so it stays with the card when the card moves. reply_to can name the thread or any reply in it.
+
+It answers 201 with the comment as the list has it, or a reply as a thread's replies are, with reply_to naming its thread.
+
+On words in a doc
+
+With a doc's card_id and quote, the comment starts a thread on those words, highlighted as a selection is when you comment in the app. Quote them as reading the doc gives them (spacing, curly quotes and Markdown marks don't matter), up to 2000 characters. Words that aren't there, or are there more than once, answer 400 saying so: quote more of the words around them, or name the page with page_id. A note's words take a comment in the app.
+
+PATCH /boards/:id/comments/:commentId
+
+{ "resolved": true }
+
+Resolves a thread, as its Resolve button does, or reopens it with false. Name the thread: a reply answers 400, naming its thread.
+
+PATCH /boards/:id/comments
+
+{ "comment_ids": ["cm_k3v8x0q2", "6a0e…"], "resolved": true }
+
+Up to 50 threads of either kind at once, each checked on its own. The answer lists them as changed (one already so counts), not_found, or refused, each refusal with a code and a reason.
+
+DELETE /boards/:id/comments/:commentId
+
+Deletes a comment you wrote. On the canvas its replies go with it, and come back with it. Like every delete, it needs a token with the delete scope. It can be restored for 30 days:
+
+POST /boards/:id/comments/:commentId/restore
+
+Brings a deleted comment back. Restoring one that isn't deleted changes nothing.
+
+A thread of yours inside a doc can be deleted until someone else replies in it (409 after that: resolve it instead). Its highlight goes with it, for good.
+
+Who can do what
+
+ | On the canvas | Inside docs and notes
+Comment, or reply | Anyone who can open the board | An editor
+Start a thread on words | — | An editor, in a doc
+Resolve or reopen | The thread's author, or an editor | An editor
+Delete | The comment's author | The thread's author
+Restore | Its author, or an editor | —
+
+An editor is anyone who can edit the board. Anything else answers 403. A board you can't open, or a comment that isn't on it, answers 404.
+
+Threads inside docs and notes
+
+Their ids start cm_, and their replies' cr_. They live in the doc itself and are written through the board's live room, so everyone with it open sees them at once. When the room can't be reached nothing is written, and the answer is 503 room_unavailable: try again. As in the app, a resolved thread takes no reply until it is reopened (409).
+
+## Frequently asked questions
+
+Q: Who can comment, resolve or delete over the API?
+A: The same people as in the app. Anyone who can open a board can comment on it. A thread's author, or anyone who can edit the board, can resolve it. Only a comment's author can delete it.
+
+Q: Can I reply to a comment inside a doc?
+A: Yes, if you can edit the board, as in the app. You can also resolve threads there, and start one on words in a doc by quoting them.
+
+Q: Is the person I reply to told?
+A: A reply can email the author of the thread, as a reply made in the app does, when they are away and haven't turned reply emails off.
+
+Q: Can an AI assistant read and answer comments?
+A: Yes. The MCP server's list_comments, add_comment and resolve_comments tools are these endpoints, so an assistant can read the feedback on a board, act on it, resolve what it dealt with, and comment on a doc's words.
+
+
+========================================================================
+# Tags API
+URL: https://clusters.soleilpictures.com/docs/api/tags
+Updated: 2026-10-25
+
+GET /workspaces/:id/tags lists a workspace's tags, each with how many things carry it, and GET /tags/:id lists everything carrying one tag, on every board. GET /boards/:id/tags shows the tags on one board, and POST /boards/:id/tags puts tags on its cards or takes them off, by name or by id, exactly as the Tag menu in the app does.
+
+A workspace's tags are read and applied here. Everything runs as you, so the API does with a tag exactly what the app does.
+
+GET /workspaces/:id/tags
+
+The workspace's tags, by name.
+
+{
+  "workspace_id": "5b2e…",
+  "tags": [
+    { "id": "0c9a…", "name": "Diner", "color": null, "entity_type": "setting",
+      "description": null, "items": 14, "created_at": "2026-09-30T18:02:11Z" }
+  ],
+  "limit": 100, "offset": 0, "has_more": false
+}
+
+items is how many things carry the tag, the number the sidebar shows (null when it can't be counted just then). color is the one picked in the app, or null for the colour it gives the tag from its name. entity_type is one of character, setting, organization, concept (Topic, in the app) and thing, or null.
+
+Parameter | 
+name | Just the tag of that name, in any case
+limit | Tags per page: 100 by default, at most 500
+offset | Where the page starts
+
+GET /tags/:id
+
+Everything carrying a tag, on every board in its workspace, the most recently tagged first: the tag's page, as data.
+
+{
+  "tag": { "id": "0c9a…", "name": "Diner", "workspace_id": "5b2e…", "…": "…" },
+  "items": [
+    { "kind": "card", "card_kind": "image", "board_id": "9f1c…", "board_name": "Locations",
+      "card_id": "c-3", "title": "Booth, night", "excerpt": null,
+      "auto": false, "tagged_at": "2026-10-20T09:14:02Z", "url": "https://…" },
+    { "kind": "doc_page", "board_id": "9f1c…", "card_id": "d-4", "page_id": "p-2",
+      "title": "Opening", "excerpt": "INT. DINER — NIGHT…", "auto": true, "…": "…" }
+  ],
+  "has_more": false
+}
+
+Each item's kind is card, group (with group_id and cards, how many cards it holds), board (a whole cluster), or doc_page (a page of a doc, with card_id and page_id). auto marks what was tagged automatically rather than by a person, and url opens it in the app. limit takes 100 by default, at most 500.
+
+GET /boards/:id/tags
+
+The tags on one board, and what carries each.
+
+{
+  "board_id": "9f1c…",
+  "tags": [
+    { "id": "0c9a…", "name": "Diner", "…": "…", "on_board": false,
+      "cards": ["c-3", "c-7"], "groups": [], "pages": [{ "card_id": "d-4", "page_id": "p-2" }] }
+  ],
+  "url": "https://…"
+}
+
+on_board is true when the board itself carries the tag, and each list is in the order things were tagged. A card deleted from the board keeps its tags in case the delete is undone, and isn't listed; when the board can't be read just then, a note says deleted cards may be.
+
+POST /boards/:id/tags
+
+Puts tags on cards of this board and takes tags off them.
+
+{ "card_ids": ["c-3", "c-7"], "add": ["Diner", "night exterior"], "remove": ["0c9a…"] }
+
+Field | 
+card_ids | Required. Up to 200 cards on this board
+add | Tags to put on them, up to 10: names, or ids from the lists above
+remove | Tags to take off them, up to 10, the same way
+
+Send add, remove, or both. A name is matched in any case, and a leading # is ignored. Each works as the Tag… menu does:
+
+A name the workspace has no tag for makes the tag, up to 80 characters. As a tag made in the app does, it then also goes on whatever else in the workspace says its name, marked auto.
+A deleted tag's name brings that tag back with everything it was on, as recreating it in the app does.
+Taking a tag off a card keeps it off that card for good: automatic tagging never puts it back there. Putting it on again yourself lifts that.
+
+{
+  "board_id": "9f1c…",
+  "added": [
+    { "id": "0c9a…", "name": "Diner", "…": "…", "created": false, "card_ids": ["c-7"] },
+    { "id": "77d1…", "name": "night exterior", "…": "…", "created": true, "card_ids": ["c-3", "c-7"] }
+  ],
+  "removed": [{ "id": "3f2b…", "name": "Day", "…": "…", "card_ids": ["c-3"] }],
+  "not_found": { "card_ids": [], "tags": [] },
+  "url": "https://…"
+}
+
+Each tag's card_ids are the cards that changed: one that already had the tag, or never had the one taken off, isn't listed, so sending the same call twice changes nothing the second time. created marks a new tag and revived: true one brought back. An id that isn't a tag of this workspace, or a tag to take off that it doesn't have, is listed in not_found.tags, and a card that isn't on the board in not_found.card_ids.
+
+Who can do what
+
+Tags belong to a workspace. Its members read them; anyone who can edit the workspace tags things in it, and anyone else gets 403. Someone a board is shared with sees no tags. A board you can't open, or none of the cards on it, answers 404. Tagging reads the board to find its cards: when it can't be read just then, nothing is written and the answer is 503 room_unavailable, so try again.
+
+## Frequently asked questions
+
+Q: Does tagging a card by a new name make the tag?
+A: Yes, as typing a new name into the app's Tag menu does. The new tag then also goes on whatever else in the workspace says its name, marked auto, as a tag made in the app does.
+
+Q: Will automatic tagging put back a tag I removed?
+A: No. Taking a tag off a card over the API keeps it off that card for good, as removing it in the app does. Putting it back on yourself lifts that.
+
+Q: Who can tag things over the API?
+A: Tags belong to a workspace. Its members can read them, and anyone who can edit the workspace can tag things in it, as in the app. Someone a board is shared with sees no tags.
+
+Q: Can an AI assistant tag cards?
+A: Yes. The MCP server's list_tags and tag_cards tools are these endpoints, so an assistant can see how a workspace is tagged and tag the cards it is asked to.
+
+
+========================================================================
 # Images API
 URL: https://clusters.soleilpictures.com/docs/api/images
-Updated: 2026-10-02
+Updated: 2026-10-25
 
 POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 
@@ -5750,7 +6335,7 @@ Reads an image back. Access is authorized the same way as everything else — yo
 
 Smaller renditions
 
-Add ?variant=preview for the downscaled copy the app stores when an image is uploaded — roughly 900px and about 48 kB, against ~470 kB for a typical original. It is more than enough to look at, and about ten times cheaper to move, which matters if you are reading a whole moodboard or handing images to a model.
+Add ?variant=preview for the downscaled copy the app stores when an image is uploaded, usually a small fraction of the original's bytes. It is more than enough to look at and far cheaper to move, which matters if you are reading a whole moodboard or handing images to a model.
 
 Not every image has one, so this falls back to the original rather than failing. The X-Image-Variant response header tells you which you got:
 
@@ -5759,7 +6344,41 @@ curl -sD- -o shot.webp \
   -H "Authorization: Bearer $TOKEN" | grep -i x-image-variant
 # x-image-variant: preview
 
-The MCP server's view_image asks for this by default.
+The MCP server's view_board shows pictures at this size when it is asked to look closely at a few.
+
+GET /boards/:id/gallery
+
+A board's pictures in the order a person reads it, top to bottom and left to right: image cards, and videos with a poster frame. It is how an agent looks at a board without fetching every picture one by one, and what the MCP server's view_board reads.
+
+curl "https://clusters.soleilpictures.com/api/v1/boards/$BOARD/gallery?inline=1" \
+  -H "Authorization: Bearer $TOKEN"
+
+{
+  "board": { "id": "…", "name": "Diner — night", "url": "https://clusters.soleilpictures.com/?to=b:…",
+             "card_count": 42, "picture_count": 25,
+             "thumbnail": { "updated_at": "…", "data": "UklGR…", "mime": "image/webp", "bytes": 15800 } },
+  "size": "sm",
+  "pictures": [
+    { "card_id": "c-81", "kind": "image", "position": 1, "title": "Neon sign", "caption": null,
+      "image_key": "…", "width": 4032, "height": 3024,
+      "rendition": { "variant": "sm", "width": 640, "height": 480 },
+      "url": "https://clusters.soleilpictures.com/?to=c:…:c-81",
+      "data": "UklGR…", "mime": "image/webp", "bytes": 31200 }
+  ],
+  "has_more": true,
+  "next_cursor": "p12"
+}
+
+Parameter | 
+limit | Pictures per page: 12 by default, at most 24
+cursor | next_cursor from the previous page
+inline | 1 embeds each picture as base64 in data
+size | sm, the smaller rendition (the default), or preview, the larger one
+card_ids | Comma-separated, at most 24: these pictures instead of a page
+
+thumbnail is the board drawn whole, as the app last stored it, on the first page only and null when the board has none. A video's picture is its poster frame, marked "poster": true. With card_ids the pictures come in the order named, position is null and there is no next page. Each picture names the rendition it would show: the smaller one asked for, the other one when it is missing, and the original only when it is at most 400 KB.
+
+With inline=1, pictures are embedded in reading order while they fit: at most 400 KB each (1 MB with size=preview) and 1.5 MB for the whole answer. One that does not fit carries a reason instead of data (too_large, budget, no_rendition, not_found, missing, storage_unavailable). Ask for it by card_ids, or for fewer at a time. Embedding pictures is a read of their bytes, so it is written to the audit log like GET /images/:key.
 
 Why the images row matters
 
@@ -6118,7 +6737,7 @@ A: Not yet. They are stored, queryable and exportable today; surfacing them on t
 ========================================================================
 # Search API
 URL: https://clusters.soleilpictures.com/docs/api/search
-Updated: 2026-08-08
+Updated: 2026-10-25
 
 GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
 
@@ -6138,7 +6757,7 @@ curl -s "$SOLEIL_API/search?q=diner&kind=card&limit=20" \
 
 Results
 
-Boards and cards come back in separate lists, each carrying enough to act on without a second lookup — a card result includes its board_id, so you can PATCH it straight away.
+Boards and cards come back in separate lists, each carrying enough to act on without a second lookup — a card result includes its board_id, so you can PATCH it straight away, and board_name, so you can say where it is — and a url that opens it in the app.
 
 Everything runs under your permissions. Boards you cannot open do not appear, and there is no mode that searches beyond what your account can see.
 
@@ -6276,7 +6895,7 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 ========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
-Updated: 2026-10-20
+Updated: 2026-10-27
 
 Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
@@ -6303,7 +6922,7 @@ Hosted — nothing to install, nothing to paste
 
 A URL. That is the whole setup.
 
-The first call comes back 401 with a pointer to our OAuth metadata; the client registers itself, opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box.
+The first call comes back 401 with a pointer to our OAuth metadata. The client identifies itself (Claude, ChatGPT and VS Code by the address of their own published metadata, others by registering), opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box.
 
 Afterwards the connection is listed under Settings → Connections → Connected apps, where you can see what it has done and disconnect it.
 
@@ -6386,50 +7005,51 @@ Tools
 Orientation and finding things
 
 Tool | Input
-whoami | — · the account, its scopes, rate limit, and whether it is a service account
-list_workspaces | —
-search | q (min 2 chars), kind? (board|card), workspace_id?, paging
-list_boards | workspace_id?, parent? ("root" for top level), since?, cursor?, paging
-board_tree | root? or workspace_id?, depth? — a whole hierarchy in one call
-get_board | board_id — one board, with how much of the card allowance is used
+whoami | — · the account, its scopes, rate limit, whether it is a service account, and the workspaces it can see
+search | query (min 2 chars), kind? (board|card), workspace_id?, limit? (default 20 of each kind, up to 100), offset? · boards and cards by their words, boards first, each result { id, title, url } with, for a card, an excerpt and the name of its board — the shape ChatGPT asks of a search tool; each id is one fetch reads
+fetch | id — board:<board id>, card:<board id>:<card id>, doc:<board id>:<card id> (:<page id> for one page), or a link from the app · one board, card or doc as text to read, { id, title, text, url, metadata }, up to 40,000 characters; a doc's metadata.pages carry each page's hash
+list_boards | workspace_id?, parent? ("root" for top level), since?, cursor?, paging, response_format? · one level at a time, each board with its link; with depth? (up to 20) a whole hierarchy in one call, at most 500 boards; with deleted? the boards that can still be restored
 resolve_identifier | scope, value — find something by an id from another system
-list_deleted_boards | workspace_id?
-list_groups | board_id — the labelled sets on a board
 
 Reading
 
 Tool | Input
-read_board | board_id, full?, include?, source?, since?, paging
-view_image | image_key — fetch an image card's actual picture
-list_images | workspace_id?, board_id?, since?, cursor?
-export_board | board_id, format? (json|omc)
-get_metadata | board_id, cards? — identifiers and properties
+read_board | board_id, response_format?, full?, include?, source?, since?, paging · the board with its link, fields and how much of the card allowance is used, its groups, and a page of its cards; format? (json|omc) for the whole board as one document instead
+view_board | board_id, limit? (default 12, up to 24), cursor?, card_ids? (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card
+list_comments | board_id, status? (open|resolved|all), limit? (up to 200), cursor? — the board's comment threads, those inside its docs and notes with the text they are on
+list_tags | workspace_id?, board_id?, tag? (a name or an id), limit? (up to 500) — a workspace's tags, the tags on one board, or with tag everything carrying it
 list_audit | since?, cursor? — recent writes and image fetches
 
 Writing
 
 Tool | Input
-create_board | name, workspace_id?, parent_board_id?, identifiers?, props?
-create_boards | boards[] — up to 500, on_conflict? — build a structure in one call; each entry takes the same fields as create_board
+create_boards | boards[] — one, or up to 500, each { name, workspace_id?, parent_board_id?, view?, identifiers?, props? }; workspace_id?, on_conflict? · each board comes back with its url
 add_cards | board_id, cards[] — up to 1000, on_conflict?
+import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
-import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
-arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
+write_doc | board_id, pages[] — up to 50, each { title?, markdown }; title?, x?, y? for a new doc, or card_id and parent_page_id? to add pages to one · a doc written from Markdown
 create_group | board_id, name, color?, shape? — say a set of cards is one thing
-rename_board | board_id, name?, view?, parent_board_id?
-move_boards | board_ids[] — up to 500, parent_board_id
-update_card | board_id, card_id, plus any field add_cards takes — group_id (empty to ungroup), z, rotation, section_header, and any of the eight kinds
-update_cards | board_id, cards[] — up to 1000 at once, each an id and the fields to set
+add_comment | board_id, body, and card_id?, group_id?, x? and y?, or reply_to?; quote? and page_id? with a doc's card_id — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply
+
+Changing
+
+Tool | Input
+update_boards | boards[] — up to 100, each a board_id and any of name, view, parent_board_id (null for the top level), identifiers, props · each board is changed on its own, and the answer lists the boards updated and why any failed
+update_cards | board_id, cards[] — up to 1000, each an id and any field add_cards takes — group_id (empty to ungroup), z, rotation, section_header, identifiers, props, and any of the eight kinds
+edit_doc_page | board_id, card_id, page_id, and markdown with page_hash, or edits[] (up to 50), or title · marked destructive, since a rewrite takes words away; the board goes to Version history first
+arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
 move_cards | from_board_id, to_board_id, card_ids[]
-set_metadata | board_id, card_id?, identifiers?, props?
+tag_cards | board_id, card_ids[] (up to 200), add[]?, remove[]? (tag names or ids, up to 10 each) — put tags on cards or take them off, as the Tag menu does; a new name makes the tag
+resolve_comments | board_id, comment_ids[] (up to 50), resolved? — resolve threads, or reopen them with false; lists any refused, with why
 restore_board | board_id
+share_board | board_id, include_subboards? — the board's view-only link, made only when it has none; call it only when the person asks to share
+unshare_board | board_id — revokes the board's view-only links this account may revoke
 
 Deleting — requires the delete scope
 
 Tool | Input
-delete_card | board_id, card_id
-delete_cards | board_id, card_ids[] — up to 1000
+delete_cards | board_id, card_ids[] — one, or up to 1000
 delete_board | board_id
 
 Card kind is audio, doc, file, image, link, note, pdf, video, defaulting to note.
@@ -6438,14 +7058,38 @@ add_cards accepted six of those eight for as long as the other two have existed 
 
 Every tool carries annotations — readOnlyHint, destructiveHint, idempotentHint — which is what a client reads when deciding whether a call needs confirming. They are structured, so unlike a warning in a description they actually participate in that decision.
 
+Renamed in 3.0
+
+Version 3.0 folded fifteen tools into the ones above, so an assistant has fewer, clearer tools to choose between. Calling an old name answers -32602 with renamed_to in its data, naming the tool that does it now, and the message says how; an assistant still holding the old list corrects itself from that.
+
+Before 3.0 | Now
+list_workspaces | whoami, which lists the workspaces
+board_tree | list_boards with depth
+list_deleted_boards | list_boards with deleted: true
+get_board, list_groups, get_metadata | read_board, which carries the board, its fields, its capacity and its groups
+export_board | read_board with format
+view_image | view_board with card_ids
+list_images | read_board; the Images API still lists stored files
+create_board | create_boards with one entry
+rename_board, move_boards | update_boards
+set_metadata | update_boards or update_cards, with props and identifiers
+update_card | update_cards with one entry
+delete_card | delete_cards with one id
+
+The local package's 2.x releases carry their own copy of the tools, so they keep the old names until they are updated.
+
 Prompts
 
-Three starting points, offered by name rather than buried in a tool description:
+Starting points a person picks by name (slash commands in Claude Code), each a short plan in the tools' own words:
 
 Prompt | Does
-describe_board | Looks at every image and writes what the board is reaching for
-organize_board | Proposes a grouping into child boards, without moving anything
-import_plan | Turns a file listing into a plan of boards and cards, with identifiers so it can be re-run
+moodboard | brief, workspace_id? — builds a finished cluster from a brief: pictures from the web, a palette, notes and a short treatment, laid out, with its link
+review_board | board_id — says what a board is going for, what is missing and what to add next; changes nothing
+organize_board | board_id — proposes groups, or boards inside it, without moving anything until asked
+treatment | board_id — writes a treatment as a doc on the board, grounded in what is on it
+import_plan | workspace_id, listing — turns a file listing into a plan of boards and cards, with identifiers so it can be re-run
+
+describe_board is review_board since 3.0.
 
 Adding an image
 
@@ -6456,11 +7100,28 @@ add_cards with {"kind": "image", "image_key": "…", "file_name": "…"}
 
 Images are limited to 25 MB through the API and are charged to the board owner's storage. See Images API.
 
+Writing a doc
+
+write_doc with the pages in Markdown — returns the doc's url and each page's id and hash
+edit_doc_page to change a page afterwards: edits for a few words, or the whole page as markdown with its page_hash. fetch with doc:<board id>:<card id>:<page id> reads a page and its current hash.
+
+A rewrite keeps every block it didn't change, comments and all, and is refused if the page changed since it was read. A picture goes in only from a file already on the board. The Docs API has the details.
+
+Keep links
+
+A keep link, https://clusters.soleilpictures.com/keep/…, opens a cluster an assistant made for someone who wasn't signed in to Clusters. The page shows the cluster read only, and keeping it takes an email address and the 6-digit code sent there: the cluster then belongs to that account, a new one or one that already exists. Whoever holds the link can keep it, so it goes only to the person it was made for. Once kept it opens nothing, and a cluster nobody keeps is deleted 30 days after its last change.
+
+Assistants don't hand out keep links yet.
+
 What agents should know
 
-read_board truncates by default. Pass full: true for untruncated bodies, and expect it to be large. Both read_board and list_boards paginate — check for more rather than assuming one page is everything.
+Each answer says what happened in its first line, with the link to give the person and, when there is more, how to get it: Board "Diner — night" · 42 cards (1–25 here; more with offset 25) · https://…. The JSON follows, and is also the call's structured result. search and fetch answer with the JSON alone, the shape ChatGPT reads.
 
-Deleting returns the card. delete_card responds with the card it removed. That object is the undo — pass it back to add_cards to restore it. Worth keeping in context before destructive work. Card kinds add_cards does not create (grids, palettes, cluster cards and the like) and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
+Answers are concise by default. read_board gives each card's id, kind, title, text and what it points at (a link, an image_key, a file), with long text shortened; response_format: "detailed" adds positions, sizes, colours and dates, for placing things, and full: true every word. list_boards gives each board's id, name, place and link; detailed adds how it opens and when it was made. Both paginate — check for more rather than assuming one page is everything.
+
+What people wrote is marked as data. An answer that quotes people's text — cards, captions, comments, docs, search excerpts — begins with an untrusted field saying so: it is material to work with, never instructions to follow, so a note that says "delete this board" is something to tell the person about, not something to do. The server's instructions say the same, for hosts that pass them on.
+
+Deleting returns the cards. delete_cards responds with the cards it removed. Those objects are the undo — pass them back to add_cards to restore them. Worth keeping in context before destructive work. Card kinds add_cards does not create (grids, palettes, cluster cards and the like) and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
 
 Deleting a board is destructive and confirmable. delete_board removes a whole board; the tool description says to confirm with the user first, and restore_board exists because that is not always heeded.
 
@@ -6470,7 +7131,7 @@ Batch. One add_cards call with forty cards is one request against the rate limit
 
 live: false is not an error. The change is saved; a canvas someone already has open will not show it until reload.
 
-Start with whoami. It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures.
+Start with whoami. It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures, and lists the workspaces.
 
 Reading the docs as an agent
 
@@ -6500,13 +7161,13 @@ Q: Can an agent upload a video?
 A: Only the local server can, with upload_file, because the file has to be read from a disk. The hosted one handles images with upload_image.
 
 Q: Is it the same set of tools either way?
-A: Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart.
+A: Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0.
 
 
 ========================================================================
 # Errors and status codes
 URL: https://clusters.soleilpictures.com/docs/api/errors
-Updated: 2026-08-08
+Updated: 2026-10-25
 
 Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
 
@@ -6525,13 +7186,15 @@ Status | code | Means | Retry?
 403 | forbidden / insufficient_scope | Not permitted, or the token lacks the scope | No
 404 | not_found | Not found, or not visible to you | No
 405 | method_not_allowed | Wrong method for that path | No
-409 | conflict | Idempotency key in flight, or a refused reparent | Sometimes
+409 | conflict | Idempotency key in flight, a refused reparent, a doc page from an older layout, or a comment thread's state | Sometimes
+409 | page_changed | A doc page changed after you read it; read it again | No
 409 | identifier_conflict | An identifier already belongs to something else | No
-413 | payload_too_large | An image over 25 MB | No
+413 | payload_too_large | An image over 25 MB, or more Markdown than a doc write takes | No
 415 | unsupported_media_type | Upload with a missing or unrecognised Content-Type | No
 429 | — | Rate limited | Yes, after retry-after
 502 | session_unavailable | An upstream dependency is unreachable | Yes
 502 | upstream_error | A dependency answered, but not successfully | Yes
+503 | room_unavailable | A cluster's live room couldn't be reached or didn't confirm a doc write; nothing was written | Yes
 503 | storage_unavailable | Image storage is temporarily unavailable | Yes
 
 The ones worth explaining
@@ -6600,9 +7263,9 @@ A: 402 means a quota — the card cap or storage. 403 means permission — an in
 ========================================================================
 # Webhooks
 URL: https://clusters.soleilpictures.com/docs/api/webhooks
-Updated: 2026-10-07
+Updated: 2026-10-26
 
-Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
+Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads, comments and tags change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 
 Register an HTTPS endpoint and we post to it when something changes.
 
@@ -6640,15 +7303,25 @@ card.created | Cards are added to a board
 card.updated | Their text or contents change
 card.deleted | Cards are removed
 card.moved | Cards move to another board
-image.created | An upload completes
+image.created | An upload completes: a picture, video, audio file or document
+comment.created | A comment or a reply is posted on a board
+comment.updated | Its words change
+comment.resolved | A thread is resolved
+comment.reopened | A resolved thread is opened again
+comment.deleted | A comment is deleted (it can still be restored)
+comment.restored | A deleted comment is brought back
+tag.applied | A tag is put on cards, groups, boards or doc pages
+tag.removed | A tag is taken off them
 
-Card events are grouped. A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. data.card_ids carries the first 25 as a courtesy; past that, read the board.
+Card, upload and tag events are grouped. A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. The ids come with it, the first 25 as a courtesy; past that, read the board.
+
+Comments on the canvas fire comment events. The comments inside a doc or a note live in the doc itself, so they fire none: read them with GET /boards/:id/comments.
 
 The payload
 
 {
   "type": "card.created",
-  "resource": { "type": "card", "id": "…" },
+  "resource": { "type": "card", "id": "9f1c…" },
   "workspace": { "id": "3b7e…" },
   "board": { "id": "9f1c…" },
   "data": { "count": 412, "card_ids": ["…", "…"] },
@@ -6656,6 +7329,21 @@ The payload
 }
 
 Deliberately thin. A payload is a copy of the truth, and a copy goes stale between being sent and being read — worse, it goes stale silently. You get enough to know what to look at; call back for current state, with ?since= if you want everything that moved.
+
+resource.id is the comment's id for a comment event and the tag's id for a tag event. A grouped card or upload event covers several things at once, so its resource.id is the board's.
+
+What data holds
+
+Events | data
+card.created, card.updated, card.deleted | count, card_ids
+card.moved | count, card_ids (as they are now, on board), from_board_id, from_card_ids (the same cards' ids where they were, in the same order: a card whose id was taken on arrival gets a new one)
+image.created | count, image_keys (each one's key for GET /images/:key); board is null for an upload that isn't on a board
+comment.* | id, thread_id, reply, on (card, group, point or board, or doc with a page_id for a comment made on a doc before its comments moved into the doc), card_id or group_id where it is pinned, author_id, resolved
+tag.applied, tag.removed | id (the tag's), auto (true when automatic tagging put it on or took it off), count, items: each thing it is on, {kind, id} with kind one of card, group, board or doc_page (a doc page adds page_id)
+
+A comment's words are not in its event. Read them through the API, under the permissions of the person whose token you use.
+
+A move between two workspaces fires card.moved in both, so the workspace the cards left hears of it too. Merging two tags reads as tag.removed for the tag merged away and tag.applied for the one it merged into. Confirming a tag that automatic tagging put on changes no tag, so it fires nothing.
 
 Verifying a delivery
 
@@ -7475,7 +8163,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 
 ## Free to start, flat when you grow
 
-The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, and the clusters you make cost none of them. Invited collaborators edit free on every tier. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
+The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, and the clusters you make cost none of them. Up to 10 invited collaborators edit free on every tier but Team. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
 
 ## The case for staying on desktop
 
@@ -7651,7 +8339,7 @@ Nest a cluster per character, environment or shot and the project stays navigabl
 
 ## One plan for the team, not a licence per seat
 
-Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six.
+Free and Creator have no per-seat charges. Up to 10 people edit free on either, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six. A department with more than 10 people who edit moves to Team, which is priced per seat.
 
 ## Where a desktop app is still the right call
 
@@ -7660,7 +8348,7 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 ## How a studio sets one up
 
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
-2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
+2. **Invite the team** — Invite artists as editors by email or with an invite link. Up to 10 people edit free on Free and Creator, and everyone lands in the same live board.
 3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.
 4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
@@ -7674,14 +8362,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -7693,7 +8381,7 @@ Put the reference in one board everyone can open and edit at once, instead of pa
 
 ### Do the artists I invite need to pay?
 
-No. Editors are free on every plan. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.
+No. Up to 10 people edit free on Free and Creator. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.
 
 ### Can a client or supervisor see the board without an account?
 
@@ -7773,14 +8461,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -7869,14 +8557,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -7957,14 +8645,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8049,14 +8737,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8153,14 +8841,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8188,7 +8876,7 @@ Yes — Milanote’s free plan caps the total number of items across your boards
 
 ### Is Clusters cheaper than Milanote for a team?
 
-Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo, billed annually, for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, editors are free, and anyone you share a board with can view it free with one link.
+Usually. Milanote’s individual plans are priced per person and its team plan is $49/mo, billed annually, for up to ten people; Clusters Creator is a flat $25/mo for the whole workspace, up to 10 editors are free, and anyone you share a board with can view it free with one link.
 
 ### Is there a free Milanote alternative without item caps?
 
@@ -8230,7 +8918,7 @@ Storyflow is an AI visual workspace. You describe a board and its assistant draf
 
 ## Where Clusters is different
 
-A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on either plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
+A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on every plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
 
 - Mood board, storyboard, shot list and screenplay as nested boards
 - Tags and a relationship graph across the whole project
@@ -8286,14 +8974,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8397,14 +9085,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8500,14 +9188,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8633,14 +9321,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8770,14 +9458,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -8805,7 +9493,7 @@ Yes — Clusters. It keeps the infinite collaborative canvas but strips the diag
 
 ### Can my team use Clusters without per-seat pricing?
 
-Yes. Creator is a flat $25/mo — not a per-member subscription — and anyone you share with can open a board free with one link.
+Yes, up to 10 people who edit. Creator is a flat $25/mo — not a per-member subscription — and anyone you share with can open a board free with one link.
 
 
 
@@ -10700,9 +11388,9 @@ URL: https://clusters.soleilpictures.com/pricing
 
 URL: https://clusters.soleilpictures.com/pricing
 
-The free plan is a real plan, not a countdown. Creator lifts its limits for $25/mo.
+The free plan is a real plan, not a countdown. Creator lifts its limits for $25/mo. Teams with more than 10 people who edit pay $25 a seat.
 
-Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: everyone invited builds at its limits, with no per-seat charges.
+Soleil Clusters has three plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: up to 10 people who edit build at its limits, with no per-seat charges. Team is for more than 10 people who edit: $25 a seat a month, or $20 a seat a month billed annually, from 3 seats.
 
 ## Free — $0 forever
 
@@ -10711,7 +11399,7 @@ No card, no clock, no expiry.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 ## Creator — $25/mo
 
@@ -10719,28 +11407,47 @@ Or $20/mo billed annually ($240/yr) — save 20%. Cancel any time — your cards
 
 - **Unlimited cards** — The 50-card ceiling comes off. Everything you have already made stays exactly where it is.
 - **A 1TB drive** — Free holds 5GB. Creator holds **1TB** — room for the footage, the camera originals and the project archives.
-- **Covers your whole workspace** — Everyone you invite builds at your limits. There are no per-seat charges.
+- **Covers your whole workspace** — Everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges.
 
-## Both plans, line by line
+## Team — $25 a seat /mo
 
-These are the only differences. Everything absent from this table is on both plans — files of any size, clusters, collaborators, editing, sharing, exports, version history, the API.
+More than 10 editors. Or $20 a seat /mo, billed yearly. 3 seats or more. Viewers never use a seat.
 
-| | Free | Creator |
-|---|---|---|
-| Cards | 50 | Unlimited |
-| Storage | 5GB — any file, any size | 1TB — any file, any size |
+- **Everything in Creator, for each editor** — Unlimited cards in every team workspace.
+- **1TB a seat, one shared drive** — 3 seats hold **3TB**, and every seat you add brings 1TB more. 100GB during the free trial.
+- **More than 10 people who edit** — A seat for each, 3 to 100 on your own. Viewers are free and never use one.
+- **Admins, and work the team owns** — Admins handle people and seats. Workspaces belong to the team, so the work stays when someone leaves.
+- **Their own workspaces, too** — Everyone with a seat gets unlimited cards and 50GB more in their personal workspaces, unless the team turns it off.
+- **Join by link or company email** — Invite a list, share a team link, or let in anyone from your verified company domain.
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+Start a Team trial: 14 days free · card needed.
+
+Need SSO, invoices or more than 100 seats? [Talk to us](/pricing/talk-to-us).
+
+## Every plan, line by line
+
+These are the only differences. Everything absent from this table is on every plan — files of any size, clusters, editing, sharing, exports, version history, the API.
+
+| | Free | Creator | Team |
+|---|---|---|---|
+| Cards | 50 | Unlimited | Unlimited |
+| Storage | 5GB — any file, any size | 1TB — any file, any size | 1TB a seat, shared — any file, any size |
+| People who edit | Up to 10 | Up to 10 | A seat each, 3 to 100 |
+| People who view | Unlimited | Unlimited | Unlimited, free |
+| Admins | — | — | Yes |
+| Join by company email | — | — | Yes |
+
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 ## Frequently asked questions
 
 ### What is actually limited on the free plan?
 
-Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on either plan. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
+Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
 
 ### Do the people I invite need to pay?
 
-No. Editors are free on every plan, and always were. What Creator does is carry YOUR limits to them: everything they add counts against the workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges.
+No. On Free and Creator, up to 10 people can edit at no cost to them, and anyone can view. What Creator does is carry YOUR limits to them: everything they add counts against the workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges. More than 10 people who edit is what Team is for, priced per seat.
 
 ### What happens when I reach 50 cards or fill 5GB?
 
@@ -10763,13 +11470,131 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-10-25
+Updated: 2026-10-27
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-10-27 — Team, for more than 10 people who edit
+
+Team is a new plan for more than 10 people who edit, at $25 a seat a month, and Free and Creator include up to 10. Documents show their first page, and raw and Photoshop files are pictures.
+
+### Team
+
+- **Team** is a new plan for groups with more than 10
+  people who edit. A team owns its workspaces and pays for them per seat:
+  $25 a seat a month, or $240 a year,
+  from 3 seats. Each seat adds 1TB
+  to the drive the team shares, and the cards are unlimited.
+- Viewers are free and never use a seat.
+- Admins look after people, seats and joining: email invites, a team link, or
+  anyone from your company's verified email domain.
+- Start from the [pricing page](/pricing). The first 14
+  days are free, and a card is needed to start. See [Team](/docs/account/team).
+
+### Free and Creator
+
+- Up to 10 people can edit across everything an account
+  owns, and anyone can view. When an account is full, an edit link lets the
+  next person in as a viewer and tells the owner. An account that already has
+  more keeps everyone editing, and adds no one new until it is back at
+  10. See [collaborate](/docs/collaborate).
+
+### Documents
+
+- Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument and RTF
+  files show their first page on their card, with the page count where other
+  files show their size ("12 slides", "1 page"). A spreadsheet shows its
+  first sheet from the top left. See [files](/docs/files).
+- **Quick look** pages through a document, Visio and Publisher files
+  included, and says "Making a preview…" while the pages are being made.
+- A deck lands on the board at a slide's shape and any other document at a
+  page's, so its card barely moves when its page arrives.
+
+### Camera raws and Photoshop files
+
+- Camera raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the others) and
+  Photoshop files (.psd and .psb) are pictures now: they land as image cards
+  and show wherever pictures do. One already on a board as a file card turns
+  into its picture. **Download** still gives you the original. See
+  [images](/docs/canvas/images).
+
+### Tags
+
+- Tag chips show under their cards. Since May they had been hidden inside
+  the card.
+- Click a tag chip, on a card, a group or the cluster's own strip, and the
+  cluster lights up that tag's cards where they are while everything else
+  fades. `Esc`, or the same chip again, ends it. See [tags](/docs/organize/tags).
+- Suggested tags show on their card with a sparkle: ✓ keeps one, × stops it
+  being suggested there again.
+- Select several cards and press **Tag** in the selection bar to put a tag
+  on all of them, or take it off, with one undo.
+- **Tag…** works on a group and on the cluster itself (right-click the empty
+  board). In a document, select words and right-click for **Tag
+  selection…**. In `⌘K`, `#name` lists everything with that tag.
+- A tag you take off stays off. Saving a link in a document or editing a
+  paragraph no longer deletes its tags.
+- On a phone, each tag in the sidebar has a **⋯** with Rename, Recolor,
+  Merge into…, Type and Delete, and pressing and holding an item on a tag's
+  page offers Remove, and Confirm for one added automatically.
+- **Settings → Workspace** has an **AI suggestions** switch for owners and
+  co-owners. When it's off, no card or document text goes to an AI model.
+
+### ChatGPT, Claude and the API
+
+- ChatGPT and Claude can connect on your account's first day.
+- The MCP server has fewer tools, each doing more, and an old tool's name
+  answers with its new one. Every answer starts with a line in plain words
+  and the link to give you. See [MCP](/docs/mcp).
+- Through the API and MCP, an assistant can read a document or a whole board
+  as text, look at a board's pictures, write documents, read and post
+  comments, resolve and reopen threads (in documents too), work with tags,
+  and share a board by link. See [the API](/docs/api).
+- Webhooks fire for comments and for tags, and `card.moved` and
+  `image.created`, which never fired, now do. See
+  [webhooks](/docs/api/webhooks).
+
+### Sharing
+
+- **Share** opens on the link again: **Anyone with the link** and its copy
+  button sit at the top, with inviting people by email below. The button has
+  the focus when the panel opens, so `Enter` copies the link straight away.
+  See [sharing](/docs/collaborate/sharing).
+- The reminder to send a cluster to someone comes at most once a week.
+- In a new workspace's setup, the invite link never fails silently: a phone
+  without a share sheet copies it and says **Copied**, and where the browser
+  won't copy, the link is shown selected so you can copy it yourself.
+- A document shared on its own link looks the way it does in its cluster.
+  Someone who can edit gets its bar, with **Comments** as a side panel where
+  they can reply, resolve and reopen. On a phone, Comments is a sheet over the
+  document.
+
+### Also
+
+- **Tidy up** no longer piles cards on top of each other, and **Align** lines
+  a big selection up instead of stacking it. See
+  [snapping and alignment](/docs/canvas/snapping-and-alignment).
+- On a phone or a tablet, the swatches in a document's text colour menu are
+  big enough to tap.
+
+## 2026-10-26 — Export and profile changes work again
+
+Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.
+
+### Export
+
+- Right-click the canvas and choose **Export** to save the whole board as a
+  PNG or a PDF again. Since May it said "Nothing to export." on every board.
+  The PDF no longer opens a pop-up window. See [export](/docs/canvas/export).
+
+### Your profile
+
+- Changes to your name, colour and picture save again. Since May they were
+  refused.
 
 ## 2026-10-25 — A new look for toolbars, and every video plays
 

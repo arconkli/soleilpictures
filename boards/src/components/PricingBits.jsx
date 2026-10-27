@@ -50,11 +50,11 @@ function renderEmphasis(text) {
 // single read counts twice; the page marks the card and leaves the table bare.
 // data-up-feat / data-up-featkey are otherwise unchanged and still
 // index-parallel, so up_feature_hover history survives this rewrite.
-export function BenefitGrid({ benefits = CREATOR_BENEFITS, className = 'pricing-benefits', marked = true }) {
+export function BenefitGrid({ benefits = CREATOR_BENEFITS, className = 'pricing-benefits', marked = true, icons = BENEFIT_ICON }) {
   return (
     <ul className={className}>
       {benefits.map((b, i) => {
-        const Glyph = BENEFIT_ICON[b.key];
+        const Glyph = icons[b.key];
         return (
           <li key={b.key} {...(marked ? { 'data-up-feat': i, 'data-up-featkey': b.key } : {})}>
             <span className="pricing-benefit-i" aria-hidden="true">

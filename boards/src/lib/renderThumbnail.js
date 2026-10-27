@@ -1463,7 +1463,7 @@ async function mosaicToBlob(picks, { width, height, allowImages }) {
     images = await Promise.all(picks.pics.map(async (p, i) => {
       if (!allowImages) return null;
       const src = pickVariantSrc(p.src, getImageMeta, Math.max(cells[i][2], cells[i][3]));
-      const url = await resolveImageUrl(src);
+      const url = src ? await resolveImageUrl(src) : null;
       return url ? loadCorsImage(url) : null;
     }));
   }

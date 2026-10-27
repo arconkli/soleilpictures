@@ -41,26 +41,6 @@ export async function listWorkspaceTags(workspaceId) {
   return data || [];
 }
 
-export async function setTagDescription(tagId, description) {
-  const trimmed = description == null ? null : String(description).trim().slice(0, 500);
-  const { error } = await supabase.from('tags').update({ description: trimmed || null })
-    .eq('id', tagId);
-  if (error) throw error;
-}
-
-// One-shot cleanup: removes auto-applied tag applications where the
-// tag's name shares no meaningful token with the source's text. Also
-// inserts the (source, tag) into autotag_ignored so the engine
-// doesn't re-apply. Returns the count of rows deleted.
-export async function purgeBogusAutoappliedTags(workspaceId) {
-  if (!workspaceId) throw new Error('purgeBogusAutoappliedTags: workspaceId required');
-  const { data, error } = await supabase.rpc('purge_bogus_autoapplied_tags', {
-    p_workspace_id: workspaceId,
-  });
-  if (error) throw error;
-  return data || 0;
-}
-
 // Find or create a tag by name. Trims + dedupes by slug.
 //
 // On first creation, fires backfill_tag_applications which scans
@@ -187,19 +167,16 @@ export async function undoTagMerge(mergeId) {
 
 // Workspace-wide application count per tag. Powers the sidebar count
 // badges. RLS scopes the count automatically.
+// How many live things carry each tag (0592): a card that still exists, a
+// cluster not in the Trash, a group with something in it, a document page
+// (its ranges count once) — what the tag page lists as tagged. It used to
+// count raw rows, so a page's ranges and deleted cards inflated it.
 export async function listTagCounts(workspaceId) {
   if (!workspaceId) return new Map();
-  const { data, error } = await supabase
-    .from('entity_links')
-    .select('target_id')
-    .eq('source_workspace', workspaceId)
-    .eq('target_kind', 'tag')
-    .eq('link_kind', 'applied');
+  const { data, error } = await supabase.rpc('tag_item_counts', { p_workspace_id: workspaceId });
   if (error) throw error;
   const counts = new Map();
-  for (const row of (data || [])) {
-    counts.set(row.target_id, (counts.get(row.target_id) || 0) + 1);
-  }
+  for (const row of (data || [])) counts.set(row.tag_id, row.items || 0);
   return counts;
 }
 
@@ -269,6 +246,19 @@ export async function untagCard({ boardId, cardId, tagId }) {
     .eq('link_kind', 'applied');
   if (error) throw error;
   announceTagLinksChanged();
+}
+
+export async function listGroupTags(boardId) {
+  if (!boardId) return [];
+  const { data, error } = await supabase
+    .from('entity_links')
+    .select('source_id, target_id, source')
+    .eq('source_kind', 'group')
+    .eq('target_kind', 'tag')
+    .eq('link_kind', 'applied')
+    .eq('source_board_id', boardId);
+  if (error) throw error;
+  return (data || []).map(r => ({ group_id: r.source_id, tag_id: r.target_id, source: r.source }));
 }
 
 export async function listBoardTags(boardId) {
@@ -373,11 +363,54 @@ export async function tagDocPage({ workspaceId, docCardId, pageId, boardId = nul
   if (error && error.code !== '23505') throw error;
 }
 
+// A doc removal keeps that tag off that page for the automatic paths, the way
+// a card removal keeps it off the card: 0590's guard drops any automatic
+// application covered by an autotag_ignored row of kind 'doc_page' keyed
+// `${docCardId}:${pageId}`.
+export const DOC_PAGE_IGNORE_KIND = 'doc_page';
+export function docPageIgnoreId(docCardId, pageId) {
+  return `${docCardId}:${pageId}`;
+}
+
+async function suppressDocPageTag({ workspaceId, docCardId, pageId, tagId, userId }) {
+  try {
+    await dismissAutotagSuggestion({
+      workspaceId, targetKind: DOC_PAGE_IGNORE_KIND,
+      targetId: docPageIgnoreId(docCardId, pageId), tagId, userId,
+    });
+  } catch (err) {
+    console.warn('[tags] doc page suppression failed', err?.message || err);
+  }
+}
+
+// Undo for a doc removal: lift the page's suppression first (so the guard
+// lets automatic rows back), then put back exactly the rows that were taken
+// off, sources and anchors included.
+export async function restoreDocTagRows({ workspaceId, docCardId, pageId, tagId, rows }) {
+  await undismissAutotagSuggestion({
+    workspaceId, targetKind: DOC_PAGE_IGNORE_KIND,
+    targetId: docPageIgnoreId(docCardId, pageId), tagId,
+  });
+  const list = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  if (list.length === 0) return;
+  const { error } = await supabase.from('entity_links').insert(list);
+  if (error && error.code === '23505') {
+    for (const row of list) {
+      const { error: one } = await supabase.from('entity_links').insert(row);
+      if (one && one.code !== '23505') throw one;
+    }
+  } else if (error) {
+    throw error;
+  }
+  announceTagLinksChanged();
+}
+
 // Remove a tag from one specific range inside a doc page. Matched by the
 // source_anchor JSON (pHash + startOffset + length) so other ranges of the
-// same tag on the same page aren't affected.
-export async function untagDocRange({ workspaceId, docCardId, pageId, tagId, sourceAnchor }) {
-  if (!workspaceId || !docCardId || !pageId || !tagId || !sourceAnchor?.pHash) return;
+// same tag on the same page aren't affected. Returns the removed rows, for
+// restoreDocTagRows.
+export async function untagDocRange({ workspaceId, docCardId, pageId, tagId, sourceAnchor, userId = null }) {
+  if (!workspaceId || !docCardId || !pageId || !tagId || !sourceAnchor?.pHash) return [];
   let q = supabase.from('entity_links').delete()
     .eq('source_kind', 'doc')
     .eq('source_id', String(docCardId))
@@ -393,23 +426,30 @@ export async function untagDocRange({ workspaceId, docCardId, pageId, tagId, sou
   if (typeof sourceAnchor.length === 'number') {
     q = q.filter('source_anchor->>length', 'eq', String(sourceAnchor.length));
   }
-  const { error } = await q;
+  const { data, error } = await q.select();
   if (error) throw error;
+  await suppressDocPageTag({ workspaceId, docCardId, pageId, tagId, userId });
   announceTagLinksChanged();
+  return data || [];
 }
 
-export async function untagDocPage({ workspaceId, docCardId, pageId, tagId }) {
-  if (!workspaceId || !docCardId || !pageId || !tagId) return;
-  const { error } = await supabase.from('entity_links').delete()
+// Remove a tag from a whole doc page: the page row and every range of it.
+// Returns the removed rows, for restoreDocTagRows.
+export async function untagDocPage({ workspaceId, docCardId, pageId, tagId, userId = null }) {
+  if (!workspaceId || !docCardId || !pageId || !tagId) return [];
+  const { data, error } = await supabase.from('entity_links').delete()
     .eq('source_kind', 'doc')
     .eq('source_id', String(docCardId))
     .eq('source_workspace', workspaceId)
     .eq('source_page_id', String(pageId))
     .eq('target_kind', 'tag')
     .eq('target_id', tagId)
-    .eq('link_kind', 'applied');
+    .eq('link_kind', 'applied')
+    .select();
   if (error) throw error;
+  await suppressDocPageTag({ workspaceId, docCardId, pageId, tagId, userId });
   announceTagLinksChanged();
+  return data || [];
 }
 
 // Range-anchored doc apply: a tag scoped to a paragraph (or smaller
@@ -453,18 +493,20 @@ export async function untagGroup({ boardId, groupId, tagId }) {
 }
 
 // Promote an auto/ai applied tag to user-confirmed. Updates the
-// source attribution on the entity_link row in place.
-export async function confirmAppliedTag({ sourceKind, sourceId, sourceBoardId, tagId }) {
-  const q = supabase.from('entity_links').update({ source: 'user' })
+// source attribution on the entity_link row in place (for a doc, every row
+// of the tag on that page). Returns how many rows changed.
+export async function confirmAppliedTag({ sourceKind, sourceId, sourceBoardId, sourcePageId = null, tagId }) {
+  let q = supabase.from('entity_links').update({ source: 'user' })
     .eq('source_kind', sourceKind)
     .eq('source_id', String(sourceId))
     .eq('target_kind', 'tag')
     .eq('target_id', tagId)
     .eq('link_kind', 'applied');
-  const { error } = sourceBoardId
-    ? await q.eq('source_board_id', sourceBoardId)
-    : await q;
+  if (sourceBoardId) q = q.eq('source_board_id', sourceBoardId);
+  if (sourcePageId) q = q.eq('source_page_id', String(sourcePageId));
+  const { data, error } = await q.select('id');
   if (error) throw error;
+  return (data || []).length;
 }
 
 // (Substring autotagger removed in Phase D — replaced by the

@@ -21,6 +21,7 @@ export const PLAN_NAME = 'Creator';
 export const COPY_REV = 'studio_v6';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+import { EDITOR_LIMIT } from './editorLimit.js';
 
 // Root pricing object — both "per month" (shown on the cards) and "billed"
 // (shown on the Billing tab) figures derive from these so they can't drift.
@@ -108,9 +109,11 @@ export function planBilling(plan) {
 //
 // Say it as SCOPE, never as access or seats. "Full edit access, everywhere
 // you're invited" was the line 0188 made free and this file had to delete, and
-// collaborators are free too (0520's editor_limit is off until Team launches) —
-// so the claim is that your LIMITS carry to the people you invite, not that
-// inviting them is free. Both are true; only one of them is Creator's.
+// up to EDITOR_LIMIT people edit free on Free and Creator alike (0520's
+// _editor_limit, enforced since Team launched) — so the claim is that your
+// LIMITS carry to the people you invite, not that inviting them is free. Both
+// are true; only one of them is Creator's. More people who edit than that is
+// Team, priced per seat (teamModel.js, team-billing).
 //
 // NOTE: clusters/boards are NOT a paid difference — there is no separate cap on
 // them. Each cluster sits on its parent's canvas as a card, and since 0429 that
@@ -245,10 +248,9 @@ export const CREATOR_BENEFITS = [
     // Migration 0187 keyed every gate to workspaces.created_by, so one
     // subscription raises the ceiling for everyone working in that workspace.
     // Say it as SCOPE — the LIMITS carrying over — never as access or seats:
-    // editing is free on every tier (0188) and so are unlimited collaborators
-    // (0520's editor_limit is off until Team launches). Both are true; only
-    // one is Creator's.
-    body: 'Everyone you invite builds at your limits. There are no per-seat charges.',
+    // up to EDITOR_LIMIT people edit free on Free and Creator alike (0520's
+    // _editor_limit). Both are true; only one is Creator's.
+    body: `Everyone you invite builds at your limits: up to ${EDITOR_LIMIT} people who edit, anyone who views, and no per-seat charges.`,
   },
 ];
 
@@ -298,7 +300,7 @@ export const DEMO_FEATURES = [
   `**${DEMO_CARD_LIMIT} cards** to build with`,
   `A **${FREE_STORAGE_LABEL}** drive — any file, any size`,
   'Clusters are free — they cost none of your cards',
-  'Free collaboration — invite editors to any cluster',
+  `Free collaboration — up to ${EDITOR_LIMIT} people who edit`,
 ];
 
 // The free plan's limit in one sentence, built from the two gates that exist.
@@ -497,14 +499,14 @@ export const PRICING_PAGE = {
   // changes" — the same promise the Creator card now makes 800px above it, in
   // more detail — and the only thing it uniquely carries is the FREE column:
   // the actual limits a free account runs into, side by side with Creator's.
-  paidHeading: 'Both plans, line by line',
+  paidHeading: 'Every plan, line by line',
   // One row per enforced difference (PLAN_COMPARISON). If another ever appears
   // here it has to name the code that enforces it, exactly as CREATOR_FEATURES
   // does — and this sentence is the other place that has to change with it.
   paidBody:
     'These are the only differences. Everything absent from this table is on ' +
-    'both plans — files of any size, clusters, collaborators, editing, sharing, ' +
-    'exports, version history, the API.',
+    'every plan — files of any size, clusters, editing, sharing, exports, ' +
+    'version history, the API.',
   // The last CREATOR_FEATURES line. It is NOT a limit, so it has no row in
   // the table above — but it is the one genuinely competitive thing on the
   // list (migration 0187 keyed every gate to the workspace OWNER), so it gets
@@ -512,7 +514,7 @@ export const PRICING_PAGE = {
   // Competitive, NOT unique: Milanote's team plan is flat ($49/mo for up to
   // ten) and Air charges no seats on any plan. Say what we do; never say
   // nobody else does.
-  workspaceNote: `One ${PLAN_NAME} plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.`,
+  workspaceNote: `One ${PLAN_NAME} plan covers the whole workspace — up to ${EDITOR_LIMIT} people who edit build at your limits, and there are no per-seat charges.`,
   // The free plan as a card, so the page can put the two side by side and let
   // someone compare them in one look. `price` is not a number from PRICING —
   // there is no free SKU and never will be — so it is stated here and the
@@ -557,14 +559,15 @@ export const PRICING_FAQ = [
   {
     q: 'What is actually limited on the free plan?',
     a: `Two things — how many cards you can have and how much you can store: ${freeLimitSentence()}. ` +
-       'Any file of any size is welcome on either plan. Collaborators and editing are not limited, and ' +
-       'clusters are free — they cost none of your cards.',
+       'Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. ' +
+       `People are the same on Free and ${PLAN_NAME}: up to ${EDITOR_LIMIT} who edit, and as many as you like who view.`,
   },
   {
     q: 'Do the people I invite need to pay?',
-    a: 'No. Editors are free on every plan, and always were. ' +
+    a: `No. On Free and ${PLAN_NAME}, up to ${EDITOR_LIMIT} people can edit at no cost to them, and anyone can view. ` +
        `What ${PLAN_NAME} does is carry YOUR limits to them: everything they add counts against the ` +
-       'workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges.',
+       'workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges. ' +
+       `More than ${EDITOR_LIMIT} people who edit is what Team is for, priced per seat.`,
   },
   {
     q: `What happens when I reach ${DEMO_CARD_LIMIT} cards or fill ${FREE_STORAGE_LABEL}?`,

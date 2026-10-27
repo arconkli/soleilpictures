@@ -30,9 +30,13 @@ import { DEMO_FEATURES, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PLAN_NAME, C
 import { PRICING_ANSWER } from '../lib/pricingCrawlable.js';
 import '../pages/seoLanding.css';
 
-// The Team card (the team preview only: PricingPage passes `teamCard`, and
-// nothing else does). Lazy, so the signed-out page and production never load it.
+// The Team card, which both pricing pages pass (appHost teamPricingAllowed,
+// open everywhere since the launch). Lazy, so the card's own code loads after
+// the page's.
 const TeamPlanCard = lazy(() => import('../components/team/TeamPlanCard.jsx'));
+// With the card, the comparison gains a Team column (the same lazy module).
+const TeamCompareTable = lazy(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamCompareTable })));
+const TeamTalkLine = lazy(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamTalkLine })));
 
 const NO_PROPS = () => ({});
 
@@ -60,10 +64,9 @@ export function PricingPageView({
   showPlanToggle = true,
   showPrice = true,
   footer = null,
-  // The team preview's third card: { plan, seats, setSeats(n), onStart(),
-  // talkNote, onTalk(), heroLine }. Null everywhere but the signed-in preview.
-  // heroLine arrives from PricingPage, so this shared page never imports the
-  // team model.
+  // The third card, Team: { plan, seats, setSeats(n), onStart(), onTalk(),
+  // heroLine, editorLimit } (auth/useTeamPricingCard.js). Null hides
+  // the card, its Talk to us line and the table's Team column.
   teamCard = null,
 }) {
   const shot = PRICING_PAGE.shot;
@@ -176,21 +179,16 @@ export function PricingPageView({
 
             {teamCard && (
               <Suspense fallback={null}>
-                <TeamPlanCard plan={teamCard.plan} seats={teamCard.seats} setSeats={teamCard.setSeats} onStart={teamCard.onStart} />
+                <TeamPlanCard plan={teamCard.plan} seats={teamCard.seats} setSeats={teamCard.setSeats} onStart={teamCard.onStart}
+                              editorLimit={teamCard.editorLimit} />
               </Suspense>
             )}
           </section>
 
           {teamCard && (
-            <>
-              <p className="pp-talk">
-                Need SSO, invoices or more than 100 seats?{' '}
-                <button type="button" className="pp-talk-link" onClick={teamCard.onTalk}>Talk to us</button>
-              </p>
-              {teamCard.talkNote && (
-                <p className="pp-talk-note">Preview: this opens a short form that reaches us. It comes before launch.</p>
-              )}
-            </>
+            <Suspense fallback={null}>
+              <TeamTalkLine editorLimit={teamCard.editorLimit} onTalk={teamCard.onTalk} />
+            </Suspense>
           )}
 
           <div className="seo-trust pp-trust">
@@ -242,6 +240,11 @@ export function PricingPageView({
                 Same table furniture as the competitor comparisons, which is
                 the honest shape for it: this is a comparison. Bare of
                 data-up-feat — see the Creator card above, which carries them. */}
+            {teamCard ? (
+              <Suspense fallback={null}>
+                <TeamCompareTable editorLimit={teamCard.editorLimit} />
+              </Suspense>
+            ) : (
             <div className="seo-compare-wrap">
               <table className="seo-compare">
                 <thead>
@@ -262,6 +265,7 @@ export function PricingPageView({
                 </tbody>
               </table>
             </div>
+            )}
 
             <p className="seo-body pp-workspace">{PRICING_PAGE.workspaceNote}</p>
           </section>

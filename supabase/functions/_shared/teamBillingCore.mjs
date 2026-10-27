@@ -7,8 +7,8 @@
 // moves money or decides who can edit, so change nothing without a test.
 //
 // What is sold (owner decisions, docs/superpowers/specs/2026-10-21-team-plan-
-// and-editor-limit-design.md): a seat at $15 a month or $144 a year, at least
-// 3, self-serve up to 100; a 14-day trial with a card; extra storage in the
+// and-editor-limit-design.md): a seat at $25 a month or $240 a year (what
+// Creator costs; changed 2026-10-25 from $15/$144), at least 3, self-serve up to 100; a 14-day trial with a card; extra storage in the
 // Creator's blocks. A team's subscription lives on the team's OWN Stripe
 // customer, stamped soleil_kind = "team" and never with a person's id, so the
 // personal billing path (activateCore) can neither see it nor be seen by it.
@@ -30,7 +30,7 @@ export const TEAM_MIN_SEATS = 3;
 // edited in the dashboard must never charge an amount the page did not show.
 // teamModel.js TEAM_SEAT_PRICE states the same figures to the reader;
 // teamBillingCore.test.mjs holds the two in lockstep.
-export const TEAM_SEAT_UNIT_AMOUNT = { month: 1500, year: 14400 };
+export const TEAM_SEAT_UNIT_AMOUNT = { month: 2500, year: 24000 };
 export const TEAM_CURRENCY = "usd";
 
 const INTERVAL = { monthly: "month", annual: "year" };

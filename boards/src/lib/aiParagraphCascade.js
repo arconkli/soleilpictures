@@ -19,6 +19,7 @@ import { applyCards, embedCards, parsePgvector } from './tagsClient.js';
 import { tagDocRange } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 import { cosineDist, NO_MATCH_DIST } from './clusterMath.js';
+import { AUTO_RANGE_SOURCES, planRangeReconcile } from './docRangeReconcile.js';
 
 // Verdict cache: skip the /apply round-trip when we've already
 // scored a (paragraph, tag) pair for this content. Keyed by
@@ -36,7 +37,23 @@ function buildApplyKey(pageId, pHash, tagId, startOffset, length) {
   return `${pageId}|${pHash}|${tagId}|${startOffset}|${length}`;
 }
 
-export async function runParagraphCascade({
+// One run per page at a time. Overlapping runs (a slow /apply under a fresh
+// edit) used to embed and /apply the same paragraphs twice, because the
+// verdict cache only fills after the await.
+const pagesInFlight = new Set();
+
+export async function runParagraphCascade(args) {
+  const pageId = args?.pageId;
+  if (!pageId || pagesInFlight.has(pageId)) return { applied: 0, busy: true };
+  pagesInFlight.add(pageId);
+  try {
+    return await runParagraphCascadeOnce(args);
+  } finally {
+    pagesInFlight.delete(pageId);
+  }
+}
+
+async function runParagraphCascadeOnce({
   workspaceId,
   docCardId,
   boardId,
@@ -106,17 +123,20 @@ export async function runParagraphCascade({
   const paraEmbeddingByHash = new Map();
   if (needCalls.length > 0) {
     try {
-      const r = await embedCards(needCalls.map(c => ({ id: c.p.pHash, text: c.p.text })));
+      const r = await embedCards(needCalls.map(c => ({ id: c.p.pHash, text: c.p.text })), { workspaceId });
       for (const e of (r?.embeddings || [])) {
         if (e?.id && Array.isArray(e.vector)) paraEmbeddingByHash.set(e.id, e.vector);
       }
     } catch (e) {
-      console.warn('[paragraph-cascade] embed pre-filter failed; falling back to full tag list', e?.message || e);
+      console.warn('[paragraph-cascade] embed pre-filter failed; skipping those paragraphs', e?.message || e);
     }
   }
+  // null = no embedding (the embed failed or was refused): skip the paragraph
+  // this run, uncached, so the next edit tries again. Sending it every tag
+  // instead was the misfire the prefilter exists to stop.
   const candidatesForParagraph = (pHash) => {
     const emb = paraEmbeddingByHash.get(pHash);
-    if (!emb) return candidateTags; // no embedding → don't filter
+    if (!emb) return null;
     const out = [];
     for (const t of candidateTags) {
       const cent = tagCentroids.get(t.id)?.vector;
@@ -140,17 +160,18 @@ export async function runParagraphCascade({
       const filteredByHash = new Map();
       for (const c of slice) filteredByHash.set(c.p.pHash, candidatesForParagraph(c.p.pHash));
       const cards = slice
+        .filter(c => filteredByHash.get(c.p.pHash))
         .map(c => ({
           id: c.p.pHash,
           text: c.p.text,
-          candidate_tags: filteredByHash.get(c.p.pHash) || candidateTags,
+          candidate_tags: filteredByHash.get(c.p.pHash),
         }))
         .filter(card => card.candidate_tags.length > 0);
       // For paragraphs whose entire candidate list was filtered out,
       // still cache empty verdicts so we don't refetch next save.
       for (const c of slice) {
-        const cands = filteredByHash.get(c.p.pHash) || candidateTags;
-        if (cands.length === 0) {
+        const cands = filteredByHash.get(c.p.pHash);
+        if (cands && cands.length === 0) {
           for (const t of candidateTags) {
             paragraphVerdictCache.set(`${c.p.pHash}::${t.id}`, []);
           }
@@ -159,8 +180,11 @@ export async function runParagraphCascade({
       if (cards.length === 0) continue;
       let verdicts = [];
       try {
-        const resp = await applyCards(cards);
-        verdicts = resp?.verdicts || [];
+        const resp = await applyCards(cards, { workspaceId });
+        // null is a failed call (budget, 5xx, cooldown), not "no tags":
+        // write no cache, so the next edit asks again.
+        if (!resp) continue;
+        verdicts = resp.verdicts || [];
         // Inspect the model's raw output so we can see when it's
         // returning low everywhere vs returning empty-words on a
         // high/medium (the latter would mean the prompt fix didn't
@@ -171,7 +195,9 @@ export async function runParagraphCascade({
         continue;
       }
       const byCardId = new Map(verdicts.map(v => [v.card_id, v]));
+      const sent = new Set(cards.map(card => card.id));
       for (const c of slice) {
+        if (!sent.has(c.p.pHash)) continue;
         const v = byCardId.get(c.p.pHash);
         // Default to "no tags" if the model didn't return a verdict.
         const tags = v?.tags || [];
@@ -277,6 +303,7 @@ export async function runParagraphCascade({
       .eq('source_anchor->>pHash', pHash)
       .eq('source_anchor->>startOffset', startOffsetStr)
       .eq('source_anchor->>length', lengthStr)
+      .in('source', AUTO_RANGE_SOURCES)
       .then(({ error }) => { if (error) console.warn('[paragraph-cascade] delete stale', error.message); });
   }
 
@@ -288,27 +315,16 @@ export async function runParagraphCascade({
   }
   lastAppliedKeysRef.set(pageId, carry);
 
-  // 7. Stale GC: drop range rows whose pHash isn't in the current
-  //    paragraph set (paragraph text edited / paragraph deleted).
-  const currentHashes = new Set(paragraphs.map(p => p.pHash));
-  try {
-    const { data: existing } = await supabase.from('entity_links')
-      .select('id, source_anchor')
-      .eq('source_kind', 'doc')
-      .eq('source_id', docCardId)
-      .eq('source_page_id', pageId)
-      .eq('target_kind', 'tag')
-      .eq('link_kind', 'applied')
-      .not('source_anchor', 'is', null);
-    const orphans = (existing || []).filter(r => {
-      const h = r?.source_anchor?.pHash;
-      return h && !currentHashes.has(h);
-    }).map(r => r.id);
-    if (orphans.length > 0) {
-      await supabase.from('entity_links').delete().in('id', orphans);
-      if (isDebug()) console.info(`[paragraph-cascade] GC removed ${orphans.length} orphan range row${orphans.length === 1 ? '' : 's'}`);
-    }
-  } catch (e) { console.warn('[paragraph-cascade] GC failed', e?.message || e); }
+  // 7. Orphaned anchors (paragraph edited or deleted): the cascade's own
+  //    rows are dropped, a person's ranges move with their word
+  //    (lib/docRangeReconcile.js).
+  const gc = await reconcilePageRanges({
+    docCardId, pageId, paragraphs,
+    nameOf: (tagId) => tagCentroids?.get?.(tagId)?.name || '',
+  });
+  if (isDebug() && (gc.dropped || gc.moved || gc.toPage)) {
+    console.info(`[paragraph-cascade] ranges: ${gc.dropped} dropped, ${gc.moved} moved, ${gc.toPage} to page`);
+  }
 
   try {
     console.info(`[paragraph-cascade] page ${pageId.slice(0, 8)} → ${paragraphs.length} paragraph${paragraphs.length === 1 ? '' : 's'}, ${finalResults.length} word${finalResults.length === 1 ? '' : 's'} (added: ${toAdd.length}, removed: ${toRemove.length})`);
@@ -348,13 +364,29 @@ async function wipePageRangeRows({ docCardId, pageId }) {
     .eq('target_kind', 'tag')
     .eq('link_kind', 'applied')
     .not('source_anchor', 'is', null)
+    .in('source', AUTO_RANGE_SOURCES)
     .then(({ error }) => { if (error) console.warn('[paragraph-cascade] wipe page', error.message); });
 }
 
 // Fetch workspace tags. tag_centroids is a nice-to-have for caching;
 // fall back to the raw tags table when centroids aren't there yet.
-export async function loadWorkspaceTagCentroids(workspaceId) {
-  if (!supabase || !workspaceId) return new Map();
+// Centroids barely change between edits, and each one is 1024 floats: the
+// cascade re-read all of them 2s after every pause in typing. Kept a minute.
+const CENTROID_TTL_MS = 60_000;
+const centroidCache = new Map(); // workspaceId → { at, promise }
+
+export function loadWorkspaceTagCentroids(workspaceId) {
+  if (!supabase || !workspaceId) return Promise.resolve(new Map());
+  const hit = centroidCache.get(workspaceId);
+  if (hit && Date.now() - hit.at < CENTROID_TTL_MS) return hit.promise;
+  const promise = readWorkspaceTagCentroids(workspaceId);
+  centroidCache.set(workspaceId, { at: Date.now(), promise });
+  // An empty answer may be a failed read: don't keep it.
+  promise.then((m) => { if (!m?.size) centroidCache.delete(workspaceId); }, () => centroidCache.delete(workspaceId));
+  return promise;
+}
+
+async function readWorkspaceTagCentroids(workspaceId) {
   // Tags + their AI descriptions + their embedding centroids (when
   // present). The centroid is what we use to filter unrelated tags
   // out of the apply-call candidate list — tags whose centroid is
@@ -389,6 +421,65 @@ export async function loadWorkspaceTagCentroids(workspaceId) {
       color: t.color,
       description: t.description || null,
     });
+  }
+  return out;
+}
+
+// Apply the plan to one page. Never throws: a failed step leaves the row as
+// it was (an orphaned anchor only stops rendering) and the next edit retries.
+export async function reconcilePageRanges({ docCardId, pageId, paragraphs, nameOf }) {
+  const out = { dropped: 0, moved: 0, toPage: 0 };
+  if (!supabase || !docCardId || !pageId || !Array.isArray(paragraphs)) return out;
+  try {
+    const { data: rows, error } = await supabase.from('entity_links')
+      .select('id, source, target_id, source_anchor')
+      .eq('source_kind', 'doc')
+      .eq('source_id', String(docCardId))
+      .eq('source_page_id', String(pageId))
+      .eq('target_kind', 'tag')
+      .eq('link_kind', 'applied')
+      .not('source_anchor', 'is', null);
+    if (error) throw error;
+    // Without a name lookup (the AI-off path), fetch the names of just the
+    // tags whose orphaned ranges carry no text of their own.
+    let lookup = nameOf;
+    if (!lookup) {
+      const live = new Set(paragraphs.map((p) => p.pHash));
+      const need = [...new Set((rows || [])
+        .filter((r) => r.source_anchor?.pHash && !live.has(r.source_anchor.pHash)
+          && !AUTO_RANGE_SOURCES.includes(r.source) && !r.source_anchor.text)
+        .map((r) => r.target_id))];
+      const names = new Map();
+      if (need.length) {
+        const { data: tags } = await supabase.from('tags').select('id, name').in('id', need);
+        for (const t of tags || []) names.set(t.id, t.name);
+      }
+      lookup = (tagId) => names.get(tagId) || '';
+    }
+    const plan = planRangeReconcile(rows || [], paragraphs, lookup);
+    if (plan.drop.length) {
+      const { error: e } = await supabase.from('entity_links').delete()
+        .in('id', plan.drop)
+        .in('source', AUTO_RANGE_SOURCES);
+      if (e) throw e;
+      out.dropped = plan.drop.length;
+    }
+    // A unique violation means the target already carries this tag (the same
+    // word, or the page itself), so the orphan is redundant.
+    for (const m of plan.move) {
+      const { error: e } = await supabase.from('entity_links').update({ source_anchor: m.anchor }).eq('id', m.id);
+      if (e?.code === '23505') await supabase.from('entity_links').delete().eq('id', m.id);
+      else if (e) throw e;
+      out.moved += 1;
+    }
+    for (const id of plan.toPage) {
+      const { error: e } = await supabase.from('entity_links').update({ source_anchor: null }).eq('id', id);
+      if (e?.code === '23505') await supabase.from('entity_links').delete().eq('id', id);
+      else if (e) throw e;
+      out.toPage += 1;
+    }
+  } catch (err) {
+    console.warn('[doc-ranges] reconcile failed', err?.message || err);
   }
   return out;
 }

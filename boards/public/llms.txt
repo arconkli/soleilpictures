@@ -12,11 +12,11 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Changelog
 
-- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly. Most recent entry: 2026-10-25. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
+- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly. Most recent entry: 2026-10-27. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
 
 ## Pricing
 
-- [Pricing](https://clusters.soleilpictures.com/pricing): Soleil Clusters has two plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: everyone invited builds at its limits, with no per-seat charges. Raw Markdown at https://clusters.soleilpictures.com/pricing.md; limits and billing in detail at https://clusters.soleilpictures.com/docs/account/plans.
+- [Pricing](https://clusters.soleilpictures.com/pricing): Soleil Clusters has three plans. Free is $0 forever with no credit card. Creator is $25/mo, or $20/mo billed annually ($240/yr), and one Creator plan covers the whole workspace: up to 10 people who edit build at its limits, with no per-seat charges. Team is for more than 10 people who edit: $25 a seat a month, or $20 a seat a month billed annually, from 3 seats. Raw Markdown at https://clusters.soleilpictures.com/pricing.md; limits and billing in detail at https://clusters.soleilpictures.com/docs/account/plans.
 
 ## Getting started
 
@@ -64,13 +64,13 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Organize and find
 
-- [Tags and entities](https://clusters.soleilpictures.com/docs/organize/tags): Tag anything in Soleil Clusters — cards, groups, boards and passages of text. Entity types, automatic tagging, AI suggestions and emergent themes.
+- [Tags and entities](https://clusters.soleilpictures.com/docs/organize/tags): Tag cards, clusters and passages in Soleil Clusters, type tags as entities, and see everything carrying a tag on one page. The AI only suggests.
 - [Links and mentions](https://clusters.soleilpictures.com/docs/organize/links-and-mentions): Mention any board, document, card, tag or person with @ in Soleil Clusters. Automatic link detection, hover previews, backlinks and deep links.
 - [Search and the command palette](https://clusters.soleilpictures.com/docs/organize/search): Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.
 
 ## Collaborate
 
-- [Collaborating](https://clusters.soleilpictures.com/docs/collaborate): Invite editors and viewers to Soleil Clusters boards. Collaboration is free on every plan — editors do not need to pay, and the owner's quota is what counts.
+- [Collaborating](https://clusters.soleilpictures.com/docs/collaborate): Invite editors and viewers to Soleil Clusters boards. Up to 10 people edit free on Free and Creator, viewers are unlimited, and the owner's quota counts.
 - [Sharing and public links](https://clusters.soleilpictures.com/docs/collaborate/sharing): Share a Soleil Clusters board with a view-only public link that needs no account, set an expiry, include sub-clusters, or invite editors by email.
 - [Presence](https://clusters.soleilpictures.com/docs/collaborate/presence): See collaborators' cursors, selections and location in real time across Soleil Clusters. Workspace facepile, click to jump to someone, presence colours.
 - [Comments](https://clusters.soleilpictures.com/docs/collaborate/comments): Comment anywhere in Soleil Clusters — on a card, a group, an empty point on the canvas, a whole board, or a range of text in a document.
@@ -89,6 +89,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 - [Settings](https://clusters.soleilpictures.com/docs/account/settings): Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Billing, Invite and earn, General, Members, Card defaults and Documentation.
 - [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.
+- [Team](https://clusters.soleilpictures.com/docs/account/team): Team is the plan for groups where more than 10 people edit — $25 a seat a month, 1TB of shared drive per seat, admins, and work the team owns.
 - [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.
 - [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters. They get bonus cards and storage when they join; you get yours once they get started. Stats live in Settings.
 - [Mobile and tablet](https://clusters.soleilpictures.com/docs/account/mobile): Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.
@@ -102,6 +103,9 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Boards API](https://clusters.soleilpictures.com/docs/api/boards): Create, list, read, rename, reparent, delete and restore Soleil Clusters boards over REST. Field reference, filters, pagination and cycle-safe reparenting.
 - [Connecting an app (OAuth)](https://clusters.soleilpictures.com/docs/api/oauth): Soleil Clusters is an OAuth 2.1 authorization server — open client registration, PKCE and RFC 9728 discovery, so an MCP client connects with no token to paste.
 - [Cards API](https://clusters.soleilpictures.com/docs/api/cards): Add, read, update, move and delete Soleil Clusters cards over REST. Field reference, size limits, auto-placement and the delete-is-the-undo pattern.
+- [Docs API](https://clusters.soleilpictures.com/docs/api/docs): Read and write Soleil Clusters doc cards as Markdown over REST. Make a doc with its pages, add pages, rewrite or edit a page without losing anyone's changes.
+- [Comments API](https://clusters.soleilpictures.com/docs/api/comments): List every comment thread on a Soleil Clusters board over REST, docs included, and add, reply, resolve, delete or restore comments.
+- [Tags API](https://clusters.soleilpictures.com/docs/api/tags): List a Soleil Clusters workspace's tags over REST, see everything carrying one, and put tags on cards or take them off, by name or by id.
 - [Images API](https://clusters.soleilpictures.com/docs/api/images): Upload an image to Soleil Clusters in one POST, or files of any size with multipart. Endpoints, limits, storage quota, and listing images back.
 - [Import](https://clusters.soleilpictures.com/docs/api/import): Bring reference in from wherever it lives now — a shared drive folder, a CDN, any list of URLs — with an import you can safely run twice.
 - [Arrange](https://clusters.soleilpictures.com/docs/api/arrange): Lay cards out automatically — justified rows, colour-ordered masonry or a uniform grid — or place them by hand with z-order, rotation and groups.
@@ -110,7 +114,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Export](https://clusters.soleilpictures.com/docs/api/export): Get a whole board out, either as complete JSON or as MovieLabs OMC-JSON, the ontology film studios use to describe creative material.
 - [MCP server](https://clusters.soleilpictures.com/docs/mcp): Connect Claude or any MCP client to Soleil Clusters — hosted over a URL, or run locally. Tools for reading, building, importing and exporting boards.
 - [Errors and status codes](https://clusters.soleilpictures.com/docs/api/errors): Every Soleil Clusters API error code and what to do about it — which are retryable, which are permanent, and how idempotency interacts with retries.
-- [Webhooks](https://clusters.soleilpictures.com/docs/api/webhooks): Get notified when boards and cards change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.
+- [Webhooks](https://clusters.soleilpictures.com/docs/api/webhooks): Get notified when boards, cards, comments and tags change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.
 - [Service accounts](https://clusters.soleilpictures.com/docs/api/service-accounts): Create a credential owned by a workspace rather than by a person, so an integration keeps working after the person who built it leaves.
 - [Audit log](https://clusters.soleilpictures.com/docs/api/audit): Read who changed what through the API, and who fetched image bytes, with cursor paging. Covers your own calls and your service accounts'.
 

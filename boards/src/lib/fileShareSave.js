@@ -6,6 +6,8 @@
 // becomes. The copy belongs to the caller's workspace and counts toward its
 // owner's storage, like an upload.
 
+import { docDropSize, extOfKey } from './fileView.js';
+
 // R2's CopyObject takes objects up to 5 GiB; stay under it, and copy anything
 // bigger in parts with UploadPartCopy.
 export const SINGLE_COPY_MAX_BYTES = 5 * 1024 ** 3 - 1024 ** 2;
@@ -68,7 +70,8 @@ export function savedCard(result, { cardId, srcKey, posterKey = null }) {
   const f = result.file || {};
   const kind = f.kind;
   const name = typeof f.name === 'string' && f.name.trim() ? f.name.trim().slice(0, 200) : null;
-  const dims = SAVED_CARD_DIMS[kind] || SAVED_CARD_DIMS.file;
+  // A saved document lands at its family's size, as a dropped one does.
+  const dims = (kind === 'file' && docDropSize(extOfKey(srcKey))) || SAVED_CARD_DIMS[kind] || SAVED_CARD_DIMS.file;
   const size = Number.isFinite(Number(f.size)) && Number(f.size) > 0 ? Math.floor(Number(f.size)) : null;
   const mime = typeof f.mime === 'string' && f.mime ? f.mime : null;
   const ref = (k) => (k ? `r2:${k}` : null);

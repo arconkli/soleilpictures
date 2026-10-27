@@ -17,6 +17,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TOOLS } from './mcpTools.js';
@@ -28,14 +29,16 @@ const ENTRY = resolve(HERE, '../../../mcp/src/index.js');
  * Start the server, write every message, and collect the replies.
  * Resolves once `expected` responses have arrived, or the process dies.
  */
-function converse(messages, expected) {
+function converse(messages, expected, env = {}) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [ENTRY], {
       env: {
         ...process.env,
-        // Enough to get past the startup check. No request below reaches it.
+        // Enough to get past the startup check. No request below reaches it,
+        // unless a test points the base at a server of its own.
         SOLEIL_API_TOKEN: 'sk_test_stdio',
         SOLEIL_API_BASE: 'http://127.0.0.1:1',
+        ...env,
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -148,4 +151,39 @@ test('a garbage line is a parse error, and the server keeps serving', async () =
   assert.equal(out[0].id, null);
   assert.equal(out[1].id, 3);
   assert.ok(out[1].result.tools.length > 0);
+});
+
+test('each POST in one tool call has its own idempotency key, and a retry repeats them', async () => {
+  // The API holds a key per token, not per route. update_boards posts one move
+  // per destination, so a key shared by the whole call would answer the second
+  // move with the first one's replay, and that board would never move.
+  const posts = [];
+  const api = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      if (req.method === 'POST') posts.push({ path: req.url, key: req.headers['idempotency-key'], body: JSON.parse(body || 'null') });
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ skipped: [] }));
+    });
+  });
+  await new Promise((r) => api.listen(0, '127.0.0.1', r));
+  try {
+    const A = '11111111-1111-4111-8111-111111111111';
+    const B = '22222222-2222-4222-8222-222222222222';
+    const P = '33333333-3333-4333-8333-333333333333';
+    const call = (id) => ({
+      jsonrpc: '2.0', id, method: 'tools/call',
+      params: { name: 'update_boards', arguments: { boards: [{ board_id: A, parent_board_id: P }, { board_id: B, parent_board_id: null }] } },
+    });
+    const { out } = await converse([call(1), call(2)], 2, { SOLEIL_API_BASE: `http://127.0.0.1:${api.address().port}` });
+    assert.ok(out.every((m) => m.result && !m.result.isError), JSON.stringify(out));
+    assert.deepEqual(posts.map((p) => p.path), Array(4).fill('/api/v1/boards/move'));
+    const keyFor = (to) => new Set(posts.filter((p) => p.body.parent_board_id === to).map((p) => p.key));
+    assert.equal(keyFor(P).size, 1, 'the same move in a retried call carries the same key');
+    assert.equal(keyFor(null).size, 1);
+    assert.notEqual([...keyFor(P)][0], [...keyFor(null)][0], 'two moves in one call carry two keys');
+  } finally {
+    api.close();
+  }
 });

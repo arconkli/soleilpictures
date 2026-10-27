@@ -33,10 +33,18 @@
 // billingCopy.js, which names the code enforcing every price.
 
 export const TEAM_SEAT_MIN = 3;
-export const TEAM_SEAT_PRICE = Object.freeze({ month: 15, year: 144 });
+// Self-serve stops here; past it, Talk to us (start_team_checkout, 0538).
+export const TEAM_SEAT_MAX = 100;
+export const TEAM_SEAT_PRICE = Object.freeze({ month: 25, year: 240 });
+// Every team starts with a trial (team-billing's TEAM_TRIAL_DAYS, which
+// teamBillingCore.test pins to this).
+export const TEAM_TRIAL_DAYS = 14;
 export const TEAM_STORAGE_BLOCK_MONTHLY = 25;
-export const TEAM_STORAGE_PER_SEAT = 250e9;
+export const TEAM_STORAGE_PER_SEAT = 1e12;
 export const TEAM_STORAGE_FLOOR = 1e12;
+// The seat perk: a seat holder's own workspaces get this much more drive
+// (_seat_perk_storage_bytes, 0536: 50 GiB), in decimal like the sizes above.
+export const SEAT_PERK_STORAGE = 50e9;
 
 const DAY = 864e5;
 const PERIOD_MS = { month: 30 * DAY, year: 365 * DAY };
@@ -220,8 +228,9 @@ export function dateLabel(ms) {
   return new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-export function joinUrl(token) {
-  return `clusters.soleilpictures.com/join/${token}`;
+// The link AuthGate captures (lib/teamLinks.js); a live team on preview passes its own host.
+export function joinUrl(token, host = 'clusters.soleilpictures.com') {
+  return `${host}/?teamjoin=${token}`;
 }
 
 // ── The test team's answers to clicks (look only) ───────────────────────

@@ -19,6 +19,7 @@ export type TemplateName =
   | "board_shared"
   | "invite_accepted"
   | "pending_invite"
+  | "team_invite"
   | "mention_email"
   | "comment_reply_email"
   | "activate_nudge_1"
@@ -42,6 +43,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "board_shared",
   "invite_accepted",
   "pending_invite",
+  "team_invite",
   "mention_email",
   "comment_reply_email",
   "activate_nudge_1",
@@ -523,6 +525,50 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
       "Accept invitation: " + url,
       "",
       "We'll email you a 6-digit code to sign in. The invite link works for 30 days.",
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+// A team invite (Team S4, 0541). The person may have no account, so like
+// pendingInvite it is a stranger's email: the subject carries nothing anyone
+// typed, the inviter is named by account address (0541's trigger sends it),
+// and the team's name is cleaned. The CTA links to /?teaminvite=<token>, which
+// AuthGate keeps across the code step; only a session that proved this inbox
+// can take the invite.
+interface TeamInviteData {
+  teamName: string;
+  inviterName: string;
+  role: string;          // 'admin' | 'member' | 'viewer'
+  token: string;
+}
+
+function teamInvite(d: TeamInviteData): RenderedEmail {
+  const roleLabel = d.role === "admin" ? "an admin" : d.role === "viewer" ? "a viewer" : "a member";
+  const headline = `${d.inviterName} invited you.`;
+  const subtitle = `Join ${d.teamName} on Clusters as ${roleLabel}. Your own workspaces stay yours: the team never sees them.`;
+  const url = `${APP_URL}?teaminvite=${encodeURIComponent(d.token)}`;
+  const caveat = "Sign in with this email address and we'll send you a 6-digit code. The invite works for 30 days.";
+  return {
+    subject: "You've been invited to a team on Clusters",
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "Team invitation",
+      headline,
+      subtitle,
+      cta: { label: "Join the team", url },
+      caveat,
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      "Join the team: " + url,
+      "",
+      caveat,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -1775,6 +1821,13 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
         scope:         data.scope === "workspace" ? "workspace" : undefined,
         workspaceName: safeLabel(data.workspaceName, 60) || undefined,
+      });
+    case "team_invite":
+      return teamInvite({
+        teamName:    safeLabel(data.teamName, 60, "a team"),
+        inviterName: safePerson(data.inviterName),
+        role:        data.role != null ? String(data.role) : "member",
+        token:       data.token != null ? String(data.token) : "",
       });
     case "pending_invite":
       // The recipient has no account, so this is the email a stranger reads:

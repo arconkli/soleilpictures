@@ -164,6 +164,9 @@ export {
   File as FileIcon,
   FileZip,
   FileDoc,
+  FilePpt,
+  FileXls,
+  Presentation,
   FilmSlate as Clapperboard,
   Database,
   Function,
@@ -235,4 +238,11 @@ export {
   LineSegment,
   // The sketch pad's layers in the toolbar look (components/SketchPadOverlay.jsx).
   Stack,
+  // A tag's actions on a phone (components/TagActionSheet.jsx).
+  Drop,
+  GitMerge,
+  Shapes,
+  // The consent screen's trust banner (pages/OAuthConsentPage.jsx).
+  SealCheck,
+  Monitor,
 } from '@phosphor-icons/react';

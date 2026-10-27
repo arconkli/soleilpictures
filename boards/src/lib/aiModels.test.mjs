@@ -219,7 +219,7 @@ test('one alert per model, worst problem first, daily only when it is urgent', (
   assert.equal(gone.title, `Workers AI no longer lists ${r3b}`);
   assert.equal(gone.window, '20 hours', 'broken: every morning');
   assert.match(gone.body, /A test request failed 3 times: 5028: retired/);
-  assert.match(gone.body, /boards\/src\/worker-ai\.js, boards\/src\/worker-tags\.js/);
+  assert.match(gone.body, /change the id in boards\/src\/worker-ai\.js, then/);
 
   const soon = alertFor(problems[1], NOW);
   assert.equal(soon.title, `Workers AI retires ${r70b} on 2026-11-18`);

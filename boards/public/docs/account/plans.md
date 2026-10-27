@@ -1,13 +1,15 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+> The free Demo plan gives you 50 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.
 
-_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-27_
 
-Two plans. The difference between them is deliberately small and deliberately
-honest — two enforced limits, listed below, and nothing else. The
-[pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
-is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
+Three plans. Free and Creator differ deliberately little and
+deliberately honestly — two enforced limits, listed below, and nothing else.
+[Team](/docs/account/team) is for a group with more than 10
+people who edit, and is priced per seat. The [pricing page](/pricing) puts the
+three side by side, and its plain-Markdown twin is at [/pricing.md](/pricing.md)
+for anything that reads text rather than pages.
 
 Pressing **Get Creator** there before you have an account signs you in
 first, then opens the Creator offer in the app with the plan you picked —
@@ -20,7 +22,7 @@ page, drops it.
 - **50 cards** to build with
 - A **5GB** drive — any file, at any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 The free plan stops at whichever limit you reach first.
 
@@ -36,8 +38,9 @@ The free plan stops at whichever limit you reach first.
   holds **1TB**, room for the footage, the camera originals and the
   project archives. (During a [trial](#trying-creator-first) it is
   100GB, and the full drive comes with the first payment.)
-- **Covers your whole workspace** — everyone you invite builds at your limits,
-  and there are no per-seat charges.
+- **Covers your whole workspace** — everyone you invite builds at your limits:
+  up to 10 people who edit, anyone who views, and no per-seat
+  charges.
 
 ## What is genuinely limited
 
@@ -62,8 +65,11 @@ it costs no cards.
 
 Those limits are charged to **whoever owns the workspace**, never to the
 person doing the work. So a single Creator plan lifts them for
-everyone in that workspace: invite whoever you like, and they build at your
-limits without a plan of their own. There are no per-seat charges on any plan.
+everyone in that workspace: invite up to 10 people to edit,
+and as many as you like to view, and they build at your limits without a plan
+of their own. There are no per-seat charges on Free or Creator. A
+group with more than 10 people who edit uses
+[Team](/docs/account/team), which is priced per seat.
 
 The same rule is why a free workspace stays limited no matter who is working in
 it — a collaborator's own plan never applies to someone else's workspace. If you

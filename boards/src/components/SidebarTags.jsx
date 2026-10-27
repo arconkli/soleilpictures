@@ -12,8 +12,9 @@
 // (anywhere that listens to ENTITY_REF_MIME) applies the tag via the
 // existing entity-ref drop handlers.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Plus, Tag as TagIcon } from '../lib/icons.js';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, Plus, Tag as TagIcon, MoreHorizontal } from '../lib/icons.js';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Icon } from './Icon.jsx';
 import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -26,7 +27,7 @@ import { useClampedMenuPosition } from '../hooks/useClampedMenuPosition.js';
 import { ENTITY_TYPES, entityTypeLabel, guessEntityType } from '../lib/entityTypes.js';
 import { levenshtein } from '../lib/stringSim.js';
 import { ColorPicker } from './ColorPicker.jsx';
-import { tagFallbackColor } from '../lib/tagColor.js';
+import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 
@@ -64,6 +65,15 @@ function findSimilarTags(draft, existingTags, max = 4) {
   }
   out.sort((a, b) => b.score - a.score);
   return out.slice(0, max).map(x => x.tag);
+}
+
+// A row's actions under a finger (TagActionSheet), loaded the first time one
+// opens: the sidebar loads with every page, phones alone need the sheet.
+const TagActionSheet = lazyWithReload(() => import('./TagActionSheet.jsx').then(m => ({ default: m.TagActionSheet })));
+
+// True under a finger (no hover): the sheet, not the pointer menu.
+function prefersSheet() {
+  try { return window.matchMedia('(hover: none)').matches; } catch (_) { return false; }
 }
 
 export function SidebarTags({
@@ -223,6 +233,17 @@ export function SidebarTags({
     e.preventDefault();
     e.stopPropagation();
     setMenuFor({ tag, x: e.clientX, y: e.clientY });
+  };
+  // The row's ⋯: the same actions, as a sheet under a finger (the owner's
+  // direction A) or as the menu under a pointer.
+  const [sheetFor, setSheetFor] = useState(null);     // tag
+  const [typeSheetFor, setTypeSheetFor] = useState(null); // tag
+  const openRowActions = (e, tag) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (prefersSheet()) { setSheetFor(tag); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenuFor({ tag, x: r.left, y: r.bottom + 4 });
   };
 
   const promptRename = async (tag) => {
@@ -384,7 +405,7 @@ export function SidebarTags({
     try {
       e.dataTransfer.setData(ENTITY_REF_MIME, JSON.stringify({ kind: 'tag', id: tag.id }));
       e.dataTransfer.effectAllowed = 'copyLink';
-      const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
+      const dot = resolveTagColor(tag);
       window.__soleilTagDrag = { id: tag.id, color: dot, name: tag.name };
     } catch (_) {}
   };
@@ -431,7 +452,11 @@ export function SidebarTags({
     <div className="sb-tags">
       <div className="sb-eyebrow sb-tags-head"
            onClick={toggle}
-           role="button" tabIndex={0}>
+           onKeyDown={(e) => {
+             if (e.target !== e.currentTarget) return;
+             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+           }}
+           role="button" tabIndex={0} aria-expanded={open}>
         <span className={`sb-tags-chev ${open ? 'is-open' : ''}`} aria-hidden="true">
           <Icon as={ChevronRight} size={11} />
         </span>
@@ -475,7 +500,7 @@ export function SidebarTags({
                   <div className="sb-tag-suggest-list" role="listbox" aria-label="Did you mean">
                     <div className="sb-tag-suggest-head">Did you mean…</div>
                     {draftSuggestions.map(tag => {
-                      const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
+                      const dot = resolveTagColor(tag);
                       return (
                         <button key={tag.id}
                                 type="button"
@@ -525,7 +550,7 @@ export function SidebarTags({
               {group.rows.map(tag => {
                 const c = counts.get(tag.id) || 0;
                 const isActive = tag.id === activeTagId;
-                const dot = tag.color || tagFallbackColor(tag.slug || tag.name);
+                const dot = resolveTagColor(tag);
                 return (
                   <div key={tag.id}
                        className={`sb-row sb-tag-row ${isActive ? 'active' : ''}`}
@@ -534,10 +559,24 @@ export function SidebarTags({
                        onDragEnd={onDragEnd}
                        onClick={() => onOpenTag?.(tag)}
                        onContextMenu={(e) => onContextMenuRow(e, tag)}
+                       role="treeitem" tabIndex={-1} aria-selected={isActive}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter') { e.preventDefault(); onOpenTag?.(tag); return; }
+                         if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                           e.preventDefault();
+                           const r = e.currentTarget.getBoundingClientRect();
+                           onContextMenuRow({ preventDefault() {}, stopPropagation() {}, clientX: r.left + 24, clientY: r.bottom }, tag);
+                         }
+                       }}
                        title={`${tag.name}${c ? ` · ${c} applied` : ''} · right-click to manage`}>
                     <span className="sb-dot" style={{ background: dot }} />
                     <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
                     {c > 0 && <span className="sb-tag-row-count">{c}</span>}
+                    <button type="button" className="sb-tag-row-more" tabIndex={-1}
+                            aria-label={`${tag.name}: actions`}
+                            onClick={(e) => openRowActions(e, tag)}>
+                      <Icon as={MoreHorizontal} size={14} />
+                    </button>
                   </div>
                 );
               })}
@@ -575,6 +614,38 @@ export function SidebarTags({
         </div>
       )}
 
+      {sheetFor && (
+        <Suspense fallback={null}>
+          <TagActionSheet
+            title={sheetFor.name}
+            lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(sheetFor) }} />}
+            sub={[entityTypeLabel(sheetFor.entity_type), counts.get(sheetFor.id) ? `${counts.get(sheetFor.id)} ${counts.get(sheetFor.id) === 1 ? 'thing' : 'things'}` : null].filter(Boolean).join(' · ') || null}
+            onClose={() => setSheetFor(null)}
+            actions={[
+              { id: 'rename', label: 'Rename', run: () => promptRename(sheetFor) },
+              { id: 'recolor', label: 'Recolor', swatch: resolveTagColor(sheetFor), more: true, run: () => promptRecolor(sheetFor) },
+              { id: 'merge', label: 'Merge into…', run: () => startMerge(sheetFor) },
+              { id: 'type', label: 'Type', value: entityTypeLabel(sheetFor.entity_type) || 'None', more: true, run: () => setTypeSheetFor(sheetFor) },
+              { id: 'delete', label: 'Delete tag', danger: true, run: () => promptDelete(sheetFor) },
+            ]}
+          />
+        </Suspense>
+      )}
+      {typeSheetFor && (
+        <Suspense fallback={null}>
+          <TagActionSheet
+            title={typeSheetFor.name}
+            lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(typeSheetFor) }} />}
+            sub="What kind of thing is it?"
+            onClose={() => setTypeSheetFor(null)}
+            actions={ENTITY_TYPES.map(t => ({
+              id: t.value, label: t.label,
+              value: typeSheetFor.entity_type === t.value ? 'Current' : null,
+              run: () => setType(typeSheetFor, t.value),
+            }))}
+          />
+        </Suspense>
+      )}
       {menuFor && (
         <div className="sb-tag-menu"
              ref={menuRef}
@@ -609,7 +680,7 @@ export function SidebarTags({
 
       {colorPickerFor && (
         <ColorPicker
-          value={colorPickerFor.tag.color || tagFallbackColor(colorPickerFor.tag.slug || colorPickerFor.tag.name)}
+          value={resolveTagColor(colorPickerFor.tag)}
           onChange={applyColor}
           onClose={() => setColorPickerFor(null)}
           position={{ x: colorPickerFor.x, y: colorPickerFor.y }}
@@ -648,7 +719,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
   const matches = q
     ? tags.filter(t => (t.slug || t.name || '').toLowerCase().includes(q))
     : tags;
-  const fromColor = fromTag.color || tagFallbackColor(fromTag.slug || fromTag.name);
+  const fromColor = resolveTagColor(fromTag);
   return (
     <div className="merge-picker-bg" onMouseDown={onCancel}>
       <div ref={ref}
@@ -683,7 +754,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
           )}
           {matches.map((t, i) => {
             const c = counts.get(t.id) || 0;
-            const dot = t.color || tagFallbackColor(t.slug || t.name);
+            const dot = resolveTagColor(t);
             return (
               <button key={t.id}
                       className={`merge-picker-row ${i === hover ? 'is-hover' : ''}`}

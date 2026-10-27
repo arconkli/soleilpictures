@@ -13,6 +13,7 @@
 // pair to keep their from/to offsets relative to the paragraph.
 
 import { contentHash } from './clusterMath.js';
+import { isTaggableBlock } from './paragraphHash.js';
 
 const MIN_PARAGRAPH_CHARS = 20;
 
@@ -25,7 +26,7 @@ export function extractParagraphTags(doc) {
   if (!doc?.descendants) return [];
   const out = [];
   doc.descendants((node, pos) => {
-    if (node.type?.name !== 'paragraph') return true;
+    if (!isTaggableBlock(node)) return true;
     const text = (node.textContent || '').trim();
     if (text.length < MIN_PARAGRAPH_CHARS) return false; // don't recurse into text nodes
     out.push({

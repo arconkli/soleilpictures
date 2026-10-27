@@ -6,6 +6,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, Profiler, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { pickPresenceColor } from './lib/presenceColor.js';
+import { useMyTeams } from './hooks/useMyTeams.js';
+import { readTeamReturn } from './lib/teamReturn.js';
 import * as perf from './lib/perf.js';
 import { isEditableTarget, isEditablePointerTarget } from './lib/isEditableTarget.js';
 import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
@@ -237,7 +239,7 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed, teamsAllowed } from './lib/appHost.js';
 import { FilesLookContext } from './components/clusterBrowser/filesLook.js';
 import { getSetupOutcome } from './lib/setupGate.js';
 import { workToFirstBoardKind } from './lib/workspaceSetup.js';
@@ -294,7 +296,7 @@ import { ProjectsHome } from './components/ProjectsHome.jsx';
 import { ClustersHome } from './components/home/ClustersHome.jsx';
 import { useHomeRail, loadClusterPhotos } from './hooks/useHomeRail.js';
 import { useClusterStars } from './hooks/useClusterStars.js';
-import { canManageWorkspace } from './lib/workspaceRoles.js';
+import { canManageWorkspace, canWriteWorkspace } from './lib/workspaceRoles.js';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -325,6 +327,8 @@ const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m 
 const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })));
 const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })));
 const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
+const TeamPageLive = lazyWithReload(() => import('./components/team/TeamPageLive.jsx'));
+const NewWorkspaceDialog = lazyWithReload(() => import('./components/team/NewWorkspaceDialog.jsx'));
 const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
 const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
 const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
@@ -4784,7 +4788,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── New workspace ────────────────────────────────────────────────────────
   // `thenHome`: asked for from Home, so the new workspace opens on Home — its
   // projects panel, with Studio and New project — rather than on its canvas.
+  const [newWsAsk, setNewWsAsk] = useState(null);
   const addNewWorkspace = async ({ thenHome = false } = {}) => {
+    // Someone who holds a team seat chooses who the workspace is for.
+    const seatTeam = teamsAllowed()
+      ? ((realTeam && realTeam.holds_seat ? realTeam : null) || myTeams.find((t) => t.holds_seat) || null)
+      : null;
+    if (seatTeam) { setNewWsAsk({ team: seatTeam, thenHome }); return; }
     const name = await feedback.prompt({
       title: 'New workspace',
       label: 'Workspace name',
@@ -4803,6 +4813,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('addNewWorkspace failed', e);
       feedback.toast({ type: 'error', code: 'workspace_create_failed', message: 'Could not create workspace: ' + (e.message || e) });
+    }
+  };
+
+  const createFromDialog = async ({ name, forTeam, isPrivate }) => {
+    const ask = newWsAsk;
+    try {
+      let wsId = null;
+      if (forTeam) {
+        const { createTeamWorkspace } = await import('./lib/teamsApi.js');
+        const res = await createTeamWorkspace({ p_org_id: ask.team.org_id, p_name: name, p_root_name: 'Studio', p_private: !!isPrivate });
+        wsId = res?.workspace_id || null;
+      } else {
+        const ws = await createWorkspace({ name, userId: user.id });
+        wsId = ws?.id || null;
+      }
+      if (!wsId) throw new Error('no workspace id');
+      setNewWsAsk(null);
+      await onWorkspacesChanged?.();
+      if (ask?.thenHome === true) markHomeAfterSwitch(wsId);
+      onSwitchWorkspace?.(wsId);
+      return { ok: true };
+    } catch (e) {
+      console.error('createFromDialog failed', e);
+      const [{ teamRefusal }, { refusalLine }] = await Promise.all([import('./lib/teamHints.js'), import('./lib/teamCopy.js')]);
+      return { ok: false, line: refusalLine(teamRefusal(e)) };
     }
   };
 
@@ -5398,7 +5433,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // doesn't waste resources.
   const aiTaggerEnabled = isAiTaggerEnabled();
   const legacy = useAutotagWorker(aiTaggerEnabled ? null : workspace.id);
-  const ai = useAiTagger(aiTaggerEnabled ? workspace.id : null);
+  const ai = useAiTagger(aiTaggerEnabled ? workspace.id : null, {
+    canWrite: canWriteWorkspace(workspaceRole || (workspace.created_by === user?.id ? 'owner' : workspace._myRole)),
+  });
   const { suggestTags: autotagSuggest, ready: autotagReady } = aiTaggerEnabled ? ai : legacy;
 
   // Track which doc-card overlay (if any) is currently open + its active
@@ -6031,7 +6068,49 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => { live = false; };
   }, [captureAllowed, teamAs]);
   const teamPage = useTeamPage();
-  useEffect(() => { if (!team) closeTeamPage(); }, [team]);
+  // A real team (the Team plan, held by teamsAllowed): the person's own, from
+  // list_my_teams. The admin's sample above wins while it is set.
+  const [teamReturn] = useState(() => readTeamReturn(window.location.pathname, window.location.search));
+  const { teams: myTeams, loaded: myTeamsLoaded, reload: reloadMyTeams } = useMyTeams(user);
+  const realTeam = useMemo(() => {
+    if (team) return null;
+    return myTeams.find((t) => t.role === 'owner') || myTeams[0] || null;
+  }, [team, myTeams]);
+  useEffect(() => { if (!team && !realTeam && myTeamsLoaded) closeTeamPage(); }, [team, realTeam, myTeamsLoaded]);
+  const closeRealTeamPage = useCallback(() => {
+    closeTeamPage();
+    try {
+      if (/^\/team\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/');
+    } catch (_) {}
+    reloadMyTeams();
+    onWorkspacesChanged?.();
+  }, [reloadMyTeams, onWorkspacesChanged]);
+  const selectWorkspaceFromMenu = (id) => {
+    // From Home (the files sidebar's has no switcher of its own), land
+    // on Home in the other workspace too.
+    if (filesSidebar && currentSurface === 'home' && id !== workspace.id) markHomeAfterSwitch(id);
+    onSwitchWorkspace(id); setCurrentSurface('board');
+  };
+  const realTeamMenu = useMemo(() => {
+    if (!realTeam) return null;
+    const rows = (workspaces || []).filter((w) => w.org_id === realTeam.org_id);
+    return {
+      name: realTeam.name,
+      ids: rows.map((w) => w.id),
+      workspaces: rows.map((w) => ({
+        id: w.id,
+        name: w.name,
+        letter: (w.name || '').trim().charAt(0).toUpperCase() || realTeam.letter,
+        color: realTeam.color || pickPresenceColor(w.id),
+        private: w.org_visibility === 'private',
+      })),
+      manage: realTeam.role === 'owner' || realTeam.role === 'admin',
+      viewOnly: false,
+      activeId: workspace.id,
+      onOpenPage: () => openTeamPage(),
+      onPickWorkspace: (w) => selectWorkspaceFromMenu(w.id),
+    };
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   // The setup's "Open the team page" reloads the app and asks for the page
   // once. Wait until the boot has landed: the landing fallback can still move
   // the stack when the boards arrive, in the same render this flag flips.
@@ -6084,6 +6163,44 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       window.history.replaceState({}, '', u.pathname + u.search + u.hash);
     } catch (_) {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Landing on /team: Stripe's success (?checkout=cs_…), a backed-out checkout,
+  // the Customer Portal's return (?billing=1) or the plain link. Read once at
+  // the first render (teamReturn); acted on once the teams have loaded.
+  const teamReturnDone = useRef(false);
+  const [teamOpenWanted, setTeamOpenWanted] = useState(null);
+  useEffect(() => {
+    if (!teamReturn || !myTeamsLoaded || teamReturnDone.current) return;
+    teamReturnDone.current = true;
+    import('./lib/teamReturnRun.js').then(({ runTeamReturn }) => runTeamReturn(teamReturn, {
+      hasTeam: !!realTeam,
+      toast: (message) => feedback.toast({ type: 'info', message }),
+      reloadTeams: reloadMyTeams,
+      refreshWorkspaces: () => onWorkspacesChanged?.(),
+      open: (tab) => setTeamOpenWanted(tab),
+    })).catch((e) => console.warn('team return', e));
+  }, [teamReturn, myTeamsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The Team plan's joins that happen at boot (lib/teamBoot.js): the note a
+  // team link left, an email invite waiting from ?teaminvite=, invites to
+  // this address and a company domain that admits it.
+  useEffect(() => {
+    if (!teamsAllowed() || !user?.id) return;
+    import('./lib/teamBoot.js').then(({ runTeamBoot }) => runTeamBoot({
+      userId: user.id, email: user.email || '',
+      toast: (message) => feedback.toast({ type: 'info', message }),
+      onChanged: () => {
+        try { window.dispatchEvent(new Event('soleil:teams-changed')); } catch (_) {}
+        onWorkspacesChanged?.();
+      },
+    })).catch((e) => console.warn('team boot', e));
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Open the page once the team is in the list (after a checkout it arrives
+  // with the reload).
+  useEffect(() => {
+    if (!teamOpenWanted || !realTeam) return;
+    openTeamPage(teamOpenWanted);
+    setTeamOpenWanted(null);
+  }, [teamOpenWanted, realTeam]);
 
   // The ephemeral phone reframe. Solved against a width derived from the
   // board's own median card size and how many cards should read across the
@@ -10573,7 +10690,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             viewOnly: team.status === 'view_only',
             onOpenPage: () => openTeamPage(),
             onPickWorkspace: (w) => feedback.toast({ type: 'info', message: `Preview: ${w.name} is an example workspace in the test team.` }),
-          } : null}
+          } : realTeamMenu}
         />
       )}
     </div>
@@ -11521,6 +11638,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <Suspense fallback={null}>
           <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} onClose={closeTeamPage}
                     onToast={(message) => feedback.toast({ type: 'info', message })} />
+        </Suspense>
+      )}
+
+      {!team && realTeam && teamPage && (
+        <Suspense fallback={null}>
+          <TeamPageLive key={realTeam.org_id} orgId={realTeam.org_id} initialTab={teamPage.tab} onClose={closeRealTeamPage}
+                        onToast={(message) => feedback.toast({ type: 'info', message })} />
+        </Suspense>
+      )}
+
+      {newWsAsk && (
+        <Suspense fallback={null}>
+          <NewWorkspaceDialog team={newWsAsk.team}
+                              userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || ''}
+                              defaultFor={workspace?.org_id === newWsAsk.team.org_id ? 'team' : 'me'}
+                              onCancel={() => setNewWsAsk(null)} onCreate={createFromDialog} />
         </Suspense>
       )}
 

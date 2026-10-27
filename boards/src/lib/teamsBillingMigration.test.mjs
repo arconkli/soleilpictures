@@ -28,7 +28,7 @@ const SERVICE = ['_team_checkout_complete', '_team_mirror_upsert', '_org_billing
   '_team_trim_seats'];
 
 test('0538 is written, not applied: one transaction that proves its grants and changes nothing while no team exists', () => {
-  assert.match(sql, /STATUS: written 2026-10-24\. NOT APPLIED until the owner says go\./);
+  assert.match(sql, /STATUS: APPLIED 2026-10-25 on the owner's go/);
   assert.match(sql, /^begin;$/m);
   assert.match(sql, /commit;\s*$/);
   assert.match(sql, /set local lock_timeout = '3s';/);

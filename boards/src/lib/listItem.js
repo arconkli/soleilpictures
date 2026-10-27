@@ -13,6 +13,7 @@ import { computeCellRects } from './gridLayout.js';
 import { schedItems, schedLegacyRows } from './schedLayout.js';
 import { monthTitle } from './schedDates.js';
 import { formatLabel, audioMetaLine, keyOrder } from './loopMeta.js';
+import { viewKindOfKey } from './fileView.js';
 
 // Cap the grid schematic: past this many cells the subdivision is unreadable at
 // thumb size and re-tiling wastes work, so we draw the raw box instead.
@@ -222,6 +223,9 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       item.ext = String(card.ext || extOf(card.fileName)).toLowerCase();
       item.sub = card.ext ? String(card.ext).toUpperCase() : (card.mime || '');
       item.preview = { mode: 'file', ext: card.ext, mime: card.mime, kind };
+      // A document's first page, once it's made, is its picture (CardPreview).
+      if (typeof card.fileSrc === 'string' && card.fileSrc.startsWith('r2:')
+          && viewKindOfKey(card.fileSrc.slice(3)) === 'doc') item.preview.page = card.fileSrc;
       item.sizeBytes = card.sizeBytes ?? null;
       break;
     case 'note': {

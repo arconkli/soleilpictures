@@ -258,6 +258,40 @@ test('re-arranging an empty or unknown selection is a no-op, not a throw', () =>
   assert.deepEqual(rearrange([], ['a'], { layout: 'grid' }), []);
 });
 
+// A drop is centred on the pointer, so a board's cards sit left of and above
+// (0, 0) as often as not. Each card used to be floored at 8px on its own once
+// the block was anchored there, which pressed every row onto one line and
+// every column onto one edge: Tidy up piled the selection on top of itself.
+const PAST_ORIGIN = many(40).map((c, i) => ({
+  ...c, x: -1800 + (i % 8) * 1400, y: -2400 + Math.floor(i / 8) * 1100,
+}));
+
+test('re-arranging cards left of and above the origin keeps the block whole, where it was', () => {
+  const ids = PAST_ORIGIN.map((c) => c.id);
+  for (const layout of LAYOUTS) {
+    const out = rearrange(PAST_ORIGIN, ids, { layout });
+    assert.equal(out.length, PAST_ORIGIN.length, `${layout}: lost a card`);
+    assertNoOverlap(out, `${layout} past the origin`);
+    assert.equal(Math.min(...out.map((c) => c.x)), -1800, `${layout}: the block left its own left edge`);
+    assert.equal(Math.min(...out.map((c) => c.y)), -2400, `${layout}: the block left its own top edge`);
+  }
+});
+
+test('a batch added below a board that reaches past the origin lines up under it, whole', () => {
+  const existing = [
+    { id: 'e1', x: -900, y: -600, w: 400, h: 300 },
+    { id: 'e2', x: 200, y: -500, w: 300, h: 200 },
+  ];
+  for (const layout of LAYOUTS) {
+    const out = arrange(existing, many(24), { layout });
+    assertNoOverlap(out, `${layout} below a board past the origin`);
+    assert.equal(Math.min(...out.map((c) => c.x)), -900, `${layout}: not under the board's left edge`);
+    for (const c of out) {
+      for (const e of existing) assert.equal(overlaps(rect(c), e), false, `${layout}: ${c.id} landed on ${e.id}`);
+    }
+  }
+});
+
 // ── the named options ────────────────────────────────────────────────────────
 
 test('gap is respected, and zero is allowed', () => {
@@ -393,6 +427,41 @@ test('align returns only what actually moved', () => {
   ];
   assert.deepEqual(alignCards(already, 'left'), []);
   assert.equal(alignCards(RAGGED, 'left').length, 2, 'a is already at the left edge');
+});
+
+// Three rows of eight, left of the origin as a drop leaves them. Left used to
+// put each row's eight cards on top of one another, and Top each column's three.
+const GRID = Array.from({ length: 24 }, (_, i) => ({
+  id: `g${i}`, x: -600 + (i % 8) * 340, y: 200 + Math.floor(i / 8) * 280, w: 300, h: 240,
+}));
+const afterAlign = (cards, edge) => cards.map((c) => alignCards(cards, edge).find((m) => m.id === c.id) || c);
+
+test('align lines a big selection up without piling it', () => {
+  for (const edge of ALIGNMENTS) assertNoOverlap(afterAlign(GRID, edge), `align ${edge}`);
+  // Left: one edge, the cards one under another in reading order.
+  const left = afterAlign(GRID, 'left');
+  assert.equal(new Set(left.map((c) => c.x)).size, 1, 'Left left more than one edge');
+  assert.deepEqual([...left].sort((a, b) => a.y - b.y).map((c) => c.id), GRID.map((c) => c.id));
+  // Top: one edge, the cards one after another from the left.
+  const top = afterAlign(GRID, 'top');
+  assert.equal(new Set(top.map((c) => c.y)).size, 1, 'Top left more than one edge');
+  const byColumn = [...GRID].sort((a, b) => a.x - b.x || a.y - b.y).map((c) => c.id);
+  assert.deepEqual([...top].sort((a, b) => a.x - b.x).map((c) => c.id), byColumn);
+  // The first card in line stays where it was.
+  assert.deepEqual(rect(left[0]), rect(GRID[0]));
+  assert.deepEqual(rect(top[0]), rect(GRID[0]));
+});
+
+test('align moves a card along the line only when it would land on another', () => {
+  // A row lined up on Top keeps its spacing; a column lined up on Left too.
+  const row = [
+    { id: 'a', x: 0, y: 40, w: 200, h: 100 },
+    { id: 'b', x: 260, y: 0, w: 120, h: 200 },
+    { id: 'c', x: 500, y: 90, w: 300, h: 140 },
+  ];
+  for (const c of alignCards(row, 'top')) assert.equal(c.x, row.find((r) => r.id === c.id).x, `${c.id} slid along`);
+  const col = row.map((c, i) => ({ ...c, x: 40 * i, y: i * 300 }));
+  for (const c of alignCards(col, 'left')) assert.equal(c.y, col.find((r) => r.id === c.id).y, `${c.id} slid down`);
 });
 
 test('align needs at least two cards, and a real edge', () => {

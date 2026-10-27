@@ -5,7 +5,7 @@ h1: Cards API
 navLabel: Cards
 section: developers
 order: 4
-updated: 2026-10-20
+updated: 2026-10-25
 answer: Read a board's cards with GET /boards/:id/cards, add up to {{fact:maxCardsPerCall}} at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
 faq:
   - q: What happens if I send an unrecognised kind?
@@ -16,6 +16,7 @@ faq:
     a: The cards are saved, but a canvas someone already has open will not show them until it reloads. It is not a failure.
 related:
   - /docs/api/boards
+  - /docs/api/docs
   - /docs/api/images
   - /docs/api/errors
 ---
@@ -161,6 +162,7 @@ moved on this board since I last looked" without reading the board.
 | `props` | The card's [properties](/docs/api/metadata) |
 | `identifiers` | Its [foreign identifiers](/docs/api/metadata) |
 | `raw` | The card exactly as the canvas stores it |
+| `groups` | The board's [groups](/docs/api/arrange), as `groups` beside the cards, read in the same pass (not with `source=index`) |
 
 `raw` exists because the card object above is a deliberately narrow projection,
 and the app has kinds it does not describe — a grid carries its cells and
@@ -275,6 +277,22 @@ card ids do not fit in a query string, and making a destructive call look like a
 
 Every removed card comes back, so the response is the undo — with the same
 exceptions as the single delete below.
+
+## `GET /boards/:id/cards/:cardId`
+
+One card, as the list gives it, and `url`, the link that opens the board with
+the card picked. `?include=` works as it does on the list.
+
+```json
+{ "board_id": "9f1c…", "card": { "id": "c-12", "kind": "note", … },
+  "url": "https://clusters.soleilpictures.com/?to=c:9f1c…:c-12" }
+```
+
+## Doc cards
+
+A doc card's pages are read and written as Markdown on routes of their own: see
+the [Docs API](/docs/api/docs). `POST /boards/:id/docs` makes a doc with its
+pages already in it.
 
 ## `PATCH /boards/:id/cards/:cardId`
 

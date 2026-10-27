@@ -189,7 +189,7 @@ test('a typed link can never become a script URL in an href', async () => {
 
 // ── 0369 + 0370: the outbound breaker ───────────────────────────────────────
 
-const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite', 'file_shared'];
+const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite', 'file_shared', 'team_invite'];
 const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented'];
 
 // Functions whose live (latest, not since dropped) definition matches `re`,
@@ -228,7 +228,7 @@ test('every database email asks the outbound gate first, and only the known trig
 
   const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
   assert.deepEqual([...senders.keys()].sort(), [
-    '_tg_comment_reply_email', '_tg_file_comment_notify', '_tg_file_share_person_email',
+    '_team_invite_email', '_tg_comment_reply_email', '_tg_file_comment_notify', '_tg_file_share_person_email',
     '_tg_mention_notification_email', '_tg_pending_invite_email',
     '_tg_schedule_notification_email', '_tg_share_notification_email', '_tg_workspace_member_email',
   ], 'a new email path must be classified in _outbound_gate and added here on purpose');
@@ -657,12 +657,15 @@ test('the Scout waitlist needs a hashed connection, a bot check once configured,
 test('every embedding call asks the daily budget first, and spends only on a yes', () => {
   const src = read('../worker-tags.js');
   const handler = src.slice(src.indexOf('async function handleEmbed'), src.indexOf('// ───', src.indexOf('async function handleEmbed')));
-  const ask = handler.indexOf('if (!await embedBudgetOk(env, request, chars))');
+  const ask = handler.indexOf('const budget = await takeEmbedBudget(env, request, chars);');
   // Since 0418 the model is Workers AI (env.AI.run); beyond the free daily
   // allowance it is still spend.
   const call = handler.indexOf('await env.AI.run(EMBEDDING_MODEL');
   assert.ok(ask > 0 && call > ask, 'the budget is asked before the model is called');
-  assert.match(src, /if \(!r\.ok\) return false;\s+return \(await r\.json\(\)\.catch\(\(\) => false\)\) === true;/, 'anything but a yes is a no');
+  // Anything but an explicit yes is a no: 'over' (429) or, when the check
+  // itself failed, 'error' (503, retried in a minute). Only 'ok' spends.
+  assert.match(src, /if \(!r\.ok\) return 'error';\s+const yes = await r\.json\(\)\.catch\(\(\) => null\);\s+if \(yes === true\) return 'ok';/, 'anything but a yes is a no');
+  assert.equal((src.match(/if \(budget !== 'ok'\) return budgetRefusal\(/g) || []).length, 2, '/embed and /apply both refuse on anything but ok');
 
   const fn = latestDefinition('tags_embed_budget_take').body;
   assert.match(fn, /c_user_day\s+constant bigint := \d+;/);

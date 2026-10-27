@@ -37,24 +37,33 @@ test('pricing: three cards; the seat stepper follows the sum, never below 3; ann
   const card = await mountPricing(page);
   await expect(page.locator('.pp-plans .pp-plan')).toHaveCount(3);
   await expect(card).toContainText('More than 10 editors');
+  // The owner (2026-10-26): the benefits are shown, in Creator's look.
+  await expect(card.locator('.pricing-benefit-t')).toHaveText([
+    'Everything in Creator, for each editor', '1TB a seat, one shared drive', 'More than 10 people who edit',
+    'Admins, and work the team owns', 'Their own workspaces, too', 'Join by link or company email',
+  ]);
+  const compare = page.locator('table.pp-compare-team');
+  await expect(compare.locator('thead th').nth(3)).toHaveText('Team');
+  await expect(compare.locator('tbody tr')).toHaveCount(6);
+  await expect(compare.getByRole('row', { name: /People who edit/ })).toContainText('A seat each, 3 to 100');
   await expect(card.locator('[data-seats]')).toHaveText('12');
-  await expect(card.locator('[data-seat-sum]')).toHaveText('$180/mo');
+  await expect(card.locator('[data-seat-sum]')).toHaveText('$300/mo');
   await card.getByRole('button', { name: 'One more seat' }).click();
   await expect(card.locator('[data-seats]')).toHaveText('13');
-  await expect(card.locator('[data-seat-sum]')).toHaveText('$195/mo');
+  await expect(card.locator('[data-seat-sum]')).toHaveText('$325/mo');
   for (let i = 0; i < 12; i += 1) await card.getByRole('button', { name: 'One fewer seat' }).click({ force: true });
   await expect(card.locator('[data-seats]')).toHaveText('3');
   await expect(card.getByRole('button', { name: 'One fewer seat' })).toBeDisabled();
 
   await page.getByRole('tab', { name: /Annual/ }).click();
-  await expect(card.locator('.pp-plan-price')).toContainText('$12');
-  await expect(card.locator('[data-seat-sum]')).toHaveText('$432/yr');
+  await expect(card.locator('.pp-plan-price')).toContainText('$20');
+  await expect(card.locator('[data-seat-sum]')).toHaveText('$720/yr');
 
   await card.getByRole('button', { name: 'Start a Team trial' }).click();
   expect(await page.evaluate(() => window.__teamBuy.started)).toEqual([{ seats: 3, plan: 'annual' }]);
 
-  await page.getByRole('button', { name: 'Talk to us' }).click();
-  await expect(page.locator('.pp-talk-note')).toContainText('Preview: this opens a short form that reaches us.');
+  // Talk to us is a page of its own (team-talk.spec.js walks it).
+  await expect(page.getByRole('link', { name: 'Talk to us' })).toHaveAttribute('href', '/pricing/talk-to-us');
 });
 
 test('setup: workspaces, seats, billing, Stripe preview line, invites and the way back', async ({ page }) => {
@@ -71,11 +80,11 @@ test('setup: workspaces, seats, billing, Stripe preview line, invites and the wa
   await panel.getByRole('button', { name: 'Continue' }).click();
 
   await expect(panel).toContainText('12 people edit these workspaces today');
-  await expect(panel).toContainText('12 seats × $144');
-  await expect(panel).toContainText('$1,728 a year');
+  await expect(panel).toContainText('12 seats × $240');
+  await expect(panel).toContainText('$2,880 a year');
   await panel.getByRole('radio', { name: /Monthly/ }).click();
-  await expect(panel).toContainText('12 seats × $15');
-  await expect(panel).toContainText('$180 a month');
+  await expect(panel).toContainText('12 seats × $25');
+  await expect(panel).toContainText('$300 a month');
 
   await panel.getByRole('button', { name: /Continue to payment/ }).click();
   await expect(panel).toContainText('Preview: this is where Stripe takes the card. Nothing was charged.');

@@ -7,12 +7,14 @@
 //
 //   src/lib/docsiteIndex.js      light nav/meta — Worker, React, sitemap, tests
 //   src/lib/docsiteContent.js    block AST      — the code-split React page
-//   src/lib/docsiteCrawlable.js  escaped HTML   — the Worker's <main> injection
+//   public/docs-html/**.json     escaped HTML   — the Worker's <main> injection
 //   public/docs/**.md            raw markdown   — AI agents, curl
 //   public/llms.txt + -full.txt  corpus index   — AI agents
 //
-// The Worker gets pre-rendered HTML instead of the AST so its bundle carries
-// prose and nothing else; React gets the AST so it can render real components.
+// The Worker gets pre-rendered HTML instead of the AST, one file per page that
+// it reads from the assets when it serves that page (lib/docsiteHtml.js), so
+// its bundle carries no prose at all; React gets the AST so it can render real
+// components.
 // Both derive from one parse, which is what makes server-rendered and hydrated
 // text identical — the anti-cloaking property the whole registry design exists
 // to protect (see the header of src/lib/seoLanding.js).
@@ -40,6 +42,7 @@ import {
   layoutAlgorithms as layoutAlgorithmList,
 } from './lib/publicSurface.mjs';
 
+import { docsHtmlAsset, docsHtmlFile } from '../src/lib/docsiteHtml.js';
 import { SEO_LANDING_PAGES, SEO_LANDING_LISTED } from '../src/lib/seoLanding.js';
 // The template store hold: while it is on, nothing here publishes the store —
 // no .md mirror, no llms.txt section — and any copy already on disk is removed.
@@ -65,6 +68,9 @@ import { AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_PDF_CAP } from
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
+import { EDITOR_LIMIT } from '../src/lib/editorLimit.js';
+import { TEAM_SEAT_MAX } from '../src/lib/teamModel.js';
+import { TEAM_MIN_SEATS, TEAM_SEAT_UNIT_AMOUNT, TEAM_TRIAL_DAYS } from '../../supabase/functions/_shared/teamBillingCore.mjs';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
 import { FOLDER_LIMITS } from '../src/lib/folderWalk.js';
 import { IMPORT_LIMITS, LOW_MEMORY_INFLATE_BYTES } from '../src/lib/importTree.js';
@@ -72,8 +78,21 @@ import { CLUSTER_FILE_CEILING } from '../src/lib/importPlan.js';
 import { PUT_ON_BOARD_MAX } from '../src/lib/placement.js';
 import { VERSION_LIMIT, DELETED_KEEP_DAYS as VERSION_DELETED_KEEP_DAYS } from '../src/lib/cardVersions.js';
 import { WEB_IMAGE } from '../src/lib/webImageSave.js';
+import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
+import { GALLERY } from '../src/lib/gallery.js';
+import { VERIFIED_HOSTS } from '../src/lib/oauthTrust.js';
+import { DRAFT_LIFETIME_DAYS } from '../src/lib/mcpDrafts.js';
+import { DOC_READ } from '../src/lib/docMarkdown.js';
+import { DOC_WRITE } from '../src/lib/docWrite.js';
+import { COMMENTS } from '../src/lib/apiComments.js';
+import { TAGS } from '../src/lib/apiTags.js';
+import {
+  TOOLS as MCP_TOOLS, FETCH_MAX_CHARS, SEARCH_DEFAULT, SEARCH_MAX, TREE_MAX, UPDATE_BOARDS_MAX,
+} from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
-import { VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS } from '../src/lib/fileView.js';
+import {
+  VIEW_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, DOC_MAX_PAGES,
+} from '../src/lib/fileView.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
@@ -171,6 +190,14 @@ if (!addonMax || Number(addonMax[1]) !== STORAGE_ADDON_MAX_BLOCKS) {
 }
 const api = apiFacts();
 
+// An edge limit the docs state "a minute" (lib/edgeLimits.js): its period has
+// to be one, or the sentence is wrong.
+const perMinute = (name) => {
+  const { limit, period } = EDGE_LIMITS[name];
+  if (period !== 60) throw new Error(`gen-docs: ${name} counts per ${period} seconds; the docs say a minute`);
+  return String(limit);
+};
+
 // The invite limits (migration 0358 and anything later that redefines the
 // function): read from the LATEST migration that defines _invite_budget_take,
 // as the named constants it declares, so the sharing page states exactly what
@@ -228,6 +255,15 @@ const newAccountWorkspaces = latestSqlDefining('create_workspace_with_root')
   ?.match(/c_new_account_workspaces\s+constant\s+integer\s*:=\s*(\d+)/);
 if (!newAccountHours || !newAccountWorkspaces) {
   throw new Error('gen-docs: the new-account limits were not found — update the extractor');
+}
+
+// How many ids a grouped webhook event carries: the [1:N] slice every grouping
+// webhook_emit_* trigger takes (0222, 0702, 0703). One number for all of them.
+const webhookIdSlices = ['webhook_emit_cards_ins', 'webhook_emit_cards_upd', 'webhook_emit_cards_del',
+  'webhook_emit_images_ins', 'webhook_emit_tags_ins', 'webhook_emit_tags_upd', 'webhook_emit_tags_del']
+  .map((fn) => [...(latestDefinition(fn)?.body.matchAll(/\)\[1:(\d+)\]/g) || [])].map((m) => m[1]));
+if (webhookIdSlices.some((s) => !s.length) || new Set(webhookIdSlices.flat()).size !== 1) {
+  throw new Error('gen-docs: the webhook triggers disagree on how many ids an event carries — update the extractor');
 }
 
 // Sharing one file (/f/<token>, migrations 0421 and 0422): how often a comment
@@ -309,6 +345,20 @@ if (!errorRetention) {
   throw new Error('gen-docs: the error-record retention was not found — update the extractor');
 }
 
+// How long a deleted comment can be restored (purge_old_deleted_comments,
+// scheduled nightly by migration 0052). Defined before migrations wrote
+// `public.`, so it is looked for under either spelling.
+const commentRestore = readdirSync(MIGRATIONS)
+  .filter((f) => f.endsWith('.sql'))
+  .sort((a, b) => (Number(a.slice(0, 4)) - Number(b.slice(0, 4))) || (a < b ? -1 : a > b ? 1 : 0))
+  .map((f) => readFileSync(resolve(MIGRATIONS, f), 'utf8'))
+  .filter((sql) => /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?purge_old_deleted_comments\s*\(/i.test(sql))
+  .pop()
+  ?.match(/deleted_at\s*<\s*\(?\s*now\(\)\s*-\s*interval\s*'(\d+) days'/i);
+if (!commentRestore) {
+  throw new Error('gen-docs: how long a deleted comment is kept was not found — update the extractor');
+}
+
 // How much text automatic tagging may send for embedding per account per day
 // (tags_embed_budget_take, migration 0381).
 const embedBudget = latestSqlDefining('tags_embed_budget_take')
@@ -323,6 +373,28 @@ const freeQuota = latestSqlDefining('_storage_quota_free_bytes')
   ?.match(/key = 'storage_quota_free_bytes'\),\s*(\d+)\)/);
 if (!freeQuota || bytesLabel(Number(freeQuota[1])) !== FREE_STORAGE_LABEL) {
   throw new Error(`gen-docs: FREE_STORAGE_LABEL '${FREE_STORAGE_LABEL}' does not match the free quota in the migration defining _storage_quota_free_bytes`);
+}
+
+// The Team plan and the 10-editor limit, each from the code that enforces it:
+// _editor_limit (0520, which editorLimitMigration.test pins to EDITOR_LIMIT);
+// team-billing's seat prices, minimum and trial (teamBillingCore.mjs, which
+// teamBillingCore.test pins to teamModel); the self-serve ceiling
+// (organizations.seat_ceiling's default, 0522, which teamModel mirrors); the
+// drive each seat adds (_team_storage_seat_bytes, 0539); the grace before an
+// unpaid team goes view-only (_team_grace_days, 0538); and the seat perk
+// (_seat_perk_storage_bytes, 0537).
+const editorLimitSql = latestDefinition('_editor_limit')?.body.match(/select\s+(\d+);/);
+const teamSeatCeiling = latestSqlMatching(/seat_ceiling\s+integer not null default \d+/)
+  ?.match(/seat_ceiling\s+integer not null default (\d+)/);
+const teamSeatBytes = latestDefinition('_team_storage_seat_bytes')?.body.match(/select\s+(\d+)::bigint/);
+const teamGraceDays = latestDefinition('_team_grace_days')?.body.match(/select\s+(\d+);/);
+const seatPerkBytes = latestDefinition('_seat_perk_storage_bytes')?.body.match(/select\s+(\d+)::bigint/);
+if (!editorLimitSql || !teamSeatCeiling || !teamSeatBytes || !teamGraceDays || !seatPerkBytes) {
+  throw new Error('gen-docs: the Team plan rules were not found — update the extractor');
+}
+if (Number(editorLimitSql[1]) !== EDITOR_LIMIT || Number(teamSeatCeiling[1]) !== TEAM_SEAT_MAX
+    || TEAM_SEAT_UNIT_AMOUNT.month % 100 || TEAM_SEAT_UNIT_AMOUNT.year % 100) {
+  throw new Error('gen-docs: the Team plan numbers disagree with the code that enforces them');
 }
 
 export const FACTS = {
@@ -412,6 +484,10 @@ export const FACTS = {
   viewEdge: String(VIEW_EDGE),
   viewMaxSize: `${VIEW_MAX_BYTES / (1024 * MB)} GB`,
   viewMaxMegapixels: String(VIEW_MAX_PIXELS / 1_000_000),
+  // And for documents (Word, PowerPoint, Excel, Keynote...): past the size a
+  // document gets no pages, and past the count only its first pages are made.
+  docMaxSize: `${DOC_MAX_BYTES / MB} MB`,
+  docMaxPages: String(DOC_MAX_PAGES),
   // Ceilings on a BULK (zip) download. Not a plan limit — a browser one: the
   // archive is assembled in the tab, and past these the tab is the thing that
   // fails. Stated so "why did my 600-file selection refuse" has an answer.
@@ -451,6 +527,16 @@ export const FACTS = {
   // What a referral pays the inviter and how often (0377, 0416), what the
   // friend gets on joining (0163, 0371), the storage each side gets (0416),
   // and the edit-link window for counting as a referral (claim_collab_link).
+  // The Team plan and the 10-editor limit (see the extractor above FACTS).
+  editorLimit: editorLimitSql[1],
+  teamSeatMonthly: `$${TEAM_SEAT_UNIT_AMOUNT.month / 100}`,
+  teamSeatAnnual: `$${TEAM_SEAT_UNIT_AMOUNT.year / 100}`,
+  teamSeatMin: String(TEAM_MIN_SEATS),
+  teamSeatMax: teamSeatCeiling[1],
+  teamStoragePerSeat: bytesLabel(Number(teamSeatBytes[1])),
+  teamTrialDays: String(TEAM_TRIAL_DAYS),
+  teamGraceDays: teamGraceDays[1],
+  teamSeatPerkStorage: bytesLabel(Number(seatPerkBytes[1])),
   referralRewardCards: referralCards[1],
   referralRewardsPer30Days: referralPer30[1],
   referralFriendCards: friendCards[0],
@@ -479,15 +565,76 @@ export const FACTS = {
   serviceRateLimitPerHour: String(api.serviceRateLimitPerHour),
   maxServiceAccounts: String(api.maxServiceAccounts),
   maxWebhooks: String(api.maxWebhooks),
+  webhookIdsShown: webhookIdSlices[0][0],
   maxIdentifiersPerObject: String(api.maxIdentifiersPerObject),
   maxPropsBytes: String(api.maxPropsBytes),
   maxPropKeys: String(api.maxPropKeys),
   maxTokensPerAccount: String(api.maxTokensPerAccount),
   maxConnectedApps: String(api.maxConnectedApps),
+  // An OAuth token's hourly ceiling while its account is new (0704), and the
+  // hosts whose metadata documents the consent screen calls verified.
+  oauthNewAccountPerHour: String(api.oauthNewAccountPerHour),
+  oauthVerifiedHosts: VERIFIED_HOSTS.map((h) => `\`${h}\``).join(', '),
   oauthAccessTtl: `${api.oauthAccessTtlMinutes} minutes`,
   oauthRefreshDays: String(api.oauthRefreshDays),
   oauthCodeTtl: `${api.oauthCodeTtlSeconds} seconds`,
   oauthMaxRedirectUris: String(api.oauthMaxRedirectUris),
+  // A refresh token's ceiling and its retry window (0701), and what a client
+  // metadata document may weigh and how long it is trusted (oauthClients.js).
+  oauthRefreshMaxDays: String(api.oauthRefreshMaxDays),
+  oauthRefreshRetry: `${api.oauthRefreshRetrySeconds} seconds`,
+  oauthMetadataMaxSize: `${api.oauthMetadataMaxKb} KB`,
+  oauthMetadataCacheMin: `${api.oauthMetadataCacheMinMinutes} minutes`,
+  oauthMetadataCacheMax: `${api.oauthMetadataCacheMaxHours} hours`,
+  // Requests per address a minute at the OAuth endpoints (lib/edgeLimits.js),
+  // and new clients per address an hour (0224; 0701 counts documents with it).
+  oauthRegisterPerMinute: perMinute('OAUTH_REGISTER'),
+  oauthTokenPerMinute: perMinute('OAUTH_TOKEN'),
+  oauthLookupPerMinute: perMinute('OAUTH_LOOKUP'),
+  oauthRegistrationsPerHour: String(api.oauthRegistrationsPerHour),
+  // How long a draft nobody keeps lasts after its last change (lib/mcpDrafts.js;
+  // mcpDrafts.test.mjs holds 0705's lifetime to it).
+  draftLifetimeDays: String(DRAFT_LIFETIME_DAYS),
+  // A board's gallery: its pages and what one answer may embed (lib/gallery.js),
+  // and how many pictures view_board looks at closely (the tool's own schema).
+  galleryDefaultLimit: String(GALLERY.defaultLimit),
+  galleryMaxLimit: String(GALLERY.maxLimit),
+  galleryMaxCardIds: String(GALLERY.maxCardIds),
+  galleryInlineEach: `${GALLERY.inlineSmMaxBytes / 1024} KB`,
+  galleryInlinePreviewEach: `${GALLERY.inlinePreviewMaxBytes / MB} MB`,
+  galleryInlineTotal: `${GALLERY.inlineTotalMaxBytes / MB} MB`,
+  galleryOriginalMax: `${GALLERY.originalMaxBytes / 1024} KB`,
+  viewBoardCloseMax: String(MCP_TOOLS.find((t) => t.name === 'view_board').inputSchema.properties.card_ids.maxItems),
+  // A doc read's Markdown budget (lib/docMarkdown.js) and fetch's (mcpTools.js).
+  docReadDefaultChars: DOC_READ.defaultChars.toLocaleString('en-US'),
+  docReadMaxChars: DOC_READ.maxChars.toLocaleString('en-US'),
+  fetchMaxChars: FETCH_MAX_CHARS.toLocaleString('en-US'),
+  // The MCP tools' own bounds (mcpTools.js): search's results of each kind, the
+  // boards one hierarchy read answers with, and the boards one update changes.
+  mcpSearchDefault: String(SEARCH_DEFAULT),
+  mcpSearchMax: String(SEARCH_MAX),
+  mcpTreeMax: String(TREE_MAX),
+  mcpUpdateBoardsMax: String(UPDATE_BOARDS_MAX),
+  // What one doc write may carry (lib/docWrite.js).
+  docWriteMaxChars: DOC_WRITE.maxChars.toLocaleString('en-US'),
+  docWriteMaxPages: String(DOC_WRITE.maxPages),
+  docWriteMaxEdits: String(DOC_WRITE.maxEdits),
+  docWriteMaxTitle: String(DOC_WRITE.maxTitle),
+  // Comments over the API (lib/apiComments.js), and how long a deleted one
+  // can be brought back.
+  commentMaxChars: COMMENTS.maxBody.toLocaleString('en-US'),
+  commentListDefault: String(COMMENTS.defaultLimit),
+  commentListMax: String(COMMENTS.maxLimit),
+  commentResolveMax: String(COMMENTS.maxResolve),
+  commentQuoteMax: String(COMMENTS.maxQuote),
+  commentAnchorMax: String(COMMENTS.maxAnchor),
+  commentRestoreDays: commentRestore[1],
+  // Tags over the API (lib/apiTags.js).
+  tagCardsMax: String(TAGS.maxCards),
+  tagNamesMax: String(TAGS.maxNames),
+  tagNameMax: String(TAGS.maxName),
+  tagItemsDefault: String(TAGS.defaultItems),
+  tagItemsMax: String(TAGS.maxItems),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),
@@ -1395,11 +1542,21 @@ export function isDocsPath(pathname) {
     BANNER('content/docs/**/*.md')
     + `\nexport const DOCS_CONTENT = ${JSON.stringify(Object.fromEntries(pages.map((p) => [p.path, p.blocks])), null, 1)};\n`);
 
-  // 3. Pre-escaped HTML — the Worker only. Keeps its bundle at prose weight
-  //    instead of prose + AST scaffolding.
-  write(resolve(BOARDS, 'src/lib/docsiteCrawlable.js'),
-    BANNER('content/docs/**/*.md')
-    + `\nexport const DOCS_HTML = ${JSON.stringify(Object.fromEntries(pages.map((p) => [p.path, crawlableHtml(p)])), null, 1)};\n`);
+  // 3. Pre-escaped HTML — the Worker only, one file per page in the assets,
+  //    read when that page is served (lib/docsiteHtml.js). A file no page
+  //    writes any more is removed, so a renamed page leaves nothing behind.
+  const pubHtml = resolve(BOARDS, 'public/docs-html');
+  const htmlFiles = new Set();
+  for (const p of pages) {
+    const file = resolve(BOARDS, 'public', docsHtmlAsset(p.path).slice(1));
+    htmlFiles.add(file);
+    write(file, docsHtmlFile(p.path, crawlableHtml(p)));
+  }
+  const filesIn = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [])
+    .flatMap((e) => (e.isDirectory() ? filesIn(join(dir, e.name)) : [join(dir, e.name)]));
+  for (const f of filesIn(pubHtml)) if (!htmlFiles.has(f)) unwrite(f);
+  // Where they were bundled into the Worker until 2026-10-25.
+  unwrite(resolve(BOARDS, 'src/lib/docsiteCrawlable.js'));
 
   // 4. Raw markdown mirrors at /docs/<path>.md. Fetchable with curl, quotable
   //    by an agent, and identical to what the page renders.

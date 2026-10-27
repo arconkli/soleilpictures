@@ -60,17 +60,19 @@ async function authedFetch(path, body) {
 // Embed a batch of texts via /api/tags/embed.
 // cards: [{ id, text }]
 // Returns: { embeddings: [{ id, vector }], usage: {...}, ms } or null on failure.
-export async function embedCards(cards) {
+// opts.workspaceId lets the Worker refuse a workspace whose AI suggestions
+// are off (the client checks first; this is the backstop).
+export async function embedCards(cards, opts = {}) {
   if (!cards?.length) return { embeddings: [], usage: null, ms: 0 };
   const t0 = performance.now();
-  const data = await authedFetch('/api/tags/embed', { cards });
+  const data = await authedFetch('/api/tags/embed', opts.workspaceId ? { cards, workspace_id: opts.workspaceId } : { cards });
   if (!data) return null;
   return { embeddings: data.embeddings || [], usage: data.usage || null, ms: performance.now() - t0 };
 }
 
 // Convenience: embed a single text. Returns { vector, usage, ms } or null.
-export async function embedOne(id, text) {
-  const out = await embedCards([{ id: String(id), text: String(text || '') }]);
+export async function embedOne(id, text, opts = {}) {
+  const out = await embedCards([{ id: String(id), text: String(text || '') }], opts);
   if (!out?.embeddings?.[0]?.vector) return null;
   return { vector: out.embeddings[0].vector, usage: out.usage, ms: out.ms };
 }
@@ -78,28 +80,14 @@ export async function embedOne(id, text) {
 // Score a batch of cards against candidate tags via /api/tags/apply.
 // cards: [{ id, text, candidate_tags: [{ id, name, description? }] }]
 // Returns: { verdicts: [...], usage: {...}, ms } or null on failure.
-export async function applyCards(cards) {
+export async function applyCards(cards, opts = {}) {
   if (!cards?.length) return { verdicts: [], usage: null, ms: 0 };
   const t0 = performance.now();
-  const data = await authedFetch('/api/tags/apply', { cards });
+  const data = await authedFetch('/api/tags/apply', opts.workspaceId ? { cards, workspace_id: opts.workspaceId } : { cards });
   if (!data) return null;
   return { verdicts: data.verdicts || [], usage: data.usage || null, ms: performance.now() - t0 };
 }
 
-// Name an emergent cluster via /api/tags/cluster-name (Phase 2).
-// member_cards: 3-8 representative cards.
-// opts.existingNames: strings the model must NOT collide with (existing tags
-//   in the workspace + names already given to other pending clusters). The
-//   model returns name: null when its only honest name would duplicate one.
-// Returns { name, description } or null.
-export async function nameCluster(memberCards, opts = {}) {
-  if (!Array.isArray(memberCards) || memberCards.length < 3) return null;
-  const existingNames = Array.isArray(opts.existingNames) ? opts.existingNames : [];
-  return authedFetch('/api/tags/cluster-name', {
-    member_cards: memberCards,
-    existing_names: existingNames,
-  });
-}
 
 // ─── pgvector helpers ──────────────────────────────────────────────────
 

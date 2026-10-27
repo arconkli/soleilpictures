@@ -23,6 +23,7 @@ import { clientIpFromHeaders, emitCapi, gpcFrom } from "../_shared/meta-capi.ts"
 import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer, promoCodesAllowedForPlan } from "../_shared/activateCore.mjs";
 import { CREATOR_TRIAL_DAYS, creatorTrialEligibility, customerHasTrialed } from "../_shared/trialCore.mjs";
 import { failedWith, reported } from "../_shared/reportError.ts";
+import { claimsMatch, earlyOr, settle, tokenClaims } from "../_shared/earlyReads.mjs";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -70,8 +71,24 @@ Deno.serve(reported("create-checkout-session", async (req) => {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false },
     });
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+
+    // What this request reads before it decides starts beside getUser, not one
+    // round trip after another behind it, with the buyer watching the button
+    // spin (_shared/earlyReads.mjs): the caller's mirror rows and the customers
+    // on their address, read on the token's own claims. None of it is used
+    // unless getUser names the same user at the same address (`mine` below),
+    // and a read that failed is made again where it is needed.
+    const claims = tokenClaims(token);
+    const early = claims?.email ? {
+      sub:   settle(admin.from("subscriptions").select("stripe_customer_id, status").eq("user_id", claims.sub).maybeSingle()),
+      prof:  settle(admin.from("profiles").select("tier").eq("user_id", claims.sub).maybeSingle()),
+      found: settle(stripe.customers.list({ email: claims.email, limit: 10 })),
+    } : null;
+
     const u = await userClient.auth.getUser();
     if (u.error || !u.data.user?.email) return json({ error: "invalid token" }, 401);
+    const mine = early && claimsMatch(claims, u.data.user) ? early : null;
 
     const email  = u.data.user.email.toLowerCase().trim();
     const userId = u.data.user.id;
@@ -117,15 +134,20 @@ Deno.serve(reported("create-checkout-session", async (req) => {
                 : null;
     if (!price) return json({ error: "plan must be 'monthly' or 'annual'" }, 400);
 
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+    // A trial's own reads, as the caller, start now as well: only the trial
+    // decision below waits for them.
+    const tierRead    = trial ? settle(userClient.rpc("get_my_tier")) : null;
+    const storageRead = trial ? settle(userClient.rpc("my_storage_usage")) : null;
 
     // Reuse an existing Stripe customer if we have one mapped to this user, and
     // read its status so we can short-circuit already-subscribed users.
-    const existingSub = await admin.from("subscriptions")
-      .select("stripe_customer_id, status")
-      .eq("user_id", userId)
-      .maybeSingle();
-    const prof = await admin.from("profiles").select("tier").eq("user_id", userId).maybeSingle();
+    const [existingSub, prof] = await Promise.all([
+      earlyOr(mine?.sub, () => admin.from("subscriptions")
+        .select("stripe_customer_id, status")
+        .eq("user_id", userId)
+        .maybeSingle()),
+      earlyOr(mine?.prof, () => admin.from("profiles").select("tier").eq("user_id", userId).maybeSingle()),
+    ]);
 
     // Resolve the Stripe customer, PROVING ownership at every step. A bare
     // email match is not ownership: an email that changed hands would hand
@@ -144,7 +166,7 @@ Deno.serve(reported("create-checkout-session", async (req) => {
     // this customer".
     let emailCustomers: Stripe.Customer[] = [];
     if (!customerId || trial) {
-      const found = await stripe.customers.list({ email, limit: 10 });
+      const found: Stripe.ApiList<Stripe.Customer> = await earlyOr(mine?.found, () => stripe.customers.list({ email, limit: 10 }));
       emailCustomers = found.data.filter((c) => !(c as unknown as Stripe.DeletedCustomer).deleted);
       if (!customerId) {
         // Reuse only one that is provably this user's (metadata match) or
@@ -216,20 +238,28 @@ Deno.serve(reported("create-checkout-session", async (req) => {
       // bookkeeping changes that; the trial is deliberately cheap to give and
       // expensive to exploit (deleting the account destroys every workspace the
       // person was alone in).
+      //
+      // The other customers are asked all at once. One that has trialed
+      // refuses the trial whatever the rest say; with none trialed, a lookup
+      // that failed fails the request, as it did when they were asked in turn.
       if (!everTrialed) {
-        for (const c of emailCustomers) {
-          if (c.id === customerId) continue;
-          const prior = await stripe.subscriptions.list({ customer: c.id, status: "all", limit: 10 });
-          if (customerHasTrialed(prior.data)) { everTrialed = true; break; }
+        const others = emailCustomers.filter((c) => c.id !== customerId);
+        const priors = await Promise.allSettled(
+          others.map((c) => stripe.subscriptions.list({ customer: c.id, status: "all", limit: 10 })),
+        );
+        if (priors.some((p) => p.status === "fulfilled" && customerHasTrialed(p.value.data))) everTrialed = true;
+        else {
+          const failed = priors.find((p) => p.status === "rejected") as PromiseRejectedResult | undefined;
+          if (failed) throw failed.reason;
         }
       }
-      const t = await userClient.rpc("get_my_tier");
+      const t = await earlyOr(tierRead, () => userClient.rpc("get_my_tier"));
       const row = Array.isArray(t.data) ? t.data[0] : t.data;
       // The drive is the free plan's other wall (0413), so the trial's
       // storage route needs the caller's own numbers — as the caller, the
       // same rows the meter and the upload gates read. A failed read simply
       // leaves that route closed; the card routes still decide.
-      const s = await userClient.rpc("my_storage_usage");
+      const s = await earlyOr(storageRead, () => userClient.rpc("my_storage_usage"));
       const srow = Array.isArray(s.data) ? s.data[0] : s.data;
       const elig = creatorTrialEligibility({
         tier: row?.tier ?? null,

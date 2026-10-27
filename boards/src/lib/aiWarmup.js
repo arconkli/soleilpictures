@@ -15,6 +15,7 @@ import { supabase } from './supabase.js';
 import { embedCards, formatPgvector } from './tagsClient.js';
 import { contentHash } from './clusterMath.js';
 import { isDebug } from './aiTaggerLog.js';
+import { embedTextForCard, clientEmbedsKind } from './embedText.js';
 
 const BATCH_SIZE = 32; // cards per /api/tags/embed call
 
@@ -37,7 +38,7 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
   //      - card_embeddings: existing rows (skip if content_hash matches)
   const [cardResp, esResp, docResp, embResp] = await Promise.all([
     supabase.from('card_index')
-      .select('card_id, board_id, title, body')
+      .select('card_id, board_id, kind, title, body')
       .eq('workspace_id', workspaceId),
     supabase.from('entity_search')
       .select('id, kind, board_id, title')
@@ -94,11 +95,13 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
   };
 
   for (const c of cards) {
+    // Images and videos are embedded by the server, with their descriptions.
+    if (!clientEmbedsKind(c.kind)) continue;
     considerEntity({
       kind: 'card',
       id: c.card_id,
       board_id: c.board_id,
-      text: [c.title || '', stripHtml(c.body)].filter(Boolean).join(' '),
+      text: embedTextForCard({ title: c.title, body: c.body }),
     });
   }
   for (const p of docPages) {
@@ -153,7 +156,7 @@ export async function warmupWorkspaceEmbeddings({ workspaceId, embeddingCache })
     const resp = await embedCards(slice.map(s => ({
       id: `${s.kind}|${s.id}`,
       text: s.text,
-    })));
+    })), { workspaceId });
     if (!resp?.embeddings?.length) continue;
     const rowsToUpsert = [];
     for (const e of resp.embeddings) {

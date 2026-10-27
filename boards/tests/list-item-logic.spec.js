@@ -97,9 +97,15 @@ test('rich preview marks: grid/doc/schedule/shape/note/link resolve real modes (
   expect(shape.preview.mode).toBe('shape');
   expect(shape.preview.shape).toBe('star');
 
+  // The caption is the note's title, so a one-line note's text isn't repeated
+  // under it; the lines after the first are the text.
   const note = toListItem({ id: 'n', kind: 'note', html: '<p>Hello <b>world</b></p>' }, {});
   expect(note.preview.mode).toBe('note');
-  expect(note.preview.text).toContain('Hello world');
+  expect(note.preview.title).toBe('Hello world');
+  expect(note.preview.text).toBe('');
+  const longNote = toListItem({ id: 'n2', kind: 'note', html: '<p>Shot list</p><p>Hello <b>world</b></p>' }, {});
+  expect(longNote.preview.title).toBe('Shot list');
+  expect(longNote.preview.text).toContain('Hello world');
 
   const link = toListItem({ id: 'l', kind: 'link', source: 'https://example.com', favicon: 'https://example.com/fav.ico' }, {});
   expect(link.preview.mode).toBe('link');

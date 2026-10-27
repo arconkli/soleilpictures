@@ -176,6 +176,14 @@ async function handleClassifyCandidates(request, env, token) {
   const workspaceId = (body.workspace_id || '').trim();
   if (!UUID_RE.test(workspaceId)) return json({ error: 'valid workspace_id required' }, 400);
   if (!(await isMember(env, token, workspaceId))) return json({ error: 'not a workspace member' }, 403);
+  // The workspace's AI switch: off means no model call. The client already
+  // keeps its deterministic candidates; answer empty so it does.
+  try {
+    const ws = await sbGet(env, `workspaces?id=eq.${encodeURIComponent(workspaceId)}&select=ai_tagger_enabled`);
+    if (Array.isArray(ws) && ws[0]?.ai_tagger_enabled === false) {
+      return json({ verdicts: [], classified: 0, cached: 0, ai_off: true }, 200);
+    }
+  } catch { /* unknown: carry on as before */ }
 
   // Normalize + dedupe candidates.
   const byLc = new Map();

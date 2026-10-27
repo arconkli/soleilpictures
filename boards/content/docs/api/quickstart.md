@@ -6,7 +6,7 @@ navLabel: Quickstart
 section: developers
 order: 1
 updated: 2026-08-08
-answer: Mint a token with write access under Settings then API, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
+answer: Mint a token with write access under Settings then Connections, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.
 faq:
   - q: What is the smallest useful request?
     a: GET /me with your bearer token. It confirms the token works and tells you which scopes it has and how much rate budget is left, before you try to write anything.

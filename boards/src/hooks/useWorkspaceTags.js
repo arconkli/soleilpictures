@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { listWorkspaceTags, listCardTags, listBoardTags, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
+import { listWorkspaceTags, listCardTags, listBoardTags, listGroupTags, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { resolveTagColor } from '../lib/tagColor.js';
 import { coalesce, touchesAppliedTag } from '../lib/tagSurface.js';
 
@@ -12,6 +12,7 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
   const [tags, setTags] = useState([]);
   const [cardTagRows, setCardTagRows] = useState([]);
   const [boardTagRows, setBoardTagRows] = useState([]);
+  const [groupTagRows, setGroupTagRows] = useState([]);
   // True once a fetch has landed, so "this tag isn't in the list" can be
   // told apart from "the list hasn't loaded yet" (App closes the profile of
   // a tag that was deleted or merged away).
@@ -33,10 +34,11 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
       const { workspaceId: ws, boardId: bid } = paramsRef.current;
       if (!ws) return;
       try {
-        const [t, c, b] = await Promise.all([
+        const [t, c, b, g] = await Promise.all([
           listWorkspaceTags(ws),
           bid ? listCardTags(bid) : Promise.resolve([]),
           bid ? listBoardTags(bid) : Promise.resolve([]),
+          bid ? listGroupTags(bid) : Promise.resolve([]),
         ]);
         const now = paramsRef.current;
         // Switched mid-fetch: these rows describe the board we left. The
@@ -45,6 +47,7 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
         setTags(t || []);
         setCardTagRows(c || []);
         setBoardTagRows(b || []);
+        setGroupTagRows(g || []);
         setLoaded(true);
       } catch (err) {
         console.warn('[tags] refresh failed', err);
@@ -125,5 +128,16 @@ export function useWorkspaceTags({ workspaceId, boardId }) {
     return m;
   }, [tags, boardTagRows]);
 
-  return { tags, loaded, byCard, byBoard, refresh };
+  const byGroup = useMemo(() => {
+    const tagById = new Map(tags.map(t => [t.id, t]));
+    const m = new Map();
+    for (const r of groupTagRows) {
+      const tag = tagById.get(r.tag_id);
+      if (!tag) continue;
+      if (!m.has(r.group_id)) m.set(r.group_id, []);
+      m.get(r.group_id).push({ ...tag, source: r.source, color: resolveTagColor(tag) });
+    }
+    return m;
+  }, [tags, groupTagRows]);
+  return { tags, loaded, byCard, byBoard, byGroup, refresh };
 }

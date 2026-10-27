@@ -86,14 +86,14 @@ test('money: whole dollars stay whole, a seat is prorated to the day', () => {
   assert.equal(money(2160), '$2,160');
   assert.equal(money(9.5), '$9.50');
   assert.equal(money(0), '$0');
-  assert.equal(teamHeroLine(10), 'Teams with more than 10 people who edit pay $15 a seat.');
+  assert.equal(teamHeroLine(10), 'Teams with more than 10 people who edit pay $25 a seat.');
   const plan = { interval: 'year', renewsAt: NOW + 73 * DAY };
-  assert.equal(seatPriceLabel(plan), '$144 a year');
-  assert.equal(proratedToday(plan, NOW), 28.8);
-  assert.equal(seatAddLine(plan, 1, NOW), '$144 a year, $28.80 today');
-  assert.equal(seatAddLine(plan, 2, NOW), '$144 a year each, $57.60 today');
+  assert.equal(seatPriceLabel(plan), '$240 a year');
+  assert.equal(proratedToday(plan, NOW), 48);
+  assert.equal(seatAddLine(plan, 1, NOW), '$240 a year, $48 today');
+  assert.equal(seatAddLine(plan, 2, NOW), '$240 a year each, $96 today');
   const monthly = { interval: 'month', renewsAt: NOW + 15 * DAY };
-  assert.equal(seatAddLine(monthly, 1, NOW), '$15 a month, $7.50 today');
+  assert.equal(seatAddLine(monthly, 1, NOW), '$25 a month, $12.50 today');
   assert.equal(proratedToday({ interval: 'month', renewsAt: NOW - DAY }, NOW), 0);
 });
 
@@ -101,12 +101,12 @@ test('a request uses a free seat first and buys one only when none is left', () 
   const t = sampleTeam('owner', NOW);
   assert.equal(approveLine(t, NOW), 'Approving uses one of the 3 free seats.');
   const full = { ...t, plan: { ...t.plan, seats: 12 } };
-  assert.match(approveLine(full, NOW), /^Approving adds a seat: \$144 a year, \$\d+(\.\d\d)? today\.$/);
+  assert.match(approveLine(full, NOW), /^Approving adds a seat: \$240 a year, \$\d+(\.\d\d)? today\.$/);
 });
 
-test('storage: 250 GB a seat, never under 1 TB', () => {
-  assert.equal(storageQuota(3), 1e12);
-  assert.equal(storageQuota(15), 3.75e12);
+test('storage: 1 TB a seat, as Creator', () => {
+  assert.equal(storageQuota(3), 3e12);
+  assert.equal(storageQuota(15), 15e12);
   assert.equal(sizeLabel(3.75e12), '3.75 TB');
   assert.equal(sizeLabel(1.2e12), '1.2 TB');
   assert.equal(sizeLabel(100e9), '100 GB');
@@ -121,7 +121,7 @@ test('the reducer: roles recount seats and buy one when none is free', () => {
   t = teamReducer(t, { type: 'role', personId: 'p-owen', role: 'member' });
   assert.equal(seatsUsed(t.people), 12);
   assert.equal(t.plan.seats, 12);
-  assert.equal(t.storage.quotaBytes, 3e12);
+  assert.equal(t.storage.quotaBytes, 12e12);
 });
 
 test('the reducer: approve makes the viewer an editor where they asked; keep leaves them viewing', () => {

@@ -22,7 +22,10 @@ import { Icon } from './Icon.jsx';
 import { Bold, HighlighterCircle, Italic, Link, Underline } from '../lib/icons.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
-import { untagDocRange, tagDocRange } from '../lib/tagsApi.js';
+import { untagDocRange, tagDocRange, restoreDocTagRows, listWorkspaceTags, ensureTag } from '../lib/tagsApi.js';
+import { TagPicker } from './TagPicker.jsx';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { undoToast } from '../lib/undoToast.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
 import { extractTagMentions } from '../lib/extractTagMentions.js';
@@ -36,7 +39,8 @@ import { makeTagRangePlugin, TAG_RANGE_KEY } from './docExtensions/TagRangePlugi
 import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
-import { runParagraphCascade, loadWorkspaceTagCentroids } from '../lib/aiParagraphCascade.js';
+import { runParagraphCascade, loadWorkspaceTagCentroids, reconcilePageRanges } from '../lib/aiParagraphCascade.js';
+import { useWorkspaceAiEnabled } from '../hooks/useWorkspaceAiEnabled.js';
 import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
 import { DocTagGutter } from './DocTagGutter.jsx';
 import { rangeBoxes } from '../lib/paragraphHash.js';
@@ -265,7 +269,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       if (!(length > 0)) return null;
       const $from = ed.state.doc.resolve(from);
       let depth = $from.depth;
-      while (depth > 0 && $from.node(depth).type.name !== 'paragraph') depth--;
+      while (depth > 0 && !['paragraph', 'screenplayBlock'].includes($from.node(depth).type.name)) depth--;
       if (depth === 0) return null;
       const paraStart = $from.start(depth);
       const raw = $from.node(depth).textContent || '';
@@ -274,9 +278,75 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       const leading = raw.length - raw.replace(/^\s+/, '').length;
       const startOffset = (from - paraStart) - leading;
       if (startOffset < 0 || startOffset + length > trimmed.length) return null;
-      return { pHash: contentHash(trimmed), startOffset, length };
+      // text lets the range follow its word when the paragraph is edited
+      // (lib/docRangeReconcile.js).
+      return { pHash: contentHash(trimmed), startOffset, length, text: el.textContent || '' };
     } catch (_) {
       return null;
+    }
+  };
+
+  // "Tag selection…": the selected words become a range tag, anchored the
+  // way a promoted name is. One block only, and not a short one (the range
+  // renderer skips blocks under 20 characters).
+  const selectionAnchor = () => {
+    const ed = editorRef.current;
+    if (!ed?.state) return null;
+    const { from, to, empty } = ed.state.selection;
+    if (empty) return null;
+    try {
+      const $from = ed.state.doc.resolve(from);
+      let depth = $from.depth;
+      while (depth > 0 && !['paragraph', 'screenplayBlock'].includes($from.node(depth).type.name)) depth--;
+      if (depth === 0) return null;
+      const blockStart = $from.start(depth);
+      if (to > $from.end(depth)) return null;
+      const raw = $from.node(depth).textContent || '';
+      const trimmed = raw.trim();
+      if (trimmed.length < 20) return null;
+      const leading = raw.length - raw.replace(/^\s+/, '').length;
+      const startOffset = (from - blockStart) - leading;
+      const length = to - from;
+      const text = ed.state.doc.textBetween(from, to, ' ');
+      if (startOffset < 0 || startOffset + length > trimmed.length || !text.trim()) return null;
+      return { pHash: contentHash(trimmed), startOffset, length, text };
+    } catch (_) {
+      return null;
+    }
+  };
+  const [docTagPicker, setDocTagPicker] = useState(null); // { anchor, rect, tags }
+  const openTagSelection = async () => {
+    const anchor = selectionAnchor();
+    if (!anchor) {
+      feedback.toast({ type: 'info', message: 'Select words inside one paragraph to tag them.' });
+      return;
+    }
+    let rect = null;
+    try {
+      const c = editorRef.current.view.coordsAtPos(editorRef.current.state.selection.from);
+      rect = { left: c.left, top: c.top, bottom: c.bottom, right: c.right };
+    } catch (_) {}
+    try {
+      const tags = await listWorkspaceTags(workspaceId);
+      setDocTagPicker({ anchor, rect, tags });
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_list_failed', message: 'Could not load tags: ' + (err.message || err) });
+    }
+  };
+  const tagSelectionWith = async (tag, via) => {
+    const picked = docTagPicker;
+    setDocTagPicker(null);
+    if (!picked || !tag?.id || !scope?.docCardId) return;
+    try {
+      await tagDocRange({
+        workspaceId, docCardId: scope.docCardId, pageId,
+        boardId: scope?.boardId || null,
+        tagId: tag.id, source: 'user',
+        sourceAnchor: picked.anchor,
+      });
+      try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'doc', via, tag_id: tag.id }); } catch (_) {}
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
     }
   };
 
@@ -1049,13 +1119,28 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // before it can fire (the cascade would never run).
   const scopeDocCardId = scope?.docCardId || null;
   const scopeBoardId   = scope?.boardId   || null;
+  // May this doc's text go to a model? The workspace's AI switch, and only
+  // for someone who can edit it (a viewer's or a share link's results can't
+  // be saved).
+  const aiEnabled = useWorkspaceAiEnabled(workspaceId);
+  const docWritable = editable && !isPublic;
+  const aiCallsAllowedRef = useRef(false);
+  aiCallsAllowedRef.current = aiEnabled === true && docWritable;
+  const docWritableRef = useRef(docWritable);
+  docWritableRef.current = docWritable;
   useEffect(() => {
     if (!editor || !workspaceId) return;
     if (!scopeDocCardId || !activePageId) return;
+    if (!docWritable) return;
     let timer = null;
     const fire = async () => {
       try {
         const paragraphs = extractParagraphTags(editor.state.doc);
+        if (aiEnabled !== true) {
+          // No model calls. A person's range tags still follow their words.
+          await reconcilePageRanges({ docCardId: scopeDocCardId, pageId: activePageId, paragraphs });
+          return;
+        }
         if (paragraphs.length === 0) return;
         const centroids = await loadWorkspaceTagCentroids(workspaceId);
         if (centroids.size === 0) return;
@@ -1081,7 +1166,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       if (timer) clearTimeout(timer);
       editor.off('update', onUpdate);
     };
-  }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId]);
+  }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId, aiEnabled, docWritable]);
 
   // Observe links Y.Map and debounce-call updateBacklinks (2s inactivity).
   // Skipped for root doc — those have no docCardId to anchor backlinks.
@@ -1135,6 +1220,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         // the doc only re-calls /apply when the surrounding text changes.
         const trie = nameIndexRef.current;
         if (!trie?.findMatches) return;
+        // A viewer's or a share link's mention rows can't be saved.
+        if (!docWritableRef.current) return;
 
         // Step 1: collect mentions per page; partition cached vs uncached.
         const perPage = [];                  // [{ pageId, mentions, uncached }]
@@ -1165,13 +1252,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           }
         }
 
-        // Step 2: fetch missing verdicts in chunks of 16 (worker cap).
-        if (uncachedToFetch.length > 0) {
+        // Step 2: fetch missing verdicts in chunks of 16 (worker cap). With
+        // the workspace's AI off nothing is asked: unverdicted mentions stay
+        // mentions.
+        if (uncachedToFetch.length > 0 && aiCallsAllowedRef.current) {
           for (let i = 0; i < uncachedToFetch.length; i += 16) {
             const slice = uncachedToFetch.slice(i, i + 16);
             try {
-              const resp = await applyCards(slice.map(({ _key, ...c }) => c));
-              const verdicts = resp?.verdicts || [];
+              const resp = await applyCards(slice.map(({ _key, ...c }) => c), { workspaceId });
+              // null is a failed call (budget, 5xx, cooldown), not a verdict:
+              // leave the slice uncached so the next sync asks again.
+              if (!resp) continue;
+              const verdicts = resp.verdicts || [];
               const byId = new Map(slice.map(s => [s.id, s._key]));
               for (const v of verdicts) {
                 const key = byId.get(v.card_id);
@@ -1192,29 +1284,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             }
           }
         }
-
-        // Tier 1-3 paragraph cascade — runs on the active page only
-        // (other pages aren't in this editor instance). Scoped to the
-        // workspace's existing tag centroids.
-        try {
-          if (editorRef.current && activePageId) {
-            const paragraphs = extractParagraphTags(editorRef.current.state.doc);
-            if (paragraphs.length > 0) {
-              const centroids = await loadWorkspaceTagCentroids(workspaceId);
-              if (centroids.size > 0) {
-                await runParagraphCascade({
-                  workspaceId,
-                  docCardId,
-                  boardId: (scope && scope.boardId) || null,
-                  pageId: activePageId,
-                  paragraphs,
-                  tagCentroids: centroids,
-                  trie,
-                });
-              }
-            }
-          }
-        } catch (e) { console.warn('paragraph-cascade', e?.message || e); }
 
         // Step 3: per-page, bucket by verdict and persist.
         for (const { pageId, mentions } of perPage) {
@@ -1309,9 +1378,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                             onOpenLinkPicker={openLinkPicker}
                             onAddComment={addComment.open}
                             closeTagHover={() => setTagHover(null)}
+                            onTagSelection={editable && scope?.docCardId ? openTagSelection : null}
                             onRemoveTag={editable && scope?.docCardId ? async (info) => {
                               try {
-                                await untagDocRange({
+                                const removed = await untagDocRange({
                                   workspaceId,
                                   docCardId: scope.docCardId,
                                   pageId,
@@ -1322,9 +1392,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                                   message: 'Tag removed',
                                   onUndo: async () => {
                                     try {
-                                      await tagDocRange({
+                                      await restoreDocTagRows({
                                         workspaceId, docCardId: scope.docCardId, pageId,
-                                        tagId: info.tagId, sourceAnchor: info.sourceAnchor, source: 'user',
+                                        tagId: info.tagId, rows: removed,
                                       });
                                     } catch (err) {
                                       feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
@@ -1426,7 +1496,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             setTagHover(null);
             const removedTagId = tagHover.tagId;
             try {
-              await untagDocRange({
+              const removed = await untagDocRange({
                 workspaceId,
                 docCardId: scope.docCardId,
                 pageId,
@@ -1437,9 +1507,9 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                 message: 'Tag removed',
                 onUndo: async () => {
                   try {
-                    await tagDocRange({
+                    await restoreDocTagRows({
                       workspaceId, docCardId: scope.docCardId, pageId,
-                      tagId: removedTagId, sourceAnchor: anchor, source: 'user',
+                      tagId: removedTagId, rows: removed,
                     });
                   } catch (err) {
                     feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
@@ -1453,6 +1523,24 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           onMouseEnter={cancelHoverTimers}
           onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setTagHover(null), 200); }}
           onClose={() => setTagHover(null)}
+        />
+      )}
+      {docTagPicker && (
+        <TagPicker
+          open
+          anchorRect={docTagPicker.rect}
+          onClose={() => setDocTagPicker(null)}
+          tags={docTagPicker.tags}
+          appliedIds={new Set()}
+          onToggle={(t) => tagSelectionWith(t, 'selection')}
+          onCreate={async (name) => {
+            try {
+              const t = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
+              await tagSelectionWith(t, 'selection_create');
+            } catch (err) {
+              feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+            }
+          }}
         />
       )}
       {candidatePrompt && editable && (
@@ -1646,7 +1734,7 @@ function pointIsOnWord(x, y) {
 // Windows/Linux, where ⌘ is the wrong key.
 const CLIP_MOD = (typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '')) ? '⌘' : 'Ctrl+';
 
-function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTagHover, onRemoveTag, onNotice }) {
+function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTagHover, onRemoveTag, onTagSelection, onNotice }) {
   const [pos, setPos] = useState(null);
   useEffect(() => {
     const root = editor?.view?.dom;
@@ -1774,6 +1862,10 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
           <CtxSep />
           <CtxItem icon={<CommentIcon />} label="Add comment" shortcut="⌘⌥M"
                 onClick={run(() => onAddComment?.())} />
+          {onTagSelection && (
+            <CtxItem icon={<TagIcon />} label="Tag selection…"
+                  onClick={run(() => onTagSelection())} />
+          )}
         </>
       )}
       {pos.tagInfo && onRemoveTag && (
@@ -1818,4 +1910,5 @@ const CommentIcon = () => svg({}, <><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 
 const CutIcon   = () => svg({}, <><circle cx="4" cy="11" r="1.6" /><circle cx="10" cy="11" r="1.6" /><path d="M5.2 9.8 L10 2 M8.8 9.8 L4 2" /></>);
 const CopyIcon  = () => svg({}, <><rect x="4.5" y="4.5" width="7" height="7.5" rx="1.2" /><path d="M2.5 9.5 V3 A1 1 0 0 1 3.5 2 H8.5" /></>);
 const PasteIcon = () => svg({}, <><rect x="3" y="3" width="8" height="9.5" rx="1.2" /><path d="M5.5 3 V2 H8.5 V3" /></>);
+const TagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /></>);
 const RemoveTagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /><path d="M4 9 L8 13 M8 9 L4 13" strokeWidth="1.6" /></>);

@@ -65,7 +65,6 @@ test('resting icons and labels are not gold', async ({ page }) => {
     ['<span class="tag-detail-row-attr is-auto">auto</span>', '.is-auto', 'color'],
     ['<span class="tag-detail-block-attr is-auto">auto</span>', '.is-auto', 'color'],
     ['<span class="picker-dot list"></span>', '.picker-dot', 'backgroundColor'],
-    ['<button class="tag-disambig-yes">Yes</button>', '.tag-disambig-yes', 'color'],
     // SHARE-17: the doc margin's comment dots.
     ['<div class="comment-gutter"><button class="comment-gutter-dot"></button></div>', '.comment-gutter-dot', 'backgroundColor'],
   ];

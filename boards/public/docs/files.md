@@ -1,8 +1,8 @@
 # Files and uploads
 
-> Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
+> Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; Word, PowerPoint, Excel and other documents show their first page; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
-_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-24_
+_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-27_
 
 Drag a file onto the canvas. The type is detected and the right kind of card is
 created — you never pick "upload as image" from a menu.
@@ -11,10 +11,11 @@ created — you never pick "upload as image" from a menu.
 
 | You drop | You get |
 |---|---|
-| Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000) | An [image card](/docs/canvas/images) with adjustments, shown in every browser |
+| Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000, camera raw, Photoshop `.psd`) | An [image card](/docs/canvas/images) with adjustments, shown in every browser |
 | Video | An inline [player](/docs/files/video-and-audio) |
 | Audio | A [waveform player](/docs/files/video-and-audio) with cover art |
 | PDF | A [page-one thumbnail](/docs/files/pdf) opening into a full viewer |
+| Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF) | A card showing its first page, opening on all its pages |
 | Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
 | PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
 | An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
@@ -23,6 +24,14 @@ created — you never pick "upload as image" from a menu.
 Small text files get an inline preview on the card rather than only a download.
 Double-click a file card to open it full screen, with **Download** and **Share**
 there.
+
+A document's card shows its first page, at the page's own shape, as a
+[PDF](/docs/files/pdf)'s does — a spreadsheet's shows its first sheet — and
+counts its pages. It opens on its pages, which page through as a PDF's do.
+They are made once, in the background, so a new document's card takes a few
+seconds to show its page: the first 200 pages of a document up
+to 256 MB. A document with a password, or one that's damaged,
+stays a file card, with the download.
 
 ## Limits
 
@@ -40,8 +49,8 @@ started, and to theirs when they join ([Referrals](/docs/account/referrals)).
 
 > **Note:** The drive and the [card cap](/docs/canvas/cards) are the real,
 > enforced differences between free and paid — a free account stops at
-> whichever it reaches first. Clusters, collaborators and editing are not
-> limited on any plan.
+> whichever it reaches first. Clusters and editing are not limited on any
+> plan, and up to 10 people can edit on Free and Creator alike.
 
 ## Large uploads
 

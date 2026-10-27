@@ -32,7 +32,7 @@ Nest a cluster per character, environment or shot and the project stays navigabl
 
 ## One plan for the team, not a licence per seat
 
-Clusters has no per-seat charges at all. Editors are free on every plan, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six.
+Free and Creator have no per-seat charges. Up to 10 people edit free on either, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six. A department with more than 10 people who edit moves to Team, which is priced per seat.
 
 ## Where a desktop app is still the right call
 
@@ -41,7 +41,7 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 ## How a studio sets one up
 
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
-2. **Invite the team** — Invite artists as editors by email or with an invite link. Editors are free on every plan, and everyone lands in the same live board.
+2. **Invite the team** — Invite artists as editors by email or with an invite link. Up to 10 people edit free on Free and Creator, and everyone lands in the same live board.
 3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.
 4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
@@ -55,14 +55,14 @@ Start free. Pay when you outgrow it.
 - **50 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to 10 people who edit
 
 **Creator — $25/mo, or $20/mo billed annually**
 
 - Unlimited cards
 - A 1TB drive
 
-One Creator plan covers the whole workspace — everyone you invite builds at your limits, and there are no per-seat charges.
+One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
 Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
@@ -74,7 +74,7 @@ Put the reference in one board everyone can open and edit at once, instead of pa
 
 ### Do the artists I invite need to pay?
 
-No. Editors are free on every plan. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.
+No. Up to 10 people edit free on Free and Creator. Limits are charged to the workspace owner, so one Creator plan lifts the ceiling for everyone working in that workspace — there are no per-seat charges.
 
 ### Can a client or supervisor see the board without an account?
 

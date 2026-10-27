@@ -17,25 +17,9 @@
 import { supabase } from './supabase.js';
 import { parsePgvector } from './tagsClient.js';
 import { cosineDist, SILENT_APPLY_DIST, SUGGEST_DIST } from './clusterMath.js';
-import { tagCard, tagGroup, tagBoard, tagDocPage } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 import { propagateTagToGroups } from './aiGroupPropagation.js';
 
-// Dispatch a tag application to the right helper for an entity kind.
-// All four resolve to entity_links inserts under the hood; this just
-// keeps the call site clean as we process a mixed kind list.
-async function applyTagToEntity({ entityKind, entityId, boardId, docCardId, workspaceId, tagId }) {
-  if (entityKind === 'group') {
-    return tagGroup({ workspaceId, boardId, groupId: entityId, tagId, source: 'auto' });
-  }
-  if (entityKind === 'board') {
-    return tagBoard({ workspaceId, boardId: entityId, tagId, source: 'auto' });
-  }
-  if (entityKind === 'doc-page') {
-    return tagDocPage({ workspaceId, docCardId, pageId: entityId, boardId, tagId, source: 'auto' });
-  }
-  return tagCard({ workspaceId, boardId, cardId: entityId, tagId, source: 'auto' });
-}
 
 // Build the cache key the entity_links realtime sub uses to track
 // applied tags. Mirrors useAiTagger's `${source_kind}:${source_id}`.
@@ -115,21 +99,13 @@ export async function backfillTagAgainstWorkspace({ workspaceId, tag, centroid, 
     console.log(`[ai-backfill] tag "${tag.name}" → ${silent.length} silent, ${suggested.length} suggestions, ${rows.length - silent.length - suggested.length} dropped`);
   }
 
-  // 3. Silent applies — parallel inserts dispatched by kind.
-  await Promise.allSettled(silent.map(r => applyTagToEntity({
-    entityKind: r._kind,
-    entityId:   r.card_id,
-    boardId:    r.board_id,
-    docCardId:  r.doc_card_id || null,
-    workspaceId,
-    tagId:      tag.id,
-  })));
-
-  // 4. Suggestions — single bulk upsert into tag_suggestions. Skip
-  //    duplicates so any existing row (especially dismissed tombstones)
-  //    stays intact.
-  if (suggested.length > 0) {
-    const rowsToInsert = suggested.map(r => ({
+  // 3. Nothing is applied from an embedding: the close band joins the
+  //    suggestions (the word-match backfill, backfill_tag_applications,
+  //    already applied what the text actually says). One bulk upsert that
+  //    skips duplicates, so a dismissed suggestion stays dismissed.
+  const toSuggest = [...silent, ...suggested];
+  if (toSuggest.length > 0) {
+    const rowsToInsert = toSuggest.map(r => ({
       tag_id: tag.id,
       source_kind: r._kind,
       source_id: r.card_id,

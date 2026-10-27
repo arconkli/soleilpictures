@@ -5,13 +5,13 @@ h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-10-21
-answer: The free Demo plan gives you {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from {{fact:freeStorage}} to {{fact:creatorStorage}}. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.
+updated: 2026-10-27
+answer: The free Demo plan gives you {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever comes first, up to {{fact:editorLimit}} people who edit, and any file at any size; clusters cost no cards. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes two things: the card cap is removed, and your drive grows to {{fact:creatorStorage}}. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than {{fact:editorLimit}} people who edit, at {{fact:teamSeatMonthly}} a seat a month.
 faq:
   - q: What is actually limited on the free plan?
-    a: Two things — total cards and total storage — {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards.
+    a: Two things — total cards and total storage — {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever you reach first. Any file of any size is welcome on every plan; there is no per-file limit at all. Clusters are free — they cost none of your cards — and people are the same on Free and {{fact:planName}}: up to {{fact:editorLimit}} who edit, and as many as you like who view.
   - q: Do collaborators need to pay?
-    a: No, and they never did — editors are free on every plan. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
+    a: No. On Free and {{fact:planName}}, up to {{fact:editorLimit}} people can edit at no cost to them, and anyone can view; more than that is what [Team](/docs/account/team) is for. What {{fact:planName}} adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges.
   - q: If someone on my team upgrades, does my workspace get the higher limits?
     a: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it.
   - q: What happens when I hit a limit?
@@ -30,10 +30,12 @@ related:
   - /docs/account/referrals
 ---
 
-Two plans. The difference between them is deliberately small and deliberately
-honest — two enforced limits, listed below, and nothing else. The
-[pricing page](/pricing) puts the two side by side, and its plain-Markdown twin
-is at [/pricing.md](/pricing.md) for anything that reads text rather than pages.
+Three plans. Free and {{fact:planName}} differ deliberately little and
+deliberately honestly — two enforced limits, listed below, and nothing else.
+[Team](/docs/account/team) is for a group with more than {{fact:editorLimit}}
+people who edit, and is priced per seat. The [pricing page](/pricing) puts the
+three side by side, and its plain-Markdown twin is at [/pricing.md](/pricing.md)
+for anything that reads text rather than pages.
 
 Pressing **Get {{fact:planName}}** there before you have an account signs you in
 first, then opens the {{fact:planName}} offer in the app with the plan you picked —
@@ -46,7 +48,7 @@ page, drops it.
 - **{{fact:demoCardLimit}} cards** to build with
 - A **{{fact:freeStorage}}** drive — any file, at any size
 - Clusters are free — they cost none of your cards
-- Free collaboration — invite editors to any cluster
+- Free collaboration — up to {{fact:editorLimit}} people who edit
 
 The free plan stops at whichever limit you reach first.
 
@@ -62,8 +64,9 @@ The free plan stops at whichever limit you reach first.
   holds **{{fact:creatorStorage}}**, room for the footage, the camera originals and the
   project archives. (During a [trial](#trying-creator-first) it is
   {{fact:trialStorage}}, and the full drive comes with the first payment.)
-- **Covers your whole workspace** — everyone you invite builds at your limits,
-  and there are no per-seat charges.
+- **Covers your whole workspace** — everyone you invite builds at your limits:
+  up to {{fact:editorLimit}} people who edit, anyone who views, and no per-seat
+  charges.
 
 ## What is genuinely limited
 
@@ -88,8 +91,11 @@ it costs no cards.
 
 Those limits are charged to **whoever owns the workspace**, never to the
 person doing the work. So a single {{fact:planName}} plan lifts them for
-everyone in that workspace: invite whoever you like, and they build at your
-limits without a plan of their own. There are no per-seat charges on any plan.
+everyone in that workspace: invite up to {{fact:editorLimit}} people to edit,
+and as many as you like to view, and they build at your limits without a plan
+of their own. There are no per-seat charges on Free or {{fact:planName}}. A
+group with more than {{fact:editorLimit}} people who edit uses
+[Team](/docs/account/team), which is priced per seat.
 
 The same rule is why a free workspace stays limited no matter who is working in
 it — a collaborator's own plan never applies to someone else's workspace. If you

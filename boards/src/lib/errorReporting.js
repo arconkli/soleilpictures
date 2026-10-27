@@ -183,6 +183,6 @@ export function installErrorWatch() {
   // splash every loading step after that shows (AuthGate, TierRouter, App).
   // The sender says how far the boot got (lib/bootMarks.js).
   setTimeout(() => {
-    if (document.querySelector('#boot-splash, .auth-loading')) hand({ t: 'boot', m: moment() });
+    if (document.querySelector('#boot-splash, .auth-loading')) hand({ t: 'boot', m: moment(), after: BOOT_STUCK_MS });
   }, BOOT_STUCK_MS);
 }

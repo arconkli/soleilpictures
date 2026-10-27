@@ -5,7 +5,7 @@ h1: Search API
 navLabel: Search
 section: developers
 order: 9
-updated: 2026-08-08
+updated: 2026-10-25
 answer: GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
 faq:
   - q: What does search look at?
@@ -41,7 +41,8 @@ curl -s "$SOLEIL_API/search?q=diner&kind=card&limit=20" \
 
 Boards and cards come back in separate lists, each carrying enough to act on
 without a second lookup — a card result includes its `board_id`, so you can
-`PATCH` it straight away.
+`PATCH` it straight away, and `board_name`, so you can say where it is — and a
+`url` that opens it in the app.
 
 Everything runs **under your permissions**. Boards you cannot open do not
 appear, and there is no mode that searches beyond what your account can see.

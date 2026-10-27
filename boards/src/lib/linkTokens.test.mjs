@@ -5,21 +5,27 @@
 //
 // The rule lives in four places that must agree: the client's redaction
 // (linkTokens.js, which buildRow runs on every row), the database's (0474's
-// helpers and triggers, for every client version and every SQL writer), the
-// pixel's guard inlined in index.html, and the same test in metaPixel.js for
-// the page views the app fires itself. The token keeps exactly one home,
+// triggers, for every client version and every SQL writer, calling the helpers
+// 0707 restated to add the keep page), the pixel's guard inlined in
+// index.html, and the same test in metaPixel.js for the page views the app
+// fires itself. The token keeps exactly one home,
 // profiles.first_source, where the sharer's credit reads it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
-import { MIGRATIONS_DIR, latestDefinition } from './migrationText.mjs';
-import { LINK_TOKEN_KEYS, TOKEN_PARAMS, redactLinkText, redactLinkTokens, urlCarriesLinkToken } from './linkTokens.js';
+import { MIGRATIONS_DIR, definitionsOf, latestDefinition } from './migrationText.mjs';
+import { LINK_TOKEN_KEYS, TOKEN_PARAMS, redactLinkText, redactLinkTokens, redactKeepLink, urlCarriesLinkToken } from './linkTokens.js';
 import { firstSourcePayload } from './eventEnv.js';
 
 const FILE = '0474_no_link_tokens_in_telemetry.sql';
 const sql = readFileSync(join(MIGRATIONS_DIR, FILE), 'utf8');
+// The helpers' latest definitions: 0474's, with /keep/ added.
+const HELPERS_FILE = '0707_keep_links_are_link_tokens.sql';
+const helpersSql = readFileSync(join(MIGRATIONS_DIR, HELPERS_FILE), 'utf8');
+// Every route that opens something by its token.
+const ROUTES = ['f', 'keep', 'share', 't'];
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const SRC = new URL('..', import.meta.url).pathname;
 
@@ -43,30 +49,58 @@ test("the client redacts 0474's own samples the way the database does", () => {
   assert.equal(redactLinkText(`/T/${TOK.toUpperCase()}/`), '/T/:token/');
   assert.equal(redactLinkText(`at https://x/share/${TOK}:1:20`), 'at https://x/share/:token:1:20');
   assert.equal(redactLinkText(null), null);
-  // And the proof really does hold those samples.
+  // And the proofs really do hold those samples.
   for (const s of ["'lt_utm_campaign', 'share_link/' || upper(v_tok)", "'path_b', '/b/' || v_board",
     "_redact_link_text('/T/' || upper(v_tok) || '/') is distinct from '/T/:token/'"]) {
     assert.ok(sql.includes(s), `0474's proof no longer carries ${s}`);
+    assert.ok(helpersSql.includes(s), `0707's proof no longer carries ${s}`);
+  }
+});
+
+test("the client redacts 0707's keep-page samples the way the database does", () => {
+  assert.equal(redactLinkText(`/keep/${TOK}`), '/keep/:token');
+  assert.equal(redactLinkText(`/KEEP/${TOK.toUpperCase()}?b=${BOARD}`), `/KEEP/:token?b=${BOARD}`);
+  assert.deepEqual(redactLinkTokens({ landing_path: `/keep/${TOK}`, board_id: BOARD }),
+    { landing_path: '/keep/:token', board_id: BOARD });
+  assert.equal(redactLinkText(`/keeper/${TOK}`), `/keeper/${TOK}`);
+  for (const s of ["_redact_link_text('/keep/' || v_tok) is distinct from '/keep/:token'",
+    "_redact_link_text('/KEEP/' || upper(v_tok) || '?b=' || v_board) is distinct from '/KEEP/:token?b=' || v_board",
+    "jsonb_build_object('landing_path', '/keep/:token', 'board_id', v_board)",
+    "_redact_link_text('/keeper/' || v_tok) is distinct from '/keeper/' || v_tok"]) {
+    assert.ok(helpersSql.includes(s), `0707's proof no longer carries ${s}`);
   }
 });
 
 test('the database drops the same keys and knows the same routes', () => {
+  for (const fn of ['_redact_link_text', '_redact_link_tokens']) {
+    assert.equal(latestDefinition(fn)?.file, HELPERS_FILE, `${HELPERS_FILE} owns the latest ${fn}`);
+  }
   const def = latestDefinition('_redact_link_tokens');
-  assert.ok(def && def.file === FILE, '0474 owns the latest redaction');
   const lists = [...def.body.matchAll(/(?:array\[|not in \()('share_token'[^\])]*)/g)]
     .map((m) => [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]));
   assert.equal(lists.length, 2, 'the fast path and the rebuild each name the keys');
   for (const keys of lists) assert.deepEqual(keys, [...LINK_TOKEN_KEYS]);
-  const alternations = [...sql.matchAll(/\/\((?:\?:)?([a-z|]+)\)\/\)?\[0-9a-f\]\{8\}/g)].map((m) => m[1]);
-  assert.ok(alternations.length >= 3, 'the text helper, the fast path and the rebuild');
-  for (const a of alternations) assert.equal(a, 'share|f|t');
+  const alternations = [...helpersSql.matchAll(/\/\((?:\?:)?([a-z|]+)\)\/\)?\[0-9a-f\]\{8\}/g)].map((m) => m[1]);
+  assert.equal(alternations.length, 3, 'the text helper, the fast path and the rebuild');
+  for (const a of alternations) assert.deepEqual(a.split('|').sort(), ROUTES);
+});
+
+test("0707's helpers are 0474's with the keep route added, and nothing else", () => {
+  const definedIn = (fn, file) => definitionsOf(fn).find((d) => d.file === file)?.body ?? null;
+  for (const [fn, sites] of [['_redact_link_text', 1], ['_redact_link_tokens', 2]]) {
+    const before = definedIn(fn, FILE);
+    const after = definedIn(fn, HELPERS_FILE);
+    assert.ok(before && after, `${fn} is defined in both files`);
+    assert.equal(before.split('share|f|t)').length - 1, sites, `0474's ${fn} names the routes ${sites} time(s)`);
+    assert.equal(after, before.replaceAll('share|f|t)', 'share|f|t|keep)'));
+  }
 });
 
 test('every route that opens something by its token is redacted and keeps the pixel away', () => {
   const main = read('../main.jsx');
   const routes = [...main.matchAll(/pathname\.match\(\/\^\\\/([a-z]+)\\\/\(\[0-9a-f-\]\{36\}\)/g)].map((m) => m[1]);
-  assert.deepEqual(routes.sort(), ['f', 'share', 't'],
-    'a new token route needs its place in linkTokens.js, 0474 (a new migration) and index.html');
+  assert.deepEqual(routes.sort(), ROUTES,
+    'a new token route needs its place in linkTokens.js, the database\'s helpers (a new migration) and index.html');
   for (const r of routes) {
     assert.equal(redactLinkText(`/${r}/${TOK}`), `/${r}/:token`);
     assert.equal(urlCarriesLinkToken({ pathname: `/${r}/${TOK}`, search: '' }), true);
@@ -74,11 +108,13 @@ test('every route that opens something by its token is redacted and keeps the pi
 });
 
 test('the helpers and both trigger functions are closed, definer, and proven', () => {
-  for (const fn of ['_redact_link_text(text)', '_redact_link_tokens(jsonb)',
-    '_tg_redact_event_links()', '_tg_redact_client_error_links()']) {
+  for (const [fn, files] of [['_redact_link_text(text)', [sql, helpersSql]], ['_redact_link_tokens(jsonb)', [sql, helpersSql]],
+    ['_tg_redact_event_links()', [sql]], ['_tg_redact_client_error_links()', [sql]]]) {
     const esc = fn.replace(/[()]/g, '\\$&');
-    assert.match(sql, new RegExp(`revoke all on function public\\.${esc} from public, anon, authenticated`), fn);
-    assert.ok(sql.includes(`'public.${fn}'`), `${fn}: a REVOKE that reports success proves nothing`);
+    for (const text of files) {
+      assert.match(text, new RegExp(`revoke all on function public\\.${esc} from public, anon, authenticated`), fn);
+      assert.ok(text.includes(`'public.${fn}'`), `${fn}: a REVOKE that reports success proves nothing`);
+    }
   }
   for (const fn of ['_tg_redact_event_links', '_tg_redact_client_error_links']) {
     assert.match(sql, new RegExp(`create or replace function public\\.${fn}\\(\\)\\s+returns trigger\\s+language plpgsql\\s+security definer`),
@@ -112,6 +148,16 @@ test("the token's one home is the profile: the stamp sends it unredacted", () =>
   const bag = { share_token: TOK, utm_source: 'share_link', utm_campaign: TOK, landing_path: `/share/${TOK}` };
   assert.equal(firstSourcePayload(bag, 'prod').share_token, TOK, "the sharer's credit reads it from profiles.first_source");
   assert.doesNotMatch(sql, /\bupdate\s+public\.profiles\b/i, '0474 must leave profiles.first_source alone');
+});
+
+test("a keep link's token stays out of first touch as well: it credits no one", () => {
+  assert.equal(redactKeepLink(`/keep/${TOK}`), '/keep/:token');
+  assert.equal(redactKeepLink(`/KEEP/${TOK.toUpperCase()}/`), '/KEEP/:token/');
+  for (const r of ['share', 'f', 't']) {
+    assert.equal(redactKeepLink(`/${r}/${TOK}`), `/${r}/${TOK}`, `/${r}/'s token is its sharer's credit`);
+  }
+  assert.match(read('./analytics.js'),
+    /source\.landing_path = redactKeepLink\(window\.location\.pathname\)\.slice\(0, 200\);/);
 });
 
 function walk(dir, out = []) {

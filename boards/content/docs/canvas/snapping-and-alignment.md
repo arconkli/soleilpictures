@@ -5,7 +5,7 @@ h1: Snapping and alignment
 navLabel: Snapping and alignment
 section: canvas
 order: 11
-updated: 2026-10-20
+updated: 2026-10-27
 answer: As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.
 faq:
   - q: How do I place something deliberately off-grid?
@@ -48,7 +48,10 @@ setting you have to remember to turn back on is a setting that stays wrong.
 Select several cards and right-click. Under **Arrange** you get:
 
 **Align** — Left, Center, Right, Top, Middle, Bottom. Every selected card moves
-to that edge of the selection's own bounding box. Nothing is resized.
+to that edge of the selection's own bounding box. Nothing is resized, and
+nothing lands on top of anything else: cards that would meet on the edge line
+up one after another instead, in the order they were in. Left on a grid of
+pictures makes one column, in reading order, rather than a pile.
 
 **Distribute** — Horizontally or Vertically. The two outermost cards stay put
 and the ones between them are spread so the **gaps** are equal. Equal gaps

@@ -1,0 +1,10 @@
+/* The company-domain note (TeamDomainNote.jsx): the team link card's corner
+   card (.share-prompt) with the team's mark beside its name. Lazy with it. */
+.tdn-row { display: flex; align-items: center; gap: 10px; }
+.tdn-mark {
+  flex: none; width: 28px; height: 28px; border-radius: 7px;
+  display: grid; place-items: center;
+  background: var(--bg-3); color: var(--ink-0);
+  font: 700 12px/1 var(--font-sans);
+}
+.tdn .share-prompt-title { padding-right: 0; }

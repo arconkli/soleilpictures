@@ -101,7 +101,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and unlimited collaborators. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
+        "a": "Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and up to 10 people who edit, free. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
       },
       {
         "q": "What is a cluster?",
@@ -122,7 +122,7 @@ export const DOCS_PAGES = [
     "title": "Getting Started with Soleil Clusters",
     "metaDescription": "Sign in, make your first cluster, get images onto the canvas and share it. A five-minute walkthrough of Soleil Clusters from empty account to shareable board.",
     "h1": "Getting started",
-    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and unlimited collaborators.",
+    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and up to 10 people who edit.",
     "section": "start",
     "order": 1,
     "updated": "2026-10-21",
@@ -512,7 +512,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-10-24",
+    "updated": "2026-10-27",
     "navLabel": "Images",
     "headings": [
       {
@@ -569,6 +569,10 @@ export const DOCS_PAGES = [
       {
         "q": "Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?",
         "a": "Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file."
+      },
+      {
+        "q": "Can I drop camera raw files or Photoshop documents?",
+        "a": "Yes. A camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) and Photoshop documents (.psd, .psb) become image cards that show in every browser. For a raw the picture is the one your camera made of the shot; for a .psd it is the flattened image Photoshop saves with the layers. Download always gives the original file."
       }
     ]
   },
@@ -959,7 +963,7 @@ export const DOCS_PAGES = [
     "answer": "As you drag a card, guides appear showing where it lines up with the cards around it, and it snaps to their edges, centres and spacing. Hold Alt while dragging to switch snapping off for that drag. Nothing needs enabling — the guides only appear while you are actually moving something.",
     "section": "canvas",
     "order": 11,
-    "updated": "2026-10-20",
+    "updated": "2026-10-27",
     "navLabel": "Snapping and alignment",
     "headings": [
       {
@@ -1068,10 +1072,10 @@ export const DOCS_PAGES = [
     "title": "Files and Uploads — Soleil Clusters",
     "metaDescription": "Upload any file to Soleil Clusters, at any size, on every plan. How large uploads work, what counts toward your storage, and how deleting frees space.",
     "h1": "Files and uploads",
-    "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
+    "answer": "Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; Word, PowerPoint, Excel and other documents show their first page; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-24",
+    "updated": "2026-10-27",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1115,7 +1119,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What file types can I upload on the free plan?",
-        "a": "Any, at any size. Video, audio, PDFs and images get their own cards; every other type — .psd, .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan."
+        "a": "Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; every other type — .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan."
       },
       {
         "q": "How large a file can I upload?",
@@ -1400,7 +1404,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-21",
+    "updated": "2026-10-27",
     "navLabel": "Files view",
     "headings": [
       {
@@ -1793,7 +1797,7 @@ export const DOCS_PAGES = [
     "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.",
     "section": "documents",
     "order": 2,
-    "updated": "2026-10-24",
+    "updated": "2026-10-25",
     "navLabel": "Exporting documents",
     "headings": [
       {
@@ -1850,10 +1854,10 @@ export const DOCS_PAGES = [
     "title": "Document Comments, Tags and Backlinks — Soleil Clusters",
     "metaDescription": "Comment on a text range in a Soleil Clusters document, tag passages, confirm suggested entities from the margin, and see everywhere a document is referenced.",
     "h1": "Comments, tags and backlinks in documents",
-    "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
+    "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
     "section": "documents",
     "order": 3,
-    "updated": "2026-10-24",
+    "updated": "2026-10-25",
     "navLabel": "Comments and tags",
     "headings": [
       {
@@ -1900,20 +1904,20 @@ export const DOCS_PAGES = [
         "a": "Right margin is comments. Left margin is tags and suggested entities. Click one to open it."
       },
       {
-        "q": "Can I turn off the entity suggestions?",
-        "a": "Yes. The AI tagger is on by default and can be switched off in settings. Suggestions never apply themselves — nothing is tagged until you accept it."
+        "q": "Can I turn off the AI in documents?",
+        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. The automatic underlines stop and no text goes to a model. Suggested names still appear, without the AI's guess at what kind of name each is, and nothing becomes a tag until you accept it."
       }
     ]
   },
   {
     "path": "/docs/organize/tags",
     "title": "Tags and Entities — Soleil Clusters",
-    "metaDescription": "Tag anything in Soleil Clusters — cards, groups, boards and passages of text. Entity types, automatic tagging, AI suggestions and emergent themes.",
+    "metaDescription": "Tag cards, clusters and passages in Soleil Clusters, type tags as entities, and see everything carrying a tag on one page. The AI only suggests.",
     "h1": "Tags and entities",
-    "answer": "A tag cuts across everything — apply one to a card, a group, a whole cluster or a passage of text, and the tag's detail view gathers every one of them from anywhere in the workspace. Tags can be typed as entities like character, setting, organization, concept or thing. Automatic tagging reads text, never pictures, and marks what it applies as auto until you confirm it.",
+    "answer": "A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.",
     "section": "organize",
     "order": 0,
-    "updated": "2026-10-07",
+    "updated": "2026-10-25",
     "navLabel": "Tags",
     "headings": [
       {
@@ -1921,8 +1925,12 @@ export const DOCS_PAGES = [
         "text": "Tagging"
       },
       {
-        "id": "the-tag-detail-view",
-        "text": "The tag detail view"
+        "id": "lighting-a-tag-up-on-a-cluster",
+        "text": "Lighting a tag up on a cluster"
+      },
+      {
+        "id": "the-tag-page",
+        "text": "The tag page"
       },
       {
         "id": "entity-types",
@@ -1931,14 +1939,6 @@ export const DOCS_PAGES = [
       {
         "id": "automatic-tagging",
         "text": "Automatic tagging"
-      },
-      {
-        "id": "emergent-themes",
-        "text": "Emergent themes"
-      },
-      {
-        "id": "propagation-and-backfill",
-        "text": "Propagation and backfill"
       },
       {
         "id": "removing-deleting-and-merging-all-reversible",
@@ -1961,11 +1961,15 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does Clusters tag things without asking?",
-        "a": "Sometimes. When a card's text closely matches a tag you already made, the tag is applied and marked auto. Open the tag, press Manage and filter to Auto, then right-click any item to confirm or remove the tag — removing it also keeps that tag off that item for good. Looser matches are only suggested. It reads text, not what an image shows."
+        "a": "Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested. Remove an automatic tag and it stays off that item for good."
       },
       {
         "q": "What is an entity type?",
-        "a": "A tag can be typed as a character, setting, organization, concept or thing. Typed tags get an appropriate colour and behaviour, and are what make hover previews and backlinks useful."
+        "a": "A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it."
+      },
+      {
+        "q": "Can I turn the AI off?",
+        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no text goes to a model. Tags you add, and exact-name matches, still work."
       }
     ]
   },
@@ -2033,7 +2037,7 @@ export const DOCS_PAGES = [
     "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
-    "updated": "2026-10-04",
+    "updated": "2026-10-25",
     "navLabel": "Search",
     "headings": [
       {
@@ -2076,9 +2080,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/collaborate",
     "title": "Collaborating — Soleil Clusters",
-    "metaDescription": "Invite editors and viewers to Soleil Clusters boards. Collaboration is free on every plan — editors do not need to pay, and the owner's quota is what counts.",
+    "metaDescription": "Invite editors and viewers to Soleil Clusters boards. Up to 10 people edit free on Free and Creator, viewers are unlimited, and the owner's quota counts.",
     "h1": "Collaborating",
-    "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. Collaboration is free on every plan — an editor does not need a paid account, and there is no seat count. Cards and storage always count against the cluster owner's quota, not the person who added them.",
+    "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to 10 people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
     "updated": "2026-10-17",
@@ -2091,6 +2095,10 @@ export const DOCS_PAGES = [
       {
         "id": "whose-quota",
         "text": "Whose quota"
+      },
+      {
+        "id": "up-to-10-people-who-edit",
+        "text": "Up to 10 people who edit"
       },
       {
         "id": "inviting",
@@ -2117,7 +2125,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Do collaborators need to pay?",
-        "a": "No. Editors and viewers are free on every plan, and there is no seat limit. Whoever owns the cluster pays for what it holds."
+        "a": "No. On Free and Creator, up to 10 people can edit and anyone can view, and none of them pays. Whoever owns the cluster pays for what it holds. A group with more than 10 people who edit uses [Team](/docs/account/team), priced per seat."
       },
       {
         "q": "Whose card allowance do collaborator uploads use?",
@@ -2289,7 +2297,7 @@ export const DOCS_PAGES = [
     "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
-    "updated": "2026-10-12",
+    "updated": "2026-10-25",
     "navLabel": "Comments",
     "headings": [
       {
@@ -2317,12 +2325,17 @@ export const DOCS_PAGES = [
         "text": "Who can comment"
       },
       {
+        "id": "from-your-own-code-or-an-assistant",
+        "text": "From your own code, or an assistant"
+      },
+      {
         "id": "comments-versus-votes",
         "text": "Comments versus votes"
       }
     ],
     "related": [
       "/docs/documents/comments-and-tags",
+      "/docs/api/comments",
       "/docs/collaborate/notifications",
       "/docs/canvas/vote-cards"
     ],
@@ -2670,10 +2683,10 @@ export const DOCS_PAGES = [
     "title": "Plans and Pricing — Soleil Clusters",
     "metaDescription": "Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever you reach first — clusters themselves cost no cards — unlimited free collaborators, and any file at any size. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes exactly two things — the card cap is removed, and your drive grows from 5GB to 1TB. Those limits are charged to the workspace owner, so one plan covers everyone working in that workspace and there are no per-seat charges.",
+    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.",
     "section": "account",
     "order": 1,
-    "updated": "2026-10-21",
+    "updated": "2026-10-27",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2729,11 +2742,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on either plan; there is no per-file limit at all. Collaborators and editing are not limited, and clusters are free — they cost none of your cards."
+        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on every plan; there is no per-file limit at all. Clusters are free — they cost none of your cards — and people are the same on Free and Creator: up to 10 who edit, and as many as you like who view."
       },
       {
         "q": "Do collaborators need to pay?",
-        "a": "No, and they never did — editors are free on every plan. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges."
+        "a": "No. On Free and Creator, up to 10 people can edit at no cost to them, and anyone can view; more than that is what [Team](/docs/account/team) is for. What Creator adds is that your limits cover them too: everything they add counts against the workspace owner's allowance, so one plan lifts the ceiling for everyone working in that workspace. There are no per-seat charges."
       },
       {
         "q": "If someone on my team upgrades, does my workspace get the higher limits?",
@@ -2758,6 +2771,86 @@ export const DOCS_PAGES = [
       {
         "q": "What happens to my work if I cancel, or my trial ends?",
         "a": "Nothing you made is deleted. Every cluster, card and file stays where it is, and you can keep opening and editing it. If you are over the free card limit or the free drive, new cards or uploads will not fit until you are back under them."
+      }
+    ]
+  },
+  {
+    "path": "/docs/account/team",
+    "title": "Team — Soleil Clusters",
+    "metaDescription": "Team is the plan for groups where more than 10 people edit — $25 a seat a month, 1TB of shared drive per seat, admins, and work the team owns.",
+    "h1": "Team",
+    "answer": "Team is for groups where more than 10 people edit. Everyone who can edit holds a seat, at $25 a month or $240 a year; viewers are free. Seats are shared across the team's workspaces, each seat adds 1TB to one shared drive, and the team owns its workspaces, with admins to run it. It starts with a 14-day trial.",
+    "section": "account",
+    "order": 1.5,
+    "updated": "2026-10-27",
+    "navLabel": "Team",
+    "headings": [
+      {
+        "id": "what-a-seat-is",
+        "text": "What a seat is"
+      },
+      {
+        "id": "starting-a-team",
+        "text": "Starting a team"
+      },
+      {
+        "id": "more-than-100-seats-single-sign-on-or-invoices",
+        "text": "More than 100 seats, single sign-on or invoices"
+      },
+      {
+        "id": "people",
+        "text": "People"
+      },
+      {
+        "id": "joining",
+        "text": "Joining"
+      },
+      {
+        "id": "when-seats-run-out",
+        "text": "When seats run out"
+      },
+      {
+        "id": "your-own-workspaces",
+        "text": "Your own workspaces"
+      },
+      {
+        "id": "payments",
+        "text": "Payments"
+      },
+      {
+        "id": "closing-a-team",
+        "text": "Closing a team"
+      }
+    ],
+    "related": [
+      "/docs/account/plans",
+      "/docs/collaborate",
+      "/docs/collaborate/sharing"
+    ],
+    "faq": [
+      {
+        "q": "Who needs a seat?",
+        "a": "Everyone who can edit in the team's workspaces — the owner, admins, members, and anyone from outside the team you let edit. Viewers never need one."
+      },
+      {
+        "q": "How many seats can a team have?",
+        "a": "From 3 to 100, bought and changed on the team's page. For more than 100, single sign-on, or invoices and purchase orders, use Talk to us on the pricing page."
+      },
+      {
+        "q": "What happens when every seat is taken?",
+        "a": "The admins decide. By default, someone new joins as a viewer and the admins are asked, and can add a seat for them. Or seats can be added automatically, with an optional limit on how many a month."
+      },
+      {
+        "q": "What if a payment fails?",
+        "a": "The team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only — everything still opens — until the team is paid again."
+      },
+      {
+        "q": "Does joining a team change my own workspaces?",
+        "a": "No. The team never sees, opens or bills them. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive; if you leave, they go back to your own plan and nothing is removed."
+      },
+      {
+        "q": "Do we need Team to work together?",
+        "a": "Not until more than 10 people edit. Free and Creator include up to 10 people who can edit, at no extra cost, and as many viewers as you like."
       }
     ]
   },
@@ -3026,7 +3119,7 @@ export const DOCS_PAGES = [
     "answer": "The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.",
     "section": "developers",
     "order": 0,
-    "updated": "2026-08-10",
+    "updated": "2026-10-25",
     "navLabel": "API overview",
     "headings": [
       {
@@ -3087,7 +3180,7 @@ export const DOCS_PAGES = [
     "title": "API Quickstart — Soleil Clusters",
     "metaDescription": "Working Soleil Clusters API examples in curl, TypeScript and Python — authenticate, create a board, add cards, read them back and clean up.",
     "h1": "API quickstart",
-    "answer": "Mint a token with write access under Settings then API, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.",
+    "answer": "Mint a token with write access under Settings then Connections, export it, and you can create a board and add cards in two requests. This page has the whole loop — authenticate, create, add, upload an image, read, update, move, delete — as copy-pasteable curl, TypeScript and Python, with the retry and error handling an agent needs.",
     "section": "developers",
     "order": 1,
     "updated": "2026-08-08",
@@ -3151,10 +3244,10 @@ export const DOCS_PAGES = [
     "title": "API Authentication and Tokens — Soleil Clusters",
     "metaDescription": "Mint, scope and revoke Soleil Clusters personal access tokens. How bearer auth works, why a token acts as you, and how to keep one safe.",
     "h1": "Authentication",
-    "answer": "Two ways in. For your own scripts, create a personal access token under Settings then API and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.",
+    "answer": "Two ways in. For your own scripts, create a personal access token under Settings then Connections and send it as a bearer token; for an application other people connect, use OAuth instead. Tokens start with sk_live_ and are stored only as a SHA-256 hash, so the value is shown exactly once. Three scopes exist — read, write and delete — and deleting is deliberately separate from writing. A token acts as you and revoking one takes effect immediately.",
     "section": "developers",
     "order": 2,
-    "updated": "2026-10-07",
+    "updated": "2026-10-25",
     "navLabel": "Authentication",
     "headings": [
       {
@@ -3231,7 +3324,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.",
     "section": "developers",
     "order": 3,
-    "updated": "2026-10-20",
+    "updated": "2026-10-25",
     "navLabel": "Boards",
     "headings": [
       {
@@ -3279,6 +3372,10 @@ export const DOCS_PAGES = [
         "text": "POST /boards/:id/restore"
       },
       {
+        "id": "sharing-by-link-boards-id-share-link",
+        "text": "Sharing by link — /boards/:id/share-link"
+      },
+      {
         "id": "worked-example",
         "text": "Worked example"
       }
@@ -3308,15 +3405,19 @@ export const DOCS_PAGES = [
     "title": "Connect an App with OAuth — Soleil Clusters API",
     "metaDescription": "Soleil Clusters is an OAuth 2.1 authorization server — open client registration, PKCE and RFC 9728 discovery, so an MCP client connects with no token to paste.",
     "h1": "Connecting an app (OAuth)",
-    "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.",
+    "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.",
     "section": "developers",
     "order": 3,
-    "updated": "2026-10-07",
+    "updated": "2026-10-25",
     "navLabel": "OAuth",
     "headings": [
       {
         "id": "discovery",
         "text": "Discovery"
+      },
+      {
+        "id": "client-metadata-documents",
+        "text": "Client metadata documents"
       },
       {
         "id": "registering",
@@ -3339,6 +3440,10 @@ export const DOCS_PAGES = [
         "text": "What a token can reach"
       },
       {
+        "id": "limits",
+        "text": "Limits"
+      },
+      {
         "id": "errors",
         "text": "Errors"
       },
@@ -3355,7 +3460,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Do I need to register an application first?",
-        "a": "No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request."
+        "a": "No. Either use the https URL of a client metadata document you publish as your client_id, which is how Claude, ChatGPT and VS Code connect, or POST your client metadata to /oauth/register and get a client_id back immediately. There is no review queue and no key to request."
       },
       {
         "q": "Is PKCE required?",
@@ -3363,7 +3468,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How long do tokens last?",
-        "a": "An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use."
+        "a": "An access token lasts 60 minutes. The refresh token rotates on every use and is good for 90 days from its last use, but never more than 180 days after the person connected; then they approve the app again."
       },
       {
         "q": "What happens if someone disconnects the app?",
@@ -3383,7 +3488,7 @@ export const DOCS_PAGES = [
     "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
     "section": "developers",
     "order": 4,
-    "updated": "2026-10-20",
+    "updated": "2026-10-25",
     "navLabel": "Cards",
     "headings": [
       {
@@ -3419,6 +3524,14 @@ export const DOCS_PAGES = [
         "text": "DELETE /boards/:id/cards — many at once"
       },
       {
+        "id": "get-boards-id-cards-cardid",
+        "text": "GET /boards/:id/cards/:cardId"
+      },
+      {
+        "id": "doc-cards",
+        "text": "Doc cards"
+      },
+      {
         "id": "patch-boards-id-cards-cardid",
         "text": "PATCH /boards/:id/cards/:cardId"
       },
@@ -3441,6 +3554,7 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/api/boards",
+      "/docs/api/docs",
       "/docs/api/images",
       "/docs/api/errors"
     ],
@@ -3460,6 +3574,190 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/api/docs",
+    "title": "Docs API — Read and Write Docs as Markdown — Soleil Clusters",
+    "metaDescription": "Read and write Soleil Clusters doc cards as Markdown over REST. Make a doc with its pages, add pages, rewrite or edit a page without losing anyone's changes.",
+    "h1": "Docs API",
+    "answer": "A doc card's pages are read and written as Markdown. GET /boards/:id/cards/:cardId/doc reads every page with a hash of each; POST /boards/:id/docs makes a doc holding up to 50 pages; POST …/doc/pages adds pages; PATCH …/doc/pages/:pageId rewrites, edits or renames one page. A rewrite names the hash the page was read at, so it never erases a change made since, and it keeps every block it didn't change, comments included.",
+    "section": "developers",
+    "order": 4.5,
+    "updated": "2026-10-25",
+    "navLabel": "Docs",
+    "headings": [
+      {
+        "id": "get-boards-id-cards-cardid-doc",
+        "text": "GET /boards/:id/cards/:cardId/doc"
+      },
+      {
+        "id": "post-boards-id-docs",
+        "text": "POST /boards/:id/docs"
+      },
+      {
+        "id": "post-boards-id-cards-cardid-doc-pages",
+        "text": "POST /boards/:id/cards/:cardId/doc/pages"
+      },
+      {
+        "id": "patch-boards-id-cards-cardid-doc-pages-pageid",
+        "text": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId"
+      },
+      {
+        "id": "what-the-markdown-carries",
+        "text": "What the Markdown carries"
+      },
+      {
+        "id": "live-or-not-at-all",
+        "text": "Live, or not at all"
+      }
+    ],
+    "related": [
+      "/docs/api/cards",
+      "/docs/documents/export",
+      "/docs/mcp"
+    ],
+    "faq": [
+      {
+        "q": "Will rewriting a page lose its comments or colours?",
+        "a": "Not on the parts you leave alone. A rewrite keeps every block whose Markdown is unchanged as the same block, so a comment on it, its text colour and anything else Markdown can't express stay with it. Only the blocks you change are written fresh."
+      },
+      {
+        "q": "What if someone edits the page while my script is working on it?",
+        "a": "A whole-page rewrite names the hash of the page as you read it. If the page has changed since, the write is refused with 409 page_changed and nothing is written. Read it again and make your change to that."
+      },
+      {
+        "q": "Can a doc written through the API hold pictures?",
+        "a": "Pictures already in the cluster, yes. Write ![caption](r2:<image_key>) with the image_key of an image card on the board. Any other picture becomes a link to it, so writing a doc never fetches anything into it."
+      },
+      {
+        "q": "Why did I get 503 room_unavailable?",
+        "a": "A doc is written through the cluster's live room or not at all, and the room couldn't be reached or didn't confirm the change. Nothing was written, so it is safe to try again."
+      }
+    ]
+  },
+  {
+    "path": "/docs/api/comments",
+    "title": "Comments API — Read, Add and Resolve Comments — Soleil Clusters",
+    "metaDescription": "List every comment thread on a Soleil Clusters board over REST, docs included, and add, reply, resolve, delete or restore comments.",
+    "h1": "Comments API",
+    "answer": "GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST adds a comment on a card, a group, a spot, the whole board or words in a doc, or a reply in any thread. PATCH resolves or reopens threads, and DELETE removes your own comment.",
+    "section": "developers",
+    "order": 4.6,
+    "updated": "2026-10-25",
+    "navLabel": "Comments",
+    "headings": [
+      {
+        "id": "get-boards-id-comments",
+        "text": "GET /boards/:id/comments"
+      },
+      {
+        "id": "post-boards-id-comments",
+        "text": "POST /boards/:id/comments"
+      },
+      {
+        "id": "patch-boards-id-comments-commentid",
+        "text": "PATCH /boards/:id/comments/:commentId"
+      },
+      {
+        "id": "patch-boards-id-comments",
+        "text": "PATCH /boards/:id/comments"
+      },
+      {
+        "id": "delete-boards-id-comments-commentid",
+        "text": "DELETE /boards/:id/comments/:commentId"
+      },
+      {
+        "id": "post-boards-id-comments-commentid-restore",
+        "text": "POST /boards/:id/comments/:commentId/restore"
+      },
+      {
+        "id": "who-can-do-what",
+        "text": "Who can do what"
+      },
+      {
+        "id": "threads-inside-docs-and-notes",
+        "text": "Threads inside docs and notes"
+      }
+    ],
+    "related": [
+      "/docs/collaborate/comments",
+      "/docs/api/docs",
+      "/docs/mcp"
+    ],
+    "faq": [
+      {
+        "q": "Who can comment, resolve or delete over the API?",
+        "a": "The same people as in the app. Anyone who can open a board can comment on it. A thread's author, or anyone who can edit the board, can resolve it. Only a comment's author can delete it."
+      },
+      {
+        "q": "Can I reply to a comment inside a doc?",
+        "a": "Yes, if you can edit the board, as in the app. You can also resolve threads there, and start one on words in a doc by quoting them."
+      },
+      {
+        "q": "Is the person I reply to told?",
+        "a": "A reply can email the author of the thread, as a reply made in the app does, when they are away and haven't turned reply emails off."
+      },
+      {
+        "q": "Can an AI assistant read and answer comments?",
+        "a": "Yes. The MCP server's list_comments, add_comment and resolve_comments tools are these endpoints, so an assistant can read the feedback on a board, act on it, resolve what it dealt with, and comment on a doc's words."
+      }
+    ]
+  },
+  {
+    "path": "/docs/api/tags",
+    "title": "Tags API — List Tags and Tag Cards — Soleil Clusters",
+    "metaDescription": "List a Soleil Clusters workspace's tags over REST, see everything carrying one, and put tags on cards or take them off, by name or by id.",
+    "h1": "Tags API",
+    "answer": "GET /workspaces/:id/tags lists a workspace's tags, each with how many things carry it, and GET /tags/:id lists everything carrying one tag, on every board. GET /boards/:id/tags shows the tags on one board, and POST /boards/:id/tags puts tags on its cards or takes them off, by name or by id, exactly as the Tag menu in the app does.",
+    "section": "developers",
+    "order": 4.7,
+    "updated": "2026-10-25",
+    "navLabel": "Tags",
+    "headings": [
+      {
+        "id": "get-workspaces-id-tags",
+        "text": "GET /workspaces/:id/tags"
+      },
+      {
+        "id": "get-tags-id",
+        "text": "GET /tags/:id"
+      },
+      {
+        "id": "get-boards-id-tags",
+        "text": "GET /boards/:id/tags"
+      },
+      {
+        "id": "post-boards-id-tags",
+        "text": "POST /boards/:id/tags"
+      },
+      {
+        "id": "who-can-do-what",
+        "text": "Who can do what"
+      }
+    ],
+    "related": [
+      "/docs/organize/tags",
+      "/docs/api/cards",
+      "/docs/mcp"
+    ],
+    "faq": [
+      {
+        "q": "Does tagging a card by a new name make the tag?",
+        "a": "Yes, as typing a new name into the app's Tag menu does. The new tag then also goes on whatever else in the workspace says its name, marked auto, as a tag made in the app does."
+      },
+      {
+        "q": "Will automatic tagging put back a tag I removed?",
+        "a": "No. Taking a tag off a card over the API keeps it off that card for good, as removing it in the app does. Putting it back on yourself lifts that."
+      },
+      {
+        "q": "Who can tag things over the API?",
+        "a": "Tags belong to a workspace. Its members can read them, and anyone who can edit the workspace can tag things in it, as in the app. Someone a board is shared with sees no tags."
+      },
+      {
+        "q": "Can an AI assistant tag cards?",
+        "a": "Yes. The MCP server's list_tags and tag_cards tools are these endpoints, so an assistant can see how a workspace is tagged and tag the cards it is asked to."
+      }
+    ]
+  },
+  {
     "path": "/docs/api/images",
     "title": "Uploading Images via the API — Soleil Clusters",
     "metaDescription": "Upload an image to Soleil Clusters in one POST, or files of any size with multipart. Endpoints, limits, storage quota, and listing images back.",
@@ -3467,7 +3765,7 @@ export const DOCS_PAGES = [
     "answer": "POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.",
     "section": "developers",
     "order": 5,
-    "updated": "2026-10-02",
+    "updated": "2026-10-25",
     "navLabel": "Images and uploads",
     "headings": [
       {
@@ -3493,6 +3791,10 @@ export const DOCS_PAGES = [
       {
         "id": "get-images-key",
         "text": "GET /images/:key"
+      },
+      {
+        "id": "get-boards-id-gallery",
+        "text": "GET /boards/:id/gallery"
       },
       {
         "id": "why-the-images-row-matters",
@@ -3699,7 +4001,7 @@ export const DOCS_PAGES = [
     "answer": "GET /search finds boards and cards by text across everything your account can see. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
     "section": "developers",
     "order": 9,
-    "updated": "2026-08-08",
+    "updated": "2026-10-25",
     "navLabel": "Search",
     "headings": [
       {
@@ -3791,7 +4093,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-10-20",
+    "updated": "2026-10-27",
     "navLabel": "MCP",
     "headings": [
       {
@@ -3821,6 +4123,14 @@ export const DOCS_PAGES = [
       {
         "id": "adding-an-image",
         "text": "Adding an image"
+      },
+      {
+        "id": "writing-a-doc",
+        "text": "Writing a doc"
+      },
+      {
+        "id": "keep-links",
+        "text": "Keep links"
       },
       {
         "id": "what-agents-should-know",
@@ -3864,7 +4174,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is it the same set of tools either way?",
-        "a": "Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart."
+        "a": "Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0."
       }
     ]
   },
@@ -3876,7 +4186,7 @@ export const DOCS_PAGES = [
     "answer": "Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.",
     "section": "developers",
     "order": 11,
-    "updated": "2026-08-08",
+    "updated": "2026-10-25",
     "navLabel": "Errors",
     "headings": [
       {
@@ -3923,12 +4233,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/api/webhooks",
     "title": "Webhooks — Soleil Clusters API",
-    "metaDescription": "Get notified when boards and cards change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.",
+    "metaDescription": "Get notified when boards, cards, comments and tags change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.",
     "h1": "Webhooks",
-    "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards and cards change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
+    "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads, comments and tags change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
     "section": "developers",
     "order": 12,
-    "updated": "2026-10-07",
+    "updated": "2026-10-26",
     "navLabel": "Webhooks",
     "headings": [
       {

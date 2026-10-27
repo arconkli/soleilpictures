@@ -5,7 +5,7 @@ h1: Images API
 navLabel: Images and uploads
 section: developers
 order: 5
-updated: 2026-10-02
+updated: 2026-10-25
 answer: POST raw image bytes to /uploads with a board id and you get back an image key, which you then pass as image_key when creating a card. It is one request rather than a presign dance. Files larger than the one-request ceiling go through /uploads/multipart, where you PUT the parts straight to storage and the bytes never pass through the API. Either way the upload is charged against the board owner's storage quota.
 faq:
   - q: How do I add a photo to a board from code?
@@ -214,10 +214,9 @@ anything uploaded before names were kept.
 ### Smaller renditions
 
 Add `?variant=preview` for the downscaled copy the app stores when an image is
-uploaded — roughly 900px and about 48 kB, against ~470 kB for a typical
-original. It is more than enough to look at, and about ten times cheaper to
-move, which matters if you are reading a whole moodboard or handing images to a
-model.
+uploaded, usually a small fraction of the original's bytes. It is more than
+enough to look at and far cheaper to move, which matters if you are reading a
+whole moodboard or handing images to a model.
 
 Not every image has one, so this **falls back to the original** rather than
 failing. The `X-Image-Variant` response header tells you which you got:
@@ -229,7 +228,61 @@ curl -sD- -o shot.webp \
 # x-image-variant: preview
 ```
 
-The MCP server's `view_image` asks for this by default.
+The MCP server's `view_board` shows pictures at this size when it is asked to look closely at a few.
+
+## `GET /boards/:id/gallery`
+
+A board's pictures in the order a person reads it, top to bottom and left to
+right: image cards, and videos with a poster frame. It is how an agent **looks
+at a board** without fetching every picture one by one, and what the MCP
+server's `view_board` reads.
+
+```sh
+curl "https://clusters.soleilpictures.com/api/v1/boards/$BOARD/gallery?inline=1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "board": { "id": "…", "name": "Diner — night", "url": "https://clusters.soleilpictures.com/?to=b:…",
+             "card_count": 42, "picture_count": 25,
+             "thumbnail": { "updated_at": "…", "data": "UklGR…", "mime": "image/webp", "bytes": 15800 } },
+  "size": "sm",
+  "pictures": [
+    { "card_id": "c-81", "kind": "image", "position": 1, "title": "Neon sign", "caption": null,
+      "image_key": "…", "width": 4032, "height": 3024,
+      "rendition": { "variant": "sm", "width": 640, "height": 480 },
+      "url": "https://clusters.soleilpictures.com/?to=c:…:c-81",
+      "data": "UklGR…", "mime": "image/webp", "bytes": 31200 }
+  ],
+  "has_more": true,
+  "next_cursor": "p12"
+}
+```
+
+| Parameter | |
+|---|---|
+| `limit` | Pictures per page: {{fact:galleryDefaultLimit}} by default, at most {{fact:galleryMaxLimit}} |
+| `cursor` | `next_cursor` from the previous page |
+| `inline` | `1` embeds each picture as base64 in `data` |
+| `size` | `sm`, the smaller rendition (the default), or `preview`, the larger one |
+| `card_ids` | Comma-separated, at most {{fact:galleryMaxCardIds}}: these pictures instead of a page |
+
+`thumbnail` is the board drawn whole, as the app last stored it, on the first
+page only and `null` when the board has none. A video's picture is its poster
+frame, marked `"poster": true`. With `card_ids` the pictures come in the order
+named, `position` is `null` and there is no next page. Each picture names the rendition
+it would show: the smaller one asked for, the other one when it is missing, and
+the original only when it is at most {{fact:galleryOriginalMax}}.
+
+With `inline=1`, pictures are embedded in reading order while they fit: at most
+{{fact:galleryInlineEach}} each ({{fact:galleryInlinePreviewEach}} with
+`size=preview`) and {{fact:galleryInlineTotal}} for the whole answer. One that
+does not fit carries a `reason` instead of `data` (`too_large`, `budget`,
+`no_rendition`, `not_found`, `missing`, `storage_unavailable`). Ask for it by
+`card_ids`, or for fewer at a time.
+Embedding pictures is a read of their bytes, so it is written to the
+[audit log](/docs/api/audit) like `GET /images/:key`.
 
 ## Why the images row matters
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { requestFileViews, viewMeta, viewCardPatch } from './fileViewClient.js';
+import { requestFileViews, viewMeta, viewCardPatch, viewFileCardPatch, noPageCardPatch, viewSize, VIEW_COLS } from './fileViewClient.js';
 import { _resetPlayCopyCooldown } from './playCopyClient.js';
 
 const WS = '0b6e2f0a-6c55-4b8e-9d0a-2a3f1c9e7b11';
@@ -53,4 +53,85 @@ test('a card still at the 4:3 placeholder takes the photo\'s shape; any other ca
   assert.deepEqual(viewCardPatch(card({ src: `r2:${WS}/other.heic` }), done({ width: 3024, height: 4032 })), {}, 'another file');
   assert.deepEqual(viewCardPatch(card({ kind: 'file' }), done({ width: 3024, height: 4032 })), {});
   assert.deepEqual(viewCardPatch(card(), done({ state: 'failed' })), {});
+});
+
+test('a file card holding a photo turns into its picture card, at its own width, once there is a picture', () => {
+  const ARW = `${WS}/4f1c2d3e-0000-4000-8000-000000000009.ARW`;
+  const card = {
+    id: 'file-1', kind: 'file', fileSrc: `r2:${ARW}`, fileName: 'DSC00412.ARW', mime: 'image/x-sony-arw',
+    sizeBytes: 24_000_000, ext: 'arw', x: 40, y: 60, w: 240, h: 150, title: 'Dusk, take 2',
+  };
+  // A landscape photo: the width kept, the height its shape. The card's other
+  // fields are left as they are (a patch never names them).
+  assert.deepEqual(viewFileCardPatch(card, { w: 6048, h: 4024 }),
+    { kind: 'image', src: `r2:${ARW}`, w: 240, h: 160, fileSrc: null });
+  // A portrait one grows down from the same width.
+  assert.deepEqual(viewFileCardPatch(card, { w: 3024, h: 4032 }),
+    { kind: 'image', src: `r2:${ARW}`, w: 240, h: 320, fileSrc: null });
+  // A panorama stays inside the canvas's 80 to 1200.
+  assert.deepEqual(viewFileCardPatch({ ...card, w: 240 }, { w: 12000, h: 2000 }).h, 80);
+  assert.deepEqual(viewFileCardPatch({ ...card, w: 1100 }, { w: 1000, h: 3000 }), {
+    kind: 'image', src: `r2:${ARW}`, w: 400, h: 1200, fileSrc: null,
+  });
+  // A card with no width of its own gets a file card's.
+  assert.equal(viewFileCardPatch({ ...card, w: undefined }, { w: 300, h: 200 }).w, 240);
+  // A .psd, an OpenEXR, a TIFF a system gave no type: the same.
+  for (const name of ['comp.psd', 'big.psb', 'plate.exr', 'scan.tif']) {
+    assert.equal(viewFileCardPatch({ ...card, fileSrc: `r2:${WS}/${name}` }, { w: 400, h: 300 }).kind, 'image', name);
+  }
+  // Nothing turns without the photo's size, and nothing that isn't a photo's
+  // file card, or one that stays a file card, turns at all.
+  assert.deepEqual(viewFileCardPatch(card, { w: null, h: 300 }), {});
+  assert.deepEqual(viewFileCardPatch(card, null), {});
+  for (const other of [
+    { ...card, fileSrc: `r2:${WS}/pack.zip` }, { ...card, fileSrc: `r2:${WS}/a.jpg` },
+    { ...card, pending: true }, { ...card, locked: true },
+    { ...card, versions: [{ fileSrc: `r2:${ARW}`, id: 'v1' }] }, { ...card, fileSrc: 'blob:x' },
+    { ...card, kind: 'image', src: `r2:${ARW}` },
+    // A document's card stays a file card: at a file card's size and with no page count, nothing changes.
+    { ...card, fileSrc: `r2:${WS}/brief.docx` }, { ...card, fileSrc: `r2:${WS}/Deck.key` },
+  ]) assert.deepEqual(viewFileCardPatch(other, { w: 400, h: 300 }), {});
+});
+
+test('a view\'s row gives the photo\'s own size, else the view\'s', () => {
+  assert.deepEqual(viewSize(done()), { w: 4032, h: 3024 });
+  assert.deepEqual(viewSize(done({ width: null, height: 0 })), { w: 2048, h: 1536 });
+  assert.deepEqual(viewSize(null), { w: null, h: null });
+});
+
+const doc = (over = {}) => ({ id: 'd', kind: 'file', fileSrc: 'r2:ws/b/Treatment.docx', w: 300, h: 388, ...over });
+const deck = (over = {}) => ({ id: 'k', kind: 'file', fileSrc: 'r2:ws/b/Pitch.pptx', w: 400, h: 225, ...over });
+const sheet = (over = {}) => ({ id: 's', kind: 'file', fileSrc: 'r2:ws/b/Shots.xlsx', w: 300, h: 388, ...over });
+
+test("a document's card still at the size it landed at takes its page's shape, and learns its count", () => {
+  // A Letter page is the page size already: only the count.
+  assert.deepEqual(viewFileCardPatch(doc(), { w: 1583, h: 2048 }, 1), { pageCount: 1 });
+  // An A4 page stands a little taller.
+  assert.deepEqual(viewFileCardPatch(doc(), { w: 1449, h: 2048 }, 3), { pageCount: 3, w: 300, h: 424 });
+  // A wide sheet lies down, 400 wide, as a slide.
+  assert.deepEqual(viewFileCardPatch(sheet(), { w: 1974, h: 939 }, 2), { pageCount: 2, w: 400, h: 190 });
+  // A 16:9 deck is the slide size already; a 4:3 one grows taller.
+  assert.deepEqual(viewFileCardPatch(deck(), { w: 2048, h: 1152 }, 12), { pageCount: 12 });
+  assert.deepEqual(viewFileCardPatch(deck(), { w: 2048, h: 1536 }, 12), { pageCount: 12, w: 400, h: 300 });
+});
+
+test('a document card placed before pages showed, or resized, keeps its size', () => {
+  assert.deepEqual(viewFileCardPatch(doc({ w: 240, h: 150 }), { w: 1449, h: 2048 }, 3), { pageCount: 3 });
+  assert.deepEqual(viewFileCardPatch(doc({ w: 320, h: 410 }), { w: 1449, h: 2048 }, 3), { pageCount: 3 });
+  assert.deepEqual(viewFileCardPatch(doc({ pageCount: 3 }), { w: 1583, h: 2048 }, 3), {});
+  assert.deepEqual(viewFileCardPatch(doc({ pending: true }), { w: 1449, h: 2048 }, 3), {});
+  assert.deepEqual(viewFileCardPatch(doc(), { w: 0, h: 0 }, 0), {});
+});
+
+test('a document with no page coming goes back to a file card, if it is still the size it landed at', () => {
+  assert.deepEqual(noPageCardPatch(doc()), { w: 240, h: 150 });
+  assert.deepEqual(noPageCardPatch(deck()), { w: 240, h: 150 });
+  assert.deepEqual(noPageCardPatch(doc({ w: 240, h: 150 })), {});
+  assert.deepEqual(noPageCardPatch(doc({ w: 500, h: 640 })), {});
+  assert.deepEqual(noPageCardPatch({ kind: 'file', fileSrc: 'r2:ws/b/a.zip', w: 300, h: 388 }), {});
+  assert.deepEqual(noPageCardPatch({ kind: 'image', src: 'r2:ws/b/a.heic', w: 300, h: 388 }), {});
+});
+
+test('the view columns carry the PDF’s number of pages', () => {
+  assert.ok(VIEW_COLS.split(',').includes('page_count'));
 });

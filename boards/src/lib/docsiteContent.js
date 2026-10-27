@@ -6638,22 +6638,37 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Invite the team. "
+      "v": "Invite the team. Up to 10 people "
      },
      {
       "t": "link",
-      "v": "Editors are free",
+      "v": "edit free",
       "href": "/docs/collaborate",
       "children": [
        {
         "t": "text",
-        "v": "Editors are free"
+        "v": "edit free"
        }
       ]
      },
      {
       "t": "text",
-      "v": ", so there is no seat maths."
+      "v": " on Free and Creator, so there is no seat maths; a bigger team moves to "
+     },
+     {
+      "t": "link",
+      "v": "Team",
+      "href": "/docs/account/team",
+      "children": [
+       {
+        "t": "text",
+        "v": "Team"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ]
    ]
@@ -9831,7 +9846,87 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000. Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. "
+     "v": "Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR, JPEG 2000, a camera's raw files ("
+    },
+    {
+     "t": "code",
+     "v": ".arw"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".cr2"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".cr3"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".nef"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".raf"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".dng"
+    },
+    {
+     "t": "text",
+     "v": " and the rest) and Photoshop documents ("
+    },
+    {
+     "t": "code",
+     "v": ".psd"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ".psb"
+    },
+    {
+     "t": "text",
+     "v": "). Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR, a raw or a "
+    },
+    {
+     "t": "code",
+     "v": ".psd"
+    },
+    {
+     "t": "text",
+     "v": ". For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. A raw's picture is the one the camera made of the shot, which the raw file keeps beside the sensor data; a "
+    },
+    {
+     "t": "code",
+     "v": ".psd"
+    },
+    {
+     "t": "text",
+     "v": "'s is the flattened image Photoshop saves with the layers. "
     },
     {
      "t": "strong",
@@ -9845,7 +9940,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " always gives the original, and the picture never counts toward your storage."
+     "v": " always gives the original, and the picture never counts toward your storage. A raw or a "
+    },
+    {
+     "t": "code",
+     "v": ".psd"
+    },
+    {
+     "t": "text",
+     "v": " dropped before Clusters made these pictures was a file card; it becomes an image card the next time someone who can edit its cluster opens it."
     }
    ]
   },
@@ -9854,7 +9957,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. These photos arrive as images even when the browser reports no file type at all."
+     "v": "A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. A raw or a "
+    },
+    {
+     "t": "code",
+     "v": ".psd"
+    },
+    {
+     "t": "text",
+     "v": " over 1 GB stays a file card, since no browser can draw it. These photos arrive as images even when the browser reports no file type at all."
     }
    ]
   },
@@ -14103,7 +14214,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized."
+     "v": " — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized, and nothing lands on top of anything else: cards that would meet on the edge line up one after another instead, in the order they were in. Left on a grid of pictures makes one column, in reading order, rather than a pile."
     }
    ]
   },
@@ -14882,7 +14993,15 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000)"
+       "v": "Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000, camera raw, Photoshop "
+      },
+      {
+       "t": "code",
+       "v": ".psd"
+      },
+      {
+       "t": "text",
+       "v": ")"
       }
      ],
      [
@@ -14987,6 +15106,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " opening into a full viewer"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF)"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A card showing its first page, opening on all its pages"
       }
      ]
     ],
@@ -15141,6 +15274,30 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A document's card shows its first page, at the page's own shape, as a "
+    },
+    {
+     "t": "link",
+     "v": "PDF",
+     "href": "/docs/files/pdf",
+     "children": [
+      {
+       "t": "text",
+       "v": "PDF"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "'s does — a spreadsheet's shows its first sheet — and counts its pages. It opens on its pages, which page through as a PDF's do. They are made once, in the background, so a new document's card takes a few seconds to show its page: the first 200 pages of a document up to 256 MB. A document with a password, or one that's damaged, stays a file card, with the download."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Limits",
@@ -15265,7 +15422,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters, collaborators and editing are not limited on any plan."
+     "v": " are the real, enforced differences between free and paid — a free account stops at whichever it reaches first. Clusters and editing are not limited on any plan, and up to 10 people can edit on Free and Creator alike."
     }
    ]
   },
@@ -23868,7 +24025,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Everything gets a real preview, not a generic icon. Images and video show themselves; "
+     "v": "Everything gets a real preview, not a generic icon. Images and video show themselves, and a "
+    },
+    {
+     "t": "link",
+     "v": "document",
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (Word, PowerPoint, Excel and the rest) its first page; "
     },
     {
      "t": "link",
@@ -23943,7 +24115,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and everything else shows its preview large. "
+     "v": ", and so do "
+    },
+    {
+     "t": "link",
+     "v": "documents",
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "documents"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (Word, PowerPoint, Excel, Keynote and the rest), and everything else shows its preview large. "
     },
     {
      "t": "code",
@@ -29122,7 +29309,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Plain text with structure preserved: headings, lists, emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link."
+     "v": "Plain text with structure preserved: headings, lists and checklists (nested ones too), emphasis, tables, code blocks and links. Images are embedded in the file as data URIs, so it opens complete anywhere at the cost of size; an image linked from a site that refuses the download stays a link."
     }
    ]
   },
@@ -29131,7 +29318,70 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The right choice for moving writing into another tool without reformatting it by hand."
+     "v": "The right choice for moving writing into another tool without reformatting it by hand. A screenplay's Markdown keeps every line, one to a paragraph, with scene headings in bold; Fountain keeps the screenplay's own format."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An AI assistant you have "
+    },
+    {
+     "t": "link",
+     "v": "connected",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "connected"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " reads a doc the same way, as Markdown page by page, with "
+    },
+    {
+     "t": "code",
+     "v": "fetch"
+    },
+    {
+     "t": "text",
+     "v": ", and writes one with "
+    },
+    {
+     "t": "code",
+     "v": "write_doc"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "edit_doc_page"
+    },
+    {
+     "t": "text",
+     "v": ". The "
+    },
+    {
+     "t": "link",
+     "v": "Docs API",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "Docs API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " does both for your own code."
     }
    ]
   },
@@ -29514,7 +29764,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " can apply to a passage rather than the whole document. Tagged text is underlined, with dots in the "
+     "v": " can apply to a passage rather than the whole document: select the words, right-click and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Tag selection…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tag selection…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Tagged text is underlined, with dots in the "
     },
     {
      "t": "strong",
@@ -29537,7 +29801,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "This is what lets a script's mention of a location connect to the reference wall for that location — the tag's detail view will list this passage among everything else carrying it."
+     "v": "This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Words that clearly refer to one of your tags are underlined on their own, marked "
+    },
+    {
+     "t": "em",
+     "v": "auto",
+     "children": [
+      {
+       "t": "text",
+       "v": "auto"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", in prose and in screenplay blocks alike. Right-click one to remove it, which keeps that tag off the page. A tag you put on a word follows the word as you edit around it, and stays on the page if the word goes."
     }
    ]
   },
@@ -29577,7 +29864,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " A suggestion is a suggestion; the document is not silently tagged behind you."
+     "v": " A suggested name is a suggestion; it does not become a tag behind you."
     }
    ]
   },
@@ -29595,7 +29882,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The detector is on by default and can be switched off in settings if you would rather work without it."
+     "v": "Names are found without AI. With the workspace's AI suggestions on, the AI also guesses what kind of name each one is; with them off (Settings → Workspace), that guess is left out and no text is sent."
     }
    ]
   },
@@ -29750,15 +30037,6 @@ export const DOCS_CONTENT = {
    "id": "tagging"
   },
   {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Right-click almost anything → tag. You can tag:"
-    }
-   ]
-  },
-  {
    "type": "list",
    "ordered": false,
    "items": [
@@ -29783,6 +30061,76 @@ export const DOCS_CONTENT = {
         ]
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": " — right-click it and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". The picker suggests as you type, and "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " creates a tag that does not exist yet."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Several cards at once",
+      "children": [
+       {
+        "t": "text",
+        "v": "Several cards at once"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — select them and press "
+     },
+     {
+      "t": "strong",
+      "v": "Tag",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in the selection bar (or right-click one and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag … cards…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag … cards…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection."
      }
     ],
     [
@@ -29809,7 +30157,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — as a unit, not card by card"
+      "v": ", as a unit — right-click its label and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag group…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag group…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ],
     [
@@ -29833,6 +30195,24 @@ export const DOCS_CONTENT = {
         ]
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": " — right-click an empty part of it and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag this cluster…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag this cluster…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or drag a tag from the sidebar onto it."
      }
     ],
     [
@@ -29852,7 +30232,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " in a "
+      "v": " — in a "
      },
      {
       "t": "link",
@@ -29864,6 +30244,24 @@ export const DOCS_CONTENT = {
         "v": "document"
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": ", select the words, right-click and choose "
+     },
+     {
+      "t": "strong",
+      "v": "Tag selection…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tag selection…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "; a name the app has noticed can also become a tag right where it appears."
      }
     ]
    ]
@@ -29873,24 +30271,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The picker suggests as you type, and "
-    },
-    {
-     "t": "code",
-     "v": "Enter"
-    },
-    {
-     "t": "text",
-     "v": " creates a tag that does not exist yet. Multi-select is supported — most things carry more than one."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A tag is "
+     "v": "An item can carry several tags. A card's show as chips just under it (four, then a +N for the rest). A tag is "
     },
     {
      "t": "strong",
@@ -29911,21 +30292,64 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "The tag detail view",
+   "text": "Lighting a tag up on a cluster",
    "inline": [
     {
      "t": "text",
-     "v": "The tag detail view"
+     "v": "Lighting a tag up on a cluster"
     }
    ],
-   "id": "the-tag-detail-view"
+   "id": "lighting-a-tag-up-on-a-cluster"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Open a tag from the sidebar and you get everything carrying it, from anywhere in the workspace, arranged hierarchically — boards, then groups, then cards."
+     "v": "Click a tag chip — on a card, on a group's label, or on the cluster's own strip at the top — and the cluster lights up that tag: its cards stay as they are and everything else recedes. Nothing moves and nothing is hidden. A pill at the top says what is showing and how many cards carry it (\"Showing Onyx · 6 of 14 cards\"); "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": ", the ×, or clicking the same chip again ends it. A card in a tagged group counts."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The tag page",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The tag page"
+    }
+   ],
+   "id": "the-tag-page"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's right-click menu ("
+    },
+    {
+     "t": "strong",
+     "v": "Open tag page",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open tag page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: \"12 tagged · 40 inside\" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups."
     }
    ]
   },
@@ -30040,11 +30464,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Concept",
+       "v": "Topic",
        "children": [
         {
          "t": "text",
-         "v": "Concept"
+         "v": "Topic"
         }
        ]
       }
@@ -30083,7 +30507,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Typed tags get an appropriate colour and drive the hover previews and backlinks in "
+     "v": "The type shows on a tag's hover card and its page, the sidebar groups tags by it, and it drives the hover previews and backlinks in "
     },
     {
      "t": "link",
@@ -30133,7 +30557,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — card titles, notes, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none."
+     "v": " — card titles, notes, documents, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none."
     }
    ]
   },
@@ -30144,11 +30568,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "A close match is applied",
+      "v": "An exact name match is applied",
       "children": [
        {
         "t": "text",
-        "v": "A close match is applied"
+        "v": "An exact name match is applied"
        }
       ]
      },
@@ -30168,23 +30592,67 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ". Make a Diner tag, and a note about the diner can pick it up on its own."
+      "v": ". Make a Diner tag, and a note that mentions the diner picks it up, as does a group called \"Diner stills\". Creating a tag applies it straight away to what already says its name."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "A looser match is only suggested.",
+      "v": "In documents, clear mentions are underlined",
       "children": [
        {
         "t": "text",
-        "v": "A looser match is only suggested."
+        "v": "In documents, clear mentions are underlined"
        }
       ]
      },
      {
       "t": "text",
-      "v": " It waits on the tag until you accept or dismiss it."
+      "v": ", marked "
+     },
+     {
+      "t": "em",
+      "v": "auto",
+      "children": [
+       {
+        "t": "text",
+        "v": "auto"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the AI underlines words that clearly refer to one of your tags, even when they are not its exact name."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Anything looser is only suggested.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Anything looser is only suggested."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under "
+     },
+     {
+      "t": "strong",
+      "v": "Manage",
+      "children": [
+       {
+        "t": "text",
+        "v": "Manage"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ]
    ]
@@ -30194,7 +30662,44 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "It reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day."
+     "v": "The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The owner or a co-owner can turn "
+    },
+    {
+     "t": "strong",
+     "v": "AI suggestions",
+     "children": [
+      {
+       "t": "text",
+       "v": "AI suggestions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " off in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Then no card or document text goes to a model: there are no suggestions or underlines, and exact-name matches and the tags you add work as before."
     }
    ]
   },
@@ -30231,7 +30736,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to see everything it picked up on its own. Right-click any item for "
+     "v": " to see everything it picked up on its own. Right-click any item (on a phone, press and hold it) for "
     },
     {
      "t": "strong",
@@ -30259,82 +30764,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — removing also keeps that tag off that item for good, so it is never applied there again."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Emergent themes",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Emergent themes"
-    }
-   ],
-   "id": "emergent-themes"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Beyond individual suggestions, the app looks for clusters of related content and proposes a name for the theme it found — material that clearly belongs together but that nobody had a word for yet."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Accepting one creates the tag and applies it to the group that suggested it."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Propagation and backfill",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Propagation and backfill"
-    }
-   ],
-   "id": "propagation-and-backfill"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Creating a tag offers to apply it to existing content that matches, so a tag created late is not empty."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A tag applied to a "
-    },
-    {
-     "t": "link",
-     "v": "group",
-     "href": "/docs/canvas/groups",
-     "children": [
-      {
-       "t": "text",
-       "v": "group"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " propagates to what is in it, and in documents a tag on a paragraph can cascade to related passages."
+     "v": " — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page."
     }
    ]
   },
@@ -30387,7 +30817,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns."
+     "v": "Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns. Anything you had taken the merged tag off stays off under the tag it merged into."
     }
    ]
   },
@@ -30424,7 +30854,15 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " lists workspace tags"
+      "v": " lists workspace tags, grouped by type; the arrow keys walk them and "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " opens one. A tag's ⋯ (or right-click) renames, recolors, merges, types or deletes it"
      }
     ],
     [
@@ -30447,7 +30885,15 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " searches tags alongside everything else"
+      "v": " finds tags by name, and "
+     },
+     {
+      "t": "code",
+      "v": "#"
+     },
+     {
+      "t": "text",
+      "v": " with a tag's name lists everything carrying it"
      }
     ],
     [
@@ -30457,19 +30903,58 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "tag detail view",
+      "v": "tag page",
       "children": [
        {
         "t": "text",
-        "v": "tag detail view"
+        "v": "tag page"
        }
       ]
      },
      {
       "t": "text",
-      "v": " is the full hierarchical browse"
+      "v": " is the full browse"
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Scripts and AI assistants read and apply tags the same way, through the "
+    },
+    {
+     "t": "link",
+     "v": "Tags API",
+     "href": "/docs/api/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tags API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the "
+    },
+    {
+     "t": "link",
+     "v": "MCP server",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP server"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
    ]
   }
  ],
@@ -31150,6 +31635,26 @@ export const DOCS_CONTENT = {
         "v": "Tags"
        }
       ]
+     },
+     {
+      "t": "text",
+      "v": " — by name. Type "
+     },
+     {
+      "t": "code",
+      "v": "#"
+     },
+     {
+      "t": "text",
+      "v": " and a tag's name, as in "
+     },
+     {
+      "t": "code",
+      "v": "#diner"
+     },
+     {
+      "t": "text",
+      "v": ", to list everything carrying it instead: cards, groups, clusters and document pages, each opened in place"
      }
     ],
     [
@@ -31637,7 +32142,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Collaboration is deliberately not a paid feature. Inviting people is how boards become useful, and charging per seat would make the product worse at the thing it is for."
+     "v": "Collaboration is free on Free and Creator: up to 10 people can edit across everything an account owns, and anyone can view. Inviting people is how boards become useful. A group with more than 10 people who edit uses "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is priced per seat."
     }
    ]
   },
@@ -31896,6 +32416,114 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". This is what makes free editors workable: the person who owns the work pays for it, and inviting help costs nothing extra."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Up to 10 people who edit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 10 people who edit"
+    }
+   ],
+   "id": "up-to-10-people-who-edit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On Free and Creator, an account can have up to 10 people who can edit, counted once each across every workspace it owns: the owner, co-owners, editors, and invites to edit that haven't been answered yet. Viewers never count."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When an account is full:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Can edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is greyed out in the share panel, and people can still be invited to view."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Someone who opens a link to edit joins as a viewer and is told why, and the owner hears about it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Anyone but the owner can ask the owner for a place."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The owner sees everyone who holds a place in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → Members",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Members"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and can make someone a viewer or cancel an invite to free one."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If an account ends up with more than 10 — a workspace handed over to it, for example — everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer. Groups that need more use "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -32996,6 +33624,61 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An AI assistant you have "
+    },
+    {
+     "t": "link",
+     "v": "connected",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "connected"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " can do the same two things with "
+    },
+    {
+     "t": "code",
+     "v": "share_board"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "unshare_board"
+    },
+    {
+     "t": "text",
+     "v": ": hand back the cluster's view link, or revoke it. It gets the link that already exists when there is one, and a link it makes shows just that one board unless it asks for the nested ones too. Scripts use "
+    },
+    {
+     "t": "link",
+     "v": "the same endpoint",
+     "href": "/docs/api/boards#sharing-by-link-boards-id-share-link",
+     "children": [
+      {
+       "t": "text",
+       "v": "the same endpoint"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -35334,21 +36017,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The doc's name, "
-    },
-    {
-     "t": "strong",
-     "v": "Editing",
-     "children": [
-      {
-       "t": "text",
-       "v": "Editing"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " or "
+     "v": "The doc as it looks in its cluster: its name at the top, its pages and images, and "
     },
     {
      "t": "strong",
@@ -35362,7 +36031,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and the doc, with its pages and images. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked "
+     "v": " if they can only read it. Someone who can edit gets the toolbar, and "
+    },
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top opens the doc's comments beside the page. Everyone in it sees everyone else's cursor: people from the cluster see the others' names marked "
     },
     {
      "t": "strong",
@@ -36907,7 +37590,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Resolving, hiding and deleting a comment is for its author and for people who can edit the board. Someone with view-only access sees those buttons on their own comments only."
+     "v": "Resolving and hiding a comment is for its author and for people who can edit the board; deleting one is for its author. Someone with view-only access sees those buttons on their own comments only."
     }
    ]
   },
@@ -37047,6 +37730,57 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "From your own code, or an assistant",
+   "inline": [
+    {
+     "t": "text",
+     "v": "From your own code, or an assistant"
+    }
+   ],
+   "id": "from-your-own-code-or-an-assistant"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "link",
+     "v": "Comments API",
+     "href": "/docs/api/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments under the same rules. Connected over "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", an assistant can read the feedback on a board, act on it, reply, resolve what it dealt with, and comment on the words of a document."
     }
    ]
   },
@@ -41789,7 +42523,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two plans. The difference between them is deliberately small and deliberately honest — two enforced limits, listed below, and nothing else. The "
+     "v": "Three plans. Free and Creator differ deliberately little and deliberately honestly — two enforced limits, listed below, and nothing else. "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is for a group with more than 10 people who edit, and is priced per seat. The "
     },
     {
      "t": "link",
@@ -41804,7 +42553,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " puts the two side by side, and its plain-Markdown twin is at "
+     "v": " puts the three side by side, and its plain-Markdown twin is at "
     },
     {
      "t": "link",
@@ -41921,7 +42670,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Free collaboration — invite editors to any cluster"
+      "v": "Free collaboration — up to 10 people who edit"
      }
     ]
    ]
@@ -42058,7 +42807,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — everyone you invite builds at your limits, and there are no per-seat charges."
+      "v": " — everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges."
      }
     ]
    ]
@@ -42291,7 +43040,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite whoever you like, and they build at your limits without a plan of their own. There are no per-seat charges on any plan."
+     "v": ", never to the person doing the work. So a single Creator plan lifts them for everyone in that workspace: invite up to 10 people to edit, and as many as you like to view, and they build at your limits without a plan of their own. There are no per-seat charges on Free or Creator. A group with more than 10 people who edit uses "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which is priced per seat."
     }
    ]
   },
@@ -42883,6 +43647,534 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  }
+ ],
+ "/docs/account/team": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Free and Creator include up to 10 people who can edit across everything an account owns, and any number of viewers. Team is for the groups that need more than that: a team owns its workspaces and pays for them per seat, and admins look after its people, seats and joining."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What a seat is",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What a seat is"
+    }
+   ],
+   "id": "what-a-seat-is"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everyone who can edit in the team's workspaces holds a seat: the owner, admins, members, and anyone from outside the team you let edit. An invite to edit holds one until it is answered. Viewers are free and unlimited."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Seats are $25 a month each, or $240 a year. They are shared across all the team's workspaces, so one person editing in five of them is one seat. Each seat adds 1TB to the team's drive, which everyone in the team shares, and the cards are unlimited."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A team has between 3 and 100 seats. Seats nobody uses are let go at renewal, never below 3."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Starting a team",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Starting a team"
+    }
+   ],
+   "id": "starting-a-team"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Choose the number of seats on the "
+    },
+    {
+     "t": "link",
+     "v": "pricing page",
+     "href": "/pricing",
+     "children": [
+      {
+       "t": "text",
+       "v": "pricing page"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and press "
+    },
+    {
+     "t": "strong",
+     "v": "Start a Team trial",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start a Team trial"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; signed in, the same setup is at "
+    },
+    {
+     "t": "code",
+     "v": "/team/new"
+    },
+    {
+     "t": "text",
+     "v": ". Name the team and pick which of your own workspaces move into it; the rest stay yours. Seats start at the number those workspaces need."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The trial lasts 14 days. A card is needed to start it and nothing is charged until it ends. During the trial the team's drive holds 100GB; the full drive comes with the first payment."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you already pay for Creator, it keeps billing on its own. Once your work has moved into the team, cancel it in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Plan & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Plan & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "More than 100 seats, single sign-on or invoices",
+   "inline": [
+    {
+     "t": "text",
+     "v": "More than 100 seats, single sign-on or invoices"
+    }
+   ],
+   "id": "more-than-100-seats-single-sign-on-or-invoices"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "link",
+     "v": "Talk to us",
+     "href": "/pricing/talk-to-us",
+     "children": [
+      {
+       "t": "text",
+       "v": "Talk to us"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", the link under the pricing page's cards, is a short form: what your team needs, and a work email to write back to. You don't need an account to send one."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "People",
+   "inline": [
+    {
+     "t": "text",
+     "v": "People"
+    }
+   ],
+   "id": "people"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The team's page, at "
+    },
+    {
+     "t": "code",
+     "v": "/team"
+    },
+    {
+     "t": "text",
+     "v": ", has three tabs: "
+    },
+    {
+     "t": "strong",
+     "v": "People",
+     "children": [
+      {
+       "t": "text",
+       "v": "People"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Seats & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Seats & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Joining",
+     "children": [
+      {
+       "t": "text",
+       "v": "Joining"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "The owner",
+      "children": [
+       {
+        "t": "text",
+        "v": "The owner"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " can do everything, and is the only one who changes the card, the plan or closes the team."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Admins",
+      "children": [
+       {
+        "t": "text",
+        "v": "Admins"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " add seats (the price is shown first), manage people, joining and what happens when seats run out."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Members",
+      "children": [
+       {
+        "t": "text",
+        "v": "Members"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " hold a seat and can make new workspaces for the team."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Viewers",
+      "children": [
+       {
+        "t": "text",
+        "v": "Viewers"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " can open and comment, and need no seat."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everyone in the team sees everyone's name. Only the owner and admins see email addresses."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Team workspaces are open to the whole team by default. An admin can make one private; the owner and admins can still open a private workspace, so work can always be handed over."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Joining",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Joining"
+    }
+   ],
+   "id": "joining"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Admins choose how people join, and can use any of these together:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Email invites",
+      "children": [
+       {
+        "t": "text",
+        "v": "Email invites"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": paste a list of addresses."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A team link",
+      "children": [
+       {
+        "t": "text",
+        "v": "A team link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": anyone with it can join."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Your company's email domain",
+      "children": [
+       {
+        "t": "text",
+        "v": "Your company's email domain"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": prove you own it with a DNS record, and people who sign up with an address there can join. Free email providers can't be used. People who already have an account with that domain are asked once, the next time they sign in; admins never see who has one."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "When seats run out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When seats run out"
+    }
+   ],
+   "id": "when-seats-run-out"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Admins pick one:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Ask first",
+      "children": [
+       {
+        "t": "text",
+        "v": "Ask first"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (the default): someone new joins as a viewer and the admins are asked, and can add a seat for them."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Add seats automatically",
+      "children": [
+       {
+        "t": "text",
+        "v": "Add seats automatically"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", with an optional limit on how many can be added in a month."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Your own workspaces",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your own workspaces"
+    }
+   ],
+   "id": "your-own-workspaces"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The team never sees, opens or bills your own workspaces. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive (admins can turn this off for the team). If you leave the team, your own workspaces go back to your own plan and nothing in them is removed."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Payments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Payments"
+    }
+   ],
+   "id": "payments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If a payment fails, the team keeps editing for 14 days while the card is sorted out. After that its workspaces are view-only: everything still opens, and paying again turns editing back on."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Closing a team",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Closing a team"
+    }
+   ],
+   "id": "closing-a-team"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The owner can close the team. Its workspaces move to the owner's own account, and everyone keeps the access they had. If that leaves the owner's account with more than 10 people who can edit, everyone keeps editing, and nobody new can be made an editor until it is back at 10 or fewer."
     }
    ]
   }
@@ -46922,6 +48214,219 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "GET /boards/:id/cards/:cardId/doc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A "
+      },
+      {
+       "t": "link",
+       "v": "doc",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "'s pages as Markdown"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/docs"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Write a new doc from Markdown"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rewrite or edit one page, safely"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/comments"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A board's "
+      },
+      {
+       "t": "link",
+       "v": "comment",
+       "href": "/docs/api/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " threads, those inside its docs included"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/comments"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Comment on a card, a group, a spot, the board or words in a doc, or reply in a thread"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "PATCH /boards/:id/comments"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Resolve or reopen several threads at once"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "PATCH /boards/:id/comments/:commentId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Resolve or reopen a thread"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE /boards/:id/comments/:commentId"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Delete your own comment — restorable on the canvas"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /workspaces/:id/tags"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A workspace's "
+      },
+      {
+       "t": "link",
+       "v": "tags",
+       "href": "/docs/api/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tags"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", each with how many things carry it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /tags/:id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everything carrying a tag, on every board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/tags"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The tags on a board, and what carries each"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /boards/:id/tags"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Put tags on cards or take them off, by name or id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "POST /uploads"
       }
      ],
@@ -49055,12 +50560,16 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "Two exceptions to \"the method decides\". "
+    },
+    {
      "t": "code",
      "v": "POST /api/v1/mcp"
     },
     {
      "t": "text",
-     "v": " is the one exception to \"the method decides\": it is the "
+     "v": " is the "
     },
     {
      "t": "link",
@@ -49115,7 +50624,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " sentence."
+     "v": " sentence. And "
+    },
+    {
+     "t": "link",
+     "v": "`DELETE /boards/:id/share-link`",
+     "href": "/docs/api/boards#sharing-by-link-boards-id-share-link",
+     "children": [
+      {
+       "t": "code",
+       "v": "DELETE /boards/:id/share-link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " needs only "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": ": whoever may publish a board's link may take it back."
     }
    ]
   },
@@ -49598,7 +51130,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " default to 10000.)"
+     "v": " default to 10000, and a token from a "
+    },
+    {
+     "t": "link",
+     "v": "connected app",
+     "href": "/docs/api/oauth",
+     "children": [
+      {
+       "t": "text",
+       "v": "connected app"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " answers 300 while its account is under 72 hours old.)"
     }
    ]
   },
@@ -50167,7 +51714,23 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Follow "
+     "v": "Each board carries the "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " that opens it in the app, or "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " for a deleted board, which no link opens until it is restored. Follow "
     },
     {
      "t": "code",
@@ -50402,7 +51965,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{ \"root\": \"3b7e…\", \"count\": 214,\n  \"boards\": [\n    { \"id\": \"3b7e…\", \"parent_board_id\": null, \"name\": \"THE FALL\",\n      \"depth\": 0, \"card_count\": 0, \"updated_at\": \"…\", \"deleted\": false },\n    { \"id\": \"9f1c…\", \"parent_board_id\": \"3b7e…\", \"name\": \"Costume\",\n      \"depth\": 1, \"card_count\": 42, \"updated_at\": \"…\", \"deleted\": false }\n  ] }"
+   "code": "{ \"root\": \"3b7e…\", \"count\": 214,\n  \"boards\": [\n    { \"id\": \"3b7e…\", \"parent_board_id\": null, \"name\": \"THE FALL\",\n      \"depth\": 0, \"card_count\": 0, \"updated_at\": \"…\", \"deleted\": false, \"url\": \"https://…\" },\n    { \"id\": \"9f1c…\", \"parent_board_id\": \"3b7e…\", \"name\": \"Costume\",\n      \"depth\": 1, \"card_count\": 42, \"updated_at\": \"…\", \"deleted\": false, \"url\": \"https://…\" }\n  ] }"
   },
   {
    "type": "para",
@@ -50449,7 +52012,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", so you can rebuild the tree in whatever shape you need without the response nesting for you."
+     "v": ", so you can rebuild the tree in whatever shape you need without the response nesting for you. Each board's "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens it in the app."
     }
    ]
   },
@@ -50581,11 +52152,19 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "{ \"board\": … }"
+     "v": "{ \"board\": …, \"url\": … }"
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", where "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens the new board in the app."
     }
    ]
   },
@@ -50644,7 +52223,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", each board with the "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " that opens it."
     }
    ]
   },
@@ -50866,11 +52453,19 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "code",
-     "v": "{ \"board\": … }"
+     "v": "{ \"board\": …, \"capacity\": …, \"url\": … }"
     },
     {
      "t": "text",
-     "v": ", or "
+     "v": ", where "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens the board in the app — or "
     },
     {
      "t": "code",
@@ -50878,7 +52473,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see."
+     "v": ", which is also what you get for a board that exists but is not yours. The API never confirms the existence of something you cannot see."
     }
    ]
   },
@@ -51218,7 +52813,23 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Puts a soft-deleted board back. Find deleted boards with "
+     "v": "Puts a soft-deleted board back, and answers with "
+    },
+    {
+     "t": "code",
+     "v": "{ \"restored\": true, \"board\": …, \"url\": … }"
+    },
+    {
+     "t": "text",
+     "v": ", where "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens it in the app. Find deleted boards with "
     },
     {
      "t": "code",
@@ -51263,6 +52874,202 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " with a message naming the number it would reach. Free some room or upgrade, then retry. Nothing is lost in the meantime — the 30-day trash window is the only clock running."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Sharing by link — /boards/:id/share-link",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing by link — "
+    },
+    {
+     "t": "code",
+     "v": "/boards/:id/share-link"
+    }
+   ],
+   "id": "sharing-by-link-boards-id-share-link"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A board's "
+    },
+    {
+     "t": "link",
+     "v": "view-only link",
+     "href": "/docs/collaborate/sharing",
+     "children": [
+      {
+       "t": "text",
+       "v": "view-only link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": anyone with it opens the board without signing in, and nobody can change anything through it."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl -X POST \"$SOLEIL_API/boards/$BOARD/share-link\" \\\n  -H \"Authorization: Bearer $SOLEIL_TOKEN\" -H \"Content-Type: application/json\" -d '{}'"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"…\",\n  \"created\": true,\n  \"link\": { \"url\": \"https://clusters.soleilpictures.com/share/…\", \"include_subboards\": false,\n            \"expires_at\": null, \"created_at\": \"…\", \"created_by_you\": true }\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Call"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Returns a live view link the board already has, "
+      },
+      {
+       "t": "code",
+       "v": "200"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "\"created\": false"
+      },
+      {
+       "t": "text",
+       "v": "; makes one only when none fits, "
+      },
+      {
+       "t": "code",
+       "v": "201"
+      },
+      {
+       "t": "text",
+       "v": ". With "
+      },
+      {
+       "t": "code",
+       "v": "include_subboards"
+      },
+      {
+       "t": "text",
+       "v": ", only a link of that kind fits. A link made here shows just this board unless "
+      },
+      {
+       "t": "code",
+       "v": "include_subboards"
+      },
+      {
+       "t": "text",
+       "v": " is "
+      },
+      {
+       "t": "code",
+       "v": "true"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "GET"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The board's live view links, newest first"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "DELETE"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Revokes every live view link you may revoke. "
+      },
+      {
+       "t": "code",
+       "v": "still_shared"
+      },
+      {
+       "t": "text",
+       "v": " counts the links someone else made, which stay live until they or an owner of the workspace revoke them"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Asking twice never makes a second link, so a retry is safe. Invite links, which grant editing once someone signs in, are never returned or revoked here. Only someone who may manage the board's links (an owner, a co-owner or an editor) gets an answer; anyone else gets "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "DELETE"
+    },
+    {
+     "t": "text",
+     "v": " here needs only the "
+    },
+    {
+     "t": "code",
+     "v": "write"
+    },
+    {
+     "t": "text",
+     "v": " scope: taking a link back undoes a write and destroys nothing anyone made."
     }
    ]
   },
@@ -51556,6 +53363,229 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Client metadata documents",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Client metadata documents"
+    }
+   ],
+   "id": "client-metadata-documents"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The simplest client registers nothing. Publish your metadata as JSON at an "
+    },
+    {
+     "t": "code",
+     "v": "https"
+    },
+    {
+     "t": "text",
+     "v": " URL and use "
+    },
+    {
+     "t": "strong",
+     "v": "that URL as your `client_id`",
+     "children": [
+      {
+       "t": "text",
+       "v": "that URL as your "
+      },
+      {
+       "t": "code",
+       "v": "client_id"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "link",
+     "v": "Client ID Metadata Documents",
+     "href": "https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/",
+     "children": [
+      {
+       "t": "text",
+       "v": "Client ID Metadata Documents"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). The authorization server metadata says "
+    },
+    {
+     "t": "code",
+     "v": "client_id_metadata_document_supported: true"
+    },
+    {
+     "t": "text",
+     "v": ", and this is how Claude, Claude Code, ChatGPT and VS Code connect."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"client_id\": \"https://shotplanner.example/oauth/client.json\",\n  \"client_name\": \"Shot Planner\",\n  \"redirect_uris\": [\"https://shotplanner.example/callback\"],\n  \"token_endpoint_auth_method\": \"none\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "We fetch it when the person first lands on the consent screen, and it has to pass these checks:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "code",
+      "v": "client_id"
+     },
+     {
+      "t": "text",
+      "v": " is "
+     },
+     {
+      "t": "strong",
+      "v": "exactly",
+      "children": [
+       {
+        "t": "text",
+        "v": "exactly"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " the URL it is served from. The URL is "
+     },
+     {
+      "t": "code",
+      "v": "https"
+     },
+     {
+      "t": "text",
+      "v": ", on the default port, with a path, no fragment and a public host."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It answers "
+     },
+     {
+      "t": "code",
+      "v": "200"
+     },
+     {
+      "t": "text",
+      "v": " with JSON at that URL. Redirects are not followed, and the document can be at most 5 KB."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "redirect_uris"
+     },
+     {
+      "t": "text",
+      "v": " follow the same rules as registration, below."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "token_endpoint_auth_method"
+     },
+     {
+      "t": "text",
+      "v": " is "
+     },
+     {
+      "t": "code",
+      "v": "none"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "private_key_jwt"
+     },
+     {
+      "t": "text",
+      "v": ". A published document cannot keep a secret, so the "
+     },
+     {
+      "t": "code",
+      "v": "client_secret_*"
+     },
+     {
+      "t": "text",
+      "v": " methods are refused. Either way the client is public, and PKCE is what proves it at the token endpoint."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "grant_types"
+     },
+     {
+      "t": "text",
+      "v": ", if present, includes "
+     },
+     {
+      "t": "code",
+      "v": "authorization_code"
+     },
+     {
+      "t": "text",
+      "v": ". Grants we do not issue are ignored."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A good document is trusted for its "
+    },
+    {
+     "t": "code",
+     "v": "Cache-Control"
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "max-age"
+    },
+    {
+     "t": "text",
+     "v": ", at least 5 minutes and at most 24 hours, and read again after that. A document that failed is never cached, so fix it and try again straight away. The consent screen names the host the document came from."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Registering",
    "inline": [
     {
@@ -51570,7 +53600,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Registration is "
+     "v": "If you would rather not publish a document, registration is "
     },
     {
      "t": "strong",
@@ -51584,7 +53614,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — no review, no application form, no key to request:"
+     "v": ": no review, no application form, no key to request."
     }
    ]
   },
@@ -51652,6 +53682,60 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ". A URI with a fragment is refused: the response is appended to the query, and a URI that already has a fragment cannot be extended safely."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A loopback redirect URI matches on "
+    },
+    {
+     "t": "strong",
+     "v": "any port",
+     "children": [
+      {
+       "t": "text",
+       "v": "any port"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "link",
+     "v": "RFC 8252 §7.3",
+     "href": "https://datatracker.ietf.org/doc/html/rfc8252#section-7.3",
+     "children": [
+      {
+       "t": "text",
+       "v": "RFC 8252 §7.3"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). Register or publish "
+    },
+    {
+     "t": "code",
+     "v": "http://127.0.0.1/callback"
+    },
+    {
+     "t": "text",
+     "v": " and come back on whichever port the operating system gave you. Host, path and query still have to match exactly, and "
+    },
+    {
+     "t": "code",
+     "v": "https"
+    },
+    {
+     "t": "text",
+     "v": " URIs never get this exception."
     }
    ]
   },
@@ -51981,7 +54065,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Rotates on every use; valid 90 days from last use"
+       "v": "Rotates on every use. Valid 90 days from last use, at most 180 days after the person connected"
       }
      ]
     ],
@@ -52066,8 +54150,62 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": the old one is replaced in the same statement that claims it, so a replayed refresh finds nothing. Store the new one."
+     "v": ": the old one is replaced in the same statement that claims it. Store the new one."
     }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Retrying within 30 seconds.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Retrying within 30 seconds."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " If a response never reached you, sending the same refresh token again within 30 seconds gets you a fresh pair."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Presenting it any later.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Presenting it any later."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A refresh token that was already exchanged is treated as stolen. The connection is revoked along with its access token, and the person has to approve the app again."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Concurrent processes.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Concurrent processes."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Several processes sharing one connection should refresh through one place. Otherwise one of them will eventually present a spent token."
+     }
+    ]
    ]
   },
   {
@@ -52116,7 +54254,143 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "One screen: who is asking, what each scope means in plain words, and two buttons. Afterwards the connection appears under "
+     "v": "One screen. Across its top, who vouches for the app:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Verified app",
+      "children": [
+       {
+        "t": "text",
+        "v": "Verified app"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", naming the host it came from, for a metadata document served from one of "
+     },
+     {
+      "t": "code",
+      "v": "claude.ai"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "claude.com"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "chatgpt.com"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "vscode.dev"
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Runs on this computer",
+      "children": [
+       {
+        "t": "text",
+        "v": "Runs on this computer"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", when the code goes back to "
+     },
+     {
+      "t": "code",
+      "v": "localhost"
+     },
+     {
+      "t": "text",
+      "v": " or an app's own scheme, whoever published the name: any program on the computer could have started the sign-in, so the person continues only if they just did."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Not verified",
+      "children": [
+       {
+        "t": "text",
+        "v": "Not verified"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", for anything else: a registered client, whose name is what it sent to "
+     },
+     {
+      "t": "code",
+      "v": "/oauth/register"
+     },
+     {
+      "t": "text",
+      "v": ", or a document from another host."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Then the app's name, the account it will act as (with a way to switch), what it may do in plain words, and two buttons. An app that asks for "
+    },
+    {
+     "t": "code",
+     "v": "read write"
+    },
+    {
+     "t": "text",
+     "v": " can also be allowed to delete, if the person chooses to on that screen: read the "
+    },
+    {
+     "t": "code",
+     "v": "scope"
+    },
+    {
+     "t": "text",
+     "v": " in the token response rather than assuming you got what you asked for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Afterwards the connection appears under "
     },
     {
      "t": "strong",
@@ -52163,7 +54437,28 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "At most 20 connected apps per account, and connecting one opens up once the account is 72 hours old."
+     "v": "At most 20 connected apps per account. In an account's first 72 hours, only ChatGPT and Claude can connect, by sending the person back to their own callback, and their tokens answer 300 requests an hour instead of"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Every other app can connect once the account is"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "72 hours old."
     }
    ]
   },
@@ -52185,6 +54480,129 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Exactly what the person can reach. An OAuth access token is resolved to their own database session, under ordinary row-level security, by the same code path a personal access token uses. There is no separate permission model to get wrong: if they cannot see a cluster, neither can anything they connect."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
+   "id": "limits"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each is counted per address:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /oauth/register"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10 a minute, and 20 new clients an hour (a metadata document read for the first time counts as one)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "POST /oauth/token"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "/oauth/revoke"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "120 a minute between them"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Reading a metadata document from its host"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10 a minute"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Past one, the answer is "
+    },
+    {
+     "t": "code",
+     "v": "429"
+    },
+    {
+     "t": "text",
+     "v": " with "
+    },
+    {
+     "t": "code",
+     "v": "temporarily_unavailable"
+    },
+    {
+     "t": "text",
+     "v": ", and a "
+    },
+    {
+     "t": "code",
+     "v": "retry-after"
+    },
+    {
+     "t": "text",
+     "v": " in seconds on the per-minute ones. Those are kept in each Cloudflare location, so they are approximate: they are there to stop a loop, and a client that refreshes when its token runs out never meets them."
     }
    ]
   },
@@ -52249,7 +54667,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", or a confidential client failed to authenticate"
+       "v": ", a metadata document that could not be read or failed the checks above (the "
+      },
+      {
+       "t": "code",
+       "v": "error_description"
+      },
+      {
+       "t": "text",
+       "v": " says which), or a confidential client failed to authenticate"
       }
      ]
     ],
@@ -52346,6 +54772,55 @@ export const DOCS_CONTENT = {
        "v": " exist"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "temporarily_unavailable"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "503"
+      },
+      {
+       "t": "text",
+       "v": " when we, or your metadata document's host, did not answer; "
+      },
+      {
+       "t": "code",
+       "v": "429"
+      },
+      {
+       "t": "text",
+       "v": " when an address goes past one of the "
+      },
+      {
+       "t": "link",
+       "v": "limits",
+       "href": "#limits",
+       "children": [
+        {
+         "t": "text",
+         "v": "limits"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ". Retry, after "
+      },
+      {
+       "t": "code",
+       "v": "retry-after"
+      },
+      {
+       "t": "text",
+       "v": " when there is one; it is never a reason to throw a connection away"
+      }
+     ]
     ]
    ]
   },
@@ -52425,7 +54900,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Saying \"no such token\" would turn the endpoint into a way to test whether a stolen string is live."
+     "v": ". Saying \"no such token\" would turn the endpoint into a way to test whether a stolen string is live. (A "
+    },
+    {
+     "t": "code",
+     "v": "429"
+    },
+    {
+     "t": "text",
+     "v": " says only that the address went past its "
+    },
+    {
+     "t": "link",
+     "v": "limit",
+     "href": "#limits",
+     "children": [
+      {
+       "t": "text",
+       "v": "limit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ".)"
     }
    ]
   }
@@ -53964,6 +56462,51 @@ export const DOCS_CONTENT = {
        "v": "The card exactly as the canvas stores it"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "groups"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The board's "
+      },
+      {
+       "t": "link",
+       "v": "groups",
+       "href": "/docs/api/arrange",
+       "children": [
+        {
+         "t": "text",
+         "v": "groups"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", as "
+      },
+      {
+       "t": "code",
+       "v": "groups"
+      },
+      {
+       "t": "text",
+       "v": " beside the cards, read in the same pass (not with "
+      },
+      {
+       "t": "code",
+       "v": "source=index"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ]
     ]
    ]
   },
@@ -54618,6 +57161,92 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "GET /boards/:id/cards/:cardId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/cards/:cardId"
+    }
+   ],
+   "id": "get-boards-id-cards-cardid"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One card, as the list gives it, and "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": ", the link that opens the board with the card picked. "
+    },
+    {
+     "t": "code",
+     "v": "?include="
+    },
+    {
+     "t": "text",
+     "v": " works as it does on the list."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"board_id\": \"9f1c…\", \"card\": { \"id\": \"c-12\", \"kind\": \"note\", … },\n  \"url\": \"https://clusters.soleilpictures.com/?to=c:9f1c…:c-12\" }"
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Doc cards",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Doc cards"
+    }
+   ],
+   "id": "doc-cards"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A doc card's pages are read and written as Markdown on routes of their own: see the "
+    },
+    {
+     "t": "link",
+     "v": "Docs API",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "Docs API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "POST /boards/:id/docs"
+    },
+    {
+     "t": "text",
+     "v": " makes a doc with its pages already in it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "PATCH /boards/:id/cards/:cardId",
    "inline": [
     {
@@ -54985,6 +57614,2999 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "."
+    }
+   ]
+  }
+ ],
+ "/docs/api/docs": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "doc",
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " card holds pages of writing. Over the API you read them and write them as Markdown, page by page: the same Markdown the "
+    },
+    {
+     "t": "link",
+     "v": "export",
+     "href": "/docs/documents/export",
+     "children": [
+      {
+       "t": "text",
+       "v": "export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives you."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/cards/:cardId/doc",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/cards/:cardId/doc"
+    }
+   ],
+   "id": "get-boards-id-cards-cardid-doc"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A doc card's text: every page, in the order its page list shows them, as Markdown."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\", \"card_id\": \"c-3\", \"title\": \"Treatment\", \"url\": \"…\",\n  \"page_count\": 2,\n  \"pages\": [\n    { \"id\": \"p1\", \"title\": \"Opening\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": \"A diner at night…\\n\", \"chars\": 1840, \"hash\": \"5d1f0c2a\", \"truncated\": false },\n    { \"id\": \"p2\", \"title\": \"Close\", \"parent_id\": null, \"depth\": 0,\n      \"markdown\": null, \"chars\": 960, \"hash\": \"0be4a9d1\", \"truncated\": false }\n  ],\n  \"complete\": false\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "page"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "One page, by its "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "max_chars"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Markdown handed back across the pages: 20,000 characters by default, at most 200,000"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pages fill in order until "
+    },
+    {
+     "t": "code",
+     "v": "max_chars"
+    },
+    {
+     "t": "text",
+     "v": " runs out. The page that crosses it is cut and marked "
+    },
+    {
+     "t": "code",
+     "v": "truncated"
+    },
+    {
+     "t": "text",
+     "v": ", and any after it come back with "
+    },
+    {
+     "t": "code",
+     "v": "markdown: null"
+    },
+    {
+     "t": "text",
+     "v": ", so every page is listed with its length in "
+    },
+    {
+     "t": "code",
+     "v": "chars"
+    },
+    {
+     "t": "text",
+     "v": " either way. "
+    },
+    {
+     "t": "code",
+     "v": "complete"
+    },
+    {
+     "t": "text",
+     "v": " says whether you have all of it; read the rest one "
+    },
+    {
+     "t": "code",
+     "v": "page"
+    },
+    {
+     "t": "text",
+     "v": " at a time. A page nested under another carries that page's id in "
+    },
+    {
+     "t": "code",
+     "v": "parent_id"
+    },
+    {
+     "t": "text",
+     "v": ", and a "
+    },
+    {
+     "t": "code",
+     "v": "depth"
+    },
+    {
+     "t": "text",
+     "v": " one more."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Links in the text carry their real address, and comments are left out: "
+    },
+    {
+     "t": "link",
+     "v": "`GET /boards/:id/comments`",
+     "href": "/docs/api/comments",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists them, with the text each is on. An uploaded image's source is "
+    },
+    {
+     "t": "code",
+     "v": "r2:"
+    },
+    {
+     "t": "text",
+     "v": " followed by its storage key. A screenplay reads one line to a paragraph, scene headings in bold. "
+    },
+    {
+     "t": "code",
+     "v": "hash"
+    },
+    {
+     "t": "text",
+     "v": " changes whenever the page's Markdown does, and a read of one "
+    },
+    {
+     "t": "code",
+     "v": "page"
+    },
+    {
+     "t": "text",
+     "v": " carries it as the "
+    },
+    {
+     "t": "code",
+     "v": "ETag"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A card that is not a doc answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": ", naming the route that reads it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/docs",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/docs"
+    }
+   ],
+   "id": "post-boards-id-docs"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A new doc card holding the pages you send, placed in free space on the board, or at "
+    },
+    {
+     "t": "code",
+     "v": "x"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "y"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"title\": \"Tokyo noir\",\n  \"pages\": [\n    { \"title\": \"Logline\", \"markdown\": \"A night-shift detective follows a dead phone through Shinjuku.\" },\n    { \"markdown\": \"# Places\\n\\n- Shinjuku\\n- [Golden Gai](https://example.com/gg)\" }\n  ]\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "pages"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Required. Up to 50, each "
+      },
+      {
+       "t": "code",
+       "v": "{ title?, markdown }"
+      },
+      {
+       "t": "text",
+       "v": ", with up to 200,000 characters of Markdown between them"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "title"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The card's title. Left out, its one page's title, else \"Untitled doc\""
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Where the card goes. Left out, it is placed where it covers nothing"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A page with no "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " takes the words of its first heading, and a first page with neither takes the card's title, as a new doc's first page does in the app. Titles are cut at 200 characters."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"card\": { \"id\": \"api-m2x9k1-a81f3c\", \"kind\": \"doc\", \"title\": \"Tokyo noir\", … },\n  \"url\": \"https://clusters.soleilpictures.com/?to=c:9f1c…:api-m2x9k1-a81f3c\",\n  \"pages\": [\n    { \"id\": \"p_k3v8x0q2m1c4\", \"title\": \"Logline\", \"parent_id\": null, \"depth\": 0, \"chars\": 64, \"hash\": \"5d1f0c2a\" },\n    { \"id\": \"p_7hd2w9zr8b0e\", \"title\": \"Places\", \"parent_id\": null, \"depth\": 0, \"chars\": 57, \"hash\": \"0be4a9d1\" }\n  ],\n  \"live\": true\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "That is a "
+    },
+    {
+     "t": "code",
+     "v": "201"
+    },
+    {
+     "t": "text",
+     "v": ". The doc counts as one card toward the "
+    },
+    {
+     "t": "link",
+     "v": "card cap",
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card cap"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/cards/:cardId/doc/pages",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/cards/:cardId/doc/pages"
+    }
+   ],
+   "id": "post-boards-id-cards-cardid-doc-pages"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "More pages for a doc that exists: after the pages it has, or, with "
+    },
+    {
+     "t": "code",
+     "v": "parent_page_id"
+    },
+    {
+     "t": "text",
+     "v": ", under that page as its sub-pages. "
+    },
+    {
+     "t": "code",
+     "v": "pages"
+    },
+    {
+     "t": "text",
+     "v": " is as above. The answer is a "
+    },
+    {
+     "t": "code",
+     "v": "201"
+    },
+    {
+     "t": "text",
+     "v": " listing the new pages."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId"
+    }
+   ],
+   "id": "patch-boards-id-cards-cardid-doc-pages-pageid"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "One page changed, in one of three ways:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Send"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Does"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "markdown"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "page_hash"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Rewrites the page. "
+      },
+      {
+       "t": "code",
+       "v": "markdown"
+      },
+      {
+       "t": "text",
+       "v": " is the whole page as it should now read; "
+      },
+      {
+       "t": "code",
+       "v": "page_hash"
+      },
+      {
+       "t": "text",
+       "v": " is the "
+      },
+      {
+       "t": "code",
+       "v": "hash"
+      },
+      {
+       "t": "text",
+       "v": " you read it at, or send that as "
+      },
+      {
+       "t": "code",
+       "v": "If-Match"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "edits"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Up to 50 "
+      },
+      {
+       "t": "code",
+       "v": "{ \"old_text\", \"new_text\" }"
+      },
+      {
+       "t": "text",
+       "v": ", applied in order. Each "
+      },
+      {
+       "t": "code",
+       "v": "old_text"
+      },
+      {
+       "t": "text",
+       "v": " must appear in the page's Markdown exactly once"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "title"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Renames the page, alone or with either of the others"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"markdown\": \"# Places\\n\\n- Shinjuku at 4am\\n- [Golden Gai](https://example.com/gg)\\n\",\n  \"page_hash\": \"0be4a9d1\"\n}"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\", \"card_id\": \"api-m2x9k1-a81f3c\", \"url\": \"…\",\n  \"page\": { \"id\": \"p_7hd2w9zr8b0e\", \"title\": \"Places\", \"parent_id\": null, \"depth\": 0, \"chars\": 66, \"hash\": \"77a0e3b4\" },\n  \"blocks\": { \"kept\": 1, \"removed\": 1, \"added\": 1 },\n  \"changed\": true\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Only what you changed is rewritten.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Only what you changed is rewritten."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The page you send is matched against the page as it stands, block by block, by each block's Markdown. A heading, paragraph, list, table or quote whose Markdown you left alone stays the same block, so a comment on it, its text colour, an embedded board and anything else Markdown has no words for stay with it. "
+    },
+    {
+     "t": "code",
+     "v": "blocks"
+    },
+    {
+     "t": "text",
+     "v": " counts what was kept, removed and added. Send a page back as it was and nothing is written: "
+    },
+    {
+     "t": "code",
+     "v": "changed"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "false"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "A rewrite can't erase anyone's change.",
+     "children": [
+      {
+       "t": "text",
+       "v": "A rewrite can't erase anyone's change."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " When the page's hash is no longer the one you name, the write is refused with "
+    },
+    {
+     "t": "code",
+     "v": "409 page_changed"
+    },
+    {
+     "t": "text",
+     "v": " and nothing is written. Read the page again and make your change to that. "
+    },
+    {
+     "t": "code",
+     "v": "edits"
+    },
+    {
+     "t": "text",
+     "v": " need no hash, because the exact text each one names is its own check."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Before a page is rewritten or edited, the board is saved to its "
+    },
+    {
+     "t": "link",
+     "v": "Version history",
+     "href": "/docs/clusters/trash-and-recovery#version-history",
+     "children": [
+      {
+       "t": "text",
+       "v": "Version history"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " as it was, marked API."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "What the Markdown carries",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What the Markdown carries"
+    }
+   ],
+   "id": "what-the-markdown-carries"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Markdown"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In the doc"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "#"
+      },
+      {
+       "t": "text",
+       "v": " to "
+      },
+      {
+       "t": "code",
+       "v": "######"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Headings"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "**bold**"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "*italic*"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "~~strike~~"
+      },
+      {
+       "t": "text",
+       "v": ", `"
+      },
+      {
+       "t": "code",
+       "v": " "
+      },
+      {
+       "t": "text",
+       "v": "code"
+      },
+      {
+       "t": "code",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "==highlight=="
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "<u>underline</u>"
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "<sub>"
+      },
+      {
+       "t": "code",
+       "v": ", "
+      },
+      {
+       "t": "text",
+       "v": "<sup>`"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The same marks"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "-"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "1."
+      },
+      {
+       "t": "text",
+       "v": " lists, nested"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Lists, numbered from where yours starts"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "- [ ]"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "- [x]"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A checklist, when every item in the list is one"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": ">"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A quote"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Fenced code"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A code block, with its language"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Tables"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tables, each column aligned as you aligned it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "---"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A divider"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "[words](https://…)"
+      },
+      {
+       "t": "text",
+       "v": ", a bare "
+      },
+      {
+       "t": "code",
+       "v": "https://"
+      },
+      {
+       "t": "text",
+       "v": " address, "
+      },
+      {
+       "t": "code",
+       "v": "mailto:"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Links"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "![caption](r2:<image_key>)"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A picture, when the file is already on the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "A single line break"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A line break; a blank line starts a new paragraph"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Links go only to "
+    },
+    {
+     "t": "code",
+     "v": "http"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "https"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "mailto"
+    },
+    {
+     "t": "text",
+     "v": " addresses; any other keeps its words without the link. A picture is placed only from a file already on the board: an image card's "
+    },
+    {
+     "t": "code",
+     "v": "image_key"
+    },
+    {
+     "t": "text",
+     "v": " from "
+    },
+    {
+     "t": "link",
+     "v": "`GET /boards/:id/cards`",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", written "
+    },
+    {
+     "t": "code",
+     "v": "r2:<image_key>"
+    },
+    {
+     "t": "text",
+     "v": " as a read gives it back (the bare key works too). Any other picture becomes a link to its address, so writing a doc never fetches anything into it. Other HTML stays as text."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A screenplay is written in the app. The API writes prose docs, and answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": " for a screenplay."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Live, or not at all",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Live, or not at all"
+    }
+   ],
+   "id": "live-or-not-at-all"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Doc writes go through the cluster's live room, as an edit in the app does, so anyone with the doc open sees the change land, on the board or in a "
+    },
+    {
+     "t": "link",
+     "v": "doc shared on its own",
+     "href": "/docs/collaborate/sharing#sharing-a-doc",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc shared on its own"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". When the room can't be reached, or doesn't confirm the change, the answer is "
+    },
+    {
+     "t": "code",
+     "v": "503 room_unavailable"
+    },
+    {
+     "t": "text",
+     "v": " and nothing was written: try again."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Search inside documents finds what you wrote straight away."
+    }
+   ]
+  }
+ ],
+ "/docs/api/comments": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A board's "
+    },
+    {
+     "t": "link",
+     "v": "comments",
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are read and written here: the bubbles on its canvas, and the threads inside its docs and notes. Everything runs as you, so the API lets you do with a comment exactly what the app does."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/comments",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/comments"
+    }
+   ],
+   "id": "get-boards-id-comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every comment thread on the board, in one list: on the canvas, and inside its docs and notes."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\", \"status\": \"open\", \"counts\": { \"open\": 2, \"resolved\": 5 },\n  \"threads\": [\n    { \"id\": \"cm_k3v8x0q2\", \"on\": \"doc\", \"card_id\": \"d-4\", \"card_title\": \"Treatment\",\n      \"page_title\": \"Opening\", \"quote\": \"at night\",\n      \"body\": \"Too slow?\", \"author_name\": \"Sam Park\", \"by_you\": false, \"resolved\": false, \"replies\": [] },\n    { \"id\": \"6a0e…\", \"on\": \"card\", \"card_id\": \"c-3\", \"card_title\": \"Hero still\",\n      \"body\": \"Too dark\", \"author_name\": \"Ana Ruiz\", \"by_you\": true, \"resolved\": false,\n      \"replies\": [{ \"id\": \"41bd…\", \"body\": \"Agreed\", \"author_name\": \"Sam Park\", \"by_you\": false }] }\n  ],\n  \"has_more\": false, \"next_cursor\": null\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every thread and reply also carries "
+    },
+    {
+     "t": "code",
+     "v": "author_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "created_at"
+    },
+    {
+     "t": "text",
+     "v": ", and every thread a "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " that opens it in the app."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "status"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "open"
+      },
+      {
+       "t": "text",
+       "v": " (the default), "
+      },
+      {
+       "t": "code",
+       "v": "resolved"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "all"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "limit"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Threads per page: 50 by default, at most 200"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "cursor"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The "
+      },
+      {
+       "t": "code",
+       "v": "next_cursor"
+      },
+      {
+       "t": "text",
+       "v": " of the page before"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The liveliest thread comes first: one moves up when someone replies to it. "
+    },
+    {
+     "t": "code",
+     "v": "counts"
+    },
+    {
+     "t": "text",
+     "v": " tells you how many are open and resolved, whichever you asked for."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each thread says what it is "
+    },
+    {
+     "t": "code",
+     "v": "on"
+    },
+    {
+     "t": "text",
+     "v": ", and carries only the fields that go with it:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "code",
+      "v": "on"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Means"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Also carries"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "card"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble on a card"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_kind"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_title"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "group"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble on a "
+      },
+      {
+       "t": "link",
+       "v": "group",
+       "href": "/docs/canvas/groups",
+       "children": [
+        {
+         "t": "text",
+         "v": "group"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "group_id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "point"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble at a spot on the canvas"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A bubble about the board as a whole"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "doc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A thread on a run of a doc's text"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "page_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "page_title"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "quote"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "note"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A thread on a run of a note's text"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "quote"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "quote"
+    },
+    {
+     "t": "text",
+     "v": " is the text the thread is on, up to 300 characters. A name is the one the person set, else one made from their email, as the app shows it. "
+    },
+    {
+     "t": "code",
+     "v": "by_you"
+    },
+    {
+     "t": "text",
+     "v": " marks what you wrote. A thread someone hid on the canvas carries "
+    },
+    {
+     "t": "code",
+     "v": "hidden: true"
+    },
+    {
+     "t": "text",
+     "v": ". When the threads inside docs and notes can't be read just then, the list holds the board's own and a "
+    },
+    {
+     "t": "code",
+     "v": "note"
+    },
+    {
+     "t": "text",
+     "v": " says so."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/comments",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/comments"
+    }
+   ],
+   "id": "post-boards-id-comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A comment, in your name."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"body\": \"Warmer grade?\", \"card_id\": \"c-3\" }"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "body"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Required. Up to 4,000 characters"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "On that card"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "group_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "On that group"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "At that spot on the canvas"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "quote"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "With a doc's "
+      },
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": ": on those words in the doc"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "page_id"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "With "
+      },
+      {
+       "t": "code",
+       "v": "quote"
+      },
+      {
+       "t": "text",
+       "v": ": the page the words are on"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "reply_to"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "In that thread, as a reply"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Send one of "
+    },
+    {
+     "t": "code",
+     "v": "card_id"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "group_id"
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "code",
+     "v": "x"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "y"
+    },
+    {
+     "t": "text",
+     "v": ", or none of them for a comment about the board as a whole. The bubble is placed as the app places one: beside its card or group, on the side where it covers least, and a comment on the whole board beside everything on it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A reply takes no place of its own: it goes into its thread, wherever the thread is, so it stays with the card when the card moves. "
+    },
+    {
+     "t": "code",
+     "v": "reply_to"
+    },
+    {
+     "t": "text",
+     "v": " can name the thread or any reply in it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It answers "
+    },
+    {
+     "t": "code",
+     "v": "201"
+    },
+    {
+     "t": "text",
+     "v": " with the comment as the list has it, or a reply as a thread's replies are, with "
+    },
+    {
+     "t": "code",
+     "v": "reply_to"
+    },
+    {
+     "t": "text",
+     "v": " naming its thread."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "On words in a doc",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On words in a doc"
+    }
+   ],
+   "id": "on-words-in-a-doc"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a doc's "
+    },
+    {
+     "t": "code",
+     "v": "card_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "quote"
+    },
+    {
+     "t": "text",
+     "v": ", the comment starts a thread on those words, highlighted as a selection is when you comment in the app. Quote them as "
+    },
+    {
+     "t": "link",
+     "v": "reading the doc",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "reading the doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " gives them (spacing, curly quotes and Markdown marks don't matter), up to 2000 characters. Words that aren't there, or are there more than once, answer "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": " saying so: quote more of the words around them, or name the page with "
+    },
+    {
+     "t": "code",
+     "v": "page_id"
+    },
+    {
+     "t": "text",
+     "v": ". A note's words take a comment in the app."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "PATCH /boards/:id/comments/:commentId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/comments/:commentId"
+    }
+   ],
+   "id": "patch-boards-id-comments-commentid"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"resolved\": true }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Resolves a thread, as its "
+    },
+    {
+     "t": "strong",
+     "v": "Resolve",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resolve"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button does, or reopens it with "
+    },
+    {
+     "t": "code",
+     "v": "false"
+    },
+    {
+     "t": "text",
+     "v": ". Name the thread: a reply answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": ", naming its thread."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "PATCH /boards/:id/comments",
+   "inline": [
+    {
+     "t": "code",
+     "v": "PATCH /boards/:id/comments"
+    }
+   ],
+   "id": "patch-boards-id-comments"
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"comment_ids\": [\"cm_k3v8x0q2\", \"6a0e…\"], \"resolved\": true }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 50 threads of either kind at once, each checked on its own. The answer lists them as "
+    },
+    {
+     "t": "code",
+     "v": "changed"
+    },
+    {
+     "t": "text",
+     "v": " (one already so counts), "
+    },
+    {
+     "t": "code",
+     "v": "not_found"
+    },
+    {
+     "t": "text",
+     "v": ", or "
+    },
+    {
+     "t": "code",
+     "v": "refused"
+    },
+    {
+     "t": "text",
+     "v": ", each refusal with a "
+    },
+    {
+     "t": "code",
+     "v": "code"
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "code",
+     "v": "reason"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "DELETE /boards/:id/comments/:commentId",
+   "inline": [
+    {
+     "t": "code",
+     "v": "DELETE /boards/:id/comments/:commentId"
+    }
+   ],
+   "id": "delete-boards-id-comments-commentid"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Deletes a comment you wrote. On the canvas its replies go with it, and come back with it. Like every delete, it needs a token with the "
+    },
+    {
+     "t": "code",
+     "v": "delete"
+    },
+    {
+     "t": "text",
+     "v": " scope. It can be restored for 30 days:"
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/comments/:commentId/restore",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/comments/:commentId/restore"
+    }
+   ],
+   "id": "post-boards-id-comments-commentid-restore"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Brings a deleted comment back. Restoring one that isn't deleted changes nothing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A thread of yours inside a doc can be deleted until someone else replies in it ("
+    },
+    {
+     "t": "code",
+     "v": "409"
+    },
+    {
+     "t": "text",
+     "v": " after that: resolve it instead). Its highlight goes with it, for good."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Who can do what",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can do what"
+    }
+   ],
+   "id": "who-can-do-what"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On the canvas"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Inside docs and notes"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Comment, or reply"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Anyone who can open the board"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An editor"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Start a thread on words"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An editor, in a doc"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Resolve or reopen"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The thread's author, or an editor"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "An editor"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The comment's author"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The thread's author"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Restore"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its author, or an editor"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "—"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An editor is anyone who can edit the board. Anything else answers "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": ". A board you can't open, or a comment that isn't on it, answers "
+    },
+    {
+     "t": "code",
+     "v": "404"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Threads inside docs and notes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Threads inside docs and notes"
+    }
+   ],
+   "id": "threads-inside-docs-and-notes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Their ids start "
+    },
+    {
+     "t": "code",
+     "v": "cm_"
+    },
+    {
+     "t": "text",
+     "v": ", and their replies' "
+    },
+    {
+     "t": "code",
+     "v": "cr_"
+    },
+    {
+     "t": "text",
+     "v": ". They live in the doc itself and are written through the board's live room, so everyone with it open sees them at once. When the room can't be reached nothing is written, and the answer is "
+    },
+    {
+     "t": "code",
+     "v": "503"
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "room_unavailable"
+    },
+    {
+     "t": "text",
+     "v": ": try again. As in the app, a resolved thread takes no reply until it is reopened ("
+    },
+    {
+     "t": "code",
+     "v": "409"
+    },
+    {
+     "t": "text",
+     "v": ")."
+    }
+   ]
+  }
+ ],
+ "/docs/api/tags": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A workspace's "
+    },
+    {
+     "t": "link",
+     "v": "tags",
+     "href": "/docs/organize/tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "tags"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are read and applied here. Everything runs as you, so the API does with a tag exactly what the app does."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /workspaces/:id/tags",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /workspaces/:id/tags"
+    }
+   ],
+   "id": "get-workspaces-id-tags"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The workspace's tags, by name."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"workspace_id\": \"5b2e…\",\n  \"tags\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"color\": null, \"entity_type\": \"setting\",\n      \"description\": null, \"items\": 14, \"created_at\": \"2026-09-30T18:02:11Z\" }\n  ],\n  \"limit\": 100, \"offset\": 0, \"has_more\": false\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "items"
+    },
+    {
+     "t": "text",
+     "v": " is how many things carry the tag, the number the sidebar shows (null when it can't be counted just then). "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " is the one picked in the app, or null for the colour it gives the tag from its name. "
+    },
+    {
+     "t": "code",
+     "v": "entity_type"
+    },
+    {
+     "t": "text",
+     "v": " is one of "
+    },
+    {
+     "t": "code",
+     "v": "character"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "setting"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "organization"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "concept"
+    },
+    {
+     "t": "text",
+     "v": " (Topic, in the app) and "
+    },
+    {
+     "t": "code",
+     "v": "thing"
+    },
+    {
+     "t": "text",
+     "v": ", or null."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "name"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Just the tag of that name, in any case"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "limit"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tags per page: 100 by default, at most 500"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "offset"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Where the page starts"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /tags/:id",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /tags/:id"
+    }
+   ],
+   "id": "get-tags-id"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Everything carrying a tag, on every board in its workspace, the most recently tagged first: the tag's page, as data."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"tag\": { \"id\": \"0c9a…\", \"name\": \"Diner\", \"workspace_id\": \"5b2e…\", \"…\": \"…\" },\n  \"items\": [\n    { \"kind\": \"card\", \"card_kind\": \"image\", \"board_id\": \"9f1c…\", \"board_name\": \"Locations\",\n      \"card_id\": \"c-3\", \"title\": \"Booth, night\", \"excerpt\": null,\n      \"auto\": false, \"tagged_at\": \"2026-10-20T09:14:02Z\", \"url\": \"https://…\" },\n    { \"kind\": \"doc_page\", \"board_id\": \"9f1c…\", \"card_id\": \"d-4\", \"page_id\": \"p-2\",\n      \"title\": \"Opening\", \"excerpt\": \"INT. DINER — NIGHT…\", \"auto\": true, \"…\": \"…\" }\n  ],\n  \"has_more\": false\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each item's "
+    },
+    {
+     "t": "code",
+     "v": "kind"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "card"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " (with "
+    },
+    {
+     "t": "code",
+     "v": "group_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "cards"
+    },
+    {
+     "t": "text",
+     "v": ", how many cards it holds), "
+    },
+    {
+     "t": "code",
+     "v": "board"
+    },
+    {
+     "t": "text",
+     "v": " (a whole cluster), or "
+    },
+    {
+     "t": "code",
+     "v": "doc_page"
+    },
+    {
+     "t": "text",
+     "v": " (a page of a doc, with "
+    },
+    {
+     "t": "code",
+     "v": "card_id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "page_id"
+    },
+    {
+     "t": "text",
+     "v": "). "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " marks what was tagged automatically rather than by a person, and "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " opens it in the app. "
+    },
+    {
+     "t": "code",
+     "v": "limit"
+    },
+    {
+     "t": "text",
+     "v": " takes 100 by default, at most 500."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/tags",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/tags"
+    }
+   ],
+   "id": "get-boards-id-tags"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The tags on one board, and what carries each."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"tags\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"…\": \"…\", \"on_board\": false,\n      \"cards\": [\"c-3\", \"c-7\"], \"groups\": [], \"pages\": [{ \"card_id\": \"d-4\", \"page_id\": \"p-2\" }] }\n  ],\n  \"url\": \"https://…\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "on_board"
+    },
+    {
+     "t": "text",
+     "v": " is true when the board itself carries the tag, and each list is in the order things were tagged. A card deleted from the board keeps its tags in case the delete is undone, and isn't listed; when the board can't be read just then, a "
+    },
+    {
+     "t": "code",
+     "v": "note"
+    },
+    {
+     "t": "text",
+     "v": " says deleted cards may be."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "POST /boards/:id/tags",
+   "inline": [
+    {
+     "t": "code",
+     "v": "POST /boards/:id/tags"
+    }
+   ],
+   "id": "post-boards-id-tags"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Puts tags on cards of this board and takes tags off them."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"card_ids\": [\"c-3\", \"c-7\"], \"add\": [\"Diner\", \"night exterior\"], \"remove\": [\"0c9a…\"] }"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Required. Up to 200 cards on this board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "add"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tags to put on them, up to 10: names, or ids from the lists above"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "remove"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Tags to take off them, up to 10, the same way"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Send "
+    },
+    {
+     "t": "code",
+     "v": "add"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "remove"
+    },
+    {
+     "t": "text",
+     "v": ", or both. A name is matched in any case, and a leading "
+    },
+    {
+     "t": "code",
+     "v": "#"
+    },
+    {
+     "t": "text",
+     "v": " is ignored. Each works as the "
+    },
+    {
+     "t": "strong",
+     "v": "Tag…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tag…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu does:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A name the workspace has no tag for",
+      "children": [
+       {
+        "t": "text",
+        "v": "A name the workspace has no tag for"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " makes the tag, up to 80 characters. As a tag made in the app does, it then also goes on whatever else in the workspace says its name, marked auto."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A deleted tag's name",
+      "children": [
+       {
+        "t": "text",
+        "v": "A deleted tag's name"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " brings that tag back with everything it was on, as recreating it in the app does."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Taking a tag off a card",
+      "children": [
+       {
+        "t": "text",
+        "v": "Taking a tag off a card"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " keeps it off that card for good: automatic tagging never puts it back there. Putting it on again yourself lifts that."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"added\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"…\": \"…\", \"created\": false, \"card_ids\": [\"c-7\"] },\n    { \"id\": \"77d1…\", \"name\": \"night exterior\", \"…\": \"…\", \"created\": true, \"card_ids\": [\"c-3\", \"c-7\"] }\n  ],\n  \"removed\": [{ \"id\": \"3f2b…\", \"name\": \"Day\", \"…\": \"…\", \"card_ids\": [\"c-3\"] }],\n  \"not_found\": { \"card_ids\": [], \"tags\": [] },\n  \"url\": \"https://…\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each tag's "
+    },
+    {
+     "t": "code",
+     "v": "card_ids"
+    },
+    {
+     "t": "text",
+     "v": " are the cards that changed: one that already had the tag, or never had the one taken off, isn't listed, so sending the same call twice changes nothing the second time. "
+    },
+    {
+     "t": "code",
+     "v": "created"
+    },
+    {
+     "t": "text",
+     "v": " marks a new tag and "
+    },
+    {
+     "t": "code",
+     "v": "revived: true"
+    },
+    {
+     "t": "text",
+     "v": " one brought back. An id that isn't a tag of this workspace, or a tag to take off that it doesn't have, is listed in "
+    },
+    {
+     "t": "code",
+     "v": "not_found.tags"
+    },
+    {
+     "t": "text",
+     "v": ", and a card that isn't on the board in "
+    },
+    {
+     "t": "code",
+     "v": "not_found.card_ids"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Who can do what",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can do what"
+    }
+   ],
+   "id": "who-can-do-what"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tags belong to a workspace. Its members read them; anyone who can edit the workspace tags things in it, and anyone else gets "
+    },
+    {
+     "t": "code",
+     "v": "403"
+    },
+    {
+     "t": "text",
+     "v": ". Someone a board is shared with sees no tags. A board you can't open, or none of the cards on it, answers "
+    },
+    {
+     "t": "code",
+     "v": "404"
+    },
+    {
+     "t": "text",
+     "v": ". Tagging reads the board to find its cards: when it can't be read just then, nothing is written and the answer is "
+    },
+    {
+     "t": "code",
+     "v": "503"
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "room_unavailable"
+    },
+    {
+     "t": "text",
+     "v": ", so try again."
     }
    ]
   }
@@ -55957,7 +61579,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for the downscaled copy the app stores when an image is uploaded — roughly 900px and about 48 kB, against ~470 kB for a typical original. It is more than enough to look at, and about ten times cheaper to move, which matters if you are reading a whole moodboard or handing images to a model."
+     "v": " for the downscaled copy the app stores when an image is uploaded, usually a small fraction of the original's bytes. It is more than enough to look at and far cheaper to move, which matters if you are reading a whole moodboard or handing images to a model."
     }
    ]
   },
@@ -56006,11 +61628,350 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "view_image"
+     "v": "view_board"
     },
     {
      "t": "text",
-     "v": " asks for this by default."
+     "v": " shows pictures at this size when it is asked to look closely at a few."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "GET /boards/:id/gallery",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/gallery"
+    }
+   ],
+   "id": "get-boards-id-gallery"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A board's pictures in the order a person reads it, top to bottom and left to right: image cards, and videos with a poster frame. It is how an agent "
+    },
+    {
+     "t": "strong",
+     "v": "looks at a board",
+     "children": [
+      {
+       "t": "text",
+       "v": "looks at a board"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " without fetching every picture one by one, and what the MCP server's "
+    },
+    {
+     "t": "code",
+     "v": "view_board"
+    },
+    {
+     "t": "text",
+     "v": " reads."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"https://clusters.soleilpictures.com/api/v1/boards/$BOARD/gallery?inline=1\" \\\n  -H \"Authorization: Bearer $TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board\": { \"id\": \"…\", \"name\": \"Diner — night\", \"url\": \"https://clusters.soleilpictures.com/?to=b:…\",\n             \"card_count\": 42, \"picture_count\": 25,\n             \"thumbnail\": { \"updated_at\": \"…\", \"data\": \"UklGR…\", \"mime\": \"image/webp\", \"bytes\": 15800 } },\n  \"size\": \"sm\",\n  \"pictures\": [\n    { \"card_id\": \"c-81\", \"kind\": \"image\", \"position\": 1, \"title\": \"Neon sign\", \"caption\": null,\n      \"image_key\": \"…\", \"width\": 4032, \"height\": 3024,\n      \"rendition\": { \"variant\": \"sm\", \"width\": 640, \"height\": 480 },\n      \"url\": \"https://clusters.soleilpictures.com/?to=c:…:c-81\",\n      \"data\": \"UklGR…\", \"mime\": \"image/webp\", \"bytes\": 31200 }\n  ],\n  \"has_more\": true,\n  \"next_cursor\": \"p12\"\n}"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Parameter"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "limit"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Pictures per page: 12 by default, at most 24"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "cursor"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "next_cursor"
+      },
+      {
+       "t": "text",
+       "v": " from the previous page"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "inline"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "1"
+      },
+      {
+       "t": "text",
+       "v": " embeds each picture as base64 in "
+      },
+      {
+       "t": "code",
+       "v": "data"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "size"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "sm"
+      },
+      {
+       "t": "text",
+       "v": ", the smaller rendition (the default), or "
+      },
+      {
+       "t": "code",
+       "v": "preview"
+      },
+      {
+       "t": "text",
+       "v": ", the larger one"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Comma-separated, at most 24: these pictures instead of a page"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "thumbnail"
+    },
+    {
+     "t": "text",
+     "v": " is the board drawn whole, as the app last stored it, on the first page only and "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " when the board has none. A video's picture is its poster frame, marked "
+    },
+    {
+     "t": "code",
+     "v": "\"poster\": true"
+    },
+    {
+     "t": "text",
+     "v": ". With "
+    },
+    {
+     "t": "code",
+     "v": "card_ids"
+    },
+    {
+     "t": "text",
+     "v": " the pictures come in the order named, "
+    },
+    {
+     "t": "code",
+     "v": "position"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "null"
+    },
+    {
+     "t": "text",
+     "v": " and there is no next page. Each picture names the rendition it would show: the smaller one asked for, the other one when it is missing, and the original only when it is at most 400 KB."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With "
+    },
+    {
+     "t": "code",
+     "v": "inline=1"
+    },
+    {
+     "t": "text",
+     "v": ", pictures are embedded in reading order while they fit: at most 400 KB each (1 MB with "
+    },
+    {
+     "t": "code",
+     "v": "size=preview"
+    },
+    {
+     "t": "text",
+     "v": ") and 1.5 MB for the whole answer. One that does not fit carries a "
+    },
+    {
+     "t": "code",
+     "v": "reason"
+    },
+    {
+     "t": "text",
+     "v": " instead of "
+    },
+    {
+     "t": "code",
+     "v": "data"
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "too_large"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "budget"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "no_rendition"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "not_found"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "missing"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "storage_unavailable"
+    },
+    {
+     "t": "text",
+     "v": "). Ask for it by "
+    },
+    {
+     "t": "code",
+     "v": "card_ids"
+    },
+    {
+     "t": "text",
+     "v": ", or for fewer at a time. Embedding pictures is a read of their bytes, so it is written to the "
+    },
+    {
+     "t": "link",
+     "v": "audit log",
+     "href": "/docs/api/audit",
+     "children": [
+      {
+       "t": "text",
+       "v": "audit log"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " like "
+    },
+    {
+     "t": "code",
+     "v": "GET /images/:key"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -58513,7 +64474,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " it straight away."
+     "v": " it straight away, and "
+    },
+    {
+     "t": "code",
+     "v": "board_name"
+    },
+    {
+     "t": "text",
+     "v": ", so you can say where it is — and a "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " that opens it in the app."
     }
    ]
   },
@@ -59369,7 +65346,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " metadata; the client registers itself, opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box."
+     "v": " metadata. The client identifies itself (Claude, ChatGPT and VS Code by the address of their own published metadata, others by registering), opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box."
     }
    ]
   },
@@ -60273,21 +66250,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "— · the account, its scopes, rate limit, and whether it is a service account"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_workspaces"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "—"
+       "v": "— · the account, its scopes, rate limit, whether it is a service account, and the workspaces it can see"
       }
      ]
     ],
@@ -60301,7 +66264,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "q"
+       "v": "query"
       },
       {
        "t": "text",
@@ -60337,7 +66300,117 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", paging"
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "limit?"
+      },
+      {
+       "t": "text",
+       "v": " (default 20 of each kind, up to 100), "
+      },
+      {
+       "t": "code",
+       "v": "offset?"
+      },
+      {
+       "t": "text",
+       "v": " · boards and cards by their words, boards first, each result "
+      },
+      {
+       "t": "code",
+       "v": "{ id, title, url }"
+      },
+      {
+       "t": "text",
+       "v": " with, for a card, an excerpt and the name of its board — the shape ChatGPT asks of a search tool; each "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " is one "
+      },
+      {
+       "t": "code",
+       "v": "fetch"
+      },
+      {
+       "t": "text",
+       "v": " reads"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "fetch"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " — "
+      },
+      {
+       "t": "code",
+       "v": "board:<board id>"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card:<board id>:<card id>"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "doc:<board id>:<card id>"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": ":<page id>"
+      },
+      {
+       "t": "text",
+       "v": " for one page), or a link from the app · one board, card or doc as text to read, "
+      },
+      {
+       "t": "code",
+       "v": "{ id, title, text, url, metadata }"
+      },
+      {
+       "t": "text",
+       "v": ", up to 40,000 characters; a doc's "
+      },
+      {
+       "t": "code",
+       "v": "metadata.pages"
+      },
+      {
+       "t": "text",
+       "v": " carry each page's "
+      },
+      {
+       "t": "code",
+       "v": "hash"
       }
      ]
     ],
@@ -60387,33 +66460,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", paging"
-      }
-     ]
-    ],
-    [
-     [
+       "v": ", paging, "
+      },
       {
        "t": "code",
-       "v": "board_tree"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "root?"
+       "v": "response_format?"
       },
       {
        "t": "text",
-       "v": " or "
-      },
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
+       "v": " · one level at a time, each board with its link; with "
       },
       {
        "t": "code",
@@ -60421,25 +66476,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — a whole hierarchy in one call"
-      }
-     ]
-    ],
-    [
-     [
+       "v": " (up to 20) a whole hierarchy in one call, at most 500 boards; with "
+      },
       {
        "t": "code",
-       "v": "get_board"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
+       "v": "deleted?"
       },
       {
        "t": "text",
-       "v": " — one board, with how much of the card allowance is used"
+       "v": " the boards that can still be restored"
       }
      ]
     ],
@@ -60466,38 +66511,6 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": " — find something by an id from another system"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_deleted_boards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_groups"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": " — the labelled sets on a board"
       }
      ]
     ]
@@ -60553,6 +66566,14 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "response_format?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "full?"
       },
       {
@@ -60581,81 +66602,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", paging"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "view_image"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "image_key"
-      },
-      {
-       "t": "text",
-       "v": " — fetch an image card's actual picture"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "list_images"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "board_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "since?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "cursor?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "export_board"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
+       "v": ", paging · the board with its link, fields and how much of the card allowance is used, its groups, and a page of its cards; "
       },
       {
        "t": "code",
@@ -60679,7 +66626,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ")"
+       "v": ") for the whole board as one document instead"
       }
      ]
     ],
@@ -60687,7 +66634,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "get_metadata"
+       "v": "view_board"
       }
      ],
      [
@@ -60701,11 +66648,173 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "cards?"
+       "v": "limit?"
       },
       {
        "t": "text",
-       "v": " — identifiers and properties"
+       "v": " (default 12, up to 24), "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids?"
+      },
+      {
+       "t": "text",
+       "v": " (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_comments"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "status?"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "open"
+      },
+      {
+       "t": "text",
+       "v": "|"
+      },
+      {
+       "t": "code",
+       "v": "resolved"
+      },
+      {
+       "t": "text",
+       "v": "|"
+      },
+      {
+       "t": "code",
+       "v": "all"
+      },
+      {
+       "t": "text",
+       "v": "), "
+      },
+      {
+       "t": "code",
+       "v": "limit?"
+      },
+      {
+       "t": "text",
+       "v": " (up to 200), "
+      },
+      {
+       "t": "code",
+       "v": "cursor?"
+      },
+      {
+       "t": "text",
+       "v": " — the board's "
+      },
+      {
+       "t": "link",
+       "v": "comment",
+       "href": "/docs/api/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " threads, those inside its docs and notes with the text they are on"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_tags"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "workspace_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "board_id?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "tag?"
+      },
+      {
+       "t": "text",
+       "v": " (a name or an id), "
+      },
+      {
+       "t": "code",
+       "v": "limit?"
+      },
+      {
+       "t": "text",
+       "v": " (up to 500) — a workspace's "
+      },
+      {
+       "t": "link",
+       "v": "tags",
+       "href": "/docs/api/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tags"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", the tags on one board, or with "
+      },
+      {
+       "t": "code",
+       "v": "tag"
+      },
+      {
+       "t": "text",
+       "v": " everything carrying it"
       }
      ]
     ],
@@ -60773,17 +66882,25 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "create_board"
+       "v": "create_boards"
       }
      ],
      [
       {
        "t": "code",
-       "v": "name"
+       "v": "boards[]"
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " — one, or up to 500, each "
+      },
+      {
+       "t": "code",
+       "v": "{ name, workspace_id?, parent_board_id?, view?, identifiers?, props? }"
+      },
+      {
+       "t": "text",
+       "v": "; "
       },
       {
        "t": "code",
@@ -60795,53 +66912,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "parent_board_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "identifiers?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "props?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "create_boards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "boards[]"
-      },
-      {
-       "t": "text",
-       "v": " — up to 500, "
-      },
-      {
-       "t": "code",
        "v": "on_conflict?"
       },
       {
        "t": "text",
-       "v": " — build a structure in one call; each entry takes the same fields as "
+       "v": " · each board comes back with its "
       },
       {
        "t": "code",
-       "v": "create_board"
+       "v": "url"
       }
      ]
     ],
@@ -60872,6 +66951,48 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "on_conflict?"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "import_urls"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "urls[]"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "titles?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "dry_run?"
+      },
+      {
+       "t": "text",
+       "v": " — bring reference in from the web; safe to re-run"
       }
      ]
     ],
@@ -60957,7 +67078,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "import_urls"
+       "v": "write_doc"
       }
      ],
      [
@@ -60971,7 +67092,23 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "urls[]"
+       "v": "pages[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 50, each "
+      },
+      {
+       "t": "code",
+       "v": "{ title?, markdown }"
+      },
+      {
+       "t": "text",
+       "v": "; "
+      },
+      {
+       "t": "code",
+       "v": "title?"
       },
       {
        "t": "text",
@@ -60979,7 +67116,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "titles?"
+       "v": "x?"
       },
       {
        "t": "text",
@@ -60987,53 +67124,42 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "dry_run?"
+       "v": "y?"
       },
       {
        "t": "text",
-       "v": " — bring reference in from the web; safe to re-run"
-      }
-     ]
-    ],
-    [
-     [
+       "v": " for a new doc, or "
+      },
       {
        "t": "code",
-       "v": "arrange_board"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
+       "v": "card_id"
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " and "
       },
       {
        "t": "code",
-       "v": "layout?"
+       "v": "parent_page_id?"
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " to add pages to one · a "
       },
       {
-       "t": "code",
-       "v": "card_ids?"
+       "t": "link",
+       "v": "doc",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc"
+        }
+       ]
       },
       {
        "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "dry_run?"
-      },
-      {
-       "t": "text",
-       "v": " — lay a board out"
+       "v": " written from Markdown"
       }
      ]
     ],
@@ -61083,7 +67209,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "rename_board"
+       "v": "add_comment"
       }
      ],
      [
@@ -61097,7 +67223,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "name?"
+       "v": "body"
+      },
+      {
+       "t": "text",
+       "v": ", and "
+      },
+      {
+       "t": "code",
+       "v": "card_id?"
       },
       {
        "t": "text",
@@ -61105,7 +67239,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "view?"
+       "v": "group_id?"
       },
       {
        "t": "text",
@@ -61113,47 +67247,43 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "parent_board_id?"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "move_boards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_ids[]"
+       "v": "x?"
       },
       {
        "t": "text",
-       "v": " — up to 500, "
+       "v": " and "
       },
       {
        "t": "code",
-       "v": "parent_board_id"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "update_card"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
+       "v": "y?"
       },
       {
        "t": "text",
-       "v": ", "
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "reply_to?"
+      },
+      {
+       "t": "text",
+       "v": "; "
+      },
+      {
+       "t": "code",
+       "v": "quote?"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "page_id?"
+      },
+      {
+       "t": "text",
+       "v": " with a doc's "
       },
       {
        "t": "code",
@@ -61161,7 +67291,149 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", plus any field "
+       "v": " — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Changing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Changing"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Tool"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Input"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "update_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "boards[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 100, each a "
+      },
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " and any of "
+      },
+      {
+       "t": "code",
+       "v": "name"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "view"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "parent_board_id"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "null"
+      },
+      {
+       "t": "text",
+       "v": " for the top level), "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
+       "v": " · each board is changed on its own, and the answer lists the boards updated and why any failed"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "update_cards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "cards[]"
+      },
+      {
+       "t": "text",
+       "v": " — up to 1000, each an "
+      },
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " and any field "
       },
       {
        "t": "code",
@@ -61201,6 +67473,22 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
        "v": ", and any of the eight kinds"
       }
      ]
@@ -61209,7 +67497,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "update_cards"
+       "v": "edit_doc_page"
       }
      ],
      [
@@ -61223,19 +67511,93 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "cards[]"
+       "v": "card_id"
       },
       {
        "t": "text",
-       "v": " — up to 1000 at once, each an "
+       "v": ", "
       },
       {
        "t": "code",
-       "v": "id"
+       "v": "page_id"
       },
       {
        "t": "text",
-       "v": " and the fields to set"
+       "v": ", and "
+      },
+      {
+       "t": "code",
+       "v": "markdown"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "page_hash"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "edits[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 50), or "
+      },
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": " · marked destructive, since a rewrite takes words away; the board goes to Version history first"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "arrange_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "layout?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "dry_run?"
+      },
+      {
+       "t": "text",
+       "v": " — lay a board out"
       }
      ]
     ],
@@ -61273,7 +67635,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "set_metadata"
+       "v": "tag_cards"
       }
      ],
      [
@@ -61287,7 +67649,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "card_id?"
+       "v": "card_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 200), "
+      },
+      {
+       "t": "code",
+       "v": "add[]?"
       },
       {
        "t": "text",
@@ -61295,7 +67665,40 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "identifiers?"
+       "v": "remove[]?"
+      },
+      {
+       "t": "text",
+       "v": " (tag names or ids, up to 10 each) — put "
+      },
+      {
+       "t": "link",
+       "v": "tags",
+       "href": "/docs/api/tags",
+       "children": [
+        {
+         "t": "text",
+         "v": "tags"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " on cards or take them off, as the Tag menu does; a new name makes the tag"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "resolve_comments"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
       },
       {
        "t": "text",
@@ -61303,7 +67706,27 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
-       "v": "props?"
+       "v": "comment_ids[]"
+      },
+      {
+       "t": "text",
+       "v": " (up to 50), "
+      },
+      {
+       "t": "code",
+       "v": "resolved?"
+      },
+      {
+       "t": "text",
+       "v": " — resolve threads, or reopen them with "
+      },
+      {
+       "t": "code",
+       "v": "false"
+      },
+      {
+       "t": "text",
+       "v": "; lists any refused, with why"
       }
      ]
     ],
@@ -61318,6 +67741,65 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "board_id"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "share_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "include_subboards?"
+      },
+      {
+       "t": "text",
+       "v": " — the board's "
+      },
+      {
+       "t": "link",
+       "v": "view-only link",
+       "href": "/docs/collaborate/sharing",
+       "children": [
+        {
+         "t": "text",
+         "v": "view-only link"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", made only when it has none; call it only when the person asks to share"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "unshare_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — revokes the board's view-only links this account may revoke"
       }
      ]
     ]
@@ -61371,28 +67853,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "delete_card"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "card_id"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
        "v": "delete_cards"
       }
      ],
@@ -61411,7 +67871,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — up to 1000"
+       "v": " — one, or up to 1000"
       }
      ]
     ],
@@ -61682,6 +68142,366 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Renamed in 3.0",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Renamed in 3.0"
+    }
+   ],
+   "id": "renamed-in-3-0"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Version 3.0 folded fifteen tools into the ones above, so an assistant has fewer, clearer tools to choose between. Calling an old name answers "
+    },
+    {
+     "t": "code",
+     "v": "-32602"
+    },
+    {
+     "t": "text",
+     "v": " with "
+    },
+    {
+     "t": "code",
+     "v": "renamed_to"
+    },
+    {
+     "t": "text",
+     "v": " in its "
+    },
+    {
+     "t": "code",
+     "v": "data"
+    },
+    {
+     "t": "text",
+     "v": ", naming the tool that does it now, and the message says how; an assistant still holding the old list corrects itself from that."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Before 3.0"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Now"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_workspaces"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "whoami"
+      },
+      {
+       "t": "text",
+       "v": ", which lists the workspaces"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "board_tree"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "list_boards"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "depth"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_deleted_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "list_boards"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "deleted: true"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "get_board"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "list_groups"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "get_metadata"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "read_board"
+      },
+      {
+       "t": "text",
+       "v": ", which carries the board, its fields, its capacity and its groups"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "export_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "read_board"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "format"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "view_image"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "view_board"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "list_images"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "read_board"
+      },
+      {
+       "t": "text",
+       "v": "; the "
+      },
+      {
+       "t": "link",
+       "v": "Images API",
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "text",
+         "v": "Images API"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " still lists stored files"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "create_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "create_boards"
+      },
+      {
+       "t": "text",
+       "v": " with one entry"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "rename_board"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "move_boards"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "update_boards"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "set_metadata"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "update_boards"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "update_cards"
+      },
+      {
+       "t": "text",
+       "v": ", with "
+      },
+      {
+       "t": "code",
+       "v": "props"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "identifiers"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "update_card"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "update_cards"
+      },
+      {
+       "t": "text",
+       "v": " with one entry"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "delete_card"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "delete_cards"
+      },
+      {
+       "t": "text",
+       "v": " with one id"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The local package's 2.x releases carry their own copy of the tools, so they keep the old names until they are updated."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "Prompts",
    "inline": [
@@ -61697,7 +68517,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Three starting points, offered by name rather than buried in a tool description:"
+     "v": "Starting points a person picks by name (slash commands in Claude Code), each a short plan in the tools' own words:"
     }
    ]
   },
@@ -61722,13 +68542,43 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "describe_board"
+       "v": "moodboard"
       }
      ],
      [
       {
+       "t": "code",
+       "v": "brief"
+      },
+      {
        "t": "text",
-       "v": "Looks at every image and writes what the board is reaching for"
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "workspace_id?"
+      },
+      {
+       "t": "text",
+       "v": " — builds a finished cluster from a brief: pictures from the web, a palette, notes and a short treatment, laid out, with its link"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "review_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — says what a board is going for, what is missing and what to add next; changes nothing"
       }
      ]
     ],
@@ -61741,8 +68591,30 @@ export const DOCS_CONTENT = {
      ],
      [
       {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
        "t": "text",
-       "v": "Proposes a grouping into child boards, without moving anything"
+       "v": " — proposes groups, or boards inside it, without moving anything until asked"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "treatment"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — writes a treatment as a doc on the board, grounded in what is on it"
       }
      ]
     ],
@@ -61755,11 +68627,44 @@ export const DOCS_CONTENT = {
      ],
      [
       {
+       "t": "code",
+       "v": "workspace_id"
+      },
+      {
        "t": "text",
-       "v": "Turns a file listing into a plan of boards and cards, with identifiers so it can be re-run"
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "listing"
+      },
+      {
+       "t": "text",
+       "v": " — turns a file listing into a plan of boards and cards, with identifiers so it can be re-run"
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "describe_board"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "review_board"
+    },
+    {
+     "t": "text",
+     "v": " since 3.0."
+    }
    ]
   },
   {
@@ -61886,6 +68791,166 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Writing a doc",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Writing a doc"
+    }
+   ],
+   "id": "writing-a-doc"
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "code",
+      "v": "write_doc"
+     },
+     {
+      "t": "text",
+      "v": " with the pages in Markdown — returns the doc's "
+     },
+     {
+      "t": "code",
+      "v": "url"
+     },
+     {
+      "t": "text",
+      "v": " and each page's "
+     },
+     {
+      "t": "code",
+      "v": "id"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "hash"
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "edit_doc_page"
+     },
+     {
+      "t": "text",
+      "v": " to change a page afterwards: "
+     },
+     {
+      "t": "code",
+      "v": "edits"
+     },
+     {
+      "t": "text",
+      "v": " for a few words, or the whole page as "
+     },
+     {
+      "t": "code",
+      "v": "markdown"
+     },
+     {
+      "t": "text",
+      "v": " with its "
+     },
+     {
+      "t": "code",
+      "v": "page_hash"
+     },
+     {
+      "t": "text",
+      "v": ". "
+     },
+     {
+      "t": "code",
+      "v": "fetch"
+     },
+     {
+      "t": "text",
+      "v": " with "
+     },
+     {
+      "t": "code",
+      "v": "doc:<board id>:<card id>:<page id>"
+     },
+     {
+      "t": "text",
+      "v": " reads a page and its current hash."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A rewrite keeps every block it didn't change, comments and all, and is refused if the page changed since it was read. A picture goes in only from a file already on the board. The "
+    },
+    {
+     "t": "link",
+     "v": "Docs API",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "Docs API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " has the details."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Keep links",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keep links"
+    }
+   ],
+   "id": "keep-links"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A keep link, "
+    },
+    {
+     "t": "code",
+     "v": "https://clusters.soleilpictures.com/keep/…"
+    },
+    {
+     "t": "text",
+     "v": ", opens a cluster an assistant made for someone who wasn't signed in to Clusters. The page shows the cluster read only, and keeping it takes an email address and the 6-digit code sent there: the cluster then belongs to that account, a new one or one that already exists. Whoever holds the link can keep it, so it goes only to the person it was made for. Once kept it opens nothing, and a cluster nobody keeps is deleted 30 days after its last change."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Assistants don't hand out keep links yet."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "What agents should know",
    "inline": [
     {
@@ -61900,33 +68965,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "`read_board` truncates by default.",
+     "v": "Each answer says what happened in its first line",
      "children": [
       {
-       "t": "code",
-       "v": "read_board"
-      },
-      {
        "t": "text",
-       "v": " truncates by default."
+       "v": "Each answer says what happened in its first line"
       }
      ]
     },
     {
      "t": "text",
-     "v": " Pass "
+     "v": ", with the link to give the person and, when there is more, how to get it: "
     },
     {
      "t": "code",
-     "v": "full: true"
+     "v": "Board \"Diner — night\" · 42 cards (1–25 here; more with offset 25) · https://…"
     },
     {
      "t": "text",
-     "v": " for untruncated bodies, and expect it to be large. Both "
+     "v": ". The JSON follows, and is also the call's structured result. "
     },
     {
      "t": "code",
-     "v": "read_board"
+     "v": "search"
     },
     {
      "t": "text",
@@ -61934,11 +68995,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "list_boards"
+     "v": "fetch"
     },
     {
      "t": "text",
-     "v": " paginate — check for more rather than assuming one page is everything."
+     "v": " answer with the JSON alone, the shape ChatGPT reads."
     }
    ]
   },
@@ -61947,11 +69008,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Deleting returns the card.",
+     "v": "Answers are concise by default.",
      "children": [
       {
        "t": "text",
-       "v": "Deleting returns the card."
+       "v": "Answers are concise by default."
       }
      ]
     },
@@ -61961,11 +69022,105 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "delete_card"
+     "v": "read_board"
     },
     {
      "t": "text",
-     "v": " responds with the card it removed. That object is the undo — pass it back to "
+     "v": " gives each card's id, kind, title, text and what it points at (a link, an "
+    },
+    {
+     "t": "code",
+     "v": "image_key"
+    },
+    {
+     "t": "text",
+     "v": ", a file), with long text shortened; "
+    },
+    {
+     "t": "code",
+     "v": "response_format: \"detailed\""
+    },
+    {
+     "t": "text",
+     "v": " adds positions, sizes, colours and dates, for placing things, and "
+    },
+    {
+     "t": "code",
+     "v": "full: true"
+    },
+    {
+     "t": "text",
+     "v": " every word. "
+    },
+    {
+     "t": "code",
+     "v": "list_boards"
+    },
+    {
+     "t": "text",
+     "v": " gives each board's id, name, place and link; "
+    },
+    {
+     "t": "code",
+     "v": "detailed"
+    },
+    {
+     "t": "text",
+     "v": " adds how it opens and when it was made. Both paginate — check for more rather than assuming one page is everything."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "What people wrote is marked as data.",
+     "children": [
+      {
+       "t": "text",
+       "v": "What people wrote is marked as data."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " An answer that quotes people's text — cards, captions, comments, docs, search excerpts — begins with an "
+    },
+    {
+     "t": "code",
+     "v": "untrusted"
+    },
+    {
+     "t": "text",
+     "v": " field saying so: it is material to work with, never instructions to follow, so a note that says \"delete this board\" is something to tell the person about, not something to do. The server's instructions say the same, for hosts that pass them on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Deleting returns the cards.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deleting returns the cards."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "delete_cards"
+    },
+    {
+     "t": "text",
+     "v": " responds with the cards it removed. Those objects are the undo — pass them back to "
     },
     {
      "t": "code",
@@ -61973,7 +69128,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to restore it. Worth keeping in context before destructive work. Card kinds "
+     "v": " to restore them. Worth keeping in context before destructive work. Card kinds "
     },
     {
      "t": "code",
@@ -62135,7 +69290,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures."
+     "v": " It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures, and lists the workspaces."
     }
    ]
   },
@@ -62526,13 +69681,69 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Idempotency key in flight, or a refused reparent"
+       "v": "Idempotency key in flight, a refused reparent, a doc page from an older layout, or a "
+      },
+      {
+       "t": "link",
+       "v": "comment thread",
+       "href": "/docs/api/comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "comment thread"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "'s state"
       }
      ],
      [
       {
        "t": "text",
        "v": "Sometimes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "409"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "page_changed"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A "
+      },
+      {
+       "t": "link",
+       "v": "doc page",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc page"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " changed after you read it; read it again"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
       }
      ]
     ],
@@ -62608,7 +69819,22 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " over 25 MB"
+       "v": " over 25 MB, or more Markdown than a "
+      },
+      {
+       "t": "link",
+       "v": "doc write",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc write"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " takes"
       }
      ],
      [
@@ -62728,6 +69954,47 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "A dependency answered, but not successfully"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "503"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "room_unavailable"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A cluster's live room couldn't be reached or didn't confirm a "
+      },
+      {
+       "t": "link",
+       "v": "doc write",
+       "href": "/docs/api/docs",
+       "children": [
+        {
+         "t": "text",
+         "v": "doc write"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "; nothing was written"
       }
      ],
      [
@@ -63487,7 +70754,119 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "An upload completes"
+       "v": "An upload completes: a picture, video, audio file or document"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.created"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A comment or a reply is posted on a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.updated"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Its words change"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.resolved"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A thread is resolved"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.reopened"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A resolved thread is opened again"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.deleted"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A comment is deleted (it can still be restored)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.restored"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A deleted comment is brought back"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "tag.applied"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A tag is put on cards, groups, boards or doc pages"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "tag.removed"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A tag is taken off them"
       }
      ]
     ]
@@ -63498,25 +70877,41 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Card events are grouped.",
+     "v": "Card, upload and tag events are grouped.",
      "children": [
       {
        "t": "text",
-       "v": "Card events are grouped."
+       "v": "Card, upload and tag events are grouped."
       }
      ]
     },
     {
      "t": "text",
-     "v": " A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. "
+     "v": " A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. The ids come with it, the first 25 as a courtesy; past that, read the board."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments on the canvas fire comment events. The comments inside a doc or a note live in the doc itself, so they fire none: read them with "
     },
     {
-     "t": "code",
-     "v": "data.card_ids"
+     "t": "link",
+     "v": "`GET /boards/:id/comments`",
+     "href": "/docs/api/comments",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/comments"
+      }
+     ]
     },
     {
      "t": "text",
-     "v": " carries the first 25 as a courtesy; past that, read the board."
+     "v": "."
     }
    ]
   },
@@ -63535,7 +70930,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"type\": \"card.created\",\n  \"resource\": { \"type\": \"card\", \"id\": \"…\" },\n  \"workspace\": { \"id\": \"3b7e…\" },\n  \"board\": { \"id\": \"9f1c…\" },\n  \"data\": { \"count\": 412, \"card_ids\": [\"…\", \"…\"] },\n  \"occurred_at\": \"2026-08-09T12:00:00.412Z\"\n}"
+   "code": "{\n  \"type\": \"card.created\",\n  \"resource\": { \"type\": \"card\", \"id\": \"9f1c…\" },\n  \"workspace\": { \"id\": \"3b7e…\" },\n  \"board\": { \"id\": \"9f1c…\" },\n  \"data\": { \"count\": 412, \"card_ids\": [\"…\", \"…\"] },\n  \"occurred_at\": \"2026-08-09T12:00:00.412Z\"\n}"
   },
   {
    "type": "para",
@@ -63572,6 +70967,469 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " if you want everything that moved."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "resource.id"
+    },
+    {
+     "t": "text",
+     "v": " is the comment's id for a comment event and the tag's id for a tag event. A grouped card or upload event covers several things at once, so its "
+    },
+    {
+     "t": "code",
+     "v": "resource.id"
+    },
+    {
+     "t": "text",
+     "v": " is the board's."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What data holds",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What "
+    },
+    {
+     "t": "code",
+     "v": "data"
+    },
+    {
+     "t": "text",
+     "v": " holds"
+    }
+   ],
+   "id": "what-data-holds"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Events"
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "data"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.created"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card.updated"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card.deleted"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "card.moved"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      },
+      {
+       "t": "text",
+       "v": " (as they are now, on "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": "), "
+      },
+      {
+       "t": "code",
+       "v": "from_board_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "from_card_ids"
+      },
+      {
+       "t": "text",
+       "v": " (the same cards' ids where they were, in the same order: a card whose id was taken on arrival gets a new one)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "image.created"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "image_keys"
+      },
+      {
+       "t": "text",
+       "v": " (each one's key for "
+      },
+      {
+       "t": "link",
+       "v": "`GET /images/:key`",
+       "href": "/docs/api/images",
+       "children": [
+        {
+         "t": "code",
+         "v": "GET /images/:key"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": "); "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": " is null for an upload that isn't on a board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "comment.*"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "thread_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "reply"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "on"
+      },
+      {
+       "t": "text",
+       "v": " ("
+      },
+      {
+       "t": "code",
+       "v": "card"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "group"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "point"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": ", or "
+      },
+      {
+       "t": "code",
+       "v": "doc"
+      },
+      {
+       "t": "text",
+       "v": " with a "
+      },
+      {
+       "t": "code",
+       "v": "page_id"
+      },
+      {
+       "t": "text",
+       "v": " for a comment made on a doc before its comments moved into the doc), "
+      },
+      {
+       "t": "code",
+       "v": "card_id"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "group_id"
+      },
+      {
+       "t": "text",
+       "v": " where it is pinned, "
+      },
+      {
+       "t": "code",
+       "v": "author_id"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "resolved"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "tag.applied"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "tag.removed"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "id"
+      },
+      {
+       "t": "text",
+       "v": " (the tag's), "
+      },
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": " (true when automatic tagging put it on or took it off), "
+      },
+      {
+       "t": "code",
+       "v": "count"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "items"
+      },
+      {
+       "t": "text",
+       "v": ": each thing it is on, "
+      },
+      {
+       "t": "code",
+       "v": "{kind, id}"
+      },
+      {
+       "t": "text",
+       "v": " with "
+      },
+      {
+       "t": "code",
+       "v": "kind"
+      },
+      {
+       "t": "text",
+       "v": " one of "
+      },
+      {
+       "t": "code",
+       "v": "card"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "group"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "board"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "doc_page"
+      },
+      {
+       "t": "text",
+       "v": " (a doc page adds "
+      },
+      {
+       "t": "code",
+       "v": "page_id"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A comment's words are not in its event. Read them through the API, under the permissions of the person whose token you use."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A move between two workspaces fires "
+    },
+    {
+     "t": "code",
+     "v": "card.moved"
+    },
+    {
+     "t": "text",
+     "v": " in both, so the workspace the cards left hears of it too. Merging two tags reads as "
+    },
+    {
+     "t": "code",
+     "v": "tag.removed"
+    },
+    {
+     "t": "text",
+     "v": " for the tag merged away and "
+    },
+    {
+     "t": "code",
+     "v": "tag.applied"
+    },
+    {
+     "t": "text",
+     "v": " for the one it merged into. Confirming a tag that automatic tagging put on changes no tag, so it fires nothing."
     }
    ]
   },

@@ -4,6 +4,124 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-10-27 — Team, for more than 10 people who edit
+
+Team is a new plan for more than 10 people who edit, at $25 a seat a month, and Free and Creator include up to 10. Documents show their first page, and raw and Photoshop files are pictures.
+
+### Team
+
+- **Team** is a new plan for groups with more than 10
+  people who edit. A team owns its workspaces and pays for them per seat:
+  $25 a seat a month, or $240 a year,
+  from 3 seats. Each seat adds 1TB
+  to the drive the team shares, and the cards are unlimited.
+- Viewers are free and never use a seat.
+- Admins look after people, seats and joining: email invites, a team link, or
+  anyone from your company's verified email domain.
+- Start from the [pricing page](/pricing). The first 14
+  days are free, and a card is needed to start. See [Team](/docs/account/team).
+
+### Free and Creator
+
+- Up to 10 people can edit across everything an account
+  owns, and anyone can view. When an account is full, an edit link lets the
+  next person in as a viewer and tells the owner. An account that already has
+  more keeps everyone editing, and adds no one new until it is back at
+  10. See [collaborate](/docs/collaborate).
+
+### Documents
+
+- Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument and RTF
+  files show their first page on their card, with the page count where other
+  files show their size ("12 slides", "1 page"). A spreadsheet shows its
+  first sheet from the top left. See [files](/docs/files).
+- **Quick look** pages through a document, Visio and Publisher files
+  included, and says "Making a preview…" while the pages are being made.
+- A deck lands on the board at a slide's shape and any other document at a
+  page's, so its card barely moves when its page arrives.
+
+### Camera raws and Photoshop files
+
+- Camera raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the others) and
+  Photoshop files (.psd and .psb) are pictures now: they land as image cards
+  and show wherever pictures do. One already on a board as a file card turns
+  into its picture. **Download** still gives you the original. See
+  [images](/docs/canvas/images).
+
+### Tags
+
+- Tag chips show under their cards. Since May they had been hidden inside
+  the card.
+- Click a tag chip, on a card, a group or the cluster's own strip, and the
+  cluster lights up that tag's cards where they are while everything else
+  fades. `Esc`, or the same chip again, ends it. See [tags](/docs/organize/tags).
+- Suggested tags show on their card with a sparkle: ✓ keeps one, × stops it
+  being suggested there again.
+- Select several cards and press **Tag** in the selection bar to put a tag
+  on all of them, or take it off, with one undo.
+- **Tag…** works on a group and on the cluster itself (right-click the empty
+  board). In a document, select words and right-click for **Tag
+  selection…**. In `⌘K`, `#name` lists everything with that tag.
+- A tag you take off stays off. Saving a link in a document or editing a
+  paragraph no longer deletes its tags.
+- On a phone, each tag in the sidebar has a **⋯** with Rename, Recolor,
+  Merge into…, Type and Delete, and pressing and holding an item on a tag's
+  page offers Remove, and Confirm for one added automatically.
+- **Settings → Workspace** has an **AI suggestions** switch for owners and
+  co-owners. When it's off, no card or document text goes to an AI model.
+
+### ChatGPT, Claude and the API
+
+- ChatGPT and Claude can connect on your account's first day.
+- The MCP server has fewer tools, each doing more, and an old tool's name
+  answers with its new one. Every answer starts with a line in plain words
+  and the link to give you. See [MCP](/docs/mcp).
+- Through the API and MCP, an assistant can read a document or a whole board
+  as text, look at a board's pictures, write documents, read and post
+  comments, resolve and reopen threads (in documents too), work with tags,
+  and share a board by link. See [the API](/docs/api).
+- Webhooks fire for comments and for tags, and `card.moved` and
+  `image.created`, which never fired, now do. See
+  [webhooks](/docs/api/webhooks).
+
+### Sharing
+
+- **Share** opens on the link again: **Anyone with the link** and its copy
+  button sit at the top, with inviting people by email below. The button has
+  the focus when the panel opens, so `Enter` copies the link straight away.
+  See [sharing](/docs/collaborate/sharing).
+- The reminder to send a cluster to someone comes at most once a week.
+- In a new workspace's setup, the invite link never fails silently: a phone
+  without a share sheet copies it and says **Copied**, and where the browser
+  won't copy, the link is shown selected so you can copy it yourself.
+- A document shared on its own link looks the way it does in its cluster.
+  Someone who can edit gets its bar, with **Comments** as a side panel where
+  they can reply, resolve and reopen. On a phone, Comments is a sheet over the
+  document.
+
+### Also
+
+- **Tidy up** no longer piles cards on top of each other, and **Align** lines
+  a big selection up instead of stacking it. See
+  [snapping and alignment](/docs/canvas/snapping-and-alignment).
+- On a phone or a tablet, the swatches in a document's text colour menu are
+  big enough to tap.
+
+## 2026-10-26 — Export and profile changes work again
+
+Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.
+
+### Export
+
+- Right-click the canvas and choose **Export** to save the whole board as a
+  PNG or a PDF again. Since May it said "Nothing to export." on every board.
+  The PDF no longer opens a pop-up window. See [export](/docs/canvas/export).
+
+### Your profile
+
+- Changes to your name, colour and picture save again. Since May they were
+  refused.
+
 ## 2026-10-25 — A new look for toolbars, and every video plays
 
 Every toolbar looks and works the same way, picking several cards brings up a bar for them, and every video, sound file and photo now plays or shows in every browser.

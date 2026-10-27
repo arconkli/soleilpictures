@@ -5,15 +5,15 @@ h1: Connecting an app (OAuth)
 navLabel: OAuth
 section: developers
 order: 3
-updated: 2026-10-07
-answer: Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, client registration is dynamic and open, PKCE with S256 is required, and access tokens last {{fact:oauthAccessTtl}} with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then API.
+updated: 2026-10-25
+answer: Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last {{fact:oauthAccessTtl}} with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.
 faq:
   - q: Do I need to register an application first?
-    a: No. Registration is dynamic and open — POST your client metadata to /oauth/register and you get a client_id back immediately. There is no review queue and no key to request.
+    a: No. Either use the https URL of a client metadata document you publish as your client_id, which is how Claude, ChatGPT and VS Code connect, or POST your client metadata to /oauth/register and get a client_id back immediately. There is no review queue and no key to request.
   - q: Is PKCE required?
     a: Yes, with S256. The plain method is not supported at all, because OAuth 2.1 removes it.
   - q: How long do tokens last?
-    a: An access token lasts {{fact:oauthAccessTtl}}. The refresh token rotates on every use and is good for {{fact:oauthRefreshDays}} days from its last use.
+    a: An access token lasts {{fact:oauthAccessTtl}}. The refresh token rotates on every use and is good for {{fact:oauthRefreshDays}} days from its last use, but never more than {{fact:oauthRefreshMaxDays}} days after the person connected; then they approve the app again.
   - q: What happens if someone disconnects the app?
     a: The access token is revoked in the same statement, so it stops working immediately rather than at its next expiry.
   - q: Can I still use a personal access token instead?
@@ -54,10 +54,48 @@ That header is the entry point. Follow it:
 Both are public and cacheable. A discovery document you need a credential to
 read is not discovery.
 
+## Client metadata documents
+
+The simplest client registers nothing. Publish your metadata as JSON at an
+`https` URL and use **that URL as your `client_id`**
+([Client ID Metadata Documents](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/)).
+The authorization server metadata says `client_id_metadata_document_supported: true`,
+and this is how Claude, Claude Code, ChatGPT and VS Code connect.
+
+```json
+{
+  "client_id": "https://shotplanner.example/oauth/client.json",
+  "client_name": "Shot Planner",
+  "redirect_uris": ["https://shotplanner.example/callback"],
+  "token_endpoint_auth_method": "none"
+}
+```
+
+We fetch it when the person first lands on the consent screen, and it has to
+pass these checks:
+
+- `client_id` is **exactly** the URL it is served from. The URL is `https`, on
+  the default port, with a path, no fragment and a public host.
+- It answers `200` with JSON at that URL. Redirects are not followed, and the
+  document can be at most {{fact:oauthMetadataMaxSize}}.
+- `redirect_uris` follow the same rules as registration, below.
+- `token_endpoint_auth_method` is `none` or `private_key_jwt`. A published
+  document cannot keep a secret, so the `client_secret_*` methods are refused.
+  Either way the client is public, and PKCE is what proves it at the token
+  endpoint.
+- `grant_types`, if present, includes `authorization_code`. Grants we do not
+  issue are ignored.
+
+A good document is trusted for its `Cache-Control` `max-age`, at least
+{{fact:oauthMetadataCacheMin}} and at most {{fact:oauthMetadataCacheMax}}, and
+read again after that. A document that failed is never cached, so fix it and
+try again straight away. The consent screen names the host the document came
+from.
+
 ## Registering
 
-Registration is **open and dynamic** — no review, no application form, no key to
-request:
+If you would rather not publish a document, registration is **open and
+dynamic**: no review, no application form, no key to request.
 
 ```sh
 curl -X POST {{fact:siteOrigin}}/oauth/register \
@@ -79,6 +117,12 @@ At most {{fact:oauthMaxRedirectUris}} redirect URIs. They must be `https`,
 with no domain), or a private scheme like `shotplanner://`. A URI with a
 fragment is refused: the response is appended to the query, and a URI that
 already has a fragment cannot be extended safely.
+
+A loopback redirect URI matches on **any port**
+([RFC 8252 §7.3](https://datatracker.ietf.org/doc/html/rfc8252#section-7.3)).
+Register or publish `http://127.0.0.1/callback` and come back on whichever port
+the operating system gave you. Host, path and query still have to match
+exactly, and `https` URIs never get this exception.
 
 Leave `token_endpoint_auth_method` as `none` unless your client can genuinely
 keep a secret. A desktop app, a CLI and a browser extension cannot — PKCE is
@@ -159,7 +203,7 @@ leaks is worth nothing without the verifier, and a replay finds nothing.
 | | |
 |---|---|
 | **Access token** | {{fact:oauthAccessTtl}}, sent as `Authorization: Bearer …` |
-| **Refresh token** | Rotates on every use; valid {{fact:oauthRefreshDays}} days from last use |
+| **Refresh token** | Rotates on every use. Valid {{fact:oauthRefreshDays}} days from last use, at most {{fact:oauthRefreshMaxDays}} days after the person connected |
 | **Scopes** | {{fact:apiScopes}} — the same three [scopes](/docs/api/authentication) a token has |
 
 ```sh
@@ -168,7 +212,17 @@ curl -X POST {{fact:siteOrigin}}/oauth/token \
 ```
 
 Refresh tokens are **single-use**: the old one is replaced in the same statement
-that claims it, so a replayed refresh finds nothing. Store the new one.
+that claims it. Store the new one.
+
+- **Retrying within {{fact:oauthRefreshRetry}}.** If a response never reached
+  you, sending the same refresh token again within {{fact:oauthRefreshRetry}}
+  gets you a fresh pair.
+- **Presenting it any later.** A refresh token that was already exchanged is
+  treated as stolen. The connection is revoked along with its access token, and
+  the person has to approve the app again.
+- **Concurrent processes.** Several processes sharing one connection should
+  refresh through one place. Otherwise one of them will eventually present a
+  spent token.
 
 `delete` is never granted by default. Ask for it in `scope` only if the
 application genuinely needs to destroy things — the product's rule is that an
@@ -177,16 +231,34 @@ default that quietly included `delete` would undo that for every connection.
 
 ## What the person sees
 
-One screen: who is asking, what each scope means in plain words, and two
-buttons. Afterwards the connection appears under **Settings → Connections → Connected
+One screen. Across its top, who vouches for the app:
+
+- **Verified app**, naming the host it came from, for a metadata document
+  served from one of {{fact:oauthVerifiedHosts}}.
+- **Runs on this computer**, when the code goes back to `localhost` or an app's
+  own scheme, whoever published the name: any program on the computer could
+  have started the sign-in, so the person continues only if they just did.
+- **Not verified**, for anything else: a registered client, whose name is what
+  it sent to `/oauth/register`, or a document from another host.
+
+Then the app's name, the account it will act as (with a way to switch), what it
+may do in plain words, and two buttons. An app that asks for `read write` can
+also be allowed to delete, if the person chooses to on that screen: read the
+`scope` in the token response rather than assuming you got what you asked for.
+
+Afterwards the connection appears under **Settings → Connections → Connected
 apps** with its scopes, when it was connected, and how many calls it has made.
 
 Disconnecting revokes the access token in the same statement, so it stops
 working immediately rather than at its next expiry. Everything the app did is in
 the [audit log](/docs/api/audit), with the tool it used.
 
-At most {{fact:maxConnectedApps}} connected apps per account, and connecting one
-opens up once the account is {{fact:newAccountHours}} hours old.
+At most {{fact:maxConnectedApps}} connected apps per account. In an account's
+first {{fact:newAccountHours}} hours, only ChatGPT and Claude can connect, by
+sending the person back to their own callback, and their tokens answer
+{{fact:oauthNewAccountPerHour}} requests an hour instead of
+{{fact:rateLimitPerHour}}. Every other app can connect once the account is
+{{fact:newAccountHours}} hours old.
 
 ## What a token can reach
 
@@ -194,6 +266,21 @@ Exactly what the person can reach. An OAuth access token is resolved to their
 own database session, under ordinary row-level security, by the same code path
 a personal access token uses. There is no separate permission model to get
 wrong: if they cannot see a cluster, neither can anything they connect.
+
+## Limits
+
+Each is counted per address:
+
+| | |
+|---|---|
+| `POST /oauth/register` | {{fact:oauthRegisterPerMinute}} a minute, and {{fact:oauthRegistrationsPerHour}} new clients an hour (a metadata document read for the first time counts as one) |
+| `POST /oauth/token` and `/oauth/revoke` | {{fact:oauthTokenPerMinute}} a minute between them |
+| Reading a metadata document from its host | {{fact:oauthLookupPerMinute}} a minute |
+
+Past one, the answer is `429` with `temporarily_unavailable`, and a
+`retry-after` in seconds on the per-minute ones. Those are kept in each
+Cloudflare location, so they are approximate: they are there to stop a loop,
+and a client that refreshes when its token runs out never meets them.
 
 ## Errors
 
@@ -205,12 +292,13 @@ Failures use the OAuth shape, so a client can branch on them:
 
 | | |
 |---|---|
-| `invalid_client` | Unknown `client_id`, or a confidential client failed to authenticate |
+| `invalid_client` | Unknown `client_id`, a metadata document that could not be read or failed the checks above (the `error_description` says which), or a confidential client failed to authenticate |
 | `invalid_grant` | Code or refresh token expired, already used, or not yours |
 | `invalid_request` | A required parameter is missing or malformed |
 | `invalid_redirect_uri` | Registration was refused — see the shape rules above |
 | `invalid_target` | The `resource` named is not served here |
 | `unsupported_grant_type` | Only `authorization_code` and `refresh_token` exist |
+| `temporarily_unavailable` | `503` when we, or your metadata document's host, did not answer; `429` when an address goes past one of the [limits](#limits). Retry, after `retry-after` when there is one; it is never a reason to throw a connection away |
 
 A bad `redirect_uri` is **never** redirected to. If the URI is not one the
 client registered, the person sees an error page and nothing is sent anywhere —
@@ -226,4 +314,4 @@ curl -X POST {{fact:siteOrigin}}/oauth/revoke -d token=rt_… -d client_id=solei
 Always answers `200`, even for a token that was never valid, per
 [RFC 7009](https://datatracker.ietf.org/doc/html/rfc7009). Saying "no such
 token" would turn the endpoint into a way to test whether a stolen string is
-live.
+live. (A `429` says only that the address went past its [limit](#limits).)

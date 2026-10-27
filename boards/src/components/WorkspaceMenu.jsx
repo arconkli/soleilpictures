@@ -36,7 +36,8 @@ export function WorkspaceMenu({
   triggerSelector = '.sb-ws-trigger',
   // The admin preview's test team (Settings › Preview): null, or { name,
   // workspaces: [{ id, name, letter, color, private }], manage, viewOnly,
-  // onOpenPage, onPickWorkspace }. Its section sits above YOURS, is not part
+  // onOpenPage, onPickWorkspace } (a real team also gives ids: left out of
+  // YOURS / SHARED, and activeId: the current workspace). Its section sits above YOURS, is not part
   // of the filter, and is hidden while the filter has text.
   team = null,
 }) {
@@ -72,16 +73,19 @@ export function WorkspaceMenu({
   const showFilter = list.length > FILTER_THRESHOLD;
   const q = filter.trim().toLowerCase();
   const matches = (w) => !q || (w.name || '').toLowerCase().includes(q);
+  // A real team's workspaces show once, in the team section, while not filtering.
+  const teamIds = !q && team?.ids ? new Set(team.ids) : null;
+  const inTeam = (w) => !!teamIds && teamIds.has(w.id);
   const mine = useMemo(() => list
-    .filter(w => w.created_by === selfUserId && matches(w))
+    .filter(w => w.created_by === selfUserId && matches(w) && !inTeam(w))
     .sort((a, b) => {
       if (a.id === personalWorkspaceId) return -1;
       if (b.id === personalWorkspaceId) return 1;
       return (a.created_at || '').localeCompare(b.created_at || '');
-    }), [list, selfUserId, personalWorkspaceId, q]);
+    }), [list, selfUserId, personalWorkspaceId, q, team?.ids]);
   const shared = useMemo(() => list
-    .filter(w => w.created_by !== selfUserId && matches(w))
-    .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || '')), [list, selfUserId, q]);
+    .filter(w => w.created_by !== selfUserId && matches(w) && !inTeam(w))
+    .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || '')), [list, selfUserId, q, team?.ids]);
   const noResults = q && mine.length === 0 && shared.length === 0;
 
   // Map online users by id so each workspace row can render a small
@@ -205,7 +209,8 @@ export function WorkspaceMenu({
           <>
             <div className="ws-menu-section">{team.name.toUpperCase()}<span className="ws-menu-tag">TEAM</span></div>
             {team.workspaces.map((w) => (
-              <button key={w.id} type="button" className="ws-menu-row"
+              <button key={w.id} type="button"
+                      className={`ws-menu-row ${team.activeId && w.id === team.activeId ? 'is-active' : ''}`}
                       onClick={() => { team.onPickWorkspace?.(w); onClose?.(); }}>
                 <span className="ws-menu-avatar" style={{ background: w.color }}>{w.letter}</span>
                 <span className="ws-menu-text">
@@ -216,6 +221,9 @@ export function WorkspaceMenu({
                 </span>
                 {w.private && (
                   <span className="ws-menu-tail"><Icon as={Lock} size={13} weight="regular" /></span>
+                )}
+                {team.activeId && w.id === team.activeId && (
+                  <span className="ws-menu-check"><Icon as={Check} size={14} /></span>
                 )}
               </button>
             ))}

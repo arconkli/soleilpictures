@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { membershipsQuery, membershipWorkspaces } from '../lib/bootQueries.js';
 import { takeBootResponse } from '../lib/bootPrefetch.js';
+import { teamsAllowed } from '../lib/appHost.js';
 
 export function useAllWorkspaces(user) {
   const [workspaces, setWorkspaces] = useState([]);
@@ -23,8 +24,26 @@ export function useAllWorkspaces(user) {
       setLoading(false);
       return;
     }
-    setWorkspaces(membershipWorkspaces(data));
+    const base = membershipWorkspaces(data);
+    setWorkspaces(base);
     setLoading(false);
+    // Team workspaces the person can reach through a team (not by membership).
+    // Never delays or breaks the list above: any failure keeps the memberships.
+    if (teamsAllowed()) {
+      try {
+        const { listMyTeamWorkspaces } = await import('../lib/teamsApi.js');
+        const rows = await listMyTeamWorkspaces();
+        const seen = new Set(base.map((w) => w.id));
+        const extra = [];
+        for (const row of rows || []) {
+          const ws = row?.workspace;
+          if (!ws?.id || seen.has(ws.id)) continue;
+          seen.add(ws.id);
+          extra.push({ ...ws, _myRole: row.role, _joinedAt: row.created_at, _viaTeam: true });
+        }
+        if (extra.length) setWorkspaces([...base, ...extra]);
+      } catch (_) { /* the memberships stand */ }
+    }
   }, [user?.id]);
 
   const refresh = useCallback(() => load(false), [load]);

@@ -195,12 +195,10 @@ test('freeing a place: Make viewer keeps them in, Remove takes shares first, Rev
   assert.deepEqual(removeOps(inv), []);
 });
 
-test('the hold opens on the preview host and nowhere else in a build', () => {
+test('the hold is lifted with the Team launch, and still read into featureFlags', () => {
   const host = readFileSync(new URL('./appHost.js', import.meta.url), 'utf8');
   const body = host.match(/export function editorLimitAllowed\(\)\s*\{([\s\S]*?)\n\}/)?.[1] || '';
-  assert.match(body, /if \(onPreviewHost\(\)\) return true;/);
-  assert.match(body, /if \(!import\.meta\.env\.DEV\) return false;/);
-  assert.doesNotMatch(body.trim(), /^return true;$/);
+  assert.equal(body.trim(), 'return true;');
   assert.match(host, /^\s*editorLimit: editorLimitAllowed,$/m);
 });
 
@@ -266,4 +264,78 @@ test('real rows above the target are all kept', () => {
   assert.equal(out.cap.taken, 9);
   assert.equal(out.editors.length, 9);
   assert.equal(out.editors.filter((r) => r.preview).length, 0);
+});
+
+// ── A team's seats ──────────────────────────────────────────────────────────
+const teamCap = (o = {}) => ({ enforced: true, limit: 5, used: 2, pending: 0, taken: 2, left: 3, full: false, isAccountOwner: true, subject: 'team', ...o });
+
+test('a team is full by the server flag only, near at one or two seats left', () => {
+  assert.equal(editorLimitStage(teamCap({ full: true, used: 5, taken: 5, left: 0 })), 'full');
+  // auto mode: at the seat count but not full, the next editor adds a seat
+  assert.equal(editorLimitStage(teamCap({ used: 5, taken: 5, left: 0 })), 'room');
+  assert.equal(editorLimitStage(teamCap({ used: 4, taken: 4, left: 1 })), 'near');
+  assert.equal(editorLimitStage(teamCap({ used: 3, taken: 3, left: 2 })), 'near');
+  assert.equal(editorLimitStage(teamCap()), 'room');
+  assert.equal(editorLimitStage(teamCap({ used: 7, taken: 7, left: 0 })), 'room');
+  assert.equal(editorLimitStage(teamCap({ enforced: false, full: true })), null);
+});
+
+test('a full team tells its owner and admins to add a seat, and everyone else to ask', () => {
+  const full = { full: true, used: 5, taken: 5, left: 0 };
+  assert.deepEqual(editorLimitNote(teamCap(full)), {
+    stage: 'full', lead: 'All 5 of the team’s seats are in use.',
+    body: 'Invite people to view, or add a seat on the team’s page.', seeWho: null, ask: null, done: null,
+  });
+  assert.deepEqual(editorLimitNote(teamCap({ ...full, isAccountOwner: false })), {
+    stage: 'full', lead: 'All 5 of the team’s seats are in use.',
+    body: 'Invite people to view. An admin of the team can add a seat.', seeWho: null, ask: null, done: null,
+  });
+  // The share panel, where an owner or admin can buy the seat with the invite.
+  assert.equal(editorLimitNote(teamCap(full), { canBuySeat: true }).body, 'Inviting someone to edit adds a seat.');
+  assert.equal(editorLimitNote(teamCap({ ...full, isAccountOwner: false }), { canBuySeat: true }).body,
+    'Invite people to view. An admin of the team can add a seat.');
+});
+
+test('a team running low tells only its owner and admins', () => {
+  assert.deepEqual(editorLimitNote(teamCap({ used: 4, taken: 4, left: 1 })), {
+    stage: 'near', lead: '1 seat left on the team.',
+    body: 'Each person who can edit uses a seat. Viewers are free.', seeWho: null, ask: null, done: null,
+  });
+  assert.equal(editorLimitNote(teamCap({ used: 3, taken: 3, left: 2 })).lead, '2 seats left on the team.');
+  assert.equal(editorLimitNote(teamCap({ used: 4, taken: 4, left: 1, isAccountOwner: false })), null);
+  assert.equal(editorLimitNote(teamCap()), null);
+});
+
+test('a team’s refusals are read from their hints and said in the team’s words', () => {
+  assert.deepEqual(editorLimitRefusal({ message: 'x', hint: 'team_seats_full' }), { ask: false, team: true });
+  assert.deepEqual(editorLimitRefusal({ message: 'x', hint: 'team_seats_ask_admin' }), { ask: true, team: true });
+  assert.equal(editorLimitRefusalMessage({ ask: false, team: true }),
+    'All of the team’s seats are in use. Invite them to view, or add a seat on the team’s page.');
+  assert.equal(editorLimitRefusalMessage({ ask: true, team: true }),
+    'All of the team’s seats are in use. Invite them to view, or ask an admin of the team for a seat.');
+});
+
+test('an account’s note is unchanged at every stage', () => {
+  const acct = (o) => ({ enforced: true, limit: 10, pending: 0, subject: 'account', ...o });
+  const owner = { isAccountOwner: true };
+  const other = { isAccountOwner: false };
+  assert.deepEqual(editorLimitNote(acct({ ...owner, used: 11, taken: 11, left: 0 })), {
+    stage: 'over', lead: '11 people can edit, and your plan has room for 10.',
+    body: 'Everyone keeps editing. Nobody new can edit until you’re under 10.', seeWho: 'button', ask: null, done: null,
+  });
+  assert.deepEqual(editorLimitNote(acct({ ...owner, used: 10, taken: 10, left: 0, full: true })), {
+    stage: 'full', lead: 'No places left for people who can edit.',
+    body: 'Your plan has room for 10, across all your workspaces. Invite people to view, or make room.', seeWho: 'button', ask: null, done: null,
+  });
+  assert.deepEqual(editorLimitNote(acct({ ...owner, used: 9, taken: 9, left: 1 })), {
+    stage: 'near', lead: '1 place left for people who can edit.',
+    body: 'Your plan has room for 10, across all your workspaces.', seeWho: 'link', ask: null, done: null,
+  });
+  assert.equal(editorLimitNote(acct({ ...other, used: 9, taken: 9, left: 1 })), null);
+  assert.deepEqual(editorLimitNote(acct({ ...other, used: 10, taken: 10, left: 0, full: true }), { ownerName: 'Alex' }), {
+    stage: 'full', lead: 'No places left for people who can edit.',
+    body: 'Alex’s plan has room for 10. Invite people to view, or ask Alex to make room.', seeWho: null,
+    ask: 'Ask Alex for room', done: null,
+  });
+  assert.equal(editorLimitNote(acct({ ...owner, used: 3, taken: 3, left: 7 })), null);
 });

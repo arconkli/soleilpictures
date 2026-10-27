@@ -112,6 +112,31 @@ export async function renameWorkspace(workspaceId, name) {
   if (error) throw error;
 }
 
+// The workspace's AI switch (workspaces.ai_tagger_enabled): off, no card or
+// doc text goes to a model (hooks/useWorkspaceAiEnabled.js). Members read it;
+// the owner and co-owners change it (0591's column grant, the update policy).
+export async function getWorkspaceAiEnabled(workspaceId) {
+  if (!workspaceId) return true;
+  const { data, error } = await supabase
+    .from('workspaces')
+    .select('ai_tagger_enabled')
+    .eq('id', workspaceId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.ai_tagger_enabled !== false;
+}
+
+export async function setWorkspaceAiEnabled(workspaceId, enabled) {
+  const { data, error } = await supabase
+    .from('workspaces')
+    .update({ ai_tagger_enabled: !!enabled })
+    .eq('id', workspaceId)
+    .select('id');
+  if (error) throw error;
+  // RLS hides a row you can't update: zero rows is a refusal, not a save.
+  if (!data?.length) throw new Error('Only the owner or a co-owner can change this.');
+}
+
 // Read the workspace settings jsonb. Returns {} when none set.
 // Members can read; the SELECT policy already covers it.
 export async function getWorkspaceSettings(workspaceId) {
@@ -2179,14 +2204,16 @@ export async function updateBacklinks({ workspaceId, docCardId, pageId, links })
     .eq('source_page_id', pageId);
   if (delLegacy.error) console.warn('doc_backlinks delete failed', delLegacy.error);
 
-  // Scope to source='user' so auto-detected mentions (which we write
-  // with source='auto') aren't wiped on a manual-link save.
+  // Scope to the rows this function writes: link mentions that carry a
+  // source_link_id. A bare source='user' also matched the page's tags (a
+  // promoted name, a page tag), so saving any link deleted them.
   const delNew = await supabase
     .from('entity_links').delete()
     .eq('source_kind', 'doc')
     .eq('source_id', docCardId)
     .eq('source_page_id', pageId)
-    .eq('source', 'user');
+    .eq('link_kind', 'mention')
+    .not('source_link_id', 'is', null);
   if (delNew.error) console.warn('entity_links delete failed', delNew.error);
 
   // 2. Insert one row per (link, target) into both tables. We keep

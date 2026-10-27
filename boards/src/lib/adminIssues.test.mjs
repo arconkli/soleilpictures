@@ -10,6 +10,7 @@ import {
 
 test('labels read as words, and anything unnamed still reads', () => {
   assert.equal(kindLabel('render'), 'Crash screen');
+  assert.equal(kindLabel('db_restart'), 'Database restart');
   assert.equal(kindLabel('yboard-snapshot-load'), 'Yboard snapshot load');
   assert.equal(kindLabel(null), 'Error');
   assert.equal(sourceLabel('edge'), 'Edge function');

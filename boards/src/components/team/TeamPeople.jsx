@@ -10,11 +10,18 @@ import { TeamMenu } from './TeamMenu.jsx';
 
 const FROZEN = 'The team is view-only until it’s paid';
 
+// A real team's line under a join request: the price comes when it is confirmed.
+function liveApproveLine(team) {
+  const free = seatsFree(team);
+  if (free > 0) return `Approving uses one of the ${free} free seat${free === 1 ? '' : 's'}.`;
+  return 'Approving adds a seat. You’ll see the price first.';
+}
+
 function firstName(name) {
   return String(name || '').split(' ')[0];
 }
 
-export default function TeamPeople({ t, now, viewOnly, dispatch, onToast }) {
+export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, go, ask, priceThen }) {
   const role = t.me.role;
   const manager = teamCan(role, 'managePeople');
   const [query, setQuery] = useState('');
@@ -26,8 +33,38 @@ export default function TeamPeople({ t, now, viewOnly, dispatch, onToast }) {
 
   const approve = (r) => {
     const buys = seatsFree(t) === 0;
-    dispatch({ type: 'approve', requestId: r.id });
-    if (buys) onToast('Preview: that added a seat. Nothing was charged.');
+    if (!live) {
+      onAction('approve', { requestId: r.id });
+      if (buys) onToast('Preview: that added a seat. Nothing was charged.');
+      return;
+    }
+    if (!buys) { go('approve', { requestId: r.id }); return; }
+    // No seat is free: the price first, and nothing happens unless confirmed.
+    priceThen(t.plan.seats + 1, 'Add a seat and approve',
+      () => go('approve', { requestId: r.id, addSeat: true }),
+      `Every seat is in use. Approving adds one. `);
+  };
+
+  const changeRole = (p, next) => {
+    if (!live) { onAction('role', { personId: p.id, role: next }); return; }
+    const needsSeat = p.role === 'viewer' && next !== 'viewer';
+    if (needsSeat && seatsFree(t) === 0 && t.plan) {
+      priceThen(t.plan.seats + 1, 'Add a seat and change the role',
+        () => go('role', { personId: p.id, role: next, addSeats: true }),
+        `Every seat is in use. This adds one. `);
+      return;
+    }
+    go('role', { personId: p.id, role: next });
+  };
+
+  const removePerson = (p) => {
+    if (!live) { onAction('remove', { personId: p.id }); return; }
+    ask({
+      message: `${p.outside ? 'Remove their access' : `Remove ${p.name} from the team`}? ${p.outside ? '' : 'They lose access to the team’s workspaces.'}`.trim(),
+      confirmLabel: 'Remove',
+      danger: true,
+      run: () => go('remove', { personId: p.id }),
+    });
   };
 
   const segs = [['all', 'All', counts.all], ['edit', 'Can edit', counts.edit], ['view', 'Can view', counts.view]];
@@ -40,10 +77,10 @@ export default function TeamPeople({ t, now, viewOnly, dispatch, onToast }) {
           <span className="tp-av" style={{ background: r.color }}>{r.name.charAt(0)}</span>
           <span className="tp-req-t">
             <b>{r.name} asked to edit {r.workspace}</b>
-            <span>{firstName(r.name)} can view it now. {approveLine(t, now)}</span>
+            <span>{firstName(r.name)} can view it now. {live ? liveApproveLine(t) : approveLine(t, now)}</span>
           </span>
           <span className="tp-req-acts">
-            <button type="button" className="tp-link" onClick={() => dispatch({ type: 'keepViewer', requestId: r.id })}>Keep as viewer</button>
+            <button type="button" className="tp-link" onClick={() => (live ? go('keepViewer', { requestId: r.id }) : onAction('keepViewer', { requestId: r.id }))}>Keep as viewer</button>
             <button type="button" className="tp-btn tp-btn-sm" onClick={() => approve(r)} {...lock}>Approve</button>
           </span>
         </div>
@@ -69,8 +106,8 @@ export default function TeamPeople({ t, now, viewOnly, dispatch, onToast }) {
         </div>
         {manager && (
           <span className="tp-seats">
-            {seatsUsed(t.people)} of {t.plan.seats} seats
-            <span className="tp-meter"><span style={{ width: `${Math.min(100, (seatsUsed(t.people) / t.plan.seats) * 100)}%` }} /></span>
+            {t.plan ? `${seatsUsed(t.people)} of ${t.plan.seats} seats` : `${seatsUsed(t.people)} seats`}
+            {t.plan && <span className="tp-meter"><span style={{ width: `${Math.min(100, (seatsUsed(t.people) / t.plan.seats) * 100)}%` }} /></span>}
           </span>
         )}
       </div>
@@ -112,7 +149,7 @@ export default function TeamPeople({ t, now, viewOnly, dispatch, onToast }) {
                     {menu === `role:${p.id}` && (
                       <TeamMenu
                         items={choices.map((c) => ({ id: c, label: ROLE_LABEL[c], checked: p.role === c }))}
-                        onPick={(r) => dispatch({ type: 'role', personId: p.id, role: r })}
+                        onPick={(r) => changeRole(p, r)}
                         onClose={() => setMenu(null)}
                       />
                     )}
@@ -126,8 +163,16 @@ export default function TeamPeople({ t, now, viewOnly, dispatch, onToast }) {
               <span className="tp-rowacts">
                 {manager && p.invited && (
                   <>
-                    <button type="button" className="tp-link" onClick={() => { dispatch({ type: 'resend', personId: p.id, now: Date.now() }); onToast('Preview: nobody was emailed.'); }} {...lock}>Resend</button>
-                    <button type="button" className="tp-link" onClick={() => dispatch({ type: 'revoke', personId: p.id })} {...lock}>Revoke</button>
+                    {(!live || String(p.id).startsWith('invite:')) && (
+                      <button type="button" className="tp-link" {...lock} onClick={() => {
+                        if (live) { go('resend', { personId: p.id }); return; }
+                        onAction('resend', { personId: p.id, now: Date.now() });
+                        onToast('Preview: nobody was emailed.');
+                      }}>Resend</button>
+                    )}
+                    {(!live || String(p.id).startsWith('invite:')) && (
+                      <button type="button" className="tp-link" onClick={() => (live ? go('revoke', { personId: p.id }) : onAction('revoke', { personId: p.id }))} {...lock}>Revoke</button>
+                    )}
                   </>
                 )}
                 {manager && !p.invited && p.role !== 'owner' && !isMe && (
@@ -147,7 +192,7 @@ export default function TeamPeople({ t, now, viewOnly, dispatch, onToast }) {
                       <TeamMenu
                         align="right"
                         items={[{ id: 'remove', label: p.outside ? 'Remove their access' : 'Remove from the team', danger: true }]}
-                        onPick={() => dispatch({ type: 'remove', personId: p.id })}
+                        onPick={() => removePerson(p)}
                         onClose={() => setMenu(null)}
                       />
                     )}

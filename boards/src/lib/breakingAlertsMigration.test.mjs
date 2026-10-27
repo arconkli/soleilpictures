@@ -5,7 +5,8 @@
 //
 // The owner decided on 2026-10-24: no digest and no routine email. Every
 // problem waits in the admin Errors tab, and five rules send an email right
-// away. A threshold nudged down, a window widened, a cap dropped or an
+// away; 0583 added a sixth, the database crashing, which no count of people
+// can see. A threshold nudged down, a window widened, a cap dropped or an
 // exclusion lost would all still run, and would email the owner about
 // nothing, so each one is read out of the latest definition here.
 import { test } from 'node:test';
@@ -38,9 +39,9 @@ function branches() {
   return out;
 }
 
-test('the five rules, with the owner\'s thresholds and windows', () => {
+test('the six rules, with the owner\'s thresholds and windows', () => {
   const b = branches();
-  assert.deepEqual(Object.keys(b).sort(), ['payments', 'saves', 'sign_in', 'widespread', 'wont_open']);
+  assert.deepEqual(Object.keys(b).sort(), ['db_down', 'payments', 'saves', 'sign_in', 'widespread', 'wont_open']);
   for (const rule of ['wont_open', 'saves', 'sign_in']) {
     assert.match(b[rule], /interval '30 minutes'/, `${rule} looks at 30 minutes`);
     assert.match(b[rule], /having count\(distinct [^\n]*\) >= 3\s*$/, `${rule} needs 3 people`);
@@ -50,6 +51,14 @@ test('the five rules, with the owner\'s thresholds and windows', () => {
   assert.match(b.widespread, /having count\(distinct b\.person\) >= 5/, 'one problem: 5 people');
   assert.match(b.widespread, /b\.severity in \('crash', 'error'\)/, 'a crash or an error, not a warning');
   assert.match(b.widespread, /b\.bucket is null/, 'a problem a dedicated rule covers emails once, by that rule');
+  // A crash of the database: one in the last hour, by when it came back; the
+  // day's are counted for the email. Nobody is counted: while it is down no
+  // one's failure lands.
+  assert.match(b.db_down, /select 'db_down', 'the database', 0, count\(\*\)::integer/);
+  assert.match(b.db_down, /d\.source = 'db' and d\.kind = 'db_restart' and d\.severity = 'crash'/, 'a clean restart never emails');
+  assert.match(b.db_down, /d\.occurred_at > p_at - interval '24 hours' and d\.occurred_at <= p_at/);
+  assert.match(b.db_down, /having max\(d\.occurred_at\) > p_at - interval '1 hour'\s*\$\$;\s*$/);
+  assert.match(b.db_down, /g\.fingerprint = d\.fingerprint and g\.status = 'muted'/, 'muting it stops it');
   // The base window is the hour.
   const base = body('_breaking_candidates');
   assert.match(base, /e\.received_at > p_at - interval '1 hour' and e\.received_at <= p_at/);
@@ -121,6 +130,8 @@ test('the 5-minute job runs each step on its own, and a broken breaking check is
   const steps = [...watch.matchAll(/perform public\.(\w+)\((?:false)?\);\s+exception when others then\s+perform public\._error_watch_step_failed\('(\w+)'/g)]
     .map((m) => [m[1], m[2]]);
   assert.deepEqual(steps, [
+    // First, so a start is on record for the same pass's breaking check (0583).
+    ['_note_db_restart', 'note_db_restart'],
     ['check_server_health', 'check_server_health'],
     ['refresh_error_groups', 'refresh_error_groups'],
     ['check_breaking', 'check_breaking'],
@@ -152,5 +163,42 @@ test('every function 0581 creates is in its grants proof', () => {
   for (const fn of created.filter((f) => f.startsWith('public._'))) {
     assert.match(src, new RegExp(`revoke all on function ${fn.replace('.', '\\.')}\\([^)]*\\) from public, anon, authenticated;`),
       `${fn} is revoked from PUBLIC too`);
+  }
+});
+
+// ── 0583: a database that crashed emails ────────────────────────────────────
+const SRC_0583 = readFileSync(join(MIGRATIONS_DIR, '0583_a_database_crash_emails.sql'), 'utf8');
+
+test('each start of the database is written down once, a crash\'s as a crash', () => {
+  const note = body('_note_db_restart');
+  assert.match(note, /v_start timestamptz := pg_postmaster_start_time\(\)/);
+  // Once a start: the watermark holds the last one written down.
+  assert.match(note, /'db_restart_watermark'[\s\S]*?if v_seen >= v_start then\s+return 0;/);
+  // Postgres throws its statistics away after a crash and stamps the reset with
+  // the start; a clean shutdown keeps them.
+  assert.match(note, /coalesce\(w\.stats_reset >= v_start, false\) into v_crash from pg_stat_wal w/);
+  assert.match(note, /values \('db', 'db_restart', case when v_crash then 'crash' else 'warning' end/);
+  assert.match(note, /'prod', v_start\);/, 'the row is when it came back');
+  const check = body('check_breaking');
+  assert.match(check, /array\['db_down', 'wont_open', 'saves', 'sign_in', 'payments', 'widespread'\]/, 'it leads the email');
+  assert.match(check, /when 'db_down'\s+then 'The database crashed and restarted'/);
+});
+
+test('every function 0583 creates or restates is in its grants proof', () => {
+  assert.doesNotMatch(SRC_0583, /drop\s+(function|policy|trigger|table)/i, 'a DROP discards the ACL');
+  const proof = SRC_0583.slice(SRC_0583.indexOf('do $proof$'));
+  const created = [...SRC_0583.matchAll(/create or replace function (public\.\w+)\(/g)].map((m) => m[1]);
+  assert.deepEqual(created, ['public._note_db_restart', 'public.error_watch', 'public._breaking_candidates', 'public.check_breaking']);
+  for (const fn of created) assert.ok(proof.includes(`'${fn}(`), `${fn} is checked with has_function_privilege`);
+  for (const fn of created.filter((f) => f.startsWith('public._'))) {
+    assert.match(SRC_0583, new RegExp(`revoke all on function ${fn.replace('.', '\\.')}\\([^)]*\\) from public, anon, authenticated;`),
+      `${fn} is revoked from PUBLIC too`);
+  }
+  // Its probes: a start written once, an old crash and a clean restart quiet, a
+  // renderer's early watchdog uncounted and a person's counted.
+  for (const said of ['the first pass after a start wrote', 'the second pass wrote the same start again',
+                      'an old crash or a clean restart emailed', 'a renderer\'\'s splash watchdog counted',
+                      'a person\'\'s stuck boot no longer counts']) {
+    assert.ok(proof.includes(said), `the proof checks: ${said}`);
   }
 });

@@ -17,10 +17,14 @@ const AIFF = `${WS}/4f1c2d3e-0000-4000-8000-000000000002.aiff`;
 const HEIC = `${WS}/4f1c2d3e-0000-4000-8000-000000000003.heic`;
 const VIEW = `${WS}/previews/4f1c2d3e-0000-4000-8000-000000000003.heic.view.webp`;
 const VIEW_SM = `${WS}/previews/4f1c2d3e-0000-4000-8000-000000000003.heic.view_sm.webp`;
+const DECK = `${WS}/4f1c2d3e-0000-4000-8000-000000000004.pptx`;
+const DECK_VIEW = `${WS}/previews/4f1c2d3e-0000-4000-8000-000000000004.pptx.view.webp`;
+const DECK_SM = `${WS}/previews/4f1c2d3e-0000-4000-8000-000000000004.pptx.view_sm.webp`;
+const DECK_PDF = `${WS}/previews/4f1c2d3e-0000-4000-8000-000000000004.pptx.view.pdf`;
 const SECRET = 'box-secret-for-tests-0123456789abcdef';
 const NOW = Date.parse('2026-10-24T20:00:00Z');
 
-function world({ readable = [MOV, AIFF, HEIC], jobs = {}, objects = {}, requestStates = {}, claimRows = [], viewClaimRows = [] } = {}) {
+function world({ readable = [MOV, AIFF, HEIC, DECK], jobs = {}, objects = {}, requestStates = {}, claimRows = [], viewClaimRows = [] } = {}) {
   const bucket = new Map(Object.entries(objects).map(([k, v]) => [k, typeof v === 'string' ? new TextEncoder().encode(v) : v]));
   const rpcs = [];
   const woke = [];
@@ -73,7 +77,7 @@ function world({ readable = [MOV, AIFF, HEIC], jobs = {}, objects = {}, requestS
     },
     svcSelect: async (_env, table, query) => {
       const key = decodeURIComponent(query.match(/storage_path=eq\.([^&]+)/)[1]);
-      assert.equal(table, key.endsWith('.heic') ? 'file_views' : 'media_copies', 'each key\'s job is read from its own queue');
+      assert.equal(table, /\.(heic|pptx)$/.test(key) ? 'file_views' : 'media_copies', 'each key\'s job is read from its own queue');
       return jobs[key] ? [jobs[key]] : [];
     },
     svcRpc: async (_env, fn, params) => {
@@ -158,6 +162,23 @@ test('a photo a browser can\'t draw is queued for a view, and a missing one is m
   const browser = world({ requestStates: { [HEIC]: 'has_preview' } });
   assert.equal((await (await browser.call('request', { headers: user, body: { keys: [HEIC] } })).json()).states[HEIC], 'has_preview');
   assert.equal(browser.woke.length, 0, 'a file a browser made a preview of wakes nothing');
+});
+
+test('a document is queued for its first page and its PDF, in the views\' queue', async () => {
+  const w = world();
+  const { states } = await (await w.call('request', { headers: user, body: { keys: [DECK] } })).json();
+  assert.deepEqual(states, { [DECK]: 'queued' });
+  assert.deepEqual(w.rpcs.map((r) => [r.fn, r.params.p_storage_path, r.params.p_kind]), [['_file_view_request', DECK, 'doc']]);
+  assert.equal(w.woke.length, 1);
+  // Made, but its first page is gone: made again. Its PDF isn't what decides.
+  const gone = world({ requestStates: { [DECK]: 'done', [`${DECK}#force`]: 'queued' }, objects: { [DECK_PDF]: 'x' } });
+  assert.equal((await (await gone.call('request', { headers: user, body: { keys: [DECK] } })).json()).states[DECK], 'queued');
+  const there = world({ requestStates: { [DECK]: 'done' }, objects: { [DECK_VIEW]: 'x' } });
+  assert.equal((await (await there.call('request', { headers: user, body: { keys: [DECK] } })).json()).states[DECK], 'done');
+  // A document's PDF is never an original.
+  const pdf = world();
+  assert.equal((await (await pdf.call('request', { headers: user, body: { keys: [DECK_PDF] } })).json()).states[DECK_PDF], 'unsupported');
+  assert.equal(pdf.rpcs.length, 0);
 });
 
 test('the box routes want the box secret; none configured is unavailable', async () => {
@@ -255,6 +276,23 @@ test('a view job\'s outputs land on its own view keys only, as WebP', async () =
   assert.equal(r.status, 400, 'a video has no view');
 });
 
+test('a document job\'s outputs are its first page, its small size and its PDF, and only a document has a PDF', async () => {
+  const w = world({ jobs: { [DECK]: leased({ kind: 'doc' }), [HEIC]: leased({ kind: 'image' }) } });
+  const put = (key, out, body) => w.call(`upload?key=${encodeURIComponent(key)}&out=${out}&step=put`, {
+    headers: { ...box, 'content-length': String(body.length) }, body,
+  });
+  assert.equal((await put(DECK, 'view', 'webp')).status, 200);
+  assert.equal(new TextDecoder().decode(w.bucket.get(`${DECK_VIEW}#type`)), 'image/webp');
+  assert.equal((await put(DECK, 'view_sm', 'sm')).status, 200);
+  assert.ok(w.bucket.has(DECK_SM));
+  assert.equal((await put(DECK, 'pdf', '%PDF-1.7')).status, 200);
+  assert.equal(new TextDecoder().decode(w.bucket.get(DECK_PDF)), '%PDF-1.7');
+  assert.equal(new TextDecoder().decode(w.bucket.get(`${DECK_PDF}#type`)), 'application/pdf');
+  assert.equal((await put(DECK, 'copy', 'x')).status, 400, 'a document has no copy');
+  assert.equal((await put(DECK, 'poster', 'x')).status, 400);
+  assert.equal((await put(HEIC, 'pdf', 'x')).status, 400, 'a photo has no PDF');
+});
+
 test('a big copy goes up in parts', async () => {
   const w = world({ jobs: { [MOV]: leased() } });
   const q = (s) => `upload?key=${encodeURIComponent(MOV)}&out=copy&${s}`;
@@ -317,6 +355,29 @@ test('a view is done only with its view in the bucket; a small one that never ca
   assert.equal(v.probe, null);
 });
 
+test('a document is done with its first page; a PDF that never came is dropped, and a photo never records one', async () => {
+  const result = { view: { w: 2048, h: 1152 }, viewSm: { w: 640, h: 360 }, pdf: { pages: 12 }, probe: { loader: 'pngload', via: 'libreoffice' } };
+  const none = world({ jobs: { [DECK]: leased({ kind: 'doc' }) } });
+  assert.equal((await (await none.call('finish', { headers: box, body: { key: DECK, state: 'done', result } })).json()).state, 'failed');
+  assert.equal(none.rpcs[0].params.p_result.error, 'the view never arrived');
+  const all = world({ jobs: { [DECK]: leased({ kind: 'doc' }) }, objects: { [DECK_VIEW]: 'x', [DECK_SM]: 'x', [DECK_PDF]: 'x' } });
+  assert.equal((await (await all.call('finish', { headers: box, body: { key: DECK, state: 'done', result } })).json()).state, 'done');
+  assert.equal(all.rpcs[0].fn, '_file_view_finish');
+  assert.deepEqual(all.rpcs[0].params.p_result.pdf, { pages: 12 });
+  assert.deepEqual(all.rpcs[0].params.p_result.viewSm, { w: 640, h: 360 });
+  const noPdf = world({ jobs: { [DECK]: leased({ kind: 'doc' }) }, objects: { [DECK_VIEW]: 'x' } });
+  assert.equal((await (await noPdf.call('finish', { headers: box, body: { key: DECK, state: 'done', result } })).json()).state, 'done');
+  assert.equal(noPdf.rpcs[0].params.p_result.pdf, null, 'no PDF in the bucket: none recorded, the first page still shows');
+  assert.equal(noPdf.rpcs[0].params.p_result.viewSm, null);
+  const photo = world({ jobs: { [HEIC]: leased({ kind: 'image' }) }, objects: { [VIEW]: 'x', [`${WS}/previews/4f1c2d3e-0000-4000-8000-000000000003.heic.view.pdf`]: 'x' } });
+  await photo.call('finish', { headers: box, body: { key: HEIC, state: 'done', result } });
+  assert.equal(photo.rpcs[0].params.p_result.pdf, null, 'a photo has no PDF');
+  assert.deepEqual(cleanViewResult({ pdf: { pages: '7' } }).pdf, { pages: 7 });
+  for (const pdf of [{ pages: 0 }, { pages: -1 }, { pages: 1e6 }, { pages: 'x' }, 'x', null]) {
+    assert.equal(cleanViewResult({ pdf }).pdf, null, JSON.stringify(pdf));
+  }
+});
+
 test('the result is kept to what the record holds', () => {
   const r = cleanResult({ copy: { w: '1920', h: 1080.4, bytes: -1 }, poster: { w: 0, h: 5 }, reason: 'Too Long!', error: 'x'.repeat(400),
     durationSec: 'NaN', probe: { format: { a: 'x'.repeat(20000) }, streams: [] } });
@@ -357,12 +418,12 @@ test('the minute cron wakes the box only while work waits', async () => {
 test('a swept original takes its own copies and views with it, and nothing else', async () => {
   const deletes = [];
   const svcDelete = async (_env, table, query) => { deletes.push([table, decodeURIComponent(query)]); return true; };
-  const n = await forgetPlayCopies({}, [MOV, AIFF, MOV, HEIC, `${WS}/a.jpg`, `${WS}/previews/x.play.mp4`, VIEW, '../x.mov'], { svcDelete });
-  assert.equal(n, 3);
+  const n = await forgetPlayCopies({}, [MOV, AIFF, MOV, HEIC, DECK, `${WS}/a.jpg`, `${WS}/previews/x.play.mp4`, VIEW, DECK_PDF, '../x.mov'], { svcDelete });
+  assert.equal(n, 4);
   assert.deepEqual(deletes, [
-    ['images', `storage_path=in.("${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.play.mp4","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.poster.webp","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000002.play.m4a","${VIEW}","${VIEW_SM}")`],
+    ['images', `storage_path=in.("${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.play.mp4","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000001.poster.webp","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000002.play.m4a","${VIEW}","${VIEW_SM}","${DECK_VIEW}","${DECK_SM}","${DECK_PDF}")`],
     ['media_copies', `storage_path=in.("${MOV}","${AIFF}")`],
-    ['file_views', `storage_path=in.("${HEIC}")`],
+    ['file_views', `storage_path=in.("${HEIC}","${DECK}")`],
   ]);
   const many = Array.from({ length: 90 }, (_, i) => `${WS}/clip-${i}.mkv`);
   deletes.length = 0;

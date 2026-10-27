@@ -82,18 +82,19 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
     if (!c || !workspaceId) return;
     setCandidateBusy(true);
     try {
-      await supabase.from('entity_ignore_terms').insert({
+      const { error } = await supabase.from('entity_ignore_terms').insert({
         workspace_id: workspaceId,
         scope: 'workspace',
         scope_id: null,
         term: c.name,
         created_by: userId || null,
       });
+      // supabase-js resolves with { error } rather than throwing, so a refusal
+      // (a viewer, a dropped connection) used to clear the name here and bring
+      // it back on the next load. Already dismissed (23505) is fine.
+      if (error && error.code !== '23505') throw error;
     } catch (err) {
-      // Unique violation (already dismissed) is fine; surface anything else.
-      if (err?.code && err.code !== '23505') {
-        notify?.({ type: 'error', code: 'tag_dismiss_failed', message: 'Could not dismiss: ' + (err?.message || err) });
-      }
+      notify?.({ type: 'error', code: 'tag_dismiss_failed', message: 'Could not dismiss: ' + (err?.message || err) });
     } finally {
       try { logEvent(EV.TAG_CANDIDATE_DISMISS, { count: c.count || 0 }); } catch (_) {}
       setCandidateBusy(false);

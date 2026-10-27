@@ -1,13 +1,14 @@
 // Cloudflare Worker handlers for the AI tagging pipeline.
 //
-// Three routes (Phase 1 = embed + apply; cluster-name + revalidate land in
-// later phases):
+// Two routes:
 //
 //   POST /api/tags/embed         — Workers AI (bge-m3) embeddings in batch
 //   POST /api/tags/apply         — Workers AI (llama) word verdicts, batched
-//   POST /api/tags/cluster-name  — Workers AI (llama) names emergent clusters
 //
-// All three run on Cloudflare Workers AI via env.AI, inside the account's
+// (The route that named "emergent themes", which no screen showed, was
+// retired with them on 2026-10-25.)
+//
+// Both run on Cloudflare Workers AI via env.AI, inside the account's
 // daily free allowance. (The old gpt-4o apply path blew the budget when it
 // fired per-card on every keystroke.) Embeddings were the last OpenAI call:
 // text-embedding-3-small, until the credits ran out in 2026 and nothing had
@@ -44,7 +45,6 @@ import { answeredWith } from './lib/workerErrors.js';
 // llama-3.1-8b-instruct id on 2026-05-30 (error 5028, so /apply had failed every
 // call since); the fp8 build is the same model, quantized.
 const APPLY_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';    // /api/tags/apply
-const CLUSTER_NAME_MODEL = '@cf/meta/llama-3.2-3b-instruct'; // /api/tags/cluster-name
 const EMBEDDING_MODEL = '@cf/baai/bge-m3';
 const EMBEDDING_DIM = 1024;   // pgvector columns are vector(1024) since 0418
 
@@ -52,7 +52,7 @@ const EMBEDDING_DIM = 1024;   // pgvector columns are vector(1024) since 0418
 const MAX_EMBED_CARDS_PER_CALL = 64;
 const MAX_APPLY_CARDS_PER_CALL = 16;
 const MAX_APPLY_TAGS_PER_CARD = 30;
-const MAX_CLUSTER_MEMBERS = 8;
+const APPLY_TIMEOUT_MS = 25_000;
 
 export async function handleTagsRoute(url, request, env) {
   if (request.method !== 'POST') {
@@ -64,7 +64,6 @@ export async function handleTagsRoute(url, request, env) {
 
     if (url.pathname === '/api/tags/embed')        return await handleEmbed(request, env);
     if (url.pathname === '/api/tags/apply')        return await handleApply(request, env);
-    if (url.pathname === '/api/tags/cluster-name') return await handleClusterName(request, env);
 
     return json({ error: 'not found' }, 404);
   } catch (e) {
@@ -90,11 +89,13 @@ export async function handleTagsRoute(url, request, env) {
 // Returns: { embeddings: [{ id, vector }] }
 
 // Asks tags_embed_budget_take, as the caller, whether these characters fit
-// today's budget. Anything but an explicit yes is a no. /apply and
-// /cluster-name spend from the same budget, charged with everything sent to
-// the model: the instructions cost the same on every call, whatever the
-// user's own text adds.
-async function embedBudgetOk(env, request, chars) {
+// today's budget. /apply spends from the same budget, charged with
+// everything sent to the model: the instructions cost the same on every
+// call, whatever the user's own text adds.
+// 'ok' | 'over' | 'error'. 'error' (the RPC failed or timed out) is not a
+// spent budget: answered as 503, which the client retries in a minute,
+// rather than a 429, which parks it for an hour.
+async function takeEmbedBudget(env, request, chars) {
   try {
     const r = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/tags_embed_budget_take`, {
       method: 'POST',
@@ -106,8 +107,37 @@ async function embedBudgetOk(env, request, chars) {
       body: JSON.stringify({ p_chars: chars }),
       signal: AbortSignal.timeout(8000),
     });
+    if (!r.ok) return 'error';
+    const yes = await r.json().catch(() => null);
+    if (yes === true) return 'ok';
+    return yes === false ? 'over' : 'error';
+  } catch (_) {
+    return 'error';
+  }
+}
+
+function budgetRefusal(verdict, what) {
+  return verdict === 'over'
+    ? json({ error: `daily ${what} budget reached` }, 429)
+    : json({ error: 'budget check unavailable, try again shortly' }, 503);
+}
+
+// The workspace's AI switch, read as the caller (members can read their
+// workspace). The client checks first; this is the backstop for a stale tab.
+// Only an explicit false refuses.
+async function workspaceAiOff(env, request, workspaceId) {
+  if (!workspaceId || !/^[0-9a-f-]{36}$/i.test(String(workspaceId))) return false;
+  try {
+    const r = await fetch(`${env.SUPABASE_URL}/rest/v1/workspaces?id=eq.${workspaceId}&select=ai_tagger_enabled`, {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        authorization: request.headers.get('authorization') || '',
+      },
+      signal: AbortSignal.timeout(5000),
+    });
     if (!r.ok) return false;
-    return (await r.json().catch(() => false)) === true;
+    const rows = await r.json().catch(() => []);
+    return Array.isArray(rows) && rows[0]?.ai_tagger_enabled === false;
   } catch (_) {
     return false;
   }
@@ -138,9 +168,11 @@ async function handleEmbed(request, env) {
   // A daily budget, per account and for everyone (0381, audit SE-3): beyond the
   // free allowance this route is spend, so spend only on a yes.
   const chars = texts.reduce((n, t) => n + t.length, 0);
-  if (!await embedBudgetOk(env, request, chars)) {
-    return json({ error: 'daily embedding budget reached' }, 429);
+  if (await workspaceAiOff(env, request, body.workspace_id)) {
+    return json({ error: 'AI suggestions are off for this workspace' }, 403);
   }
+  const budget = await takeEmbedBudget(env, request, chars);
+  if (budget !== 'ok') return budgetRefusal(budget, 'embedding');
   let result;
   try {
     result = await env.AI.run(EMBEDDING_MODEL, { text: texts });
@@ -217,15 +249,23 @@ async function handleApply(request, env) {
   const userMsg = JSON.stringify(userPayload)
     + '\n\nReturn ONLY a JSON object of this shape (no markdown, no prose):\n'
     + '{"verdicts":[{"card_id": string, "tags":[{"tag_id": string, "confidence":"high"|"medium"|"low", "words":[{"text": string, "start_offset": number, "length": number}], "evidence_sentence": string|null}]}]}';
-  if (!await embedBudgetOk(env, request, APPLY_SYSTEM_PROMPT.length + userMsg.length)) {
-    return json({ error: 'daily tagging budget reached' }, 429);
+  if (await workspaceAiOff(env, request, body.workspace_id)) {
+    return json({ error: 'AI suggestions are off for this workspace' }, 403);
   }
+  const budget = await takeEmbedBudget(env, request, APPLY_SYSTEM_PROMPT.length + userMsg.length);
+  if (budget !== 'ok') return budgetRefusal(budget, 'tagging');
   let resp;
   try {
-    resp = await runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT, userMsg,
-      { max_tokens: 2000, temperature: 0.1 });
+    // A hung model call (one ran 96 s on 2026-10-25) holds the client's
+    // request open the whole time; give up at APPLY_TIMEOUT_MS and let the
+    // client's 5xx cooldown retry later.
+    resp = await Promise.race([
+      runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT, userMsg, { max_tokens: 2000, temperature: 0.1 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('model timed out')), APPLY_TIMEOUT_MS)),
+    ]);
   } catch (e) {
-    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
+    const timedOut = String(e?.message || '') === 'model timed out';
+    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, timedOut ? 504 : 502);
   }
   const parsed = parseJsonLoose(resp);
   if (!parsed) return json({ error: 'malformed json from model', detail: String(resp).slice(0, 500) }, 502);
@@ -240,49 +280,6 @@ async function handleApply(request, env) {
   // above tell the model when context-continuity is enough.
   const verdicts = Array.isArray(parsed.verdicts) ? parsed.verdicts : [];
   return json({ verdicts, usage: null }, 200);
-}
-
-// ─────────────────────────────────────────────────────────────────────
-// /api/tags/cluster-name (Phase 2 — exposed now, used by client later)
-// Body: {
-//   member_cards: [{ id, text }],   // 3–8 representative cards
-//   existing_names?: string[],      // names the model must NOT collide with
-// }
-// Returns: { name: string|null, description: string|null }
-//   name === null → cards don't share a coherent theme OR the only honest
-//   name would duplicate an existing one. Either way: cluster gets rejected.
-async function handleClusterName(request, env) {
-  if (!env.AI) return json({ error: 'env.AI (Workers AI) binding not configured' }, 500);
-  const body = await request.json().catch(() => null);
-  if (!Array.isArray(body?.member_cards) || body.member_cards.length < 3) {
-    return json({ error: 'need ≥3 member_cards' }, 400);
-  }
-  const members = body.member_cards.slice(0, MAX_CLUSTER_MEMBERS).map(c => ({
-    id: String(c?.id ?? '').slice(0, 200),
-    text: String(c?.text || '').slice(0, 1500),
-  }));
-  const existingNames = Array.isArray(body?.existing_names)
-    ? body.existing_names.slice(0, 100).map(n => String(n || '').slice(0, 80)).filter(Boolean)
-    : [];
-
-  const userMsg = JSON.stringify({ cards: members, existing_names: existingNames })
-    + '\n\nReturn ONLY a JSON object: {"name": string|null, "description": string|null}. No markdown, no prose.';
-  if (!await embedBudgetOk(env, request, CLUSTER_NAME_SYSTEM_PROMPT.length + userMsg.length)) {
-    return json({ error: 'daily tagging budget reached' }, 429);
-  }
-  let resp;
-  try {
-    resp = await runWorkersAiChat(env, CLUSTER_NAME_MODEL, CLUSTER_NAME_SYSTEM_PROMPT, userMsg,
-      { max_tokens: 300, temperature: 0.3 });
-  } catch (e) {
-    return json({ error: 'workers-ai: ' + String(e?.message || e).slice(0, 200) }, 502);
-  }
-  const parsed = parseJsonLoose(resp);
-  if (!parsed) return json({ error: 'malformed json from model' }, 502);
-  return json(
-    { name: parsed.name ?? null, description: parsed.description ?? null, usage: null },
-    200,
-  );
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -403,34 +400,6 @@ const APPLY_RESPONSE_SCHEMA = {
         },
       },
     },
-  },
-};
-
-const CLUSTER_NAME_SYSTEM_PROMPT = `You are naming a cluster of related cards from a notes app. You will be given 3-8 cards that an embedding-clustering algorithm grouped together as semantically similar.
-
-Your job: decide whether they share a coherent theme worth tagging, and if so, name it.
-
-Output a name (1-3 words, title case, the kind of label a person would actually use as a tag like "Project Phoenix" or "Onboarding flow") and a one-sentence description suitable for a tag tooltip.
-
-If the cards do NOT share a meaningful theme — for example, they're a coincidental grouping of common words, or each card is about something different — return name: null and description: null. This is the validation gate against bad emergent clusters.
-
-DO NOT DUPLICATE EXISTING NAMES
-The user message may include an "existing_names" array — names already in use as workspace tags or as proposed names for other clusters. Your "name" MUST NOT collide with any entry in that list. A collision is any of:
-  - exact case-insensitive match ("Social Media" ↔ "social media")
-  - one name is a substring of the other when both are ≥ 4 chars ("Social Media" ↔ "Social Media Platforms")
-  - trivial variants (plural/singular, hyphen vs space, minor typo)
-
-If your honest name for this cluster would collide with an existing_names entry, return name: null and description: null. The cluster will be rejected rather than create a duplicate tag — that's the right outcome, since the existing name already covers this concept.
-
-Return JSON matching the schema. Do not add prose.`;
-
-const CLUSTER_NAME_RESPONSE_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['name', 'description'],
-  properties: {
-    name: { type: ['string', 'null'] },
-    description: { type: ['string', 'null'] },
   },
 };
 

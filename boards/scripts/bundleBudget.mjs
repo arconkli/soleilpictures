@@ -37,7 +37,20 @@ const REPORT = args.includes('--report');
 // them as the speed work lands; never raise one to make a change fit without
 // saying why in the commit.
 export const CEILINGS = {
-  entryJs: 165_000,
+  // 2026-10-25: +0.5 KB for the Team plan's links (?teamjoin=, ?teaminvite=;
+  // held by teamsAllowed). The sign-in page only checks the address and the
+  // stash; capturing, claiming, the card and the note load later
+  // (components/TeamJoinCard.jsx). Most of the growth is that import's list
+  // of chunks to preload.
+  // 2026-10-27: +0.5 KB for a draft's keep page (/keep/<token>, about 0.2 KB):
+  // the route, its import's list of chunks to preload, and the first touch's
+  // keep-link redaction (lib/linkTokens.js). The page itself loads later
+  // (pages/KeepPage.jsx).
+  // The Team launch's nine events (every event name is in the entry,
+  // analyticsEvents.js) and the Talk to us page's route fit under it: CI's
+  // build read 165.7 KB on 2026-10-27. The page itself loads only on
+  // /pricing/talk-to-us.
+  entryJs: 166_000,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
@@ -53,12 +66,38 @@ export const CEILINGS = {
   // the browser can't draw waits for the file's view and shows it, and an
   // editor's cluster asks views for its photos; asking for and waiting on a
   // view load later (fileViewWork).
-  // 2026-10-27, production only: +1 KB. The Export fix (062bbca4) put CI's
-  // build at 689.3 KB, so this check has read OVER on production since then,
-  // and the link-first Share hotfix adds 0.2 KB (the share toast's weekly gap,
-  // in App.jsx and lib/shareAsk.js; the panel itself loads on demand). Main's
-  // ceiling is already above both, and the next promote brings it.
-  appJs: 690_000,
+  // 2026-10-25: +1 KB for tags where people work: Tag… on a group and on the
+  // cluster, Tag selection… in a document, `#name` in Cmd-K, one tag count,
+  // the workspace AI switch (the retired emergent-theme code paid for part).
+  // 2026-10-25: +1 KB for the Team plan in the app (held by teamsAllowed):
+  // the person's teams and the team's workspaces in the workspace menu, and
+  // reading a landing on /team. The page, its data, and verifying a return
+  // from Stripe load later (TeamPageLive, teamsApi, teamReturnRun).
+  // 2026-10-26: +0.5 KB, no new feature. CI's bundle job measured 691.2 KB on
+  // db870a75, over a ceiling set from a local build that read low: a worktree
+  // that symlinks the shared checkout's node_modules builds dompurify 3.4.16
+  // and nanoid 3.3.12, where the lockfile (and CI, and Cloudflare) has 3.4.17
+  // and 3.3.20, about 0.6 KB less. Take the figure from CI's run, or from a
+  // worktree with its own `npm ci`.
+  // 2026-10-26: +1.5 KB for the tag spotlight (a chip lights its tag's cards
+  // up in place, with the pill), suggested chips on cards, and chips on group
+  // labels: the owner's direction A, all in CanvasSurface's closure. Sized
+  // for CI's build (a worktree on the shared node_modules reads ~0.6 KB low,
+  // as above): about +1.3 KB measured.
+  // 2026-10-26: +1 KB for tagging several cards at once: the selection bar's
+  // Tag and its state in CanvasSurface (the tri-state picker and its writes,
+  // TagManyPicker + tagCardsBatch, load on demand). Sized for CI, as above.
+  // 2026-10-27: −7 KB, banked. The old canvas toolbars went (29c1d7c6,
+  // fcbf8b7c), and CI measured 686.4 KB on 1a4c29ed, so the ceiling comes
+  // down to that plus 0.6 rather than leaving 7.6 KB that anything could grow
+  // into unseen.
+  // 2026-10-27: +2.8 KB for the document card (the owner's direction A): a
+  // Word, PowerPoint or Excel file's card shows its first page, its glyph
+  // until then (R2Image's placeholder), and its page count, and Files and the
+  // sidebar show the page. Most of it is the family glyphs a board draws at
+  // once (Excel's, PowerPoint's, a deck's): every Phosphor icon carries all
+  // six weights. CI measured 685.7 KB on 80e02093, this change 689.2.
+  appJs: 689_800,
   appCss: 21_000,
 };
 
@@ -76,15 +115,18 @@ export const NEVER_IN_APP = [
 export const LAZY_IN_APP = [
   // App.jsx
   'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette', 'TagDetailView',
-  'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage',
+  'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive', 'NewWorkspaceDialog',
   // TierRouter.jsx: one route's page each
-  'PricingPage', 'TeamPlanCard', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
+  'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
-  'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel',
+  'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel', 'TagManyPicker',
   // ToolOptionsBar.jsx: the note bar and the draw, shape, line and arrow bars in the toolbar look
   'NoteBarA', 'CanvasBarsA',
   // CanvasSurface.jsx: the selection's bar in the toolbar look
   'SelectionBarA',
+  // SidebarTags.jsx (and the lazy TagDetailView): a tag's or an item's actions
+  // under a finger
+  'TagActionSheet',
   // FloatingChrome.jsx: ⋯'s menu in the top islands in the toolbar look
   'ChromeMoreA',
   // DocSurface.jsx: the doc look's frame, its bars, side panel and footer

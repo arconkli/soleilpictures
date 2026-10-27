@@ -43,7 +43,7 @@ export const PROBE_ORIGIN = 'https://clusters.soleilpictures.com';
 // `source` names the artifact the Worker actually serves for that URL:
 //   { kind: 'changelog' }            CHANGELOG_HTML, injected into #seo-fallback
 //   { kind: 'listicle', path }       buildListicleCrawlableHtml(getListicleSpec(path))
-//   { kind: 'docs', path }           DOCS_HTML[path]
+//   { kind: 'docs', path }           the page's crawlable HTML, public/docs-html (docsiteHtml.js)
 //   { kind: 'pricing' }              buildPricingCrawlableHtml(), injected into
 //                                    #seo-fallback on /pricing (0350's rows 78 and 80)
 //   { kind: 'file',  path }          a committed file under boards/ served as-is
@@ -150,7 +150,7 @@ export const SEO_PROBE_CONTRACT = [
   { id: 79, path: '/pricing.md', check: 'pricing md carries the plan table',
     expected: '| | Free | Creator |', source: { kind: 'file', path: 'public/pricing.md' } },
   { id: 80, path: '/pricing', check: 'pricing body is the pricing page',
-    expected: 'Both plans, line by line', source: { kind: 'pricing' } },
+    expected: 'Every plan, line by line', source: { kind: 'pricing' } },
   { id: 81, path: '/pricing.md', check: 'pricing md mirror',
     expected: 'Start free. Pay when you outgrow it.', source: { kind: 'file', path: 'public/pricing.md' } },
 ];

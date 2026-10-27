@@ -388,12 +388,15 @@ function stampForAppend(cards, userId, startZ = 0) {
 // left alone. skipExisting: a card whose id the board already holds is left
 // as it is and reported in `existing`, rather than landed again under a new
 // id — so a retried append, or an Undo that already happened, adds nothing.
+// afterInsert(doc, cardYMap, card): fills a card's own nested content (a doc's
+// pages) in the same transaction as its insert, as the app's addCard does, so
+// the card and what it holds arrive as one. Read-modify-write path only.
 export async function addCardsToBoard(env, {
   boardId, workspaceId, userId, accessToken, buildCards, appendCards,
-  requireLive = false, skipExisting = false,
+  requireLive = false, skipExisting = false, afterInsert = null,
 }) {
   // The O(batch) path, when the caller has already decided where the cards go.
-  if (appendCards?.length) {
+  if (appendCards?.length && !afterInsert) {
     const stamped = stampForAppend(appendCards, userId);
     const fast = await appendViaRoom(env, { boardId, workspaceId, accessToken, stamped });
     if (fast) return fast;
@@ -471,11 +474,24 @@ export async function addCardsToBoard(env, {
       await scoutInsert(env, 'card_index', indexRows, { onConflict: 'board_id,card_id' });
     }
 
-    // 2. Apply locally, capturing just the delta for the wire.
+    // 2. Apply locally, capturing just the delta for the wire. A throw from
+    //    afterInsert leaves before anything is pushed or saved; the index rows
+    //    that went in first come back out.
     const before = Y.encodeStateVector(doc);
-    doc.transact(() => {
-      for (const c of stamped) cardsMap.set(c.id, cardToYMap(c));
-    }, 'scout');
+    try {
+      doc.transact(() => {
+        for (const c of stamped) {
+          cardsMap.set(c.id, cardToYMap(c));
+          afterInsert?.(doc, cardsMap.get(c.id), c);
+        }
+      }, 'scout');
+    } catch (e) {
+      if (indexRows.length) {
+        await scoutDelete(env, 'card_index',
+          `board_id=eq.${boardId}&card_id=in.${encodeURIComponent(inList(stamped.map((c) => c.id)))}`).catch(() => {});
+      }
+      throw e;
+    }
     const delta = Y.encodeStateAsUpdate(doc, before);
 
     // 3. Live push, so an open canvas animates them in.
@@ -1002,6 +1018,82 @@ export async function updateCardsOnBoard(env, {
   }
 }
 
+// Change what one card holds, where it lives (a doc's pages: lib/docWrite.js),
+// through the live room only — a doc open in the app, or its DocParty mirror,
+// hears only what the room hears, and a warm room saves its own doc over
+// board_state. Refused before anything is written when the room can't be
+// reached, and nothing counts as written until the room confirms it.
+//
+//   prepare(doc, cardYMap) — on the synced board, before any write: checks,
+//     and works out the change; a throw leaves everything as it was, and
+//     `unchanged: true` in what it returns means there is nothing to write.
+//   write(doc, cardYMap, prepared) — the change, inside the one transaction
+//     that is pushed; its return value comes back as `result`. The room keeps
+//     talking while the checkpoint is saved, so a check that must hold at the
+//     moment of writing is made again here, before anything changes.
+//   checkpoint — an op_summary: the board goes into Version history first
+//     (a rewrite takes words away).
+//
+// Returns { result, card } (card = the card's plain fields now, for its index
+// row), { unchanged: true, card } with nothing written, or { missing: true }
+// when the board holds no such card.
+export async function editCardLive(env, {
+  boardId, userId, accessToken, cardId, prepare = null, write, checkpoint = null,
+}) {
+  const board = await openBoard(env, boardId, accessToken);
+  const plain = (ym) => {
+    const card = {};
+    ym.forEach((v, k) => {
+      if (v === null || typeof v !== 'object' || typeof v.toJSON !== 'function') card[k] = v;
+    });
+    card.id = String(cardId);
+    return card;
+  };
+  try {
+    if (!board.live) throw roomUnavailable('the cluster could not be reached; nothing was written');
+    const cards = board.doc.getMap('cards');
+    const ym = cards.get(String(cardId));
+    if (!ym || typeof ym.get !== 'function') return { missing: true };
+    const prepared = prepare ? prepare(board.doc, ym) : null;
+    if (prepared?.unchanged) return { unchanged: true, card: plain(ym) };
+    if (checkpoint) {
+      await saveVersionRow(env, boardId, board.doc, { label: 'api', opSummary: checkpoint, userId });
+    }
+    let result;
+    const live = await commitDoc(env, boardId, board, () => {
+      result = write(board.doc, ym, prepared);
+      writeCardFields(ym, { updatedAt: new Date().toISOString(), updatedBy: userId || null });
+    }, { confirm: true });
+    if (!live) throw roomUnavailable('the cluster did not take the change; nothing was written');
+    return { result, card: plain(ym) };
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
+// The same for a change that isn't one card's fields (comment threads inside
+// several docs at once): live room only, prepare(doc) on the synced board,
+// write(doc, prepared) in the one transaction pushed. Nothing awaits between
+// the two, so what prepare saw is what write changes. Cards keep their
+// updatedAt: a comment isn't an edit of the card. Returns { result }, or
+// { unchanged: true } when prepare says there is nothing to write.
+export async function editBoardLive(env, { boardId, accessToken, prepare = null, write }) {
+  const board = await openBoard(env, boardId, accessToken);
+  try {
+    if (!board.live) throw roomUnavailable('the cluster could not be reached; nothing was written');
+    const prepared = prepare ? prepare(board.doc) : null;
+    if (prepared?.unchanged) return { unchanged: true };
+    let result;
+    const live = await commitDoc(env, boardId, board, () => { result = write(board.doc, prepared); }, { confirm: true });
+    if (!live) throw roomUnavailable('the cluster did not take the change; nothing was written');
+    return { result };
+  } finally {
+    try { board.ws?.close(); } catch (_) { /* already gone */ }
+    board.doc.destroy();
+  }
+}
+
 export async function updateCardOnBoard(env, {
   boardId, workspaceId, userId, accessToken, cardId, patch,
 }) {
@@ -1116,7 +1208,9 @@ export async function withBoardCards(env, boardId, accessToken, use) {
   try {
     let templates = {};
     try { templates = doc.getMap('gridTemplates').toJSON(); } catch (_) { /* none */ }
-    return await use({ cards: readCards(doc), templates, loaded });
+    // `doc` for readers that need more than the cards — a doc card's links
+    // live in the board's own links map. Read it; never write through it.
+    return await use({ cards: readCards(doc), templates, loaded, doc });
   } finally {
     try { ws?.close(); } catch (_) { /* already gone */ }
     doc.destroy();
@@ -1133,18 +1227,35 @@ export async function withBoardCards(env, boardId, accessToken, use) {
 // The API had no access to any of this, which meant an integration could place
 // forty cards and not express that they were one thing.
 
+// A board's groups, oldest first, from its open doc.
+function groupsOf(doc) {
+  const out = [];
+  doc.getMap('groups').forEach((v, id) => {
+    const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
+    if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
+  });
+  return out.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+}
+
 export async function readBoardGroups(env, boardId, accessToken = null) {
   const board = await openBoard(env, boardId, accessToken);
   try {
-    const out = [];
-    board.doc.getMap('groups').forEach((v, id) => {
-      const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;
-      if (g && typeof g === 'object') out.push({ ...g, id: g.id || id });
-    });
-    return out.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    return groupsOf(board.doc);
   } finally {
     try { board.ws?.close(); } catch (_) { /* already gone */ }
     board.doc.destroy();
+  }
+}
+
+// The cards and the groups in one open, for a reader that wants both (the
+// MCP read_board): opening the board twice costs a second room connection.
+export async function readBoardCardsAndGroups(env, boardId, accessToken = null) {
+  const { doc, ws, loaded } = await openBoard(env, boardId, accessToken);
+  try {
+    return { cards: readCards(doc), groups: groupsOf(doc), loaded };
+  } finally {
+    try { ws?.close(); } catch (_) { /* already gone */ }
+    doc.destroy();
   }
 }
 

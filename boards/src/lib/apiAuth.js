@@ -37,6 +37,29 @@ async function sha256Hex(input) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// The database's refusals, remembered in this isolate by token hash, so a
+// client retrying in a loop is not refused by a round trip every time: a token
+// past its window until the reset that window names (at most ten minutes on),
+// and a token that is unknown, revoked or expired for a minute. The answers are
+// the database's own, word for word, so a client cannot tell the two apart;
+// only the work behind them is saved.
+const REFUSED_TTL_MS = 60_000;
+const OVER_WINDOW_MAX_MS = 10 * 60_000;
+const _refused = new Map();   // token hash → { until, answer }
+
+function rememberRefusal(hash, answer, until) {
+  if (_refused.size > 5000) _refused.clear();
+  _refused.set(hash, { until, answer });
+}
+
+function refusalFor(hash) {
+  const hit = _refused.get(hash);
+  if (!hit) return null;
+  if (hit.until > Date.now()) return { ...hit.answer };
+  _refused.delete(hash);
+  return null;
+}
+
 // Resolve `Authorization: Bearer sk_live_…` to { userId, tokenId, scopes }.
 //
 // api_token_resolve does authentication, expiry, revocation, last_used and the
@@ -52,9 +75,13 @@ export async function resolveApiToken(request, env) {
     return { ok: false, status: 401, error: 'invalid token' };
   }
 
+  const hash = await sha256Hex(presented);
+  const known = refusalFor(hash);
+  if (known) return known;
+
   let rows;
   try {
-    rows = await scoutRpc(env, 'api_token_resolve', { p_token_hash: await sha256Hex(presented) });
+    rows = await scoutRpc(env, 'api_token_resolve', { p_token_hash: hash });
   } catch (_) {
     return { ok: false, status: 502, error: 'could not verify that token' };
   }
@@ -70,13 +97,20 @@ export async function resolveApiToken(request, env) {
   };
 
   if (row.reason === 'rate_limited') {
-    return { ok: false, status: 429, code: 'rate_limited', rate,
+    const answer = { ok: false, status: 429, code: 'rate_limited', rate,
       error: 'rate limit exceeded — try again shortly' };
+    const reset = Date.parse(rate.reset || '');
+    if (Number.isFinite(reset)) {
+      rememberRefusal(hash, answer, Math.min(reset, Date.now() + OVER_WINDOW_MAX_MS));
+    }
+    return answer;
   }
   // unknown / revoked / expired all answer the same way. Distinguishing them
   // tells someone holding a stolen token which of their guesses was once real.
   if (!row.user_id) {
-    return { ok: false, status: 401, code: 'invalid_token', rate, error: 'invalid token' };
+    const answer = { ok: false, status: 401, code: 'invalid_token', rate, error: 'invalid token' };
+    rememberRefusal(hash, answer, Date.now() + REFUSED_TTL_MS);
+    return answer;
   }
 
   return {
@@ -205,6 +239,29 @@ export async function createServiceAuthUser(env, { label } = {}) {
     throw new Error('service accounts need SUPABASE_SERVICE_ROLE_KEY');
   }
   const email = `svc+${crypto.randomUUID()}@service.soleilpictures.com`;
+  return createConfirmedAuthUser(env, {
+    email,
+    email_confirm: true,
+    user_metadata: { service_account: true, label: String(label || '').slice(0, 80) },
+  }, 'the service identity');
+}
+
+// The identity behind a draft (/mcp, 0705): an account nobody has claimed yet,
+// made the same way at an address only drafts use (lib/mcpDrafts.js
+// draftEmail), so it too is a real user every predicate already applies to.
+// Keeping the draft hands its workspace to a person; this identity is deleted.
+export async function createDraftAuthUser(env, email, { host } = {}) {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('drafts need SUPABASE_SERVICE_ROLE_KEY');
+  return createConfirmedAuthUser(env, {
+    email,
+    email_confirm: true,
+    user_metadata: { draft: true, host: String(host || 'other').slice(0, 20) },
+  }, 'the draft');
+}
+
+// `user` is admin/users' body: the address, confirmed, and what it is.
+async function createConfirmedAuthUser(env, user, what) {
+  const { email } = user;
   const res = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users`, {
     method: 'POST',
     headers: {
@@ -213,22 +270,18 @@ export async function createServiceAuthUser(env, { label } = {}) {
       'content-type': 'application/json',
       accept: 'application/json',
     },
-    body: JSON.stringify({
-      email,
-      email_confirm: true,
-      user_metadata: { service_account: true, label: String(label || '').slice(0, 80) },
-    }),
+    body: JSON.stringify(user),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    const e = new Error('could not create the service identity');
+    const e = new Error(`could not create ${what}`);
     e.detail = `admin/users ${res.status}: ${detail.slice(0, 300)}`;
     throw e;
   }
-  const user = await res.json();
-  if (!user?.id) throw new Error('admin/users returned no id');
-  return { userId: user.id, email };
+  const made = await res.json();
+  if (!made?.id) throw new Error('admin/users returned no id');
+  return { userId: made.id, email };
 }
 
 // Undo createServiceAuthUser. Only used when registration fails after the
@@ -531,6 +584,13 @@ async function restError(res, what) {
   const err = new Error(message);
   err.status = status;
   err.code = code;
+  // Our own RAISE's hint ('new_account', 0375), for a caller that answers that
+  // refusal in words of its own. Only a short word: never part of a response
+  // as it stands.
+  try {
+    const hint = raw ? JSON.parse(raw)?.hint : null;
+    if (typeof hint === 'string' && /^[a-z_]{1,40}$/.test(hint)) err.hint = hint;
+  } catch (_) { /* not JSON */ }
   // Never returned to the caller — worker-api.js logs this and sends `message`.
   err.detail = `${what} ${res.status}: ${raw.slice(0, 300)}`;
   return err;

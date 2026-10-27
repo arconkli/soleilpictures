@@ -28,8 +28,11 @@ import { supabase } from './supabase.js';
 import { pickPresenceColor } from './presenceColor.js';
 import { maskProfile } from './captureIdentity.js';
 import { getProfilesByIds } from './boardsApi.js';
+import { emailToName } from './personName.js';
 
-const cache = new Map();          // userId → { name, email, color, hasProfile }
+export { emailToName };
+
+const cache = new Map();         // userId → { name, email, color, hasProfile }
 const subscribers = new Set();
 const inflight = new Set();       // ids currently being fetched (avoid duplicate roundtrips)
 let pendingIds = new Set();
@@ -39,24 +42,6 @@ function notify() {
   for (const fn of subscribers) {
     try { fn(); } catch (_) {}
   }
-}
-
-// Convert raw email into a display-friendly name. "andrew@gmail.com"
-// → "Andrew" (titlecase the local part, strip dots/numbers). Fall back
-// to the bare email if it doesn't look email-y.
-export function emailToName(email) {
-  if (!email) return null;
-  const at = email.indexOf('@');
-  if (at <= 0) return email;
-  const local = email.slice(0, at);
-  // "andrew.conklin" / "andrew_conklin" / "andrewconklin1234" → "Andrew Conklin" / "Andrew"
-  const parts = local.split(/[._-]+/).filter(Boolean);
-  if (parts.length === 0) return email;
-  return parts
-    .map(p => p.replace(/\d+$/, ''))             // strip trailing digits
-    .filter(Boolean)
-    .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
-    .join(' ');
 }
 
 function setEntry(userId, partial) {

@@ -4,15 +4,23 @@
     "DELETE /boards/:id",
     "DELETE /boards/:id/cards {\"card_ids\":[…]} — bulk",
     "DELETE /boards/:id/cards/:cardId",
+    "DELETE /boards/:id/comments/:commentId — your own; restorable, except a thread inside a doc",
     "DELETE /boards/:id/groups/:groupId — ungroups, never deletes cards",
+    "DELETE /boards/:id/share-link — revokes the view links you may revoke",
     "DELETE /service-accounts/:id",
     "DELETE /service-accounts/:id/tokens/:tokenId",
     "DELETE /webhooks/:id",
     "GET /audit?since=&cursor=&limit=",
     "GET /boards/:id",
+    "GET /boards/:id/cards/:cardId",
+    "GET /boards/:id/cards/:cardId/doc?page=&max_chars= — a doc card, page by page, as Markdown",
     "GET /boards/:id/cards?source=live|index&since=&cursor=&include=&limit=&offset=",
+    "GET /boards/:id/comments?status=open|resolved|all&limit=&cursor= — threads, on the canvas and inside docs and notes",
     "GET /boards/:id/export?format=json|omc",
+    "GET /boards/:id/gallery?inline=&size=sm|preview&card_ids=&limit=&cursor=",
     "GET /boards/:id/groups",
+    "GET /boards/:id/share-link",
+    "GET /boards/:id/tags — the tags on this board, and what carries each",
     "GET /boards/tree?root=&workspace=&depth=",
     "GET /boards?workspace=&parent=&deleted=&since=&cursor=&include=&limit=&offset=",
     "GET /images/:key?variant=preview",
@@ -22,22 +30,33 @@
     "GET /search?q=&kind=&workspace=&limit=&offset=",
     "GET /service-accounts/:id/tokens",
     "GET /service-accounts?workspace=",
+    "GET /tags/:id?limit= — everything carrying a tag, across the workspace",
     "GET /webhooks/:id/deliveries?limit=&cursor=",
     "GET /webhooks?workspace=",
     "GET /workspaces",
+    "GET /workspaces/:id/tags?name=&limit=&offset= — its tags, each with how many things carry it",
     "PATCH /boards/:id",
     "PATCH /boards/:id/cards {\"cards\":[…]} — bulk",
     "PATCH /boards/:id/cards/:cardId",
+    "PATCH /boards/:id/cards/:cardId/doc/pages/:pageId {\"markdown\":…,\"page_hash\":…} | {\"edits\":[…]} | {\"title\":…}",
+    "PATCH /boards/:id/comments {\"comment_ids\":[…],\"resolved\":true|false}",
+    "PATCH /boards/:id/comments/:commentId {\"resolved\":true|false}",
     "PATCH /boards/:id/groups/:groupId",
     "PATCH /webhooks/:id",
     "POST /boards",
     "POST /boards {\"boards\":[…]} — bulk, up to 500",
     "POST /boards/:id/arrange {\"layout\":\"justified|masonry|grid|row|column\"}",
     "POST /boards/:id/cards",
+    "POST /boards/:id/cards/:cardId/doc/pages {\"pages\":[…],\"parent_page_id\":…} — pages added",
     "POST /boards/:id/cards/move",
+    "POST /boards/:id/comments {\"body\":…,\"card_id\"|\"group_id\"|\"x\",\"y\"|\"reply_to\":…}; \"quote\" (and \"page_id\") with a doc card puts it on those words",
+    "POST /boards/:id/comments/:commentId/restore",
+    "POST /boards/:id/docs {\"title\":…,\"pages\":[{\"title\":…,\"markdown\":…}]} — a new doc card",
     "POST /boards/:id/groups",
     "POST /boards/:id/import {\"items\":[{\"url\":…}]} — re-runnable",
     "POST /boards/:id/restore",
+    "POST /boards/:id/share-link {\"include_subboards\":false} — the view-only link, made once",
+    "POST /boards/:id/tags {\"card_ids\":[…],\"add\":[…],\"remove\":[…]} — tags on cards, by name or id",
     "POST /boards/move",
     "POST /mcp — Model Context Protocol, for AI agents",
     "POST /service-accounts",
@@ -54,23 +73,19 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "fadbbf590c5d"
+      "schema": "3ea0b5e0e818"
+    },
+    {
+      "name": "add_comment",
+      "schema": "3c001c31d8db"
     },
     {
       "name": "arrange_board",
       "schema": "0c0ed0233403"
     },
     {
-      "name": "board_tree",
-      "schema": "2ee2385bb700"
-    },
-    {
-      "name": "create_board",
-      "schema": "732f33f976a7"
-    },
-    {
       "name": "create_boards",
-      "schema": "4374a7fe7a57"
+      "schema": "84cc9e70a479"
     },
     {
       "name": "create_group",
@@ -81,24 +96,16 @@
       "schema": "51d451cff7c1"
     },
     {
-      "name": "delete_card",
-      "schema": "0c70e576498a"
-    },
-    {
       "name": "delete_cards",
       "schema": "9dac8e19196e"
     },
     {
-      "name": "export_board",
-      "schema": "3ee79da6ad8e"
+      "name": "edit_doc_page",
+      "schema": "e15364129588"
     },
     {
-      "name": "get_board",
-      "schema": "151312b54d3d"
-    },
-    {
-      "name": "get_metadata",
-      "schema": "f37d3aee7802"
+      "name": "fetch",
+      "schema": "c1f1c4508b07"
     },
     {
       "name": "import_urls",
@@ -110,27 +117,15 @@
     },
     {
       "name": "list_boards",
-      "schema": "618a15b2b193"
+      "schema": "28b7c9739435"
     },
     {
-      "name": "list_deleted_boards",
-      "schema": "80e95ddda416"
+      "name": "list_comments",
+      "schema": "a023016d804b"
     },
     {
-      "name": "list_groups",
-      "schema": "51d451cff7c1"
-    },
-    {
-      "name": "list_images",
-      "schema": "963e26f2bf1e"
-    },
-    {
-      "name": "list_workspaces",
-      "schema": "e3b0c44298fc"
-    },
-    {
-      "name": "move_boards",
-      "schema": "cb8020e96f3e"
+      "name": "list_tags",
+      "schema": "c4291e844460"
     },
     {
       "name": "move_cards",
@@ -138,11 +133,11 @@
     },
     {
       "name": "read_board",
-      "schema": "b536d828d599"
+      "schema": "93dc485d40ac"
     },
     {
-      "name": "rename_board",
-      "schema": "0a21becb78ba"
+      "name": "resolve_comments",
+      "schema": "4b18b7813b59"
     },
     {
       "name": "resolve_identifier",
@@ -154,19 +149,27 @@
     },
     {
       "name": "search",
-      "schema": "fdbf75288110"
+      "schema": "f762f7615158"
     },
     {
-      "name": "set_metadata",
-      "schema": "1232151219e0"
+      "name": "share_board",
+      "schema": "4446c48628d4"
     },
     {
-      "name": "update_card",
-      "schema": "2829ce10b930"
+      "name": "tag_cards",
+      "schema": "4c7d1f9e8f2f"
+    },
+    {
+      "name": "unshare_board",
+      "schema": "f96ed34d3b0c"
+    },
+    {
+      "name": "update_boards",
+      "schema": "e08dabe95cf1"
     },
     {
       "name": "update_cards",
-      "schema": "d22dcc8c0e42"
+      "schema": "4b34d7891980"
     },
     {
       "name": "upload_file",
@@ -177,18 +180,24 @@
       "schema": "2c5d898ac6e5"
     },
     {
-      "name": "view_image",
-      "schema": "269e8d3e4d7d"
+      "name": "view_board",
+      "schema": "f8bddeb19b54"
     },
     {
       "name": "whoami",
       "schema": "e3b0c44298fc"
+    },
+    {
+      "name": "write_doc",
+      "schema": "0abd9bbff594"
     }
   ],
   "mcpPrompts": [
-    "describe_board",
     "import_plan",
-    "organize_board"
+    "moodboard",
+    "organize_board",
+    "review_board",
+    "treatment"
   ],
   "mcpProtocol": {
     "versions": [
@@ -222,6 +231,8 @@
     "client_auth client_secret_basic",
     "client_auth client_secret_post",
     "client_auth none",
+    "flag authorization_response_iss_parameter_supported",
+    "flag client_id_metadata_document_supported",
     "grant authorization_code",
     "grant refresh_token",
     "pkce S256",
@@ -269,7 +280,15 @@
     "card.deleted",
     "card.moved",
     "card.updated",
-    "image.created"
+    "comment.created",
+    "comment.deleted",
+    "comment.reopened",
+    "comment.resolved",
+    "comment.restored",
+    "comment.updated",
+    "image.created",
+    "tag.applied",
+    "tag.removed"
   ],
   "apiErrorCodes": [
     "400 bad_request",
@@ -280,10 +299,12 @@
     "405 method_not_allowed",
     "409 conflict",
     "409 identifier_conflict",
+    "409 page_changed",
     "413 payload_too_large",
     "415 unsupported_media_type",
     "502 session_unavailable",
     "502 upstream_error",
+    "503 room_unavailable",
     "503 storage_unavailable"
   ],
   "apiFacts": {
@@ -299,6 +320,7 @@
     "defaultPage": 100,
     "maxUploadMb": 25,
     "rateLimitPerHour": 1000,
+    "oauthNewAccountPerHour": 300,
     "serviceRateLimitPerHour": 10000,
     "maxServiceAccounts": 10,
     "maxWebhooks": 20,
@@ -310,7 +332,13 @@
     "oauthRefreshDays": 90,
     "oauthCodeTtlSeconds": 120,
     "oauthMaxRedirectUris": 10,
-    "maxConnectedApps": 20
+    "oauthRefreshMaxDays": 180,
+    "oauthRefreshRetrySeconds": 30,
+    "oauthMetadataMaxKb": 5,
+    "oauthMetadataCacheMinMinutes": 5,
+    "oauthMetadataCacheMaxHours": 24,
+    "maxConnectedApps": 20,
+    "oauthRegistrationsPerHour": 20
   },
   "settingsTabs": [
     {
@@ -413,7 +441,8 @@
       "/legal/cookies",
       "/legal/privacy",
       "/legal/terms",
-      "/pricing"
+      "/pricing",
+      "/pricing/talk-to-us"
     ],
     "landing": [
       "/scout",
@@ -468,6 +497,7 @@
       "docsMatch = /^\\/docs(?:\\/|$)/i.test(PATH)",
       "exploreMatch = /^\\/explore\\/?$/.test(PATH)",
       "fileShareMatch = PATH.match(/^\\/f\\/([0-9a-f-]{36})\\/?$/i)",
+      "keepMatch = PATH.match(/^\\/keep\\/([0-9a-f-]{36})\\/?$/i)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
       "oauthConsentMatch = /^\\/oauth\\/authorize\\/?$/i.test(PATH)",
       "pricingMatch = PATH.match(/^\\/pricing\\/?$/i)",
@@ -477,7 +507,26 @@
       "seoLandingMatch = /^\\/(?:tools\\/|vs\\/|use-cases(?:\\/|$)|templates(?:\\/|$))/i.test(PATH)",
       "seoListicleMatch = /^\\/best\\//i.test(PATH)",
       "shareMatch = PATH.match(/^\\/share\\/([0-9a-f-]{36})\\/?$/i)",
+      "talkToUsMatch = /^\\/pricing\\/talk-to-us\\/?$/i.test(PATH)",
       "templateShareMatch = PATH.match(/^\\/t\\/([0-9a-f-]{36})\\/?$/i)"
+    ]
+  },
+  "teamRoutes": {
+    "setup": [
+      "path === '/team/new' && teamsAllowed()"
+    ],
+    "page": [
+      "/team"
+    ],
+    "params": [
+      "billing",
+      "checkout"
+    ],
+    "kinds": [
+      "billing",
+      "canceled",
+      "checkout",
+      "open"
     ]
   }
 }

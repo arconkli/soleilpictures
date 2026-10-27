@@ -21,10 +21,13 @@ const FALLBACK = {
 };
 
 const BY_CODE = {
+  // Also a client named by its metadata document when that document could not
+  // be read or failed its checks: the person can fix neither.
   invalid_client: {
-    title: 'That link is out of date',
-    body: 'The application that sent you here is no longer registered with Clusters. '
-      + 'Try connecting again from the app you started in. Nothing has been shared.',
+    title: 'We could not confirm that app',
+    body: 'The application that sent you here is no longer registered with Clusters, or its '
+      + 'published details could not be read. Try connecting again from the app you started in. '
+      + 'Nothing has been shared.',
   },
   invalid_request: {
     title: 'That link is incomplete',
@@ -48,7 +51,22 @@ const BY_CODE = {
     title: 'Something went wrong on our end',
     body: 'Not your doing, and nothing has been shared. Try again in a moment.',
   },
+  // Our database, or the app's own published details, did not answer in time.
+  temporarily_unavailable: {
+    title: 'We could not check that app just now',
+    body: 'Try again in a moment, or start again from the app you were in. Nothing has been shared.',
+  },
+  // 0375 + 0704: in an account's first days only ChatGPT and Claude connect.
+  // consentError puts the database's own sentence first when there is one, so
+  // how long the wait is lives in one place (_refuse_if_new).
+  new_account: {
+    title: 'Not yet for a new account',
+    body: 'ChatGPT and Claude can connect straight away. Other apps open up once an account '
+      + 'is a few days old. Nothing has been shared.',
+  },
 };
+
+const NEW_ACCOUNT_REST = 'ChatGPT and Claude can connect straight away. Nothing has been shared.';
 
 /**
  * Pick the sentence to show for an OAuth failure.
@@ -59,11 +77,18 @@ const BY_CODE = {
  * sentence still beats a generic one.
  */
 export function consentError(code, description) {
+  if (code === 'new_account' && usableSentence(description)) {
+    return { title: BY_CODE.new_account.title, body: `${description}. ${NEW_ACCOUNT_REST}` };
+  }
   if (code && Object.prototype.hasOwnProperty.call(BY_CODE, code)) return BY_CODE[code];
-  if (description && typeof description === 'string' && description.length <= 160) {
+  if (usableSentence(description)) {
     return { title: FALLBACK.title, body: `${description}. Nothing has been shared.` };
   }
   return FALLBACK;
+}
+
+function usableSentence(description) {
+  return !!description && typeof description === 'string' && description.length <= 160;
 }
 
 // Problems decidable from the URL alone, before any network call. Same

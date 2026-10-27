@@ -68,11 +68,14 @@ test('doc word-tagging runs on a model Cloudflare still serves', () => {
   assert.match(src, /const APPLY_MODEL = '@cf\/meta\/llama-3\.1-8b-instruct-fp8';/);
 });
 
-test('a cluster is rejected only by the model, never by a failed call', () => {
-  const src = read('./aiDiscovery.js');
-  const skip = src.indexOf('if (!named) continue;');
-  const decide = src.indexOf("const status = name ? 'named' : 'rejected';");
-  assert.ok(skip > 0 && decide > skip, 'a failed naming call records nothing and is asked again next pass');
+test('emergent-theme naming is retired: no route, no client, no discovery', () => {
+  // It named clusters that no screen showed (useDiscoveredTags was never
+  // imported), on every client, every session.
+  const worker = read('../worker-tags.js');
+  assert.doesNotMatch(worker, /cluster-name|handleClusterName|CLUSTER_NAME/);
+  assert.doesNotMatch(read('./tagsClient.js'), /nameCluster|cluster-name/);
+  assert.doesNotMatch(read('../hooks/useAiTagger.js'), /runWorkspaceDiscovery|aiDiscovery/);
+  assert.throws(() => read('./aiDiscovery.js'), /ENOENT/);
 });
 
 test('the canvas scorer never suggests a tag the card already carries', () => {
@@ -99,6 +102,7 @@ async function withRoutes(budget, fn) {
     if (String(url).endsWith('/auth/v1/user')) return new Response(JSON.stringify({ id: 'u1' }));
     if (String(url).includes('/rpc/tags_embed_budget_take')) {
       charged.push(JSON.parse(init.body).p_chars);
+      if (budget === 'error') return new Response('boom', { status: 500 });
       return new Response(JSON.stringify(budget));
     }
     throw new Error('unexpected fetch ' + url);
@@ -110,18 +114,15 @@ async function withRoutes(budget, fn) {
   try { await fn({ call, charged, runs }); } finally { globalThis.fetch = realFetch; }
 }
 const applyBody = { cards: [{ id: 'p1', text: 'MARA steps onto the porch.', candidate_tags: [{ id: 'mara', name: 'Mara' }] }] };
-const clusterBody = { member_cards: [{ id: '1', text: 'a' }, { id: '2', text: 'b' }, { id: '3', text: 'c' }] };
 
-test('doc word-tagging and cluster naming reach the model only on a budget yes', async () => {
+test('doc word-tagging reaches the model only on a budget yes', async () => {
   await withRoutes(false, async ({ call, runs }) => {
     assert.equal((await call('/api/tags/apply', applyBody)).status, 429);
-    assert.equal((await call('/api/tags/cluster-name', clusterBody)).status, 429);
     assert.equal(runs.length, 0, 'a no never reaches the model');
   });
   await withRoutes(true, async ({ call, charged, runs }) => {
     assert.equal((await call('/api/tags/apply', applyBody)).status, 200);
-    assert.equal((await call('/api/tags/cluster-name', clusterBody)).status, 200);
-    assert.equal(runs.length, 2);
+    assert.equal(runs.length, 1);
     // Each call is charged everything it sends, the instructions included.
     runs.forEach(({ input }, i) => {
       const [system, user] = input.messages;
@@ -147,5 +148,13 @@ test('one doc word-tagging call is capped however much a client sends', async ()
   await withRoutes(true, async ({ call, runs }) => {
     assert.equal((await call('/api/tags/apply', { cards: [{ id: 'p', text: 't', candidate_tags: 'oops' }] })).status, 200);
     assert.deepEqual(JSON.parse(runs[0].input.messages[1].content.split('\n\nReturn ONLY')[0]).cards[0].candidate_tags, []);
+  });
+});
+
+test('a failed budget check is a 503 (retry in a minute), not a spent budget (429, an hour)', async () => {
+  await withRoutes('error', async ({ call, runs }) => {
+    assert.equal((await call('/api/tags/apply', applyBody)).status, 503);
+    assert.equal((await call('/api/tags/embed', { cards: [{ id: 'c', text: 'hello' }] })).status, 503);
+    assert.equal(runs.length, 0);
   });
 });

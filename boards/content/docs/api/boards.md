@@ -5,7 +5,7 @@ h1: Boards API
 navLabel: Boards
 section: developers
 order: 3
-updated: 2026-10-20
+updated: 2026-10-25
 answer: Boards are what the app calls clusters. List them with GET /boards, filtered by workspace or parent and paginated, create with POST /boards, read one with GET /boards/:id, rename or reparent with PATCH, soft-delete with DELETE and put it back with POST to the restore endpoint. Reparenting is cycle-safe and refused rather than allowed to create a loop.
 faq:
   - q: What is the difference between a board and a cluster?
@@ -76,7 +76,9 @@ curl "$SOLEIL_API/boards?parent=root&limit=50" -H "Authorization: Bearer $SOLEIL
 { "boards": [ … ], "limit": 50, "offset": 0, "has_more": true, "next_offset": 50 }
 ```
 
-Follow `next_offset` until it comes back `null`.
+Each board carries the `url` that opens it in the app, or `null` for a deleted
+board, which no link opens until it is restored. Follow `next_offset` until it
+comes back `null`.
 
 ### Asking what changed
 
@@ -122,16 +124,16 @@ curl "$SOLEIL_API/boards/tree?root=$BOARD&depth=6" -H "Authorization: Bearer $SO
 { "root": "3b7e…", "count": 214,
   "boards": [
     { "id": "3b7e…", "parent_board_id": null, "name": "THE FALL",
-      "depth": 0, "card_count": 0, "updated_at": "…", "deleted": false },
+      "depth": 0, "card_count": 0, "updated_at": "…", "deleted": false, "url": "https://…" },
     { "id": "9f1c…", "parent_board_id": "3b7e…", "name": "Costume",
-      "depth": 1, "card_count": 42, "updated_at": "…", "deleted": false }
+      "depth": 1, "card_count": 42, "updated_at": "…", "deleted": false, "url": "https://…" }
   ] }
 ```
 
 Pass `root` (a board id) or `workspace`, and optionally `depth` (default 10,
 maximum 20). Results are flat with a `depth` and a `parent_board_id`, so you can
 rebuild the tree in whatever shape you need without the response nesting for
-you.
+you. Each board's `url` opens it in the app.
 
 A show's structure — title, department, sequence, shot — is the first thing any
 integration walks, and `?parent=` costs a request per node.
@@ -153,7 +155,7 @@ Only `name` is required.
 - No `parent_board_id` → top level.
 - `view` is `"canvas"` unless you pass exactly `"list"`.
 
-Returns `201` with `{ "board": … }`.
+Returns `201` with `{ "board": …, "url": … }`, where `url` opens the new board in the app.
 
 ### Creating many at once
 
@@ -169,7 +171,7 @@ Pass a `boards` array instead, up to {{fact:maxBoardsPerCall}} per call:
 }
 ```
 
-Returns `201` with `{ "boards": [ … ], "created": 2 }`.
+Returns `201` with `{ "boards": [ … ], "created": 2 }`, each board with the `url` that opens it.
 
 This matters when you are importing an existing library, because a large one is
 a **tree** — a board per scene, reel or shoot — so the first thing an import
@@ -211,9 +213,9 @@ identifiers, so running it again finds them instead of creating them twice.
 
 ## `GET /boards/:id`
 
-`{ "board": … }`, or `404` — which is also what you get for a board that exists
-but is not yours. The API never confirms the existence of something you cannot
-see.
+`{ "board": …, "capacity": …, "url": … }`, where `url` opens the board in the
+app — or `404`, which is also what you get for a board that exists but is not
+yours. The API never confirms the existence of something you cannot see.
 
 ## `PATCH /boards/:id`
 
@@ -272,7 +274,9 @@ JSON body on `DELETE` so a destructive call stays a `DELETE`.
 
 ## `POST /boards/:id/restore`
 
-Puts a soft-deleted board back. Find deleted boards with `GET /boards?deleted=1`.
+Puts a soft-deleted board back, and answers with
+`{ "restored": true, "board": …, "url": … }`, where `url` opens it in the app.
+Find deleted boards with `GET /boards?deleted=1`.
 
 Restoring a board that is already live is a no-op, so a retry is safe.
 
@@ -283,6 +287,37 @@ since, putting the cluster back would take the account over its limit, and the
 call answers `402 limit_reached` with a message naming the number it would
 reach. Free some room or upgrade, then retry. Nothing is lost in the meantime —
 the 30-day trash window is the only clock running.
+
+## Sharing by link — `/boards/:id/share-link`
+
+A board's [view-only link](/docs/collaborate/sharing): anyone with it opens the
+board without signing in, and nobody can change anything through it.
+
+```sh
+curl -X POST "$SOLEIL_API/boards/$BOARD/share-link" \
+  -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" -d '{}'
+```
+
+```json
+{
+  "board_id": "…",
+  "created": true,
+  "link": { "url": "https://clusters.soleilpictures.com/share/…", "include_subboards": false,
+            "expires_at": null, "created_at": "…", "created_by_you": true }
+}
+```
+
+| Call | Does |
+|---|---|
+| `POST` | Returns a live view link the board already has, `200` and `"created": false`; makes one only when none fits, `201`. With `include_subboards`, only a link of that kind fits. A link made here shows just this board unless `include_subboards` is `true` |
+| `GET` | The board's live view links, newest first |
+| `DELETE` | Revokes every live view link you may revoke. `still_shared` counts the links someone else made, which stay live until they or an owner of the workspace revoke them |
+
+Asking twice never makes a second link, so a retry is safe. Invite links, which
+grant editing once someone signs in, are never returned or revoked here. Only
+someone who may manage the board's links (an owner, a co-owner or an editor)
+gets an answer; anyone else gets `403`. `DELETE` here needs only the `write`
+scope: taking a link back undoes a write and destroys nothing anyone made.
 
 ## Worked example
 

@@ -43,6 +43,8 @@ import {
 import { rememberShare } from '../../lib/fileShareUrls.js';
 import { FILE_SHARE_URL_TTL_SECONDS, fsRef } from '../../lib/fileShareBundle.js';
 import * as modalGuard from '../../lib/modalGuard.js';
+import { isEditableTarget } from '../../lib/isEditableTarget.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 import { docSharesAllowed, sharedFilesAllowed } from '../../lib/appHost.js';
 import { Icon } from '../Icon.jsx';
 import { X } from '../../lib/icons.js';
@@ -131,6 +133,10 @@ function Shell({ children, signedOut, token, wide = false, doc = false, action =
 // closes unless something sits above it (the owner's dialog, a confirm).
 // hostRef (optional) receives this dialog's modal handle too, so a player inside
 // can tell when something opened above the dialog (FilmPlayer modalHandle).
+//
+// A doc's Escape is the doc's first, as in its cluster (DocCard.jsx): while
+// typing it's the text's, and a layer in the doc (its side panel, the find
+// bar, a menu) takes its own. Only one nothing in the doc took closes this.
 function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = 'Shared file', hostRef = null }) {
   const ownRef = useRef(null);
   const modalRef = hostRef || ownRef;
@@ -149,12 +155,15 @@ function OverlayShell({ children, wide = false, doc = false, action = null, onCl
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
       if (modalGuard.isTopModal && !modalGuard.isTopModal(modalRef.current)) return;
+      if (doc && (e.defaultPrevented || isComposingKey(e) || isEditableTarget(e))) return;
       e.preventDefault(); e.stopPropagation();
       onClose?.();
     };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+    // A doc's on the way back up, once its own layers have had it.
+    const at = doc ? window : document;
+    at.addEventListener('keydown', onKey, !doc);
+    return () => at.removeEventListener('keydown', onKey, !doc);
+  }, [onClose, doc]);
   return createPortal(
     <div ref={rootRef} tabIndex={-1} className={`fsp fsp--overlay ${doc ? 'fsp--doc' : 'public-dark'}`} role="dialog" aria-modal="true" aria-label={label}>
       <header className="fsp-top">

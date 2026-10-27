@@ -36,7 +36,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 
 ## Free to start, flat when you grow
 
-The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, and the clusters you make cost none of them. Invited collaborators edit free on every tier. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
+The Demo tier is genuinely free: no credit card, no trial countdown, and 50 cards or 5GB of files, and the clusters you make cost none of them. Up to 10 invited collaborators edit free on every tier but Team. When a team needs serious storage, Creator is a flat $25 a month — not per seat — with unlimited cards and a 1TB drive.
 
 ## The case for staying on desktop
 

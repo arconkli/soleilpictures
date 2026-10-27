@@ -65,6 +65,8 @@ import { InviteRewardNote } from './InviteRewardNote.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { previewTeamSeatsCost, addTeamSeats, newSeatRequestId } from '../lib/teamBillingApi.js';
+import { addSeatInviteLine, refusalLine as teamRefusalLine } from '../lib/teamCopy.js';
 import {
   X as XIcon, Link as LinkIcon, UserPlus as UserPlusIcon, Globe as GlobeIcon, Lock as LockIcon,
 } from '../lib/icons.js';
@@ -75,6 +77,9 @@ import { Icon as Glyph } from './Icon.jsx';
 const expiryAt = (choice) =>
   choice === 'never' ? null
     : new Date(Date.now() + (choice === '7d' ? 7 : 30) * 86400000).toISOString();
+
+// A team's seats, bought with an invite to edit (team-billing).
+const TEAM_SEAT_BILLING = { previewTeamSeatsCost, addTeamSeats, newSeatRequestId };
 
 const liveOnly = (rows) => (rows || []).filter(
   l => !l.revoked_at && (!l.expires_at || new Date(l.expires_at).getTime() > Date.now())
@@ -117,6 +122,8 @@ export function ShareModal({
   // Members, where the owner's list of people who can edit is. Takes the id
   // of the workspace the panel is about.
   onSeeEditors = null,
+  // Where a team's seats are priced and bought; the probe passes its own.
+  teamBilling = TEAM_SEAT_BILLING,
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
@@ -137,6 +144,10 @@ export function ShareModal({
   const editorLimit = useEditorLimit({ boardId: board?.id || null, enabled: canInvite });
   const limitCap = editorLimit.cap;
   const editFull = editorLimitFull(limitCap);
+  // A team's owner or an admin, with every seat in use, can add seats here:
+  // "Can edit" stays open, the note gives team-billing's price, and the invite
+  // button buys the seats first (the owner's pick, 2026-10-21).
+  const seatBuyer = editFull && limitCap?.subject === 'team' && limitCap.isAccountOwner && !!workspace?.org_id;
   const [askState, setAskState] = useState(null);   // null | 'asking' | 'sent'
   const workspaceScope = scope === 'workspace';
   const [shares, setShares] = useState([]);          // per-board shares
@@ -175,13 +186,31 @@ export function ShareModal({
   const typedEmails = parseEmails(inviteEmail).valid;
   const typedHoldPlaces = typedEmails.length > 0
     && typedEmails.every((e) => holdsPlace(editorLimit.holders, { email: e }));
-  const editLocked = editFull && !typedHoldPlaces;
+  const editLocked = editFull && !typedHoldPlaces && !seatBuyer;
   const access = editLocked ? 'viewer' : inviteAccess;
   const inviteRole = isManager && inviteScope === 'workspace'
     ? (access === 'viewer' ? 'workspaceviewer' : 'workspace')
     : access;
   const isWorkspaceInvite = inviteRole === 'workspace' || inviteRole === 'workspaceviewer';
   const workspaceRole = inviteRole === 'workspaceviewer' ? 'viewer' : 'editor';
+  // The addresses an invite to edit needs a seat for, and what that many more
+  // seats cost, asked once the typing settles.
+  const seatFor = seatBuyer && access === 'editor'
+    ? typedEmails.filter((e) => !holdsPlace(editorLimit.holders, { email: e })) : [];
+  const seatTotal = seatFor.length ? Math.max(limitCap.limit, limitCap.taken) + seatFor.length : 0;
+  const [seatQuote, setSeatQuote] = useState(null);   // { total, p, requestId }
+  const [quoteTick, setQuoteTick] = useState(0);
+  useEffect(() => {
+    if (!seatTotal) return undefined;
+    let on = true;
+    const t = setTimeout(async () => {
+      const p = await teamBilling.previewTeamSeatsCost(workspace.org_id, seatTotal);
+      if (on) setSeatQuote({ total: seatTotal, p, requestId: teamBilling.newSeatRequestId() });
+    }, 350);
+    return () => { on = false; clearTimeout(t); };
+  }, [seatTotal, workspace?.org_id, quoteTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const quote = seatTotal && seatQuote?.total === seatTotal ? seatQuote : null;
+  const quoteOk = !!quote?.p && quote.p.ok !== false;
   const [inviting, setInviting] = useState(false);
   const [publicLinks, setPublicLinks] = useState([]);  // active links, both kinds
   const [busyLink, setBusyLink] = useState(false);
@@ -559,7 +588,15 @@ export function ShareModal({
   const ownerName = !limitCap?.isAccountOwner && workspace?.created_by
     ? firstName(userMeta(workspace.created_by).name) : null;
   const planWord = limitCap?.isAccountOwner ? 'your plan' : ownerPlan(ownerName);
-  const limitNote = editorLimitNote(limitCap, { ownerName, asked: askState === 'sent' });
+  const limitNote = editorLimitNote(limitCap, { ownerName, asked: askState === 'sent', canBuySeat: seatBuyer });
+  // With addresses to invite to edit, the note gives the seats' price, or why
+  // there is none.
+  const seatWho = seatFor.length === 1 ? seatFor[0] : `${seatFor.length} people`;
+  const shownNote = !limitNote || !seatFor.length ? limitNote : {
+    ...limitNote,
+    body: quoteOk ? addSeatInviteLine(quote.p, seatWho)
+      : quote ? teamRefusalLine({ code: quote.p?.error }) : limitNote.body,
+  };
 
   // Once per stage a panel shows, so the read can tell how many people the
   // note reached, and at which stage.
@@ -613,7 +650,22 @@ export function ShareModal({
       });
     }
     if (emails.length === 0 || inviting) return;
+    if (seatFor.length > 0 && !quoteOk) return;
     setInviting(true);
+    // Every seat is in use and this person can add them: buy the seats at the
+    // price the note gave, then invite as usual.
+    if (seatFor.length > 0) {
+      const bought = await teamBilling.addTeamSeats(workspace.org_id, quote.total, {
+        requestId: quote.requestId, prorationDate: quote.p.proration_date,
+      });
+      if (!bought || bought.ok === false) {
+        feedback.toast({ type: 'warning', message: teamRefusalLine({ code: bought?.error }), ttl: 9000 });
+        setQuoteTick((n) => n + 1);   // a fresh price: stale_preview, or the seats moved
+        setInviting(false);
+        return;
+      }
+      editorLimit.refresh();
+    }
     // granted = invitee already had an account; the share is live now
     // pending = no account yet, we wrote pending_invites + sent an
     //           invite-signup email. Claimed automatically on signup.
@@ -1264,7 +1316,7 @@ export function ShareModal({
         {canInvite && (
           <div className="share-section share-invite">
             <h3 className="share-section-title">Invite people</h3>
-            <EditorLimitNote note={limitNote}
+            <EditorLimitNote note={shownNote}
                              onSeeWho={onSeeEditors ? seeEditors : null}
                              onAsk={askForRoom}
                              asking={askState === 'asking'} />
@@ -1278,8 +1330,10 @@ export function ShareModal({
                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
               <button className={'share-invite-btn' + goldIf('invite')}
                       onClick={submitInvite}
-                      disabled={!inviteEmail.trim() || inviting}>
-                {inviting ? 'Inviting…' : 'Invite'}
+                      disabled={!inviteEmail.trim() || inviting || (seatFor.length > 0 && !quoteOk)}>
+                {inviting ? 'Inviting…'
+                  : seatFor.length === 1 ? 'Add a seat and invite'
+                    : seatFor.length > 1 ? `Add ${seatFor.length} seats and invite` : 'Invite'}
               </button>
             </div>
             <div className="share-invite-access">

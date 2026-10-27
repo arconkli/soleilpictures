@@ -47,6 +47,10 @@ const board = {
     deleted: { type: 'boolean' },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: ['string', 'null'], format: 'date-time' },
+    url: {
+      type: ['string', 'null'],
+      description: 'Opens the board in the app. On lists, search hits and new boards; null for a deleted board.',
+    },
   },
 };
 
@@ -169,7 +173,7 @@ export function openapiDocument(origin) {
       securitySchemes: {
         bearerAuth: {
           type: 'http', scheme: 'bearer',
-          description: 'A personal access token from Settings → API. Looks like `sk_live_…`.',
+          description: 'A personal access token from Settings → Connections. Looks like `sk_live_…`.',
         },
       },
       schemas: { Card: card, Board: board, Error: errorSchema },
@@ -207,6 +211,27 @@ export function openapiDocument(origin) {
           responses: { 200: okJson('Workspaces', { type: 'object' }) },
         },
       },
+      '/workspaces/{id}/tags': {
+        get: op('listTags', 'The workspace\'s tags, each with how many things carry it', {
+          description: 'By name. name finds one tag, in any case. items is how many things carry the '
+            + 'tag (null when it could not be counted). Members of the workspace only.',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+            q('name', 'Just the tag of this name'),
+            limitParam, offsetParam,
+          ],
+        }),
+      },
+      '/tags/{id}': {
+        get: op('listTagged', 'Everything carrying a tag, on every board', {
+          description: 'The most recently tagged first: cards, groups, boards and doc pages, each with '
+            + 'a url and whether it was tagged automatically (auto).',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+            q('limit', 'How many to list', { type: 'integer', minimum: 1 }),
+          ],
+        }),
+      },
       '/search': {
         get: {
           summary: 'Find boards and cards by text',
@@ -225,7 +250,7 @@ export function openapiDocument(origin) {
             limitParam, offsetParam,
           ],
           responses: {
-            200: okJson('Matching boards and cards. Card hits carry a 300-character excerpt, not the whole card.', {
+            200: okJson('Matching boards and cards, each with a url that opens it in the app. Card hits carry a 300-character excerpt, not the whole card, and board_name, the name of the board they are on.', {
               type: 'object',
               properties: {
                 query: { type: 'string' },
@@ -255,7 +280,7 @@ export function openapiDocument(origin) {
             limitParam, offsetParam,
           ],
           responses: {
-            200: okJson('A page of boards', {
+            200: okJson('A page of boards, each with a url that opens it in the app (null for a deleted board)', {
               type: 'object',
               properties: { boards: { type: 'array', items: board }, ...pageProps },
             }),
@@ -345,7 +370,12 @@ export function openapiDocument(origin) {
         post: {
           summary: 'Restore a soft-deleted board',
           operationId: 'restoreBoard',
-          responses: { 200: okJson('The restored board', { type: 'object' }) },
+          responses: {
+            200: okJson('The restored board, and a url that opens it in the app', {
+              type: 'object',
+              properties: { restored: { type: 'boolean' }, board, url: { type: 'string' } },
+            }),
+          },
         },
       },
       '/boards/{id}/cards': {
@@ -353,13 +383,15 @@ export function openapiDocument(origin) {
         get: {
           summary: 'Every card on a board',
           operationId: 'listCards',
-          parameters: [limitParam, offsetParam],
+          parameters: [limitParam, offsetParam,
+            q('include', 'props, identifiers, raw and/or groups, comma-separated; groups adds the board\'s groups beside the cards')],
           responses: {
             200: okJson('A page of cards', {
               type: 'object',
               properties: {
                 board_id: { type: 'string', format: 'uuid' },
                 cards: { type: 'array', items: card },
+                groups: { type: 'array', items: { type: 'object' }, description: 'With include=groups' },
                 total: { type: 'integer' },
                 ...pageProps,
               },
@@ -423,6 +455,15 @@ export function openapiDocument(origin) {
       },
       '/boards/{id}/cards/{cardId}': {
         parameters: [boardIdParam, { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } }],
+        get: {
+          summary: 'One card, with the link that opens it',
+          operationId: 'getCard',
+          parameters: [q('include', 'props, identifiers and/or raw, comma-separated')],
+          responses: {
+            200: okJson('The card', { type: 'object' }),
+            404: { $ref: '#/components/responses/NotFound' },
+          },
+        },
         patch: {
           summary: 'Change a card in place',
           description: 'Only the fields you send change. The id cannot be changed.',
@@ -721,7 +762,7 @@ export function openapiDocument(origin) {
         },
       },
       '/boards/tree': {
-        get: op('getBoardTree', 'A whole board hierarchy in one call', {
+        get: op('getBoardTree', 'A whole board hierarchy in one call, each board with its link', {
           parameters: [
             q('root', 'A board id to start from', { type: 'string', format: 'uuid' }),
             q('workspace', 'Or a whole workspace', { type: 'string', format: 'uuid' }),
@@ -823,6 +864,209 @@ export function openapiDocument(origin) {
             boardIdParam,
             q('format', 'json (default) or omc', { type: 'string', enum: ['json', 'omc'] }),
           ],
+        }),
+      },
+      '/boards/{id}/gallery': {
+        get: op('boardGallery', 'A board\'s pictures in reading order, optionally embedded', {
+          description: 'Image cards, and videos with a poster frame, in the order a person reads '
+            + 'the board, with the rendition to show. inline=1 embeds them as base64 under a byte '
+            + 'budget; card_ids with size=preview looks at particular pictures more closely.',
+          parameters: [
+            boardIdParam,
+            q('inline', '1 to embed each picture as base64', { type: 'string', enum: ['0', '1'] }),
+            q('size', 'sm, the smaller rendition (default), or preview, the larger one', { type: 'string', enum: ['sm', 'preview'] }),
+            q('card_ids', 'Comma-separated card ids, instead of paging'),
+            q('cursor', 'From a previous next_cursor'),
+            limitParam,
+          ],
+        }),
+      },
+      '/boards/{id}/cards/{cardId}/doc': {
+        get: op('readDoc', 'A doc card\'s pages as Markdown', {
+          description: 'Every page in page-list order, each with its Markdown, length and hash. '
+            + 'max_chars bounds the Markdown across pages: the page that crosses it is cut '
+            + '(truncated), later ones come back with markdown null, and complete says whether '
+            + 'all of it is here. page reads one page by id.',
+          parameters: [
+            boardIdParam,
+            { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } },
+            q('page', 'One page, by its id'),
+            q('max_chars', 'Markdown to hand back across the pages', { type: 'integer', minimum: 1 }),
+          ],
+        }),
+      },
+      '/boards/{id}/docs': {
+        post: op('writeDoc', 'A new doc card, its pages written from Markdown', {
+          description: 'Makes a doc card holding the pages given, through the board\'s live room, '
+            + 'placed in free space unless x and y say where (201). A page with no title takes its '
+            + 'first heading\'s words. Pictures are placed only from files already on the board '
+            + '(r2:<image_key>); any other picture becomes a link. 503 room_unavailable: nothing '
+            + 'was written.',
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            title: { type: 'string', description: 'The card\'s title; left out, its one page\'s, else "Untitled doc"' },
+            pages: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string' },
+                  markdown: { type: 'string' },
+                },
+                required: ['markdown'],
+              },
+            },
+            x: { type: 'number' },
+            y: { type: 'number' },
+          }, ['pages']),
+        }),
+      },
+      '/boards/{id}/cards/{cardId}/doc/pages': {
+        post: op('addDocPages', 'Pages added to a doc, written from Markdown', {
+          description: 'After the pages the doc has, or under parent_page_id as its sub-pages (201). '
+            + 'Each new page comes back with its id and hash.',
+          parameters: [
+            boardIdParam,
+            { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: jsonBody({
+            pages: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                properties: { title: { type: 'string' }, markdown: { type: 'string' } },
+                required: ['markdown'],
+              },
+            },
+            parent_page_id: { type: 'string' },
+          }, ['pages']),
+        }),
+      },
+      '/boards/{id}/cards/{cardId}/doc/pages/{pageId}': {
+        patch: op('editDocPage', 'One doc page rewritten, edited or renamed', {
+          description: 'markdown rewrites the whole page and needs page_hash (or If-Match), the '
+            + 'hash it was read at: 409 page_changed when it has changed since. edits applies '
+            + 'exact-text replacements, each old_text found once. title renames it. Blocks whose '
+            + 'Markdown is unchanged are kept as they are; a page sent back unchanged is not '
+            + 'written (changed: false). The board is saved to Version history first.',
+          parameters: [
+            boardIdParam,
+            { name: 'cardId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'pageId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'If-Match', in: 'header', required: false, schema: { type: 'string' } },
+          ],
+          requestBody: jsonBody({
+            markdown: { type: 'string' },
+            page_hash: { type: 'string' },
+            edits: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                properties: { old_text: { type: 'string' }, new_text: { type: 'string' } },
+                required: ['old_text', 'new_text'],
+              },
+            },
+            title: { type: 'string' },
+          }),
+        }),
+      },
+      '/boards/{id}/comments': {
+        get: op('listComments', 'The board\'s comment threads, those inside its docs and notes included', {
+          description: 'Liveliest first, each with its replies and who wrote what. A thread inside a doc '
+            + 'or a note carries the text it is on (quote). counts says how many threads are open and '
+            + 'resolved.',
+          parameters: [
+            boardIdParam,
+            q('status', 'open (the default), resolved or all', { type: 'string', enum: ['open', 'resolved', 'all'] }),
+            q('limit', 'Threads per page', { type: 'integer', minimum: 1 }),
+            q('cursor', 'From a previous next_cursor'),
+          ],
+        }),
+        post: op('addComment', 'A comment on a card, a group, a spot, the board or words in a doc, or a reply', {
+          description: 'Send one of card_id, group_id, or x and y, or none of them for the board as a '
+            + 'whole; it is placed beside what it is on, where it covers least (201). quote, with a '
+            + 'doc\'s card_id, starts a thread on those words inside the doc instead (page_id names '
+            + 'the page when they are on more than one). reply_to puts it in that thread, wherever '
+            + 'the thread is. Inside docs and notes only an editor of the board writes.',
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            body: { type: 'string' },
+            card_id: { type: 'string' },
+            group_id: { type: 'string' },
+            x: { type: 'number' },
+            y: { type: 'number' },
+            quote: { type: 'string', description: 'With a doc\'s card_id: the words to comment on' },
+            page_id: { type: 'string', description: 'With quote: the page the words are on' },
+            reply_to: { type: 'string', description: 'A comment in the thread to reply in' },
+          }, ['body']),
+        }),
+        patch: op('resolveComments', 'Resolve or reopen several threads at once', {
+          description: 'Each thread is checked on its own: the answer lists those changed, those not on '
+            + 'the board, and those refused with a code and a reason.',
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            comment_ids: { type: 'array', items: { type: 'string' } },
+            resolved: { type: 'boolean' },
+          }, ['comment_ids', 'resolved']),
+        }),
+      },
+      '/boards/{id}/comments/{commentId}': {
+        patch: op('resolveComment', 'Resolve a thread, or reopen it', {
+          description: 'On the canvas, its author or anyone who can edit the board; inside a doc or a '
+            + 'note, anyone who can edit the board. A reply answers 400, naming its thread.',
+          parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: jsonBody({ resolved: { type: 'boolean' } }, ['resolved']),
+        }),
+        delete: op('deleteComment', 'Delete your own comment; restorable, except a thread inside a doc', {
+          parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
+        }),
+      },
+      '/boards/{id}/comments/{commentId}/restore': {
+        post: op('restoreComment', 'Bring a deleted comment back', {
+          parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
+        }),
+      },
+      '/boards/{id}/tags': {
+        get: op('listBoardTags', 'The tags on a board, and the cards, groups and doc pages carrying each', {
+          parameters: [boardIdParam],
+        }),
+        post: op('tagCards', 'Put tags on cards of the board, or take them off', {
+          description: 'Tags by name or id. A name the workspace has no tag for makes one, which then '
+            + 'also tags whatever else in the workspace says its name; a deleted tag\'s name brings it '
+            + 'back. A tag taken off a card stays off: automatic tagging never puts it back. The answer '
+            + 'lists, per tag, the cards that changed. Anyone who can edit the workspace.',
+          parameters: [boardIdParam],
+          requestBody: jsonBody({
+            card_ids: { type: 'array', items: { type: 'string' } },
+            add: { type: 'array', items: { type: 'string' }, description: 'Tag names or ids to put on' },
+            remove: { type: 'array', items: { type: 'string' }, description: 'Tag names or ids to take off' },
+          }, ['card_ids']),
+        }),
+      },
+      '/boards/{id}/share-link': {
+        get: op('listShareLinks', 'The board\'s live view-only links', { parameters: [boardIdParam] }),
+        post: op('shareBoard', 'The board\'s view-only link, made only when none fits', {
+          description: 'Returns a live view link when the board has one (of the scope asked for, '
+            + 'when include_subboards is given), and makes one otherwise (201). Anyone with the '
+            + 'link opens the board without signing in and can change nothing through it.',
+          parameters: [boardIdParam],
+          requestBody: {
+            ...jsonBody({
+              include_subboards: {
+                type: 'boolean',
+                description: 'Also open the boards nested inside it. A new link without it shows just this board.',
+              },
+            }),
+            required: false,
+          },
+        }),
+        delete: op('unshareBoard', 'Revoke the view links you may revoke', {
+          description: 'Needs only the write scope: taking a link back undoes a write. Links someone '
+            + 'else made stay live unless you own the workspace; still_shared counts them.',
+          parameters: [boardIdParam],
         }),
       },
       '/resolve': {

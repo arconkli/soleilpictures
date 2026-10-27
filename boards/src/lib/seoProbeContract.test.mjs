@@ -20,13 +20,13 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { SEO_PROBE_CONTRACT, SEO_PROBE_UNPINNABLE, PROBE_ORIGIN } from './seoProbeContract.js';
 import { CHANGELOG_HTML } from './changelogCrawlable.js';
-import { DOCS_HTML } from './docsiteCrawlable.js';
+import { docsHtmlAsset, docsHtmlFrom } from './docsiteHtml.js';
 import { buildListicleCrawlableHtml } from './seoListicleHtml.js';
 import { getListicleSpec, SEO_LISTICLE_PATHS } from './seoListicles.js';
 import { SEO_LANDING_PATHS } from './seoLanding.js';
@@ -54,8 +54,10 @@ function resolveSource(source) {
       return { text: buildListicleCrawlableHtml(spec), what: `the crawlable HTML for ${source.path}` };
     }
     case 'docs': {
-      const html = DOCS_HTML[source.path];
-      assert.ok(html, `no DOCS_HTML entry for ${source.path} — the page itself is gone`);
+      // worker.js readDocsHtml: the page's own file in the assets.
+      const file = `public${docsHtmlAsset(source.path)}`;
+      const html = existsSync(resolve(BOARDS, file)) && docsHtmlFrom(read(file), source.path);
+      assert.ok(html, `no crawlable HTML for ${source.path} in ${file} — the page itself is gone`);
       return { text: html, what: `the crawlable HTML for ${source.path}` };
     }
     case 'pricing':
