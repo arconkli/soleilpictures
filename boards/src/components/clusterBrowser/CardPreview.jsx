@@ -57,8 +57,9 @@ export function CardPreview({ item, size = 'row', px = null }) {
   }
   if (p.mode === 'file') {
     // A document whose first page is made shows the page, from its top (a
-    // sheet's cells from their top left), and a design file its picture, from
-    // its middle, as their cards do on the canvas.
+    // sheet's cells from their top left), a design file its picture, from
+    // its middle, and an archive what it holds, from its top, as their cards
+    // do on the canvas.
     if (p.page && meta?.previewKey) {
       const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
       const src = tileImageSrc(p.page, meta, displayPx * dpr);

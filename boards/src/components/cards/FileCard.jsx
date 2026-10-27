@@ -2,8 +2,9 @@
 // (image/pdf/video/audio). Shows a type icon, filename + size, and a
 // download/open button. A text file (Markdown, a table, subtitles, code, a
 // log) shows its first page, drawn from the file (FamilyFace.jsx), a
-// document (Word, PowerPoint, Excel…) its first page, and a design file
-// (Sketch, Figma, Procreate, Illustrator…) the picture it keeps of itself.
+// document (Word, PowerPoint, Excel…) its first page, a design file
+// (Sketch, Figma, Procreate, Illustrator…) the picture it keeps of itself,
+// and an archive (.zip, .7z, .rar…) a picture of what is inside it.
 // The original lives at
 // `fileSrc` ("r2:<key>"). Read-only safe (works on public boards:
 // download/preview just resolve a signed read URL).
@@ -57,7 +58,7 @@ export function iconForFile(ext, mime) {
   const e = (ext || '').toLowerCase();
   const m = (mime || '').toLowerCase();
   if (e === 'pdf' || m === 'application/pdf') return FilePdf;
-  if (/^(zip|rar|7z|gz|tgz|bz2|xz|tar|dmg|iso)$/.test(e)) return FileZip;
+  if (/^(zip|rar|7z|gz|tgz|bz2|tbz|tbz2|xz|txz|tar|dmg|iso)$/.test(e)) return FileZip;
   // A document wears its family's glyph: Excel's, PowerPoint's and Word's
   // own, a deck's for Keynote and the rest, and the data files' for the other
   // spreadsheets.
@@ -85,8 +86,9 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
                           opensOnBoard = false,
                           // A document's page: the card's size (for the size
                           // of picture it fetches), its board and id, and the
-                          // number of pages the editors' pass wrote on it.
-                          w, h, boardId = null, cardId = null, pageCount = null }) {
+                          // number of pages the editors' pass wrote on it (an
+                          // archive's, the number of files inside it).
+                          w, h, boardId = null, cardId = null, pageCount = null, itemCount = null }) {
   const [editingTitle, setEditingTitle] = useState(false);
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
   const prevEdit = useRef(editingTitle);
@@ -105,19 +107,24 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   // its: the page fills the card from its top (a sheet's cells from their top
   // left), so a card placed before pages showed, still a file card's shape,
   // shows the top of the page. A design file shows its picture covering the
-  // card, at the picture's own shape once it is made. Until the page is here
-  // the card is its glyph, saying so while the page is being made, and one
-  // that won't get a page stays its glyph. Its strip counts its pages
-  // (slides, for a deck) once it knows them, and gives its size until then.
+  // card, at the picture's own shape once it is made. An archive shows what
+  // is inside it, from the top, at the shape it landed at. Until the page is
+  // here the card is its glyph, saying so while the page is being made, and
+  // one that won't get a page stays its glyph. Its strip counts its pages
+  // (slides, for a deck; files, for an archive) once it knows them, and
+  // gives its size until then.
   const viewRef = !pending && typeof fileSrc === 'string' && fileSrc.startsWith('r2:') ? fileSrc.slice(3) : '';
   const viewKind = viewRef ? viewKindOfKey(viewRef) : null;
   const docKey = viewKind === 'doc' ? viewRef : '';
   const designKey = viewKind === 'design' ? viewRef : '';
+  const archiveKey = viewKind === 'archive' ? viewRef : '';
   const family = docKey ? docFamily(extOfKey(docKey)) : null;
   const pages = Number(pageCount) > 0 ? Math.floor(Number(pageCount)) : 0;
   const unit = family === 'slides' ? (pages === 1 ? 'slide' : 'slides') : (pages === 1 ? 'page' : 'pages');
+  const items = archiveKey && Number.isInteger(itemCount) && itemCount >= 0 ? itemCount : null;
   // The converter prints the first DOC_MAX_PAGES pages and no more.
-  const metaText = docKey && pages ? `${pages}${pages >= DOC_MAX_PAGES ? '+' : ''} ${unit}` : sizeText;
+  const metaText = docKey && pages ? `${pages}${pages >= DOC_MAX_PAGES ? '+' : ''} ${unit}`
+    : items != null ? `${items} ${items === 1 ? 'file' : 'files'}` : sizeText;
   const docPlaceholder = (state) => (
     <div className={`filec-glyph${state === 'making' ? ' is-making' : ''}`}>
       <Icon as={designKey ? StripIcon : GlyphIcon} size={42} />
@@ -168,7 +175,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   return (
     <div className="filec ic">
       <div className={`filec-body${drawn ? ' is-page' : ''}`} onDoubleClick={opensOnBoard ? undefined : download}>
-        {docKey || designKey ? (
+        {docKey || designKey || archiveKey ? (
           <R2Image progressive src={fileSrc} alt={label} w={w} h={h} boardId={boardId} cardId={cardId}
                    className={`filec-page${designKey ? ' is-picture' : family === 'sheet' ? ' is-sheet' : ''}`} draggable="false"
                    placeholder={docPlaceholder} />

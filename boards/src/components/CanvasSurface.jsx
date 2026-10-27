@@ -11531,7 +11531,7 @@ export function CanvasSurface({
     else if (c.kind === 'file')      inner = <FileCard fileSrc={c.fileSrc} fileName={c.fileName} mime={c.mime}
                                                        sizeBytes={c.sizeBytes} ext={c.ext} title={c.title}
                                                        onUpdate={onUpdate} autoFocus={af}
-                                                       cardId={c.id} boardId={board.id} pageCount={c.pageCount}
+                                                       cardId={c.id} boardId={board.id} pageCount={c.pageCount} itemCount={c.itemCount}
                                                        w={Math.round(c.w)} h={Math.round(c.h)}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                        pending={!!c.pending}

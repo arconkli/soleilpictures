@@ -11,9 +11,10 @@ import { getMeta } from '../lib/imageMeta.js';
 // at. A file card holding such a photo (a raw or a .psd from before views)
 // turns into its picture card once the view is made. A file card holding a
 // document (Word, PowerPoint, Excel, Keynote, ...) is asked its first page,
-// and one holding a design file (Sketch, Figma, Procreate, Illustrator, ...)
-// the picture it keeps of itself, which the card shows; it stays a file
-// card. Pictures elsewhere (Files,
+// one holding a design file (Sketch, Figma, Procreate, Illustrator, ...) the
+// picture it keeps of itself, and one holding an archive (.zip, .7z, .rar,
+// .tar, ...) a picture of what is inside it, which the card shows; it stays a
+// file card. Pictures elsewhere (Files,
 // Quick look, a reader's canvas) ask on their own when they can't draw a file
 // (components/R2Image.jsx). The pass loads with lib/fileViewWork.js the first
 // time a board has a card to look at.
@@ -61,10 +62,12 @@ export function useFileViewBackfill({
       // it's looked at even when the meta has the picture already. A
       // document's card is looked at until it knows its pages, so a page made
       // while no editor had the board open still gives the card its shape and
-      // count, and a design file's while it is still the size it landed at.
+      // count, a design file's while it is still the size it landed at, and
+      // an archive's until it knows how many files it holds.
       return key && !settled.current.has(key)
         && (turnsIntoPicture(c) || !getMeta(key)?.previewKey || (viewKindOfKey(key) === 'doc' && !(c.pageCount > 0))
-          || (viewKindOfKey(key) === 'design' && c.w === DESIGN_DROP.w && c.h === DESIGN_DROP.h));
+          || (viewKindOfKey(key) === 'design' && c.w === DESIGN_DROP.w && c.h === DESIGN_DROP.h)
+          || (viewKindOfKey(key) === 'archive' && !Number.isInteger(c.itemCount)));
     });
     if (!targets.length) return;
     const scope = scopeRef.current;

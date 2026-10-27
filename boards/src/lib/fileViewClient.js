@@ -1,6 +1,6 @@
-// Asking for a photo's, a document's or a design file's view, and what a
-// made one gives its file's image meta and its card (lib/fileView.js; the
-// Worker's half is worker-playCopy.js).
+// Asking for a photo's, a document's, a design file's or an archive's view,
+// and what a made one gives its file's image meta and its card
+// (lib/fileView.js; the Worker's half is worker-playCopy.js).
 //
 // No Supabase client here (lib/fileViewWork.js reads the session and the
 // records), so node can test it. Never throws: an answer it couldn't get is
@@ -20,8 +20,9 @@ export function requestFileViews(keys, opts) {
   return askConverter([...new Set((keys || []).filter((k) => viewKindOfKey(k)))].slice(0, REQUEST_MAX_KEYS), opts);
 }
 
-// The file_views columns the app reads.
-export const VIEW_COLS = 'storage_path,state,reason,view_path,view_w,view_h,view_sm_path,view_sm_w,view_sm_h,width,height,page_count';
+// The file_views columns the app reads. `probe` is what the converter learnt
+// of the file: an archive's count of the files inside it (media/src/view.js).
+export const VIEW_COLS = 'storage_path,state,reason,view_path,view_w,view_h,view_sm_path,view_sm_w,view_sm_h,width,height,page_count,probe';
 
 function num(v) {
   const n = Number(v);
@@ -87,8 +88,8 @@ export function viewCardPatch(card, row) {
 }
 
 // The file a file card holds whose picture the card shows (fileView.js
-// CARD_VIEW_KINDS: a document's first page, a design file's own picture):
-// { key, kind }, or null.
+// CARD_VIEW_KINDS: a document's first page, a design file's own picture, an
+// archive's contact sheet or names): { key, kind }, or null.
 function cardViewOf(card) {
   if (!card || card.kind !== 'file' || card.pending || typeof card.fileSrc !== 'string' || !card.fileSrc.startsWith('r2:')) return null;
   const key = card.fileSrc.slice(3);
@@ -137,6 +138,16 @@ function designCardPatch(card, size) {
   return Math.abs(next.w - card.w) > 1 || Math.abs(next.h - card.h) > 1 ? next : {};
 }
 
+// What an archive's picture writes onto its file card: the number of files
+// inside it (`files`, the converter's count), which its strip shows. Its size
+// stays: the contact sheet and the list of names are drawn at the shapes an
+// archive lands at (fileView.js SHEET_DROP, LIST_DROP), and a card resized
+// shows the top of its picture.
+function archiveCardPatch(card, files) {
+  const n = Number(files);
+  return Number.isInteger(n) && n >= 0 && card.itemCount !== n ? { itemCount: n } : {};
+}
+
 // What a photo's picture, once there is one, writes onto a file card holding
 // the photo (a raw or a .psd dropped before views, a photo some system gave no
 // type): the card turns into the picture card a drop makes now. The same file
@@ -145,12 +156,14 @@ function designCardPatch(card, size) {
 // that looks for a file card's file finds this one once the picture's file is
 // replaced. {} for a card that stays a file card (fileView.js
 // turnsIntoPicture), except a document's, which takes its first page's shape
-// while it is still at its drop size, and its page count (docCardPatch), and
-// a design file's, which takes its picture's (designCardPatch).
-export function viewFileCardPatch(card, size, pages = 0) {
+// while it is still at its drop size, and its page count (docCardPatch), a
+// design file's, which takes its picture's (designCardPatch), and an
+// archive's, which learns how many files it holds (archiveCardPatch).
+export function viewFileCardPatch(card, size, pages = 0, files = null) {
   const view = cardViewOf(card);
   if (view?.kind === 'doc') return docCardPatch(card, view.key, size, pages);
   if (view?.kind === 'design') return designCardPatch(card, size);
+  if (view?.kind === 'archive') return files == null ? {} : archiveCardPatch(card, files);
   if (!turnsIntoPicture(card)) return {};
   const w = num(size?.w);
   const h = num(size?.h);
@@ -158,9 +171,10 @@ export function viewFileCardPatch(card, size, pages = 0) {
   return { kind: 'image', src: card.fileSrc, ...shapeAt(card.w > 0 ? card.w : FILE_CARD_W, w, h), fileSrc: null };
 }
 
-// A document that won't get a first page (a password, damage, too big), or
-// a design file with no picture inside it: a card still the size it landed
-// at (fileView.js fileDropSize) goes back to a file card's.
+// A document that won't get a first page (a password, damage, too big), a
+// design file with no picture inside it, or an archive that can't be read:
+// a card still the size it landed at (fileView.js fileDropSize) goes back to
+// a file card's.
 export function noPageCardPatch(card) {
   const view = cardViewOf(card);
   const drop = view ? fileDropSize(extOfKey(view.key)) : null;

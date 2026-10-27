@@ -231,8 +231,10 @@ test("a document's item carries its file as its page, which the Files tiles and 
   assert.equal(doc.preview.page, 'r2:ws/abc/Pitch.pptx');
   const design = toListItem({ id: 'g', kind: 'file', fileName: 'Title card v3.sketch', ext: 'sketch', fileSrc: 'r2:ws/abc/Title card v3.sketch' });
   assert.equal(design.preview.page, 'r2:ws/abc/Title card v3.sketch', "a design file's picture, likewise");
+  const zip = toListItem({ id: 'z', kind: 'file', fileName: 'Location scouts.zip', ext: 'zip', fileSrc: 'r2:ws/abc/Location scouts.zip' });
+  assert.equal(zip.preview.page, 'r2:ws/abc/Location scouts.zip', "an archive's picture of what it holds, likewise");
   for (const card of [
-    { id: 'z', kind: 'file', fileName: 'pack.zip', ext: 'zip', fileSrc: 'r2:ws/abc/pack.zip' },
+    { id: 'b', kind: 'file', fileName: 'pack.bin', ext: 'bin', fileSrc: 'r2:ws/abc/pack.bin' },
     { id: 'p', kind: 'file', fileName: 'Pitch.pptx', ext: 'pptx', fileSrc: 'blob:x' },
     { id: 'u', kind: 'file', fileName: 'Pitch.pptx', ext: 'pptx' },
   ]) assert.equal(toListItem(card).preview.page, undefined, card.id);
@@ -254,6 +256,11 @@ test("a file item names its family, and the type it's called by is its family's"
   assert.equal(it('Title card v3.sketch', '', 'sketch').typeLabel, 'Design file');
   assert.equal(it('Boards p1.procreate', '', 'procreat').typeLabel, 'Design file');
   assert.equal(it('Logo lockup.eps', 'image/x-eps').typeLabel, 'Design file');
+  assert.equal(it('Location scouts.zip', 'application/zip').typeLabel, 'Archive');
+  assert.equal(it('Location scouts.zip', 'application/zip').preview.family, 'zip');
+  assert.equal(it('Old renders.7z').typeLabel, 'Archive');
+  assert.equal(it('Old renders.7z').preview.family, 'listed');
+  assert.equal(it('Stems.tar.gz', 'application/gzip').typeLabel, 'Archive');
   assert.equal(it('Pitch.pptx').typeLabel, 'File');
   assert.equal(it('README', 'text/plain').typeLabel, 'Text');
   assert.equal(it('pack.bin').typeLabel, 'File');
