@@ -124,11 +124,12 @@ export function sheetTiles(entries) {
   return tiles.slice(0, SHEET_TILES);
 }
 
-// The names picture's rows, with how many more there are.
+// The names picture's rows (a folder's with its count), with how many more
+// there are.
 export function listRows(entries) {
   const { folders, files } = levelOf(entries, rootOf(entries));
   const all = [
-    ...folders.map((f) => ({ kind: 'folder', name: f.name })),
+    ...folders.map((f) => ({ kind: 'folder', name: f.name, count: f.count })),
     ...files.map((f) => ({ kind: 'file', name: f.name, size: f.size })),
   ];
   return { rows: all.slice(0, LIST_ROWS), more: Math.max(0, all.length - LIST_ROWS) };

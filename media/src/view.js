@@ -281,8 +281,8 @@ async function listingViews(src, dirs) {
     entries = cleanEntries([{ path: lone, dir: false, size: await tailWord(src) }]);
   }
   if (!entries.length) throw new Refused('unsupported', 'nothing inside it');
-  const { rows, more } = listRows(entries);
-  return { ...(await drawViews(listSvg(rows, more), dirs)), via: 'bsdtar', archive: summaryOf(entries) };
+  const { rows } = listRows(entries);
+  return { ...(await drawViews(listSvg(rows), dirs)), via: 'bsdtar', archive: summaryOf(entries) };
 }
 
 // The views of a job's downloaded file `src`, by how its format is read. A
