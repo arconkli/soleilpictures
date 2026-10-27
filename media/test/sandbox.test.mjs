@@ -4,7 +4,9 @@ import { mkdtemp, writeFile, symlink, link, mkdir, rm, stat } from 'node:fs/prom
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnPlan, openOwn, readOwn, makeJobDir, killStrays, run, MEDIA_UID, MEDIA_GID } from '../src/ffmpeg.js';
+import {
+  spawnPlan, openOwn, readOwn, makeJobDir, killStrays, isStray, run, MEDIA_UID, MEDIA_GID,
+} from '../src/ffmpeg.js';
 
 test('as root a decoder runs as the unprivileged user; isolated, with no network and no way back up', () => {
   assert.deepEqual(spawnPlan('vips', ['x'], { root: false, isolate: true }), { cmd: 'vips', argv: ['x'], ids: null },
@@ -50,6 +52,19 @@ test('a job has a folder of its own with a work folder inside for the decoders',
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('a stray is a live process of the unprivileged user, by any of its ids; a zombie is left to init', () => {
+  const status = (state, uids) => `Name:\tgpgconf\nState:\t${state}\nTgid:\t2543\nPPid:\t1\nUid:\t${uids}\nGid:\t10001\t10001\t10001\t10001\n`;
+  const own = `${MEDIA_UID}\t${MEDIA_UID}\t${MEDIA_UID}\t${MEDIA_UID}`;
+  assert.equal(isStray(status('S (sleeping)', own)), true);
+  assert.equal(isStray(status('R (running)', own)), true);
+  assert.equal(isStray(status('D (disk sleep)', own)), true);
+  assert.equal(isStray(status('S (sleeping)', `0\t0\t${MEDIA_UID}\t0`)), true, 'a saved id is enough');
+  assert.equal(isStray(status('Z (zombie)', own)), false);
+  assert.equal(isStray(status('X (dead)', own)), false);
+  assert.equal(isStray(status('S (sleeping)', '0\t0\t0\t0')), false);
+  assert.equal(isStray(''), false);
 });
 
 test('off root there are no strays to kill, and a group run is killed whole on its timeout', async () => {

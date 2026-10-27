@@ -52,6 +52,17 @@ export function killAll() {
   for (const kill of children.values()) kill();
 }
 
+// Whether a process, by its /proc/<pid>/status, is a live one of `uid`'s. A
+// zombie runs nothing and can't be killed, only reaped, which init does: the
+// gpg helpers LibreOffice starts for a Word, Excel or PowerPoint file end that
+// way, orphaned, for a few seconds after every such run.
+export function isStray(status, uid = MEDIA_UID) {
+  const uids = /^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)/m.exec(status);
+  if (!uids || !uids.slice(1, 4).some((u) => Number(u) === uid)) return false;
+  const state = /^State:\s+([A-Za-z])/m.exec(status)?.[1];
+  return state !== 'Z' && state !== 'X';
+}
+
 // Every process the unprivileged user has, killed. Between decoder runs it
 // has none, so whatever is left is a decoder that outlived its run: a helper
 // that left its process group, or one a hostile file had fork itself away.
@@ -62,8 +73,7 @@ export async function killStrays() {
   for (const name of await readdir('/proc').catch(() => [])) {
     if (!/^[0-9]+$/.test(name)) continue;
     const status = await readFile(`/proc/${name}/status`, 'utf8').catch(() => '');
-    const uids = /^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)/m.exec(status);
-    if (uids && uids.slice(1, 4).some((u) => Number(u) === MEDIA_UID)) {
+    if (isStray(status)) {
       try { process.kill(Number(name), 'SIGKILL'); n += 1; } catch (_) { /* already gone */ }
     }
   }
