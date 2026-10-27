@@ -1,6 +1,5 @@
-// What a doc's bar lights, and the choices it offers: today's bar
-// (components/DocToolbar.jsx) and the doc look's (components/doc/DocBarA.jsx)
-// read the same thing the same way.
+// What a doc's bar lights, and the choices it offers, for the doc look's bar
+// (components/doc/DocBarA.jsx).
 
 export const HEADING_OPTIONS = [
   { value: 'p', label: 'Body' },

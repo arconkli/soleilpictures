@@ -45,7 +45,7 @@ test('the comment flows read the board from that scope', () => {
 
 test('the save footer listens for the host board, and doc edits count as my saves', () => {
   const ds = read('../components/DocSurface.jsx');
-  assert.match(ds, /<DocStatusFooter [^>]*boardId=\{scope\?\.boardId \|\| \(scope \? null : board\.id\)\}/,
+  assert.match(ds, /<DocFootA [^>]*boardId=\{scope\?\.boardId \|\| \(scope \? null : board\.id\)\}/,
     'board.id is the doc CARD id in a card scope; yboard reports the host board');
   const yb = read('./yboard.js');
   assert.match(yb, /if \(isLocalEditOrigin\(origin\)\) \{ pendingLocal = true; emitSaveState\('saving'\); \}/);

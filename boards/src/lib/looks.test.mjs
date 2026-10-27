@@ -61,7 +61,7 @@ test('main.jsx alone loads toolbarLook.css, and not in the entry', () => {
 });
 
 test('only main.jsx asks the switches', () => {
-  for (const f of ['App.jsx', 'components/CanvasSurface.jsx', 'components/ToolOptionsBar.jsx', 'components/DocToolbar.jsx', 'components/DocSurface.jsx']) {
+  for (const f of ['App.jsx', 'components/CanvasSurface.jsx', 'components/ToolOptionsBar.jsx', 'components/DocSurface.jsx']) {
     assert.doesNotMatch(read(f), /toolbarLookAllowed|docLookAllowed/, `${f} asks a switch; ask lib/looks.js`);
   }
 });

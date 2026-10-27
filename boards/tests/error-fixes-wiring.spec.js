@@ -43,8 +43,9 @@ test.describe('Fix 1 — Yjs corruption self-heal', () => {
     expect(s).toContain('purgeLocalBoardState');
     expect(s).toContain('poison?.()');
     // APP-CORE-13: the heal bypasses the reset dedupe (force) and skips the
-    // restore-style discard, because it has already poisoned and purged.
-    expect(s).toContain("triggerReset('yjs-corruption', { force: true, discard: false })");
+    // restore-style discard, because it has already poisoned and purged (and
+    // says it's a heal, so an open doc speaks only when it lost something).
+    expect(s).toContain("triggerReset('yjs-corruption', { force: true, discard: false, kind: 'heal' })");
     // Exact-board guard: an unknown/null-board corruption must NOT remount every open board.
     expect(s).toMatch(/e\.detail\.boardId !== boardId/);
   });
@@ -61,9 +62,13 @@ test.describe('Fix 2 — TipTap editor RangeErrors', () => {
 
   test('list/heading commands run through the safe-dispatch guard', () => {
     expect(read('src/lib/safeEditorCmd.js')).toContain('export function safeRun');
-    for (const f of ['src/components/ToolOptionsBar.jsx', 'src/components/DocToolbar.jsx', 'src/components/DocPageEditor.jsx']) {
+    for (const [f, from] of [
+      ['src/components/ToolOptionsBar.jsx', '../lib/safeEditorCmd.js'],
+      ['src/components/doc/DocBarA.jsx', '../../lib/safeEditorCmd.js'],
+      ['src/components/DocPageEditor.jsx', '../lib/safeEditorCmd.js'],
+    ]) {
       const s = read(f);
-      expect(s).toContain("from '../lib/safeEditorCmd.js'");
+      expect(s).toContain(`from '${from}'`);
       expect(s).toContain('safeRun(');
     }
   });

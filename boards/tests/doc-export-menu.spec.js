@@ -1,11 +1,11 @@
 // Regression + behavior for the doc/screenplay "Export" control.
 //
-// 1) The dropdown must actually be reachable. The toolbar (.doc-tb) is a
+// 1) The dropdown must actually be reachable. The old toolbar (.doc-tb) was a
 //    horizontal scroll container (overflow-x:auto; overflow-y:hidden); for
 //    months the Export menu was an inline absolutely-positioned child of it, so
 //    it was CLIPPED to a few-pixel sliver — the user saw a dark sliver but could
 //    never click "Export PDF". The fix portals the menu to <body> (fixed,
-//    anchored to the trigger), like FontPickerDropdown. getBoundingClientRect
+//    anchored to the trigger), as the bar's other menus are. getBoundingClientRect
 //    IGNORES ancestor overflow-clipping, so a rect check would pass while
 //    clipped — the reliable signal is hit-testing (document.elementFromPoint).
 //

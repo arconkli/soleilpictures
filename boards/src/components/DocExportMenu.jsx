@@ -10,9 +10,7 @@
 // Every generated file routes through deliverFile (download on web, native
 // share sheet in the app, where <a download> doesn't save).
 
-import { useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
+import { useState } from 'react';
 import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFullDocJSON } from '../lib/docFullExport.js';
 import {
   jsonToFountain, jsonToFdx, blocksToDocJSON, docJSONToBlocks,
@@ -33,61 +31,15 @@ const inNativeApp = () => {
   try { return !!Capacitor?.isNativePlatform?.(); } catch (_) { return false; }
 };
 
-// Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
-// EVERY sheet (the single-focused-sheet path was silent data loss); the bare
-// `editor` is only a fallback for the rare caller without doc state.
-// Screenplay docs additionally get Fountain/FDX export + import.
-export function DocExportMenu({ editor, docName, ydoc = null, scope = null, docMode = 'doc', canEdit = true }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);      // trigger wrapper
-  const { exportHTML, exportMarkdown, exportPDF, exportFountain, exportFdx, importScript, pdfLabel } =
-    useDocExport({ editor, docName, ydoc, scope, docMode, onDone: () => setOpen(false) });
-
-  // The toolbar (.doc-tb) is a horizontal scroll container (overflow:auto/hidden),
-  // which CLIPS any absolutely-positioned descendant — that's why an inline
-  // dropdown showed only as a sliver under the toolbar. So the menu renders
-  // through a portal to <body>, under the button and lined up with its right
-  // edge (hooks/useAnchoredPopover), and a press outside or Escape closes it.
-  const pop = useAnchoredPopover({ open, onClose: () => setOpen(false), anchorRef: ref, align: 'end' });
-
-  return (
-    <span className="doc-export-wrap" ref={ref}>
-      <button className="doc-tb-btn" title="Export" aria-label="Export"
-              aria-haspopup="menu" aria-expanded={open}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setOpen(o => !o)}
-              disabled={!editor}>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M7 2 V9 M4 6 L7 9 L10 6" />
-          <path d="M3 11 H11" />
-        </svg>
-      </button>
-      {open && createPortal(
-        <div className="doc-export-menu" role="menu" ref={pop.popRef} style={pop.style}>
-          {docMode === 'screenplay' && (
-            <>
-              <button role="menuitem" onClick={exportFountain}>Export Fountain (.fountain)</button>
-              <button role="menuitem" onClick={exportFdx}>Export Final Draft (.fdx)</button>
-              {/* Import replaces the script — a view-only reader's copy would
-                  change locally and never save. */}
-              {canEdit && <button role="menuitem" onClick={importScript}>Import Fountain / Final Draft…</button>}
-              <div className="doc-export-sep" role="separator" />
-            </>
-          )}
-          <button role="menuitem" onClick={exportHTML}>Export HTML</button>
-          <button role="menuitem" onClick={exportMarkdown}>Export Markdown</button>
-          <button role="menuitem" onClick={exportPDF}>{pdfLabel}</button>
-        </div>,
-        document.body
-      )}
-    </span>
-  );
-}
-
 // What the export menu does, for any menu that offers it (the doc look's ⋯
 // and a reader's Export, components/doc/DocBarA.jsx): each export runs once at
 // a time, and onDone() closes the menu it was picked from. pdfLabel is what
 // the PDF row says where it is (a share sheet in the app).
+//
+// Whole-doc export. When ydoc+scope are provided we serialize EVERY page ×
+// EVERY sheet (the single-focused-sheet path was silent data loss); the bare
+// `editor` is only a fallback for the rare caller without doc state.
+// Screenplay docs additionally get Fountain/FDX export + import.
 export function useDocExport({ editor, docName, ydoc = null, scope = null, docMode = 'doc', onDone }) {
   const [busy, setBusy] = useState(false);
   const feedback = useFeedback();

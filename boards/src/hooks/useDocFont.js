@@ -3,8 +3,8 @@ import { ensureGoogleFontLoaded } from '../lib/googleFonts.js';
 import { addRecentFont } from '../lib/customFonts.js';
 
 // A doc bar's font: set one, and preview one while the pointer rests on it in
-// the list, put back as it was if the list closes without a pick. Shared by
-// the doc's bar (DocToolbar) and the doc look's (components/doc/DocBarA.jsx).
+// the list, put back as it was if the list closes without a pick, for the
+// doc look's bar (components/doc/DocBarA.jsx).
 //
 //   const font = useDocFont(editor);
 //   font.preview(css)   // css, '' for the doc's own, or null for the font

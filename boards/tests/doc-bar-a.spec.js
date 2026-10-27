@@ -2,9 +2,8 @@
 // (direction A, with C's side panel), shipped 2026-10-24 (lib/appHost.js
 // docLookAllowed): Doc ▾ | undo redo | style font size | the marks, colour and
 // clear | lists and align | link comment | + | find ⋯. It is always one row:
-// as its room narrows, groups fold into ⋯ (lib/docBarFold.js). Every control
-// runs the editor command DocToolbar does (the bar a doc shared on its own
-// still has). Driven in the ?docqa=1 harness.
+// as its room narrows, groups fold into ⋯ (lib/docBarFold.js). Driven in the
+// ?docqa=1 harness.
 
 import { expect, test } from '@playwright/test';
 import { exportRow, setScreenplay } from './helpers/docFrame.js';

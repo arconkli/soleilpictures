@@ -792,8 +792,6 @@ button.dl-drow { cursor: pointer; }
   .doc-surface.dl-surface.rail-left-collapsed,
   .doc-surface.dl-surface.rail-left-collapsed.has-panel { grid-template-columns: minmax(0, 1fr); }
   .doc-surface.dl-surface:not(.mobile-rail-open) > .doc-rail-left { display: none; }
-  /* The drawer's head keeps the column (styles.css moves today's "+"). */
-  .doc-surface.dl-surface.mobile-rail-open .doc-tree-head { padding-right: 8px; }
   .doc-surface.dl-surface > .dl-panel {
     position: absolute;
     top: 0;

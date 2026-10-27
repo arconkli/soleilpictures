@@ -48,10 +48,9 @@ import {
 // its ⋯ the text's other tools, and ⌨ putting the keyboard away. What the
 // doc's ⋯ holds besides is the header's ⋯ there (DocMoreA, below).
 //
-// Every control runs the same editor command as DocToolbar (the bar a doc
-// shared on its own still has), on the same state (lib/docBarState.js), and
-// keeps the caret in the text: a press doesn't take the focus, and nor do its
-// menus (Menu's keepFocus).
+// Every control runs an editor command on the bar's state
+// (lib/docBarState.js), and keeps the caret in the text: a press doesn't take
+// the focus, and nor do its menus (Menu's keepFocus).
 // ⌥F10 in the text comes to the bar and Escape goes back (Toolbar's `text`).
 
 const keep = (e) => e.preventDefault();
@@ -115,8 +114,6 @@ export function DocBarA({
       const cs = getComputedStyle(cap);
       const room = cap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
       setLevel(docBarFit(room, sizes, kind, input));
-      // The find bar hangs below wherever the row ends (styles.css .doc-find).
-      cap.parentElement?.style.setProperty('--doc-tb-bottom', `${cap.offsetTop + cap.offsetHeight}px`);
     };
     fit();
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);

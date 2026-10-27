@@ -1,6 +1,6 @@
 // What a doc's footer reports: the current page's word and character counts,
-// and an HONEST save state. Shared by the footer as it is (DocStatusFooter)
-// and the doc look's (components/doc/DocFrameA.jsx).
+// and an HONEST save state, for the doc look's footer
+// (components/doc/DocFrameA.jsx).
 //
 // The save state is driven by yboard's real persistence lifecycle (the
 // `soleil-board-save-state` event: saving → saved / error) rather than a fixed

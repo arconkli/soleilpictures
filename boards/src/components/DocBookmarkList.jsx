@@ -9,8 +9,7 @@ import { undoToast } from '../lib/undoToast.js';
 import { Icon } from './Icon.jsx';
 import { BookmarkSimple, X } from '../lib/icons.js';
 
-// `look`: the doc look (DocSurface's frame), with icons where the glyphs were.
-export function DocBookmarkList({ ydoc, scope, bookmarks = [], pages = [], onJump, canEdit = true, look = false }) {
+export function DocBookmarkList({ ydoc, scope, bookmarks = [], pages = [], onJump, canEdit = true }) {
   const feedback = useFeedback();
   if (!bookmarks.length) return null;
   const pageName = (id) => pages.find(p => p.id === id)?.name || 'Untitled';
@@ -32,7 +31,7 @@ export function DocBookmarkList({ ydoc, scope, bookmarks = [], pages = [], onJum
       <div className="doc-bookmarks-head t-eyebrow">Bookmarks</div>
       {bookmarks.map(b => (
         <div key={b.id} className="doc-bookmarks-row">
-          {look && <Icon as={BookmarkSimple} size={16} />}
+          <Icon as={BookmarkSimple} size={16} />
           <button type="button" className="doc-bookmarks-item"
                   title={`${b.name || 'Bookmark'} — ${pageName(b.pageId)}`}
                   onClick={() => onJump?.(b.id)}>
@@ -41,7 +40,7 @@ export function DocBookmarkList({ ydoc, scope, bookmarks = [], pages = [], onJum
           {canEdit && (
             <button type="button" className="doc-bookmarks-x"
                     title="Remove bookmark" aria-label={`Remove bookmark ${b.name || ''}`.trim()}
-                    onClick={() => remove(b)}>{look ? <Icon as={X} size={12} /> : '×'}</button>
+                    onClick={() => remove(b)}><Icon as={X} size={12} /></button>
           )}
         </div>
       ))}
