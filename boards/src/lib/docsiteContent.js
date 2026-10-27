@@ -14543,7 +14543,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Both capture the board as it appears: cards, "
+     "v": "Both are a picture of the whole board, drawn the way its cover is: cards, "
     },
     {
      "t": "link",
@@ -14573,22 +14573,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "link",
-     "v": "group",
-     "href": "/docs/canvas/groups",
-     "children": [
-      {
-       "t": "text",
-       "v": "group"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " outlines and the background."
+     "v": " and the background, framed to the board's own shape. Cards keep the dark theme's colours whichever theme you work in."
     }
    ]
   },
@@ -14597,7 +14582,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no region export. If you want part of a board, either fit that part on screen first, or move those cards onto their own "
+     "v": "There is no region export: an export is always the whole board, wherever you have scrolled. If you want part of a board, move those cards onto their own "
     },
     {
      "t": "link",

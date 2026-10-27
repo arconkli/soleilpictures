@@ -198,8 +198,7 @@ import { loadBoardView, saveBoardView, clearBoardView,
 import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
-import { exportBoardAsPng, exportBoardAsPdf, svgToPngBlob } from '../lib/exportBoard.js';
-import { BoardThumbnail } from './BoardThumbnail.jsx';
+import { exportBoardAsPng, exportBoardAsPdf } from '../lib/exportBoard.js';
 import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
 import { CanvasVoteLayer } from './CanvasVoteCard.jsx';
@@ -1262,12 +1261,6 @@ export function CanvasSurface({
   // True while the arrow bend (midpoint curve) dot is being dragged — used to
   // hide the ArrowPopover so it doesn't chase the cursor / cover the dot.
   const [bendDragging, setBendDragging] = useState(false);
-  // Hidden BoardThumbnail used for PNG/PDF export. Same render path as
-  // the canvas card preview, just scaled up at export time. Only mounted
-  // while an export handler is running — otherwise rendering one SVG node
-  // per card on every CanvasSurface render dominates idle/pan cost.
-  const exportSvgRef = useRef(null);
-  const [exportSvgMounted, setExportSvgMounted] = useState(false);
   const [drag, setDrag] = useState(null);
   // Touch only: the card currently "lifted" by a press-and-hold (picked up,
   // ready to drag). Drives the .is-lifted visual cue. Cleared on drop/cancel.
@@ -10203,35 +10196,37 @@ export function CanvasSurface({
       ]},
       { id: 'fit', label: 'Reset zoom', shortcut: modShortcut('0'), run: () => zoomAroundCenter(1 / zoomRef.current) },
       { id: 'export', label: 'Export', submenu: [
-        { id: 'export-png', label: 'PNG image', run: async () => {
-          setExportSvgMounted(true);
-          try {
-            // Two RAFs: first commits the mount, second guarantees the
-            // <svg> is in the DOM before we read it.
-            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-            const svg = exportSvgRef.current?.querySelector?.('svg');
-            if (!svg) { feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' }); return; }
-            await exportBoardAsPng(svg, board?.name || 'board');
-          }
-          catch (err) { feedback.toast({ type: 'error', code: 'png_export_failed', message: 'Export failed: ' + (err.message || err) }); }
-          finally { setExportSvgMounted(false); }
-        }},
-        { id: 'export-pdf', label: 'PDF (Save from Print)', run: async () => {
-          setExportSvgMounted(true);
-          try {
-            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-            const svg = exportSvgRef.current?.querySelector?.('svg');
-            if (!svg) { feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' }); return; }
-            exportBoardAsPdf(svg, board?.name || 'board');
-          }
-          catch (err) { feedback.toast({ type: 'error', code: 'pdf_export_failed', message: 'Export failed: ' + (err.message || err) }); }
-          finally { setExportSvgMounted(false); }
-        }},
+        { id: 'export-png', label: 'PNG image', run: () => exportBoardAs('png') },
+        { id: 'export-pdf', label: 'PDF (Save from Print)', run: () => exportBoardAs('pdf') },
       ]},
       { divider: true },
       { id: 'clearstrokes', label: 'Clear all drawings', disabled: !(strokes && strokes.length > 0),
         danger: true, run: clearAllDrawings },
     ];
+  };
+
+  // Export → PNG image / PDF: the board as the covers draw it (lib/exportBoard.js).
+  // Drawing waits on the board's pictures, so after a beat a toast says it is
+  // working, as a download's does.
+  const exportBoardAs = async (format) => {
+    let closeBusy = null;
+    const beat = setTimeout(() => {
+      closeBusy = feedback.toast({ type: 'info', message: 'Preparing export…', ttl: 120000 });
+    }, 400);
+    try {
+      const picture = { cards, strokes, arrows, boards, bgColor: board?.bg_color || null };
+      const done = format === 'pdf'
+        ? await exportBoardAsPdf(picture, board?.name || 'board')
+        : await exportBoardAsPng(picture, board?.name || 'board');
+      if (!done) feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' });
+    } catch (err) {
+      const message = 'Export failed: ' + (err?.message || err);
+      if (format === 'pdf') feedback.toast({ type: 'error', code: 'pdf_export_failed', message });
+      else feedback.toast({ type: 'error', code: 'png_export_failed', message });
+    } finally {
+      clearTimeout(beat);
+      closeBusy?.();
+    }
   };
 
   // Every board stroke at once, so it gets the house Undo toast like any other
@@ -14090,18 +14085,6 @@ export function CanvasSurface({
           />
         );
       })()}
-
-      {/* Off-screen BoardThumbnail used as the source SVG for PNG/PDF
-          exports. Sized 0×0 + visibility:hidden so it stays in the DOM
-          (so the export refs can read it) without affecting layout.
-          Mounted on demand only — see exportSvgMounted above. */}
-      <div ref={exportSvgRef}
-           style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden',
-                    visibility: 'hidden', pointerEvents: 'none' }}>
-        {exportSvgMounted && (
-          <BoardThumbnail cards={cards} strokes={strokes} boards={boards} />
-        )}
-      </div>
 
 
       {/* The rail is `overflow-y: auto` on a phone (styles.css .cnv-tools) but

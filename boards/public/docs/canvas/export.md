@@ -2,7 +2,7 @@
 
 > Right-click the canvas and choose Export to save the whole board as a PNG or a PDF. Individual images download from the lightbox, either as the original file or with your adjustments baked in. Documents have their own exports including PDF, Markdown, HTML and screenplay formats.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/export · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas/export · Updated 2026-10-26_
 
 Three different things get exported, and they are separate mechanisms.
 
@@ -13,12 +13,13 @@ Right-click the canvas → **Export**:
 - **PNG** — a single image of the board
 - **PDF** — the board as a printable document
 
-Both capture the board as it appears: cards, [arrows](/docs/canvas/arrows),
-[drawings](/docs/canvas/shapes-and-drawing), [group](/docs/canvas/groups)
-outlines and the background.
+Both are a picture of the whole board, drawn the way its cover is: cards,
+[arrows](/docs/canvas/arrows), [drawings](/docs/canvas/shapes-and-drawing) and
+the background, framed to the board's own shape. Cards keep the dark theme's
+colours whichever theme you work in.
 
-There is no region export. If you want part of a board, either fit that part on
-screen first, or move those cards onto their own
+There is no region export: an export is always the whole board, wherever you
+have scrolled. If you want part of a board, move those cards onto their own
 [nested cluster](/docs/clusters) and export that — which is usually the better
 answer, because it leaves you with something reusable.
 

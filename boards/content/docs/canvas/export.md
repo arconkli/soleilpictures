@@ -5,13 +5,13 @@ h1: Exporting a board
 navLabel: Exporting
 section: canvas
 order: 12
-updated: 2026-08-08
+updated: 2026-10-26
 answer: Right-click the canvas and choose Export to save the whole board as a PNG or a PDF. Individual images download from the lightbox, either as the original file or with your adjustments baked in. Documents have their own exports including PDF, Markdown, HTML and screenplay formats.
 faq:
   - q: Does the export include drawings and arrows?
-    a: Yes. A board export is a picture of the board — cards, arrows, drawings, groups and backgrounds all appear as they do on screen.
+    a: Yes. A board export is a picture of the whole board — its cards, arrows, drawings and background, drawn the way the cluster's cover is.
   - q: Can I export just part of a board?
-    a: Not as a region selection. Fit the selection on screen first, or move the cards you want onto their own cluster and export that.
+    a: Not as a region selection — an export is always the whole board. Move the cards you want onto their own cluster and export that.
   - q: Should I export or share a link?
     a: Share a link if the recipient might need to see updates. An export is a snapshot from the moment you made it.
 related:
@@ -29,12 +29,13 @@ Right-click the canvas → **Export**:
 - **PNG** — a single image of the board
 - **PDF** — the board as a printable document
 
-Both capture the board as it appears: cards, [arrows](/docs/canvas/arrows),
-[drawings](/docs/canvas/shapes-and-drawing), [group](/docs/canvas/groups)
-outlines and the background.
+Both are a picture of the whole board, drawn the way its cover is: cards,
+[arrows](/docs/canvas/arrows), [drawings](/docs/canvas/shapes-and-drawing) and
+the background, framed to the board's own shape. Cards keep the dark theme's
+colours whichever theme you work in.
 
-There is no region export. If you want part of a board, either fit that part on
-screen first, or move those cards onto their own
+There is no region export: an export is always the whole board, wherever you
+have scrolled. If you want part of a board, move those cards onto their own
 [nested cluster](/docs/clusters) and export that — which is usually the better
 answer, because it leaves you with something reusable.
 
