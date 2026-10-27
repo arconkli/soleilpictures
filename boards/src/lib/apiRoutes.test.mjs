@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import * as Y from 'yjs';
 import { handleApiRoute } from '../worker-api.js';
 import { UNTRUSTED_NOTE } from './mcpTools.js';
-import { cardToYMap, bytesToB64, b64ToBytes, readCards } from './yhelpers.js';
+import { cardToYMap, bytesToB64, b64ToBytes, readCards, readGroups } from './yhelpers.js';
 import { imageSecret, verifySignedImage, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './signedImage.js';
 
 const ENV = {
@@ -1229,6 +1229,26 @@ test('a card list with include=groups carries the board\'s groups, read in the s
   assert.equal(calls.filter((c) => c.path === 'board_state').length, 1, 'the board is opened once');
   const plain = await api('GET', `/boards/${B1}/cards`);
   assert.equal('groups' in plain.body, false, 'groups only when asked for');
+});
+
+// The app reads a group as a Y.Map and threw on the plain object this route
+// saved until 2026-10-27, so a cluster with an API-made group never opened.
+test('a group made or changed through the API is saved the way the app reads it', async () => {
+  putBoard(B1, [{ id: 'c1', kind: 'note', x: 0, y: 0 }], { name: 'Movies' },
+    [{ id: 'g-old', name: 'Watchlist', outline: true, kind: null, createdAt: '2026-10-27T21:29:24Z' }]);
+  const made = await api('POST', `/boards/${B1}/groups`, { name: 'Favorites' });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const renamed = await api('PATCH', `/boards/${B1}/groups/g-old`, { name: 'To watch' });
+  assert.equal(renamed.status, 200, JSON.stringify(renamed.body));
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, b64ToBytes(boards.get(B1).doc));
+  const groups = doc.getMap('groups');
+  assert.ok(groups.get(made.body.group.id) instanceof Y.Map, 'a new group is a Y.Map');
+  assert.ok(groups.get('g-old') instanceof Y.Map, 'an old plain group is rewritten as one');
+  const read = Object.fromEntries(readGroups(doc).map((g) => [g.id, g]));
+  assert.equal(read[made.body.group.id].name, 'Favorites');
+  assert.deepEqual([read['g-old'].name, read['g-old'].outline, read['g-old'].createdAt],
+    ['To watch', true, '2026-10-27T21:29:24Z'], 'the old fields kept, the new name set');
 });
 
 test('read_board over /mcp says what it read in its first line, then the JSON, people\'s text marked', async () => {

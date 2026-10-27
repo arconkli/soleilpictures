@@ -289,15 +289,47 @@ export function readStrokes(ydoc) {
 // { id, name, outline:bool, color, width }. Cards reference a
 // group via `groupId` on the card row. Members move together; the
 // optional outline draws a soft pill around the bounding box.
+//
+// The API wrote groups as plain objects until 2026-10-27, and one of them made
+// this throw, so the cluster it sat on never finished opening. A plain object
+// is read like a Y.Map; anything else is skipped, as readCards skips a card.
 export function readGroups(ydoc) {
   const map = ydoc.getMap('groups');
   const out = [];
   map.forEach((ym, id) => {
     const o = { id };
-    ym.forEach((v, k) => { o[k] = v; });
+    if (ym instanceof Y.Map) ym.forEach((v, k) => { o[k] = v; });
+    else if (ym && typeof ym === 'object') Object.assign(o, ym);
+    else return;
     out.push(o);
   });
   return out;
+}
+
+// Group `id` as the Y.Map the app writes (App.jsx createGroup), or null when
+// there is none. A plain value, which the API wrote until 2026-10-27, is
+// rewritten as that Y.Map first, so it can be edited like any other group.
+// Call inside a transaction.
+export function groupYMap(groupsMap, id) {
+  const g = groupsMap.get(id);
+  if (g instanceof Y.Map) return g;
+  if (!g || typeof g !== 'object') return null;
+  const ym = new Y.Map();
+  for (const [k, v] of Object.entries(g)) if (v !== undefined) ym.set(k, v);
+  groupsMap.set(id, ym);
+  return ym;
+}
+
+// Create group `id`, or set `fields` on it in place, so a rename on a canvas
+// and an API patch to another field both land.
+export function upsertGroup(groupsMap, id, fields) {
+  let g = groupYMap(groupsMap, id);
+  if (!g) {
+    g = new Y.Map();
+    groupsMap.set(id, g);
+  }
+  for (const [k, v] of Object.entries(fields)) if (v !== undefined) g.set(k, v);
+  return g;
 }
 
 // Grid shared state — both are plain-object Y.Maps keyed by id (the values are

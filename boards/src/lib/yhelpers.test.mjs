@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as Y from 'yjs';
-import { cardToYMap, readCards, writeCardFields } from './yhelpers.js';
+import { cardToYMap, readCards, writeCardFields, readGroups, groupYMap, upsertGroup } from './yhelpers.js';
 
 test('readCards skips card values that are not a Y.Map, warning once', () => {
   const doc = new Y.Doc();
@@ -136,4 +136,51 @@ test('writeCardFields copies a Y type that already lives in another doc', () => 
   assert.notEqual(cells, foreign.get('cells'));
   assert.equal(cells.get('a1'), 'img');
   assert.equal(foreign.get('cells').doc, other);
+});
+
+// The same failure under `groups`: the API saved groups as plain objects until
+// 2026-10-27, readGroups threw "s.forEach is not a function" on the first one,
+// and a cluster an assistant had sectioned never finished opening.
+test('readGroups reads a group saved as a plain object, and skips a value that is no group', () => {
+  const doc = new Y.Doc();
+  const groups = doc.getMap('groups');
+  const ym = new Y.Map();
+  ym.set('id', 'g1');
+  ym.set('name', 'Stills');
+  groups.set('g1', ym);
+  groups.set('g2', { id: 'g2', name: 'Favorites', outline: true, kind: null });
+  groups.set('g3', 'not a group');
+  assert.deepEqual(readGroups(doc), [
+    { id: 'g1', name: 'Stills' },
+    { id: 'g2', name: 'Favorites', outline: true, kind: null },
+  ]);
+});
+
+test('groupYMap turns a plain group into the Y.Map the app writes, and leaves a Y.Map as it is', () => {
+  const doc = new Y.Doc();
+  const groups = doc.getMap('groups');
+  groups.set('g1', { id: 'g1', name: 'Favorites', color: null, gone: undefined });
+  const g = doc.transact(() => groupYMap(groups, 'g1'));
+  assert.ok(g instanceof Y.Map);
+  assert.equal(groups.get('g1'), g);
+  assert.deepEqual(g.toJSON(), { id: 'g1', name: 'Favorites', color: null });
+  assert.equal(groupYMap(groups, 'g1'), g, 'the same instance the second time');
+  assert.equal(groupYMap(groups, 'nope'), null);
+});
+
+test('upsertGroup sets fields in place, so an edit elsewhere to another field survives', () => {
+  const a = new Y.Doc();
+  const b = new Y.Doc();
+  upsertGroup(a.getMap('groups'), 'g1', { id: 'g1', name: 'Stills', outline: true, color: undefined });
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  const before = a.getMap('groups').get('g1');
+  // A canvas renames it while an API call recolours it.
+  b.getMap('groups').get('g1').set('name', 'Night stills');
+  upsertGroup(a.getMap('groups'), 'g1', { id: 'g1', color: '#c8a04a' });
+  assert.equal(a.getMap('groups').get('g1'), before, 'patched in place, not replaced');
+  Y.applyUpdate(a, Y.encodeStateAsUpdate(b));
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  for (const doc of [a, b]) {
+    assert.deepEqual(readGroups(doc), [{ id: 'g1', name: 'Night stills', outline: true, color: '#c8a04a' }]);
+  }
 });
