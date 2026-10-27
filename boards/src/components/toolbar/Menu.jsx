@@ -1,9 +1,10 @@
 import { createContext, forwardRef, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { Icon, IconWeightContext } from '../Icon.jsx';
 import { useAnchoredPopover } from '../../hooks/useAnchoredPopover.js';
+import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { ariaKeys } from '../../lib/ariaKeys.js';
-import { Check, ChevronRight } from '../../lib/icons.js';
+import { Check, ChevronLeft, ChevronRight } from '../../lib/icons.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { menuMove, menuTypeahead } from '../../lib/menuKeys.js';
 import { Btn, Caps } from './Toolbar.jsx';
@@ -27,6 +28,12 @@ import './toolbar.css';
 // where the window has no room on its right: under the pointer after a beat,
 // from → (Enter, Space) on the keyboard, and ← or Escape closes it again with
 // the focus back on its row. A row picked in a submenu closes the whole menu.
+//
+// A phone has no room beside a menu, so there a submenu steps in instead (the
+// owner's pick "A · Step in", 2026-10-27): it takes the menu's place, where the
+// menu was and at its width, under ‹ and its own name, and the menu hides under
+// it until ‹ (or ←, or Escape) brings it back. A long one scrolls under ‹,
+// which stays put, and fades out at its foot while more rows follow.
 //
 // `keepFocus` is for a menu off a bar that formats a text (a doc's): opened by
 // a press it leaves the focus in the text, its rows don't take it either, and
@@ -55,13 +62,19 @@ export function useMenu() {
 export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 'start', byKey = false, keepFocus = false, scrim = false, subId = null, className = '', children }) {
   const parent = useContext(MenuCtx);
   const isSub = !!parent && subId != null;
+  const { isPhone } = useBreakpoint();
+  // On a phone a submenu steps into its menu's place (above), and so do its own.
+  const step = isSub ? parent.step : isPhone;
+  const stepped = isSub && step;
   const ownTree = useId();
   const tree = isSub ? parent.tree : ownTree;
   const keep = isSub ? parent.keepFocus : keepFocus;
   const popHold = useRef(null);
   const close = useCallback((why) => {
     const menu = popHold.current?.current;
-    const hadFocus = !!menu && menu.contains(document.activeElement);
+    // In it, or in one of its submenus (a row picked there closes it too).
+    const a = document.activeElement;
+    const hadFocus = !!menu && (menu.contains(a) || !!a?.closest?.(`[data-tl-sub-of="${tree}"]`));
     onClose?.(why);
     if (!hadFocus || why === 'outside') return;
     const back = () => anchorRef.current?.focus({ preventScroll: true });
@@ -70,12 +83,15 @@ export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 
       const a = document.activeElement;
       if (!a || a === document.body) back();
     });
-  }, [onClose, anchorRef]);
-  const { popRef, style } = useAnchoredPopover({
-    open, onClose: close, anchorRef, fitHeight: true,
-    // A submenu hangs beside its row; Escape in it is its own (below), and
-    // the menu it opened from counts a press in it as inside.
-    side: isSub ? 'right' : side, align: isSub ? 'start' : align, gap: isSub ? 2 : 6,
+  }, [onClose, anchorRef, tree]);
+  // A submenu hangs beside its row. Stepped in, it's placed as its menu is:
+  // against the menu's button, on the side the menu went, lined up as it is.
+  const at = stepped ? parent.at : { anchorRef, side: isSub ? 'right' : side, align: isSub ? 'start' : align, gap: isSub ? 2 : 6 };
+  const { popRef, style, side: went } = useAnchoredPopover({
+    open, onClose: close, fitHeight: true,
+    anchorRef: at.anchorRef, side: at.side, align: at.align, gap: at.gap,
+    // Escape in a submenu is its own (below), and the menu it opened from
+    // counts a press in it as inside.
     escape: !isSub, ignore: isSub ? null : `[data-tl-sub-of="${tree}"]`,
   });
   popHold.current = popRef;
@@ -87,35 +103,52 @@ export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 
   const showSub = useCallback((id, delay = 0) => {
     clearTimeout(subTimer.current);
     const go = () => {
-      // A submenu closing under the pointer while the keyboard was in it
-      // leaves the focus here, not on <body>.
-      if (id == null) {
-        const menu = popHold.current?.current;
-        const a = document.activeElement;
-        if (menu && a?.closest?.(`[data-tl-sub-of="${tree}"]`)) menu.focus({ preventScroll: true });
-      }
+      // A submenu closing while the keyboard was in it leaves the focus
+      // here, not on <body>: stepped in, once this menu shows again.
+      const menu = popHold.current?.current;
+      const refocus = id == null && menu && document.activeElement?.closest?.(`[data-tl-sub-of="${tree}"]`);
+      if (refocus && step) flushSync(() => setOpenSub(id));
+      if (refocus) menu.focus({ preventScroll: true });
       setOpenSub(id);
     };
     if (delay) subTimer.current = setTimeout(go, delay);
     else go();
-  }, [tree]);
+  }, [tree, step]);
   useLayoutEffect(() => { if (!open) { clearTimeout(subTimer.current); setOpenSub(null); } }, [open]);
 
   useLayoutEffect(() => {
     if (!open) return undefined;
     // Opened by the pointer, a submenu, or a menu that keeps the text's
-    // focus, leaves the focus where it is.
-    if (!byKey && (isSub || keep)) return undefined;
+    // focus, leaves the focus where it is; stepped in, the menu it was in
+    // hides, so it comes along.
+    if (!byKey && (isSub || keep) && !(stepped && !keep)) return undefined;
     // A frame on: a press focuses what it pressed (the button) once the
     // press's handlers, this menu's opening among them, have run.
     const raf = requestAnimationFrame(() => {
       const menu = popRef.current;
       if (!menu) return;
-      const first = byKey ? rowsOf(menu)[0] : null;
-      (first || menu).focus({ preventScroll: true });
+      // Past ‹, stepped in.
+      const rows = byKey ? rowsOf(menu) : [];
+      (rows[stepped ? 1 : 0] || rows[0] || menu).focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(raf);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A long list stepped in fades out at its foot while more rows follow.
+  const bodyRef = useRef(null);
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!open || !body) return undefined;
+    const mark = () => body.toggleAttribute('data-more', body.scrollTop + body.clientHeight < body.scrollHeight - 1);
+    mark();
+    body.addEventListener('scroll', mark, { passive: true });
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(mark);
+    ro?.observe(body);
+    return () => {
+      body.removeEventListener('scroll', mark);
+      ro?.disconnect();
+    };
+  }, [open, stepped]);
 
   const onKeyDown = (e) => {
     if (e.defaultPrevented || isComposingKey(e)) return;
@@ -156,19 +189,39 @@ export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 
     tree,
     openSub,
     showSub,
-  }), [isSub, parent, close, keep, tree, openSub, showSub]);
+    // What a submenu stepping in takes: where this menu is, its width, and
+    // its name for ‹.
+    step,
+    stepped,
+    label,
+    menuRef: popRef,
+    at: { anchorRef: at.anchorRef, side: went, align: at.align, gap: at.gap },
+  }), [isSub, parent, close, keep, tree, openSub, showSub, step, stepped, label, popRef, at.anchorRef, went, at.align, at.gap]);
 
   if (!open) return null;
+  const cls = ['tl-menu'];
+  if (stepped) cls.push('is-step');
+  if (step && openSub != null) cls.push('is-under');
+  if (className) cls.push(className);
   const menu = createPortal(
     <IconWeightContext.Provider value="regular">
       <MenuCtx.Provider value={ctx}>
         <div ref={popRef} role="menu" aria-label={label} tabIndex={-1}
-             className={className ? `tl-menu ${className}` : 'tl-menu'} style={style}
+             className={cls.join(' ')}
+             // Stepped in, as wide as the menu under it.
+             style={stepped ? { ...style, width: parent.menuRef.current?.offsetWidth } : style}
              data-tl-sub-of={isSub ? tree : undefined}
              // The pointer reaching a submenu keeps it open.
              onPointerEnter={isSub ? () => parent.showSub(subId) : undefined}
              onKeyDown={onKeyDown}>
-          {children}
+          {stepped ? (
+            <>
+              <MenuItem icon={ChevronLeft} className="is-back" label={label} aria-label={`${label}, back to ${parent.label}`}
+                        keepOpen onSelect={() => close('escape')} />
+              <MenuSep />
+              <div ref={bodyRef} className="tl-mstep-body">{children}</div>
+            </>
+          ) : children}
         </div>
       </MenuCtx.Provider>
     </IconWeightContext.Provider>,
@@ -231,8 +284,9 @@ export const MenuItem = forwardRef(function MenuItem({
               }}
               onPointerEnter={(e) => {
                 onPointerEnter?.(e);
-                if (e.pointerType !== 'mouse' || disabled) return;
-                // Resting on a row opens its submenu, or closes the one open.
+                if (e.pointerType !== 'mouse' || disabled || ctx?.step) return;
+                // Resting on a row opens its submenu, or closes the one open
+                // (not one that steps in: that takes a press).
                 if (nested) { setSubByKey(false); ctx?.showSub(id, SUB_OPEN_MS); }
                 else if (ctx?.openSub != null) ctx.showSub(null, SUB_CLOSE_MS);
               }}
@@ -275,6 +329,9 @@ export const MenuItem = forwardRef(function MenuItem({
 });
 
 export function MenuHead({ children }) {
+  const ctx = useContext(MenuCtx);
+  // Stepped in, ‹ already says it.
+  if (ctx?.stepped && typeof children === 'string' && children.toLowerCase() === ctx.label?.toLowerCase()) return null;
   return <div className="tl-mh" role="presentation">{children}</div>;
 }
 

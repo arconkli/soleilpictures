@@ -27308,7 +27308,63 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", which has Comments, Find, Messages, the document's type and layout, the zoom, Export and the counts."
+     "v": ", which has Comments, Find, Messages, the document's type and layout, the zoom, Export and the counts. In either menu, a choice with more under it, such as "
+    },
+    {
+     "t": "strong",
+     "v": "Font",
+     "children": [
+      {
+       "t": "text",
+       "v": "Font"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Text colour",
+     "children": [
+      {
+       "t": "text",
+       "v": "Text colour"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", opens in the menu's place, with "
+    },
+    {
+     "t": "strong",
+     "v": "‹",
+     "children": [
+      {
+       "t": "text",
+       "v": "‹"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at its top to go back."
     }
    ]
   },

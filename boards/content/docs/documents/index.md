@@ -185,6 +185,8 @@ bold, italic and underline, the three lists, link, comment, **Insert**, and
 the keyboard away. The header holds close, the page list, the title with
 whether it is saved under it, Share, and **⋯**, which has Comments, Find,
 Messages, the document's type and layout, the zoom, Export and the counts.
+In either menu, a choice with more under it, such as **Font**, **Text colour**
+or **Export**, opens in the menu's place, with **‹** at its top to go back.
 
 On a tablet the toolbar keeps its one row over the page, its tools a finger's
 size, with more of them under **⋯** to make the room.
