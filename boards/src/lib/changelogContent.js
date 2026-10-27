@@ -99,6 +99,30 @@ export const CHANGELOG_CONTENT = {
      }
     ]
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Also",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Also"
+    }
+   ],
+   "id": "2026-10-27-also"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "On a phone or a tablet, the swatches in a document's text colour menu are big enough to tap."
+     }
+    ]
+   ]
   }
  ],
  "2026-10-26": [

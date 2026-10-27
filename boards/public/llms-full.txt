@@ -11365,6 +11365,11 @@ The Share panel leads with the link again, the reminder to send a cluster comes 
   without a share sheet copies it and says **Copied**, and where the browser
   won't copy, the link is shown selected so you can copy it yourself.
 
+### Also
+
+- On a phone or a tablet, the swatches in a document's text colour menu are
+  big enough to tap.
+
 ## 2026-10-26 — Export and profile changes work again
 
 Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.
