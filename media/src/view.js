@@ -1,14 +1,19 @@
 // One view job: a photo some browser can't draw, made into a WebP every
-// browser can, or a document, made into a WebP of its first page and a PDF of
-// its pages (boards/src/lib/fileView.js decides which files, and the names).
+// browser can, a document, made into a WebP of its first page and a PDF of
+// its pages, or a design file, made into a WebP of the picture it keeps of
+// itself (boards/src/lib/fileView.js decides which files, and the names).
 // vips does the decoding, as the unprivileged user, with no secrets and no
 // network, from a local copy of the file: unlike ffmpeg it can't read our
 // Worker's URL, and a file on disk can't send it anywhere else. A camera raw
 // first gives up its picture through exiftool or LibRaw (raw.js), a Photoshop
-// document through our own reader (psd.js, in a process of its own), and a
-// document through LibreOffice and poppler (doc.js), all the same
-// unprivileged way. They write only in the job's work folder, and what the
-// root process takes back out of it, it opens with openOwn (ffmpeg.js).
+// document through our own reader (psd.js, in a process of its own), a
+// document through LibreOffice and poppler (doc.js), and a design file
+// through our own finders (design.js, in a process of its own; an
+// Illustrator file's first page through poppler) or, when it is a zip, out
+// of the zip read by byte ranges (zipJob.js, its parser in a process of its
+// own), all the same unprivileged way. They write only in the job's work
+// folder, and what the root process takes back out of it, it opens with
+// openOwn (ffmpeg.js).
 
 import { rm, open, writeFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
@@ -25,7 +30,9 @@ import {
   jp2kLevel, stripWebpMetadata,
 } from './viewArgs.js';
 import { rawPicture } from './raw.js';
-import { docPages } from './doc.js';
+import { docPages, firstPage } from './doc.js';
+import { readZipInRounds } from './zipJob.js';
+import { Refused } from './refused.js';
 import { scrubError } from './args.js';
 import * as api from './api.js';
 
@@ -35,14 +42,10 @@ const HEADER_TIMEOUT_MS = 60_000;
 const THUMB_TIMEOUT_MS = 10 * 60_000;
 const PSD_TIMEOUT_MS = 10 * 60_000;
 const PSD_MAIN = fileURLToPath(new URL('./psdMain.js', import.meta.url));
-
-// A file this makes no view of, and why (the record's reason).
-class Refused extends Error {
-  constructor(reason, message = reason) {
-    super(message);
-    this.reason = reason;
-  }
-}
+const DESIGN_TIMEOUT_MS = 2 * 60_000;
+const DESIGN_MAIN = fileURLToPath(new URL('./designMain.js', import.meta.url));
+// What designMain.js may name, and the decoder each is read with.
+const DESIGN_FILES = Object.freeze({ 'picture.png': 'pngload', 'picture.jpg': 'jpegload', 'picture.tiff': 'tiffload' });
 
 // The original, into a new file, never more than `max` bytes of it.
 async function download(url, path, max) {
@@ -150,13 +153,69 @@ async function psdPicture(src, work) {
     : { path: jpeg, loader: 'jpegload', original, via: 'psd_thumbnail' };
 }
 
+// The picture a design file (not a zip) keeps of itself, through
+// designMain.js: { path, loader, picture }, or { pdf: true } for an
+// Illustrator file that is a PDF inside, whose first page is drawn instead.
+export async function designPicture(src, ext, work, { runChild = run } = {}) {
+  const out = await runChild(process.execPath, ['--max-old-space-size=512', DESIGN_MAIN, ext, src, work],
+    { timeoutMs: DESIGN_TIMEOUT_MS, isolate: true, maxBytes: 64 * 1024 });
+  let said = null;
+  try { said = JSON.parse(out.toString().trim().split('\n').pop()); } catch (_) { /* below */ }
+  if (said?.pdf === true) return { pdf: true };
+  if (said?.refused) throw new Refused('no_picture', 'no picture inside it');
+  const file = said?.made?.file;
+  if (typeof file !== 'string' || !Object.hasOwn(DESIGN_FILES, file)) throw new Error('the design reader said nothing');
+  return { path: join(work, file), loader: DESIGN_FILES[file], picture: file.slice(file.indexOf('.') + 1) };
+}
+
+// The size of the original at `url`, from the source's own HEAD: a zip is
+// read from its end, so it must be the file's true size, not what its row
+// says.
+export async function sourceSize(url, fetchImpl = fetch) {
+  const res = await fetchImpl(url, { method: 'HEAD', signal: AbortSignal.timeout(HEADER_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`source ${res.status}`);
+  const size = Number(res.headers.get('content-length'));
+  if (!Number.isSafeInteger(size) || size <= 0) throw new Refused('unsupported', 'the source has no size');
+  return size;
+}
+
+// The views of a design file that is a zip (a Sketch, Figma, XD, Procreate,
+// Krita or OpenRaster file), made of the picture inside it, read out of the
+// zip at `url` by byte ranges, never downloaded whole (zipJob.js). The
+// picture must be the PNG or JPEG its name says.
+async function designZipViews(url, ext, dirs) {
+  const size = await sourceSize(url);
+  const { made } = await readZipInRounds({ url, size, mode: 'design', ext, work: dirs.work });
+  const loader = /\.jpe?g$/i.test(made.path) ? 'jpegload' : 'pngload';
+  const views = await makeViews(made.path, dirs, { loaders: [loader] });
+  return { ...views, original: null, via: 'zip', entry: made.entry };
+}
+
 // The views of a job's downloaded file `src`, by how its format is read. A
 // document's carry its PDF (`pdfPath`, `pages`), the picture they were made
-// of (doc.js docPages) and no original's size.
+// of (doc.js docPages) and no original's size; a design file's, what its
+// picture was ('pdf', 'png', 'jpg' or 'tiff') and no original's size either
+// (the picture's isn't the design's).
 export async function viewsOf(decoder, src, dirs) {
   if (decoder === 'vips') return { ...(await makeViews(src, dirs)), via: 'vips' };
   const head = await headOf(src);
   const refuse = (reason, message) => new Refused(reason, message);
+  if (decoder === 'design') {
+    // `src` keeps its extension (processView), which says where to look.
+    const found = await designPicture(src, extOfKey(src), dirs.work);
+    if (found.pdf) {
+      let page;
+      try {
+        page = await firstPage(src, dirs.work);
+      } catch (e) {
+        if (isStopping()) throw e;
+        throw new Refused('unsupported', 'poppler could not draw its first page');
+      }
+      return { ...(await makeViews(page, dirs, { loaders: ['pngload'] })), original: null, via: 'design', picture: 'pdf' };
+    }
+    const made = await makeViews(found.path, dirs, { loaders: [found.loader] });
+    return { ...made, original: null, via: 'design', picture: found.picture };
+  }
   if (decoder === 'doc') {
     if (!sniffDoc(head)) throw new Refused('unsupported', 'not a document');
     // `src` keeps its extension (processView), which says a spreadsheet.
@@ -189,16 +248,25 @@ export async function processView(job) {
   try {
     const decoder = decoderOf(job.ext);
     if (!decoder) throw new Refused('unsupported', `no views of .${job.ext}`);
-    const max = decoder === 'doc' ? DOC_MAX_BYTES : VIEW_MAX_BYTES;
-    if (Number(job.sizeBytes) > max) throw new Refused('too_large');
-    dirs = await makeJobDir('view-');
-    // A raw or a document keeps its extension (decoderOf vouched for it):
-    // exiftool, LibRaw and LibreOffice read some formats by it, and LibRaw
-    // writes source.tiff beside it.
-    const named = decoder === 'raw' || decoder === 'doc';
-    const src = join(dirs.work, named ? `source.${job.ext.toLowerCase()}` : 'source');
-    await download(api.sourceUrl(job), src, max);
-    const made = await viewsOf(decoder, src, dirs);
+    let made;
+    if (decoder === 'design-zip') {
+      // Read by byte ranges, never downloaded: no ceiling but the rounds'
+      // own (zipJob.js).
+      dirs = await makeJobDir('view-');
+      made = await designZipViews(api.sourceUrl(job), job.ext.toLowerCase(), dirs);
+    } else {
+      const max = decoder === 'doc' ? DOC_MAX_BYTES : VIEW_MAX_BYTES;
+      if (Number(job.sizeBytes) > max) throw new Refused('too_large');
+      dirs = await makeJobDir('view-');
+      // A raw, a document or a design file keeps its extension (decoderOf
+      // vouched for it): exiftool, LibRaw and LibreOffice read some formats by
+      // it, LibRaw writes source.tiff beside it, and it says where a design
+      // file keeps its picture.
+      const named = decoder === 'raw' || decoder === 'doc' || decoder === 'design';
+      const src = join(dirs.work, named ? `source.${job.ext.toLowerCase()}` : 'source');
+      await download(api.sourceUrl(job), src, max);
+      made = await viewsOf(decoder, src, dirs);
+    }
 
     await api.uploadFile(key, 'view', made.viewPath, 'image/webp');
     let viewSm = made.viewSm;
@@ -223,7 +291,10 @@ export async function processView(job) {
     }
     const probe = made.original
       ? { loader: made.loader, via: made.via, w: made.original.w, h: made.original.h }
-      : { loader: made.loader, via: made.via, pages: made.pages ?? null, ...(made.picture ? { picture: made.picture } : {}) };
+      : {
+        loader: made.loader, via: made.via, pages: made.pages ?? null,
+        ...(made.picture ? { picture: made.picture } : {}), ...(made.entry ? { entry: made.entry.slice(0, 200) } : {}),
+      };
     await api.finish(key, 'done', { probe, view: made.view, viewSm, original: made.original, pdf });
   } catch (e) {
     // On SIGTERM we killed vips ourselves: say nothing, and the lease

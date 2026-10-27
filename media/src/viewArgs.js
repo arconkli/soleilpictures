@@ -2,7 +2,8 @@
 // get a view, and what the views are called, is boards/src/lib/fileView.js,
 // shared with the Worker. No I/O here, so node can test every rule.
 
-import { RAW_EXTS, PSD_EXTS, DOC_EXTS } from '../../boards/src/lib/fileView.js';
+import { RAW_EXTS, PSD_EXTS, DOC_EXTS, DESIGN_EXTS } from '../../boards/src/lib/fileView.js';
+import { DESIGN_PICTURES } from './zipPick.js';
 
 // The vips decoder each format vips reads itself must come through.
 export const EXT_LOADERS = Object.freeze({
@@ -16,13 +17,18 @@ export const EXT_LOADERS = Object.freeze({
 // How a view of a file with this extension is made: 'vips' reads it itself;
 // a 'raw' gives up the JPEG its camera stored, or LibRaw develops it
 // (raw.js); a 'psd' gives up its flattened picture (psd.js); a 'doc' is
-// printed by LibreOffice (doc.js). null: none.
+// printed by LibreOffice (doc.js); a 'design-zip' (a design file that is a
+// zip) gives up the picture inside it, read by byte ranges (zipJob.js), and
+// any other 'design' file the picture its own bytes hold (design.js). null:
+// none.
 export function decoderOf(ext) {
   const e = String(ext || '').toLowerCase();
   if (Object.hasOwn(EXT_LOADERS, e)) return 'vips';
   if (RAW_EXTS.includes(e)) return 'raw';
   if (PSD_EXTS.includes(e)) return 'psd';
   if (DOC_EXTS.includes(e)) return 'doc';
+  if (Object.hasOwn(DESIGN_PICTURES, e)) return 'design-zip';
+  if (DESIGN_EXTS.includes(e)) return 'design';
   return null;
 }
 

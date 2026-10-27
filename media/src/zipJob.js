@@ -15,6 +15,9 @@ import { fileURLToPath } from 'node:url';
 import { run } from './ffmpeg.js';
 import { mergeRanges, covered } from './rangeFile.js';
 import { ZIP_TAIL_BYTES, ZIP_FETCH_MAX_BYTES } from './zipPick.js';
+import { Refused } from './refused.js';
+
+export { Refused };
 
 const ZIP_MAIN = fileURLToPath(new URL('./zipMain.js', import.meta.url));
 const SPARSE_WHOLE_BYTES = 8 * 1024 * 1024;
@@ -25,14 +28,6 @@ const CHILD_MAX_BYTES = 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10 * 60_000;
 // What the child may say it refused for; anything else is "unsupported".
 const REFUSALS = new Set(['no_picture', 'not_zip', 'too_big', 'crc', 'encrypted']);
-
-// A file this makes no picture of, and why (the view record's reason).
-export class Refused extends Error {
-  constructor(reason, message = reason) {
-    super(message);
-    this.reason = reason;
-  }
-}
 
 // The child, sandboxed as psdMain.js is: no network, a capped heap. Resolves
 // with its stdout.

@@ -226,13 +226,20 @@ export async function docPages(src, { dir, work }, { refuse, sheet = false }) {
     const whole = await tryPicture('whole sheet', () => sheetPicture(src, work, profile, env));
     if (whole) return { pdfPath, pages, pagePath: whole, picture: 'sheet' };
   }
-  const pageBase = join(work, 'page');
-  await run('pdftoppm', pageArgs(pdfPath, pageBase), { timeoutMs: PAGE_TIMEOUT_MS, isolate: true });
+  const pagePath = await firstPage(pdfPath, work);
   if (sheet) {
-    const cells = await tryPicture('cells crop', () => cellsOf(pdfPath, `${pageBase}.png`, work));
+    const cells = await tryPicture('cells crop', () => cellsOf(pdfPath, pagePath, work));
     if (cells) return { pdfPath, pages, pagePath: cells, picture: 'cells' };
   }
-  return { pdfPath, pages, pagePath: `${pageBase}.png`, picture: 'page' };
+  return { pdfPath, pages, pagePath, picture: 'page' };
+}
+
+// The first page of the PDF `pdf`, drawn by poppler into `work` (pageArgs):
+// the picture's path. An Illustrator file, a PDF inside, comes here too.
+export async function firstPage(pdf, work) {
+  const pageBase = join(work, 'page');
+  await run('pdftoppm', pageArgs(pdf, pageBase), { timeoutMs: PAGE_TIMEOUT_MS, isolate: true });
+  return `${pageBase}.png`;
 }
 
 // A spreadsheet's first sheet, whole (sheetFilter), its region framed on
