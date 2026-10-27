@@ -3139,24 +3139,24 @@ A: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-10-25
+Updated: 2026-10-27
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-The Share panel answers one question — who can open this cluster? — in the order you decide it: the invite box first, then Who has access, one list of everyone who can open it, ending with Anyone with the link. Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. Copy link and Done sit at the bottom and stay put while the rest scrolls; anything more detailed about links is behind Link settings.
+The Share panel answers one question — who can open this cluster? — in the order you decide it: the link first, under Share a link, then Invite people, then Who has access, one list of the people who can open it. Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. Copy link sits right under Anyone with the link, and anything more detailed about links is behind Link settings, under it. Done sits at the bottom and stays put while the rest scrolls.
 
 You open it from Share in the board header (a round button on a phone), from ⌘K → "Share this cluster", or by right-clicking any cluster in the sidebar and choosing Share… — the last of these shares the cluster you right-clicked, not the one currently on screen.
 
 The link — what it grants
 
-The last row of Who has access is the link. Its dropdown has three answers:
+The link has its own row at the top: Anyone with the link. Its dropdown has three answers:
 
 Setting | What the link does | Account needed
 Can view | Anyone with the link opens the cluster read-only | No
 Can edit | Recipient confirms, signs in, and joins as an editor | Yes
 No link | Revokes every link on the cluster that you can revoke | —
 
-Choosing a setting that already has a link copies it straight away. Copy link at the bottom of the panel copies it again any time, and makes the link the first time. Switching between Can view and Can edit never revokes anything — a link you have already sent someone keeps working, and the row tells you it is still live. Only No link revokes, and it asks first.
+Choosing a setting that already has a link copies it straight away. Copy link, right under it, copies it again any time, and makes the link the first time. Switching between Can view and Can edit never revokes anything — a link you have already sent someone keeps working, and the row tells you it is still live. Only No link revokes, and it asks first.
 
 Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks No link their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them.
 
@@ -3229,7 +3229,7 @@ When someone joins, you see "Name joined your workspace — say hi." with a Mess
 
 Who has access
 
-One list, covering everyone: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, invitations still waiting on a signup, and the link. The right-hand side of each row says what that person can do: a bare Can edit or Can view means this cluster (and its sub-clusters), while workspace members read Workspace · can edit or Workspace · can view.
+One list of the people who can open it: workspace members, people added to this cluster alone, people who reach it through a parent cluster's share, and invitations still waiting on a signup. The link has its own row at the top of the panel. The right-hand side of each row says what that person can do: a bare Can edit or Can view means this cluster (and its sub-clusters), while workspace members read Workspace · can edit or Workspace · can view.
 
 That right-hand side is also the row's one control. For someone on this cluster alone it changes their level, moves them to the Whole workspace (owners and co-owners, for someone not already in it), or removes their access — with an undo. For a workspace member, owners and co-owners can change their level, make them a co-owner or remove them from the workspace; only the owner can make someone else the owner. An invitation still waiting on a signup can be revoked from its row. Someone who has access because a parent was shared with them is listed as via that parent; their access is changed or removed from the parent's Share panel, so their row here only says what they can do. A transfer hands over the plan too: the workspace's cards, files and storage count against the new owner's plan from then on, and they get a notice with their own numbers. The previous owner's webhooks and API service accounts are turned off, and the notice says so. To have someone run it while your plan keeps covering it, make them a co-owner instead — the transfer dialog offers that.
 

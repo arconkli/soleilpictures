@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-25
+updated: 2026-10-27
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -31,11 +31,13 @@ related:
 ---
 
 The **Share** panel answers one question — who can open this cluster? — in the
-order you decide it: the invite box first, then **Who has access**, one list of
-everyone who can open it, ending with **Anyone with the link**. Every row has
-the same shape: who on the left, what they can do on the right — a dropdown
-wherever you can change it. **Copy link** and **Done** sit at the bottom and stay put while the
-rest scrolls; anything more detailed about links is behind **Link settings**.
+order you decide it: the link first, under **Share a link**, then **Invite
+people**, then **Who has access**, one list of the people who can open it.
+Every row has the same shape: who on the left, what they can do on the right —
+a dropdown wherever you can change it. **Copy link** sits right under **Anyone
+with the link**, and anything more detailed about links is behind **Link
+settings**, under it. **Done** sits at the bottom and stays put while
+the rest scrolls.
 
 You open it from **Share** in the board header (a round button on a phone),
 from `⌘K` → "Share this cluster", or by
@@ -44,7 +46,8 @@ these shares the cluster you right-clicked, not the one currently on screen.
 
 ## The link — what it grants
 
-The last row of **Who has access** is the link. Its dropdown has three answers:
+The link has its own row at the top: **Anyone with the link**. Its dropdown has
+three answers:
 
 | Setting | What the link does | Account needed |
 |---|---|---|
@@ -53,8 +56,8 @@ The last row of **Who has access** is the link. Its dropdown has three answers:
 | **No link** | Revokes every link on the cluster that you can revoke | — |
 
 Choosing a setting that already has a link copies it straight away. **Copy
-link** at the bottom of the panel copies it again any time, and makes the link
-the first time. Switching between **Can view** and **Can edit** never revokes
+link**, right under it, copies it again any time, and makes the link the first
+time. Switching between **Can view** and **Can edit** never revokes
 anything — a link you have already sent someone keeps working, and the row
 tells you it is still live. Only **No link** revokes, and it asks first.
 
@@ -221,11 +224,12 @@ account that joins through your link within
 
 ## Who has access
 
-One list, covering everyone: workspace members, people added to this cluster
-alone, people who reach it through a parent cluster's share, invitations still
-waiting on a signup, and the link. The right-hand side of each row says what
-that person can do: a bare **Can edit** or **Can view** means this cluster
-(and its sub-clusters), while workspace members read **Workspace · can edit**
+One list of the people who can open it: workspace members, people added to
+this cluster alone, people who reach it through a parent cluster's share, and
+invitations still waiting on a signup. The link has its own row at the top of
+the panel. The right-hand side of each row says what that person can do: a
+bare **Can edit** or **Can view** means this cluster (and its sub-clusters),
+while workspace members read **Workspace · can edit**
 or **Workspace · can view**.
 
 That right-hand side is also the row's one control. For someone on this cluster

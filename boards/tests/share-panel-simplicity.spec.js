@@ -15,10 +15,11 @@
 //   2. one gold control at a time, one access decision, one people list
 //   3. nothing that used to be reachable stopped being reachable
 //
-// Since 2026-10-17 the panel is invite-first (owner decision): the invite row,
-// then one "Who has access" list whose rows all have the same shape (who on
-// the left, one dropdown on the right) with the link as its last row, then
-// Explore, and a footer with Copy link and Done that never scrolls away.
+// Since 2026-10-17 every row has the same shape (who on the left, one dropdown
+// on the right), and since 2026-10-27 the link leads (the owner's pick A):
+// "Share a link" with the link row, its one button right under it and Link
+// settings, then the invite row, then one "Who has access" list of the
+// people, then Explore, and a footer with Done that never scrolls away.
 //
 // SOURCE-LEVEL, deliberately: App.jsx early-returns to LocalBoardsApp under
 // ?local=1, so the panel never mounts in the harness and LocalBoardsApp has no
@@ -59,7 +60,7 @@ test.describe('the resting panel is one decision and one action', () => {
     expect(s).toMatch(/const goldIf = \(which\) => \(goldControl === which \? ' share-btn-gold' : ''\);/);
     expect(s).toMatch(/inviteEmail\.trim\(\) \? 'invite'\s*:\s*accessMode === 'off' \? null : 'copy';/);
     expect(s).toMatch(/className=\{'share-invite-btn' \+ goldIf\('invite'\)\}/);
-    expect(s).toMatch(/className=\{'share-invite-btn share-foot-btn' \+ goldIf\('copy'\)\}/);
+    expect(s).toMatch(/className=\{'share-invite-btn share-link-copy' \+ goldIf\('copy'\)\}/);
     expect(css()).not.toContain('share-invite-btn-primary');
   });
 
@@ -201,25 +202,56 @@ test.describe('one list, one scroll region', () => {
   });
 
   test('the footer sits outside the scrolling body', () => {
-    // Copy link and Done stay one press away wherever the panel is scrolled.
+    // Done stays one press away wherever the panel is scrolled.
     const s = modal();
     expect(s.indexOf('className="share-foot"')).toBeGreaterThan(s.indexOf('<ExplorePublishSection'));
     expect(css()).toMatch(/\.share-foot \{\s*flex: 0 0 auto;/);
+  });
+
+  test('the link leads, with its one button right under it, and the footer is Done alone', () => {
+    // From 10-18 the link was the last row of Who has access and its button
+    // sat in the footer, and far fewer people left Share with a link. The
+    // block holds the link row, the button and Link settings, and comes
+    // before inviting and the people.
+    const s = modal();
+    const blockAt = s.indexOf('<div className="share-section share-linkblock">');
+    const inviteAt = s.indexOf('<div className="share-section share-invite">');
+    const listAt = s.indexOf('Who has access · ');
+    expect(blockAt, 'the link block is gone').toBeGreaterThan(-1);
+    expect(blockAt).toBeLessThan(inviteAt);
+    expect(inviteAt).toBeLessThan(listAt);
+    const block = s.slice(blockAt, inviteAt);
+    expect(block).toContain('<h3 className="share-section-title">Share a link</h3>');
+    const row = block.indexOf("key: '__link'");
+    const button = block.indexOf('ref={copyLinkRef}');
+    const settings = block.indexOf('<details className="share-link-options"');
+    expect(row).toBeGreaterThan(-1);
+    expect(button).toBeGreaterThan(row);
+    expect(settings).toBeGreaterThan(button);
+    expect(s.match(/key: '__link'/g)?.length, 'one link row').toBe(1);
+    expect(s.match(/onClick=\{takeLink\}/g)?.length, 'one copy button').toBe(1);
+    const foot = s.slice(s.indexOf('<div className="share-foot">'), s.indexOf('</Modal>'));
+    expect(foot).not.toContain('takeLink');
+    expect(foot).toContain('ref={doneRef}');
   });
 });
 
 test.describe('the simplification did not weaken the permissions', () => {
   test('viewers get no link controls at all', () => {
-    // canInvite gates the invite row (and the reward note in it), the link
-    // row, its settings and the footer's Copy link; a viewer cannot mint a
-    // link, and offering one produces an RLS error.
+    // canInvite gates the link block (its row, its Copy link and Link
+    // settings) and the invite row (and the reward note in it); a viewer
+    // cannot mint a link, and offering one produces an RLS error.
     const s = modal();
-    for (const anchor of ['<div className="share-section share-invite">', '<details className="share-link-options"', 'ref={copyLinkRef}']) {
+    for (const anchor of ['<div className="share-section share-linkblock">', '<div className="share-section share-invite">']) {
       const at = s.indexOf(anchor);
       expect(at, `${anchor} missing`).toBeGreaterThan(-1);
-      expect(s.slice(Math.max(0, at - 300), at)).toContain('{canInvite && (');
+      expect(s.slice(Math.max(0, at - 30), at)).toMatch(/\{canInvite && \(\s*$/);
     }
-    expect(s).toMatch(/\{canInvite && personRow\(\{\s*key: '__link'/);
+    const block = s.slice(s.indexOf('<div className="share-section share-linkblock">'),
+      s.indexOf('<div className="share-section share-invite">'));
+    for (const inside of ["key: '__link'", 'ref={copyLinkRef}', '<details className="share-link-options"']) {
+      expect(block, `${inside} left the gated link block`).toContain(inside);
+    }
   });
 
   test('workspace membership stays with the owner and co-owners', () => {
