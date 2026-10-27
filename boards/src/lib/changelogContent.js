@@ -253,6 +253,153 @@ export const CHANGELOG_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
+   "text": "Every file shows itself",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every file shows itself"
+    }
+   ],
+   "id": "2026-10-27-every-file-shows-itself"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Text files are their first page, white like a document's: a .txt, .md, .log or code file, a .csv or .tsv as a table, and .srt or .vtt subtitles as cues. "
+     },
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " reads one with line numbers, up to its first 2 MB, and a table up to 5,000 rows."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A font's card is a specimen of it, and "
+     },
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " gives you a line to type in it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An email (.eml or Outlook .msg) is a letter: who it's from and to, the subject, the date and its first lines. "
+     },
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " shows the message as it was sent, hides its pictures from the web until you ask, and can put its attachments on the board."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A design file's card shows the picture saved inside it, when it has one: a Sketch, Figma, XD, Procreate, Krita, Affinity, InDesign, Illustrator or EPS file. "
+     },
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens on it to zoom."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A zip's card shows what's inside it: its folders first, then its pictures and files. A .7z, .rar or .tar card lists the names inside. "
+     },
+     {
+      "t": "strong",
+      "v": "Quick look",
+      "children": [
+       {
+        "t": "text",
+        "v": "Quick look"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens a zip as a folder to walk through, and "
+     },
+     {
+      "t": "strong",
+      "v": "Unpack into clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Unpack into clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " brings it onto the board. See "
+     },
+     {
+      "t": "link",
+      "v": "files",
+      "href": "/docs/files",
+      "children": [
+       {
+        "t": "text",
+        "v": "files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
    "text": "Tags",
    "inline": [
     {
@@ -716,6 +863,54 @@ export const CHANGELOG_CONTENT = {
      {
       "t": "text",
       "v": "On a phone or a tablet, the swatches in a document's text colour menu are big enough to tap."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone, a choice in a document's menus that has more under it, such as "
+     },
+     {
+      "t": "strong",
+      "v": "Font",
+      "children": [
+       {
+        "t": "text",
+        "v": "Font"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Text colour",
+      "children": [
+       {
+        "t": "text",
+        "v": "Text colour"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Export",
+      "children": [
+       {
+        "t": "text",
+        "v": "Export"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", now opens in the menu's place, with ‹ to go back."
      }
     ]
    ]
