@@ -1,7 +1,7 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import * as perf from '../lib/perf.js';
-import { docDropSize } from '../lib/fileView.js';
+import { fileDropSize } from '../lib/fileView.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
 import { spatialOrder } from '../lib/gridSequence.js';
@@ -4544,8 +4544,8 @@ export function CanvasSurface({
     const dropBoardId = board?.id;
     const id = `file-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const ext = (file.name?.split('.').pop() || '').toLowerCase();
-    // A document lands at its first page's family shape (lib/fileView.js).
-    const { w, h } = docDropSize(ext) || { w: 240, h: 150 };
+    // A document or a text file lands at its family's shape (lib/fileView.js).
+    const { w, h } = fileDropSize(ext, file.type) || { w: 240, h: 150 };
     const placed = placeDropRect(cx, cy, w, h, rect);
 
     if (useLocalImages) {

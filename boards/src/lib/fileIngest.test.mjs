@@ -290,7 +290,7 @@ test('a JPEG, a short read or nothing at all is not animated', () => {
   assert.equal(isAnimatedImageBytes(null), false);
 });
 
-test("a document lands at its family's size, any other file at a file card's", () => {
+test("a document or a text file lands at its family's size, any other file at a file card's", () => {
   const c = (name, type = '') => classifyDropFile(f(name, type, 1000));
   assert.deepEqual([c('Pitch.pptx').w, c('Pitch.pptx').h], [400, 225]);
   assert.deepEqual([c('Festival.key').w, c('Festival.key').h], [400, 225]);
@@ -298,5 +298,9 @@ test("a document lands at its family's size, any other file at a file card's", (
   const docx = c('Treatment.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   assert.deepEqual([docx.w, docx.h], [300, 388]);
   assert.deepEqual([c('selects.zip').w, c('selects.zip').h], [240, 150]);
+  assert.deepEqual([c('Shot notes.md').w, c('Shot notes.md').h], [300, 388]);
+  assert.deepEqual([c('Dailies log.txt', 'text/plain').w, c('Dailies log.txt', 'text/plain').h], [300, 388]);
+  assert.deepEqual([c('Call times.csv', 'text/csv').w, c('Call times.csv', 'text/csv').h], [400, 236]);
+  assert.deepEqual([c('README', 'text/plain').w, c('README', 'text/plain').h], [300, 388]);
   assert.equal(c('Pitch.pptx').route, 'file');
 });

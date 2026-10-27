@@ -12,7 +12,7 @@
 // separately (they're async); the fallback dims here just seed the layout so a
 // batch can be arranged before uploads resolve, then corrected on the card.
 
-import { viewKindOfKey, drawsNowhere, VIEW_MAX_BYTES, docDropSize, extOfKey } from './fileView.js';
+import { viewKindOfKey, drawsNowhere, VIEW_MAX_BYTES, fileDropSize, extOfKey } from './fileView.js';
 
 // Inline-media thresholds. Up to these, a video, audio file or PDF uploads in
 // one request with its poster / waveform / page-1 image; over them, video and
@@ -141,9 +141,9 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
       : { route: 'largeMedia', kind: 'audio', ...FALLBACK_DIMS.audio };
   }
   // PDFs over the inline cap + every other type → downloadable file card. A
-  // document lands at a page's or a slide's size, the shape its first page
-  // will give it (lib/fileView.js docDropSize).
-  return { route: 'file', kind: 'file', ...(docDropSize(extOfKey(name)) || FALLBACK_DIMS.file) };
+  // document or a text file lands at a page's, a slide's or a table's size,
+  // the shape its first page will give it (lib/fileView.js fileDropSize).
+  return { route: 'file', kind: 'file', ...(fileDropSize(extOfKey(name), type) || FALLBACK_DIMS.file) };
 }
 
 // The one sentence for files a drop skipped on purpose, shared by the canvas
