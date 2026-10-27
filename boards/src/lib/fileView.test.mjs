@@ -4,6 +4,7 @@ import {
   viewKindOfKey, viewKeys, isViewKey, isViewPdfKey, drawsNowhere, viewKeyOfCard, turnsIntoPicture, VIEW_EDGE,
   VIEW_SM_EDGE, RAW_EXTS, PSD_EXTS, DOC_EXTS, DOC_MAX_BYTES, VIEW_MAX_BYTES, DOC_MAX_PAGES, docFamily, docDropSize,
   DOC_DROP_PAGE, DOC_DROP_SLIDE, extOfKey, fileFamily, fileDropSize, TABLE_DROP, FONT_DROP, DRAWN_FAMILIES, isDrawnFamily,
+  DESIGN_DROP, VIEW_KINDS, isCardViewKind,
 } from './fileView.js';
 import { mediaKindOfKey, isCopyKey } from './playCopy.js';
 
@@ -14,7 +15,7 @@ test('the formats some browser can\'t draw get views; the ones every browser dra
     'arw', 'CR3', 'cr2', 'nef', 'raf', 'orf', 'rw2', 'dng', 'pef', 'srw', 'x3f', 'psd', 'psb']) {
     assert.equal(viewKindOfKey(`${WS}/a.${ext}`), 'image', ext);
   }
-  for (const ext of ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg', 'mov', 'pdf', 'txt', 'csv', 'raw', 'ai']) {
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'svg', 'mov', 'pdf', 'txt', 'csv', 'raw']) {
     assert.equal(viewKindOfKey(`${WS}/a.${ext}`), null, ext);
   }
   assert.equal(viewKindOfKey(`${WS}/noext`), null);
@@ -192,4 +193,20 @@ test('a text file drops as a page, a table as a wide page, a font as a specimen,
   assert.deepEqual(fileDropSize('xlsx'), DOC_DROP_PAGE);
   assert.equal(fileDropSize('zip'), null);
   assert.equal(fileDropSize('bin', 'application/octet-stream'), null);
+});
+
+test('design files are their own view kind, drawn by no browser, and stay file cards with a picture', () => {
+  for (const ext of ['sketch', 'fig', 'xd', 'procreate', 'kra', 'ora', 'afdesign', 'afphoto', 'afpub', 'indd', 'ai', 'eps']) {
+    assert.equal(viewKindOfKey(`u/w/file.${ext}`), 'design', ext);
+    assert.equal(drawsNowhere(`u/w/file.${ext}`), true, ext);
+    assert.equal(fileFamily(ext, 'image/x-eps'), 'design', ext);
+    assert.deepEqual(fileDropSize(ext), DESIGN_DROP, ext);
+  }
+  assert.deepEqual(DESIGN_DROP, { w: 320, h: 240 });
+  assert.deepEqual(VIEW_KINDS, ['image', 'doc', 'design']);
+  assert.equal(isCardViewKind('design'), true);
+  assert.equal(isCardViewKind('image'), false);
+  const card = { kind: 'file', fileSrc: 'r2:u/w/Title card v3.sketch' };
+  assert.equal(viewKeyOfCard(card), 'u/w/Title card v3.sketch');
+  assert.equal(turnsIntoPicture(card), false);
 });

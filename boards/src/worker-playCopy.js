@@ -39,7 +39,7 @@ import { verifyUser } from './lib/workerAuth.js';
 import { userSelect } from './lib/apiAuth.js';
 import { scoutRpc, scoutSelect, scoutDelete } from './lib/scoutDb.js';
 import { copyKeys, copyKeyFor, mediaKindOfKey, extOfKey, isCopyKey } from './lib/playCopy.js';
-import { viewKeys, viewKindOfKey, isViewKey } from './lib/fileView.js';
+import { viewKeys, viewKindOfKey, isViewKey, isViewKind } from './lib/fileView.js';
 import { makeRateLimiter } from './lib/webImageSave.js';
 import { answeredWith, jobFailed } from './lib/workerErrors.js';
 
@@ -96,8 +96,8 @@ function workOf(key) {
   return view ? { kind: view, queue: QUEUES.view } : null;
 }
 
-// Views: a photo's, or a document's first page and PDF.
-const isView = (kind) => kind === 'image' || kind === 'doc';
+// Views: a photo's, a document's first page and PDF, or a design file's picture.
+const isView = isViewKind;
 
 // What a job made that must be in the bucket for it to count as done.
 const madeKey = (key, kind) => (isView(kind) ? viewKeys(key).view : copyKeyFor(key, kind));

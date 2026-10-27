@@ -13,6 +13,7 @@ import { hasZscale, killAll, killStrays } from './ffmpeg.js';
 import { processJob } from './job.js';
 import { processView } from './view.js';
 import { scrubError } from './args.js';
+import { isViewKind } from '../../boards/src/lib/fileView.js';
 
 const PORT = Number(process.env.PORT || 8080);
 const SECRET = process.env.MEDIA_BOX_SECRET || '';
@@ -70,7 +71,7 @@ async function loop() {
         console.log(`[media] job ${job.key} (${job.kind}, attempt ${job.attempts})`);
         // A job starts with nothing of the unprivileged user's running.
         await killStrays().catch(() => {});
-        if (job.kind === 'image' || job.kind === 'doc') await processView(job);
+        if (isViewKind(job.kind)) await processView(job);
         else await processJob(job, { zscale });
         lastWork = Date.now();
         continue;

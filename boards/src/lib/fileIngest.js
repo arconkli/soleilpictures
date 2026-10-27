@@ -12,7 +12,7 @@
 // separately (they're async); the fallback dims here just seed the layout so a
 // batch can be arranged before uploads resolve, then corrected on the card.
 
-import { viewKindOfKey, drawsNowhere, VIEW_MAX_BYTES, fileDropSize, extOfKey } from './fileView.js';
+import { viewKindOfKey, drawsNowhere, VIEW_MAX_BYTES, fileDropSize, extOfKey, fileFamily } from './fileView.js';
 
 // Inline-media thresholds. Up to these, a video, audio file or PDF uploads in
 // one request with its poster / waveform / page-1 image; over them, video and
@@ -114,7 +114,9 @@ export function classifyDropFile(file, { canAttemptFiles = true } = {}) {
   const isImage = (type.startsWith('image/')
     || (viewKindOfKey(name) === 'image'
         && (!type || type === 'application/octet-stream' || /photoshop|psd/i.test(type))))
-    && !(drawsNowhere(name) && size > VIEW_MAX_BYTES);
+    && !(drawsNowhere(name) && size > VIEW_MAX_BYTES)
+    // An .eps (image/x-eps) or an .ora (image/openraster) is a design file.
+    && fileFamily(extOfKey(name)) !== 'design';
   // The same for video: a system that has nothing registered for .mov or
   // .mkv hands over no type (or the generic one), and the clip became a file
   // card with no player. Not .ts or .mts — those are TypeScript as often as
