@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { viewKeyOfCard, turnsIntoPicture } from '../lib/fileView.js';
+import { viewKeyOfCard, turnsIntoPicture, viewKindOfKey } from '../lib/fileView.js';
 import { getMeta } from '../lib/imageMeta.js';
 
 // Every photo shows in every browser (lib/fileView.js). For a writer on the
@@ -56,8 +56,12 @@ export function useFileViewBackfill({
     const targets = (cards || []).filter((c) => {
       const key = viewKeyOfCard(c);
       // A file card holding a photo turns once its file has a picture, so
-      // it's looked at even when the meta has the picture already.
-      return key && !settled.current.has(key) && (turnsIntoPicture(c) || !getMeta(key)?.previewKey);
+      // it's looked at even when the meta has the picture already. A
+      // document's card is looked at until it knows its pages, so a page made
+      // while no editor had the board open still gives the card its shape and
+      // count.
+      return key && !settled.current.has(key)
+        && (turnsIntoPicture(c) || !getMeta(key)?.previewKey || (viewKindOfKey(key) === 'doc' && !(c.pageCount > 0)));
     });
     if (!targets.length) return;
     const scope = scopeRef.current;

@@ -2,7 +2,7 @@ import { supabase } from './supabase.js';
 import { getMeta, setMetaLocal } from './imageMeta.js';
 import { viewKindOfKey, viewKeyOfCard } from './fileView.js';
 import {
-  requestFileViews, viewMeta, viewCardPatch, viewFileCardPatch, viewSize, VIEW_COLS, REQUEST_MAX_KEYS,
+  requestFileViews, viewMeta, viewCardPatch, viewFileCardPatch, noPageCardPatch, viewSize, VIEW_COLS, REQUEST_MAX_KEYS,
 } from './fileViewClient.js';
 import { WAITING_STATES } from './playCopyClient.js';
 
@@ -176,7 +176,9 @@ function metaSize(key) {
 // finished view goes into the meta and onto every card that holds its file as
 // the board is now (`cardsNow`, `write`): an image card still at the drop's
 // 4:3 takes the photo's shape, a file card holding a photo turns into its
-// picture card, and a document's stays as it is. A file never asked about is asked
+// picture card, and a document's card takes its page's shape while it's still
+// the size it landed at, learns its number of pages, and goes back to a file
+// card's size when no page will come. A file never asked about is asked
 // about, `perPass` at most. `settled` and `asked` are the hook's, kept across
 // passes. True while views on this board are still to come, so the hook
 // looks again.
@@ -192,8 +194,16 @@ export async function viewPass({ targets, cardsNow, write, settled, asked, perPa
     const size = row ? viewSize(row) : metaSize(key);
     for (const c of cardsNow() || []) {
       const patch = c.kind === 'image' && c.src === ref ? (row ? viewCardPatch(c, row) : {})
-        : c.kind === 'file' && c.fileSrc === ref ? viewFileCardPatch(c, size)
+        : c.kind === 'file' && c.fileSrc === ref ? viewFileCardPatch(c, size, row?.page_count || 0)
           : {};
+      if (Object.keys(patch).length) write(c.id, patch);
+    }
+  };
+  // A document that won't get a page: its cards go back to a file card's size.
+  const writeNoPage = (key) => {
+    const ref = `r2:${key}`;
+    for (const c of cardsNow() || []) {
+      const patch = c.kind === 'file' && c.fileSrc === ref ? noPageCardPatch(c) : {};
       if (Object.keys(patch).length) write(c.id, patch);
     }
   };
@@ -207,6 +217,8 @@ export async function viewPass({ targets, cardsNow, write, settled, asked, perPa
       waiting = true;
     } else if (row) {
       if (row.reason === 'has_preview' && await refreshMeta(key)) writeCards(key, null);
+      // A document that won't get a page goes back to a file card's size.
+      if (row.state === 'failed' || (row.state === 'skip' && row.reason !== 'has_preview')) writeNoPage(key);
       settled.add(key);
     } else if (!asked.has(key)) {
       toAsk.push(key);

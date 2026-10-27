@@ -6,7 +6,7 @@
 // records), so node can test it. Never throws: an answer it couldn't get is
 // an empty one.
 
-import { viewKindOfKey, turnsIntoPicture } from './fileView.js';
+import { viewKindOfKey, turnsIntoPicture, docDropSize, extOfKey, DOC_DROP_PAGE, DOC_DROP_SLIDE } from './fileView.js';
 import { askConverter, REQUEST_MAX_KEYS } from './playCopyClient.js';
 
 // { [key]: state } for the originals among `keys` that get views: 'queued' |
@@ -18,7 +18,7 @@ export function requestFileViews(keys, opts) {
 }
 
 // The file_views columns the app reads.
-export const VIEW_COLS = 'storage_path,state,reason,view_path,view_w,view_h,view_sm_path,view_sm_w,view_sm_h,width,height';
+export const VIEW_COLS = 'storage_path,state,reason,view_path,view_w,view_h,view_sm_path,view_sm_w,view_sm_h,width,height,page_count';
 
 function num(v) {
   const n = Number(v);
@@ -47,6 +47,7 @@ export function viewMeta(row) {
 // is 80 to 1200.
 const PLACEHOLDER_RATIO = 240 / 320;
 const FILE_CARD_W = 240;
+const FILE_CARD_H = 150;
 const MIN_SIDE = 80;
 const MAX_SIDE = 1200;
 
@@ -82,6 +83,35 @@ export function viewCardPatch(card, row) {
   return next;
 }
 
+// The document a file card holds (its key), or ''.
+function docKeyOf(card) {
+  if (!card || card.kind !== 'file' || card.pending || typeof card.fileSrc !== 'string' || !card.fileSrc.startsWith('r2:')) return '';
+  const key = card.fileSrc.slice(3);
+  return viewKindOfKey(key) === 'doc' ? key : '';
+}
+const atSize = (card, s) => Math.abs((Number(card.w) || 0) - s.w) <= 1 && Math.abs((Number(card.h) || 0) - s.h) <= 1;
+
+// What a document's first page writes onto its file card: the PDF's number
+// of pages (`pages`), which its strip shows, and, while the card is still the
+// size it landed at (fileView.js docDropSize), the page's shape: 300 wide
+// standing up, as a PDF card, 400 lying down, as a slide. A card placed
+// before pages showed (a file card's 240×150) or resized keeps its size, and
+// the page fills it from the top.
+function docCardPatch(card, size, pages) {
+  const key = docKeyOf(card);
+  if (!key) return {};
+  const patch = {};
+  if (pages > 0 && card.pageCount !== pages) patch.pageCount = pages;
+  const drop = docDropSize(extOfKey(key));
+  const w = num(size?.w);
+  const h = num(size?.h);
+  if (drop && atSize(card, drop) && w && h) {
+    const next = shapeAt(w >= h ? DOC_DROP_SLIDE.w : DOC_DROP_PAGE.w, w, h);
+    if (Math.abs(next.w - card.w) > 2 || Math.abs(next.h - card.h) > 2) Object.assign(patch, next);
+  }
+  return patch;
+}
+
 // What a photo's picture, once there is one, writes onto a file card holding
 // the photo (a raw or a .psd dropped before views, a photo some system gave no
 // type): the card turns into the picture card a drop makes now. The same file
@@ -89,13 +119,23 @@ export function viewCardPatch(card, row) {
 // and keeps its name, type, size and title. `fileSrc` is cleared, so nothing
 // that looks for a file card's file finds this one once the picture's file is
 // replaced. {} for a card that stays a file card (fileView.js
-// turnsIntoPicture): a document's always does, and shows its first page.
-export function viewFileCardPatch(card, size) {
+// turnsIntoPicture), except a document's, which takes its first page's shape
+// while it is still at its drop size, and its page count (docCardPatch).
+export function viewFileCardPatch(card, size, pages = 0) {
+  if (docKeyOf(card)) return docCardPatch(card, size, pages);
   if (!turnsIntoPicture(card)) return {};
   const w = num(size?.w);
   const h = num(size?.h);
   if (!w || !h) return {};
   return { kind: 'image', src: card.fileSrc, ...shapeAt(card.w > 0 ? card.w : FILE_CARD_W, w, h), fileSrc: null };
+}
+
+// A document that won't get a first page (a password, damage, too big): a
+// card still the size it landed at goes back to a file card's.
+export function noPageCardPatch(card) {
+  const key = docKeyOf(card);
+  const drop = key ? docDropSize(extOfKey(key)) : null;
+  return drop && atSize(card, drop) ? { w: FILE_CARD_W, h: FILE_CARD_H } : {};
 }
 
 export { REQUEST_MAX_KEYS };
