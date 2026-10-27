@@ -44,6 +44,7 @@ const KIND_LABELS = {
   save: 'Save failed',
   cron: 'Cron job',
   pg_net: 'Server call',
+  db_restart: 'Database restart',
   error_watch: 'Error watch',
   csp_violation: 'CSP report',
   perf: 'Slow frames',
