@@ -12,9 +12,9 @@
 // (anywhere that listens to ENTITY_REF_MIME) applies the tag via the
 // existing entity-ref drop handlers.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Tag as TagIcon, MoreHorizontal } from '../lib/icons.js';
-import { TagActionSheet, prefersSheet } from './TagActionSheet.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { Icon } from './Icon.jsx';
 import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -65,6 +65,15 @@ function findSimilarTags(draft, existingTags, max = 4) {
   }
   out.sort((a, b) => b.score - a.score);
   return out.slice(0, max).map(x => x.tag);
+}
+
+// A row's actions under a finger (TagActionSheet), loaded the first time one
+// opens: the sidebar loads with every page, phones alone need the sheet.
+const TagActionSheet = lazyWithReload(() => import('./TagActionSheet.jsx').then(m => ({ default: m.TagActionSheet })));
+
+// True under a finger (no hover): the sheet, not the pointer menu.
+function prefersSheet() {
+  try { return window.matchMedia('(hover: none)').matches; } catch (_) { return false; }
 }
 
 export function SidebarTags({
@@ -606,30 +615,36 @@ export function SidebarTags({
       )}
 
       {sheetFor && (
-        <TagActionSheet
-          title={sheetFor.name}
-          sub={[entityTypeLabel(sheetFor.entity_type), counts.get(sheetFor.id) ? `${counts.get(sheetFor.id)} ${counts.get(sheetFor.id) === 1 ? 'thing' : 'things'}` : null].filter(Boolean).join(' · ') || null}
-          onClose={() => setSheetFor(null)}
-          actions={[
-            { id: 'rename', label: 'Rename', run: () => promptRename(sheetFor) },
-            { id: 'recolor', label: 'Recolor', run: () => promptRecolor(sheetFor) },
-            { id: 'merge', label: 'Merge into…', run: () => startMerge(sheetFor) },
-            { id: 'type', label: 'Type', value: entityTypeLabel(sheetFor.entity_type) || 'None', run: () => setTypeSheetFor(sheetFor) },
-            { id: 'delete', label: 'Delete tag', danger: true, run: () => promptDelete(sheetFor) },
-          ]}
-        />
+        <Suspense fallback={null}>
+          <TagActionSheet
+            title={sheetFor.name}
+            lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(sheetFor) }} />}
+            sub={[entityTypeLabel(sheetFor.entity_type), counts.get(sheetFor.id) ? `${counts.get(sheetFor.id)} ${counts.get(sheetFor.id) === 1 ? 'thing' : 'things'}` : null].filter(Boolean).join(' · ') || null}
+            onClose={() => setSheetFor(null)}
+            actions={[
+              { id: 'rename', label: 'Rename', run: () => promptRename(sheetFor) },
+              { id: 'recolor', label: 'Recolor', swatch: resolveTagColor(sheetFor), more: true, run: () => promptRecolor(sheetFor) },
+              { id: 'merge', label: 'Merge into…', run: () => startMerge(sheetFor) },
+              { id: 'type', label: 'Type', value: entityTypeLabel(sheetFor.entity_type) || 'None', more: true, run: () => setTypeSheetFor(sheetFor) },
+              { id: 'delete', label: 'Delete tag', danger: true, run: () => promptDelete(sheetFor) },
+            ]}
+          />
+        </Suspense>
       )}
       {typeSheetFor && (
-        <TagActionSheet
-          title={typeSheetFor.name}
-          sub="What kind of thing is it?"
-          onClose={() => setTypeSheetFor(null)}
-          actions={ENTITY_TYPES.map(t => ({
-            id: t.value, label: t.label,
-            value: typeSheetFor.entity_type === t.value ? 'Current' : null,
-            run: () => setType(typeSheetFor, t.value),
-          }))}
-        />
+        <Suspense fallback={null}>
+          <TagActionSheet
+            title={typeSheetFor.name}
+            lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(typeSheetFor) }} />}
+            sub="What kind of thing is it?"
+            onClose={() => setTypeSheetFor(null)}
+            actions={ENTITY_TYPES.map(t => ({
+              id: t.value, label: t.label,
+              value: typeSheetFor.entity_type === t.value ? 'Current' : null,
+              run: () => setType(typeSheetFor, t.value),
+            }))}
+          />
+        </Suspense>
       )}
       {menuFor && (
         <div className="sb-tag-menu"

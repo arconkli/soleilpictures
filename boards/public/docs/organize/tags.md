@@ -25,8 +25,8 @@ everything that does not fit a hierarchy.
   select the words, right-click and choose **Tag selection…**; a name the app
   has noticed can also become a tag right where it appears.
 
-An item can carry several tags. A tag is **not a location**. Tagging moves
-nothing.
+An item can carry several tags. A card's show as chips just under it (four,
+then a +N for the rest). A tag is **not a location**. Tagging moves nothing.
 
 ## Lighting a tag up on a cluster
 

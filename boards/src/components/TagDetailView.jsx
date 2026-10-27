@@ -1326,20 +1326,37 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         )}
       </div>
 
-      {itemSheet && (
-        <TagActionSheet
-          title={itemSheet.title || 'Item'}
-          sub={`${tag.name}${itemSheet.source && itemSheet.source !== 'user' ? ' · added automatically' : ''}`}
-          onClose={() => setItemSheet(null)}
-          actions={[
-            { id: 'open', label: 'Open', run: () => openItem(itemSheet) },
-            itemSheet.source && itemSheet.source !== 'user'
-              ? { id: 'confirm', label: 'Confirm tag', run: () => confirmTag(itemSheet) } : null,
-            itemSheet.source
-              ? { id: 'remove', label: 'Remove tag', danger: true, run: () => removeTag(itemSheet) } : null,
-          ]}
-        />
-      )}
+      {itemSheet && (() => {
+        const auto = !!itemSheet.source && itemSheet.source !== 'user';
+        const r = rows.find(x => isRowFor(x, itemSheet.kind, itemSheet)) || null;
+        const visual = r && (r.kind === 'image' || r.kind === 'palette');
+        const pic = visual ? (getKind(r.kind)?.previewMini?.(r) || null) : null;
+        return (
+          <TagActionSheet
+            title={itemSheet.title || 'Item'}
+            lead={(
+              <span className={`tag-sheet-thumb${pic ? ' has-pic' : ''}`}>
+                {pic || <Icon as={kindIcon(itemSheet.kind)} size={18} />}
+              </span>
+            )}
+            sub={(
+              <>
+                <span className={`card-tag-chip tag-sheet-chip${auto ? ' is-auto' : ''}`}
+                      style={{ '--tag-c': resolveTagColor(tag) }}>
+                  <span className="card-tag-chip-dot" />
+                  <span className="card-tag-chip-name">{tag.name}</span>
+                </span>
+                {auto && 'added automatically'}
+              </>
+            )}
+            onClose={() => setItemSheet(null)}
+            actions={[
+              auto ? { id: 'confirm', label: 'Confirm tag', run: () => confirmTag(itemSheet) } : null,
+              itemSheet.source ? { id: 'remove', label: 'Remove tag', run: () => removeTag(itemSheet) } : null,
+            ]}
+          />
+        );
+      })()}
       {menu && (
         <div className="tag-detail-menu" role="menu"
              ref={menuRef}

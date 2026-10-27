@@ -235,4 +235,8 @@ export {
   LineSegment,
   // The sketch pad's layers in the toolbar look (components/SketchPadOverlay.jsx).
   Stack,
+  // A tag's actions on a phone (components/TagActionSheet.jsx).
+  Drop,
+  GitMerge,
+  Shapes,
 } from '@phosphor-icons/react';

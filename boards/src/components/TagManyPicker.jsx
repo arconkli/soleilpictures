@@ -32,7 +32,8 @@ export function TagManyPicker({
   const [hover, setHover] = useState(0);
   const ref = useRef(null);
   const inputRef = useRef(null);
-  useDismissOnOutside(ref, open, onClose);
+  // The selection bar's Tag closes it itself, on its click.
+  useDismissOnOutside(ref, open, onClose, { ignore: '[data-tag-many-trigger]' });
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
   const q = query.trim().toLowerCase();
@@ -94,8 +95,8 @@ export function TagManyPicker({
               aria-pressed={st === 'all' ? 'true' : st === 'some' ? 'mixed' : 'false'}
               onMouseEnter={() => setHover(idx)} onClick={() => act(row)}>
         <span className={`tag-many-cb is-${st}`} aria-hidden="true">
-          {st === 'all' && <Icon as={Check} size={11} />}
-          {st === 'some' && <Icon as={Minus} size={11} />}
+          {st === 'all' && <Icon as={Check} size={11} weight="bold" />}
+          {st === 'some' && <Icon as={Minus} size={11} weight="bold" />}
         </span>
         <span className="tag-many-dot" style={{ background: resolveTagColor(t) }} />
         <span className="tag-many-name">{t.name}</span>

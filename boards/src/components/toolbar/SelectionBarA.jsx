@@ -42,7 +42,7 @@ function Rows({ rows, icons = null, onPick }) {
     : <MenuItem key={r.id} icon={icons?.[r.id]} label={r.label} disabled={!!r.disabled} onSelect={() => onPick(r.id)} />));
 }
 
-function SelectionBar({ count, items, api, canDelete }) {
+function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
   const barRef = useRef(null);
   useIslandFit(barRef, { on: true, max: 0 });
   useLiftOverTob(barRef);
@@ -85,7 +85,7 @@ function SelectionBar({ count, items, api, canDelete }) {
         <Group>
           {group && <Btn icon={BoundingBox} text="Group" keys="Mod+G" onClick={() => run('group')} />}
           {tagMany && (
-            <Btn icon={Tag} text="Tag"
+            <Btn icon={Tag} text="Tag" aria-haspopup="dialog" aria-expanded={tagOpen} data-tag-many-trigger=""
                  onClick={(e) => find(api.items(), 'tag-many')?.run?.(e.currentTarget.getBoundingClientRect())} />
           )}
           {cluster && <Btn icon={FolderSimplePlus} label={cluster.label} onClick={() => run('new-cluster-from')} />}

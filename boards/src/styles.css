@@ -11378,15 +11378,17 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 
 /* ──────────────────────────── Card tag chips ───────────────────────────── */
 
+/* Under the card, 6px below it, as the card's sibling (CanvasSurface sets
+   left, top and width): inside .card, which clips, it never showed. It
+   follows the card's dim, drag and fade. */
 .card-tags-strip {
-  position: absolute;
-  bottom: -22px;
-  left: 4px;
-  right: 4px;
   display: flex; flex-wrap: wrap; gap: 4px;
   pointer-events: none;
-  z-index: 2;
+  transition: opacity var(--dur-base) var(--ease), filter var(--dur-base) var(--ease);
 }
+.card-tags-strip.is-spot-dim { opacity: .16; filter: grayscale(.85); }
+.card-tags-strip.is-dragging .card-tag-chip { pointer-events: none; }
+.card-tags-strip.is-dragging.is-fading-for-drop { opacity: .35; }
 .card-tag-chip {
   display: inline-flex; align-items: center; gap: 5px;
   /* Tinted in the tag's own color over an opaque surface base so it stays
@@ -11414,28 +11416,50 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
 }
 
-/* Board-level tag strip — sits at the top-left of the canvas
-   surface so the user can see (and right-click to manage) the
-   tags applied to the entire board, not just individual cards. */
-/* A tag's or a tagged item's actions on a phone (direction A). */
+/* A tag's or a tagged item's actions on a phone (direction A), as the
+   mockup draws them: a head over a hairline (a dot or a picture, the name,
+   what it is), rows of icon + words + what the row holds now, the red row
+   under a rule, and Cancel as a button of its own. */
 .sheet-root.tag-sheet { align-items: center; }
 .sheet-root.tag-sheet .sheet-panel { width: 100%; max-width: 480px; }
-.tag-sheet-head { padding: 2px 6px 12px; }
-.tag-sheet-title { font: 600 16px/1.3 var(--font-sans); color: var(--ink-0); }
-.tag-sheet-sub { margin-top: 3px; font: 400 13px/1.35 var(--font-sans); color: var(--ink-2); }
-.tag-sheet-actions { display: flex; flex-direction: column; border-top: 1px solid var(--line-1); }
-.tag-sheet-actions button {
+/* The head's hairline runs edge to edge; the rows and Cancel set their own insets. */
+.sheet-root.tag-sheet .sheet-body { padding: 0 0 16px; }
+.tag-sheet-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 20px 14px; border-bottom: 1px solid var(--line-1);
+}
+.tag-sheet-titles { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.tag-sheet-title { font: 600 17px/1.15 var(--font-sans); color: var(--ink-0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-sheet-sub { display: flex; align-items: center; gap: 6px; font: 500 13px/1.2 var(--font-sans); color: var(--ink-2); }
+.tag-sheet-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.tag-sheet-thumb {
+  width: 44px; height: 44px; border-radius: 8px; flex: none; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-3); color: var(--ink-2);
+}
+.tag-sheet-thumb.has-pic > * { width: 100%; height: 100%; }
+.tag-sheet-chip { font-size: 11px; padding: 2px 8px; max-width: 160px; }
+.tag-sheet-actions { display: flex; flex-direction: column; padding: 6px 0; }
+.tag-sheet-act {
   appearance: none; border: 0; background: transparent;
+  width: 100%; min-height: 52px; padding: 0 20px;
   display: flex; align-items: center; gap: 14px;
-  min-height: 48px; padding: 0 6px;
-  color: var(--ink-0); font: 500 15px/1.2 var(--font-sans); text-align: left;
-  border-bottom: 1px solid var(--line-1);
+  color: var(--ink-0); font: 500 16px/1.2 var(--font-sans); text-align: left;
   cursor: pointer;
 }
-.tag-sheet-actions button.is-danger { color: var(--danger); }
-.tag-sheet-actions .tag-sheet-cancel { justify-content: center; color: var(--ink-2); border-bottom: 0; }
-.tag-sheet-label { flex: 1; }
-.tag-sheet-value { color: var(--ink-2); font-size: 14px; }
+.tag-sheet-act:active { background: var(--bg-hov); }
+.tag-sheet-icon { color: var(--ink-1); flex: none; }
+.tag-sheet-act.is-danger, .tag-sheet-act.is-danger .tag-sheet-icon { color: var(--danger); }
+.tag-sheet-label { flex: 1; min-width: 0; }
+.tag-sheet-value { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 14px; }
+.tag-sheet-swatch { width: 16px; height: 16px; border-radius: 50%; }
+.tag-sheet-rule { height: 1px; background: var(--line-1); margin: 6px 20px; }
+.tag-sheet-foot { padding: 6px 16px 0; }
+.tag-sheet-cancel {
+  appearance: none; border: 0; width: 100%; height: 48px; border-radius: 12px;
+  background: var(--bg-3); color: var(--ink-0); font: 600 15px/1 var(--font-sans);
+  cursor: pointer;
+}
 /* A long press on a tag page item opens its sheet, not the browser's callout. */
 .tag-detail-body [data-tag-item] { -webkit-touch-callout: none; }
 /* The row's ⋯: always there under a finger, on hover or focus otherwise. */
@@ -11473,6 +11497,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
   color: var(--ink-0); font: 500 13px/1 var(--font-sans);
 }
+/* The field wears the ring; the input inside it doesn't wear a second. */
+.tag-many-field input:focus-visible { box-shadow: none; }
 .tag-many-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .tag-many-list { padding: 0 6px 6px; max-height: 340px; overflow-y: auto; }
 .tag-many-eb {
@@ -11493,7 +11519,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--line-3);
   display: inline-flex; align-items: center; justify-content: center; flex: none;
 }
-.tag-many-cb.is-all { background: var(--ink-1); border-color: var(--ink-1); color: var(--bg-0); }
+.tag-many-cb.is-all { background: var(--ink-0); border-color: var(--ink-0); color: var(--bg-0); }
 .tag-many-cb.is-some { border-color: var(--ink-2); color: var(--ink-1); }
 .tag-many-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .tag-many-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -11539,6 +11565,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   z-index: 6;
 }
 .tag-spotlight-eye { color: var(--ink-2); flex: none; }
+/* One slot at the top centre: with the Studio bar or a tool's hint in it,
+   the pill sits below them instead of under them. */
+.canvas-wrap:has(> .cnv-studio-bar, > .cnv-hint) > .tag-spotlight-pill { top: 60px; }
 .tag-spotlight-chip { font-size: 11px; padding: 3px 9px; cursor: pointer; }
 .tag-spotlight-chip .card-tag-chip-dot { width: 8px; height: 8px; }
 .tag-spotlight-count { font-size: 12px; color: var(--ink-2); }
@@ -11594,6 +11623,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .group-label-tags .card-tag-chip { cursor: pointer; }
 
+/* Board-level tag strip — sits at the top-left of the canvas
+   surface so the user can see (and right-click to manage) the
+   tags applied to the entire board, not just individual cards. */
 .board-tags-strip {
   position: absolute;
   top: 12px; left: 16px;

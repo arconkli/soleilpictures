@@ -30084,7 +30084,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "An item can carry several tags. A tag is "
+     "v": "An item can carry several tags. A card's show as chips just under it (four, then a +N for the rest). A tag is "
     },
     {
      "t": "strong",

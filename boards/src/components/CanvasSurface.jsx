@@ -9169,7 +9169,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .card-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -10400,7 +10400,8 @@ export function CanvasSurface({
   const [tagMany, setTagMany] = useState(null); // { anchorRect, cardIds }
   const openTagMany = (anchorRect) => {
     const ids = [...effectiveSelectedIds].filter(id => cardById[id] && cardById[id].kind !== 'board');
-    if (ids.length) setTagMany({ anchorRect, cardIds: ids });
+    // The bar's Tag opens and closes it (the picker leaves that press to it).
+    if (ids.length) setTagMany(prev => (prev ? null : { anchorRect, cardIds: ids }));
   };
   const tagManyCounts = useMemo(() => {
     const m = new Map();
@@ -11534,8 +11535,69 @@ export function CanvasSurface({
       ? (tagSuggest.byCard.get(c.id) || []).find(sg => wsTagById.has(sg.tagId) && !cardTags.some(t => t.id === sg.tagId)) || null
       : null;
     const suggTag = cardSugg ? wsTagById.get(cardSugg.tagId) : null;
-    return (
-      <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
+    // The chips hang under the card, beside it in the DOM: .card clips what
+    // it holds (overflow: hidden, contain: paint), so a strip inside it
+    // never showed. Turned with the card, about the card's centre.
+    const stripStyle = { position: 'absolute', left: x, top: y + h + 6, width: Math.max(w, 180) };
+    if (rotation) {
+      stripStyle.transform = `rotate(${rotation}deg)`;
+      stripStyle.transformOrigin = `${w / 2}px ${-(h / 2 + 6)}px`;
+    }
+    const tagStrip = (cardTags.length > 0 || suggTag) ? (
+      <div className={`card-tags-strip${spotMatched && !spotMatched.has(c.id) ? ' is-spot-dim' : ''}${inDrag ? ' is-dragging' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`}
+           data-card-id={c.id} style={stripStyle}>
+        {cardTags.slice(0, 4).map(t => (
+          <span key={t.id}
+                role="button"
+                className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
+                style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
+                title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to light it up on this cluster`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  // Lights the tag up here (the spotlight); its page opens
+                  // from the pill, the chip's menu or the sidebar.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleSpotlight(t.id, 'card_chip');
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'card', targetId: c.id, tag: t });
+                }}>
+            <span className="card-tag-chip-dot" />
+            <span className="card-tag-chip-name">{t.name}</span>
+          </span>
+        ))}
+        {cardTags.length > 4 && (
+          <span className="card-tag-chip card-tag-chip-overflow"
+                title={cardTags.slice(4).map(t => t.name).join(', ')}>
+            +{cardTags.length - 4}
+          </span>
+        )}
+        {suggTag && (
+          <span className="card-tag-chip is-suggested"
+                style={{ '--tag-c': resolveTagColor(suggTag) }}
+                title={`Suggested from the text: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
+                onPointerDown={(e) => e.stopPropagation()}>
+            <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
+            <span className="card-tag-chip-name">{suggTag.name}</span>
+            <span className="card-tag-chip-acts">
+              <button type="button" className="card-tag-chip-act" aria-label={`Keep ${suggTag.name}`}
+                      onClick={(e) => { e.stopPropagation(); acceptSuggestion(c.id, suggTag); }}>
+                <Icon as={Check} size={9} />
+              </button>
+              <button type="button" className="card-tag-chip-act is-dismiss" aria-label={`Never suggest ${suggTag.name} here`}
+                      onClick={(e) => { e.stopPropagation(); dismissSuggestion(c.id, suggTag); }}>
+                <Icon as={X} size={9} />
+              </button>
+            </span>
+          </span>
+        )}
+      </div>
+    ) : null;
+    const cardEl = (
+      <div {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
         <CardStrokesOverlay card={c} w={w} h={h} />
         {/* A file with more than one version says which is on show; the
@@ -11552,58 +11614,6 @@ export function CanvasSurface({
             </button>
           );
         })()}
-        {(cardTags.length > 0 || suggTag) && (
-          <div className="card-tags-strip" data-card-id={c.id}>
-            {cardTags.slice(0, 4).map(t => (
-              <span key={t.id}
-                    role="button"
-                    className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
-                    style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                    title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to light it up on this cluster`}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      // Lights the tag up here (the spotlight); its page opens
-                      // from the pill, the chip's menu or the sidebar.
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleSpotlight(t.id, 'card_chip');
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'card', targetId: c.id, tag: t });
-                    }}>
-                <span className="card-tag-chip-dot" />
-                <span className="card-tag-chip-name">{t.name}</span>
-              </span>
-            ))}
-            {cardTags.length > 4 && (
-              <span className="card-tag-chip card-tag-chip-overflow"
-                    title={cardTags.slice(4).map(t => t.name).join(', ')}>
-                +{cardTags.length - 4}
-              </span>
-            )}
-            {suggTag && (
-              <span className="card-tag-chip is-suggested"
-                    style={{ '--tag-c': resolveTagColor(suggTag) }}
-                    title={`Suggested from the text: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
-                    onPointerDown={(e) => e.stopPropagation()}>
-                <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
-                <span className="card-tag-chip-name">{suggTag.name}</span>
-                <span className="card-tag-chip-acts">
-                  <button type="button" className="card-tag-chip-act" aria-label={`Keep ${suggTag.name}`}
-                          onClick={(e) => { e.stopPropagation(); acceptSuggestion(c.id, suggTag); }}>
-                    <Icon as={Check} size={9} />
-                  </button>
-                  <button type="button" className="card-tag-chip-act is-dismiss" aria-label={`Never suggest ${suggTag.name} here`}
-                          onClick={(e) => { e.stopPropagation(); dismissSuggestion(c.id, suggTag); }}>
-                    <Icon as={X} size={9} />
-                  </button>
-                </span>
-              </span>
-            )}
-          </div>
-        )}
         {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
                title={(c.kind === 'image' || c.kind === 'video' || c.kind === 'pdf')
@@ -11620,6 +11630,7 @@ export function CanvasSurface({
         )}
       </div>
     );
+    return <Fragment key={c.id}>{cardEl}{tagStrip}</Fragment>;
   };
 
   // ── Files → board ────────────────────────────────────────────────────────
@@ -14546,7 +14557,7 @@ export function CanvasSurface({
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (selBarOn ? (
         <Suspense fallback={null}>
           <SelectionBarA count={selected.size + selectedStrokes.size + selectedArrows.size} items={selBarItems}
-                         api={selBarApi} canDelete={canEdit} />
+                         api={selBarApi} canDelete={canEdit} tagOpen={!!tagMany} />
         </Suspense>
       ) : (
         <div className="cnv-selcount">{selected.size + selectedStrokes.size + selectedArrows.size} selected</div>

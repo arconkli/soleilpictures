@@ -64,6 +64,20 @@ test('Spotlight (direction A): a chip lights its tag up on the cluster', () => {
   assert.match(css, /\.card\.is-spot-dim \{\s*opacity: \.16;\s*filter: grayscale\(\.85\);/, 'the mockup\'s dim');
 });
 
+test('a card\'s chips hang under it, outside the card that clips', () => {
+  const canvas = read('../components/CanvasSurface.jsx');
+  // .card clips what it holds (overflow: hidden, contain: paint): a strip
+  // inside it never showed, from May until 2026-10-26.
+  assert.match(canvas, /const tagStrip = \(cardTags\.length > 0 \|\| suggTag\) \? \(\s*<div className=\{`card-tags-strip/);
+  assert.match(canvas, /return <Fragment key=\{c\.id\}>\{cardEl\}\{tagStrip\}<\/Fragment>;/);
+  assert.match(canvas, /const stripStyle = \{ position: 'absolute', left: x, top: y \+ h \+ 6, width: Math\.max\(w, 180\) \};/);
+  const css = read('../styles.css');
+  assert.match(css, /\.card \{[^}]*overflow: hidden;[^}]*contain: paint;/, 'if .card stops clipping, this test can go');
+  assert.match(css, /\.card-tags-strip\.is-spot-dim \{ opacity: \.16; filter: grayscale\(\.85\); \}/, 'the chips dim with their card');
+  // One slot at the top centre: the pill sits below the Studio bar or a hint.
+  assert.match(css, /\.canvas-wrap:has\(> \.cnv-studio-bar, > \.cnv-hint\) > \.tag-spotlight-pill \{ top: 60px; \}/);
+});
+
 test('a suggestion shows on its card, kept or dismissed in one tap', () => {
   const canvas = read('../components/CanvasSurface.jsx');
   assert.match(canvas, /className="card-tag-chip is-suggested"/);
@@ -83,8 +97,12 @@ test('several cards at once: the tri-state picker over the selection', () => {
   assert.match(canvas, /tagManyCards\(ids, tag, 'add', 'drop_selection'\)/, 'a drop on a selected card tags the selection');
   const bar = read('../components/toolbar/SelectionBarA.jsx');
   assert.match(bar, /find\(api\.items\(\), 'tag-many'\)\?\.run\?\.\(e\.currentTarget\.getBoundingClientRect\(\)\)/);
+  // Tag reads as pressed while its picker is open, and a second press closes it.
+  assert.match(bar, /aria-haspopup="dialog" aria-expanded=\{tagOpen\} data-tag-many-trigger=""/);
+  assert.match(canvas, /setTagMany\(prev => \(prev \? null : \{ anchorRect, cardIds: ids \}\)\)/);
   const picker = read('../components/TagManyPicker.jsx');
   assert.match(picker, /aria-pressed=\{st === 'all' \? 'true' : st === 'some' \? 'mixed' : 'false'\}/);
+  assert.match(picker, /useDismissOnOutside\(ref, open, onClose, \{ ignore: '\[data-tag-many-trigger\]' \}\)/);
   assert.match(picker, /onApply\?\.\(row\.tag, stateOf\(row\.tag\) === 'all' \? 'remove' : 'add'\)/);
   const api = read('tagCardsBatch.js');
   // One write each way; a removal keeps the tag off unless it's an undo.
@@ -100,7 +118,11 @@ test('phones reach a tag\'s actions and a tagged item\'s', () => {
   const page = read('../components/TagDetailView.jsx');
   assert.match(page, /onPointerDown=\{onItemPressStart\}/);
   assert.match(page, /data-tag-item=\{JSON\.stringify\(menuTarget\)\}/);
-  assert.match(page, /\{ id: 'remove', label: 'Remove tag', danger: true, run: \(\) => removeTag\(itemSheet\) \}/);
+  assert.match(page, /itemSheet\.source \? \{ id: 'remove', label: 'Remove tag', run: \(\) => removeTag\(itemSheet\) \} : null/);
+  // The sheet loads on demand: phones alone need it, the sidebar loads with every page.
+  assert.match(side, /const TagActionSheet = lazyWithReload\(\(\) => import\('\.\/TagActionSheet\.jsx'\)/);
+  assert.doesNotMatch(side, /from '\.\/TagActionSheet\.jsx'/);
+  assert.match(readFileSync(join(here, '../../scripts/bundleBudget.mjs'), 'utf8'), /'TagActionSheet',/);
   // A doc item opens at its page from the menu and the sheet alike.
   assert.match(page, /if \(m\.kind === 'doc' && m\.pageId\) \{\s*navigate\(\{ kind: 'docPos'/);
   assert.match(read('../styles.css'), /@media \(hover: none\) \{\s*\.sb-tag-row-more \{ opacity: 1; width: 40px; height: 40px;/);

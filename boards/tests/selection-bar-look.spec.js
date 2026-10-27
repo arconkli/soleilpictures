@@ -2,9 +2,10 @@
 // mockup A-select), shipped 2026-10-25 (lib/appHost.js toolbarLookAllowed;
 // components/toolbar/SelectionBarA.jsx): two or more cards picked on a desktop
 // canvas get, on the bottom row, what right-clicking one of them offers, each
-// control the card menu's own item: Tidy up, Align (and Distribute), Group, New
-// cluster from N cards, Move N cards to…; ⋯ is that menu itself, over the bar,
-// and Delete is ⌫'s, with its undo. Today's look keeps the count at the top.
+// control the card menu's own item: Tidy up, Align (and Distribute), Group, Tag
+// (its picker, 2026-10-26), New cluster from N cards, Move N cards to…; ⋯ is
+// that menu itself, over the bar, and Delete is ⌫'s, with its undo. Today's
+// look keeps the count at the top.
 //
 // On the real canvas, through ?local=1 (the home cluster's cards).
 import { expect, test } from '@playwright/test';
@@ -39,12 +40,12 @@ const lefts = (page) => page.evaluate((ids) => ids.map((id) => {
   return Math.round(parseFloat(el.style.left));
 }), PICKED);
 
-test('three cards picked: the count, then Tidy up, Align, Group, New cluster, Move, More and Delete, by name', async ({ page }) => {
+test('three cards picked: the count, then Tidy up, Align, Group, Tag, New cluster, Move, More and Delete, by name', async ({ page }) => {
   await threePicked(page);
   await expect(bar(page)).toBeVisible();
   await expect(bar(page)).toContainText('3 selected');
   await expect(page.locator('.cnv-selcount')).toHaveCount(0);
-  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'New cluster from 3 cards', 'Move 3 cards to…',
+  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'Tag', 'New cluster from 3 cards', 'Move 3 cards to…',
     'More', 'Delete']);
   await expect(button(page, 'Group')).toHaveAttribute('aria-keyshortcuts', /^(Meta|Control)\+G$/);
   await expect(button(page, 'Delete')).toHaveAttribute('aria-keyshortcuts', 'Backspace');
