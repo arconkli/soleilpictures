@@ -97,7 +97,12 @@ export const CEILINGS = {
   // sidebar show the page. Most of it is the family glyphs a board draws at
   // once (Excel's, PowerPoint's, a deck's): every Phosphor icon carries all
   // six weights. CI measured 685.7 KB on 80e02093, this change 689.2.
-  appJs: 689_800,
+  // 2026-10-27: +0.2 KB for a text file's page: FileCard names the file's
+  // family (lib/fileView.js fileFamily, which also sizes a new drop) and
+  // loads the page itself later (FamilyFace.jsx), and the old small-text
+  // preview it replaces is gone. Measured as CI builds: 689.8 KB on c7ae42ee,
+  // this change 690.03.
+  appJs: 690_100,
   appCss: 21_000,
 };
 
