@@ -149,6 +149,7 @@ export function PricingPage() {
         talkNote,
         onTalk: () => setTalkNote(true),
         heroLine: teamHero,
+        editorLimit: EDITOR_LIMIT,
       } : null}
       showPlanToggle={!alreadyPaid}
       showPrice={!alreadyPaid}

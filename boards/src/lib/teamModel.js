@@ -33,10 +33,15 @@
 // billingCopy.js, which names the code enforcing every price.
 
 export const TEAM_SEAT_MIN = 3;
+// Self-serve stops here; past it, Talk to us (start_team_checkout, 0538).
+export const TEAM_SEAT_MAX = 100;
 export const TEAM_SEAT_PRICE = Object.freeze({ month: 25, year: 240 });
 export const TEAM_STORAGE_BLOCK_MONTHLY = 25;
 export const TEAM_STORAGE_PER_SEAT = 1e12;
 export const TEAM_STORAGE_FLOOR = 1e12;
+// The seat perk: a seat holder's own workspaces get this much more drive
+// (_seat_perk_storage_bytes, 0536: 50 GiB), in decimal like the sizes above.
+export const SEAT_PERK_STORAGE = 50e9;
 
 const DAY = 864e5;
 const PERIOD_MS = { month: 30 * DAY, year: 365 * DAY };

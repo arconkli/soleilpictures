@@ -84,7 +84,7 @@ test('a second run in the same session skips the session-once calls', () => with
   assert.equal(again.calls.filter(([n]) => n === 'claimMyTeamInvites' || n === 'myTeamOffers').length, 0);
 }));
 
-test('an auto offer is answered with the domain line; an ask offer never is', () => withStorage(async () => {
+test('an auto offer is answered with the domain line; the first ask offer goes to the note, unanswered', () => withStorage(async () => {
   const api = fakeApi({
     claimMyTeamInvites: 2,
     myTeamOffers: [
@@ -93,7 +93,9 @@ test('an auto offer is answered with the domain line; an ask offer never is', ()
     ],
   });
   const h = harness();
-  const out = await runTeamBoot(h.args, api);
+  const asked = [];
+  const out = await runTeamBoot({ ...h.args, ask: async (o) => { asked.push(o.org_id); } }, api);
+  assert.deepEqual(asked, ['o3']);
   const answers = api.calls.filter(([n]) => n === 'answerTeamOffer');
   assert.deepEqual(answers, [['answerTeamOffer', { p_org_id: 'o2', p_join: true }]]);
   assert.deepEqual(h.toasts, [
@@ -103,6 +105,28 @@ test('an auto offer is answered with the domain line; an ask offer never is', ()
   assert.equal(h.changedCalls, 1);
   assert.equal(out.changed, true);
 }));
+
+// The note answering: ask hands it the answer, and done reports what came back.
+const answerVia = (join, status) => withStorage(async () => {
+  const api = fakeApi({
+    myTeamOffers: [{ org_id: 'o3', name: 'Other', mode: 'ask' }],
+    answerTeamOffer: [{ org_id: 'o3', role: 'member', status }],
+  });
+  const h = harness();
+  await runTeamBoot({ ...h.args, ask: async (o, { answer, done }) => done(join, await answer(join)) }, api);
+  return { answers: api.calls.filter(([n]) => n === 'answerTeamOffer'), toasts: h.toasts, changed: h.changedCalls };
+});
+
+test('the note answers an ask offer: Join says so and refreshes, No thanks stays quiet', async () => {
+  const yes = await answerVia(true, 'joined');
+  assert.deepEqual(yes.answers, [['answerTeamOffer', { p_org_id: 'o3', p_join: true }]]);
+  assert.deepEqual(yes.toasts, ['You joined Other, your company’s team, because you signed up with a northlight.studio email. Its workspaces are in your workspace menu.']);
+  assert.equal(yes.changed, 1);
+  const no = await answerVia(false, 'declined');
+  assert.deepEqual(no.answers, [['answerTeamOffer', { p_org_id: 'o3', p_join: false }]]);
+  assert.deepEqual(no.toasts, []);
+  assert.equal(no.changed, 0);
+});
 
 test('a stashed note is toasted first and is gone after', () => withStorage(async () => {
   stashTeamNote('You’re in Northlight. Its workspaces are in your workspace menu.');

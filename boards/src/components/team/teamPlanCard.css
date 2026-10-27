@@ -24,10 +24,6 @@
 .pp-step button:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
 .pp-step b { min-width: 34px; text-align: center; font: 600 13px/1 var(--font-sans); color: var(--ink-0); }
 .pp-seatpick-sum { margin-left: auto; font: 600 13px/1 var(--font-sans); color: var(--ink-0); white-space: nowrap; }
-.pp-team-bens { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 10px; }
-.pp-team-bens li { display: flex; flex-direction: column; gap: 2px; }
-.pp-team-bens b { font: 600 13px/1.35 var(--font-sans); color: var(--ink-0); }
-.pp-team-bens span { font: 400 12px/1.45 var(--font-sans); color: var(--ink-2); }
 .pp-team-note { margin: 2px 0 0; text-align: center; font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); }
 
 /* Under the cards: the way to a person, not a plan. Neutral ink. */
@@ -43,4 +39,14 @@
   .pp-plans.is-three { grid-template-columns: 1fr; }
   .pp-plan-team { order: -1; }   /* after Creator (also -1, earlier in the source), before Free */
   .pp-plan-team .pp-plan-head { flex-direction: row; align-items: center; }
+}
+
+/* The comparison's four columns on a phone: tighter, never scrolled sideways,
+   so Team (the last column) is never off the edge. */
+@media (max-width: 560px) {
+  .seo-compare.pp-compare-team { min-width: 0; font-size: 0.8rem; }
+  .seo-compare.pp-compare-team th,
+  .seo-compare.pp-compare-team td { padding: 10px 7px; }
+  .seo-compare.pp-compare-team thead th { font-size: 0.66rem; letter-spacing: 0.05em; }
+  .seo-compare.pp-compare-team tbody th[scope='row'] { width: 27%; }
 }

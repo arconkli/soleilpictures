@@ -37,6 +37,15 @@ test('pricing: three cards; the seat stepper follows the sum, never below 3; ann
   const card = await mountPricing(page);
   await expect(page.locator('.pp-plans .pp-plan')).toHaveCount(3);
   await expect(card).toContainText('More than 10 editors');
+  // The owner (2026-10-26): the benefits are shown, in Creator's look.
+  await expect(card.locator('.pricing-benefit-t')).toHaveText([
+    'Everything in Creator, for each editor', '1TB a seat, one shared drive', 'More than 10 people who edit',
+    'Admins, and work the team owns', 'Their own workspaces, too', 'Join by link or company email',
+  ]);
+  const compare = page.locator('table.pp-compare-team');
+  await expect(compare.locator('thead th').nth(3)).toHaveText('Team');
+  await expect(compare.locator('tbody tr')).toHaveCount(6);
+  await expect(compare.getByRole('row', { name: /People who edit/ })).toContainText('A seat each, 3 to 100');
   await expect(card.locator('[data-seats]')).toHaveText('12');
   await expect(card.locator('[data-seat-sum]')).toHaveText('$300/mo');
   await card.getByRole('button', { name: 'One more seat' }).click();

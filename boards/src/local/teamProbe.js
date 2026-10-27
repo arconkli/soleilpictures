@@ -15,6 +15,7 @@ import { PricingPageView } from '../auth/PricingPageView.jsx';
 import { sampleTeam } from '../lib/teamSample.js';
 import { teamHeroLine } from '../lib/teamModel.js';
 import { EDITOR_LIMIT } from '../lib/editorLimit.js';
+import { writeTeamPreview } from '../lib/teamPreview.js';
 
 // Records what the page asked the app to do on window.__team.
 export function mountTeamPage({ as = 'owner', tab = 'people' } = {}) {
@@ -75,7 +76,7 @@ function PricingProbe({ initialPlan }) {
     freeCta: null,
     creatorCta: { label: 'Get Creator', onClick: () => {}, disabled: false, busy: false },
     teamCard: {
-      plan, seats, setSeats, talkNote, heroLine: teamHeroLine(EDITOR_LIMIT),
+      plan, seats, setSeats, talkNote, heroLine: teamHeroLine(EDITOR_LIMIT), editorLimit: EDITOR_LIMIT,
       onStart: () => window.__teamBuy.started.push({ seats, plan }),
       onTalk: () => { window.__teamBuy.talks += 1; setTalkNote(true); },
     },
@@ -95,6 +96,9 @@ export function mountPricingTeam({ plan = 'monthly' } = {}) {
 // from `search`. Navigation goes through the page's `navigate` prop and is
 // recorded on window.__teamBuy.nav.
 export function mountTeamSetup({ search = '' } = {}) {
+  // The walk-through's sample, as Settings › Preview starts it (PreviewTab):
+  // on dev teamsAllowed() is true, so without a sample role the setup is real.
+  writeTeamPreview('owner');
   window.history.replaceState(null, '', '/team/new' + search);
   window.__teamBuy = { started: [], talks: 0, nav: [] };
   const el = document.createElement('div');

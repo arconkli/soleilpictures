@@ -5,8 +5,13 @@
 // machine: the stub aborts every host but its own.
 //
 // The invite box is on the Joining tab (the "Invite people" button opens it).
-import { test, expect } from '@playwright/test';
+import { test, expect as baseExpect } from '@playwright/test';
 import { bootSignedIn, USER_ID, WS_ID, ORG } from './helpers/signedInStub.js';
+
+// The stubbed app reaches the Team plan several seconds after the boot
+// (list_my_teams and lib/teamBoot.js load once the workspace is up), past
+// expect's default 5s, so this file waits longer.
+const expect = baseExpect.configure({ timeout: 15000 });
 
 const TOKEN = '5b1f0c3e-7a2d-4e8b-9c4a-1d2e3f4a5b6c';
 const NEW_WS = '66666666-6666-4666-8666-666666666666';
@@ -168,17 +173,36 @@ test.describe('Team plan on the real app, Supabase stubbed', () => {
     expect(answers[0].body).toMatchObject({ p_org_id: ORG, p_join: true });
   });
 
-  test('an offer that asks is never answered', async ({ page }) => {
+  const askOffer = { org_id: ORG, name: 'Northlight Films', letter: 'N', color: '#5b8def', mode: 'ask' };
+
+  test('an offer that asks shows the corner note, and Join answers yes', async ({ page }) => {
     const { calls } = await bootSignedIn(page, {
       rpc: {
-        my_team_offers: [{ org_id: ORG, name: 'Northlight Films', letter: 'N', color: '#5b8def', mode: 'ask' }],
+        my_team_offers: [askOffer],
         answer_team_offer: [{ org_id: ORG, role: 'member', status: 'joined' }],
+        list_my_teams: [teamRow('member')],
       },
     });
-    await page.waitForSelector(SHELL);
-    await expect.poll(() => only(calls, 'rpc/my_team_offers').length).toBe(1);
-    await page.waitForTimeout(500);
+    const note = page.getByRole('dialog', { name: 'Join Northlight Films?' });
+    await expect(note).toContainText('Northlight Films uses your company’s email');
     expect(only(calls, 'rpc/answer_team_offer')).toHaveLength(0);
+    await note.getByRole('button', { name: 'Join Northlight Films' }).click();
+    await expect(note).toHaveCount(0);
+    await expect(toast(page, 'your company’s team')).toBeVisible();
+    const answers = only(calls, 'rpc/answer_team_offer');
+    expect(answers).toHaveLength(1);
+    expect(answers[0].body).toMatchObject({ p_org_id: ORG, p_join: true });
+  });
+
+  test('No thanks answers no, quietly', async ({ page }) => {
+    const { calls } = await bootSignedIn(page, {
+      rpc: { my_team_offers: [askOffer], answer_team_offer: [{ org_id: ORG, role: null, status: 'declined' }] },
+    });
+    const note = page.getByRole('dialog', { name: 'Join Northlight Films?' });
+    await note.getByRole('button', { name: 'No thanks' }).click();
+    await expect(note).toHaveCount(0);
+    await expect.poll(() => only(calls, 'rpc/answer_team_offer').length).toBe(1);
+    expect(only(calls, 'rpc/answer_team_offer')[0].body).toMatchObject({ p_org_id: ORG, p_join: false });
   });
 
   const openNewWorkspace = async (page) => {

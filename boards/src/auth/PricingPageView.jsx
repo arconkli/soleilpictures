@@ -33,6 +33,8 @@ import '../pages/seoLanding.css';
 // The Team card (the team preview only: PricingPage passes `teamCard`, and
 // nothing else does). Lazy, so the signed-out page and production never load it.
 const TeamPlanCard = lazy(() => import('../components/team/TeamPlanCard.jsx'));
+// With the card, the comparison gains a Team column (the same lazy module).
+const TeamCompareTable = lazy(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamCompareTable })));
 
 const NO_PROPS = () => ({});
 
@@ -176,7 +178,8 @@ export function PricingPageView({
 
             {teamCard && (
               <Suspense fallback={null}>
-                <TeamPlanCard plan={teamCard.plan} seats={teamCard.seats} setSeats={teamCard.setSeats} onStart={teamCard.onStart} />
+                <TeamPlanCard plan={teamCard.plan} seats={teamCard.seats} setSeats={teamCard.setSeats} onStart={teamCard.onStart}
+                              editorLimit={teamCard.editorLimit} />
               </Suspense>
             )}
           </section>
@@ -242,6 +245,11 @@ export function PricingPageView({
                 Same table furniture as the competitor comparisons, which is
                 the honest shape for it: this is a comparison. Bare of
                 data-up-feat — see the Creator card above, which carries them. */}
+            {teamCard ? (
+              <Suspense fallback={null}>
+                <TeamCompareTable editorLimit={teamCard.editorLimit} />
+              </Suspense>
+            ) : (
             <div className="seo-compare-wrap">
               <table className="seo-compare">
                 <thead>
@@ -262,6 +270,7 @@ export function PricingPageView({
                 </tbody>
               </table>
             </div>
+            )}
 
             <p className="seo-body pp-workspace">{PRICING_PAGE.workspaceNote}</p>
           </section>
