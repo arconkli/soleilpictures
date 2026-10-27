@@ -45,8 +45,9 @@ import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
 import { openableUrl } from '../lib/openableUrl.js';
 
 // The doc look's side panel, footer and one row of tools
-// (components/doc/DocFrameA.jsx): lazy, so today's editor (on dev, the hold
-// set to '0') never downloads the look.
+// (components/doc/DocFrameA.jsx): lazy, so a doc shared on its own
+// (fileShare/DocShareView.jsx), which opens without the look, never
+// downloads them.
 const DocSidePanel = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocSidePanel })));
 const DocFootA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocFootA })));
 const DocBarA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocBarA })));
@@ -188,6 +189,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     throw new Error('docqa: this doc crashed');
   }
   const { pages, bookmarks, comments } = useDocBoard(ydoc, scope);
+  // Every doc a cluster opens comes with the look's frame (DocCard.jsx). A
+  // doc shared on its own (fileShare/DocShareView.jsx) opens without one, in
+  // the editor before the look: DocToolbar, the page rail and the old footer.
   const lookA = !!frame;
 
   // Doc STRUCTURAL undo: one cached UndoManager per doc scope (DOC_ORIGIN —

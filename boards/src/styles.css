@@ -15439,12 +15439,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   flex-shrink: 0;
 }
-.doc-card-rule {
-  height: 1px;
-  background: linear-gradient(to right, var(--line-2), transparent);
-  margin: 4px 0;
-  flex-shrink: 0;
-}
 .doc-card-text {
   font-size: 11px;
   line-height: 1.55;
@@ -15484,26 +15478,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   border-radius: var(--radius);
 }
 .doc-card-meta { color: var(--ink-3); flex: 1 1 auto; }
-.doc-card-open {
-  appearance: none; border: 1px solid var(--line-2); background: transparent;
-  color: var(--ink-1); font: 500 11px/1 var(--font-sans);
-  padding: 5px 10px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-.doc-card-open:hover { color: var(--ink-0); border-color: var(--soleil); background: var(--soleil-soft); }
-/* Gold = active. This doc is the one currently holding the side pane. */
-.doc-card-open.is-active {
-  color: var(--soleil); border-color: var(--soleil); background: var(--soleil-soft);
-}
-/* The doc look's closed card (mockup S-card; held, <html data-doc-look="a">):
+/* The closed card in the doc look (mockup S-card, <html data-doc-look="a">):
    the title in the doc's serif over a hairline, an empty doc's Start writing,
    and Beside and Open in words. */
 [data-doc-look="a"] .doc-card-title { padding: 14px 16px 11px; border-bottom: 1px solid var(--line-1); font: 700 16px/1.25 ui-serif, Georgia, serif; }
 [data-doc-look="a"] .doc-card-title.is-unnamed { color: var(--ink-3); }
 [data-doc-look="a"] .doc-card-page { padding-top: 12px; }
-[data-doc-look="a"] .doc-card-rule { display: none; }
 [data-doc-look="a"] .doc-card-text { font-size: 12px; line-height: 1.5; color: var(--ink-1); }
 [data-doc-look="a"] .doc-card-foot { min-height: 46px; padding: 0 8px 0 14px; background: none; font-size: 12px; }
 [data-doc-look="a"] .doc-card-tag { padding: 3px 6px; border-radius: 5px; background: none; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-2); font: 700 9.5px/1 var(--font-sans); letter-spacing: .12em; }
@@ -15608,13 +15588,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .doc-card-side-divider:hover, .doc-card-side-divider:active { background: var(--soleil-soft); }
 .doc-card-side-divider:hover::before, .doc-card-side-divider:active::before { opacity: 1; background: var(--soleil); }
-.doc-card-modal-head {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px 10px 18px;
-  border-bottom: 1px solid var(--line-1);
-  background: var(--bg-1);
-  flex-shrink: 0;
-}
 .doc-card-title-input {
   flex: 1 1 auto;
   appearance: none; border: 0; background: transparent;
@@ -15631,32 +15604,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   box-shadow: 0 1px 0 0 color-mix(in oklab, var(--soleil) 45%, transparent);
 }
 .doc-card-title-input::placeholder { color: var(--ink-3); }
-.doc-card-icon, .doc-card-close {
-  appearance: none; border: 0; background: transparent;
-  color: var(--ink-3);
-  border-radius: 6px;
-  cursor: pointer;
-  display: grid; place-items: center;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-.doc-card-icon { width: 36px; height: 36px; }
-.doc-card-close { width: 36px; height: 36px; font-size: 22px; line-height: 1; }
-.doc-card-icon svg, .doc-card-close svg { width: 18px; height: 18px; }
-.doc-card-icon:hover, .doc-card-close:hover { background: var(--bg-hov); color: var(--ink-0); }
-
-/* Messages toggle in the doc header. Gold is reserved for the ACTIVE state
-   (panel open) — at rest it's neutral ink like its neighbours. The unread
-   marker is a plain dot, not a count: the number already lives in the sidebar
-   and a two-digit badge would unbalance a 36px icon row. */
-.doc-card-messages { position: relative; }
-.doc-card-messages.is-active { color: var(--soleil); background: var(--soleil-soft); }
-.doc-card-messages-dot {
-  position: absolute; top: 6px; right: 6px;
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--soleil);
-  box-shadow: 0 0 0 2px var(--bg-1);
-  pointer-events: none;
-}
 
 /* Peer-avatar stack in the doc-card modal header. One per workspace
    peer currently inside this card. Hover scales the avatar so it's
@@ -20077,7 +20024,6 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .app-error-stack,
 .surface-wrap,
 .doc-card-modal,
-.doc-card-modal-head,
 .doc-card-foot,
 .doc-surface,
 .doc-rail,
@@ -20097,7 +20043,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .public-shell::after, .public-topbar::after,
 .auth-screen::after, .pricing-screen::after, .welcome-screen::after,
 .app-error-panel::after, .app-error-stack::after,
-.surface-wrap::after, .doc-card-modal::after, .doc-card-modal-head::after,
+.surface-wrap::after, .doc-card-modal::after,
 .doc-card-foot::after, .doc-surface::after, .doc-rail::after,
 .doc-tb::after, .doc-foot::after, .doc-center::after,
 .inbox::after, .list-files::after {

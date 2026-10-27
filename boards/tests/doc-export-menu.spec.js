@@ -50,7 +50,7 @@ async function openScreenplayDoc(page) {
   await expect(page.locator('.doc-paper.is-screenplay')).toBeVisible();
 }
 
-// Export's PDF row: today's Export menu, the look's ⋯ › Export.
+// Export's PDF row, in ⋯ › Export.
 async function exportPdf(page) {
   const row = await exportRow(page.locator('.doc-card-modal'), 'pdf');
   const [download] = await Promise.all([

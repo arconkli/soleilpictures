@@ -100,8 +100,7 @@ test('side mode keeps the panel above the docked doc too', async ({ page }) => {
 
 // The header button itself. It reads MessagesUiContext (normally supplied by
 // App); the doc QA harness provides a stub so the button, its unread dot and
-// its toggle are exercised rather than silently rendering null. Found by what
-// it is, so the doc look's header (tests/helpers/docFrame.js) answers too.
+// its toggle are exercised rather than silently rendering null.
 const messagesButton = (page) => page.locator('.doc-card-modal').getByRole('button', { name: 'Messages', exact: true });
 
 test('the doc header exposes a Messages button with an unread marker', async ({ page }) => {
@@ -110,13 +109,13 @@ test('the doc header exposes a Messages button with an unread marker', async ({ 
   const btn = messagesButton(page);
   await expect(btn).toBeVisible();
   // Unread > 0 in the harness stub → the dot renders.
-  await expect(btn.locator('.doc-card-messages-dot, .dl-dot')).toBeVisible();
+  await expect(btn.locator('.dl-dot')).toBeVisible();
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
 
   // Clicking drives the shared toggle, which is what flips the real panel.
   await btn.click();
   await expect(btn).toHaveAttribute('aria-pressed', 'true');
-  await expect(btn).toHaveClass(/is-active|is-on/);
+  await expect(btn).toHaveClass(/is-on/);
 
   await btn.click();
   await expect(btn).toHaveAttribute('aria-pressed', 'false');

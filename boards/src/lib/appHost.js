@@ -229,14 +229,13 @@ export function toolbarLookAllowed() {
 // doc, tables that grow, a reader's Find, zoom and Export, and its own row on
 // a phone's keyboard. It was held to the preview and a dev opt-in until the
 // owner had tried it, and was lifted on 2026-10-24 with the docs that
-// describe it (docs/documents), so it is on everywhere. On dev, localStorage
-// soleil.dev.docLook = '0' still shows today's editor, for the specs that pin
-// it, until the release after this one deletes it.
-// Marked <html data-doc-look="a">.
-export const DOC_LOOK_DEV_FLAG = 'soleil.dev.docLook';
+// describe it (docs/documents). The editor it replaced is gone from the
+// clusters (a doc shared on its own, fileShare/DocShareView.jsx, still opens
+// in it), so there is nothing to switch back to: it stays `return true;` for
+// session_context's record, as every lifted hold does, and main.jsx marks
+// <html data-doc-look="a"> without asking (the look's CSS keys on it).
 export function docLookAllowed() {
-  if (!import.meta.env.DEV) return true;
-  try { return window.localStorage.getItem(DOC_LOOK_DEV_FLAG) !== '0'; } catch (_) { return true; }
+  return true;
 }
 
 // ---------------------------------------------------------------------------

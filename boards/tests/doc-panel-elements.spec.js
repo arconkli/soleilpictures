@@ -18,9 +18,6 @@ const SCRIPT = [
 ];
 
 async function openScript(page) {
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '1'); } catch (_) {}
-  });
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
@@ -161,9 +158,6 @@ test('Pair with the speech above makes the speech dual dialogue, and says so', a
 });
 
 test('a document\'s panel has no Elements', async ({ page }) => {
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '1'); } catch (_) {}
-  });
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());

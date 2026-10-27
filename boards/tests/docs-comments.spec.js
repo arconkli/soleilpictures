@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { todaysLook } from './helpers/docFrame.js';
 
 // Word-level comments, Google-Docs style: select text → comment → the
-// highlighted run is CLICKABLE and opens its thread.
+// highlighted run is CLICKABLE and opens its thread, which in the doc look is
+// its card in the side panel (doc-panel-comments.spec.js: the click, a reply
+// and a resolve, each filed beside the thread).
 //
 // The clickable part is the regression this guards. The mark, the thread store
 // and the margin dot all shipped earlier, but nothing was ever wired to the
@@ -42,58 +43,6 @@ async function commentOnWord(page, text, word, body) {
     return id;
   }, { text, word, body });
 }
-
-test('clicking commented text opens its thread', async ({ page }) => {
-  // Today's thread popover. The look's threads are the side panel's cards: doc-panel-comments.spec.js.
-  await todaysLook(page);
-  await openDoc(page);
-  const id = await commentOnWord(page, 'The quick brown fox jumps', 'brown', 'Is this the right animal?');
-
-  const mark = page.locator(`.tt-comment[data-comment-id="${id}"]`);
-  await expect(mark).toHaveCount(1);
-  await expect(mark).toHaveText('brown');
-
-  // No thread popover until the highlight is clicked.
-  await expect(page.locator('.comment-inline-pop')).toHaveCount(0);
-  await mark.click();
-
-  const pop = page.locator('.comment-inline-pop');
-  await expect(pop).toBeVisible();
-  await expect(pop).toContainText('Is this the right animal?');
-});
-
-// A reply and a resolve made in the thread are each filed beside it
-// (lib/commentKeys.js: `<thread>~r~<reply>`, `<thread>~s`), never written into
-// it, so two people writing at once both keep theirs; the thread shows both.
-test('a reply and a resolve typed in the thread are filed beside it and show', async ({ page }) => {
-  // Today's thread popover. The look's threads are the side panel's cards: doc-panel-comments.spec.js.
-  await todaysLook(page);
-  await openDoc(page);
-  const id = await commentOnWord(page, 'Keep the motel sign lit', 'sign', 'Which sign?');
-  await page.locator(`.tt-comment[data-comment-id="${id}"]`).click();
-  const pop = page.locator('.comment-inline-pop');
-  await expect(pop).toBeVisible();
-
-  const input = pop.getByPlaceholder(/^Reply…/);
-  await input.fill('The neon one');
-  await input.press('Enter');
-  await expect(pop.locator('.comment-inline-reply')).toContainText('The neon one');
-
-  await pop.getByTitle('Resolve').click();
-  await expect(pop.getByTitle('Reopen')).toBeVisible();
-  await expect(pop.getByPlaceholder(/^Reply…/)).toHaveCount(0);
-
-  const stored = await page.evaluate((id) => {
-    const map = window.__soleilDocTest.getScope().comments;
-    const head = map.get(id);
-    return { keys: [...map.keys()], headReplies: head.replies.length, headResolved: head.resolved };
-  }, id);
-  expect(stored.keys.some((k) => k.startsWith(`${id}~r~`))).toBe(true);
-  expect(stored.keys).toContain(`${id}~s`);
-  // The thread itself is as it was started.
-  expect(stored.headReplies).toBe(0);
-  expect(stored.headResolved).toBe(false);
-});
 
 test('the mark reads as clickable, not decorative', async ({ page }) => {
   await openDoc(page);

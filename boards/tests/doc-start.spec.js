@@ -13,9 +13,6 @@ const body = (page) => win(page).locator('.ProseMirror').first();
 const starters = (page) => win(page).getByRole('group', { name: 'Or start from' });
 
 async function placeDoc(page) {
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '1'); } catch (_) {}
-  });
   await page.goto('/?local=1&reset=1&blank=1&richdocs=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'Add doc tool' }).click();

@@ -11,7 +11,7 @@ import { Check, Columns2 } from '../../lib/icons.js';
 // element menu does; Tab and Enter in the text still step them
 // (ScreenplayKeymap). Then the script's own: its title page, its scene
 // numbers, and dual dialogue for the speech at the caret, the commands
-// today's bar runs (DocToolbar).
+// DocToolbar runs (a doc shared on its own still has that bar).
 
 const SPEECH = new Set(['character', 'parenthetical', 'dialogue']);
 const NONE = { el: '', dual: false };

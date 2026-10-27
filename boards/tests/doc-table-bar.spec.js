@@ -8,11 +8,8 @@ import { expect, test } from '@playwright/test';
 
 test.skip(({ isMobile }) => isMobile, 'the bar under a finger is D7');
 
-async function openDoc(page, { query = '', width = 1440, look = true } = {}) {
+async function openDoc(page, { query = '', width = 1440 } = {}) {
   await page.setViewportSize({ width, height: 900 });
-  await page.addInitScript((on) => {
-    try { window.localStorage.setItem('soleil.dev.docLook', on ? '1' : '0'); } catch (_) {}
-  }, look);
   await page.goto(`/?docqa=1${query}`);
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
@@ -275,17 +272,3 @@ test('over a table too narrow for its words, Row and Column are icons and Header
   await expect.poll(async () => (await table(page)).header).toBe(false);
   await textFocused(page);
 });
-
-test('with the look off, a table being edited is as wide as the page, as a reader\'s is', async ({ page }) => {
-  await openDoc(page, { look: false });
-  await setDoc(page, SHOTS);
-  await expect(bar(page)).toHaveCount(0);
-  const w = await page.evaluate(() => {
-    const ed = document.querySelector('.doc-card-modal .ProseMirror');
-    const t = ed.querySelector('table');
-    const cs = getComputedStyle(ed);
-    return { table: t.getBoundingClientRect().width, text: ed.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) };
-  });
-  expect(w.table).toBeGreaterThan(w.text - 2);
-});
-

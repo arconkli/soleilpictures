@@ -8,7 +8,6 @@
 // A doc's and a note's text keep Tab for themselves, so ⌥F10 is the way from
 // the words to their bar, and Esc the way back to the caret.
 import { expect, test } from '@playwright/test';
-import { todaysLook } from './helpers/docFrame.js';
 import { pickArrowHead } from './helpers/arrowBar.js';
 import { colourList } from './helpers/noteBar.js';
 
@@ -46,143 +45,8 @@ async function walk(page) {
   throw new Error(`no way round: ${names.join(', ')}`);
 }
 
-async function openDoc(page) {
-  await page.goto('/?docqa=1');
-  await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
-  await page.evaluate(() => window.__soleilDocTest.openCard());
-  await expect(page.locator('.doc-card-modal .tt-editor').first()).toBeVisible();
-  await page.waitForFunction(() => !!window.__soleilDocTest.editor, null, { timeout: 10000 });
-}
-
-test.describe('the doc toolbar', () => {
-  // Today's bar. The look's keys are doc-bar-a.spec.js's.
-  test.beforeEach(({ page }) => todaysLook(page));
-
-  test('is one Tab stop, and ← → Home End walk it, round from either end', async ({ page }) => {
-    await openDoc(page);
-    const bar = page.locator('.doc-card-modal .doc-tb');
-    expect(await stops(bar)).toBe(1);
-    await enter(bar);
-    const first = await focused(page);
-    await page.keyboard.press('ArrowRight');
-    const second = await focused(page);
-    expect(second).not.toBe(first);
-    await page.keyboard.press('ArrowLeft');
-    expect(await focused(page)).toBe(first);
-    await page.keyboard.press('ArrowLeft');
-    const last = await focused(page);
-    expect(last).not.toBe(first);
-    await page.keyboard.press('Home');
-    expect(await focused(page)).toBe(first);
-    await page.keyboard.press('End');
-    expect(await focused(page)).toBe(last);
-    const names = await walk(page);
-    for (const name of ['Paragraph style', 'Font size', 'Preset sizes', 'Bold', 'Text color', 'Bulleted list', 'Find', 'Undo', 'Redo']) {
-      expect(names, `${name} is on the way round`).toContain(name);
-    }
-    // The stop is wherever the arrows left it, and Tab leaves the bar.
-    await page.keyboard.press('Home');
-    await page.keyboard.press('ArrowRight');
-    expect(await stops(bar)).toBe(1);
-    expect(await bar.evaluate((el) => el.contains(document.activeElement) && document.activeElement.tabIndex)).toBe(0);
-    await page.keyboard.press('Tab');
-    expect(await bar.evaluate((el) => el.contains(document.activeElement))).toBe(false);
-  });
-
-  test('its list and its size field keep their own keys, and passing through them changes nothing', async ({ page }) => {
-    await openDoc(page);
-    // Words in a size of their own, so the size field shows one.
-    await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('plain words').selectAll()
-      .setFontSize('18px').run());
-    // The editor takes the focus a frame later: let it, before the bar does.
-    await expect(page.locator('.doc-card-modal .tt-editor').first()).toBeFocused();
-    const html = await page.evaluate(() => window.__soleilDocTest.editor.getHTML());
-    const bar = page.locator('.doc-card-modal .doc-tb');
-    await expect(bar.getByRole('textbox', { name: 'Font size' })).toHaveValue('18');
-    const style = bar.getByRole('combobox', { name: 'Paragraph style' });
-    const value = await style.inputValue();
-    await style.focus();
-    await page.keyboard.press('ArrowRight');
-    await expect(style).not.toBeFocused();
-    expect(await style.inputValue()).toBe(value);
-    const size = bar.getByRole('textbox', { name: 'Font size' });
-    await size.focus();
-    // Focus selects its text; → collapses that to the end, and is the field's.
-    await page.keyboard.press('ArrowRight');
-    await expect(size).toBeFocused();
-    await page.keyboard.press('ArrowRight');
-    await expect(bar.getByRole('button', { name: 'Preset sizes', exact: true })).toBeFocused();
-    await page.keyboard.press('ArrowLeft');
-    await expect(size).toBeFocused();
-    await page.keyboard.press('Home');
-    await expect(size, 'Home is the field\'s').toBeFocused();
-    // With the caret at its start (Home puts it there, but not on a Mac),
-    // ← goes on to the control before it.
-    await size.evaluate((el) => el.setSelectionRange(0, 0));
-    await page.keyboard.press('ArrowLeft');
-    await expect(size).not.toBeFocused();
-    // Nothing was typed, so nothing was set, and the focus stayed in the bar.
-    await expect(bar.locator(':focus')).toHaveCount(1);
-    expect(await page.evaluate(() => window.__soleilDocTest.editor.getHTML())).toBe(html);
-  });
-
-  test('names its buttons without the shortcut, which aria-keyshortcuts carries', async ({ page }) => {
-    await openDoc(page);
-    // Words selected, so Add link and Add comment are on and say their keys.
-    await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('plain words').selectAll().run());
-    const bar = page.locator('.doc-card-modal .doc-tb');
-    const m = await mod(page);
-    const keys = [
-      ['Bold', 'B'], ['Italic', 'I'], ['Underline', 'U'], ['Highlight', 'Shift+H'], ['Clear formatting', '\\'],
-      ['Bulleted list', 'Shift+8'], ['Numbered list', 'Shift+7'], ['Task list', 'Shift+9'],
-      ['Add link', 'K'], ['Add comment', 'Alt+M'], ['Find', 'F'], ['Undo', 'Z'], ['Redo', 'Shift+Z'],
-      ['Zoom out', '-'], ['Zoom in', '='],
-    ];
-    for (const [name, k] of keys) {
-      const b = bar.getByRole('button', { name, exact: true });
-      await expect(b, name).toHaveCount(1);
-      await expect(b, name).toHaveAttribute('aria-keyshortcuts', `${m}+${k}`);
-      await expect(b, `${name}'s tooltip still shows it`).toHaveAttribute('title', /\(.+\)$/);
-    }
-    for (const name of ['Bold', 'Italic', 'Underline', 'Strike', 'Inline code', 'Highlight', 'Bulleted list', 'Numbered list',
-      'Task list', 'Quote', 'Align left', 'Align center', 'Align right']) {
-      await expect(bar.getByRole('button', { name, exact: true }), name).toHaveAttribute('aria-pressed', /^(true|false)$/);
-    }
-    await expect(bar.getByRole('button', { name: 'Align left', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    // The font button says what it is, and the zoom readout what it shows.
-    await expect(bar.getByRole('button', { name: /^Font(: .+)?$/ })).toHaveCount(1);
-    const readout = bar.locator('.doc-tb-zoom-label');
-    const shown = (await readout.innerText()).trim();
-    await expect(readout).toHaveAccessibleName(shown === 'Fit' ? 'Fit to width' : `${shown} — reset zoom`);
-    expect(glyphNamed(await bar.ariaSnapshot())).toEqual([]);
-  });
-
-  test('⌥F10 in the text goes to it, and Esc goes back to the caret', async ({ page }) => {
-    await openDoc(page);
-    await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('one two').setTextSelection(4).run());
-    const text = page.locator('.doc-card-modal .tt-editor').first();
-    await expect(text).toBeFocused();
-    const bar = page.locator('.doc-card-modal .doc-tb');
-    // Tab is the text's (it indents), so this is the way from the words to the bar.
-    await page.keyboard.press('Alt+F10');
-    await expect.poll(() => bar.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-    expect(await bar.evaluate(() => document.activeElement.tabIndex)).toBe(0);
-    // All the way round, through its fields (one takes the page's selection).
-    await walk(page);
-    await page.keyboard.press('ArrowRight');
-    const there = await focused(page);
-    await page.keyboard.press('Escape');
-    await expect(text).toBeFocused();
-    await expect(page.locator('.doc-card-modal')).toBeVisible();
-    await page.keyboard.type('X');
-    await expect(text).toContainText('oneX two');
-    // And back: where the arrows left it.
-    await page.keyboard.press('Alt+F10');
-    await expect.poll(() => focused(page)).toBe(there);
-    // A screen reader is told the way in.
-    await expect(bar).toHaveAttribute('aria-keyshortcuts', 'Alt+F10');
-  });
-});
+// The doc's bar is doc-bar-a.spec.js's: one Tab stop, its size field's own
+// keys, its names and keys, and ⌥F10 from the text and Esc back.
 
 // ── The note's bar, against the real collaborative note (?noteqa) ─────────
 const A = '[data-client="A"] .note';

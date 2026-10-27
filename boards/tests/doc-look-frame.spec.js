@@ -2,19 +2,13 @@
 // A, with C's side panel), shipped 2026-10-24 (lib/appHost.js
 // docLookAllowed): the window's header carries the page list's toggle, the
 // cluster › title crumb and the side panel's toggle; the footer runs the
-// window's width with the save state, the words and the zoom. With the look
-// off, the doc keeps the frame it has today. Driven in the ?docqa=1 harness
-// (&cluster= names the cluster the doc sits on).
+// window's width with the save state, the words and the zoom. Driven in the
+// ?docqa=1 harness (&cluster= names the cluster the doc sits on).
 
 import { expect, test } from '@playwright/test';
 import { setScreenplay } from './helpers/docFrame.js';
 
-async function openDoc(page, { look = true, query = '' } = {}) {
-  // Said either way, so a run with the opt-in already stored still has a page
-  // with the look off.
-  await page.addInitScript((on) => {
-    try { window.localStorage.setItem('soleil.dev.docLook', on ? '1' : '0'); } catch (_) {}
-  }, look);
+async function openDoc(page, { query = '' } = {}) {
   await page.goto(`/?docqa=1${query}`);
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
@@ -37,9 +31,8 @@ test('the header carries the page list, the crumb, Comments, Messages, dock and 
   await expect(head(page).getByRole('button', { name: 'Messages' })).toBeVisible();
   await expect(head(page).getByRole('button', { name: 'Dock beside the canvas' })).toBeVisible();
   await expect(head(page).getByRole('button', { name: 'Close document' })).toBeVisible();
-  // Today's header, the rail's own chevron and the phone's page button give
-  // way to the header's.
-  await expect(modal(page).locator('.doc-card-modal-head')).toHaveCount(0);
+  // The rail's own chevron and the phone's page button (a doc shared on its
+  // own keeps them) give way to the header's.
   await expect(modal(page).locator('.doc-rail-toggle')).toHaveCount(0);
   await expect(modal(page).locator('.doc-mobile-pages-btn')).toHaveCount(0);
 });
@@ -181,13 +174,4 @@ test('a view-only member sees View only beside the title, and no Share', async (
   await expect(head(page).locator('.dl-chip')).toHaveText('View only');
   await expect(head(page).getByRole('button', { name: /^Share/ })).toHaveCount(0);
   await expect(head(page).getByRole('textbox', { name: 'Document title' })).toHaveAttribute('readonly', '');
-});
-
-test('with the look off, the doc keeps today\'s frame', async ({ page }) => {
-  await openDoc(page, { look: false, query: '&cluster=Feature%20film' });
-  await expect(modal(page).locator('.doc-card-modal-head')).toBeVisible();
-  await expect(modal(page).locator('.dl-head')).toHaveCount(0);
-  await expect(modal(page).locator('.doc-rail-toggle')).toHaveCount(1);
-  await expect(modal(page).locator('.doc-center > .doc-foot')).toHaveCount(1);
-  await expect(modal(page).locator('.dl-foot')).toHaveCount(0);
 });

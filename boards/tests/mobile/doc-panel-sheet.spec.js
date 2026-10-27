@@ -14,7 +14,6 @@ test.beforeEach(({}, testInfo) => {
 async function openDoc(page, { panelOpen = false } = {}) {
   await page.addInitScript((open) => {
     try {
-      window.localStorage.setItem('soleil.dev.docLook', '1');
       if (open) window.localStorage.setItem('soleil.boards.docPanel', JSON.stringify({ open: true, tab: 'comments' }));
     } catch (_) {}
   }, panelOpen);

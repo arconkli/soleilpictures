@@ -48,9 +48,10 @@ import {
 // its ⋯ the text's other tools, and ⌨ putting the keyboard away. What the
 // doc's ⋯ holds besides is the header's ⋯ there (DocMoreA, below).
 //
-// Every control runs the editor command today's bar runs (DocToolbar), on
-// the same state (lib/docBarState.js), and keeps the caret in the text: a
-// press doesn't take the focus, and nor do its menus (Menu's keepFocus).
+// Every control runs the same editor command as DocToolbar (the bar a doc
+// shared on its own still has), on the same state (lib/docBarState.js), and
+// keeps the caret in the text: a press doesn't take the focus, and nor do its
+// menus (Menu's keepFocus).
 // ⌥F10 in the text comes to the bar and Escape goes back (Toolbar's `text`).
 
 const keep = (e) => e.preventDefault();

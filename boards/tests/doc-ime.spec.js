@@ -6,7 +6,7 @@
 // syllable still in the IME: a keydown with isComposing and keyCode 229, then
 // the IME commits the syllable. A real Enter after that is the user's next one.
 import { expect, test } from '@playwright/test';
-import { setScreenplay, setTitlePage, todaysLook } from './helpers/docFrame.js';
+import { setScreenplay, setTitlePage } from './helpers/docFrame.js';
 import { korean } from './imeHelpers.js';
 
 test.skip(({ browserName }) => browserName !== 'chromium', 'CDP drives Chromium\'s IME');
@@ -84,24 +84,6 @@ test('a screenplay\'s title page: Enter mid-syllable leaves the title to the IME
   await expect(field).not.toBeFocused();
   await expect(field).toHaveValue('봄날');
   expect(await bodyText(page)).toBe(before);
-});
-
-test('find: Enter mid-syllable doesn\'t jump; the next Enter goes to the next match', async ({ page }) => {
-  // Today's find bar. The look's Find takes Korean in doc-panel-find.spec.js.
-  await todaysLook(page);
-  await openDoc(page);
-  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>한글 문서, 한글 노트, 한글 대본</p>'));
-  await page.locator('.doc-card-modal .tt-editor').first().click();
-  await page.keyboard.press('ControlOrMeta+f');
-  const input = page.locator('.doc-card-modal .doc-find-input').first();
-  await expect(input).toBeFocused();
-  const count = page.locator('.doc-card-modal .doc-find-count');
-  const ko = await korean(page);
-  await ko.typeThenEnterMidSyllable('한글');
-  await expect(input).toHaveValue('한글');
-  await expect(count).toHaveText('1/3');
-  await page.keyboard.press('Enter');
-  await expect(count).toHaveText('2/3');
 });
 
 test('renaming a page in Korean: Enter mid-syllable keeps it open, the next Enter names it, nothing spills', async ({ page }) => {

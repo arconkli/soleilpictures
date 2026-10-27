@@ -4,7 +4,7 @@
 // touch-only, a touch device (isMobile + hasTouch → hover:none and
 // pointer:coarse, the query the mobile shell switches on).
 import { expect, test } from '@playwright/test';
-import { dockButton, inDocLook, pageListButton, setScreenplay, todaysLook } from './helpers/docFrame.js';
+import { pageListButton, setScreenplay } from './helpers/docFrame.js';
 
 async function openDoc(page, query = '') {
   await page.goto('/?docqa=1' + query);
@@ -41,24 +41,6 @@ for (const vp of [{ width: 1024, height: 768 }, { width: 820, height: 1180 }]) {
       await expect(page.locator('.doc-card-modal .doc-rail-left')).toBeVisible();
       await page.locator('.doc-card-modal .doc-tree-name', { hasText: 'Chapter Three' }).first().tap();
       await expect(surface).not.toHaveClass(/mobile-rail-open/);
-    });
-    // The page-list button pushes the toolbar down, so a find bar at a fixed
-    // 52px landed on top of the toolbar row. It hangs below the bar instead.
-    test('VS-DOCS-01: the find bar hangs below the toolbar, not over it', async ({ page }) => {
-      // Today's find bar. The look's Find is its side panel (a sheet on a phone): doc-panel-find.spec.js, mobile/doc-panel-sheet.spec.js.
-      await todaysLook(page);
-      await openDoc(page);
-      const findBtn = page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]');
-      await findBtn.evaluate((el) => el.scrollIntoView({ inline: 'center' }));
-      await findBtn.tap();
-      await expect(page.locator('.doc-find')).toBeVisible();
-      const m = await page.evaluate(() => ({
-        find: document.querySelector('.doc-find').getBoundingClientRect().top,
-        tb: document.querySelector('.doc-card-modal .doc-tb').getBoundingClientRect().bottom,
-        tbVisible: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb')).visibility,
-      }));
-      expect(m.find).toBeGreaterThanOrEqual(m.tb);
-      expect(m.tbVisible).toBe('visible');
     });
   });
 }
@@ -104,28 +86,10 @@ test.describe('phone 390', () => {
     }));
     expect(hits.length).toBeGreaterThan(1);
     expect(hits.filter((h) => h !== true)).toEqual([]);
-    // A text selection still gets the bubble; in the look a phone's formats
-    // ride on the keyboard, in its row (mobile/doc-look-phone.spec.js).
+    // A text selection gets its formats back: on a phone they ride on the
+    // keyboard, in its row (mobile/doc-look-phone.spec.js).
     await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().setTextSelection({ from: 1, to: 7 }).run());
-    await expect(await inDocLook(page)
-      ? page.getByRole('toolbar', { name: 'Formatting', exact: true })
-      : page.locator('.doc-bubble')).toBeVisible();
-  });
-
-  // ── VS-DOCS-09 ──────────────────────────────────────────────────────────
-  // Today's frame only: the doc look opens the drawer from its header.
-  test('VS-DOCS-09: the drawer button matches the toolbar', async ({ page }) => {
-    await page.addInitScript(() => {
-      try { window.localStorage.setItem('soleil.dev.docLook', '0'); } catch (_) {}
-    });
-    await openDoc(page);
-    const btn = page.locator('.doc-card-modal .doc-mobile-pages-btn');
-    await expect(btn).toHaveText('Page list');
-    const fonts = await page.evaluate(() => ({
-      drawer: getComputedStyle(document.querySelector('.doc-card-modal .doc-mobile-pages-btn')).fontFamily,
-      toolbar: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb .doc-tb-pill')).fontFamily,
-    }));
-    expect(fonts.drawer).toBe(fonts.toolbar);
+    await expect(page.getByRole('toolbar', { name: 'Formatting', exact: true })).toBeVisible();
   });
 
   // ── VS-DOCS-07 ──────────────────────────────────────────────────────────
@@ -143,139 +107,6 @@ test.describe('phone 390', () => {
     });
     expect(cx.rows.length).toBe(3);
     for (const x of cx.rows) expect(Math.abs(x - cx.root)).toBeLessThan(2);
-  });
-});
-
-// ── VS-DOCS-03 ────────────────────────────────────────────────────────────
-// With the page rail open the bar is wider than a 1440 overlay, and with its
-// scrollbar hidden Find, Export, Zoom, Undo and Redo sat silently off-screen.
-// On a mouse it now wraps; where it still scrolls (touch) the edges fade.
-async function offBarControls(page) {
-  return page.evaluate(() => {
-    const bar = document.querySelector('.doc-card-modal .doc-tb');
-    const br = bar.getBoundingClientRect();
-    return [...bar.querySelectorAll('button, select, input')].filter((el) => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && (r.right > br.right + 1 || r.left < br.left - 1 || r.bottom > br.bottom + 1);
-    }).map((el) => el.getAttribute('aria-label') || el.title);
-  });
-}
-
-for (const vp of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
-  test.describe(`mouse ${vp.width}x${vp.height}`, () => {
-    test.use({ viewport: vp });
-    test('VS-DOCS-03: every toolbar control is on screen with the page rail open', async ({ page }) => {
-      // Today's bar, which wraps or scrolls. The look's is one row whose overflow folds into ⋯: doc-bar-a.spec.js.
-      await todaysLook(page);
-      await openDoc(page);
-      await expect(page.locator('.doc-card-modal .doc-rail-left')).toBeVisible();
-      expect(await offBarControls(page)).toEqual([]);
-      for (const name of ['Find', 'Zoom in', 'Undo', 'Redo']) {
-        await expect(page.locator(`.doc-card-modal .doc-tb [aria-label="${name}"]`)).toBeInViewport();
-      }
-      // The find bar hangs below the (now taller) toolbar, not over its last row.
-      await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
-      await expect(page.locator('.doc-find')).toBeVisible();
-      const gap = await page.evaluate(() =>
-        document.querySelector('.doc-find').getBoundingClientRect().top
-        - document.querySelector('.doc-card-modal .doc-tb').getBoundingClientRect().bottom);
-      expect(gap).toBeGreaterThanOrEqual(0);
-    });
-  });
-}
-
-// The docked pane keeps one scrolling row even on a mouse: a vertical wheel
-// scrolls it, and the fades follow the bar — including when a control inside
-// it changes width (the Font label), which doesn't resize the bar's own box.
-test.describe('mouse 1440 side dock', () => {
-  test.use({ viewport: { width: 1440, height: 900 } });
-  test('VS-DOCS-03: the docked bar wheels sideways and its fades stay current', async ({ page }) => {
-    // Today's bar, which wraps or scrolls. The look's is one row whose overflow folds into ⋯: doc-bar-a.spec.js.
-    await todaysLook(page);
-    await openDoc(page);
-    await dockButton(page).click();
-    await expect(page.locator('.doc-card-modal-side')).toBeVisible();
-    const bar = page.locator('.doc-card-modal-side .doc-tb');
-    await expect(bar).toHaveClass(/has-more-end/);
-    await expect(bar).not.toHaveClass(/has-more-start/);
-    await bar.hover();
-    await page.mouse.wheel(0, 200);
-    await expect(bar).toHaveClass(/has-more-start/);
-    await bar.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
-    await expect(bar).not.toHaveClass(/has-more-end/);
-    // A control grows in place: there is more past the right edge again.
-    await bar.evaluate((el) => { el.firstElementChild.style.minWidth = '400px'; });
-    await expect(bar).toHaveClass(/has-more-end/);
-  });
-});
-
-// A narrow MOUSE window wraps the bar like any mouse; the find bar hangs below
-// it rather than hiding it (which left an empty gap above the find bar).
-test.describe('mouse 390 find', () => {
-  test.use({ viewport: { width: 390, height: 844 } });
-  test('VS-DOCS-06: a narrow mouse window keeps the toolbar and hangs find below it', async ({ page }) => {
-    // Today's find bar. The look's Find is its side panel (a sheet on a phone): doc-panel-find.spec.js, mobile/doc-panel-sheet.spec.js.
-    await todaysLook(page);
-    await openDoc(page);
-    await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
-    await expect(page.locator('.doc-find')).toBeVisible();
-    const m = await page.evaluate(() => ({
-      find: document.querySelector('.doc-find').getBoundingClientRect().top,
-      tb: document.querySelector('.doc-card-modal .doc-tb').getBoundingClientRect().bottom,
-      tbVisible: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb')).visibility,
-    }));
-    expect(m.tbVisible).toBe('visible');
-    expect(m.find).toBeGreaterThanOrEqual(m.tb);
-    expect(m.find - m.tb).toBeLessThanOrEqual(16);
-  });
-});
-
-test.describe('phone 390 toolbar', () => {
-  test.use({ viewport: { width: 390, height: 844 }, ...TOUCH });
-
-  test('VS-DOCS-03: the swipeable bar fades the edge that has more past it', async ({ page }) => {
-    // Today's bar. A phone's row in the look rides on the keyboard: mobile/doc-look-phone.spec.js.
-    await todaysLook(page);
-    await openDoc(page);
-    const bar = page.locator('.doc-card-modal .doc-tb');
-    await expect(bar).toHaveClass(/has-more-end/);
-    await expect(bar).not.toHaveClass(/has-more-start/);
-    await bar.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
-    await expect(bar).toHaveClass(/has-more-start/);
-    await expect(bar).not.toHaveClass(/has-more-end/);
-  });
-
-  // ── VS-DOCS-06 ──────────────────────────────────────────────────────────
-  test('VS-DOCS-06: the find bar hides the toolbar row and its two fields line up', async ({ page }) => {
-    // Today's find bar. The look's Find is its side panel (a sheet on a phone): doc-panel-find.spec.js, mobile/doc-panel-sheet.spec.js.
-    await todaysLook(page);
-    await openDoc(page);
-    const findBtn = page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]');
-    await findBtn.evaluate((el) => el.scrollIntoView({ inline: 'center' }));
-    await findBtn.tap();
-    const bar = page.locator('.doc-find');
-    await expect(bar).toBeVisible();
-    await bar.locator('button[aria-label="Toggle replace"]').click();
-    await expect(bar.locator('input[aria-label="Replace with"]')).toBeVisible();
-    const m = await page.evaluate(() => {
-      const f = document.querySelector('.doc-find').getBoundingClientRect();
-      const [a, b] = [...document.querySelectorAll('.doc-find input')].map((i) => i.getBoundingClientRect());
-      const edge = document.elementFromPoint(window.innerWidth - 4, f.top + 14);
-      return {
-        lefts: [a.left, b.left], rights: [a.right, b.right],
-        peek: !!edge?.closest('.doc-tb'),
-        tb: getComputedStyle(document.querySelector('.doc-card-modal .doc-tb')).visibility,
-        closeOnFirstRow: document.querySelector('.doc-find-x').getBoundingClientRect().top < b.top,
-      };
-    });
-    expect(Math.abs(m.lefts[0] - m.lefts[1])).toBeLessThan(1);
-    expect(Math.abs(m.rights[0] - m.rights[1])).toBeLessThan(1);
-    expect(m.peek).toBe(false);
-    expect(m.tb).toBe('hidden');
-    expect(m.closeOnFirstRow).toBe(true);
-    // Closing brings the toolbar back.
-    await bar.locator('.doc-find-x').click();
-    await expect(page.locator('.doc-card-modal .doc-tb')).toBeVisible();
   });
 });
 
@@ -308,13 +139,9 @@ test.describe('phone 390 layouts', () => {
     expect(r.fit).toBe(false);
     expect(r.sideways).toBeLessThanOrEqual(1);
     expect(r.stillPaged).toBe(true);
-    // And says so: today the bar's Pages pill, in the look ⋯'s Layout.
-    if (await inDocLook(page)) {
-      await page.locator('.doc-card-modal .dl-head').getByRole('button', { name: /^More/ }).tap();
-      await expect(page.getByRole('menu', { name: 'More' }).getByRole('menuitem', { name: /^Layout/ })).toContainText('Pages');
-    } else {
-      await expect(page.locator('.doc-card-modal .doc-tb-pages-toggle')).toHaveAttribute('aria-pressed', 'true');
-    }
+    // And says so, in ⋯'s Layout.
+    await page.locator('.doc-card-modal .dl-head').getByRole('button', { name: /^More/ }).tap();
+    await expect(page.getByRole('menu', { name: 'More' }).getByRole('menuitem', { name: /^Layout/ })).toContainText('Pages');
   });
 
   test('VS-DOCS-05: screenplay fits its text column, keeping the true sheet', async ({ page }) => {
@@ -386,75 +213,3 @@ test.describe('phone 390 layouts', () => {
     expect(allInView).toBe(true);
   });
 });
-
-// ── VS-DOCS-08 ────────────────────────────────────────────────────────────
-// Body had a far-off filled triangle, Font a thin chevron beside its label and
-// Size a tiny ▾ glyph: three signs for one thing. Now one chevron, at the right
-// edge of each, in one ink.
-test.describe('mouse 1440 dropdowns', () => {
-  test.use({ viewport: { width: 1440, height: 900 } });
-  test('VS-DOCS-08: the style, font and size dropdowns share one chevron', async ({ page }) => {
-    // Today's bar. The look's menus carry its own caret: doc-bar-a.spec.js.
-    await todaysLook(page);
-    await openDoc(page);
-    const r = await page.evaluate(() => {
-      const tb = document.querySelector('.doc-card-modal .doc-tb');
-      const sel = tb.querySelector('.doc-tb-select');
-      const font = tb.querySelector('.doc-tb-pill-label + svg').parentElement;
-      const arrow = tb.querySelector('.size-combo-arrow');
-      const mask = (cs) => cs.maskImage || cs.webkitMaskImage || '';
-      const fa = getComputedStyle(font, '::after');
-      const ab = getComputedStyle(arrow, '::before');
-      return {
-        sel: getComputedStyle(sel).backgroundImage, font: mask(fa), size: mask(ab),
-        fontIconShown: getComputedStyle(font.querySelector('svg')).display !== 'none',
-        colors: [fa.backgroundColor, ab.backgroundColor],
-      };
-    });
-    for (const img of [r.sel, r.font, r.size]) expect(decodeURIComponent(img)).toContain('m6 9 6 6 6-6');
-    expect(r.fontIconShown).toBe(false);
-    expect(r.colors[0]).toBe(r.colors[1]);
-    await page.evaluate(() => { const T = window.__soleilDocTest; T.setDocMode(T.ydoc, T.getScope(), 'screenplay'); });
-    // "Scene Heading" fits its select now (it was clipped at the prose width).
-    await expect(page.locator('.doc-card-modal .doc-tb-select--sp')).toHaveCSS('width', '120px');
-  });
-});
-
-// ── VS-DOCS-04 ────────────────────────────────────────────────────────────
-// The thread popover opened on the comment's own line: beside it on desktop
-// (hiding the rest of the sentence) and, clamped back from the right edge on
-// a phone, right on top of the commented word.
-for (const [label, vp, touch] of [['phone 390', { width: 390, height: 844 }, true], ['mouse 1440', { width: 1440, height: 900 }, false]]) {
-  test.describe(`${label} comment`, () => {
-    test.use({ viewport: vp, ...(touch ? TOUCH : {}) });
-    test('VS-DOCS-04: the thread popover leaves the commented text visible', async ({ page }) => {
-      // Today's thread popover. The look opens the side panel on the thread (a sheet on a phone, which puts itself away to show the words): doc-panel-comments.spec.js, mobile/doc-panel-sheet.spec.js.
-      await todaysLook(page);
-      await openDoc(page);
-      const id = await page.evaluate(() => {
-        const T = window.__soleilDocTest;
-        const text = 'The quick brown fox jumps over the lazy dog and keeps on running.';
-        T.editor.commands.setContent(`<p>${text}</p><p>A second paragraph under it.</p>`);
-        const from = text.indexOf('brown') + 1;
-        const id = T.addCommentThread(T.ydoc, { body: 'Is this the right animal?', author: 'QA', authorId: null, authorColor: '#4f8df8', scope: T.getScope() });
-        T.editor.chain().setTextSelection({ from, to: from + 5 }).setMark('comment', { id }).run();
-        return id;
-      });
-      const mark = page.locator(`.tt-comment[data-comment-id="${id}"]`);
-      if (touch) await mark.tap(); else await mark.click();
-      await expect(page.locator('.comment-inline-pop')).toBeVisible();
-      const r = await page.evaluate((cid) => {
-        const m = document.querySelector(`.tt-comment[data-comment-id="${cid}"]`).getBoundingClientRect();
-        const p = document.querySelector('.comment-inline-pop').getBoundingClientRect();
-        const hit = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2);
-        return {
-          markHit: !!hit?.closest('.tt-comment'), popTop: p.top, markBottom: m.bottom,
-          inView: p.left >= 0 && p.right <= innerWidth && p.bottom <= innerHeight,
-        };
-      }, id);
-      expect(r.markHit).toBe(true);
-      expect(r.popTop).toBeGreaterThanOrEqual(r.markBottom);
-      expect(r.inView).toBe(true);
-    });
-  });
-}

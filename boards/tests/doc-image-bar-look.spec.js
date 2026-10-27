@@ -1,15 +1,10 @@
-// A doc image's bar in the doc look (lib/appHost.js docLookAllowed, a dev
-// opt-in): the look's bars' glass and corners, their icons in place of
-// today's glyphs, the look's tooltip, and the image's alignment on in the
-// look's gold tint and ring. Its alignments say which is the image's in both
-// looks (aria-pressed). Today's look keeps its glyphs and titles.
+// A doc image's bar in the doc look: the look's bars' glass and corners, its
+// icons, the look's tooltip, and the image's alignment on in the look's gold
+// tint and ring, which its alignments say too (aria-pressed).
 // ?docqa=1 harness (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
 
-async function openDoc(page, look) {
-  await page.addInitScript((on) => {
-    try { window.localStorage.setItem('soleil.dev.docLook', on ? '1' : '0'); } catch (_) {}
-  }, look);
+async function openDoc(page) {
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
@@ -40,7 +35,7 @@ const ON_TINT = /^rgba\(255, 165, 0, 0\.1[34]\)$/;
 const ON_RING = /rgba\((255, 165|230, 140), 0, 0\.(34|45)\)/;
 
 test('in the doc look the bar is the look\'s: its glass, its icons, its tooltip, the alignment on', async ({ page }) => {
-  const bar = await openDoc(page, true);
+  const bar = await openDoc(page);
   const css = await bar.evaluate((el) => {
     const cs = getComputedStyle(el);
     return { radius: cs.borderRadius, bg: cs.backgroundColor, blur: cs.backdropFilter };
@@ -70,14 +65,4 @@ test('in the doc look the bar is the look\'s: its glass, its icons, its tooltip,
   await expect(center).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.doc-card-modal .tt-img-wrap')).toHaveClass(/tt-img-align-left/);
   await expect(left.locator('svg')).toHaveCount(1);
-});
-
-test('today\'s look keeps its glyphs and titles, and says which alignment is on', async ({ page }) => {
-  const bar = await openDoc(page, false);
-  const marks = await bar.getByRole('button').evaluateAll((els) => els.map((el) => [el.textContent, el.title]));
-  expect(marks).toEqual([['⇤', 'Align left'], ['≡', 'Align center'], ['⇥', 'Align right'], ['▭', 'Full width'], ['×', 'Delete image']]);
-  await expect(bar.getByRole('button', { name: 'Align center', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await bar.getByRole('button', { name: 'Align right', exact: true }).click();
-  await expect(bar.getByRole('button', { name: 'Align right', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(bar.getByRole('button', { name: 'Align center', exact: true })).toHaveAttribute('aria-pressed', 'false');
 });
