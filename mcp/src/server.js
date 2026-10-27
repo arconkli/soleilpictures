@@ -354,7 +354,9 @@ export async function handleMcpMessage(msg, ctx) {
   const { id, method, params } = msg || {};
   const tools = ctx?.tools || HOSTED_TOOLS;
   const instructions = ctx?.instructions || INSTRUCTIONS;
-  const manifest = ctx?.manifest || toolManifest;
+  // ctx.manifest decorates the registry's own listing, never a raw tool: that
+  // carries functions and private fields, and lacks _meta and `untrusted`.
+  const manifest = ctx?.manifest ? (t) => ctx.manifest(toolManifest(t)) : toolManifest;
 
   // Notifications carry no id and get no response. 2026-07-28 defines no
   // client-to-server notifications at all, but a legacy client still sends

@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MIGRATIONS_DIR } from './migrationText.mjs';
-import { HOSTED_TOOLS, toolManifest } from './mcpTools.js';
+import { HOSTED_TOOLS, toolManifest, BOARD_VIEW } from './mcpTools.js';
 import { handleMcpMessage, INSTRUCTIONS } from './mcpServer.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import {
@@ -319,6 +319,18 @@ test('/mcp lists the tools its way and introduces drafts', async () => {
   assert.deepEqual(tools.map((t) => t.name), HOSTED_TOOLS.map((t) => t.name), 'the same tools, in order');
   assert.ok(tools.find((t) => t.name === 'add_cards').inputSchema.properties.draft);
   assert.deepEqual(tools.find((t) => t.name === 'share_board').securitySchemes.map((s) => s.type), ['oauth2']);
+  // Each is the registry's own listing, decorated: never the raw tool, whose
+  // private fields would leak and whose _meta (the view) and `untrusted` would not.
+  HOSTED_TOOLS.forEach((t, i) => assert.deepEqual(tools[i], mixedManifest(toolManifest(t)), t.name));
+  const show = tools.find((t) => t.name === 'show_board');
+  assert.equal(show._meta.ui.resourceUri, BOARD_VIEW.uri);
+  assert.equal(show._meta['openai/outputTemplate'], BOARD_VIEW.uri);
+  assert.ok(show.outputSchema.properties.untrusted, 'peoplesText answers declare untrusted');
+  for (const t of tools) {
+    for (const k of ['meta', 'peoplesText', 'call', 'summary', 'forModel', 'view', 'local']) {
+      assert.equal(k in t, false, `${t.name} lists ${k}`);
+    }
+  }
 
   const init = await handleMcpMessage({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2025-11-25' } },
     { instructions: DRAFT_INSTRUCTIONS });
