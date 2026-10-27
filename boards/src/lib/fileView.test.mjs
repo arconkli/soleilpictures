@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   viewKindOfKey, viewKeys, isViewKey, isViewPdfKey, drawsNowhere, viewKeyOfCard, turnsIntoPicture, VIEW_EDGE,
-  VIEW_SM_EDGE, RAW_EXTS, PSD_EXTS, DOC_EXTS, DOC_MAX_BYTES, VIEW_MAX_BYTES, DOC_MAX_PAGES,
+  VIEW_SM_EDGE, RAW_EXTS, PSD_EXTS, DOC_EXTS, DOC_MAX_BYTES, VIEW_MAX_BYTES, DOC_MAX_PAGES, docFamily, docDropSize,
+  DOC_DROP_PAGE, DOC_DROP_SLIDE, extOfKey,
 } from './fileView.js';
 import { mediaKindOfKey, isCopyKey } from './playCopy.js';
 
@@ -125,4 +126,26 @@ test('every document extension is a short lowercase one, in no other queue, and 
 test('the document ceilings are under the photo ones', () => {
   assert.ok(DOC_MAX_BYTES > 0 && DOC_MAX_BYTES <= VIEW_MAX_BYTES);
   assert.ok(Number.isInteger(DOC_MAX_PAGES) && DOC_MAX_PAGES >= 50);
+});
+
+test("a document's family decides its first size: a slide for a deck, a page for the rest", () => {
+  for (const e of ['pptx', 'PPT', 'key', 'odp', 'ppsx', 'potx', 'sxi']) assert.equal(docFamily(e), 'slides', e);
+  for (const e of ['xlsx', 'xls', 'xlsm', 'numbers', 'ods', 'sxc']) assert.equal(docFamily(e), 'sheet', e);
+  for (const e of ['docx', 'doc', 'pages', 'odt', 'rtf', 'wpd', 'vsdx', 'pub']) assert.equal(docFamily(e), 'page', e);
+  for (const e of ['pdf', 'zip', 'jpg', 'heic', '', null, undefined]) assert.equal(docFamily(e), null, String(e));
+  for (const e of DOC_EXTS) assert.ok(docFamily(e), e);
+  assert.deepEqual(docDropSize('pptx'), DOC_DROP_SLIDE);
+  assert.deepEqual(DOC_DROP_SLIDE, { w: 400, h: 225 });
+  assert.deepEqual(docDropSize('XLSX'), { w: 300, h: 388 });
+  assert.deepEqual(docDropSize('docx'), DOC_DROP_PAGE);
+  assert.equal(docDropSize('zip'), null);
+  assert.equal(docDropSize(''), null);
+});
+
+test("a stored file's extension is read off its key or its r2: ref", () => {
+  assert.equal(extOfKey(`r2:${WS}/abc/Deck v2.PPTX`), 'pptx');
+  assert.equal(extOfKey(`${WS}/abc/Budget.xlsx`), 'xlsx');
+  assert.equal(extOfKey(`${WS}/abc/noext`), '');
+  assert.equal(extOfKey(null), '');
+  assert.equal(extOfKey(undefined), '');
 });

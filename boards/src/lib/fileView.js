@@ -14,8 +14,9 @@
 // beside the layers.
 //
 // No browser shows a Word, PowerPoint, Excel, Keynote, Pages, Numbers or
-// OpenDocument file either. A document's view is its first page, which its
-// file card shows, and a PDF of its pages goes beside it for Quick look
+// OpenDocument file either. A document's view is its first page (a
+// spreadsheet's, its first sheet's cells), which its file card shows at the
+// page's shape, and a PDF of its pages goes beside it for Quick look
 // (LibreOffice on the converter makes both). Its card stays a file card.
 //
 // Views are named after their original, like the playable copies
@@ -77,6 +78,35 @@ export const DOC_EXTS = Object.freeze([
   'vsd', 'vsdx', 'odg', 'otg', 'pub', 'sxd',
 ]);
 const DOC_SET = new Set(DOC_EXTS);
+
+// A document's family, for the size its card first lands at and the glyph it
+// wears: 'slides' (a deck), 'sheet' (a spreadsheet, whose picture is its first
+// sheet's cells: media/src/doc.js) or 'page' (the rest, which print to pages).
+// null for a file that isn't a document.
+const SLIDE_EXTS = new Set(['ppt', 'pptx', 'pptm', 'pps', 'ppsx', 'ppsm', 'pot', 'potx', 'potm', 'odp', 'otp', 'key', 'sxi']);
+const SHEET_EXTS = new Set(['xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'xltm', 'ods', 'ots', 'numbers', 'sxc']);
+export function docFamily(ext) {
+  const e = String(ext || '').toLowerCase();
+  if (!DOC_SET.has(e)) return null;
+  return SLIDE_EXTS.has(e) ? 'slides' : SHEET_EXTS.has(e) ? 'sheet' : 'page';
+}
+
+// The size a new document's card lands at, before its first page is made: a
+// page's (a PDF card's) or a slide's. A card still this size takes its page's
+// own shape when the page comes (lib/fileViewClient.js viewFileCardPatch),
+// and goes back to a file card's 240×150 when none will (noPageCardPatch).
+export const DOC_DROP_PAGE = Object.freeze({ w: 300, h: 388 });
+export const DOC_DROP_SLIDE = Object.freeze({ w: 400, h: 225 });
+export function docDropSize(ext) {
+  const family = docFamily(ext);
+  return family === 'slides' ? DOC_DROP_SLIDE : family ? DOC_DROP_PAGE : null;
+}
+
+// The extension of a stored file's key (or its "r2:" ref), lowercased, or ''.
+export function extOfKey(key) {
+  const m = String(key || '').match(EXT_RE);
+  return m ? m[1].toLowerCase() : '';
+}
 
 // True for a key the converter wrote as a view (a picture). Never an
 // original, and never a document's PDF.
