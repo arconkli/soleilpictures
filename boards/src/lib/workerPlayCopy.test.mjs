@@ -77,7 +77,7 @@ function world({ readable = [MOV, AIFF, HEIC, DECK], jobs = {}, objects = {}, re
     },
     svcSelect: async (_env, table, query) => {
       const key = decodeURIComponent(query.match(/storage_path=eq\.([^&]+)/)[1]);
-      assert.equal(table, /\.(heic|pptx)$/.test(key) ? 'file_views' : 'media_copies', 'each key\'s job is read from its own queue');
+      assert.equal(table, /\.(heic|pptx|procreat)$/.test(key) ? 'file_views' : 'media_copies', 'each key\'s job is read from its own queue');
       return jobs[key] ? [jobs[key]] : [];
     },
     svcRpc: async (_env, fn, params) => {
@@ -232,6 +232,21 @@ test('a claim hands over views before copies, and a view\'s source opens like a 
   assert.equal((await (await empty.call('claim', { headers: box })).json()).key, MOV);
   assert.deepEqual(empty.rpcs.map((r) => r.fn), ['_file_view_claim', '_media_copy_claim']);
   assert.equal((await world().call('claim', { headers: box })).status, 204);
+});
+
+test('a design file\'s claim names its extension as it is stored, and its source tells its size to a HEAD', async () => {
+  // The uploader keeps eight letters of an extension: a .procreate is stored as .procreat.
+  const procreate = `${WS}/4f1c2d3e-0000-4000-8000-000000000005.procreat`;
+  const w = world({ viewClaimRows: [{ storage_path: procreate, kind: 'design', size_bytes: null, attempts: 1 }],
+    jobs: { [procreate]: leased({ kind: 'design' }) }, objects: { [procreate]: 'abcdef' } });
+  const job = await (await w.call('claim', { headers: box })).json();
+  assert.deepEqual([job.key, job.kind, job.ext, job.sizeBytes], [procreate, 'design', 'procreat', null]);
+  const head = await w.call(job.source.replace('/api/media/copy/', ''), { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(head.headers.get('content-length'), '6');
+  const tail = await w.call(job.source.replace('/api/media/copy/', ''), { method: 'GET', headers: { range: 'bytes=4-5' } });
+  assert.equal(tail.status, 206);
+  assert.equal(await tail.text(), 'ef');
 });
 
 test('the source closes when the lease does', async () => {
