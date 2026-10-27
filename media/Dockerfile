@@ -6,8 +6,10 @@ FROM node:22-bookworm-slim
 # vips makes the views of photos (HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000). Its
 # ImageMagick, PDF and OpenSlide modules are removed: views never need them,
 # and ImageMagick reads formats that follow references to other files.
+# exiftool lifts the camera's own JPEG out of a raw file, and LibRaw
+# (dcraw_emu) develops one that carries none big enough.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg libvips-tools ca-certificates \
+  && apt-get install -y --no-install-recommends ffmpeg libvips-tools libimage-exiftool-perl libraw-bin ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && rm -f /usr/lib/*/vips-modules-*/vips-magick.so /usr/lib/*/vips-modules-*/vips-poppler.so \
        /usr/lib/*/vips-modules-*/vips-openslide.so

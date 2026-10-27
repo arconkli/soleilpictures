@@ -1,7 +1,9 @@
 import { supabase } from './supabase.js';
-import { setMetaLocal } from './imageMeta.js';
-import { viewKindOfKey } from './fileView.js';
-import { requestFileViews, viewMeta, viewCardPatch, VIEW_COLS, REQUEST_MAX_KEYS } from './fileViewClient.js';
+import { getMeta, setMetaLocal } from './imageMeta.js';
+import { viewKindOfKey, viewKeyOfCard } from './fileView.js';
+import {
+  requestFileViews, viewMeta, viewCardPatch, viewFileCardPatch, viewSize, VIEW_COLS, REQUEST_MAX_KEYS,
+} from './fileViewClient.js';
 import { WAITING_STATES } from './playCopyClient.js';
 
 // Photos' views, the work loaded the first time one is needed: a picture the
@@ -130,33 +132,48 @@ async function poll() {
 
 const PASS_KEYS = 60;
 
+// The photo's size as its meta has it: its own, else its preview's.
+function metaSize(key) {
+  const m = getMeta(key);
+  return m?.w > 0 && m?.h > 0 ? { w: m.w, h: m.h } : { w: m?.previewW, h: m?.previewH };
+}
+
 // One pass of useFileViewBackfill over `targets`, the board's image cards of
-// files that get views and have no preview yet. A finished view goes into the
-// meta and onto every card that holds its file as the board is now
-// (`cardsNow`, `write`); a file never asked about is asked about, `perPass` at
-// most. `settled` and `asked` are the hook's, kept across passes. True while
-// views on this board are still to come, so the hook looks again.
+// files that get views and have no preview yet, and its file cards holding
+// one (fileView.js viewKeyOfCard). A finished view goes into the meta and
+// onto every card that holds its file as the board is now (`cardsNow`,
+// `write`): an image card still at the drop's 4:3 takes the photo's shape, a
+// file card turns into its picture card. A file never asked about is asked
+// about, `perPass` at most. `settled` and `asked` are the hook's, kept across
+// passes. True while views on this board are still to come, so the hook
+// looks again.
 export async function viewPass({ targets, cardsNow, write, settled, asked, perPass, cancelled }) {
-  const keys = [...new Set(targets.map((c) => c.src.slice(3)))].slice(0, PASS_KEYS);
+  const keys = [...new Set(targets.map(viewKeyOfCard).filter(Boolean))].slice(0, PASS_KEYS);
   const { data, error } = await supabase.from('file_views').select(VIEW_COLS).in('storage_path', keys);
   if (error || cancelled()) return false;
   let waiting = false;
   const rows = new Map((data || []).map((r) => [r.storage_path, r]));
+  // `row` is the view's when it made one, null for a browser's preview.
+  const writeCards = (key, row) => {
+    const ref = `r2:${key}`;
+    const size = row ? viewSize(row) : metaSize(key);
+    for (const c of cardsNow() || []) {
+      const patch = c.kind === 'image' && c.src === ref ? (row ? viewCardPatch(c, row) : {})
+        : c.kind === 'file' && c.fileSrc === ref ? viewFileCardPatch(c, size)
+          : {};
+      if (Object.keys(patch).length) write(c.id, patch);
+    }
+  };
   const toAsk = [];
   for (const key of keys) {
     const row = rows.get(key);
     if (row?.state === 'done') {
-      applyView(row);
-      for (const c of cardsNow() || []) {
-        if (c.src !== `r2:${key}`) continue;
-        const patch = viewCardPatch(c, row);
-        if (Object.keys(patch).length) write(c.id, patch);
-      }
+      if (applyView(row)) writeCards(key, row);
       settled.add(key);
     } else if (row && WAITING_STATES.has(row.state)) {
       waiting = true;
     } else if (row) {
-      if (row.reason === 'has_preview') await refreshMeta(key);
+      if (row.reason === 'has_preview' && await refreshMeta(key)) writeCards(key, null);
       settled.add(key);
     } else if (!asked.has(key)) {
       toAsk.push(key);
@@ -171,7 +188,10 @@ export async function viewPass({ targets, cardsNow, write, settled, asked, perPa
     for (const k of ask) asked.add(k);
     const states = await requestFileViews(ask, { getToken: sessionToken });
     for (const k of ask) {
-      if (states[k] === 'has_preview') { await refreshMeta(k); settled.add(k); }
+      if (states[k] === 'has_preview') {
+        if (await refreshMeta(k)) writeCards(k, null);
+        settled.add(k);
+      }
       else if (WAITING_STATES.has(states[k]) || states[k] === 'done') waiting = true;
     }
   }

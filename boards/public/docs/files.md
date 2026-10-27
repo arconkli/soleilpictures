@@ -1,8 +1,8 @@
 # Files and uploads
 
-> Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
+> Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
-_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-24_
+_Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-27_
 
 Drag a file onto the canvas. The type is detected and the right kind of card is
 created — you never pick "upload as image" from a menu.
@@ -11,7 +11,7 @@ created — you never pick "upload as image" from a menu.
 
 | You drop | You get |
 |---|---|
-| Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000) | An [image card](/docs/canvas/images) with adjustments, shown in every browser |
+| Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000, camera raw, Photoshop `.psd`) | An [image card](/docs/canvas/images) with adjustments, shown in every browser |
 | Video | An inline [player](/docs/files/video-and-audio) |
 | Audio | A [waveform player](/docs/files/video-and-audio) with cover art |
 | PDF | A [page-one thumbnail](/docs/files/pdf) opening into a full viewer |

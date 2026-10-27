@@ -26,6 +26,7 @@ function isPublicSurface() {
 }
 import { loadCorsCleanImage } from './corsImage.js';
 import { filenameFor, originalFilename } from './imageFilename.js';
+import { drawsNowhere } from './fileView.js';
 
 export { filenameFor, originalFilename, imageExtFor } from './imageFilename.js';
 import {
@@ -200,7 +201,8 @@ export async function downloadImage({ src, title, adjust }) {
   };
 
   try {
-    if (!isAdjusted(adjust)) return await downloadOriginal();
+    // No browser decodes a raw or a .psd, so its adjustments can't be baked.
+    if (!isAdjusted(adjust) || drawsNowhere(String(src || '').replace(/^r2:/, ''))) return await downloadOriginal();
     const img = await loadCorsCleanImage(url);
     if (!img) return await downloadOriginal();
     const blob = await bakeAdjustedBlob(img, adjust);

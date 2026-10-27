@@ -5,7 +5,7 @@
 // records), so node can test it. Never throws: an answer it couldn't get is
 // an empty one.
 
-import { viewKindOfKey } from './fileView.js';
+import { viewKindOfKey, viewKeyOfCard } from './fileView.js';
 import { askConverter, REQUEST_MAX_KEYS } from './playCopyClient.js';
 
 // { [key]: state } for the originals among `keys` that get views: 'queued' |
@@ -42,10 +42,27 @@ export function viewMeta(row) {
 }
 
 // An image card dropped as a file the browser couldn't draw gets 320×240
-// (CanvasSurface's drop), and the canvas's paste window is 80 to 1200.
+// (CanvasSurface's drop), a file card 240 wide, and the canvas's paste window
+// is 80 to 1200.
 const PLACEHOLDER_RATIO = 240 / 320;
+const FILE_CARD_W = 240;
 const MIN_SIDE = 80;
 const MAX_SIDE = 1200;
+
+// The photo's size a finished view's row gives: the original's, else the view's.
+export function viewSize(row) {
+  return { w: num(row?.width) || num(row?.view_w), h: num(row?.height) || num(row?.view_h) };
+}
+
+// A `w`×`h` photo's shape at width `cw`, inside the paste window.
+function shapeAt(cw, w, h) {
+  const nw = cw;
+  const nh = cw * (h / w);
+  const long = Math.max(nw, nh);
+  const short = Math.min(nw, nh);
+  const k = long > MAX_SIDE ? MAX_SIDE / long : short < MIN_SIDE ? MIN_SIDE / short : 1;
+  return { w: Math.round(nw * k), h: Math.round(nh * k) };
+}
 
 // What a finished view writes onto its card (editors' backfill, silently): a
 // card still at the placeholder's 4:3 takes the photo's own shape, keeping
@@ -56,19 +73,27 @@ export function viewCardPatch(card, row) {
   if (!card || card.kind !== 'image' || !row || row.state !== 'done') return {};
   const key = typeof card.src === 'string' && card.src.startsWith('r2:') ? card.src.slice(3) : '';
   if (!key || row.storage_path !== key) return {};
-  const w = num(row.width) || num(row.view_w);
-  const h = num(row.height) || num(row.view_h);
+  const { w, h } = viewSize(row);
   if (!w || !h || !(card.w > 0) || !(card.h > 0)) return {};
   if (Math.abs(card.h / card.w - PLACEHOLDER_RATIO) >= 0.01) return {};
-  let nw = card.w;
-  let nh = card.w * (h / w);
-  const long = Math.max(nw, nh);
-  const short = Math.min(nw, nh);
-  const k = long > MAX_SIDE ? MAX_SIDE / long : short < MIN_SIDE ? MIN_SIDE / short : 1;
-  nw = Math.round(nw * k);
-  nh = Math.round(nh * k);
-  if (Math.abs(nw - card.w) <= card.w * 0.02 && Math.abs(nh - card.h) <= card.h * 0.02) return {};
-  return { w: nw, h: nh };
+  const next = shapeAt(card.w, w, h);
+  if (Math.abs(next.w - card.w) <= card.w * 0.02 && Math.abs(next.h - card.h) <= card.h * 0.02) return {};
+  return next;
+}
+
+// What a photo's picture, once there is one, writes onto a file card holding
+// the photo (a raw or a .psd dropped before views, a photo some system gave no
+// type): the card turns into the picture card a drop makes now. The same file
+// is its `src`; it takes the photo's shape (`size`, {w, h}) at its own width,
+// and keeps its name, type, size and title. `fileSrc` is cleared, so nothing
+// that looks for a file card's file finds this one once the picture's file is
+// replaced. {} for a card that stays a file card (fileView.js viewKeyOfCard).
+export function viewFileCardPatch(card, size) {
+  if (card?.kind !== 'file' || !viewKeyOfCard(card)) return {};
+  const w = num(size?.w);
+  const h = num(size?.h);
+  if (!w || !h) return {};
+  return { kind: 'image', src: card.fileSrc, ...shapeAt(card.w > 0 ? card.w : FILE_CARD_W, w, h), fileSrc: null };
 }
 
 export { REQUEST_MAX_KEYS };

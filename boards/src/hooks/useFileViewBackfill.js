@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { viewKindOfKey } from '../lib/fileView.js';
+import { viewKeyOfCard } from '../lib/fileView.js';
 import { getMeta } from '../lib/imageMeta.js';
 
 // Every photo shows in every browser (lib/fileView.js). For a writer on the
@@ -8,7 +8,8 @@ import { getMeta } from '../lib/imageMeta.js';
 // view for, a few a pass; each finished view goes into the image meta, so the
 // card shows it, and onto its card, silently and off the undo stack, when the
 // card is still the 4:3 shape a file the browser couldn't measure is dropped
-// at. Pictures elsewhere (Files, Quick look, a reader's canvas) ask on their
+// at. A file card holding such a photo (a raw or a .psd from before views)
+// turns into its picture card once the view is made. Pictures elsewhere (Files, Quick look, a reader's canvas) ask on their
 // own when they can't draw a file (components/R2Image.jsx). The pass loads
 // with lib/fileViewWork.js the first time a board has a card to look at.
 //
@@ -49,9 +50,12 @@ export function useFileViewBackfill({
   useEffect(() => {
     if (runningRef.current) return;
     if (!enabled || !canEdit || !workspaceId || !userId || typeof updateCardSilent !== 'function') return;
-    const targets = (cards || []).filter((c) => c.kind === 'image' && !c.pending
-      && typeof c.src === 'string' && c.src.startsWith('r2:') && viewKindOfKey(c.src.slice(3))
-      && !getMeta(c.src.slice(3))?.previewKey && !settled.current.has(c.src.slice(3)));
+    const targets = (cards || []).filter((c) => {
+      const key = viewKeyOfCard(c);
+      // A file card turns once its file has a picture, so it's looked at even
+      // when the meta has the picture already.
+      return key && !settled.current.has(key) && (c.kind === 'file' || !getMeta(key)?.previewKey);
+    });
     if (!targets.length) return;
     const scope = scopeRef.current;
     const cancelled = () => scopeRef.current !== scope;

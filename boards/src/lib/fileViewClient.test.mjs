@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { requestFileViews, viewMeta, viewCardPatch } from './fileViewClient.js';
+import { requestFileViews, viewMeta, viewCardPatch, viewFileCardPatch, viewSize } from './fileViewClient.js';
 import { _resetPlayCopyCooldown } from './playCopyClient.js';
 
 const WS = '0b6e2f0a-6c55-4b8e-9d0a-2a3f1c9e7b11';
@@ -53,4 +53,46 @@ test('a card still at the 4:3 placeholder takes the photo\'s shape; any other ca
   assert.deepEqual(viewCardPatch(card({ src: `r2:${WS}/other.heic` }), done({ width: 3024, height: 4032 })), {}, 'another file');
   assert.deepEqual(viewCardPatch(card({ kind: 'file' }), done({ width: 3024, height: 4032 })), {});
   assert.deepEqual(viewCardPatch(card(), done({ state: 'failed' })), {});
+});
+
+test('a file card holding a photo turns into its picture card, at its own width, once there is a picture', () => {
+  const ARW = `${WS}/4f1c2d3e-0000-4000-8000-000000000009.ARW`;
+  const card = {
+    id: 'file-1', kind: 'file', fileSrc: `r2:${ARW}`, fileName: 'DSC00412.ARW', mime: 'image/x-sony-arw',
+    sizeBytes: 24_000_000, ext: 'arw', x: 40, y: 60, w: 240, h: 150, title: 'Dusk, take 2',
+  };
+  // A landscape photo: the width kept, the height its shape. The card's other
+  // fields are left as they are (a patch never names them).
+  assert.deepEqual(viewFileCardPatch(card, { w: 6048, h: 4024 }),
+    { kind: 'image', src: `r2:${ARW}`, w: 240, h: 160, fileSrc: null });
+  // A portrait one grows down from the same width.
+  assert.deepEqual(viewFileCardPatch(card, { w: 3024, h: 4032 }),
+    { kind: 'image', src: `r2:${ARW}`, w: 240, h: 320, fileSrc: null });
+  // A panorama stays inside the canvas's 80 to 1200.
+  assert.deepEqual(viewFileCardPatch({ ...card, w: 240 }, { w: 12000, h: 2000 }).h, 80);
+  assert.deepEqual(viewFileCardPatch({ ...card, w: 1100 }, { w: 1000, h: 3000 }), {
+    kind: 'image', src: `r2:${ARW}`, w: 400, h: 1200, fileSrc: null,
+  });
+  // A card with no width of its own gets a file card's.
+  assert.equal(viewFileCardPatch({ ...card, w: undefined }, { w: 300, h: 200 }).w, 240);
+  // A .psd, an OpenEXR, a TIFF a system gave no type: the same.
+  for (const name of ['comp.psd', 'big.psb', 'plate.exr', 'scan.tif']) {
+    assert.equal(viewFileCardPatch({ ...card, fileSrc: `r2:${WS}/${name}` }, { w: 400, h: 300 }).kind, 'image', name);
+  }
+  // Nothing turns without the photo's size, and nothing that isn't a photo's
+  // file card, or one that stays a file card, turns at all.
+  assert.deepEqual(viewFileCardPatch(card, { w: null, h: 300 }), {});
+  assert.deepEqual(viewFileCardPatch(card, null), {});
+  for (const other of [
+    { ...card, fileSrc: `r2:${WS}/pack.zip` }, { ...card, fileSrc: `r2:${WS}/a.jpg` },
+    { ...card, pending: true }, { ...card, locked: true },
+    { ...card, versions: [{ fileSrc: `r2:${ARW}`, id: 'v1' }] }, { ...card, fileSrc: 'blob:x' },
+    { ...card, kind: 'image', src: `r2:${ARW}` },
+  ]) assert.deepEqual(viewFileCardPatch(other, { w: 400, h: 300 }), {});
+});
+
+test('a view\'s row gives the photo\'s own size, else the view\'s', () => {
+  assert.deepEqual(viewSize(done()), { w: 4032, h: 3024 });
+  assert.deepEqual(viewSize(done({ width: null, height: 0 })), { w: 2048, h: 1536 });
+  assert.deepEqual(viewSize(null), { w: null, h: null });
 });

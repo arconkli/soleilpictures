@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, CACHE_TTL_MS } from '../lib/r2.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { isAnimatedImageKey } from '../lib/fileIngest.js';
-import { viewKindOfKey, isViewKey } from '../lib/fileView.js';
+import { viewKindOfKey, isViewKey, drawsNowhere } from '../lib/fileView.js';
 import { requestImageBackfill } from '../lib/previewBackfill.js';
 import { thumbHashToDataURL } from 'thumbhash';
 import * as perf from '../lib/perf.js';
@@ -124,7 +124,7 @@ function pickTierSrc(src, originalKey) {
   const m = readMeta(originalKey);
   if (!m || !m.previewKey) return src;
   const pv = `r2:${m.previewKey}`;
-  if (cachedUrl(pv) || !cachedUrl(src)) return pv;
+  if (cachedUrl(pv) || !cachedUrl(src) || drawsNowhere(originalKey)) return pv;
   if (!(m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX)) return pv;
   // Memory-constrained clients (iOS Safari's per-tab budget, ≤4GB) never warm a
   // full-res original on the canvas — a handful of decodes OOM-crashes the tab.
@@ -163,7 +163,7 @@ function pickInitialTier(src, originalKey, w) {
   const smSrc = m.previewSmKey ? `r2:${m.previewSmKey}` : null;
   const wantSm = !!smSrc && !!m.previewSmW && displayedPx > 0 && displayedPx <= m.previewSmW;
   const floor = wantSm ? smSrc : `r2:${m.previewKey}`;
-  if (cachedUrl(floor) || !cachedUrl(src)) return floor;
+  if (cachedUrl(floor) || !cachedUrl(src) || drawsNowhere(originalKey)) return floor;
   // Low-mem: keep the floor variant — never mount a card straight on the warm
   // original (see pickTierSrc / originalWorthUpgrade). Prevents a viewport-cull
   // remount from decoding a disk-cached original the promote path just refused.
@@ -295,7 +295,10 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   // The file's preview, shown in place of an original the browser can't draw.
   const [viaPreview, setViaPreview] = useState(() => serverView(srcKey));
   const shown = viaPreview ? `r2:${viaPreview}` : src;
-  const initial = cachedUrl(shown);
+  // A format no browser draws (a raw, a .psd, OpenEXR) never loads its
+  // original: until its view is here the picture waits (see noPicture).
+  const blockOriginal = !viaPreview && drawsNowhere(srcKey);
+  const initial = blockOriginal ? null : cachedUrl(shown);
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
   // After a couple of failed presign attempts, surface a quiet "still
@@ -361,6 +364,10 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
 
   useEffect(() => {
     if (!visible) return;
+    if (blockOriginal) {
+      if (!viewForRef.current) noPicture();
+      return undefined;
+    }
     let cancelled = false;
     let refreshTimer = null;
     let retryTimer = null;
@@ -429,7 +436,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   if (failed) return <BlockedPlaceholder {...rest} />;
   if (unavailable) return <UnavailablePlaceholder alt={alt} {...rest} />;
 
-  if (!url || awaitingView) {
+  if (!url || awaitingView || blockOriginal) {
     // Loading shimmer; rootRef anchors the IntersectionObserver.
     return <div ref={rootRef} className={`r2-img r2-img-loading ${slowRetry ? 'r2-img-retrying' : ''}`} {...rest} />;
   }
@@ -486,6 +493,9 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                               backfillEnabled = false, upgradeToFull = true, boardId = null,
                               cardId = null, className, style, draggable, ...rest }) {
   const originalKey = (typeof src === 'string' && src.startsWith('r2:')) ? src.slice(3) : null;
+  // A format no browser draws (a raw, a .psd, OpenEXR): the original is never
+  // fetched, shown or promoted to; the card shows its view, or waits for one.
+  const undrawable = drawsNowhere(originalKey);
 
   const [meta, setMeta] = useState(() => readMeta(originalKey));
   // The r2 sentinel currently being shown. Prefers the warmest tier at mount
@@ -538,7 +548,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // retention-locked previews remain). The card drops back to the preview and
   // the scheduler never promotes it again: a card showing a good preview must
   // not turn into "Preview not available" just because someone zoomed in.
-  const originalBrokenRef = useRef(false);
+  const originalBrokenRef = useRef(undrawable);
   // Fast-load fade skip: when fetch+decode completes quickly (bytes were in
   // the browser disk cache — the common case for a viewport-culling remount),
   // the 0.35s blur-fade would only delay an instant paint, so onImgLoad sets
@@ -581,7 +591,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     fellBackRef.current = false;
     rearmedRef.current = false;
     resignedForRef.current = null;
-    originalBrokenRef.current = false;
+    originalBrokenRef.current = drawsNowhere(originalKey);
     fastLoadRef.current = false;
     viewForRef.current = null;
     setAwaitingView(false);
@@ -625,9 +635,17 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     if (want !== activeSrc) setActiveSrc(want);
   }, [meta, loaded, activeSrc, src, originalKey]);
 
+  // An undrawable original with no view in its (read) meta waits for one.
+  const blockOriginal = undrawable && activeSrc === src;
+  useEffect(() => {
+    if (!visible || !blockOriginal || viewForRef.current) return;
+    if (meta && !meta.previewKey) noPicture();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, blockOriginal, meta]);
+
   // Resolve the active src → signed URL; refresh before TTL expiry.
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || blockOriginal) return;
     let cancelled = false;
     let refreshTimer = null;
     let retryTimer = null;
@@ -648,7 +666,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
         // against the original. fellBackRef keeps the prefer-preview effect
         // from flipping back. The blocked placeholder is reserved for the
         // case where the ORIGINAL can't resolve either — real loss of access.
-        if (originalKey && activeSrc !== src && !fellBackRef.current) {
+        if (originalKey && activeSrc !== src && !fellBackRef.current && !undrawable) {
           fellBackRef.current = true;
           setActiveSrc(src);
           return;
@@ -684,7 +702,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     };
     tick();
     return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
-  }, [activeSrc, visible]);
+  }, [activeSrc, visible, blockOriginal]);
 
   // Warm the Tier-2 signed URL as soon as the upgrade is predictable — the card
   // is already displayed near/above the preview's native size — instead of
@@ -694,7 +712,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // upgrades costs at most one extra key in an already-batched presign call.
   const warmedRef = useRef(false);
   useEffect(() => {
-    if (!visible || warmedRef.current || !upgradeToFull || upgradedRef.current) return;
+    if (!visible || warmedRef.current || !upgradeToFull || upgradedRef.current || undrawable) return;
     if (!originalKey || !meta || !meta.previewKey) return;
     if (!originalWorthUpgrade(meta)) return;
     let displayedPx = 0;
@@ -924,7 +942,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     return <UnavailablePlaceholder rootRef={rootRef} className={className || ''} style={style} alt={alt}
                                    downloadSrc={originalKey ? src : null} {...rest} />;
   }
-  if (awaitingView) {
+  if (awaitingView || blockOriginal) {
     return <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}><div className="r2p-layer r2-img-loading" /></div>;
   }
 

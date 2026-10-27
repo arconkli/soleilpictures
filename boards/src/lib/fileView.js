@@ -1,12 +1,17 @@
 // A picture of every photo, whatever its format.
 //
 // Browsers draw a handful of image formats: only Safari draws HEIC, TIFF and
-// JPEG XL, and none draws OpenEXR. A card holding one of those said "Preview
-// not available" everywhere else. Now the converter (media/, on Fly) makes a
-// VIEW of it, a WebP at up to VIEW_EDGE on its long side and a small one at
-// VIEW_SM_EDGE, and the file's images row records them as its previews, so
-// every surface that shows previews (cards, Files, Quick look, the lightbox,
-// shared links) shows them. Download still gives the original, byte for byte.
+// JPEG XL, and none draws OpenEXR, a camera's raw files or a Photoshop
+// document. A card holding one of those said "Preview not available"
+// everywhere else (raws and .psd were file cards with no picture at all). Now
+// the converter (media/, on Fly) makes a VIEW of it, a WebP at up to VIEW_EDGE
+// on its long side and a small one at VIEW_SM_EDGE, and the file's images row
+// records them as its previews, so every surface that shows previews (cards,
+// Files, Quick look, the lightbox, shared links) shows them. Download still
+// gives the original, byte for byte. A raw's view is the JPEG its camera
+// stored beside the sensor data (or the sensor data developed, when it stored
+// none worth showing); a .psd's is the flattened picture Photoshop keeps
+// beside the layers.
 //
 // Views are named after their original, like the playable copies
 // (lib/playCopy.js), but keep its extension, so a .heic and a .tif of the same
@@ -37,10 +42,18 @@ export const VIEW_MAX_PIXELS = 300_000_000;
 
 const EXT_RE = /\.([A-Za-z0-9]{1,8})$/;
 const VIEW_RE = /\/previews\/[^/]+\.view(_sm)?\.webp$/i;
+// Camera raws: Sony, Canon, Nikon, Fujifilm, Olympus/OM, Panasonic and Leica,
+// Pentax, Samsung, Hasselblad, Phase One, Epson, Mamiya, Leaf, Minolta,
+// Kodak, Sigma, GoPro, and every DNG.
+export const RAW_EXTS = Object.freeze(['dng', 'cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'raf', 'orf',
+  'rw2', 'rwl', 'pef', 'srw', '3fr', 'fff', 'iiq', 'erf', 'mef', 'mos', 'mrw', 'kdc', 'dcr', 'x3f', 'gpr']);
+// Photoshop documents, and its large-document format.
+export const PSD_EXTS = Object.freeze(['psd', 'psb']);
 // Image formats that reach an image card (fileIngest classifyDropFile) and
 // that some browser can't draw. AVIF, WebP, PNG, JPEG, GIF and BMP draw
-// everywhere; PSD and camera raws become file cards.
-const VIEW_EXTS = new Set(['heic', 'heif', 'hif', 'tif', 'tiff', 'jxl', 'exr', 'jp2', 'j2k', 'jpf', 'jpx']);
+// everywhere.
+const VIEW_EXTS = new Set(['heic', 'heif', 'hif', 'tif', 'tiff', 'jxl', 'exr', 'jp2', 'j2k', 'jpf', 'jpx',
+  ...RAW_EXTS, ...PSD_EXTS]);
 
 // True for a key the converter wrote as a view. Never an original.
 export function isViewKey(key) {
@@ -52,6 +65,29 @@ export function viewKindOfKey(key) {
   if (typeof key !== 'string' || !key || isViewKey(key) || key.includes('/previews/')) return null;
   const m = key.match(EXT_RE);
   return m && VIEW_EXTS.has(m[1].toLowerCase()) ? 'image' : null;
+}
+
+// Formats no browser draws at all, Safari included: raws, Photoshop documents,
+// OpenEXR. A picture of one never loads the original (a browser would fetch
+// the whole file, twice, only to find it can't show it) and waits for its view.
+const DRAWN_NOWHERE = new Set([...RAW_EXTS, ...PSD_EXTS, 'exr']);
+export function drawsNowhere(key) {
+  if (!viewKindOfKey(key)) return false;
+  return DRAWN_NOWHERE.has(key.match(EXT_RE)[1].toLowerCase());
+}
+
+// The file a card shows that gets views, or '': an image card's, or a file
+// card's, which turns into the picture card a drop makes now once its view is
+// made (lib/fileViewClient.js viewFileCardPatch). A file card that's locked,
+// or holds versions (whose files could be anything), stays a file card, so it
+// asks for none.
+export function viewKeyOfCard(card) {
+  if (!card || card.pending) return '';
+  const ref = card.kind === 'image' ? card.src
+    : card.kind === 'file' && !card.locked && !(Array.isArray(card.versions) && card.versions.length) ? card.fileSrc
+      : null;
+  if (typeof ref !== 'string' || !ref.startsWith('r2:')) return '';
+  return viewKindOfKey(ref.slice(3)) ? ref.slice(3) : '';
 }
 
 // The keys of an original's views, beside it in a previews/ folder.

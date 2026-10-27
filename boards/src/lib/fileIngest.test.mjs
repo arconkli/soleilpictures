@@ -15,15 +15,15 @@ import {
   isAnimatedImageBytes, isAnimatedImageKey,
   FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_FILE_CAP, FREE_FILE_CAP_LABEL, FALLBACK_DIMS,
 } from './fileIngest.js';
+import { VIEW_MAX_BYTES } from './fileView.js';
 
 // Minimal File stand-in — classifyDropFile only reads .type/.name/.size.
 const f = (name, type, size = 1024) => ({ name, type, size });
 
 // 0367: file TYPES are open on the free plan; only SIZE stays Creator's.
 test('a free owner may drop any file type up to the free file cap', () => {
-  // (.psd with an image/ MIME is a file card too since MEDIA-02 — see the
-  // undrawable-image test below; the empty-MIME case is the one that used to bounce.)
-  for (const [name, type] of [['comp.psd', ''], ['mock.fig', ''], ['pack.zip', 'application/zip'],
+  // (A .psd is a picture card since views; see the raw and Photoshop test below.)
+  for (const [name, type] of [['mock.fig', ''], ['pack.zip', 'application/zip'],
                               ['brief.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']]) {
     const c = classifyDropFile(f(name, type, FREE_FILE_CAP), { canAttemptFiles: false });
     assert.equal(c.route, 'file', `${name} is a file card on free`);
@@ -213,17 +213,26 @@ test('fileMetaFor adds the name or nothing at all', () => {
   assert.deepEqual(fileMetaFor({ name: 'image.png' }), {});
 });
 
-// ── Image types no browser draws become file cards (MEDIA-02) ──────────────
+// ── Raws and Photoshop documents are pictures, by their views ────────────
 
-test('a .psd or a camera raw is a file card even when it says image/', () => {
+test('a .psd or a camera raw is a picture card whatever type the system gives it; over the view ceiling a file card', () => {
   for (const [name, type] of [['comp.psd', 'image/vnd.adobe.photoshop'], ['comp.psd', 'image/x-photoshop'],
+                              ['comp.psd', 'application/x-photoshop'], ['comp.psd', ''],
                               ['DSC00412.ARW', 'image/x-sony-arw'], ['IMG_1.CR2', 'image/x-canon-cr2'],
-                              ['shot.dng', 'image/x-adobe-dng'], ['big.psb', '']]) {
+                              ['IMG_1.CR3', ''], ['shot.dng', 'image/x-adobe-dng'], ['big.psb', ''],
+                              ['DSCF1.RAF', 'application/octet-stream']]) {
     for (const canAttemptFiles of [true, false]) {
       const c = classifyDropFile(f(name, type), { canAttemptFiles });
-      assert.equal(c.route, 'file', `${name} (${type || 'no type'}) is a file card`);
+      assert.equal(c.route, 'image', `${name} (${type || 'no type'}) is a picture`);
+      assert.equal(c.kind, 'image');
     }
   }
+  // No view is made over the ceiling, and no browser draws them: a file card.
+  assert.equal(classifyDropFile(f('poster.psb', '', VIEW_MAX_BYTES + 1)).route, 'file');
+  assert.equal(classifyDropFile(f('DSC00412.ARW', 'image/x-sony-arw', VIEW_MAX_BYTES + 1)).route, 'file');
+  assert.equal(classifyDropFile(f('DSC00412.ARW', 'image/x-sony-arw', VIEW_MAX_BYTES)).route, 'image');
+  // A type that says something else entirely is believed.
+  assert.equal(classifyDropFile(f('notes.psd', 'text/plain')).route, 'file');
   // TIFF and HEIC stay images: Safari draws them, and every other browser
   // shows their view (lib/fileView.js).
   assert.equal(classifyDropFile(f('scan.tif', 'image/tiff')).route, 'image');

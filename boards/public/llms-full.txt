@@ -794,7 +794,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-10-24
+Updated: 2026-10-27
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -812,9 +812,9 @@ Uploads go straight to storage from your browser. Large batches run a few at a t
 
 Each image keeps the name its file had — diner_ext_dusk_04.jpg stays that in Files and comes back out of Download under it. Give a card a caption and the caption is what Files shows; the download still uses the file's own name. A pasted image has no real name (browsers call every one image.png), so it is not given one.
 
-Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR and JPEG 2000. Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. Download always gives the original, and the picture never counts toward your storage.
+Photos in formats some browsers can't draw still show in every browser: HEIC and HEIF from an iPhone or a camera, TIFF, JPEG XL, OpenEXR, JPEG 2000, a camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) and Photoshop documents (.psd, .psb). Chrome and Firefox can't show HEIC or TIFF, and no browser shows OpenEXR, a raw or a .psd. For these, Clusters makes a picture every browser can show, up to 2048 pixels on its long side. It is made once, on a converter Clusters runs, when the photo is uploaded or first opened, and from then on the card, Files, Quick look and the lightbox show it. A raw's picture is the one the camera made of the shot, which the raw file keeps beside the sensor data; a .psd's is the flattened image Photoshop saves with the layers. Download always gives the original, and the picture never counts toward your storage. A raw or a .psd dropped before Clusters made these pictures was a file card; it becomes an image card the next time someone who can edit its cluster opens it.
 
-A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. These photos arrive as images even when the browser reports no file type at all.
+A file over 1 GB or 300 megapixels gets no picture: it shows where your browser can draw it, and downloads everywhere. A raw or a .psd over 1 GB stays a file card, since no browser can draw it. These photos arrive as images even when the browser reports no file type at all.
 
 To swap in a new take of an image, drop the new file onto it, or choose Edit → Upload new version…. The old one is kept as an earlier version, so you can go back to it from Info.
 
@@ -881,6 +881,9 @@ A: Yes. HEIC and HEIF show in every browser, not only Safari, even when the brow
 
 Q: Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?
 A: Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file.
+
+Q: Can I drop camera raw files or Photoshop documents?
+A: Yes. A camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) and Photoshop documents (.psd, .psb) become image cards that show in every browser. For a raw the picture is the one your camera made of the shot; for a .psd it is the flattened image Photoshop saves with the layers. Download always gives the original file.
 
 
 ========================================================================
@@ -1501,16 +1504,16 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-24
+Updated: 2026-10-27
 
-Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
+Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
 Drag a file onto the canvas. The type is detected and the right kind of card is created — you never pick "upload as image" from a menu.
 
 What each type becomes
 
 You drop | You get
-Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000) | An image card with adjustments, shown in every browser
+Image (incl. HEIC, TIFF, JPEG XL, OpenEXR, JPEG 2000, camera raw, Photoshop .psd) | An image card with adjustments, shown in every browser
 Video | An inline player
 Audio | A waveform player with cover art
 PDF | A page-one thumbnail opening into a full viewer
@@ -1586,7 +1589,7 @@ To send someone one file on its own — a page with just that file, its player a
 ## Frequently asked questions
 
 Q: What file types can I upload on the free plan?
-A: Any, at any size. Video, audio, PDFs and images get their own cards; every other type — .psd, .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan.
+A: Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; every other type — .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan.
 
 Q: How large a file can I upload?
 A: As large as the room left on your drive — there is no per-file limit on any plan, and very large files upload in parts automatically. The drive is 5GB on the free plan and 1TB on Creator.

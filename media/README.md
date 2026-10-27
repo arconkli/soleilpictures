@@ -4,19 +4,27 @@ Converts uploaded video and audio that browsers can't play into an H.264/AAC
 MP4 (video) or AAC `.m4a` (audio) copy, plus a `.webp` poster frame for videos.
 What to make is decided by `boards/src/lib/playCopy.js` (`playPlan`), shared
 with the Worker. Photos some browser can't draw (HEIC, TIFF, JPEG XL, OpenEXR,
-JPEG 2000) get a view instead: a WebP at up to 2048 on its long side and a
-640 one (`boards/src/lib/fileView.js`). Node 22, no npm dependencies, ffmpeg
-and vips from apt.
+JPEG 2000, camera raws, Photoshop documents) get a view instead: a WebP at up
+to 2048 on its long side and a 640 one (`boards/src/lib/fileView.js`). A raw's
+view is the JPEG its camera kept beside the sensor data, lifted out by
+exiftool, or the sensor data developed at half size by LibRaw's `dcraw_emu`
+when it keeps none big enough (`src/raw.js`); a `.psd`'s is the flattened
+picture Photoshop saves with the layers, read by `src/psd.js` in a child
+process with a capped heap. Node 22, no npm dependencies, ffmpeg, vips,
+exiftool and LibRaw from apt.
 
 It **holds no storage or database credentials, by design.** It only talks to
 our Cloudflare Worker (`/api/media/copy/*`): the Worker hands it a job, serves
 the original's bytes behind a per-job token, and accepts the outputs. The one
 secret it has, `MEDIA_BOX_SECRET`, never reaches ffmpeg or vips, which run as
-an unprivileged user with a bare environment. ffmpeg takes only whitelisted
-protocols and containers; vips gets a local copy whose first bytes must be one
-of the five formats, with its ImageMagick, PDF and OpenSlide modules removed
-and untrusted loaders blocked (except the JPEG XL, OpenEXR and JPEG 2000
-decoders, which libvips marks untrusted, for files whose bytes are those).
+an unprivileged user with a bare environment, as do exiftool, `dcraw_emu` and
+the Photoshop reader. ffmpeg takes only whitelisted protocols and containers;
+vips gets a local copy whose first bytes must be one of the five formats, with
+its ImageMagick, PDF and OpenSlide modules removed and untrusted loaders
+blocked (except the JPEG XL, OpenEXR and JPEG 2000 decoders, which libvips
+marks untrusted, for files whose bytes are those). A raw or a `.psd` must look
+like one by its first bytes too, and only the JPEG or TIFF made from it ever
+reaches vips.
 
 ## Environment
 

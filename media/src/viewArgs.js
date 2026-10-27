@@ -2,7 +2,9 @@
 // and what the views are called, is boards/src/lib/fileView.js, shared with
 // the Worker. No I/O here, so node can test every rule.
 
-// The decoder each format a view is made of must come through.
+import { RAW_EXTS, PSD_EXTS } from '../../boards/src/lib/fileView.js';
+
+// The vips decoder each format vips reads itself must come through.
 export const EXT_LOADERS = Object.freeze({
   heic: 'heifload', heif: 'heifload', hif: 'heifload',
   tif: 'tiffload', tiff: 'tiffload',
@@ -11,15 +13,32 @@ export const EXT_LOADERS = Object.freeze({
   jp2: 'jp2kload', j2k: 'jp2kload', jpf: 'jp2kload', jpx: 'jp2kload',
 });
 
+// How a view of a file with this extension is made: 'vips' reads it itself;
+// a 'raw' gives up the JPEG its camera stored, or LibRaw develops it
+// (raw.js); a 'psd' gives up its flattened picture (psd.js). null: none.
+export function decoderOf(ext) {
+  const e = String(ext || '').toLowerCase();
+  if (Object.hasOwn(EXT_LOADERS, e)) return 'vips';
+  if (RAW_EXTS.includes(e)) return 'raw';
+  if (PSD_EXTS.includes(e)) return 'psd';
+  return null;
+}
+
+// The decoders vips may use on the file a job downloaded. The JPEG a raw
+// gives up and the TIFF LibRaw or the PSD reader writes are read with their
+// own (makeViews' `loaders`), never a stranger's file.
+export const SOURCE_LOADERS = Object.freeze(['heifload', 'tiffload', 'jxlload', 'openexrload', 'jp2kload']);
+
 // HEIF's major brands for still pictures (HEVC inside). AVIF is HEIF too, but
 // every browser draws it, so it never needs a view.
 const HEIF_BRANDS = new Set(['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1', 'mif2']);
 
 // The decoder a file's first bytes call for, or null. EVERY FILE IS A
 // STRANGER'S, and vips picks a loader from a file's content, not its name:
-// a file whose first bytes are none of these never reaches vips at all, so
-// a "photo.tif" that is really an SVG, a PDF or an ImageMagick script stays
-// unread. (The image also ships without vips' ImageMagick, PDF and OpenSlide
+// a file whose first bytes are none of the SOURCE_LOADERS never reaches vips
+// at all, so a "photo.tif" that is really an SVG, a PDF or an ImageMagick
+// script stays unread. (JPEG is told apart for the pictures raw.js lifts out
+// of raws, which vips reads with its trusted JPEG decoder.) (The image also ships without vips' ImageMagick, PDF and OpenSlide
 // modules, and runs vips with untrusted loaders blocked.)
 export function sniffLoader(head) {
   const b = head instanceof Uint8Array ? head : new Uint8Array(0);
@@ -30,7 +49,32 @@ export function sniffLoader(head) {
   if (at(0, 0xff, 0x0a) || at(0, 0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a)) return 'jxlload';
   if (at(0, 0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x87, 0x0a) || at(0, 0xff, 0x4f, 0xff, 0x51)) return 'jp2kload';
   if (at(4, 0x66, 0x74, 0x79, 0x70) && HEIF_BRANDS.has(String.fromCharCode(...b.subarray(8, 12)))) return 'heifload';
+  if (at(0, 0xff, 0xd8, 0xff)) return 'jpegload';
   return null;
+}
+
+// True when a file's first bytes are a camera raw's: TIFF-shaped (Sony,
+// Nikon, Canon's .cr2, Pentax, Samsung, a DNG, ...), Olympus's and
+// Panasonic's TIFF variants, Fujifilm's, Canon's .cr3 and .crw, Sigma's and
+// Minolta's. exiftool and LibRaw see nothing else.
+export function sniffRaw(head) {
+  const b = head instanceof Uint8Array ? head : new Uint8Array(0);
+  const at = (i, s) => b.length >= i + s.length && [...s].every((c, j) => b[i + j] === (typeof c === 'number' ? c : c.charCodeAt(0)));
+  return at(0, ['I', 'I', 0x2a, 0]) || at(0, ['M', 'M', 0, 0x2a])
+    || at(0, 'IIRO') || at(0, 'IIRS') || at(0, 'MMOR')
+    || at(0, ['I', 'I', 'U', 0])
+    || at(0, 'FUJIFILMCCD-RAW')
+    || (at(4, 'ftyp') && at(8, 'crx '))
+    || (at(0, 'II') && at(6, 'HEAPCCDR'))
+    || at(0, 'FOVb')
+    || at(0, [0, 'M', 'R', 'M']);
+}
+
+// True when a file's first bytes are a Photoshop document's (or a .psb's).
+export function sniffPsd(head) {
+  const b = head instanceof Uint8Array ? head : new Uint8Array(0);
+  return b.length >= 6 && b[0] === 0x38 && b[1] === 0x42 && b[2] === 0x50 && b[3] === 0x53
+    && b[4] === 0 && (b[5] === 1 || b[5] === 2);
 }
 
 // libvips marks some decoders untrusted (not fuzzed against hostile files),

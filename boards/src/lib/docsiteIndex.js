@@ -512,7 +512,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-10-24",
+    "updated": "2026-10-27",
     "navLabel": "Images",
     "headings": [
       {
@@ -569,6 +569,10 @@ export const DOCS_PAGES = [
       {
         "q": "Can I upload TIFF, JPEG XL, OpenEXR or JPEG 2000 files?",
         "a": "Yes. Clusters makes a picture of each that every browser can show, so they look the same in Chrome, Firefox and Safari. Download always gives the original file."
+      },
+      {
+        "q": "Can I drop camera raw files or Photoshop documents?",
+        "a": "Yes. A camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) and Photoshop documents (.psd, .psb) become image cards that show in every browser. For a raw the picture is the one your camera made of the shot; for a .psd it is the flattened image Photoshop saves with the layers. Download always gives the original file."
       }
     ]
   },
@@ -1068,10 +1072,10 @@ export const DOCS_PAGES = [
     "title": "Files and Uploads — Soleil Clusters",
     "metaDescription": "Upload any file to Soleil Clusters, at any size, on every plan. How large uploads work, what counts toward your storage, and how deleting frees space.",
     "h1": "Files and uploads",
-    "answer": "Drag any file onto a canvas and it becomes a card. Images, video, audio and PDFs get real players and viewers; everything else — a .psd, a .fig, a .zip — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
+    "answer": "Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-24",
+    "updated": "2026-10-27",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1115,7 +1119,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What file types can I upload on the free plan?",
-        "a": "Any, at any size. Video, audio, PDFs and images get their own cards; every other type — .psd, .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan."
+        "a": "Any, at any size. Video, audio, PDFs and images, camera raws and Photoshop documents among them, get their own cards; every other type — .fig, .zip, project files, archives — is a file card with a download. The only limit is the drive, 5GB on the free plan."
       },
       {
         "q": "How large a file can I upload?",
