@@ -21,6 +21,7 @@
 import { handleTagsRoute } from './worker-tags.js';
 import { handleClustersRoute } from './worker-clusters.js';
 import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
+import { runDraftReap } from './worker-drafts.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
@@ -1152,6 +1153,10 @@ const worker = {
       // for tells Bing and Yandex which sitemap pages changed; every later tick
       // is one indexed read that finds the ping already made.
       ctx.waitUntil(watch('indexnow', runIndexNowForBuild(env, { sha: BUILD_SHA, date: BUILD_DATE }, () => sitemapUrls(env))));
+      // Drafts made through /mcp that were kept or ran out (worker-drafts.js,
+      // 0705): an unkept one's workspace goes, and both identities are
+      // deleted. A few each hour; one indexed read when none is due.
+      ctx.waitUntil(watch('mcp_drafts', runDraftReap(env)));
     } else if (which === '0 4 * * *') {
       // daily 04:00 UTC — fill in any missing image sizes (additive, runs live),
       // then the history-aware orphan sweep. Sequential so R2 ops don't spike.

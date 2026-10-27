@@ -7,8 +7,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   KEEP_BUNDLE_PATH, KeepBundleError, firstClusterOf, keepPath, hostName, fetchKeepBundle,
-  keepFailure, roomLeft, deleteDay, signInWords, signupFirstSource,
+  keepFailure, roomLeft, deleteDay, signInWords, signupFirstSource, keepFailReason,
 } from './keepDraft.js';
+import { EV } from './analyticsEvents.js';
 import { latestDefinition } from './migrationText.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -122,4 +123,32 @@ test('the page keeps the draft the way the database expects, and opens it where 
   // The token reaches the server in a body only.
   assert.doesNotMatch(page, /fetch\([^)]*token/);
   assert.match(page, /fetchKeepBundle\(token, /);
+});
+
+test("a failure's reason is a code, a status or 'network', never the words", () => {
+  assert.equal(keepFailReason({ code: 'otp_expired', status: 403, message: 'Token has expired or is invalid' }), 'otp_expired');
+  assert.equal(keepFailReason({ code: 'over_email_send_rate_limit', status: 429 }), 'over_email_send_rate_limit');
+  assert.equal(keepFailReason(new KeepBundleError(503)), 'http_503');
+  assert.equal(keepFailReason(new KeepBundleError(429, 60)), 'http_429');
+  assert.equal(keepFailReason(new KeepBundleError(0)), 'network');
+  assert.equal(keepFailReason(new TypeError('Failed to fetch')), 'network');
+  // Anything that isn't a plain code falls back, so a typed address can't ride along.
+  assert.equal(keepFailReason({ code: 'invalid for you@example.com', status: 400 }), 'http_400');
+  assert.equal(keepFailReason({ code: '42501', message: 'sign in to keep a draft' }), 'error');
+  assert.equal(keepFailReason({ status: null }), 'error');
+  assert.equal(keepFailReason(null), 'error');
+});
+
+test('the page records its four steps, and never the token, the address or the draft', () => {
+  const page = read('../pages/KeepPage.jsx');
+  const calls = [...page.matchAll(/logEvent(?:Now|Once)?\(([\s\S]*?)\);/g)].map((m) => m[1]);
+  assert.ok(calls.length >= 7, `found ${calls.length} event calls`);
+  for (const c of calls) assert.doesNotMatch(c, /token|email|address|name|title/i, c);
+  for (const key of ['KEEP_PAGE_VIEW', 'KEEP_CODE_SENT', 'KEEP_KEPT', 'KEEP_FAILED']) {
+    assert.ok(EV[key], key);
+    assert.match(page, new RegExp(`EV\\.${key}\\b`), `the page sends ${key}`);
+  }
+  // A view once per page load, StrictMode or not; kept beaconed, since Open it leaves the page.
+  assert.match(page, /logEventOnce\('keep_view', EV\.KEEP_PAGE_VIEW,/);
+  assert.match(page, /logEventNow\(EV\.KEEP_KEPT, \{ host: draft\?\.host \|\| 'other', via, beside_own: !!data\.beside_own \}\);/);
 });

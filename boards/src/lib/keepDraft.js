@@ -139,3 +139,15 @@ export function signupFirstSource(bag) {
     return null;
   }
 }
+
+// Why a step failed, for keep_failed: Supabase Auth's own code (snake_case,
+// from a fixed list), else the HTTP status, else 'network' when nothing
+// answered. Never the message, which can carry the address someone typed.
+export function keepFailReason(e) {
+  const code = typeof e?.code === 'string' ? e.code : '';
+  if (/^[a-z][a-z0-9_]{0,59}$/.test(code)) return code;
+  const status = typeof e?.status === 'number' ? e.status : null;
+  if (Number.isInteger(status) && status > 0) return `http_${status}`;
+  if (status === 0 || e instanceof TypeError) return 'network';
+  return 'error';
+}

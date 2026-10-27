@@ -30,7 +30,8 @@ import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { supabase } from '../lib/supabase.js';
-import { getFirstSource } from '../lib/analytics.js';
+import { getFirstSource, logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { placedOf } from '../lib/placement.js';
 import { boundsOfCards } from '../lib/canvasGeom.js';
 import { fitMargin } from '../lib/captureCamera.js';
@@ -40,7 +41,7 @@ import { captchaEnabled, captchaToken } from '../auth/turnstile.js';
 import { FREE_STORAGE_LABEL } from '../lib/billingCopy.js';
 import {
   fetchKeepBundle, firstClusterOf, keepPath, hostName, keepFailure, roomLeft, deleteDay,
-  signInWords, signupFirstSource,
+  signInWords, signupFirstSource, keepFailReason,
 } from '../lib/keepDraft.js';
 import './keepPage.css';
 
@@ -169,10 +170,15 @@ export function KeepPage({ token }) {
         const bundle = await read();
         if (cancelled) return;
         if (bundle.state !== 'live') {
+          logEventOnce('keep_view', EV.KEEP_PAGE_VIEW, { state: bundle.state, host: bundle.host || null });
           setDraft({ host: bundle.host || 'other', lifetimeDays: bundle.lifetime_days ?? null });
           setStatus(bundle.state);
           return;
         }
+        logEventOnce('keep_view', EV.KEEP_PAGE_VIEW, {
+          state: 'live', host: bundle.host || 'other',
+          cards: Number.isFinite(bundle.card_count) ? bundle.card_count : null,
+        });
         const id = applyBundle(bundle);
         shownFirstRef.current = id;
         setStack(id ? [id] : []);
@@ -180,7 +186,10 @@ export function KeepPage({ token }) {
         setStatus('live');
       } catch (e) {
         console.warn('[keep] the draft could not be read', e?.status);
-        if (!cancelled) setStatus('error');
+        if (cancelled) return;
+        const reason = keepFailReason(e);
+        logEventOnce(`keep_fail:load:${reason}`, EV.KEEP_FAILED, { step: 'load', reason });
+        setStatus('error');
       }
     })();
     return () => { cancelled = true; };
@@ -451,7 +460,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
     return () => clearInterval(t);
   }, [cooldown]);
 
-  const keep = useCallback(async () => {
+  const keep = useCallback(async (via) => {
     if (keepingRef.current) return;
     keepingRef.current = true;
     setError(null);
@@ -460,10 +469,12 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
     const { data, error: e } = await supabase.rpc('keep_mcp_draft', { p_token: token });
     keepingRef.current = false;
     if (!e && data?.status === 'kept') {
+      logEventNow(EV.KEEP_KEPT, { host: draft?.host || 'other', via, beside_own: !!data.beside_own });
       onKept({ boardId: data.board_id || null, room: roomLeft(data.card_count, data.card_limit), limit: data.card_limit ?? null });
       return;
     }
     const why = keepFailure(e);
+    logEvent(EV.KEEP_FAILED, { step: 'keep', reason: why });
     if (why === 'kept' || why === 'expired' || why === 'unknown') { onGone(why); return; }
     setStep('email');
     setError(why === 'not_a_person'
@@ -471,7 +482,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
       : why === 'suspended'
         ? 'This account can’t keep drafts. Sign in with another email.'
         : 'It couldn’t be kept just now. Try again in a moment.');
-  }, [token, onKept, onGone]);
+  }, [token, draft?.host, onKept, onGone]);
 
   const sendCode = async (resending = false) => {
     setError(null);
@@ -496,12 +507,14 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
         },
       });
       if (e) throw e;
+      logEvent(EV.KEEP_CODE_SENT, { resend: resending });
       const now = Date.now();
       sentAtRef.current = now;
       setSends((n) => (resending ? Math.max(1, n) + 1 : 1));
       setCooldown(resendWait(now, now));
       if (!resending) setTimeout(() => codeRef.current?.focus(), 0);
     } catch (e) {
+      logEvent(EV.KEEP_FAILED, { step: 'send', reason: keepFailReason(e) });
       if (!resending) setStep('email');
       setError(signInWords(e));
     } finally {
@@ -519,8 +532,9 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
       const { error: e } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: token6, type: 'email' });
       if (e) throw e;
       setBusy(false);
-      await keep();
+      await keep('code');
     } catch (e) {
+      logEvent(EV.KEEP_FAILED, { step: 'code', reason: keepFailReason(e) });
       setError(signInWords(e, { resent: sends > 1 }));
       setCode('');
       setBusy(false);
@@ -589,7 +603,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
           </div>
         ) : signedIn && step === 'email' ? (
           <div key="here" className="keep-island-actions">
-            <button type="button" className="public-cta keep-cta" onClick={keep}>Keep it here</button>
+            <button type="button" className="public-cta keep-cta" onClick={() => keep('signed_in')}>Keep it here</button>
           </div>
         ) : step === 'code' ? (
           <form key="code" className="keep-island-form is-code" onSubmit={(e) => { e.preventDefault(); verify(); }}>
