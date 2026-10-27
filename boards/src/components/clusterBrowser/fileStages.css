@@ -1,0 +1,86 @@
+/* Quick look's pages (FileStages.jsx): white paper on the dark stage, as a
+   PDF's pages are, full height and scrolling inside itself. The same in both
+   themes and both looks; nothing on it is gold but the focus ring. */
+.ql .qpage {
+  position: relative; align-self: stretch; min-height: 0; width: min(900px, 100%);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: #fff; color: #1d1d1f; color-scheme: light;
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .07);
+  font-family: var(--font-sans); text-align: left;
+}
+.ql .qpage.fst-table { width: min(1080px, 100%); }
+.ql .fst-body { flex: 1; min-height: 0; overflow: auto; outline: none; }
+
+/* Past the first 2 MB: where it stops, and the whole file. */
+.ql .fst-top {
+  flex: none; display: flex; align-items: center; gap: 10px;
+  margin: 18px 22px 0; padding: 8px 8px 8px 14px; border-radius: 8px;
+  background: #f4f4f6; color: #4a4a50; font-size: 13px; line-height: 1.35;
+}
+.ql .fst-top svg { flex: none; color: #8a8a90; }
+.ql .fst-grow { flex: 1; min-width: 0; }
+.ql .fst-btn {
+  flex: none; height: 28px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px;
+  border: 1px solid #d8d8dc; border-radius: 7px; background: #fff; color: #1d1d1f;
+  font: 500 13px/1 var(--font-sans); cursor: pointer;
+}
+.ql .fst-btn:hover { background: #f4f4f6; }
+.ql .fst-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.ql .fst-btn svg { color: currentColor; opacity: .75; }
+
+/* Text and code: the numbers in a margin that stays put while long lines
+   scroll sideways under it. */
+.ql .fst-numbered { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
+.ql .fst-gutter, .ql .fst-lines {
+  margin: 0; padding: 30px 0 40px;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.7; white-space: pre;
+}
+.ql .fst-gutter {
+  position: sticky; left: 0; flex: none; box-sizing: border-box; min-width: 64px; padding-left: 12px; padding-right: 20px;
+  background: #fff; color: #b4b4ba; text-align: right; user-select: none;
+}
+.ql .fst-lines { flex: none; padding-right: 40px; color: #2c2c30; }
+.ql .fst-lines.is-wrapped { padding-left: 40px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Markdown: the card's document, larger. */
+.ql .fst-md-body.fpg-md { padding: 56px 72px 72px; font-size: 16px; line-height: 1.6; }
+.ql .fst-md-body.fpg-md h1 { margin-bottom: 8px; font-size: 31px; }
+.ql .fst-md-body.fpg-md h2, .ql .fst-md-body.fpg-md h3, .ql .fst-md-body.fpg-md h4,
+.ql .fst-md-body.fpg-md h5, .ql .fst-md-body.fpg-md h6 { margin: 28px 0 10px; font-size: 18px; }
+.ql .fst-md-body.fpg-md code { font-size: 14px; }
+.ql .fst-md-body.fpg-md pre { padding: 12px 14px; border-radius: 6px; background: #f6f6f8; font-size: 14px; overflow-x: auto; }
+.ql .fst-md-body.fpg-md table { font-size: 15px; }
+.ql .fst-md-body.fpg-md a { text-underline-offset: 2px; }
+
+/* A table: how much there is above it, its header row held at the top. */
+.ql .fst-count { flex: none; padding: 26px 34px 14px; color: #6a6a70; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ql .fst-table table {
+  border-collapse: separate; border-spacing: 0; width: max-content; min-width: calc(100% - 68px); margin: 0 34px 34px;
+  font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.ql .fst-table th {
+  position: sticky; top: 0; z-index: 1; padding: 9px 16px 9px 0; border-bottom: 1.5px solid #1d1d1f;
+  background: #fff; color: #111; font-weight: 700; text-align: left; white-space: nowrap;
+}
+.ql .fst-table td { padding: 9px 16px 9px 0; border-bottom: 1px solid #ececef; color: #2a2a2e; white-space: nowrap; }
+.ql .fst-table .n { width: 34px; color: #a0a0a6; font-weight: 400; }
+
+/* Subtitles: the card's cues, larger, every one. */
+.ql .fst-cues .fst-body { box-sizing: border-box; padding: 42px 56px 56px; }
+.ql .fst-cues .fpg-cue { margin-bottom: 17px; }
+.ql .fst-cues .fpg-cue-n { font-size: 12px; }
+.ql .fst-cues .fpg-cue-tc { font-size: 13px; }
+.ql .fst-cues .fpg-cue-t { font-size: 17.5px; }
+
+@media (max-width: 720px) {
+  .ql .qpage { border-radius: 6px; }
+  .ql .fst-top { margin: 12px 12px 0; }
+  .ql .fst-gutter { min-width: 44px; padding-left: 6px; padding-right: 12px; }
+  .ql .fst-lines { padding-right: 20px; }
+  .ql .fst-lines.is-wrapped { padding-left: 20px; }
+  .ql .fst-md-body.fpg-md { padding: 28px 22px 40px; }
+  .ql .fst-count { padding: 18px 16px 10px; }
+  .ql .fst-table table { min-width: calc(100% - 32px); margin: 0 16px 24px; }
+  .ql .fst-cues .fst-body { padding: 24px 20px 40px; }
+}

@@ -15340,6 +15340,45 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A text file opens as its page, with line numbers, up to its first 2 MB; past that, the page says so, and "
+    },
+    {
+     "t": "strong",
+     "v": "Download all of it",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download all of it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " saves the whole file. A "
+    },
+    {
+     "t": "code",
+     "v": ".csv"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": ".tsv"
+    },
+    {
+     "t": "text",
+     "v": " opens as a table under its header row, up to 5,000 rows. Subtitles open as their cues, and Markdown as a document whose links open in a new tab."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Limits",

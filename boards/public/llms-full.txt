@@ -1528,6 +1528,8 @@ Double-click a file card to open it full screen, with Download and Share there.
 
 A document's card shows its first page, at the page's own shape, as a PDF's does — a spreadsheet's shows its first sheet — and counts its pages. It opens on its pages, which page through as a PDF's do. They are made once, in the background, so a new document's card takes a few seconds to show its page: the first 200 pages of a document up to 256 MB. A document with a password, or one that's damaged, stays a file card, with the download.
 
+A text file opens as its page, with line numbers, up to its first 2 MB; past that, the page says so, and Download all of it saves the whole file. A .csv or .tsv opens as a table under its header row, up to 5,000 rows. Subtitles open as their cues, and Markdown as a document whose links open in a new tab.
+
 Limits
 
 File type and size. Any, on every plan. .psd, .fig, .zip, project files, archives, a 4K clip, a WAV stem — each lands as its own card, at any size. There is no per-file limit on any plan.
