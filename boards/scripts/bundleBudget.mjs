@@ -79,7 +79,11 @@ export const CEILINGS = {
   // 2026-10-26: +1 KB for tagging several cards at once: the selection bar's
   // Tag and its state in CanvasSurface (the tri-state picker and its writes,
   // TagManyPicker + tagCardsBatch, load on demand). Sized for CI, as above.
-  appJs: 694_000,
+  // 2026-10-27: −7 KB, banked. The old canvas toolbars went (29c1d7c6,
+  // fcbf8b7c), and CI measured 686.4 KB on 1a4c29ed, so the ceiling comes
+  // down to that plus 0.6 rather than leaving 7.6 KB that anything could grow
+  // into unseen.
+  appJs: 687_000,
   appCss: 21_000,
 };
 
