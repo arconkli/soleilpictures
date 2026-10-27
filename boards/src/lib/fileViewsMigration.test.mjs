@@ -1,10 +1,10 @@
-// Text pins on supabase/migrations/0661_file_views.sql and 0662 (documents):
-// that the MCP can apply them, that no client can call their functions, and
-// that their view names are lib/fileView.js's.
+// Text pins on supabase/migrations/0661_file_views.sql, 0662 (documents) and
+// 0663 (design files and archives): that the MCP can apply them, that no client
+// can call their functions, and that their view names are lib/fileView.js's.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { viewKeys, isViewKey, isViewPdfKey } from './fileView.js';
+import { viewKeys, isViewKey, isViewPdfKey, VIEW_KINDS } from './fileView.js';
 
 const sql = readFileSync(new URL('../../../supabase/migrations/0661_file_views.sql', import.meta.url), 'utf8');
 // Comments first: an apostrophe in one would open a string.
@@ -129,4 +129,43 @@ test('0662 takes documents, names their PDF as lib/fileView.js does, and keeps e
     assert.ok(docs.includes(col), col);
   }
   assert.match(docs, /if v_job\.state <> 'working' then return v_job\.state; end if;/);
+});
+
+// ── 0663: design files and archives ───────────────────────────────────────
+
+const design = readFileSync(new URL('../../../supabase/migrations/0663_file_views_design_archive.sql', import.meta.url), 'utf8');
+const designStatements = design.replace(/--[^\n]*/g, '').replace(/'(?:[^']|'')*'/g, "''");
+const requestBody = (src) => {
+  const at = src.search(/create\s+or\s+replace\s+function\s+public\._file_view_request\s*\(/i);
+  const start = src.indexOf('$function$', at);
+  return src.slice(start, src.indexOf('$function$', start + 1));
+};
+
+test('0663 has no DROP, DELETE FROM or ALTER, and replaces only the request, with its own signature, the service role\'s alone', () => {
+  assert.doesNotMatch(designStatements, /\bdrop\s/i);
+  assert.doesNotMatch(design, /\bdelete\s+from\b/i);
+  assert.doesNotMatch(designStatements, /\balter\s/i);
+  const made = [...design.matchAll(/create\s+or\s+replace\s+function\s+public\.(\w+)\s*\(/gi)].map((m) => m[1]);
+  assert.deepEqual(made, ['_file_view_request']);
+  const at = design.search(/create\s+or\s+replace\s+function/i);
+  const header = design.slice(at, design.indexOf('$function$', at));
+  assert.match(header, /security definer/);
+  assert.match(header, /set search_path to ''/);
+  const args = (src) => {
+    const i = src.search(/function\s+public\._file_view_request\s*\(/i);
+    return src.slice(src.indexOf('(', i), src.indexOf(')\n', i) + 1).replace(/\s+/g, ' ');
+  };
+  assert.equal(args(design), args(sql), "it keeps 0661's arguments, so the replace keeps the function");
+  assert.match(design, /revoke execute on function public\._file_view_request\(text,\s*text,\s*uuid,\s*boolean\) from public, anon, authenticated;/);
+  assert.match(design, /grant execute on function public\._file_view_request\(text,\s*text,\s*uuid,\s*boolean\) to service_role;/);
+  assert.ok(design.includes(`'public._file_view_request(text,text,uuid,boolean)'`), 'it is in the proof block');
+  assert.match(design, /has_function_privilege\('anon', f, 'EXECUTE'\) or has_function_privilege\('authenticated', f, 'EXECUTE'\)/);
+  assert.deepEqual([...designStatements.matchAll(/\bgrant\s+([^;]+);/gi)].map((m) => m[1])
+    .filter((g) => /\bto\s+(anon|authenticated|public)\b/i.test(g)), [], 'no grant to a client');
+});
+
+test('0663 takes design files and archives and changes nothing else in 0662\'s request', () => {
+  assert.ok(design.includes(`if p_kind is null or p_kind not in ('image', 'doc', 'design', 'archive') then return 'not_view'; end if;`));
+  assert.equal(requestBody(design).replace(`'image', 'doc', 'design', 'archive'`, `'image', 'doc'`), requestBody(docs));
+  for (const kind of VIEW_KINDS) assert.ok(design.includes(`'${kind}'`), `${kind}: every kind the app asks views of is one the queue takes`);
 });
