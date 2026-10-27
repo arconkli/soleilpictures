@@ -305,3 +305,10 @@ test("a document, a text file or a font lands at its family's size, any other fi
   assert.deepEqual([c('Fraunces-Black.ttf', 'font/ttf').w, c('Fraunces-Black.ttf', 'font/ttf').h], [320, 220]);
   assert.equal(c('Pitch.pptx').route, 'file');
 });
+
+test('a design file is a file card at a design file\'s size whatever type the system gives it', () => {
+  for (const [name, type] of [['flyer.eps', 'image/x-eps'], ['layers.ora', 'image/openraster'], ['poster.ai', 'application/postscript'], ['Title card v3.sketch', '']]) {
+    const c = classifyDropFile(f(name, type));
+    assert.deepEqual([c.route, c.w, c.h], ['file', 320, 240], name);
+  }
+});
