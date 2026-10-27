@@ -2867,7 +2867,7 @@ body {
 /* Chromeless host for the real board canvas in the read-only /share view.
    CanvasSurface's .canvas-wrap (flex:1) fills this box; every toolbar /
    overlay it renders is hidden so the shared board reads as a clean,
-   interactive preview. (Edit-only popovers — ToolOptionsBar, ArrowPopover,
+   interactive preview. (Edit-only bars — ToolOptionsBar, a picked arrow's,
    context menus — are already suppressed in code via canEdit/isPublic.) */
 .public-canvas-host {
   flex: 1 1 auto;
@@ -3828,71 +3828,9 @@ body {
   --arrow-blue:   #3b82f6;
   --arrow-purple: #a855f7;
 }
-
-/* ── Arrow popover — inline editor floating above the selected arrow. */
-.arrow-popover {
-  position: fixed;
-  z-index: 999999;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: var(--bg-2);
-  border: 1px solid var(--line-1);
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.12);
-  font-family: var(--font-sans);
-  color: var(--ink-1);
-  user-select: none;
-  pointer-events: auto;
-}
-.arrow-popover .ap-row { display: inline-flex; align-items: center; gap: 4px; }
-.arrow-popover .ap-divider {
-  width: 1px; height: 18px; background: var(--line-1); margin: 0 2px;
-}
-.arrow-popover button { background: transparent; border: 1px solid transparent;
-  border-radius: 6px; color: var(--ink-2); cursor: pointer; padding: 3px;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.arrow-popover button:hover { background: var(--bg-3); color: var(--ink-1); }
-.arrow-popover button.is-on { background: var(--bg-3); color: var(--ink-1); border-color: var(--line-2); }
-
-.ap-swatch {
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid transparent !important; padding: 0 !important;
-  box-shadow: 0 0 0 1px var(--line-1) inset;
-}
-.ap-swatch.is-on { border-color: var(--ink-1) !important; box-shadow: none; }
 /* The "+" custom swatch — sits at the end of the swatch row and opens
    the full ColorPicker. Empty until the user picks a custom hex; then
    it paints with that hex and snaps into the selected state. */
-.ap-swatch-custom {
-  background: var(--bg-1);
-  color: var(--ink-2);
-  display: inline-flex !important;
-  align-items: center; justify-content: center;
-  border: 1px dashed var(--line-2) !important;
-}
-.ap-swatch-custom:hover { color: var(--ink-1); }
-.ap-swatch-custom.is-on { border-style: solid !important; }
-
-.ap-thick { width: 22px; height: 22px; }
-.ap-thick-line {
-  display: block; width: 14px; background: currentColor; border-radius: 1px;
-}
-.ap-thick-line.ap-thick-thin   { height: 1.3px; }
-.ap-thick-line.ap-thick-medium { height: 2.1px; }
-.ap-thick-line.ap-thick-thick  { height: 2.9px; }
-
-.ap-head {
-  width: 26px; height: 22px;
-  font: 600 13px/1 var(--font-sans);
-  color: var(--ink-2);
-}
-.ap-head.is-on { color: var(--ink-1); }
-
-.ap-toggle { width: 26px; height: 22px; color: var(--ink-2); }
-.ap-toggle.is-on { color: var(--ink-1); }
 
 .ap-label-input {
   background: var(--bg-1);
@@ -3911,9 +3849,6 @@ body {
 @media (pointer: coarse) {
   .ap-label-input { font-size: 16px; height: 28px; }
 }
-
-.ap-delete { color: var(--ink-3); }
-.ap-delete:hover { color: #ef4444 !important; background: rgba(239,68,68,.12) !important; }
 
 /* Group label arrow-source highlight */
 .group-label.is-arrow-source {
@@ -4141,34 +4076,7 @@ body {
 }
 .cnv-add-menu button:hover .cnv-add-ico,
 .cnv-add-menu button:focus-visible .cnv-add-ico { color: var(--ink-0); }
-/* Right-floating hover tip for + menu items — mirrors .cnv-tool[data-tip]. */
-.cnv-add-menu button[data-tip]::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%) translateX(-4px);
-  white-space: nowrap;
-  font: 500 12px/1 var(--font-sans);
-  color: var(--ink-0);
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  padding: 6px 9px;
-  box-shadow: var(--shadow-1);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
-  z-index: 80;
-}
-.cnv-add-menu button[data-tip]:hover::after,
-.cnv-add-menu button[data-tip]:focus-visible::after {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-  transition-delay: 200ms;
-}
 @media (hover: none) and (pointer: coarse) {
-  .cnv-add-menu button[data-tip]::after { display: none; }
   /* A finger's rows; and with no tips to float out of it, the menu scrolls
      in a short window (a phone held sideways), which CanvasSurface caps it to. */
   .cnv-add-menu { overflow-y: auto; overscroll-behavior: contain; }
@@ -10164,85 +10072,6 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 .tob::-webkit-scrollbar { display: none; }
 .tob > * { flex-shrink: 0; }
 [data-theme='light'] .tob { background: rgba(250,250,252,.82); border-color: rgba(10,10,12,.06); }
-.tob-label {
-  font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
-  color: var(--ink-3);
-  margin: 0 6px 0 2px;
-}
-.tob-sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
-.tob-btn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: var(--ink-1);
-  font: 500 12px/1 var(--font-sans);
-  padding: 0 8px;
-  height: 26px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 26px;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-.tob-btn:hover { background: var(--bg-hov); color: var(--ink-0); }
-.tob-btn.is-active { background: var(--soleil-soft); color: var(--ink-0); }
-/* Button form for inline tool actions (e.g. "Canvas" launcher inside
-   the Draw tool options). Same vibe as a segmented button without
-   the segmented frame. */
-.tob-action {
-  background: var(--bg-3);
-  border: 1px solid var(--line-2);
-  color: var(--ink-1);
-  border-radius: 4px;
-  padding: 4px 10px;
-  cursor: pointer;
-  font: 500 11.5px/1 var(--font-sans);
-  display: inline-flex; align-items: center;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-.tob-action:hover { background: var(--bg-hov); color: var(--ink-0); }
-.tob-select {
-  appearance: none;
-  background: var(--bg-3);
-  border: 1px solid var(--line-2);
-  border-radius: 4px;
-  color: var(--ink-1);
-  font: inherit;
-  font-size: 11.5px;
-  padding: 3px 22px 3px 8px;
-  cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(245,245,246,.5)' d='M0 0h10L5 6z'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-}
-/* The chevron glyph is baked into the SVG background-image with a near-white
-   fill, which disappears on the white var(--bg-3) in light mode. Swap to a
-   neutral-gray arrow in light (matches .doc-tb-select / .share-role-select). */
-[data-theme='light'] .tob-select {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(80,80,86,.6)' d='M0 0h10L5 6z'/></svg>");
-}
-/* Free-form numeric inputs in the toolbar — same look as .tob-select
-   but without the dropdown chevron (these are typed inputs, not
-   selects). Also strips the native number-input spinner arrows. */
-.tob-numinput {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: textfield;
-  background: var(--bg-3);
-  border: 1px solid var(--line-2);
-  border-radius: 4px;
-  color: var(--ink-1);
-  font: inherit;
-  font-size: 11.5px;
-  padding: 3px 8px;
-  cursor: text;
-}
-.tob-numinput::-webkit-outer-spin-button,
-.tob-numinput::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.tob-numinput:focus { outline: none; border-color: var(--line-3); }
 
 /* Editable font-size combobox (shared by the note + doc toolbars). Type an
    exact px size or pick a preset from the native datalist dropdown. */
@@ -10308,9 +10137,6 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 }
 .size-combo-item:hover { background: var(--bg-hov); }
 .size-combo-item.is-current { color: var(--soleil); font-weight: 600; }
-/* Stepper buttons flanking the note bar's size combo. */
-.tob-size-group { display: inline-flex; align-items: center; gap: 2px; }
-.tob-size-step { min-width: 20px; padding: 3px 4px; }
 /* Doc toolbar variant — match the doc selects' taller, rounder look. */
 .doc-tb-size-combo {
   background: transparent;
@@ -10324,95 +10150,6 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 .doc-tb-size-combo:hover:not(:disabled) { background-color: var(--bg-hov); color: var(--ink-0); }
 .doc-tb-size-combo:focus { background: var(--bg-3); border: 1px solid var(--line-2); }
 
-.tob-swatches { display: flex; gap: 3px; }
-.tob-sw {
-  appearance: none;
-  width: 18px; height: 18px;
-  border-radius: 4px;
-  border: 1px solid var(--line-3);
-  cursor: pointer;
-  padding: 0;
-}
-.tob-sw.is-active { box-shadow: 0 0 0 2px var(--soleil), 0 0 0 4px var(--soleil-soft); }
-.tob-sw { transition: transform var(--dur-fast) var(--ease); }
-.tob-sw:hover { transform: scale(1.08); }
-.tob-sw-dot {
-  display: inline-block;
-  width: 12px; height: 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line-3);
-}
-/* Text-color button: an "A" with a chunky color bar beneath, so the
-   button reads as "font color" at a glance and the current color is
-   prominently visible (instead of a tiny corner dot). */
-.tob-color-btn { padding: 0 6px; }
-.tob-color-stack {
-  display: inline-flex; flex-direction: column; align-items: center;
-  gap: 2px; line-height: 1;
-}
-.tob-color-glyph {
-  font-weight: 700; font-size: 13px; line-height: 1;
-  color: var(--ink-0);
-}
-.tob-color-bar {
-  display: block; width: 16px; height: 3px;
-  border-radius: 2px;
-  /* Subtle hairline so very-light colors (white on light theme) stay visible. */
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
-}
-.tob-thickness { display: flex; gap: 4px; align-items: center; }
-.tob-thick {
-  appearance: none;
-  background: transparent;
-  border: 1px solid var(--line-2);
-  border-radius: 4px;
-  padding: 6px 8px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 26px;
-}
-.tob-thick:hover { background: var(--bg-hov); }
-.tob-thick.is-active { background: var(--bg-act); border-color: var(--line-3); }
-/* "Draw with finger" — a switch, not a command, so it reads as on/off rather
-   than as something that fires. Gold is the active state, which is exactly what
-   --soleil is reserved for. */
-.tob-toggle[role="switch"] { white-space: nowrap; }
-
-/* Current-state chip for the phone draw bar. The swatch strip and the
-   thickness picker moved into a sheet, so the bar has to keep answering "what
-   am I drawing with" without them — a picker you can reach is worth nothing if
-   you can no longer see what is selected. Red dot in eraser mode, matching the
-   eraser's own thickness previews. */
-.tob-chip {
-  position: relative;
-  width: 40px; height: 40px;
-  background: var(--bg-2);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  cursor: pointer;
-  padding: 0;
-  flex: 0 0 auto;
-}
-.tob-chip.is-active { border-color: var(--soleil); }
-.tob-chip-dot {
-  position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%, -50%);
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--line-3);
-}
-.tob-chip-size {
-  left: auto; top: auto; right: 3px; bottom: 3px;
-  transform: none;
-  background: var(--ink-1);
-  box-shadow: 0 0 0 2px var(--bg-2);
-}
-.tob-toggle[role="switch"][aria-checked="true"] {
-  background: var(--soleil-soft);
-  border-color: var(--soleil);
-  color: var(--ink-0);
-}
-
 /* Touch sizing for the draw options.
    The swatches were 18px and the thickness buttons 26px tall — under half the
    44px this app already holds itself to elsewhere (.ctx-item is 40px, the
@@ -10421,39 +10158,11 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
    The ::after takes a swatch to 40px, half the gap a side (it hangs off the
    30px inside the border), so neighbours meet and never overlap: a press
    between two lands on the nearer colour. */
-@media (pointer: coarse) {
-  .tob-swatches { gap: 8px; }
-  .tob-sw { width: 32px; height: 32px; border-radius: 6px; position: relative; }
-  .tob-sw::after { content: ''; position: absolute; inset: -5px; }
-  .tob-sw:hover { transform: none; } /* no hover on touch — it just sticks */
-  .tob-thickness { gap: 8px; }
-  .tob-thick { width: 48px; height: 40px; }
-  .tob-action, .tob-segmented button { min-height: 40px; }
-  .tob-action, .tob-icon-btn { min-width: 40px; }
+@media (pointer: coarse) { /* no hover on touch — it just sticks */
+  .tob-segmented button { min-height: 40px; }
   /* The shape and line bars' fields, a finger tall; and text at 16px, under
      which iOS zooms the page in on focus (the note bar's size field too). */
-  .tob-select, .tob-numinput { min-height: 40px; }
-  .tob-select, .tob-numinput, .size-combo { font-size: 16px; }
-}
-
-.tob-pop-wrap { position: relative; display: inline-block; }
-.tob-pop {
-  position: absolute;
-  bottom: 32px; left: 0;
-  display: grid;
-  grid-template-columns: repeat(8, 18px);
-  gap: 3px;
-  padding: 6px;
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  box-shadow: var(--shadow-1);
-  z-index: 100;
-}
-/* A finger's swatches are 32px (above): columns to match, or each one lay
-   over half of the next. */
-@media (pointer: coarse) {
-  .tob-pop { grid-template-columns: repeat(8, 32px); gap: 8px; }
+  .size-combo { font-size: 16px; }
 }
 
 /* Mobile: the default bar is `max-width: calc(100% - 360px)`, which collapses
@@ -10481,8 +10190,6 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
     padding: 6px 8px;
   }
   .tob::-webkit-scrollbar { display: none; }
-  .tob-btn, .tob-action, .tob-icon-btn, .tob-thick { min-width: 40px; min-height: 40px; }
-  .tob-sep { flex: 0 0 auto; }
   /* The size field and its presets' chevron, a finger's each: the chevron
      takes the field's right end, which grows to hold it. */
   .tob .size-combo { width: 84px; height: 40px; padding-right: 40px; }
@@ -11007,16 +10714,6 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .pc-bands .pc-add { flex-basis: 18px; border-radius: 0; }
 .pc-add-label { display: none; }
-
-
-.tob-sw-custom {
-  background: var(--bg-3) !important;
-  color: var(--ink-2);
-  font-size: 14px; line-height: 1;
-  display: grid; place-items: center;
-  border: 1px dashed var(--line-3) !important;
-}
-.tob-sw-custom:hover { color: var(--ink-0); border-color: var(--line-3) !important; }
 
 /* ──────────────────────────── Phase 4.11: list select, segmented, picker ─ */
 
@@ -13862,8 +13559,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .doc-tb-sw {
   appearance: none; width: 20px; height: 20px;
   border-radius: var(--radius);
-  /* The note bar's edge (.tob-sw): white-on-white it hid the white swatch on
-     the light menu, and the black one barely showed on the dark. */
+  /* An edge: white-on-white it hid the white swatch on the light menu, and
+     the black one barely showed on the dark. */
   border: 1px solid var(--line-3);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease);
@@ -20420,7 +20117,6 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .cnv-hint,
 .cnv-zoom,
 .tob,
-.tob-pop,
 .doc,
 .doc-card,
 .doc-embed-picker,
@@ -20502,7 +20198,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
    Both absolute and fixed establish a containing block for the
    ::after pseudo, so the grain still anchors correctly. */
 .cnv-tools, .cnv-zoom, .cnv-hint, .cnv-add-menu, .topbar-add-menu,
-.inbox, .tob, .tob-pop, .doc-find, .tt-img-tb,
+.inbox, .tob, .doc-find, .tt-img-tb,
 .ws-menu, .ws-menu-row-pop,
 .home-graph-drawer, .home-graph-hud, .public-card,
 .rb-swatch-pop, .folder-tab,
@@ -20532,7 +20228,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .modal::after, .upgrade-modal::after, .share-modal::after, .twk-panel::after, .tweaks-panel::after,
 .bc::after, .bc-child::after, .bc-list-cover::after, .bc-list-slot::after, .blc::after,
 .cnv-tools::after, .cnv-hint::after, .cnv-zoom::after,
-.tob::after, .tob-pop::after,
+.tob::after,
 .doc::after, .doc-tb-colorpop::after, .doc-card::after, .doc-embed-picker::after,
 .doc-tpl::after, .doc-tpl-card::after,
 .doc-comments::after, .doc-comment::after, .doc-find::after,
