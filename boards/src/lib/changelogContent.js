@@ -77,6 +77,26 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": "The reminder to send a cluster to someone comes at most once a week."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "In a new workspace's setup, the invite link never fails silently: a phone without a share sheet copies it and says "
+     },
+     {
+      "t": "strong",
+      "v": "Copied",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copied"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and where the browser won't copy, the link is shown selected so you can copy it yourself."
+     }
     ]
    ]
   }

@@ -14,7 +14,7 @@ export const CHANGELOG_ENTRIES = [
     "date": "2026-10-27",
     "anchor": "2026-10-27",
     "title": "Share opens on the link again",
-    "summary": "The Share panel leads with the link again, and the reminder to send a cluster to someone comes at most once a week.",
+    "summary": "The Share panel leads with the link again, the reminder to send a cluster comes at most once a week, and the invite link in a new workspace never fails silently.",
     "headings": []
   },
   {
