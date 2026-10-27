@@ -1072,7 +1072,7 @@ export const DOCS_PAGES = [
     "title": "Files and Uploads — Soleil Clusters",
     "metaDescription": "Upload any file to Soleil Clusters, at any size, on every plan. How large uploads work, what counts toward your storage, and how deleting frees space.",
     "h1": "Files and uploads",
-    "answer": "Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
+    "answer": "Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; Word, PowerPoint, Excel and other documents show their first page; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
     "updated": "2026-10-27",

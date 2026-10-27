@@ -15104,7 +15104,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "A file card that opens on its pages"
+       "v": "A card showing its first page, opening on all its pages"
       }
      ]
     ],
@@ -15263,7 +15263,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A document opens on its pages, which page through as a "
+     "v": "A document's card shows its first page, at the page's own shape, as a "
     },
     {
      "t": "link",
@@ -15278,7 +15278,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "'s do. They are made once, in the background, so the first look can take a few seconds: the first 200 pages of a document up to 256 MB. A document with a password, or one that's damaged, opens as its card, with the download."
+     "v": "'s does — a spreadsheet's shows its first sheet — and counts its pages. It opens on its pages, which page through as a PDF's do. They are made once, in the background, so a new document's card takes a few seconds to show its page: the first 200 pages of a document up to 256 MB. A document with a password, or one that's damaged, stays a file card, with the download."
     }
    ]
   },
@@ -24010,7 +24010,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Everything gets a real preview, not a generic icon. Images and video show themselves; "
+     "v": "Everything gets a real preview, not a generic icon. Images and video show themselves, and a "
+    },
+    {
+     "t": "link",
+     "v": "document",
+     "href": "/docs/files",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (Word, PowerPoint, Excel and the rest) its first page; "
     },
     {
      "t": "link",

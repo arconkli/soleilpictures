@@ -49,3 +49,25 @@
 /* The download chip stays up while a download is being prepared, even after
    the pointer has left the card, so its spinner is seen. */
 .filec .ic-expand.is-busy { opacity: 1; cursor: progress; }
+
+/* A document's first page (FileCard's R2Image) fills the card from its top,
+   a sheet's cells from their top left, on white paper. */
+.filec .filec-page { position: absolute; inset: 0; }
+.filec .filec-page .r2p-img { object-position: center top; background: #fff; }
+.filec .filec-page.is-sheet .r2p-img { object-position: left top; }
+/* Until it's here, its glyph, saying so while the page is being made: only
+   once that takes a while, so a quick answer never flashes it. */
+.filec-glyph.is-making { flex-direction: column; gap: 10px; }
+.filec-making {
+  font-size: 11px; line-height: 1.3; letter-spacing: .01em;
+  color: var(--ink-2);
+  opacity: 0;
+  animation: filec-making-in .2s ease-out .8s forwards;
+}
+@keyframes filec-making-in { to { opacity: 1; } }
+
+/* Uploading in the light theme: the card isn't greyed, and the spinner and
+   the percentage read on it. */
+[data-theme="light"] .filec .ic-upload-overlay { background: transparent; }
+[data-theme="light"] .filec .ic-upload-overlay .spinner-on-dark { border-color: var(--line-2); border-top-color: var(--soleil); }
+[data-theme="light"] .filec .ic-upload-progress { color: var(--ink-2); text-shadow: none; }

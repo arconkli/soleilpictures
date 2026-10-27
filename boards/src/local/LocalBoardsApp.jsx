@@ -1832,6 +1832,21 @@ export function LocalBoardsApp({ user, signOut }) {
     return () => { delete window.__soleilVideoLive; };
   });
 
+  // And for files (the document card spec): a file card on any fileSrc, a
+  // stored file's "r2:" key included, which this shell's own drops never
+  // make.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    window.__soleilFileLive = {
+      addFile: ({ x = 200, y = 200, w = 240, h = 150, ...rest } = {}) => {
+        const id = rest.id || createId('file');
+        addCard({ id, kind: 'file', x, y, w, h, ...rest });
+        return id;
+      },
+    };
+    return () => { delete window.__soleilFileLive; };
+  });
+
   // Target half of a move into another cluster — App.jsx's
   // 'soleil-card-into-board-drop' listener reduced to what this shell stores.
   // The cards land on the target under fresh ids, offset to the same corner the

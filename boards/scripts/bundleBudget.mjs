@@ -83,7 +83,13 @@ export const CEILINGS = {
   // fcbf8b7c), and CI measured 686.4 KB on 1a4c29ed, so the ceiling comes
   // down to that plus 0.6 rather than leaving 7.6 KB that anything could grow
   // into unseen.
-  appJs: 687_000,
+  // 2026-10-27: +2.8 KB for the document card (the owner's direction A): a
+  // Word, PowerPoint or Excel file's card shows its first page, its glyph
+  // until then (R2Image's placeholder), and its page count, and Files and the
+  // sidebar show the page. Most of it is the family glyphs a board draws at
+  // once (Excel's, PowerPoint's, a deck's): every Phosphor icon carries all
+  // six weights. CI measured 685.7 KB on 80e02093, this change 689.2.
+  appJs: 689_800,
   appCss: 21_000,
 };
 

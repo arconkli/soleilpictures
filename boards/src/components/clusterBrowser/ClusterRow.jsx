@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { CardPreview } from './CardPreview.jsx';
+import { CardPreview, useImageMeta } from './CardPreview.jsx';
 import { Avatar } from '../primitives.jsx';
 import { humanSize } from '../cards/FileCard.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
@@ -84,8 +84,10 @@ export const ClusterRow = memo(function ClusterRow({
   // space instead. See .ct-thumb.is-bare.
   const bareAudio = canAudition && item.preview?.mode === 'icon';
   // On that page a file with no picture of its own is drawn as the sidebar's
-  // card draws it: its quiet glyph, with no box.
-  const glyphOnly = words && !item.pending && !bareAudio && item.preview?.mode !== 'r2';
+  // card draws it: its quiet glyph, with no box. A document's first page,
+  // once it's made, is its picture.
+  const hasPage = !!useImageMeta(item.preview?.page)?.previewKey;
+  const glyphOnly = words && !item.pending && !bareAudio && item.preview?.mode !== 'r2' && !hasPage;
   // On a shelf a row's size says what matters about it: how long a clip
   // runs, how big a file is, where a link goes. In the List it is the size.
   const bytes = Number.isFinite(item.sizeBytes) && item.sizeBytes > 0 ? humanSize(item.sizeBytes) : '';

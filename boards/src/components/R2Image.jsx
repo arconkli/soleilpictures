@@ -290,7 +290,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
                         bust,
                         // progressive-only props are accepted + ignored here so
                         // they never leak onto the DOM if mis-passed.
-                        backfillEnabled, upgradeToFull, boardId, ...rest }) {
+                        backfillEnabled, upgradeToFull, boardId, placeholder, ...rest }) {
   const srcKey = typeof src === 'string' && src.startsWith('r2:') ? src.slice(3) : null;
   // The file's preview, shown in place of an original the browser can't draw.
   const [viaPreview, setViaPreview] = useState(() => serverView(srcKey));
@@ -489,9 +489,14 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
 }
 
 // ── Progressive (canvas image cards) ────────────────────────────────────
+// `placeholder(state)` draws what stands in for a picture that isn't there:
+// 'idle' until there's one to show (while its meta loads, and under it until
+// it has faded in), 'making' while its view is being made, 'none' when none
+// will come. Without it, the shimmer, "Preview not available" and the
+// padlock. A document's file card passes its glyph.
 function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                               backfillEnabled = false, upgradeToFull = true, boardId = null,
-                              cardId = null, className, style, draggable, ...rest }) {
+                              cardId = null, className, style, draggable, placeholder = null, ...rest }) {
   const originalKey = (typeof src === 'string' && src.startsWith('r2:')) ? src.slice(3) : null;
   // A format no browser draws (a raw, a .psd, OpenEXR): the original is never
   // fetched, shown or promoted to; the card shows its view, or waits for one.
@@ -565,13 +570,15 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // 0.35s fade completes (it's fully occluded by then). Frees ~1 painted layer
   // per card — at fit-all on a 70-image board that's the difference between the
   // compositor sampling 70 vs 140 textures every raster. `loaded` can't unset
-  // while mounted, so this never strands a card on a blank.
+  // while mounted, so this never strands a card on a blank. A `placeholder`
+  // drawn under the picture goes the same way.
   const BLUR_UNMOUNT_MS = 500;
+  const underLayer = !!blurUrl || typeof placeholder === 'function';
   useEffect(() => {
-    if (!loaded || !blurUrl || !blurMounted) return undefined;
+    if (!loaded || !underLayer || !blurMounted) return undefined;
     const t = setTimeout(() => setBlurMounted(false), BLUR_UNMOUNT_MS);
     return () => clearTimeout(t);
-  }, [loaded, blurUrl, blurMounted]);
+  }, [loaded, underLayer, blurMounted]);
 
   // Subscribe to metadata arriving after a cold open (the prime query landing,
   // or a fresh upload's variant generation).
@@ -937,19 +944,22 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     });
   };
 
-  if (failed) return <BlockedPlaceholder {...rest} />;
+  const stand = (state) => <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}>{placeholder(state)}</div>;
+  if (failed) return placeholder ? stand('none') : <BlockedPlaceholder {...rest} />;
   if (unavailable) {
+    if (placeholder) return stand('none');
     return <UnavailablePlaceholder rootRef={rootRef} className={className || ''} style={style} alt={alt}
                                    downloadSrc={originalKey ? src : null} {...rest} />;
   }
   if (awaitingView || blockOriginal) {
+    if (placeholder) return stand(awaitingView ? 'making' : 'idle');
     return <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}><div className="r2p-layer r2-img-loading" /></div>;
   }
 
   return (
     <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}>
       {blurUrl && blurMounted && <img className="r2p-blur" src={blurUrl} alt="" aria-hidden="true" draggable="false" />}
-      {!blurUrl && !url && <div className="r2p-layer r2-img-loading" />}
+      {!blurUrl && (placeholder ? blurMounted && placeholder('idle') : !url && <div className="r2p-layer r2-img-loading" />)}
       {url && (
         <img ref={imgRef}
              className={`r2p-img ${loaded ? 'is-loaded' : ''}${fastLoadRef.current ? ' r2p-warm' : ''}`}

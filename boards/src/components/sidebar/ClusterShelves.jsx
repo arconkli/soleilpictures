@@ -12,7 +12,7 @@
 // section's viewport, against a spacer as tall as the whole list, so it
 // scrolls the same either way.
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
 import { Icon } from '../Icon.jsx';
 import { ArrowsOutSimple, ChevronRight, GridFour, Scribble, Check } from '../../lib/icons.js';
@@ -20,6 +20,8 @@ import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
 import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebarRows.js';
+import { getMeta, subscribeMeta, primeImageMeta } from '../../lib/imageMeta.js';
+import { viewKindOfKey, docFamily, extOfKey } from '../../lib/fileView.js';
 
 const WINDOW_AFTER = 80;
 // Rows start a little in from the list's edge, so a hover fill has room: with
@@ -68,10 +70,51 @@ export function KindGlyph({ kind, ext = '', mime = '', size = 16 }) {
   return <KindIcon kind={kind} size={size} weight="regular" />;
 }
 
+// Documents on rows no board open has read the meta of (Recent, Starred, a
+// cluster not open): asked about together, once.
+const docsToPrime = new Set();
+function primeDoc(key) {
+  if (getMeta(key) != null) return;
+  if (!docsToPrime.size) {
+    setTimeout(() => {
+      const keys = [...docsToPrime];
+      docsToPrime.clear();
+      primeImageMeta(keys);
+    }, 0);
+  }
+  docsToPrime.add(key);
+}
+
+// A document's first page, once it's made (lib/fileView.js): its small view,
+// for the row's thumb.
+function useDocThumb(item) {
+  const ref = item.kind === 'file' ? item.meta?.fileSrc : null;
+  const key = typeof ref === 'string' && ref.startsWith('r2:') && viewKindOfKey(ref.slice(3)) === 'doc' ? ref.slice(3) : null;
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (!key) return undefined;
+    const unsub = subscribeMeta(key, () => bump((n) => n + 1));
+    primeDoc(key);
+    return unsub;
+  }, [key]);
+  const m = key ? getMeta(key) : null;
+  const view = m?.previewSmKey || m?.previewKey;
+  return view ? { src: `r2:${view}`, sheet: docFamily(extOfKey(key)) === 'sheet' } : null;
+}
+
 function ItemGlyph({ item }) {
+  const page = useDocThumb(item);
   const src = thumbSrc(item);
   if (src) {
     return <span className="sbf-file-thumb"><R2Image src={src} alt="" /></span>;
+  }
+  // The page from its top, a sheet's cells from their top left.
+  if (page) {
+    return (
+      <span className="sbf-file-thumb">
+        <R2Image src={page.src} alt="" style={{ objectPosition: page.sheet ? 'left top' : 'center top' }} />
+      </span>
+    );
   }
   return (
     <span className="sbf-file-icon">

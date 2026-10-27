@@ -2,7 +2,8 @@
 // the Gallery tile never diverge. Given a normalized ListItem (its `preview`
 // descriptor, built in lib/listItem.js) it returns the cheapest REAL preview:
 //   • r2         → R2Image (progressive) — image / pdf-thumb / video-poster / audio-cover
-//   • file       → typed iconForFile glyph + extension badge
+//   • file       → typed iconForFile glyph + extension badge, or a document's
+//                  first page once it's made
 //   • swatches   → palette swatch grid
 //   • grid       → subdivision schematic (GridMark)
 //   • doc        → title + text-line schematic (DocMark)
@@ -21,11 +22,12 @@ import { KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
 import { iconForFile, humanSize } from '../cards/FileCard.jsx';
 import { formatDuration } from '../../lib/loopMeta.js';
+import { docFamily, extOfKey } from '../../lib/fileView.js';
 import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark, AudioMark, inkOn } from './marks.jsx';
 import { GridContentPreview } from './GridContentPreview.jsx';
 
 // The stored image's metadata (its preview sizes), re-rendering when it lands.
-function useImageMeta(src) {
+export function useImageMeta(src) {
   const key = typeof src === 'string' && src.startsWith('r2:') ? src.slice(3) : null;
   const [, bump] = useState(0);
   useEffect(() => (key ? subscribeMeta(key, () => bump((n) => n + 1)) : undefined), [key]);
@@ -39,7 +41,7 @@ export function CardPreview({ item, size = 'row', px = null }) {
   const p = item?.preview || { mode: 'icon', kind: item?.kind };
   const glyphSize = size === 'tile' ? 40 : 22;
   const displayPx = px || (size === 'tile' ? 320 : 48);
-  const meta = useImageMeta(p.mode === 'r2' ? p.src : null);
+  const meta = useImageMeta(p.mode === 'r2' ? p.src : p.mode === 'file' ? p.page : null);
   // A preview that won't load falls back to the original, once.
   const [originalOnly, setOriginalOnly] = useState(false);
 
@@ -53,6 +55,15 @@ export function CardPreview({ item, size = 'row', px = null }) {
                     onError={src !== p.src ? () => setOriginalOnly(true) : undefined} />;
   }
   if (p.mode === 'file') {
+    // A document whose first page is made shows the page, from its top (a
+    // sheet's cells from their top left), as its card does on the canvas.
+    if (p.page && meta?.previewKey) {
+      const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+      const src = tileImageSrc(p.page, meta, displayPx * dpr);
+      const objectPosition = docFamily(extOfKey(p.page)) === 'sheet' ? 'left top' : 'center top';
+      return <R2Image key={src} src={src} alt="" className="cbp-img" draggable="false"
+                      w={displayPx} h={displayPx} style={{ objectPosition }} />;
+    }
     const GlyphIcon = iconForFile(p.ext, p.mime);
     if (size === 'tile') return <FileFace glyph={<Icon as={GlyphIcon} size={34} weight="light" />} ext={p.ext} item={item} />;
     return (

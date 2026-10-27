@@ -256,7 +256,8 @@ everything that could be read, and says how many could not.
 ## Previews
 
 Everything gets a real preview, not a generic icon. Images and video show
-themselves; [grids](/docs/canvas/grids), [docs](/docs/documents),
+themselves, and a [document](/docs/files) (Word, PowerPoint, Excel and the
+rest) its first page; [grids](/docs/canvas/grids), [docs](/docs/documents),
 shapes, notes and links get schematic marks
 that indicate their shape and content.
 

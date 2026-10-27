@@ -1,18 +1,21 @@
 // Generic file card — any uploaded file that isn't a richer card kind
 // (image/pdf/video/audio). Shows a type icon, filename + size, and a
-// download/open button. Small text-ish files render an inline preview. The
-// original lives at `fileSrc` ("r2:<key>"). Read-only safe (works on public
-// boards: download/preview just resolve a signed read URL).
+// download/open button. Small text-ish files render an inline preview, and a
+// document (Word, PowerPoint, Excel…) its first page. The original lives at
+// `fileSrc` ("r2:<key>"). Read-only safe (works on public boards:
+// download/preview just resolve a signed read URL).
 
 import { useState, useEffect, useRef } from 'react';
 import { Spinner } from '../Spinner.jsx';
 import { EditableText } from '../EditableText.jsx';
 import { Icon } from '../Icon.jsx';
+import { R2Image } from '../R2Image.jsx';
 import { resolveSrc } from '../../lib/r2.js';
+import { viewKindOfKey, docFamily, extOfKey, DOC_MAX_PAGES } from '../../lib/fileView.js';
 import { downloadCardAsset } from '../../lib/cardDownload.js';
 import { useOptionalFeedback } from '../AppFeedback.jsx';
 import {
-  FileIcon, FileText, FilePdf, FileZip, FileDoc, Image as ImagePh,
+  FileIcon, FileText, FilePdf, FileZip, FileDoc, FilePpt, FileXls, Presentation, Image as ImagePh,
   Headphones, Clapperboard, Database, CodeIcon, Download,
 } from '../../lib/icons.js';
 import './fileCard.css';
@@ -42,8 +45,14 @@ export function iconForFile(ext, mime) {
   const m = (mime || '').toLowerCase();
   if (e === 'pdf' || m === 'application/pdf') return FilePdf;
   if (/^(zip|rar|7z|gz|tgz|bz2|xz|tar|dmg|iso)$/.test(e)) return FileZip;
-  if (/^(csv|tsv|xls|xlsx|numbers|parquet)$/.test(e)) return Database;
-  if (/^(doc|docx|pages|rtf|odt)$/.test(e)) return FileDoc;
+  // A document wears its family's glyph: Excel's, PowerPoint's and Word's
+  // own, a deck's for Keynote and the rest, and the data files' for the other
+  // spreadsheets.
+  if (/^(xls|xlsx|xlsm|xlsb|xlt|xltx|xltm)$/.test(e)) return FileXls;
+  if (/^(ppt|pptx|pptm|pps|ppsx|ppsm|pot|potx|potm)$/.test(e)) return FilePpt;
+  if (/^(key|odp|otp|sxi)$/.test(e)) return Presentation;
+  if (/^(numbers|ods|ots|sxc|csv|tsv|parquet)$/.test(e)) return Database;
+  if (/^(doc|docx|docm|dot|dotx|dotm|pages|rtf|odt|ott|wpd|wps|sxw)$/.test(e)) return FileDoc;
   if (CODE_EXTS.has(e) || m === 'application/json') return CodeIcon;
   if (TEXT_EXTS.has(e) || m.startsWith('text/')) return FileText;
   if (/^(psd|ai|sketch|fig|xd|eps|svg|tiff?|raw|cr2|nef|heic)$/.test(e) || m.startsWith('image/')) return ImagePh;
@@ -57,7 +66,11 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
                           pending = false, uploadProgress = null,
                           // On a board, double-click belongs to the board (it
                           // opens the file full screen); elsewhere it downloads.
-                          opensOnBoard = false }) {
+                          opensOnBoard = false,
+                          // A document's page: the card's size (for the size
+                          // of picture it fetches), its board and id, and the
+                          // number of pages the editors' pass wrote on it.
+                          w, h, boardId = null, cardId = null, pageCount = null }) {
   const [editingTitle, setEditingTitle] = useState(false);
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
   const prevEdit = useRef(editingTitle);
@@ -71,6 +84,27 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   const label = title || fileName || 'File';   // a rename shows; the download keeps fileName
   const sizeText = humanSize(sizeBytes);
   const showTitle = !!title || editingTitle;
+
+  // A document shows its first page (lib/fileView.js), as a PDF card shows
+  // its: the page fills the card from its top (a sheet's cells from their top
+  // left), so a card placed before pages showed, still a file card's shape,
+  // shows the top of the page. Until the page is here the card is its glyph,
+  // saying so while the page is being made, and one that won't get a page
+  // stays its glyph. Its strip counts its pages (slides, for a deck) once it
+  // knows them, and gives its size until then.
+  const docKey = !pending && typeof fileSrc === 'string' && fileSrc.startsWith('r2:')
+    && viewKindOfKey(fileSrc.slice(3)) === 'doc' ? fileSrc.slice(3) : '';
+  const family = docKey ? docFamily(extOfKey(docKey)) : null;
+  const pages = Number(pageCount) > 0 ? Math.floor(Number(pageCount)) : 0;
+  const unit = family === 'slides' ? (pages === 1 ? 'slide' : 'slides') : (pages === 1 ? 'page' : 'pages');
+  // The converter prints the first DOC_MAX_PAGES pages and no more.
+  const metaText = docKey && pages ? `${pages}${pages >= DOC_MAX_PAGES ? '+' : ''} ${unit}` : sizeText;
+  const docPlaceholder = (state) => (
+    <div className={`filec-glyph${state === 'making' ? ' is-making' : ''}`}>
+      <Icon as={GlyphIcon} size={42} />
+      {state === 'making' && <span className="filec-making">Making a preview…</span>}
+    </div>
+  );
 
   // Inline preview for small text-ish files (best-effort, never blocks the card).
   const [preview, setPreview] = useState(null);
@@ -122,10 +156,15 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   return (
     <div className="filec ic">
       <div className={`filec-body ${preview != null ? 'has-preview' : ''}`} onDoubleClick={opensOnBoard ? undefined : download}>
-        {preview != null ? (
+        {docKey ? (
+          <R2Image progressive src={fileSrc} alt={label} w={w} h={h} boardId={boardId} cardId={cardId}
+                   className={`filec-page${family === 'sheet' ? ' is-sheet' : ''}`} draggable="false"
+                   placeholder={docPlaceholder} />
+        ) : preview != null ? (
           <pre className={`filec-preview ${CODE_EXTS.has(e) ? 'is-code' : ''}`}>{preview}</pre>
         ) : (
-          <div className="filec-glyph"><Icon as={GlyphIcon} size={42} /></div>
+          // Uploading, the spinner stands alone on the card.
+          <div className="filec-glyph">{!pending && <Icon as={GlyphIcon} size={42} />}</div>
         )}
         {pending && (
           <div className="ic-upload-overlay" aria-label="Uploading file">
@@ -149,7 +188,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
         <div className="filec-info">
           <span className="filec-info-icon"><Icon as={GlyphIcon} size={15} /></span>
           <span className="filec-info-name" title={label}>{label}</span>
-          {sizeText && <span className="filec-info-size">{sizeText}</span>}
+          {metaText && <span className="filec-info-size">{metaText}</span>}
         </div>
       </div>
       {showTitle && onUpdate && (

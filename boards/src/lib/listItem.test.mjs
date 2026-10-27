@@ -224,3 +224,15 @@ test('an imported file is Modified by its own date, until a version replaces it 
   // A card nothing imported is unchanged.
   assert.equal(toListItem({ id: 'n', kind: 'note', createdAt: came }).updatedAt, came);
 });
+
+test("a document's item carries its file as its page, which the Files tiles and rows show once it is made", () => {
+  const doc = toListItem({ id: 'd', kind: 'file', fileName: 'Pitch.pptx', ext: 'pptx', fileSrc: 'r2:ws/abc/Pitch.pptx' });
+  assert.equal(doc.preview.mode, 'file');
+  assert.equal(doc.preview.page, 'r2:ws/abc/Pitch.pptx');
+  for (const card of [
+    { id: 'z', kind: 'file', fileName: 'pack.zip', ext: 'zip', fileSrc: 'r2:ws/abc/pack.zip' },
+    { id: 'p', kind: 'file', fileName: 'Pitch.pptx', ext: 'pptx', fileSrc: 'blob:x' },
+    { id: 'u', kind: 'file', fileName: 'Pitch.pptx', ext: 'pptx' },
+  ]) assert.equal(toListItem(card).preview.page, undefined, card.id);
+});
+
